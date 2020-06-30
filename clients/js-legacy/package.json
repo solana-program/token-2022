@@ -1,5 +1,5 @@
 {
-  "name": "token",
+  "name": "spl-token",
   "version": "0.0.1",
   "description": "",
   "repository": {
@@ -31,7 +31,7 @@
     "prettier": "^2.0.2"
   },
   "dependencies": {
-    "@solana/web3.js": "^0.60.0",
+    "@solana/web3.js": "^0.62.0",
     "babel-cli": "^6.26.0",
     "babel-core": "^6.26.3",
     "babel-eslint": "^10.0.1",
