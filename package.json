@@ -1,0 +1,21 @@
+{
+  "private": true,
+  "scripts": {
+    "generate": "pnpm generate:clients",
+    "generate:clients": "zx ./scripts/generate-clients.mjs",
+    "validator:start": "zx ./scripts/start-validator.mjs",
+    "validator:restart": "pnpm validator:start --restart",
+    "validator:stop": "zx ./scripts/stop-validator.mjs",
+    "clients:js:test": "zx ./scripts/client/test-js.mjs",
+    "clients:rust:test": "zx ./scripts/client/test-rust.mjs"
+  },
+  "devDependencies": {
+    "@iarna/toml": "^2.2.5",
+    "@kinobi-so/renderers-js": "^0.20.2",
+    "@kinobi-so/renderers-rust": "^0.20.3",
+    "kinobi": "^0.20.1",
+    "typescript": "^5.4.2",
+    "zx": "^7.2.3"
+  },
+  "packageManager": "pnpm@9.1.0"
+}
