@@ -13,6 +13,8 @@ import {
   GetDiscriminatedUnionVariant,
   GetDiscriminatedUnionVariantContent,
   ReadonlyUint8Array,
+  addDecoderSizePrefix,
+  addEncoderSizePrefix,
   combineCodec,
   getBytesDecoder,
   getBytesEncoder,
@@ -58,47 +60,167 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
   return getDiscriminatedUnionEncoder(
     [
       ['Uninitialized', getUnitEncoder()],
-      ['TransferFeeConfig', getStructEncoder([['data', getBytesEncoder()]])],
-      ['TransferFeeAmount', getStructEncoder([['data', getBytesEncoder()]])],
-      ['MintCloseAuthority', getStructEncoder([['data', getBytesEncoder()]])],
+      [
+        'TransferFeeConfig',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
+      [
+        'TransferFeeAmount',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
+      [
+        'MintCloseAuthority',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
       [
         'ConfidentialTransferMint',
-        getStructEncoder([['data', getBytesEncoder()]]),
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
       ],
       [
         'ConfidentialTransferAccount',
-        getStructEncoder([['data', getBytesEncoder()]]),
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
       ],
-      ['DefaultAccountState', getStructEncoder([['data', getBytesEncoder()]])],
-      ['ImmutableOwner', getStructEncoder([['data', getBytesEncoder()]])],
-      ['MemoTransfer', getStructEncoder([['data', getBytesEncoder()]])],
-      ['NonTransferable', getStructEncoder([['data', getBytesEncoder()]])],
+      [
+        'DefaultAccountState',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
+      [
+        'ImmutableOwner',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
+      [
+        'MemoTransfer',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
+      [
+        'NonTransferable',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
       [
         'InterestBearingConfig',
-        getStructEncoder([['data', getBytesEncoder()]]),
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
       ],
-      ['CpiGuard', getStructEncoder([['data', getBytesEncoder()]])],
-      ['PermanentDelegate', getStructEncoder([['data', getBytesEncoder()]])],
+      [
+        'CpiGuard',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
+      [
+        'PermanentDelegate',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
       [
         'NonTransferableAccount',
-        getStructEncoder([['data', getBytesEncoder()]]),
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
       ],
-      ['TransferHook', getStructEncoder([['data', getBytesEncoder()]])],
-      ['TransferHookAccount', getStructEncoder([['data', getBytesEncoder()]])],
+      [
+        'TransferHook',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
+      [
+        'TransferHookAccount',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
       [
         'ConfidentialTransferFee',
-        getStructEncoder([['data', getBytesEncoder()]]),
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
       ],
       [
         'ConfidentialTransferFeeAmount',
-        getStructEncoder([['data', getBytesEncoder()]]),
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
       ],
-      ['MetadataPointer', getStructEncoder([['data', getBytesEncoder()]])],
-      ['TokenMetadata', getStructEncoder([['data', getBytesEncoder()]])],
-      ['GroupPointer', getStructEncoder([['data', getBytesEncoder()]])],
-      ['TokenGroup', getStructEncoder([['data', getBytesEncoder()]])],
-      ['GroupMemberPointer', getStructEncoder([['data', getBytesEncoder()]])],
-      ['TokenGroupMember', getStructEncoder([['data', getBytesEncoder()]])],
+      [
+        'MetadataPointer',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
+      [
+        'TokenMetadata',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
+      [
+        'GroupPointer',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
+      [
+        'TokenGroup',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
+      [
+        'GroupMemberPointer',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
+      [
+        'TokenGroupMember',
+        addEncoderSizePrefix(
+          getStructEncoder([['data', getBytesEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
     ],
     { size: getU16Encoder() }
   );
@@ -108,47 +230,167 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
   return getDiscriminatedUnionDecoder(
     [
       ['Uninitialized', getUnitDecoder()],
-      ['TransferFeeConfig', getStructDecoder([['data', getBytesDecoder()]])],
-      ['TransferFeeAmount', getStructDecoder([['data', getBytesDecoder()]])],
-      ['MintCloseAuthority', getStructDecoder([['data', getBytesDecoder()]])],
+      [
+        'TransferFeeConfig',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
+      [
+        'TransferFeeAmount',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
+      [
+        'MintCloseAuthority',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
       [
         'ConfidentialTransferMint',
-        getStructDecoder([['data', getBytesDecoder()]]),
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
       ],
       [
         'ConfidentialTransferAccount',
-        getStructDecoder([['data', getBytesDecoder()]]),
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
       ],
-      ['DefaultAccountState', getStructDecoder([['data', getBytesDecoder()]])],
-      ['ImmutableOwner', getStructDecoder([['data', getBytesDecoder()]])],
-      ['MemoTransfer', getStructDecoder([['data', getBytesDecoder()]])],
-      ['NonTransferable', getStructDecoder([['data', getBytesDecoder()]])],
+      [
+        'DefaultAccountState',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
+      [
+        'ImmutableOwner',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
+      [
+        'MemoTransfer',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
+      [
+        'NonTransferable',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
       [
         'InterestBearingConfig',
-        getStructDecoder([['data', getBytesDecoder()]]),
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
       ],
-      ['CpiGuard', getStructDecoder([['data', getBytesDecoder()]])],
-      ['PermanentDelegate', getStructDecoder([['data', getBytesDecoder()]])],
+      [
+        'CpiGuard',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
+      [
+        'PermanentDelegate',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
       [
         'NonTransferableAccount',
-        getStructDecoder([['data', getBytesDecoder()]]),
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
       ],
-      ['TransferHook', getStructDecoder([['data', getBytesDecoder()]])],
-      ['TransferHookAccount', getStructDecoder([['data', getBytesDecoder()]])],
+      [
+        'TransferHook',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
+      [
+        'TransferHookAccount',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
       [
         'ConfidentialTransferFee',
-        getStructDecoder([['data', getBytesDecoder()]]),
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
       ],
       [
         'ConfidentialTransferFeeAmount',
-        getStructDecoder([['data', getBytesDecoder()]]),
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
       ],
-      ['MetadataPointer', getStructDecoder([['data', getBytesDecoder()]])],
-      ['TokenMetadata', getStructDecoder([['data', getBytesDecoder()]])],
-      ['GroupPointer', getStructDecoder([['data', getBytesDecoder()]])],
-      ['TokenGroup', getStructDecoder([['data', getBytesDecoder()]])],
-      ['GroupMemberPointer', getStructDecoder([['data', getBytesDecoder()]])],
-      ['TokenGroupMember', getStructDecoder([['data', getBytesDecoder()]])],
+      [
+        'MetadataPointer',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
+      [
+        'TokenMetadata',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
+      [
+        'GroupPointer',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
+      [
+        'TokenGroup',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
+      [
+        'GroupMemberPointer',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
+      [
+        'TokenGroupMember',
+        addDecoderSizePrefix(
+          getStructDecoder([['data', getBytesDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
     ],
     { size: getU16Decoder() }
   );
