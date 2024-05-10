@@ -125,7 +125,13 @@ export type MintExtension =
       metadataAddress: Option<Address>;
     }
   | { __kind: 'TokenMetadata'; data: ReadonlyUint8Array }
-  | { __kind: 'GroupPointer'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'GroupPointer';
+      /** Optional authority that can set the group address. */
+      authority: Option<Address>;
+      /** Optional account address that holds the group. */
+      groupAddress: Option<Address>;
+    }
   | { __kind: 'TokenGroup'; data: ReadonlyUint8Array }
   | { __kind: 'GroupMemberPointer'; data: ReadonlyUint8Array }
   | { __kind: 'TokenGroupMember'; data: ReadonlyUint8Array };
@@ -206,7 +212,13 @@ export type MintExtensionArgs =
       metadataAddress: OptionOrNullable<Address>;
     }
   | { __kind: 'TokenMetadata'; data: ReadonlyUint8Array }
-  | { __kind: 'GroupPointer'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'GroupPointer';
+      /** Optional authority that can set the group address. */
+      authority: OptionOrNullable<Address>;
+      /** Optional account address that holds the group. */
+      groupAddress: OptionOrNullable<Address>;
+    }
   | { __kind: 'TokenGroup'; data: ReadonlyUint8Array }
   | { __kind: 'GroupMemberPointer'; data: ReadonlyUint8Array }
   | { __kind: 'TokenGroupMember'; data: ReadonlyUint8Array };
@@ -371,7 +383,10 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'GroupPointer',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([
+            ['authority', getZeroableOptionEncoder(getAddressEncoder())],
+            ['groupAddress', getZeroableOptionEncoder(getAddressEncoder())],
+          ]),
           getU16Encoder()
         ),
       ],
@@ -561,7 +576,10 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'GroupPointer',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([
+            ['authority', getZeroableOptionDecoder(getAddressDecoder())],
+            ['groupAddress', getZeroableOptionDecoder(getAddressDecoder())],
+          ]),
           getU16Decoder()
         ),
       ],
