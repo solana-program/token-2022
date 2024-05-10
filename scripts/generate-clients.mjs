@@ -1,6 +1,6 @@
 #!/usr/bin/env zx
 import "zx/globals";
-import { createFromRoot } from "kinobi";
+import { createFromRoot, identityVisitor } from "kinobi";
 import { renderVisitor as renderJavaScriptVisitor } from "@kinobi-so/renderers-js";
 // import { renderVisitor as renderRustVisitor } from "@kinobi-so/renderers-rust";
 import { workingDirectory } from "./utils.mjs";
@@ -8,6 +8,13 @@ import { workingDirectory } from "./utils.mjs";
 // Instanciate Kinobi.
 const kinobi = createFromRoot(
   require(path.join(workingDirectory, "program", "idl.json"))
+);
+
+// Write JSON file.
+fs.writeFileSync(
+  path.join(workingDirectory, "program", "idl.json"),
+  JSON.stringify(kinobi.accept(identityVisitor()), null, 2),
+  { encoding: "utf-8", flag: "w" }
 );
 
 // Render JavaScript.
