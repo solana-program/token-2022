@@ -34,6 +34,12 @@ import {
   getUnitDecoder,
   getUnitEncoder,
 } from '@solana/web3.js';
+import {
+  AccountState,
+  AccountStateArgs,
+  getAccountStateDecoder,
+  getAccountStateEncoder,
+} from '.';
 
 export type MintExtension =
   | { __kind: 'Uninitialized' }
@@ -42,7 +48,7 @@ export type MintExtension =
   | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
   | { __kind: 'ConfidentialTransferMint'; data: ReadonlyUint8Array }
   | { __kind: 'ConfidentialTransferAccount'; data: ReadonlyUint8Array }
-  | { __kind: 'DefaultAccountState'; data: ReadonlyUint8Array }
+  | { __kind: 'DefaultAccountState'; state: AccountState }
   | { __kind: 'ImmutableOwner'; data: ReadonlyUint8Array }
   | { __kind: 'MemoTransfer'; data: ReadonlyUint8Array }
   | { __kind: 'NonTransferable' }
@@ -75,7 +81,7 @@ export type MintExtensionArgs =
   | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
   | { __kind: 'ConfidentialTransferMint'; data: ReadonlyUint8Array }
   | { __kind: 'ConfidentialTransferAccount'; data: ReadonlyUint8Array }
-  | { __kind: 'DefaultAccountState'; data: ReadonlyUint8Array }
+  | { __kind: 'DefaultAccountState'; state: AccountStateArgs }
   | { __kind: 'ImmutableOwner'; data: ReadonlyUint8Array }
   | { __kind: 'MemoTransfer'; data: ReadonlyUint8Array }
   | { __kind: 'NonTransferable' }
@@ -143,7 +149,7 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'DefaultAccountState',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([['state', getAccountStateEncoder()]]),
           getU16Encoder()
         ),
       ],
@@ -316,7 +322,7 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'DefaultAccountState',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([['state', getAccountStateDecoder()]]),
           getU16Decoder()
         ),
       ],

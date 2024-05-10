@@ -2442,10 +2442,11 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "data",
+                      "name": "state",
                       "docs": [],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "definedTypeLinkNode",
+                        "name": "accountState"
                       }
                     }
                   ]
