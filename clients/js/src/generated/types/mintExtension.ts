@@ -7,6 +7,7 @@
  */
 
 import {
+  Address,
   Codec,
   Decoder,
   Encoder,
@@ -16,14 +17,20 @@ import {
   addDecoderSizePrefix,
   addEncoderSizePrefix,
   combineCodec,
+  getAddressDecoder,
+  getAddressEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getDiscriminatedUnionDecoder,
   getDiscriminatedUnionEncoder,
+  getI16Decoder,
+  getI16Encoder,
   getStructDecoder,
   getStructEncoder,
   getU16Decoder,
   getU16Encoder,
+  getU64Decoder,
+  getU64Encoder,
   getUnitDecoder,
   getUnitEncoder,
 } from '@solana/web3.js';
@@ -32,16 +39,23 @@ export type MintExtension =
   | { __kind: 'Uninitialized' }
   | { __kind: 'TransferFeeConfig'; data: ReadonlyUint8Array }
   | { __kind: 'TransferFeeAmount'; data: ReadonlyUint8Array }
-  | { __kind: 'MintCloseAuthority'; data: ReadonlyUint8Array }
+  | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
   | { __kind: 'ConfidentialTransferMint'; data: ReadonlyUint8Array }
   | { __kind: 'ConfidentialTransferAccount'; data: ReadonlyUint8Array }
   | { __kind: 'DefaultAccountState'; data: ReadonlyUint8Array }
   | { __kind: 'ImmutableOwner'; data: ReadonlyUint8Array }
   | { __kind: 'MemoTransfer'; data: ReadonlyUint8Array }
-  | { __kind: 'NonTransferable'; data: ReadonlyUint8Array }
-  | { __kind: 'InterestBearingConfig'; data: ReadonlyUint8Array }
+  | { __kind: 'NonTransferable' }
+  | {
+      __kind: 'InterestBearingConfig';
+      rateAuthority: Address;
+      initializationTimestamp: bigint;
+      preUpdateAverageRate: number;
+      lastUpdateTimestamp: bigint;
+      currentRate: number;
+    }
   | { __kind: 'CpiGuard'; data: ReadonlyUint8Array }
-  | { __kind: 'PermanentDelegate'; data: ReadonlyUint8Array }
+  | { __kind: 'PermanentDelegate'; delegate: Address }
   | { __kind: 'NonTransferableAccount'; data: ReadonlyUint8Array }
   | { __kind: 'TransferHook'; data: ReadonlyUint8Array }
   | { __kind: 'TransferHookAccount'; data: ReadonlyUint8Array }
@@ -54,7 +68,38 @@ export type MintExtension =
   | { __kind: 'GroupMemberPointer'; data: ReadonlyUint8Array }
   | { __kind: 'TokenGroupMember'; data: ReadonlyUint8Array };
 
-export type MintExtensionArgs = MintExtension;
+export type MintExtensionArgs =
+  | { __kind: 'Uninitialized' }
+  | { __kind: 'TransferFeeConfig'; data: ReadonlyUint8Array }
+  | { __kind: 'TransferFeeAmount'; data: ReadonlyUint8Array }
+  | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
+  | { __kind: 'ConfidentialTransferMint'; data: ReadonlyUint8Array }
+  | { __kind: 'ConfidentialTransferAccount'; data: ReadonlyUint8Array }
+  | { __kind: 'DefaultAccountState'; data: ReadonlyUint8Array }
+  | { __kind: 'ImmutableOwner'; data: ReadonlyUint8Array }
+  | { __kind: 'MemoTransfer'; data: ReadonlyUint8Array }
+  | { __kind: 'NonTransferable' }
+  | {
+      __kind: 'InterestBearingConfig';
+      rateAuthority: Address;
+      initializationTimestamp: number | bigint;
+      preUpdateAverageRate: number;
+      lastUpdateTimestamp: number | bigint;
+      currentRate: number;
+    }
+  | { __kind: 'CpiGuard'; data: ReadonlyUint8Array }
+  | { __kind: 'PermanentDelegate'; delegate: Address }
+  | { __kind: 'NonTransferableAccount'; data: ReadonlyUint8Array }
+  | { __kind: 'TransferHook'; data: ReadonlyUint8Array }
+  | { __kind: 'TransferHookAccount'; data: ReadonlyUint8Array }
+  | { __kind: 'ConfidentialTransferFee'; data: ReadonlyUint8Array }
+  | { __kind: 'ConfidentialTransferFeeAmount'; data: ReadonlyUint8Array }
+  | { __kind: 'MetadataPointer'; data: ReadonlyUint8Array }
+  | { __kind: 'TokenMetadata'; data: ReadonlyUint8Array }
+  | { __kind: 'GroupPointer'; data: ReadonlyUint8Array }
+  | { __kind: 'TokenGroup'; data: ReadonlyUint8Array }
+  | { __kind: 'GroupMemberPointer'; data: ReadonlyUint8Array }
+  | { __kind: 'TokenGroupMember'; data: ReadonlyUint8Array };
 
 export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
   return getDiscriminatedUnionEncoder(
@@ -77,7 +122,7 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'MintCloseAuthority',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([['closeAuthority', getAddressEncoder()]]),
           getU16Encoder()
         ),
       ],
@@ -118,15 +163,18 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       ],
       [
         'NonTransferable',
-        addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
-          getU16Encoder()
-        ),
+        addEncoderSizePrefix(getStructEncoder([]), getU16Encoder()),
       ],
       [
         'InterestBearingConfig',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([
+            ['rateAuthority', getAddressEncoder()],
+            ['initializationTimestamp', getU64Encoder()],
+            ['preUpdateAverageRate', getI16Encoder()],
+            ['lastUpdateTimestamp', getU64Encoder()],
+            ['currentRate', getI16Encoder()],
+          ]),
           getU16Encoder()
         ),
       ],
@@ -140,7 +188,7 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'PermanentDelegate',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([['delegate', getAddressEncoder()]]),
           getU16Encoder()
         ),
       ],
@@ -247,7 +295,7 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'MintCloseAuthority',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([['closeAuthority', getAddressDecoder()]]),
           getU16Decoder()
         ),
       ],
@@ -288,15 +336,18 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       ],
       [
         'NonTransferable',
-        addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
-          getU16Decoder()
-        ),
+        addDecoderSizePrefix(getStructDecoder([]), getU16Decoder()),
       ],
       [
         'InterestBearingConfig',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([
+            ['rateAuthority', getAddressDecoder()],
+            ['initializationTimestamp', getU64Decoder()],
+            ['preUpdateAverageRate', getI16Decoder()],
+            ['lastUpdateTimestamp', getU64Decoder()],
+            ['currentRate', getI16Decoder()],
+          ]),
           getU16Decoder()
         ),
       ],
@@ -310,7 +361,7 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'PermanentDelegate',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([['delegate', getAddressDecoder()]]),
           getU16Decoder()
         ),
       ],

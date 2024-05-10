@@ -10,6 +10,7 @@ test('it decodes a mint account with extensions', (t) => {
 
   // When
   const decodedData = getMintDecoder().decode(encodedData);
+  console.log(decodedData);
 
   // Then
   t.like(decodedData, <Mint>{

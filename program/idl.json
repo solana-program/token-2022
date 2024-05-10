@@ -2367,10 +2367,10 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "data",
+                      "name": "closeAuthority",
                       "docs": [],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "publicKeyTypeNode"
                       }
                     }
                   ]
@@ -2514,16 +2514,7 @@
                 "kind": "sizePrefixTypeNode",
                 "type": {
                   "kind": "structTypeNode",
-                  "fields": [
-                    {
-                      "kind": "structFieldTypeNode",
-                      "name": "data",
-                      "docs": [],
-                      "type": {
-                        "kind": "bytesTypeNode"
-                      }
-                    }
-                  ]
+                  "fields": []
                 },
                 "prefix": {
                   "kind": "numberTypeNode",
@@ -2542,10 +2533,50 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "data",
+                      "name": "rateAuthority",
                       "docs": [],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "publicKeyTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "initializationTimestamp",
+                      "docs": [],
+                      "type": {
+                        "kind": "numberTypeNode",
+                        "format": "u64",
+                        "endian": "le"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "preUpdateAverageRate",
+                      "docs": [],
+                      "type": {
+                        "kind": "numberTypeNode",
+                        "format": "i16",
+                        "endian": "le"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "lastUpdateTimestamp",
+                      "docs": [],
+                      "type": {
+                        "kind": "numberTypeNode",
+                        "format": "u64",
+                        "endian": "le"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "currentRate",
+                      "docs": [],
+                      "type": {
+                        "kind": "numberTypeNode",
+                        "format": "i16",
+                        "endian": "le"
                       }
                     }
                   ]
@@ -2592,10 +2623,10 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "data",
+                      "name": "delegate",
                       "docs": [],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "publicKeyTypeNode"
                       }
                     }
                   ]
