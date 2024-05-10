@@ -45,6 +45,7 @@ import {
   getU64Encoder,
   getU8Decoder,
   getU8Encoder,
+  padLeftEncoder,
 } from '@solana/web3.js';
 import {
   MintExtension,
@@ -114,7 +115,7 @@ export function getMintEncoder(): Encoder<MintArgs> {
       'extensions',
       getHiddenPrefixEncoder(
         getArrayEncoder(getMintExtensionEncoder(), { size: 'remainder' }),
-        [getConstantEncoder(getU8Encoder().encode(1))]
+        [getConstantEncoder(padLeftEncoder(getU8Encoder(), 83).encode(1))]
       ),
     ],
   ]);
@@ -143,7 +144,7 @@ export function getMintDecoder(): Decoder<Mint> {
       'extensions',
       getHiddenPrefixDecoder(
         getArrayDecoder(getMintExtensionDecoder(), { size: 'remainder' }),
-        [getConstantDecoder(getU8Encoder().encode(1))]
+        [getConstantDecoder(padLeftEncoder(getU8Encoder(), 83).encode(1))]
       ),
     ],
   ]);

@@ -110,9 +110,14 @@
                   {
                     "kind": "constantValueNode",
                     "type": {
-                      "kind": "numberTypeNode",
-                      "format": "u8",
-                      "endian": "le"
+                      "kind": "preOffsetTypeNode",
+                      "offset": 83,
+                      "strategy": "padded",
+                      "type": {
+                        "kind": "numberTypeNode",
+                        "format": "u8",
+                        "endian": "le"
+                      }
                     },
                     "value": {
                       "kind": "numberValueNode",
