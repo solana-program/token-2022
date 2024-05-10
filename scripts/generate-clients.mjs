@@ -11,11 +11,11 @@ const kinobi = createFromRoot(
 );
 
 // Write JSON file.
-fs.writeFileSync(
-  path.join(workingDirectory, "program", "idl.json"),
-  JSON.stringify(kinobi.accept(identityVisitor()), null, 2),
-  { encoding: "utf-8", flag: "w" }
-);
+// fs.writeFileSync(
+//   path.join(workingDirectory, "program", "idl.json"),
+//   JSON.stringify(kinobi.accept(identityVisitor()), null, 2),
+//   { encoding: "utf-8", flag: "w" }
+// );
 
 // Render JavaScript.
 const jsClient = path.join(__dirname, "..", "clients", "js");

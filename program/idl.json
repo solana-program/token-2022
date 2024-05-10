@@ -4,7 +4,7 @@
   "version": "0.20.1",
   "program": {
     "kind": "programNode",
-    "name": "token2022",
+    "name": "token-2022",
     "publicKey": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
     "version": "3.0.2",
     "origin": "shank",
@@ -95,14 +95,31 @@
               "name": "extensions",
               "docs": ["The extensions activated on the mint account."],
               "type": {
-                "kind": "arrayTypeNode",
-                "item": {
-                  "kind": "definedTypeLinkNode",
-                  "name": "mintExtension"
+                "kind": "hiddenPrefixTypeNode",
+                "type": {
+                  "kind": "arrayTypeNode",
+                  "item": {
+                    "kind": "definedTypeLinkNode",
+                    "name": "mintExtension"
+                  },
+                  "count": {
+                    "kind": "remainderCountNode"
+                  }
                 },
-                "count": {
-                  "kind": "remainderCountNode"
-                }
+                "prefix": [
+                  {
+                    "kind": "constantValueNode",
+                    "type": {
+                      "kind": "numberTypeNode",
+                      "format": "u8",
+                      "endian": "le"
+                    },
+                    "value": {
+                      "kind": "numberValueNode",
+                      "number": 1
+                    }
+                  }
+                ]
               }
             }
           ]

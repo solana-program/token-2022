@@ -31,6 +31,10 @@ import {
   getArrayEncoder,
   getBooleanDecoder,
   getBooleanEncoder,
+  getConstantDecoder,
+  getConstantEncoder,
+  getHiddenPrefixDecoder,
+  getHiddenPrefixEncoder,
   getOptionDecoder,
   getOptionEncoder,
   getStructDecoder,
@@ -108,7 +112,10 @@ export function getMintEncoder(): Encoder<MintArgs> {
     ],
     [
       'extensions',
-      getArrayEncoder(getMintExtensionEncoder(), { size: 'remainder' }),
+      getHiddenPrefixEncoder(
+        getArrayEncoder(getMintExtensionEncoder(), { size: 'remainder' }),
+        [getConstantEncoder(getU8Encoder().encode(1))]
+      ),
     ],
   ]);
 }
@@ -134,7 +141,10 @@ export function getMintDecoder(): Decoder<Mint> {
     ],
     [
       'extensions',
-      getArrayDecoder(getMintExtensionDecoder(), { size: 'remainder' }),
+      getHiddenPrefixDecoder(
+        getArrayDecoder(getMintExtensionDecoder(), { size: 'remainder' }),
+        [getConstantDecoder(getU8Encoder().encode(1))]
+      ),
     ],
   ]);
 }
