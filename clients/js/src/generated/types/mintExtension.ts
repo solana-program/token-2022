@@ -13,6 +13,8 @@ import {
   Encoder,
   GetDiscriminatedUnionVariant,
   GetDiscriminatedUnionVariantContent,
+  Option,
+  OptionOrNullable,
   ReadonlyUint8Array,
   addDecoderSizePrefix,
   addEncoderSizePrefix,
@@ -33,6 +35,8 @@ import {
   getU64Encoder,
   getUnitDecoder,
   getUnitEncoder,
+  getZeroableOptionDecoder,
+  getZeroableOptionEncoder,
 } from '@solana/web3.js';
 import {
   AccountState,
@@ -116,9 +120,9 @@ export type MintExtension =
   | {
       __kind: 'MetadataPointer';
       /** Optional authority that can set the metadata address. */
-      authority: Address;
+      authority: Option<Address>;
       /** Optional Account Address that holds the metadata. */
-      metadataAddress: Address;
+      metadataAddress: Option<Address>;
     }
   | { __kind: 'TokenMetadata'; data: ReadonlyUint8Array }
   | { __kind: 'GroupPointer'; data: ReadonlyUint8Array }
@@ -197,9 +201,9 @@ export type MintExtensionArgs =
   | {
       __kind: 'MetadataPointer';
       /** Optional authority that can set the metadata address. */
-      authority: Address;
+      authority: OptionOrNullable<Address>;
       /** Optional Account Address that holds the metadata. */
-      metadataAddress: Address;
+      metadataAddress: OptionOrNullable<Address>;
     }
   | { __kind: 'TokenMetadata'; data: ReadonlyUint8Array }
   | { __kind: 'GroupPointer'; data: ReadonlyUint8Array }
@@ -351,8 +355,8 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
         'MetadataPointer',
         addEncoderSizePrefix(
           getStructEncoder([
-            ['authority', getAddressEncoder()],
-            ['metadataAddress', getAddressEncoder()],
+            ['authority', getZeroableOptionEncoder(getAddressEncoder())],
+            ['metadataAddress', getZeroableOptionEncoder(getAddressEncoder())],
           ]),
           getU16Encoder()
         ),
@@ -541,8 +545,8 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
         'MetadataPointer',
         addDecoderSizePrefix(
           getStructDecoder([
-            ['authority', getAddressDecoder()],
-            ['metadataAddress', getAddressDecoder()],
+            ['authority', getZeroableOptionDecoder(getAddressDecoder())],
+            ['metadataAddress', getZeroableOptionDecoder(getAddressDecoder())],
           ]),
           getU16Decoder()
         ),

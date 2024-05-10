@@ -2916,7 +2916,10 @@
                         "Optional authority that can set the metadata address."
                       ],
                       "type": {
-                        "kind": "publicKeyTypeNode"
+                        "kind": "zeroableOptionTypeNode",
+                        "item": {
+                          "kind": "publicKeyTypeNode"
+                        }
                       }
                     },
                     {
@@ -2926,7 +2929,10 @@
                         "Optional Account Address that holds the metadata."
                       ],
                       "type": {
-                        "kind": "publicKeyTypeNode"
+                        "kind": "zeroableOptionTypeNode",
+                        "item": {
+                          "kind": "publicKeyTypeNode"
+                        }
                       }
                     }
                   ]

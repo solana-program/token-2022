@@ -39,8 +39,8 @@
   "devDependencies": {
     "@ava/typescript": "^4.1.0",
     "@solana/eslint-config-solana": "^3.0.0",
-    "@solana/web3.js": "tp3",
-    "@solana/webcrypto-ed25519-polyfill": "tp3",
+    "@solana/web3.js": "2.0.0-preview.3.20240509193256.24c3f0f6d696e7317461cddfac56fa2c264acf27",
+    "@solana/webcrypto-ed25519-polyfill": "2.0.0-preview.3.20240509193256.24c3f0f6d696e7317461cddfac56fa2c264acf27",
     "@solana-program/system": "^0.3.2",
     "@typescript-eslint/eslint-plugin": "^7.3.1",
     "@typescript-eslint/parser": "^7.3.1",
