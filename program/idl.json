@@ -2298,6 +2298,51 @@
       },
       {
         "kind": "definedTypeNode",
+        "name": "transferFee",
+        "docs": [],
+        "type": {
+          "kind": "structTypeNode",
+          "fields": [
+            {
+              "kind": "structFieldTypeNode",
+              "name": "epoch",
+              "docs": ["First epoch where the transfer fee takes effect."],
+              "type": {
+                "kind": "numberTypeNode",
+                "format": "u64",
+                "endian": "le"
+              }
+            },
+            {
+              "kind": "structFieldTypeNode",
+              "name": "maximumFee",
+              "docs": [
+                "Maximum fee assessed on transfers, expressed as an amount of tokens."
+              ],
+              "type": {
+                "kind": "numberTypeNode",
+                "format": "u64",
+                "endian": "le"
+              }
+            },
+            {
+              "kind": "structFieldTypeNode",
+              "name": "transferFeeBasisPoints",
+              "docs": [
+                "Amount of transfer collected as fees, expressed as basis points of the",
+                "transfer amount, ie. increments of 0.01%."
+              ],
+              "type": {
+                "kind": "numberTypeNode",
+                "format": "u16",
+                "endian": "le"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "kind": "definedTypeNode",
         "name": "mintExtension",
         "docs": [],
         "type": {
@@ -2317,10 +2362,54 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "data",
-                      "docs": [],
+                      "name": "transferFeeConfigAuthority",
+                      "docs": ["Optional authority to set the fee."],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "publicKeyTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "withdrawWithheldAuthority",
+                      "docs": [
+                        "Withdraw from mint instructions must be signed by this key."
+                      ],
+                      "type": {
+                        "kind": "publicKeyTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "withheldAmount",
+                      "docs": [
+                        "Withheld transfer fee tokens that have been moved to the mint for withdrawal."
+                      ],
+                      "type": {
+                        "kind": "numberTypeNode",
+                        "format": "u64",
+                        "endian": "le"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "olderTransferFee",
+                      "docs": [
+                        "Older transfer fee, used if the current epoch < newerTransferFee.epoch."
+                      ],
+                      "type": {
+                        "kind": "definedTypeLinkNode",
+                        "name": "transferFee"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "newerTransferFee",
+                      "docs": [
+                        "Newer transfer fee, used if the current epoch >= newerTransferFee.epoch."
+                      ],
+                      "type": {
+                        "kind": "definedTypeLinkNode",
+                        "name": "transferFee"
                       }
                     }
                   ]

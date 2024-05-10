@@ -37,13 +37,29 @@ import {
 import {
   AccountState,
   AccountStateArgs,
+  TransferFee,
+  TransferFeeArgs,
   getAccountStateDecoder,
   getAccountStateEncoder,
+  getTransferFeeDecoder,
+  getTransferFeeEncoder,
 } from '.';
 
 export type MintExtension =
   | { __kind: 'Uninitialized' }
-  | { __kind: 'TransferFeeConfig'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'TransferFeeConfig';
+      /** Optional authority to set the fee. */
+      transferFeeConfigAuthority: Address;
+      /** Withdraw from mint instructions must be signed by this key. */
+      withdrawWithheldAuthority: Address;
+      /** Withheld transfer fee tokens that have been moved to the mint for withdrawal. */
+      withheldAmount: bigint;
+      /** Older transfer fee, used if the current epoch < newerTransferFee.epoch. */
+      olderTransferFee: TransferFee;
+      /** Newer transfer fee, used if the current epoch >= newerTransferFee.epoch. */
+      newerTransferFee: TransferFee;
+    }
   | { __kind: 'TransferFeeAmount'; data: ReadonlyUint8Array }
   | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
   | { __kind: 'ConfidentialTransferMint'; data: ReadonlyUint8Array }
@@ -76,7 +92,19 @@ export type MintExtension =
 
 export type MintExtensionArgs =
   | { __kind: 'Uninitialized' }
-  | { __kind: 'TransferFeeConfig'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'TransferFeeConfig';
+      /** Optional authority to set the fee. */
+      transferFeeConfigAuthority: Address;
+      /** Withdraw from mint instructions must be signed by this key. */
+      withdrawWithheldAuthority: Address;
+      /** Withheld transfer fee tokens that have been moved to the mint for withdrawal. */
+      withheldAmount: number | bigint;
+      /** Older transfer fee, used if the current epoch < newerTransferFee.epoch. */
+      olderTransferFee: TransferFeeArgs;
+      /** Newer transfer fee, used if the current epoch >= newerTransferFee.epoch. */
+      newerTransferFee: TransferFeeArgs;
+    }
   | { __kind: 'TransferFeeAmount'; data: ReadonlyUint8Array }
   | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
   | { __kind: 'ConfidentialTransferMint'; data: ReadonlyUint8Array }
@@ -114,7 +142,13 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'TransferFeeConfig',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([
+            ['transferFeeConfigAuthority', getAddressEncoder()],
+            ['withdrawWithheldAuthority', getAddressEncoder()],
+            ['withheldAmount', getU64Encoder()],
+            ['olderTransferFee', getTransferFeeEncoder()],
+            ['newerTransferFee', getTransferFeeEncoder()],
+          ]),
           getU16Encoder()
         ),
       ],
@@ -287,7 +321,13 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'TransferFeeConfig',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([
+            ['transferFeeConfigAuthority', getAddressDecoder()],
+            ['withdrawWithheldAuthority', getAddressDecoder()],
+            ['withheldAmount', getU64Decoder()],
+            ['olderTransferFee', getTransferFeeDecoder()],
+            ['newerTransferFee', getTransferFeeDecoder()],
+          ]),
           getU16Decoder()
         ),
       ],
