@@ -62,7 +62,27 @@ export type MintExtension =
     }
   | { __kind: 'TransferFeeAmount'; data: ReadonlyUint8Array }
   | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
-  | { __kind: 'ConfidentialTransferMint'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'ConfidentialTransferMint';
+      /** Optional authority to set the withdraw withheld authority ElGamal key. */
+      authority: ReadonlyUint8Array;
+      /**
+       * Withheld fees from accounts must be encrypted with this ElGamal key.
+       *
+       * Note that whoever holds the ElGamal private key for this ElGamal public
+       * key has the ability to decode any withheld fee amount that are
+       * associated with accounts. When combined with the fee parameters, the
+       * withheld fee amounts can reveal information about transfer amounts.
+       */
+      elgamalKey: ReadonlyUint8Array;
+      /** If `false`, the harvest of withheld tokens to mint is rejected. */
+      harvestToMintEnabled: ReadonlyUint8Array;
+      /**
+       * Withheld confidential transfer fee tokens that have been moved to the
+       * mint for withdrawal.
+       */
+      withheldAmount: ReadonlyUint8Array;
+    }
   | { __kind: 'ConfidentialTransferAccount'; data: ReadonlyUint8Array }
   | { __kind: 'DefaultAccountState'; state: AccountState }
   | { __kind: 'ImmutableOwner'; data: ReadonlyUint8Array }
@@ -79,11 +99,27 @@ export type MintExtension =
   | { __kind: 'CpiGuard'; data: ReadonlyUint8Array }
   | { __kind: 'PermanentDelegate'; delegate: Address }
   | { __kind: 'NonTransferableAccount'; data: ReadonlyUint8Array }
-  | { __kind: 'TransferHook'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'TransferHook';
+      /** The transfer hook update authority. */
+      authority: Address;
+      /** The transfer hook program account. */
+      programId: Address;
+    }
   | { __kind: 'TransferHookAccount'; data: ReadonlyUint8Array }
-  | { __kind: 'ConfidentialTransferFee'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'ConfidentialTransferFee';
+      /** Amount withheld during confidential transfers, to be harvest to the mint. */
+      withheldAmount: ReadonlyUint8Array;
+    }
   | { __kind: 'ConfidentialTransferFeeAmount'; data: ReadonlyUint8Array }
-  | { __kind: 'MetadataPointer'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'MetadataPointer';
+      /** Optional authority that can set the metadata address. */
+      authority: Address;
+      /** Optional Account Address that holds the metadata. */
+      metadataAddress: Address;
+    }
   | { __kind: 'TokenMetadata'; data: ReadonlyUint8Array }
   | { __kind: 'GroupPointer'; data: ReadonlyUint8Array }
   | { __kind: 'TokenGroup'; data: ReadonlyUint8Array }
@@ -107,7 +143,27 @@ export type MintExtensionArgs =
     }
   | { __kind: 'TransferFeeAmount'; data: ReadonlyUint8Array }
   | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
-  | { __kind: 'ConfidentialTransferMint'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'ConfidentialTransferMint';
+      /** Optional authority to set the withdraw withheld authority ElGamal key. */
+      authority: ReadonlyUint8Array;
+      /**
+       * Withheld fees from accounts must be encrypted with this ElGamal key.
+       *
+       * Note that whoever holds the ElGamal private key for this ElGamal public
+       * key has the ability to decode any withheld fee amount that are
+       * associated with accounts. When combined with the fee parameters, the
+       * withheld fee amounts can reveal information about transfer amounts.
+       */
+      elgamalKey: ReadonlyUint8Array;
+      /** If `false`, the harvest of withheld tokens to mint is rejected. */
+      harvestToMintEnabled: ReadonlyUint8Array;
+      /**
+       * Withheld confidential transfer fee tokens that have been moved to the
+       * mint for withdrawal.
+       */
+      withheldAmount: ReadonlyUint8Array;
+    }
   | { __kind: 'ConfidentialTransferAccount'; data: ReadonlyUint8Array }
   | { __kind: 'DefaultAccountState'; state: AccountStateArgs }
   | { __kind: 'ImmutableOwner'; data: ReadonlyUint8Array }
@@ -124,11 +180,27 @@ export type MintExtensionArgs =
   | { __kind: 'CpiGuard'; data: ReadonlyUint8Array }
   | { __kind: 'PermanentDelegate'; delegate: Address }
   | { __kind: 'NonTransferableAccount'; data: ReadonlyUint8Array }
-  | { __kind: 'TransferHook'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'TransferHook';
+      /** The transfer hook update authority. */
+      authority: Address;
+      /** The transfer hook program account. */
+      programId: Address;
+    }
   | { __kind: 'TransferHookAccount'; data: ReadonlyUint8Array }
-  | { __kind: 'ConfidentialTransferFee'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'ConfidentialTransferFee';
+      /** Amount withheld during confidential transfers, to be harvest to the mint. */
+      withheldAmount: ReadonlyUint8Array;
+    }
   | { __kind: 'ConfidentialTransferFeeAmount'; data: ReadonlyUint8Array }
-  | { __kind: 'MetadataPointer'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'MetadataPointer';
+      /** Optional authority that can set the metadata address. */
+      authority: Address;
+      /** Optional Account Address that holds the metadata. */
+      metadataAddress: Address;
+    }
   | { __kind: 'TokenMetadata'; data: ReadonlyUint8Array }
   | { __kind: 'GroupPointer'; data: ReadonlyUint8Array }
   | { __kind: 'TokenGroup'; data: ReadonlyUint8Array }
@@ -169,7 +241,12 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'ConfidentialTransferMint',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([
+            ['authority', getBytesEncoder()],
+            ['elgamalKey', getBytesEncoder()],
+            ['harvestToMintEnabled', getBytesEncoder()],
+            ['withheldAmount', getBytesEncoder()],
+          ]),
           getU16Encoder()
         ),
       ],
@@ -242,7 +319,10 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'TransferHook',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([
+            ['authority', getAddressEncoder()],
+            ['programId', getAddressEncoder()],
+          ]),
           getU16Encoder()
         ),
       ],
@@ -256,7 +336,7 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'ConfidentialTransferFee',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([['withheldAmount', getBytesEncoder()]]),
           getU16Encoder()
         ),
       ],
@@ -270,7 +350,10 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'MetadataPointer',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([
+            ['authority', getAddressEncoder()],
+            ['metadataAddress', getAddressEncoder()],
+          ]),
           getU16Encoder()
         ),
       ],
@@ -348,7 +431,12 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'ConfidentialTransferMint',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([
+            ['authority', getBytesDecoder()],
+            ['elgamalKey', getBytesDecoder()],
+            ['harvestToMintEnabled', getBytesDecoder()],
+            ['withheldAmount', getBytesDecoder()],
+          ]),
           getU16Decoder()
         ),
       ],
@@ -421,7 +509,10 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'TransferHook',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([
+            ['authority', getAddressDecoder()],
+            ['programId', getAddressDecoder()],
+          ]),
           getU16Decoder()
         ),
       ],
@@ -435,7 +526,7 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'ConfidentialTransferFee',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([['withheldAmount', getBytesDecoder()]]),
           getU16Decoder()
         ),
       ],
@@ -449,7 +540,10 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'MetadataPointer',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([
+            ['authority', getAddressDecoder()],
+            ['metadataAddress', getAddressDecoder()],
+          ]),
           getU16Decoder()
         ),
       ],
