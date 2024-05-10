@@ -27,6 +27,8 @@ import {
   fetchEncodedAccounts,
   getAddressDecoder,
   getAddressEncoder,
+  getArrayDecoder,
+  getArrayEncoder,
   getBooleanDecoder,
   getBooleanEncoder,
   getOptionDecoder,
@@ -40,6 +42,12 @@ import {
   getU8Decoder,
   getU8Encoder,
 } from '@solana/web3.js';
+import {
+  MintExtension,
+  MintExtensionArgs,
+  getMintExtensionDecoder,
+  getMintExtensionEncoder,
+} from '../types';
 
 export type Mint = {
   /**
@@ -56,6 +64,8 @@ export type Mint = {
   isInitialized: boolean;
   /** Optional authority to freeze token accounts. */
   freezeAuthority: Option<Address>;
+  /** The extensions activated on the mint account. */
+  extensions: Array<MintExtension>;
 };
 
 export type MintArgs = {
@@ -73,6 +83,8 @@ export type MintArgs = {
   isInitialized: boolean;
   /** Optional authority to freeze token accounts. */
   freezeAuthority: OptionOrNullable<Address>;
+  /** The extensions activated on the mint account. */
+  extensions: Array<MintExtensionArgs>;
 };
 
 export function getMintEncoder(): Encoder<MintArgs> {
@@ -93,6 +105,10 @@ export function getMintEncoder(): Encoder<MintArgs> {
         prefix: getU32Encoder(),
         fixed: true,
       }),
+    ],
+    [
+      'extensions',
+      getArrayEncoder(getMintExtensionEncoder(), { size: 'remainder' }),
     ],
   ]);
 }
@@ -115,6 +131,10 @@ export function getMintDecoder(): Decoder<Mint> {
         prefix: getU32Decoder(),
         fixed: true,
       }),
+    ],
+    [
+      'extensions',
+      getArrayDecoder(getMintExtensionDecoder(), { size: 'remainder' }),
     ],
   ]);
 }
@@ -174,8 +194,4 @@ export async function fetchAllMaybeMint(
 ): Promise<MaybeAccount<Mint>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) => decodeMint(maybeAccount));
-}
-
-export function getMintSize(): number {
-  return 82;
 }

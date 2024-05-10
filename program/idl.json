@@ -77,6 +77,19 @@
                 "fixed": true
               },
               "docs": ["Optional authority to freeze token accounts."]
+            },
+            {
+              "kind": "structFieldTypeNode",
+              "name": "extensions",
+              "type": {
+                "kind": "arrayTypeNode",
+                "item": {
+                  "kind": "definedTypeLinkNode",
+                  "name": "mintExtension"
+                },
+                "count": { "kind": "remainderCountNode" }
+              },
+              "docs": ["The extensions activated on the mint account."]
             }
           ]
         },
@@ -87,8 +100,7 @@
           }
         ],
         "name": "mint",
-        "docs": [],
-        "size": 82
+        "docs": []
       },
       {
         "kind": "accountNode",
@@ -2087,6 +2099,363 @@
             { "kind": "enumEmptyVariantTypeNode", "name": "closeAccount" }
           ],
           "size": { "kind": "numberTypeNode", "format": "u8", "endian": "le" }
+        },
+        "docs": []
+      },
+      {
+        "kind": "definedTypeNode",
+        "name": "mintExtension",
+        "type": {
+          "kind": "enumTypeNode",
+          "variants": [
+            { "kind": "enumEmptyVariantTypeNode", "name": "uninitialized" },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "TransferFeeConfig",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "TransferFeeAmount",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "MintCloseAuthority",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "ConfidentialTransferMint",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "ConfidentialTransferAccount",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "DefaultAccountState",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "ImmutableOwner",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "MemoTransfer",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "NonTransferable",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "InterestBearingConfig",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "CpiGuard",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "PermanentDelegate",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "NonTransferableAccount",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "TransferHook",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "TransferHookAccount",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "ConfidentialTransferFee",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "ConfidentialTransferFeeAmount",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "MetadataPointer",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "TokenMetadata",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "GroupPointer",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "TokenGroup",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "GroupMemberPointer",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "TokenGroupMember",
+              "struct": {
+                "kind": "structTypeNode",
+                "fields": [
+                  {
+                    "kind": "structFieldTypeNode",
+                    "name": "data",
+                    "docs": [],
+                    "type": { "kind": "bytesTypeNode" }
+                  }
+                ]
+              }
+            }
+          ],
+          "size": { "kind": "numberTypeNode", "format": "u16", "endian": "le" }
         },
         "docs": []
       }

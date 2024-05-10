@@ -8,3 +8,4 @@
 
 export * from './accountState';
 export * from './authorityType';
+export * from './mintExtension';
