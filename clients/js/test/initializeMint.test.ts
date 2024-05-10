@@ -13,7 +13,6 @@ import {
   TOKEN_2022_PROGRAM_ADDRESS,
   fetchMint,
   getInitializeMintInstruction,
-  getMintSize,
 } from '../src';
 import {
   createDefaultSolanaClient,
@@ -29,7 +28,7 @@ test('it creates and initializes a new mint account', async (t) => {
   const mint = await generateKeyPairSigner();
 
   // When we create and initialize a mint account at this address.
-  const space = BigInt(getMintSize());
+  const space = 82n;
   const rent = await client.rpc.getMinimumBalanceForRentExemption(space).send();
   const instructions = [
     getCreateAccountInstruction({
@@ -76,7 +75,7 @@ test('it creates a new mint account with a freeze authority', async (t) => {
   ]);
 
   // When we create and initialize a mint account at this address.
-  const space = BigInt(getMintSize());
+  const space = 82n;
   const rent = await client.rpc.getMinimumBalanceForRentExemption(space).send();
   const instructions = [
     getCreateAccountInstruction({
