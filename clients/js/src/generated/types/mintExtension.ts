@@ -152,7 +152,17 @@ export type MintExtension =
       /** Optional account address that holds the group. */
       groupAddress: Option<Address>;
     }
-  | { __kind: 'TokenGroup'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'TokenGroup';
+      /** The authority that can sign to update the group. */
+      updateAuthority: Option<Address>;
+      /** The associated mint, used to counter spoofing to be sure that group belongs to a particular mint. */
+      mint: Address;
+      /** The current number of group members. */
+      size: number;
+      /** The maximum number of group members. */
+      maxSize: number;
+    }
   | {
       __kind: 'GroupMemberPointer';
       /** Optional authority that can set the member address. */
@@ -259,7 +269,17 @@ export type MintExtensionArgs =
       /** Optional account address that holds the group. */
       groupAddress: OptionOrNullable<Address>;
     }
-  | { __kind: 'TokenGroup'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'TokenGroup';
+      /** The authority that can sign to update the group. */
+      updateAuthority: OptionOrNullable<Address>;
+      /** The associated mint, used to counter spoofing to be sure that group belongs to a particular mint. */
+      mint: Address;
+      /** The current number of group members. */
+      size: number;
+      /** The maximum number of group members. */
+      maxSize: number;
+    }
   | {
       __kind: 'GroupMemberPointer';
       /** Optional authority that can set the member address. */
@@ -452,7 +472,12 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'TokenGroup',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([
+            ['updateAuthority', getZeroableOptionEncoder(getAddressEncoder())],
+            ['mint', getAddressEncoder()],
+            ['size', getU32Encoder()],
+            ['maxSize', getU32Encoder()],
+          ]),
           getU16Encoder()
         ),
       ],
@@ -661,7 +686,12 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'TokenGroup',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([
+            ['updateAuthority', getZeroableOptionDecoder(getAddressDecoder())],
+            ['mint', getAddressDecoder()],
+            ['size', getU32Decoder()],
+            ['maxSize', getU32Decoder()],
+          ]),
           getU16Decoder()
         ),
       ],

@@ -3130,10 +3130,45 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "data",
-                      "docs": [],
+                      "name": "updateAuthority",
+                      "docs": [
+                        "The authority that can sign to update the group."
+                      ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "zeroableOptionTypeNode",
+                        "item": {
+                          "kind": "publicKeyTypeNode"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "mint",
+                      "docs": [
+                        "The associated mint, used to counter spoofing to be sure that group belongs to a particular mint."
+                      ],
+                      "type": {
+                        "kind": "publicKeyTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "size",
+                      "docs": ["The current number of group members."],
+                      "type": {
+                        "kind": "numberTypeNode",
+                        "format": "u32",
+                        "endian": "le"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "maxSize",
+                      "docs": ["The maximum number of group members."],
+                      "type": {
+                        "kind": "numberTypeNode",
+                        "format": "u32",
+                        "endian": "le"
                       }
                     }
                   ]
