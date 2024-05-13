@@ -27,14 +27,20 @@ import {
   getDiscriminatedUnionEncoder,
   getI16Decoder,
   getI16Encoder,
+  getMapDecoder,
+  getMapEncoder,
   getStructDecoder,
   getStructEncoder,
   getU16Decoder,
   getU16Encoder,
+  getU32Decoder,
+  getU32Encoder,
   getU64Decoder,
   getU64Encoder,
   getUnitDecoder,
   getUnitEncoder,
+  getUtf8Decoder,
+  getUtf8Encoder,
   getZeroableOptionDecoder,
   getZeroableOptionEncoder,
 } from '@solana/web3.js';
@@ -124,7 +130,21 @@ export type MintExtension =
       /** Optional Account Address that holds the metadata. */
       metadataAddress: Option<Address>;
     }
-  | { __kind: 'TokenMetadata'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'TokenMetadata';
+      /** The authority that can sign to update the metadata. */
+      updateAuthority: Option<Address>;
+      /** The associated mint, used to counter spoofing to be sure that metadata belongs to a particular mint. */
+      mint: Address;
+      /** The longer name of the token. */
+      name: string;
+      /** The shortened symbol for the token. */
+      symbol: string;
+      /** The URI pointing to richer metadata. */
+      uri: string;
+      /** Any additional metadata about the token as key-value pairs. */
+      additionalMetadata: Map<string, string>;
+    }
   | {
       __kind: 'GroupPointer';
       /** Optional authority that can set the group address. */
@@ -217,7 +237,21 @@ export type MintExtensionArgs =
       /** Optional Account Address that holds the metadata. */
       metadataAddress: OptionOrNullable<Address>;
     }
-  | { __kind: 'TokenMetadata'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'TokenMetadata';
+      /** The authority that can sign to update the metadata. */
+      updateAuthority: OptionOrNullable<Address>;
+      /** The associated mint, used to counter spoofing to be sure that metadata belongs to a particular mint. */
+      mint: Address;
+      /** The longer name of the token. */
+      name: string;
+      /** The shortened symbol for the token. */
+      symbol: string;
+      /** The URI pointing to richer metadata. */
+      uri: string;
+      /** Any additional metadata about the token as key-value pairs. */
+      additionalMetadata: Map<string, string>;
+    }
   | {
       __kind: 'GroupPointer';
       /** Optional authority that can set the group address. */
@@ -388,7 +422,20 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'TokenMetadata',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([
+            ['updateAuthority', getZeroableOptionEncoder(getAddressEncoder())],
+            ['mint', getAddressEncoder()],
+            ['name', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+            ['symbol', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+            ['uri', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+            [
+              'additionalMetadata',
+              getMapEncoder(
+                addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
+                addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
+              ),
+            ],
+          ]),
           getU16Encoder()
         ),
       ],
@@ -584,7 +631,20 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'TokenMetadata',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([
+            ['updateAuthority', getZeroableOptionDecoder(getAddressDecoder())],
+            ['mint', getAddressDecoder()],
+            ['name', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+            ['symbol', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+            ['uri', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+            [
+              'additionalMetadata',
+              getMapDecoder(
+                addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder()),
+                addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())
+              ),
+            ],
+          ]),
           getU16Decoder()
         ),
       ],

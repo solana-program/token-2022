@@ -2954,10 +2954,118 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "data",
-                      "docs": [],
+                      "name": "updateAuthority",
+                      "docs": [
+                        "The authority that can sign to update the metadata."
+                      ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "zeroableOptionTypeNode",
+                        "item": {
+                          "kind": "publicKeyTypeNode"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "mint",
+                      "docs": [
+                        "The associated mint, used to counter spoofing to be sure that metadata belongs to a particular mint."
+                      ],
+                      "type": {
+                        "kind": "publicKeyTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "name",
+                      "docs": ["The longer name of the token."],
+                      "type": {
+                        "kind": "sizePrefixTypeNode",
+                        "type": {
+                          "kind": "stringTypeNode",
+                          "encoding": "utf8"
+                        },
+                        "prefix": {
+                          "kind": "numberTypeNode",
+                          "format": "u32",
+                          "endian": "le"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "symbol",
+                      "docs": ["The shortened symbol for the token."],
+                      "type": {
+                        "kind": "sizePrefixTypeNode",
+                        "type": {
+                          "kind": "stringTypeNode",
+                          "encoding": "utf8"
+                        },
+                        "prefix": {
+                          "kind": "numberTypeNode",
+                          "format": "u32",
+                          "endian": "le"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "uri",
+                      "docs": ["The URI pointing to richer metadata."],
+                      "type": {
+                        "kind": "sizePrefixTypeNode",
+                        "type": {
+                          "kind": "stringTypeNode",
+                          "encoding": "utf8"
+                        },
+                        "prefix": {
+                          "kind": "numberTypeNode",
+                          "format": "u32",
+                          "endian": "le"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "additionalMetadata",
+                      "docs": [
+                        "Any additional metadata about the token as key-value pairs."
+                      ],
+                      "type": {
+                        "kind": "mapTypeNode",
+                        "key": {
+                          "kind": "sizePrefixTypeNode",
+                          "type": {
+                            "kind": "stringTypeNode",
+                            "encoding": "utf8"
+                          },
+                          "prefix": {
+                            "kind": "numberTypeNode",
+                            "format": "u32",
+                            "endian": "le"
+                          }
+                        },
+                        "value": {
+                          "kind": "sizePrefixTypeNode",
+                          "type": {
+                            "kind": "stringTypeNode",
+                            "encoding": "utf8"
+                          },
+                          "prefix": {
+                            "kind": "numberTypeNode",
+                            "format": "u32",
+                            "endian": "le"
+                          }
+                        },
+                        "count": {
+                          "kind": "prefixedCountNode",
+                          "prefix": {
+                            "kind": "numberTypeNode",
+                            "format": "u32",
+                            "endian": "le"
+                          }
+                        }
                       }
                     }
                   ]
