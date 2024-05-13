@@ -3047,10 +3047,28 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "data",
-                      "docs": [],
+                      "name": "authority",
+                      "docs": [
+                        "Optional authority that can set the member address."
+                      ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "zeroableOptionTypeNode",
+                        "item": {
+                          "kind": "publicKeyTypeNode"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "memberAddress",
+                      "docs": [
+                        "Optional account address that holds the member."
+                      ],
+                      "type": {
+                        "kind": "zeroableOptionTypeNode",
+                        "item": {
+                          "kind": "publicKeyTypeNode"
+                        }
                       }
                     }
                   ]

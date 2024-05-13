@@ -133,7 +133,13 @@ export type MintExtension =
       groupAddress: Option<Address>;
     }
   | { __kind: 'TokenGroup'; data: ReadonlyUint8Array }
-  | { __kind: 'GroupMemberPointer'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'GroupMemberPointer';
+      /** Optional authority that can set the member address. */
+      authority: Option<Address>;
+      /** Optional account address that holds the member. */
+      memberAddress: Option<Address>;
+    }
   | { __kind: 'TokenGroupMember'; data: ReadonlyUint8Array };
 
 export type MintExtensionArgs =
@@ -220,7 +226,13 @@ export type MintExtensionArgs =
       groupAddress: OptionOrNullable<Address>;
     }
   | { __kind: 'TokenGroup'; data: ReadonlyUint8Array }
-  | { __kind: 'GroupMemberPointer'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'GroupMemberPointer';
+      /** Optional authority that can set the member address. */
+      authority: OptionOrNullable<Address>;
+      /** Optional account address that holds the member. */
+      memberAddress: OptionOrNullable<Address>;
+    }
   | { __kind: 'TokenGroupMember'; data: ReadonlyUint8Array };
 
 export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
@@ -400,7 +412,10 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'GroupMemberPointer',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([
+            ['authority', getZeroableOptionEncoder(getAddressEncoder())],
+            ['memberAddress', getZeroableOptionEncoder(getAddressEncoder())],
+          ]),
           getU16Encoder()
         ),
       ],
@@ -593,7 +608,10 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'GroupMemberPointer',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([
+            ['authority', getZeroableOptionDecoder(getAddressDecoder())],
+            ['memberAddress', getZeroableOptionDecoder(getAddressDecoder())],
+          ]),
           getU16Decoder()
         ),
       ],
