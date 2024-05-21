@@ -209,7 +209,7 @@ export type MintExtension =
   | {
       __kind: 'ConfidentialTransferFeeAmount';
       /** Amount withheld during confidential transfers, to be harvest to the mint. */
-      withheldAmount: ReadonlyUint8Array;
+      withheldAmount: EncryptedBalance;
     }
   | {
       __kind: 'MetadataPointer';
@@ -404,7 +404,7 @@ export type MintExtensionArgs =
   | {
       __kind: 'ConfidentialTransferFeeAmount';
       /** Amount withheld during confidential transfers, to be harvest to the mint. */
-      withheldAmount: ReadonlyUint8Array;
+      withheldAmount: EncryptedBalanceArgs;
     }
   | {
       __kind: 'MetadataPointer';
@@ -607,7 +607,7 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'ConfidentialTransferFeeAmount',
         addEncoderSizePrefix(
-          getStructEncoder([['withheldAmount', getBytesEncoder()]]),
+          getStructEncoder([['withheldAmount', getEncryptedBalanceEncoder()]]),
           getU16Encoder()
         ),
       ],
@@ -837,7 +837,7 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'ConfidentialTransferFeeAmount',
         addDecoderSizePrefix(
-          getStructDecoder([['withheldAmount', getBytesDecoder()]]),
+          getStructDecoder([['withheldAmount', getEncryptedBalanceDecoder()]]),
           getU16Decoder()
         ),
       ],

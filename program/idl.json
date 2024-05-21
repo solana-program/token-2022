@@ -3150,7 +3150,8 @@
                         "Amount withheld during confidential transfers, to be harvest to the mint."
                       ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "definedTypeLinkNode",
+                        "name": "encryptedBalance"
                       }
                     }
                   ]

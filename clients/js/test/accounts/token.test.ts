@@ -1,4 +1,4 @@
-import { getBase64Encoder, none } from '@solana/web3.js';
+import { getBase16Encoder, getBase64Encoder, none } from '@solana/web3.js';
 import test from 'ava';
 import { AccountState, Token, getTokenDecoder } from '../../src';
 
@@ -10,8 +10,6 @@ test('it decodes a token account with extensions', (t) => {
 
   // When we decode it.
   const decodedData = getTokenDecoder().decode(encodedData);
-  console.log(decodedData);
-  console.log(decodedData.extensions[6]);
 
   // Then we expect the following data.
   t.like(decodedData, <Token>{
@@ -23,11 +21,34 @@ test('it decodes a token account with extensions', (t) => {
     isNative: none(),
     delegatedAmount: 0n,
     closeAuthority: none(),
-    // extensions: [
-    //   // {
-    //   //   __kind: 'MintCloseAuthority',
-    //   //   closeAuthority: 'FdrdFuo1RQ9LrQ3FRfQUE7RigyANe5kFNLyMhCYk1xgJ',
-    //   // },
-    // ],
+    extensions: [
+      { __kind: 'ImmutableOwner' },
+      { __kind: 'NonTransferableAccount' },
+      { __kind: 'TransferFeeAmount', withheldAmount: 0n },
+      { __kind: 'TransferHookAccount', transferring: false },
+      { __kind: 'MemoTransfer', requireIncomingTransferMemos: true },
+      { __kind: 'CpiGuard', lockCpi: true },
+      {
+        __kind: 'ConfidentialTransferAccount',
+        approved: true,
+        elgamalPubkey: 'ENFvQcBnPT599PsYBcKwa8wRFiyWcDYiELvZ7bdvQWPp',
+        pendingBalanceLow: new Uint8Array(64).fill(0),
+        pendingBalanceHigh: new Uint8Array(64).fill(0),
+        availableBalance: new Uint8Array(64).fill(0),
+        decryptableAvailableBalance: getBase16Encoder().encode(
+          '2d4ecbed7d0fd33f2e7d61ee3224019f60ed6682b389b4ccf90f672edec3923585810de4'
+        ),
+        allowConfidentialCredits: true,
+        allowNonConfidentialCredits: true,
+        pendingBalanceCreditCounter: 0n,
+        maximumPendingBalanceCreditCounter: 65536n,
+        expectedPendingBalanceCreditCounter: 0n,
+        actualPendingBalanceCreditCounter: 0n,
+      },
+      {
+        __kind: 'ConfidentialTransferFeeAmount',
+        withheldAmount: new Uint8Array(64).fill(0),
+      },
+    ],
   });
 });
