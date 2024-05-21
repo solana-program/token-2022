@@ -100,7 +100,7 @@
                   "kind": "arrayTypeNode",
                   "item": {
                     "kind": "definedTypeLinkNode",
-                    "name": "mintExtension"
+                    "name": "extension"
                   },
                   "count": {
                     "kind": "remainderCountNode"
@@ -260,7 +260,7 @@
                   "kind": "arrayTypeNode",
                   "item": {
                     "kind": "definedTypeLinkNode",
-                    "name": "mintExtension"
+                    "name": "extension"
                   },
                   "count": {
                     "kind": "remainderCountNode"
@@ -2404,7 +2404,7 @@
       },
       {
         "kind": "definedTypeNode",
-        "name": "mintExtension",
+        "name": "extension",
         "docs": [],
         "type": {
           "kind": "enumTypeNode",

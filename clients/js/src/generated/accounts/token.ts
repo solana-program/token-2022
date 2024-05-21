@@ -46,12 +46,12 @@ import {
 import {
   AccountState,
   AccountStateArgs,
-  MintExtension,
-  MintExtensionArgs,
+  Extension,
+  ExtensionArgs,
   getAccountStateDecoder,
   getAccountStateEncoder,
-  getMintExtensionDecoder,
-  getMintExtensionEncoder,
+  getExtensionDecoder,
+  getExtensionEncoder,
 } from '../types';
 
 export type Token = {
@@ -80,7 +80,7 @@ export type Token = {
   /** Optional authority to close the account. */
   closeAuthority: Option<Address>;
   /** The extensions activated on the token account. */
-  extensions: Array<MintExtension>;
+  extensions: Array<Extension>;
 };
 
 export type TokenArgs = {
@@ -109,7 +109,7 @@ export type TokenArgs = {
   /** Optional authority to close the account. */
   closeAuthority: OptionOrNullable<Address>;
   /** The extensions activated on the token account. */
-  extensions: Array<MintExtensionArgs>;
+  extensions: Array<ExtensionArgs>;
 };
 
 export function getTokenEncoder(): Encoder<TokenArgs> {
@@ -143,7 +143,7 @@ export function getTokenEncoder(): Encoder<TokenArgs> {
     [
       'extensions',
       getHiddenPrefixEncoder(
-        getArrayEncoder(getMintExtensionEncoder(), { size: 'remainder' }),
+        getArrayEncoder(getExtensionEncoder(), { size: 'remainder' }),
         [getConstantEncoder(getU8Encoder().encode(2))]
       ),
     ],
@@ -181,7 +181,7 @@ export function getTokenDecoder(): Decoder<Token> {
     [
       'extensions',
       getHiddenPrefixDecoder(
-        getArrayDecoder(getMintExtensionDecoder(), { size: 'remainder' }),
+        getArrayDecoder(getExtensionDecoder(), { size: 'remainder' }),
         [getConstantDecoder(getU8Encoder().encode(2))]
       ),
     ],

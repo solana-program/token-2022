@@ -48,10 +48,10 @@ import {
   padLeftEncoder,
 } from '@solana/web3.js';
 import {
-  MintExtension,
-  MintExtensionArgs,
-  getMintExtensionDecoder,
-  getMintExtensionEncoder,
+  Extension,
+  ExtensionArgs,
+  getExtensionDecoder,
+  getExtensionEncoder,
 } from '../types';
 
 export type Mint = {
@@ -70,7 +70,7 @@ export type Mint = {
   /** Optional authority to freeze token accounts. */
   freezeAuthority: Option<Address>;
   /** The extensions activated on the mint account. */
-  extensions: Array<MintExtension>;
+  extensions: Array<Extension>;
 };
 
 export type MintArgs = {
@@ -89,7 +89,7 @@ export type MintArgs = {
   /** Optional authority to freeze token accounts. */
   freezeAuthority: OptionOrNullable<Address>;
   /** The extensions activated on the mint account. */
-  extensions: Array<MintExtensionArgs>;
+  extensions: Array<ExtensionArgs>;
 };
 
 export function getMintEncoder(): Encoder<MintArgs> {
@@ -114,7 +114,7 @@ export function getMintEncoder(): Encoder<MintArgs> {
     [
       'extensions',
       getHiddenPrefixEncoder(
-        getArrayEncoder(getMintExtensionEncoder(), { size: 'remainder' }),
+        getArrayEncoder(getExtensionEncoder(), { size: 'remainder' }),
         [getConstantEncoder(padLeftEncoder(getU8Encoder(), 83).encode(1))]
       ),
     ],
@@ -143,7 +143,7 @@ export function getMintDecoder(): Decoder<Mint> {
     [
       'extensions',
       getHiddenPrefixDecoder(
-        getArrayDecoder(getMintExtensionDecoder(), { size: 'remainder' }),
+        getArrayDecoder(getExtensionDecoder(), { size: 'remainder' }),
         [getConstantDecoder(padLeftEncoder(getU8Encoder(), 83).encode(1))]
       ),
     ],

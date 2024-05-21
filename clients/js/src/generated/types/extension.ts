@@ -65,7 +65,7 @@ import {
   getTransferFeeEncoder,
 } from '.';
 
-export type MintExtension =
+export type Extension =
   | { __kind: 'Uninitialized' }
   | {
       __kind: 'TransferFeeConfig';
@@ -260,7 +260,7 @@ export type MintExtension =
     }
   | { __kind: 'TokenGroupMember'; data: ReadonlyUint8Array };
 
-export type MintExtensionArgs =
+export type ExtensionArgs =
   | { __kind: 'Uninitialized' }
   | {
       __kind: 'TransferFeeConfig';
@@ -455,7 +455,7 @@ export type MintExtensionArgs =
     }
   | { __kind: 'TokenGroupMember'; data: ReadonlyUint8Array };
 
-export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
+export function getExtensionEncoder(): Encoder<ExtensionArgs> {
   return getDiscriminatedUnionEncoder(
     [
       ['Uninitialized', getUnitEncoder()],
@@ -685,7 +685,7 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
   );
 }
 
-export function getMintExtensionDecoder(): Decoder<MintExtension> {
+export function getExtensionDecoder(): Decoder<Extension> {
   return getDiscriminatedUnionDecoder(
     [
       ['Uninitialized', getUnitDecoder()],
@@ -915,258 +915,219 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
   );
 }
 
-export function getMintExtensionCodec(): Codec<
-  MintExtensionArgs,
-  MintExtension
-> {
-  return combineCodec(getMintExtensionEncoder(), getMintExtensionDecoder());
+export function getExtensionCodec(): Codec<ExtensionArgs, Extension> {
+  return combineCodec(getExtensionEncoder(), getExtensionDecoder());
 }
 
 // Data Enum Helpers.
-export function mintExtension(
+export function extension(
   kind: 'Uninitialized'
-): GetDiscriminatedUnionVariant<MintExtensionArgs, '__kind', 'Uninitialized'>;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'Uninitialized'>;
+export function extension(
   kind: 'TransferFeeConfig',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'TransferFeeConfig'
   >
-): GetDiscriminatedUnionVariant<
-  MintExtensionArgs,
-  '__kind',
-  'TransferFeeConfig'
->;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TransferFeeConfig'>;
+export function extension(
   kind: 'TransferFeeAmount',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'TransferFeeAmount'
   >
-): GetDiscriminatedUnionVariant<
-  MintExtensionArgs,
-  '__kind',
-  'TransferFeeAmount'
->;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TransferFeeAmount'>;
+export function extension(
   kind: 'MintCloseAuthority',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'MintCloseAuthority'
   >
-): GetDiscriminatedUnionVariant<
-  MintExtensionArgs,
-  '__kind',
-  'MintCloseAuthority'
->;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'MintCloseAuthority'>;
+export function extension(
   kind: 'ConfidentialTransferMint',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'ConfidentialTransferMint'
   >
 ): GetDiscriminatedUnionVariant<
-  MintExtensionArgs,
+  ExtensionArgs,
   '__kind',
   'ConfidentialTransferMint'
 >;
-export function mintExtension(
+export function extension(
   kind: 'ConfidentialTransferAccount',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'ConfidentialTransferAccount'
   >
 ): GetDiscriminatedUnionVariant<
-  MintExtensionArgs,
+  ExtensionArgs,
   '__kind',
   'ConfidentialTransferAccount'
 >;
-export function mintExtension(
+export function extension(
   kind: 'DefaultAccountState',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'DefaultAccountState'
   >
-): GetDiscriminatedUnionVariant<
-  MintExtensionArgs,
-  '__kind',
-  'DefaultAccountState'
->;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'DefaultAccountState'>;
+export function extension(
   kind: 'ImmutableOwner',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'ImmutableOwner'
   >
-): GetDiscriminatedUnionVariant<MintExtensionArgs, '__kind', 'ImmutableOwner'>;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'ImmutableOwner'>;
+export function extension(
   kind: 'MemoTransfer',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'MemoTransfer'
   >
-): GetDiscriminatedUnionVariant<MintExtensionArgs, '__kind', 'MemoTransfer'>;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'MemoTransfer'>;
+export function extension(
   kind: 'NonTransferable',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'NonTransferable'
   >
-): GetDiscriminatedUnionVariant<MintExtensionArgs, '__kind', 'NonTransferable'>;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'NonTransferable'>;
+export function extension(
   kind: 'InterestBearingConfig',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'InterestBearingConfig'
   >
 ): GetDiscriminatedUnionVariant<
-  MintExtensionArgs,
+  ExtensionArgs,
   '__kind',
   'InterestBearingConfig'
 >;
-export function mintExtension(
+export function extension(
   kind: 'CpiGuard',
-  data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
-    '__kind',
-    'CpiGuard'
-  >
-): GetDiscriminatedUnionVariant<MintExtensionArgs, '__kind', 'CpiGuard'>;
-export function mintExtension(
+  data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'CpiGuard'>
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'CpiGuard'>;
+export function extension(
   kind: 'PermanentDelegate',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'PermanentDelegate'
   >
-): GetDiscriminatedUnionVariant<
-  MintExtensionArgs,
-  '__kind',
-  'PermanentDelegate'
->;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'PermanentDelegate'>;
+export function extension(
   kind: 'NonTransferableAccount',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'NonTransferableAccount'
   >
 ): GetDiscriminatedUnionVariant<
-  MintExtensionArgs,
+  ExtensionArgs,
   '__kind',
   'NonTransferableAccount'
 >;
-export function mintExtension(
+export function extension(
   kind: 'TransferHook',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'TransferHook'
   >
-): GetDiscriminatedUnionVariant<MintExtensionArgs, '__kind', 'TransferHook'>;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TransferHook'>;
+export function extension(
   kind: 'TransferHookAccount',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'TransferHookAccount'
   >
-): GetDiscriminatedUnionVariant<
-  MintExtensionArgs,
-  '__kind',
-  'TransferHookAccount'
->;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TransferHookAccount'>;
+export function extension(
   kind: 'ConfidentialTransferFee',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'ConfidentialTransferFee'
   >
 ): GetDiscriminatedUnionVariant<
-  MintExtensionArgs,
+  ExtensionArgs,
   '__kind',
   'ConfidentialTransferFee'
 >;
-export function mintExtension(
+export function extension(
   kind: 'ConfidentialTransferFeeAmount',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'ConfidentialTransferFeeAmount'
   >
 ): GetDiscriminatedUnionVariant<
-  MintExtensionArgs,
+  ExtensionArgs,
   '__kind',
   'ConfidentialTransferFeeAmount'
 >;
-export function mintExtension(
+export function extension(
   kind: 'MetadataPointer',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'MetadataPointer'
   >
-): GetDiscriminatedUnionVariant<MintExtensionArgs, '__kind', 'MetadataPointer'>;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'MetadataPointer'>;
+export function extension(
   kind: 'TokenMetadata',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'TokenMetadata'
   >
-): GetDiscriminatedUnionVariant<MintExtensionArgs, '__kind', 'TokenMetadata'>;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TokenMetadata'>;
+export function extension(
   kind: 'GroupPointer',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'GroupPointer'
   >
-): GetDiscriminatedUnionVariant<MintExtensionArgs, '__kind', 'GroupPointer'>;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'GroupPointer'>;
+export function extension(
   kind: 'TokenGroup',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'TokenGroup'
   >
-): GetDiscriminatedUnionVariant<MintExtensionArgs, '__kind', 'TokenGroup'>;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TokenGroup'>;
+export function extension(
   kind: 'GroupMemberPointer',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'GroupMemberPointer'
   >
-): GetDiscriminatedUnionVariant<
-  MintExtensionArgs,
-  '__kind',
-  'GroupMemberPointer'
->;
-export function mintExtension(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'GroupMemberPointer'>;
+export function extension(
   kind: 'TokenGroupMember',
   data: GetDiscriminatedUnionVariantContent<
-    MintExtensionArgs,
+    ExtensionArgs,
     '__kind',
     'TokenGroupMember'
   >
-): GetDiscriminatedUnionVariant<
-  MintExtensionArgs,
-  '__kind',
-  'TokenGroupMember'
->;
-export function mintExtension<K extends MintExtensionArgs['__kind'], Data>(
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TokenGroupMember'>;
+export function extension<K extends ExtensionArgs['__kind'], Data>(
   kind: K,
   data?: Data
 ) {
@@ -1175,9 +1136,9 @@ export function mintExtension<K extends MintExtensionArgs['__kind'], Data>(
     : { __kind: kind, ...(data ?? {}) };
 }
 
-export function isMintExtension<K extends MintExtension['__kind']>(
+export function isExtension<K extends Extension['__kind']>(
   kind: K,
-  value: MintExtension
-): value is MintExtension & { __kind: K } {
+  value: Extension
+): value is Extension & { __kind: K } {
   return value.__kind === kind;
 }
