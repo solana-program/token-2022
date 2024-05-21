@@ -2365,9 +2365,14 @@
                 "transfer amount, ie. increments of 0.01%."
               ],
               "type": {
-                "kind": "numberTypeNode",
-                "format": "u16",
-                "endian": "le"
+                "kind": "amountTypeNode",
+                "decimals": 2,
+                "unit": "%",
+                "number": {
+                  "kind": "numberTypeNode",
+                  "format": "u16",
+                  "endian": "le"
+                }
               }
             }
           ]
@@ -2463,44 +2468,14 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "epoch",
+                      "name": "withheldAmount",
                       "docs": [
-                        "First epoch where the transfer fee takes effect."
+                        "Withheld transfer fee tokens that can be claimed by the fee authority."
                       ],
                       "type": {
                         "kind": "numberTypeNode",
                         "format": "u64",
                         "endian": "le"
-                      }
-                    },
-                    {
-                      "kind": "structFieldTypeNode",
-                      "name": "maximumFee",
-                      "docs": [
-                        "Maximum fee assessed on transfers, expressed as an amount of tokens."
-                      ],
-                      "type": {
-                        "kind": "numberTypeNode",
-                        "format": "u64",
-                        "endian": "le"
-                      }
-                    },
-                    {
-                      "kind": "structFieldTypeNode",
-                      "name": "transferFeeBasisPoints",
-                      "docs": [
-                        "Amount of transfer collected as fees, expressed as basis points of the",
-                        "transfer amount, ie. increments of 0.01%."
-                      ],
-                      "type": {
-                        "kind": "amountTypeNode",
-                        "decimals": 2,
-                        "unit": "%",
-                        "number": {
-                          "kind": "numberTypeNode",
-                          "format": "u16",
-                          "endian": "le"
-                        }
                       }
                     }
                   ]
