@@ -139,7 +139,6 @@
       {
         "kind": "accountNode",
         "name": "token",
-        "size": 165,
         "docs": [],
         "data": {
           "kind": "structTypeNode",
@@ -248,6 +247,39 @@
                   "format": "u32",
                   "endian": "le"
                 }
+              }
+            },
+
+            {
+              "kind": "structFieldTypeNode",
+              "name": "extensions",
+              "docs": ["The extensions activated on the token account."],
+              "type": {
+                "kind": "hiddenPrefixTypeNode",
+                "type": {
+                  "kind": "arrayTypeNode",
+                  "item": {
+                    "kind": "definedTypeLinkNode",
+                    "name": "mintExtension"
+                  },
+                  "count": {
+                    "kind": "remainderCountNode"
+                  }
+                },
+                "prefix": [
+                  {
+                    "kind": "constantValueNode",
+                    "type": {
+                      "kind": "numberTypeNode",
+                      "format": "u8",
+                      "endian": "le"
+                    },
+                    "value": {
+                      "kind": "numberValueNode",
+                      "number": 2
+                    }
+                  }
+                ]
               }
             }
           ]
@@ -2431,10 +2463,44 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "data",
-                      "docs": [],
+                      "name": "epoch",
+                      "docs": [
+                        "First epoch where the transfer fee takes effect."
+                      ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "numberTypeNode",
+                        "format": "u64",
+                        "endian": "le"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "maximumFee",
+                      "docs": [
+                        "Maximum fee assessed on transfers, expressed as an amount of tokens."
+                      ],
+                      "type": {
+                        "kind": "numberTypeNode",
+                        "format": "u64",
+                        "endian": "le"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "transferFeeBasisPoints",
+                      "docs": [
+                        "Amount of transfer collected as fees, expressed as basis points of the",
+                        "transfer amount, ie. increments of 0.01%."
+                      ],
+                      "type": {
+                        "kind": "amountTypeNode",
+                        "decimals": 2,
+                        "unit": "%",
+                        "number": {
+                          "kind": "numberTypeNode",
+                          "format": "u16",
+                          "endian": "le"
+                        }
                       }
                     }
                   ]
@@ -2595,16 +2661,7 @@
                 "kind": "sizePrefixTypeNode",
                 "type": {
                   "kind": "structTypeNode",
-                  "fields": [
-                    {
-                      "kind": "structFieldTypeNode",
-                      "name": "data",
-                      "docs": [],
-                      "type": {
-                        "kind": "bytesTypeNode"
-                      }
-                    }
-                  ]
+                  "fields": []
                 },
                 "prefix": {
                   "kind": "numberTypeNode",
@@ -2776,16 +2833,7 @@
                 "kind": "sizePrefixTypeNode",
                 "type": {
                   "kind": "structTypeNode",
-                  "fields": [
-                    {
-                      "kind": "structFieldTypeNode",
-                      "name": "data",
-                      "docs": [],
-                      "type": {
-                        "kind": "bytesTypeNode"
-                      }
-                    }
-                  ]
+                  "fields": []
                 },
                 "prefix": {
                   "kind": "numberTypeNode",

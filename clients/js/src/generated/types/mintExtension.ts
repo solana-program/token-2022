@@ -74,7 +74,18 @@ export type MintExtension =
       /** Newer transfer fee, used if the current epoch >= newerTransferFee.epoch. */
       newerTransferFee: TransferFee;
     }
-  | { __kind: 'TransferFeeAmount'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'TransferFeeAmount';
+      /** First epoch where the transfer fee takes effect. */
+      epoch: bigint;
+      /** Maximum fee assessed on transfers, expressed as an amount of tokens. */
+      maximumFee: bigint;
+      /**
+       * Amount of transfer collected as fees, expressed as basis points of the
+       * transfer amount, ie. increments of 0.01%.
+       */
+      transferFeeBasisPoints: number;
+    }
   | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
   | {
       __kind: 'ConfidentialTransferMint';
@@ -99,7 +110,7 @@ export type MintExtension =
     }
   | { __kind: 'ConfidentialTransferAccount'; data: ReadonlyUint8Array }
   | { __kind: 'DefaultAccountState'; state: AccountState }
-  | { __kind: 'ImmutableOwner'; data: ReadonlyUint8Array }
+  | { __kind: 'ImmutableOwner' }
   | { __kind: 'MemoTransfer'; data: ReadonlyUint8Array }
   | { __kind: 'NonTransferable' }
   | {
@@ -112,7 +123,7 @@ export type MintExtension =
     }
   | { __kind: 'CpiGuard'; data: ReadonlyUint8Array }
   | { __kind: 'PermanentDelegate'; delegate: Address }
-  | { __kind: 'NonTransferableAccount'; data: ReadonlyUint8Array }
+  | { __kind: 'NonTransferableAccount' }
   | {
       __kind: 'TransferHook';
       /** The transfer hook update authority. */
@@ -211,7 +222,18 @@ export type MintExtensionArgs =
       /** Newer transfer fee, used if the current epoch >= newerTransferFee.epoch. */
       newerTransferFee: TransferFeeArgs;
     }
-  | { __kind: 'TransferFeeAmount'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'TransferFeeAmount';
+      /** First epoch where the transfer fee takes effect. */
+      epoch: number | bigint;
+      /** Maximum fee assessed on transfers, expressed as an amount of tokens. */
+      maximumFee: number | bigint;
+      /**
+       * Amount of transfer collected as fees, expressed as basis points of the
+       * transfer amount, ie. increments of 0.01%.
+       */
+      transferFeeBasisPoints: number;
+    }
   | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
   | {
       __kind: 'ConfidentialTransferMint';
@@ -236,7 +258,7 @@ export type MintExtensionArgs =
     }
   | { __kind: 'ConfidentialTransferAccount'; data: ReadonlyUint8Array }
   | { __kind: 'DefaultAccountState'; state: AccountStateArgs }
-  | { __kind: 'ImmutableOwner'; data: ReadonlyUint8Array }
+  | { __kind: 'ImmutableOwner' }
   | { __kind: 'MemoTransfer'; data: ReadonlyUint8Array }
   | { __kind: 'NonTransferable' }
   | {
@@ -249,7 +271,7 @@ export type MintExtensionArgs =
     }
   | { __kind: 'CpiGuard'; data: ReadonlyUint8Array }
   | { __kind: 'PermanentDelegate'; delegate: Address }
-  | { __kind: 'NonTransferableAccount'; data: ReadonlyUint8Array }
+  | { __kind: 'NonTransferableAccount' }
   | {
       __kind: 'TransferHook';
       /** The transfer hook update authority. */
@@ -353,7 +375,11 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'TransferFeeAmount',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([
+            ['epoch', getU64Encoder()],
+            ['maximumFee', getU64Encoder()],
+            ['transferFeeBasisPoints', getU16Encoder()],
+          ]),
           getU16Encoder()
         ),
       ],
@@ -394,10 +420,7 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       ],
       [
         'ImmutableOwner',
-        addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
-          getU16Encoder()
-        ),
+        addEncoderSizePrefix(getStructEncoder([]), getU16Encoder()),
       ],
       [
         'MemoTransfer',
@@ -439,10 +462,7 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       ],
       [
         'NonTransferableAccount',
-        addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
-          getU16Encoder()
-        ),
+        addEncoderSizePrefix(getStructEncoder([]), getU16Encoder()),
       ],
       [
         'TransferHook',
@@ -574,7 +594,11 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'TransferFeeAmount',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([
+            ['epoch', getU64Decoder()],
+            ['maximumFee', getU64Decoder()],
+            ['transferFeeBasisPoints', getU16Decoder()],
+          ]),
           getU16Decoder()
         ),
       ],
@@ -615,10 +639,7 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       ],
       [
         'ImmutableOwner',
-        addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
-          getU16Decoder()
-        ),
+        addDecoderSizePrefix(getStructDecoder([]), getU16Decoder()),
       ],
       [
         'MemoTransfer',
@@ -660,10 +681,7 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       ],
       [
         'NonTransferableAccount',
-        addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
-          getU16Decoder()
-        ),
+        addDecoderSizePrefix(getStructDecoder([]), getU16Decoder()),
       ],
       [
         'TransferHook',

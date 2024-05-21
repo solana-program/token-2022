@@ -27,6 +27,12 @@ import {
   fetchEncodedAccounts,
   getAddressDecoder,
   getAddressEncoder,
+  getArrayDecoder,
+  getArrayEncoder,
+  getConstantDecoder,
+  getConstantEncoder,
+  getHiddenPrefixDecoder,
+  getHiddenPrefixEncoder,
   getOptionDecoder,
   getOptionEncoder,
   getStructDecoder,
@@ -35,12 +41,17 @@ import {
   getU32Encoder,
   getU64Decoder,
   getU64Encoder,
+  getU8Encoder,
 } from '@solana/web3.js';
 import {
   AccountState,
   AccountStateArgs,
+  MintExtension,
+  MintExtensionArgs,
   getAccountStateDecoder,
   getAccountStateEncoder,
+  getMintExtensionDecoder,
+  getMintExtensionEncoder,
 } from '../types';
 
 export type Token = {
@@ -68,6 +79,8 @@ export type Token = {
   delegatedAmount: bigint;
   /** Optional authority to close the account. */
   closeAuthority: Option<Address>;
+  /** The extensions activated on the token account. */
+  extensions: Array<MintExtension>;
 };
 
 export type TokenArgs = {
@@ -95,6 +108,8 @@ export type TokenArgs = {
   delegatedAmount: number | bigint;
   /** Optional authority to close the account. */
   closeAuthority: OptionOrNullable<Address>;
+  /** The extensions activated on the token account. */
+  extensions: Array<MintExtensionArgs>;
 };
 
 export function getTokenEncoder(): Encoder<TokenArgs> {
@@ -124,6 +139,13 @@ export function getTokenEncoder(): Encoder<TokenArgs> {
         prefix: getU32Encoder(),
         fixed: true,
       }),
+    ],
+    [
+      'extensions',
+      getHiddenPrefixEncoder(
+        getArrayEncoder(getMintExtensionEncoder(), { size: 'remainder' }),
+        [getConstantEncoder(getU8Encoder().encode(2))]
+      ),
     ],
   ]);
 }
@@ -155,6 +177,13 @@ export function getTokenDecoder(): Decoder<Token> {
         prefix: getU32Decoder(),
         fixed: true,
       }),
+    ],
+    [
+      'extensions',
+      getHiddenPrefixDecoder(
+        getArrayDecoder(getMintExtensionDecoder(), { size: 'remainder' }),
+        [getConstantDecoder(getU8Encoder().encode(2))]
+      ),
     ],
   ]);
 }
@@ -214,8 +243,4 @@ export async function fetchAllMaybeToken(
 ): Promise<MaybeAccount<Token>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) => decodeToken(maybeAccount));
-}
-
-export function getTokenSize(): number {
-  return 165;
 }
