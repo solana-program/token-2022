@@ -2768,10 +2768,17 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "data",
-                      "docs": [],
+                      "name": "lockCpi",
+                      "docs": [
+                        "Lock certain token operations from taking place within CPI for this account."
+                      ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "booleanTypeNode",
+                        "size": {
+                          "kind": "numberTypeNode",
+                          "format": "u8",
+                          "endian": "le"
+                        }
                       }
                     }
                   ]

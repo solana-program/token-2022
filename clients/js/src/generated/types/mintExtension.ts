@@ -118,7 +118,11 @@ export type MintExtension =
       lastUpdateTimestamp: bigint;
       currentRate: number;
     }
-  | { __kind: 'CpiGuard'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'CpiGuard';
+      /** Lock certain token operations from taking place within CPI for this account. */
+      lockCpi: boolean;
+    }
   | { __kind: 'PermanentDelegate'; delegate: Address }
   | { __kind: 'NonTransferableAccount' }
   | {
@@ -270,7 +274,11 @@ export type MintExtensionArgs =
       lastUpdateTimestamp: number | bigint;
       currentRate: number;
     }
-  | { __kind: 'CpiGuard'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'CpiGuard';
+      /** Lock certain token operations from taking place within CPI for this account. */
+      lockCpi: boolean;
+    }
   | { __kind: 'PermanentDelegate'; delegate: Address }
   | { __kind: 'NonTransferableAccount' }
   | {
@@ -455,7 +463,7 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'CpiGuard',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([['lockCpi', getBooleanEncoder()]]),
           getU16Encoder()
         ),
       ],
@@ -672,7 +680,7 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'CpiGuard',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([['lockCpi', getBooleanDecoder()]]),
           getU16Decoder()
         ),
       ],
