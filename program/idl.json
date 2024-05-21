@@ -3495,10 +3495,30 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "data",
-                      "docs": [],
+                      "name": "mint",
+                      "docs": [
+                        "The associated mint, used to counter spoofing to be sure that member belongs to a particular mint."
+                      ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "publicKeyTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "group",
+                      "docs": ["The pubkey of the `TokenGroup`."],
+                      "type": {
+                        "kind": "publicKeyTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "memberNumber",
+                      "docs": ["The member number."],
+                      "type": {
+                        "kind": "numberTypeNode",
+                        "format": "u32",
+                        "endian": "le"
                       }
                     }
                   ]

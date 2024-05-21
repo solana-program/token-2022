@@ -15,7 +15,6 @@ import {
   GetDiscriminatedUnionVariantContent,
   Option,
   OptionOrNullable,
-  ReadonlyUint8Array,
   addDecoderSizePrefix,
   addEncoderSizePrefix,
   combineCodec,
@@ -23,8 +22,6 @@ import {
   getAddressEncoder,
   getBooleanDecoder,
   getBooleanEncoder,
-  getBytesDecoder,
-  getBytesEncoder,
   getDiscriminatedUnionDecoder,
   getDiscriminatedUnionEncoder,
   getI16Decoder,
@@ -258,7 +255,15 @@ export type Extension =
       /** Optional account address that holds the member. */
       memberAddress: Option<Address>;
     }
-  | { __kind: 'TokenGroupMember'; data: ReadonlyUint8Array };
+  | {
+      __kind: 'TokenGroupMember';
+      /** The associated mint, used to counter spoofing to be sure that member belongs to a particular mint. */
+      mint: Address;
+      /** The pubkey of the `TokenGroup`. */
+      group: Address;
+      /** The member number. */
+      memberNumber: number;
+    };
 
 export type ExtensionArgs =
   | { __kind: 'Uninitialized' }
@@ -453,7 +458,15 @@ export type ExtensionArgs =
       /** Optional account address that holds the member. */
       memberAddress: OptionOrNullable<Address>;
     }
-  | { __kind: 'TokenGroupMember'; data: ReadonlyUint8Array };
+  | {
+      __kind: 'TokenGroupMember';
+      /** The associated mint, used to counter spoofing to be sure that member belongs to a particular mint. */
+      mint: Address;
+      /** The pubkey of the `TokenGroup`. */
+      group: Address;
+      /** The member number. */
+      memberNumber: number;
+    };
 
 export function getExtensionEncoder(): Encoder<ExtensionArgs> {
   return getDiscriminatedUnionEncoder(
@@ -676,7 +689,11 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
       [
         'TokenGroupMember',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([
+            ['mint', getAddressEncoder()],
+            ['group', getAddressEncoder()],
+            ['memberNumber', getU32Encoder()],
+          ]),
           getU16Encoder()
         ),
       ],
@@ -906,7 +923,11 @@ export function getExtensionDecoder(): Decoder<Extension> {
       [
         'TokenGroupMember',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([
+            ['mint', getAddressDecoder()],
+            ['group', getAddressDecoder()],
+            ['memberNumber', getU32Decoder()],
+          ]),
           getU16Decoder()
         ),
       ],
