@@ -104,7 +104,11 @@ export type MintExtension =
   | { __kind: 'ConfidentialTransferAccount'; data: ReadonlyUint8Array }
   | { __kind: 'DefaultAccountState'; state: AccountState }
   | { __kind: 'ImmutableOwner' }
-  | { __kind: 'MemoTransfer'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'MemoTransfer';
+      /** Require transfers into this account to be accompanied by a memo. */
+      requireIncomingTransferMemos: boolean;
+    }
   | { __kind: 'NonTransferable' }
   | {
       __kind: 'InterestBearingConfig';
@@ -124,7 +128,14 @@ export type MintExtension =
       /** The transfer hook program account. */
       programId: Address;
     }
-  | { __kind: 'TransferHookAccount'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'TransferHookAccount';
+      /**
+       * Whether or not this account is currently transferring tokens
+       * True during the transfer hook cpi, otherwise false.
+       */
+      transferring: boolean;
+    }
   | {
       __kind: 'ConfidentialTransferFee';
       /** Optional authority to set the withdraw withheld authority ElGamal key. */
@@ -245,7 +256,11 @@ export type MintExtensionArgs =
   | { __kind: 'ConfidentialTransferAccount'; data: ReadonlyUint8Array }
   | { __kind: 'DefaultAccountState'; state: AccountStateArgs }
   | { __kind: 'ImmutableOwner' }
-  | { __kind: 'MemoTransfer'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'MemoTransfer';
+      /** Require transfers into this account to be accompanied by a memo. */
+      requireIncomingTransferMemos: boolean;
+    }
   | { __kind: 'NonTransferable' }
   | {
       __kind: 'InterestBearingConfig';
@@ -265,7 +280,14 @@ export type MintExtensionArgs =
       /** The transfer hook program account. */
       programId: Address;
     }
-  | { __kind: 'TransferHookAccount'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'TransferHookAccount';
+      /**
+       * Whether or not this account is currently transferring tokens
+       * True during the transfer hook cpi, otherwise false.
+       */
+      transferring: boolean;
+    }
   | {
       __kind: 'ConfidentialTransferFee';
       /** Optional authority to set the withdraw withheld authority ElGamal key. */
@@ -407,7 +429,9 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'MemoTransfer',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([
+            ['requireIncomingTransferMemos', getBooleanEncoder()],
+          ]),
           getU16Encoder()
         ),
       ],
@@ -459,7 +483,7 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'TransferHookAccount',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([['transferring', getBooleanEncoder()]]),
           getU16Encoder()
         ),
       ],
@@ -622,7 +646,9 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'MemoTransfer',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([
+            ['requireIncomingTransferMemos', getBooleanDecoder()],
+          ]),
           getU16Decoder()
         ),
       ],
@@ -674,7 +700,7 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'TransferHookAccount',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([['transferring', getBooleanDecoder()]]),
           getU16Decoder()
         ),
       ],

@@ -2655,10 +2655,17 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "data",
-                      "docs": [],
+                      "name": "requireIncomingTransferMemos",
+                      "docs": [
+                        "Require transfers into this account to be accompanied by a memo."
+                      ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "booleanTypeNode",
+                        "size": {
+                          "kind": "numberTypeNode",
+                          "format": "u8",
+                          "endian": "le"
+                        }
                       }
                     }
                   ]
@@ -2860,10 +2867,18 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "data",
-                      "docs": [],
+                      "name": "transferring",
+                      "docs": [
+                        "Whether or not this account is currently transferring tokens",
+                        "True during the transfer hook cpi, otherwise false."
+                      ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "booleanTypeNode",
+                        "size": {
+                          "kind": "numberTypeNode",
+                          "format": "u8",
+                          "endian": "le"
+                        }
                       }
                     }
                   ]
