@@ -19,8 +19,12 @@ import {
   addDecoderSizePrefix,
   addEncoderSizePrefix,
   combineCodec,
+  fixDecoderSize,
+  fixEncoderSize,
   getAddressDecoder,
   getAddressEncoder,
+  getBooleanDecoder,
+  getBooleanEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getDiscriminatedUnionDecoder,
@@ -74,24 +78,24 @@ export type MintExtension =
   | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
   | {
       __kind: 'ConfidentialTransferMint';
-      /** Optional authority to set the withdraw withheld authority ElGamal key. */
-      authority: ReadonlyUint8Array;
       /**
-       * Withheld fees from accounts must be encrypted with this ElGamal key.
+       * Authority to modify the `ConfidentialTransferMint` configuration and to
+       * approve new accounts (if `auto_approve_new_accounts` is true).
        *
-       * Note that whoever holds the ElGamal private key for this ElGamal public
-       * key has the ability to decode any withheld fee amount that are
-       * associated with accounts. When combined with the fee parameters, the
-       * withheld fee amounts can reveal information about transfer amounts.
+       * The legacy Token Multisig account is not supported as the authority.
        */
-      elgamalKey: ReadonlyUint8Array;
-      /** If `false`, the harvest of withheld tokens to mint is rejected. */
-      harvestToMintEnabled: ReadonlyUint8Array;
+      authority: Option<Address>;
       /**
-       * Withheld confidential transfer fee tokens that have been moved to the
-       * mint for withdrawal.
+       * Indicate if newly configured accounts must be approved by the
+       * `authority` before they may be used by the user.
+       *
+       * * If `true`, no approval is required and new accounts may be used immediately.
+       * * If `false`, the authority must approve newly configured accounts (see
+       *   `ConfidentialTransferInstruction::ConfigureAccount`).
        */
-      withheldAmount: ReadonlyUint8Array;
+      autoApproveNewAccounts: boolean;
+      /** Authority to decode any transfer amount in a confidential transfer. */
+      auditorElgamalPubkey: Option<Address>;
     }
   | { __kind: 'ConfidentialTransferAccount'; data: ReadonlyUint8Array }
   | { __kind: 'DefaultAccountState'; state: AccountState }
@@ -119,10 +123,30 @@ export type MintExtension =
   | { __kind: 'TransferHookAccount'; data: ReadonlyUint8Array }
   | {
       __kind: 'ConfidentialTransferFee';
+      /** Optional authority to set the withdraw withheld authority ElGamal key. */
+      authority: Option<Address>;
+      /**
+       * Withheld fees from accounts must be encrypted with this ElGamal key.
+       *
+       * Note that whoever holds the ElGamal private key for this ElGamal public
+       * key has the ability to decode any withheld fee amount that are
+       * associated with accounts. When combined with the fee parameters, the
+       * withheld fee amounts can reveal information about transfer amounts.
+       */
+      elgamalPubkey: Address;
+      /** If `false`, the harvest of withheld tokens to mint is rejected. */
+      harvestToMintEnabled: boolean;
+      /**
+       * Withheld confidential transfer fee tokens that have been moved to the
+       * mint for withdrawal.
+       */
+      withheldAmount: ReadonlyUint8Array;
+    }
+  | {
+      __kind: 'ConfidentialTransferFeeAmount';
       /** Amount withheld during confidential transfers, to be harvest to the mint. */
       withheldAmount: ReadonlyUint8Array;
     }
-  | { __kind: 'ConfidentialTransferFeeAmount'; data: ReadonlyUint8Array }
   | {
       __kind: 'MetadataPointer';
       /** Optional authority that can set the metadata address. */
@@ -191,24 +215,24 @@ export type MintExtensionArgs =
   | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
   | {
       __kind: 'ConfidentialTransferMint';
-      /** Optional authority to set the withdraw withheld authority ElGamal key. */
-      authority: ReadonlyUint8Array;
       /**
-       * Withheld fees from accounts must be encrypted with this ElGamal key.
+       * Authority to modify the `ConfidentialTransferMint` configuration and to
+       * approve new accounts (if `auto_approve_new_accounts` is true).
        *
-       * Note that whoever holds the ElGamal private key for this ElGamal public
-       * key has the ability to decode any withheld fee amount that are
-       * associated with accounts. When combined with the fee parameters, the
-       * withheld fee amounts can reveal information about transfer amounts.
+       * The legacy Token Multisig account is not supported as the authority.
        */
-      elgamalKey: ReadonlyUint8Array;
-      /** If `false`, the harvest of withheld tokens to mint is rejected. */
-      harvestToMintEnabled: ReadonlyUint8Array;
+      authority: OptionOrNullable<Address>;
       /**
-       * Withheld confidential transfer fee tokens that have been moved to the
-       * mint for withdrawal.
+       * Indicate if newly configured accounts must be approved by the
+       * `authority` before they may be used by the user.
+       *
+       * * If `true`, no approval is required and new accounts may be used immediately.
+       * * If `false`, the authority must approve newly configured accounts (see
+       *   `ConfidentialTransferInstruction::ConfigureAccount`).
        */
-      withheldAmount: ReadonlyUint8Array;
+      autoApproveNewAccounts: boolean;
+      /** Authority to decode any transfer amount in a confidential transfer. */
+      auditorElgamalPubkey: OptionOrNullable<Address>;
     }
   | { __kind: 'ConfidentialTransferAccount'; data: ReadonlyUint8Array }
   | { __kind: 'DefaultAccountState'; state: AccountStateArgs }
@@ -236,10 +260,30 @@ export type MintExtensionArgs =
   | { __kind: 'TransferHookAccount'; data: ReadonlyUint8Array }
   | {
       __kind: 'ConfidentialTransferFee';
+      /** Optional authority to set the withdraw withheld authority ElGamal key. */
+      authority: OptionOrNullable<Address>;
+      /**
+       * Withheld fees from accounts must be encrypted with this ElGamal key.
+       *
+       * Note that whoever holds the ElGamal private key for this ElGamal public
+       * key has the ability to decode any withheld fee amount that are
+       * associated with accounts. When combined with the fee parameters, the
+       * withheld fee amounts can reveal information about transfer amounts.
+       */
+      elgamalPubkey: Address;
+      /** If `false`, the harvest of withheld tokens to mint is rejected. */
+      harvestToMintEnabled: boolean;
+      /**
+       * Withheld confidential transfer fee tokens that have been moved to the
+       * mint for withdrawal.
+       */
+      withheldAmount: ReadonlyUint8Array;
+    }
+  | {
+      __kind: 'ConfidentialTransferFeeAmount';
       /** Amount withheld during confidential transfers, to be harvest to the mint. */
       withheldAmount: ReadonlyUint8Array;
     }
-  | { __kind: 'ConfidentialTransferFeeAmount'; data: ReadonlyUint8Array }
   | {
       __kind: 'MetadataPointer';
       /** Optional authority that can set the metadata address. */
@@ -324,10 +368,12 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
         'ConfidentialTransferMint',
         addEncoderSizePrefix(
           getStructEncoder([
-            ['authority', getBytesEncoder()],
-            ['elgamalKey', getBytesEncoder()],
-            ['harvestToMintEnabled', getBytesEncoder()],
-            ['withheldAmount', getBytesEncoder()],
+            ['authority', getZeroableOptionEncoder(getAddressEncoder())],
+            ['autoApproveNewAccounts', getBooleanEncoder()],
+            [
+              'auditorElgamalPubkey',
+              getZeroableOptionEncoder(getAddressEncoder()),
+            ],
           ]),
           getU16Encoder()
         ),
@@ -418,14 +464,19 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'ConfidentialTransferFee',
         addEncoderSizePrefix(
-          getStructEncoder([['withheldAmount', getBytesEncoder()]]),
+          getStructEncoder([
+            ['authority', getZeroableOptionEncoder(getAddressEncoder())],
+            ['elgamalPubkey', getAddressEncoder()],
+            ['harvestToMintEnabled', getBooleanEncoder()],
+            ['withheldAmount', fixEncoderSize(getBytesEncoder(), 64)],
+          ]),
           getU16Encoder()
         ),
       ],
       [
         'ConfidentialTransferFeeAmount',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([['withheldAmount', getBytesEncoder()]]),
           getU16Encoder()
         ),
       ],
@@ -538,10 +589,12 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
         'ConfidentialTransferMint',
         addDecoderSizePrefix(
           getStructDecoder([
-            ['authority', getBytesDecoder()],
-            ['elgamalKey', getBytesDecoder()],
-            ['harvestToMintEnabled', getBytesDecoder()],
-            ['withheldAmount', getBytesDecoder()],
+            ['authority', getZeroableOptionDecoder(getAddressDecoder())],
+            ['autoApproveNewAccounts', getBooleanDecoder()],
+            [
+              'auditorElgamalPubkey',
+              getZeroableOptionDecoder(getAddressDecoder()),
+            ],
           ]),
           getU16Decoder()
         ),
@@ -632,14 +685,19 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'ConfidentialTransferFee',
         addDecoderSizePrefix(
-          getStructDecoder([['withheldAmount', getBytesDecoder()]]),
+          getStructDecoder([
+            ['authority', getZeroableOptionDecoder(getAddressDecoder())],
+            ['elgamalPubkey', getAddressDecoder()],
+            ['harvestToMintEnabled', getBooleanDecoder()],
+            ['withheldAmount', fixDecoderSize(getBytesDecoder(), 64)],
+          ]),
           getU16Decoder()
         ),
       ],
       [
         'ConfidentialTransferFeeAmount',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([['withheldAmount', getBytesDecoder()]]),
           getU16Decoder()
         ),
       ],

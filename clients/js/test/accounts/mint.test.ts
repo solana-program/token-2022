@@ -1,4 +1,4 @@
-import { getBase64Encoder, some } from '@solana/web3.js';
+import { getBase64Encoder, none, some } from '@solana/web3.js';
 import test from 'ava';
 import { AccountState, Mint, getMintDecoder } from '../../src';
 
@@ -57,14 +57,16 @@ test('it decodes a mint account with extensions', (t) => {
       },
       {
         __kind: 'ConfidentialTransferMint',
-        // TODO: authority
-        // TODO: elgamalKey
-        // TODO: harvestToMintEnabled
-        // TODO: withheldAmount
+        authority: some('FdrdFuo1RQ9LrQ3FRfQUE7RigyANe5kFNLyMhCYk1xgJ'),
+        autoApproveNewAccounts: true,
+        auditorElgamalPubkey: none(),
       },
       {
         __kind: 'ConfidentialTransferFee',
-        // TODO: withheldAmount
+        authority: some('FdrdFuo1RQ9LrQ3FRfQUE7RigyANe5kFNLyMhCYk1xgJ'),
+        elgamalPubkey: 'ENFvQcBnPT599PsYBcKwa8wRFiyWcDYiELvZ7bdvQWPp',
+        harvestToMintEnabled: true,
+        withheldAmount: new Uint8Array(64).fill(0),
       },
       {
         __kind: 'TransferHook',

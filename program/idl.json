@@ -2483,46 +2483,49 @@
                       "kind": "structFieldTypeNode",
                       "name": "authority",
                       "docs": [
-                        "Optional authority to set the withdraw withheld authority ElGamal key."
-                      ],
-                      "type": {
-                        "kind": "bytesTypeNode"
-                      }
-                    },
-                    {
-                      "kind": "structFieldTypeNode",
-                      "name": "elgamalKey",
-                      "docs": [
-                        "Withheld fees from accounts must be encrypted with this ElGamal key.",
+                        "Authority to modify the `ConfidentialTransferMint` configuration and to",
+                        "approve new accounts (if `auto_approve_new_accounts` is true).",
                         "",
-                        "Note that whoever holds the ElGamal private key for this ElGamal public",
-                        "key has the ability to decode any withheld fee amount that are",
-                        "associated with accounts. When combined with the fee parameters, the",
-                        "withheld fee amounts can reveal information about transfer amounts."
+                        "The legacy Token Multisig account is not supported as the authority."
                       ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "zeroableOptionTypeNode",
+                        "item": {
+                          "kind": "publicKeyTypeNode"
+                        }
                       }
                     },
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "harvestToMintEnabled",
+                      "name": "autoApproveNewAccounts",
                       "docs": [
-                        "If `false`, the harvest of withheld tokens to mint is rejected."
+                        "Indicate if newly configured accounts must be approved by the",
+                        "`authority` before they may be used by the user.",
+                        "",
+                        "* If `true`, no approval is required and new accounts may be used immediately.",
+                        "* If `false`, the authority must approve newly configured accounts (see",
+                        "  `ConfidentialTransferInstruction::ConfigureAccount`)."
                       ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "booleanTypeNode",
+                        "size": {
+                          "kind": "numberTypeNode",
+                          "format": "u8",
+                          "endian": "le"
+                        }
                       }
                     },
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "withheldAmount",
+                      "name": "auditorElgamalPubkey",
                       "docs": [
-                        "Withheld confidential transfer fee tokens that have been moved to the",
-                        "mint for withdrawal."
+                        "Authority to decode any transfer amount in a confidential transfer."
                       ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "zeroableOptionTypeNode",
+                        "item": {
+                          "kind": "publicKeyTypeNode"
+                        }
                       }
                     }
                   ]
@@ -2859,12 +2862,60 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "withheldAmount",
+                      "name": "authority",
                       "docs": [
-                        "Amount withheld during confidential transfers, to be harvest to the mint."
+                        "Optional authority to set the withdraw withheld authority ElGamal key."
                       ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "zeroableOptionTypeNode",
+                        "item": {
+                          "kind": "publicKeyTypeNode"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "elgamalPubkey",
+                      "docs": [
+                        "Withheld fees from accounts must be encrypted with this ElGamal key.",
+                        "",
+                        "Note that whoever holds the ElGamal private key for this ElGamal public",
+                        "key has the ability to decode any withheld fee amount that are",
+                        "associated with accounts. When combined with the fee parameters, the",
+                        "withheld fee amounts can reveal information about transfer amounts."
+                      ],
+                      "type": {
+                        "kind": "publicKeyTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "harvestToMintEnabled",
+                      "docs": [
+                        "If `false`, the harvest of withheld tokens to mint is rejected."
+                      ],
+                      "type": {
+                        "kind": "booleanTypeNode",
+                        "size": {
+                          "kind": "numberTypeNode",
+                          "format": "u8",
+                          "endian": "le"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "withheldAmount",
+                      "docs": [
+                        "Withheld confidential transfer fee tokens that have been moved to the",
+                        "mint for withdrawal."
+                      ],
+                      "type": {
+                        "kind": "fixedSizeTypeNode",
+                        "size": 64,
+                        "type": {
+                          "kind": "bytesTypeNode"
+                        }
                       }
                     }
                   ]
@@ -2886,8 +2937,10 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "data",
-                      "docs": [],
+                      "name": "withheldAmount",
+                      "docs": [
+                        "Amount withheld during confidential transfers, to be harvest to the mint."
+                      ],
                       "type": {
                         "kind": "bytesTypeNode"
                       }
