@@ -49,12 +49,16 @@ import {
 import {
   AccountState,
   AccountStateArgs,
+  DecryptableBalance,
+  DecryptableBalanceArgs,
   EncryptedBalance,
   EncryptedBalanceArgs,
   TransferFee,
   TransferFeeArgs,
   getAccountStateDecoder,
   getAccountStateEncoder,
+  getDecryptableBalanceDecoder,
+  getDecryptableBalanceEncoder,
   getEncryptedBalanceDecoder,
   getEncryptedBalanceEncoder,
   getTransferFeeDecoder,
@@ -119,29 +123,29 @@ export type MintExtension =
       /** The available balance (encrypted by `encrypiton_pubkey`). */
       availableBalance: EncryptedBalance;
       /** The decryptable available balance. */
-      decryptableAvailableBalance: ReadonlyUint8Array;
+      decryptableAvailableBalance: DecryptableBalance;
       /** If `false`, the extended account rejects any incoming confidential transfers. */
-      allowConfidentialCredits: ReadonlyUint8Array;
+      allowConfidentialCredits: boolean;
       /** If `false`, the base account rejects any incoming transfers. */
-      allowNonConfidentialCredits: ReadonlyUint8Array;
+      allowNonConfidentialCredits: boolean;
       /** The total number of `Deposit` and `Transfer` instructions that have credited `pending_balance`. */
-      pendingBalanceCreditCounter: ReadonlyUint8Array;
+      pendingBalanceCreditCounter: bigint;
       /**
        * The maximum number of `Deposit` and `Transfer` instructions that can
        * credit `pending_balance` before the `ApplyPendingBalance`
        * instruction is executed.
        */
-      maximumPendingBalanceCreditCounter: ReadonlyUint8Array;
+      maximumPendingBalanceCreditCounter: bigint;
       /**
        * The `expected_pending_balance_credit_counter` value that was included in
        * the last `ApplyPendingBalance` instruction.
        */
-      expectedPendingBalanceCreditCounter: ReadonlyUint8Array;
+      expectedPendingBalanceCreditCounter: bigint;
       /**
        * The actual `pending_balance_credit_counter` when the last
        * `ApplyPendingBalance` instruction was executed.
        */
-      actualPendingBalanceCreditCounter: ReadonlyUint8Array;
+      actualPendingBalanceCreditCounter: bigint;
     }
   | { __kind: 'DefaultAccountState'; state: AccountState }
   | { __kind: 'ImmutableOwner' }
@@ -314,29 +318,29 @@ export type MintExtensionArgs =
       /** The available balance (encrypted by `encrypiton_pubkey`). */
       availableBalance: EncryptedBalanceArgs;
       /** The decryptable available balance. */
-      decryptableAvailableBalance: ReadonlyUint8Array;
+      decryptableAvailableBalance: DecryptableBalanceArgs;
       /** If `false`, the extended account rejects any incoming confidential transfers. */
-      allowConfidentialCredits: ReadonlyUint8Array;
+      allowConfidentialCredits: boolean;
       /** If `false`, the base account rejects any incoming transfers. */
-      allowNonConfidentialCredits: ReadonlyUint8Array;
+      allowNonConfidentialCredits: boolean;
       /** The total number of `Deposit` and `Transfer` instructions that have credited `pending_balance`. */
-      pendingBalanceCreditCounter: ReadonlyUint8Array;
+      pendingBalanceCreditCounter: number | bigint;
       /**
        * The maximum number of `Deposit` and `Transfer` instructions that can
        * credit `pending_balance` before the `ApplyPendingBalance`
        * instruction is executed.
        */
-      maximumPendingBalanceCreditCounter: ReadonlyUint8Array;
+      maximumPendingBalanceCreditCounter: number | bigint;
       /**
        * The `expected_pending_balance_credit_counter` value that was included in
        * the last `ApplyPendingBalance` instruction.
        */
-      expectedPendingBalanceCreditCounter: ReadonlyUint8Array;
+      expectedPendingBalanceCreditCounter: number | bigint;
       /**
        * The actual `pending_balance_credit_counter` when the last
        * `ApplyPendingBalance` instruction was executed.
        */
-      actualPendingBalanceCreditCounter: ReadonlyUint8Array;
+      actualPendingBalanceCreditCounter: number | bigint;
     }
   | { __kind: 'DefaultAccountState'; state: AccountStateArgs }
   | { __kind: 'ImmutableOwner' }
@@ -505,13 +509,13 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
             ['pendingBalanceLow', getEncryptedBalanceEncoder()],
             ['pendingBalanceHigh', getEncryptedBalanceEncoder()],
             ['availableBalance', getEncryptedBalanceEncoder()],
-            ['decryptableAvailableBalance', getBytesEncoder()],
-            ['allowConfidentialCredits', getBytesEncoder()],
-            ['allowNonConfidentialCredits', getBytesEncoder()],
-            ['pendingBalanceCreditCounter', getBytesEncoder()],
-            ['maximumPendingBalanceCreditCounter', getBytesEncoder()],
-            ['expectedPendingBalanceCreditCounter', getBytesEncoder()],
-            ['actualPendingBalanceCreditCounter', getBytesEncoder()],
+            ['decryptableAvailableBalance', getDecryptableBalanceEncoder()],
+            ['allowConfidentialCredits', getBooleanEncoder()],
+            ['allowNonConfidentialCredits', getBooleanEncoder()],
+            ['pendingBalanceCreditCounter', getU64Encoder()],
+            ['maximumPendingBalanceCreditCounter', getU64Encoder()],
+            ['expectedPendingBalanceCreditCounter', getU64Encoder()],
+            ['actualPendingBalanceCreditCounter', getU64Encoder()],
           ]),
           getU16Encoder()
         ),
@@ -735,13 +739,13 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
             ['pendingBalanceLow', getEncryptedBalanceDecoder()],
             ['pendingBalanceHigh', getEncryptedBalanceDecoder()],
             ['availableBalance', getEncryptedBalanceDecoder()],
-            ['decryptableAvailableBalance', getBytesDecoder()],
-            ['allowConfidentialCredits', getBytesDecoder()],
-            ['allowNonConfidentialCredits', getBytesDecoder()],
-            ['pendingBalanceCreditCounter', getBytesDecoder()],
-            ['maximumPendingBalanceCreditCounter', getBytesDecoder()],
-            ['expectedPendingBalanceCreditCounter', getBytesDecoder()],
-            ['actualPendingBalanceCreditCounter', getBytesDecoder()],
+            ['decryptableAvailableBalance', getDecryptableBalanceDecoder()],
+            ['allowConfidentialCredits', getBooleanDecoder()],
+            ['allowNonConfidentialCredits', getBooleanDecoder()],
+            ['pendingBalanceCreditCounter', getU64Decoder()],
+            ['maximumPendingBalanceCreditCounter', getU64Decoder()],
+            ['expectedPendingBalanceCreditCounter', getU64Decoder()],
+            ['actualPendingBalanceCreditCounter', getU64Decoder()],
           ]),
           getU16Decoder()
         ),

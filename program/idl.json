@@ -2381,10 +2381,22 @@
       {
         "kind": "definedTypeNode",
         "name": "encryptedBalance",
-        "docs": ["Ciphertext for the ElGamal encryption scheme."],
+        "docs": ["ElGamal ciphertext containing an account balance."],
         "type": {
           "kind": "fixedSizeTypeNode",
           "size": 64,
+          "type": {
+            "kind": "bytesTypeNode"
+          }
+        }
+      },
+      {
+        "kind": "definedTypeNode",
+        "name": "decryptableBalance",
+        "docs": ["Authenticated encryption containing an account balance."],
+        "type": {
+          "kind": "fixedSizeTypeNode",
+          "size": 36,
           "type": {
             "kind": "bytesTypeNode"
           }
@@ -2662,7 +2674,8 @@
                       "name": "decryptableAvailableBalance",
                       "docs": ["The decryptable available balance."],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "definedTypeLinkNode",
+                        "name": "decryptableBalance"
                       }
                     },
                     {
@@ -2672,7 +2685,12 @@
                         "If `false`, the extended account rejects any incoming confidential transfers."
                       ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "booleanTypeNode",
+                        "size": {
+                          "kind": "numberTypeNode",
+                          "format": "u8",
+                          "endian": "le"
+                        }
                       }
                     },
                     {
@@ -2682,7 +2700,12 @@
                         "If `false`, the base account rejects any incoming transfers."
                       ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "booleanTypeNode",
+                        "size": {
+                          "kind": "numberTypeNode",
+                          "format": "u8",
+                          "endian": "le"
+                        }
                       }
                     },
                     {
@@ -2692,7 +2715,9 @@
                         "The total number of `Deposit` and `Transfer` instructions that have credited `pending_balance`."
                       ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "numberTypeNode",
+                        "format": "u64",
+                        "endian": "le"
                       }
                     },
                     {
@@ -2704,7 +2729,9 @@
                         "instruction is executed."
                       ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "numberTypeNode",
+                        "format": "u64",
+                        "endian": "le"
                       }
                     },
                     {
@@ -2715,7 +2742,9 @@
                         "the last `ApplyPendingBalance` instruction."
                       ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "numberTypeNode",
+                        "format": "u64",
+                        "endian": "le"
                       }
                     },
                     {
@@ -2726,7 +2755,9 @@
                         "`ApplyPendingBalance` instruction was executed."
                       ],
                       "type": {
-                        "kind": "bytesTypeNode"
+                        "kind": "numberTypeNode",
+                        "format": "u64",
+                        "endian": "le"
                       }
                     }
                   ]

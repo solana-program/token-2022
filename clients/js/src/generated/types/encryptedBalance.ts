@@ -18,7 +18,7 @@ import {
   getBytesEncoder,
 } from '@solana/web3.js';
 
-/** Ciphertext for the ElGamal encryption scheme. */
+/** ElGamal ciphertext containing an account balance. */
 export type EncryptedBalance = ReadonlyUint8Array;
 
 export type EncryptedBalanceArgs = EncryptedBalance;
