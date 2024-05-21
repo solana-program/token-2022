@@ -27,9 +27,7 @@ import {
   TOKEN_2022_PROGRAM_ADDRESS,
   getInitializeAccountInstruction,
   getInitializeMintInstruction,
-  getMintSize,
   getMintToInstruction,
-  getTokenSize,
 } from '../src';
 
 type Client = {
@@ -95,7 +93,7 @@ export const createMint = async (
   mintAuthority: Address,
   decimals: number = 0
 ): Promise<Address> => {
-  const space = BigInt(getMintSize());
+  const space = 82n;
   const [transactionMessage, rent, mint] = await Promise.all([
     createDefaultTransaction(client, payer),
     client.rpc.getMinimumBalanceForRentExemption(space).send(),
@@ -130,7 +128,7 @@ export const createToken = async (
   mint: Address,
   owner: Address
 ): Promise<Address> => {
-  const space = BigInt(getTokenSize());
+  const space = 165n;
   const [transactionMessage, rent, token] = await Promise.all([
     createDefaultTransaction(client, payer),
     client.rpc.getMinimumBalanceForRentExemption(space).send(),
@@ -163,7 +161,7 @@ export const createTokenWithAmount = async (
   owner: Address,
   amount: bigint
 ): Promise<Address> => {
-  const space = BigInt(getTokenSize());
+  const space = 165n;
   const [transactionMessage, rent, token] = await Promise.all([
     createDefaultTransaction(client, payer),
     client.rpc.getMinimumBalanceForRentExemption(space).send(),

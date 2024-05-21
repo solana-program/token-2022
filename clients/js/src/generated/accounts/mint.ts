@@ -27,8 +27,14 @@ import {
   fetchEncodedAccounts,
   getAddressDecoder,
   getAddressEncoder,
+  getArrayDecoder,
+  getArrayEncoder,
   getBooleanDecoder,
   getBooleanEncoder,
+  getConstantDecoder,
+  getConstantEncoder,
+  getHiddenPrefixDecoder,
+  getHiddenPrefixEncoder,
   getOptionDecoder,
   getOptionEncoder,
   getStructDecoder,
@@ -39,7 +45,14 @@ import {
   getU64Encoder,
   getU8Decoder,
   getU8Encoder,
+  padLeftEncoder,
 } from '@solana/web3.js';
+import {
+  Extension,
+  ExtensionArgs,
+  getExtensionDecoder,
+  getExtensionEncoder,
+} from '../types';
 
 export type Mint = {
   /**
@@ -56,6 +69,8 @@ export type Mint = {
   isInitialized: boolean;
   /** Optional authority to freeze token accounts. */
   freezeAuthority: Option<Address>;
+  /** The extensions activated on the mint account. */
+  extensions: Array<Extension>;
 };
 
 export type MintArgs = {
@@ -73,6 +88,8 @@ export type MintArgs = {
   isInitialized: boolean;
   /** Optional authority to freeze token accounts. */
   freezeAuthority: OptionOrNullable<Address>;
+  /** The extensions activated on the mint account. */
+  extensions: Array<ExtensionArgs>;
 };
 
 export function getMintEncoder(): Encoder<MintArgs> {
@@ -93,6 +110,13 @@ export function getMintEncoder(): Encoder<MintArgs> {
         prefix: getU32Encoder(),
         fixed: true,
       }),
+    ],
+    [
+      'extensions',
+      getHiddenPrefixEncoder(
+        getArrayEncoder(getExtensionEncoder(), { size: 'remainder' }),
+        [getConstantEncoder(padLeftEncoder(getU8Encoder(), 83).encode(1))]
+      ),
     ],
   ]);
 }
@@ -115,6 +139,13 @@ export function getMintDecoder(): Decoder<Mint> {
         prefix: getU32Decoder(),
         fixed: true,
       }),
+    ],
+    [
+      'extensions',
+      getHiddenPrefixDecoder(
+        getArrayDecoder(getExtensionDecoder(), { size: 'remainder' }),
+        [getConstantDecoder(padLeftEncoder(getU8Encoder(), 83).encode(1))]
+      ),
     ],
   ]);
 }
@@ -174,8 +205,4 @@ export async function fetchAllMaybeMint(
 ): Promise<MaybeAccount<Mint>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) => decodeMint(maybeAccount));
-}
-
-export function getMintSize(): number {
-  return 82;
 }

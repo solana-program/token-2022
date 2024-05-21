@@ -8,3 +8,7 @@
 
 export * from './accountState';
 export * from './authorityType';
+export * from './decryptableBalance';
+export * from './encryptedBalance';
+export * from './extension';
+export * from './transferFee';
