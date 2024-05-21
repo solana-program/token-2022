@@ -19,8 +19,6 @@ import {
   addDecoderSizePrefix,
   addEncoderSizePrefix,
   combineCodec,
-  fixDecoderSize,
-  fixEncoderSize,
   getAddressDecoder,
   getAddressEncoder,
   getBooleanDecoder,
@@ -51,10 +49,14 @@ import {
 import {
   AccountState,
   AccountStateArgs,
+  EncryptedBalance,
+  EncryptedBalanceArgs,
   TransferFee,
   TransferFeeArgs,
   getAccountStateDecoder,
   getAccountStateEncoder,
+  getEncryptedBalanceDecoder,
+  getEncryptedBalanceEncoder,
   getTransferFeeDecoder,
   getTransferFeeEncoder,
 } from '.';
@@ -101,7 +103,46 @@ export type MintExtension =
       /** Authority to decode any transfer amount in a confidential transfer. */
       auditorElgamalPubkey: Option<Address>;
     }
-  | { __kind: 'ConfidentialTransferAccount'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'ConfidentialTransferAccount';
+      /**
+       * `true` if this account has been approved for use. All confidential
+       * transfer operations for the account will fail until approval is granted.
+       */
+      approved: boolean;
+      /** The public key associated with ElGamal encryption. */
+      elgamalPubkey: Address;
+      /** The low 16 bits of the pending balance (encrypted by `elgamal_pubkey`). */
+      pendingBalanceLow: EncryptedBalance;
+      /** The high 48 bits of the pending balance (encrypted by `elgamal_pubkey`). */
+      pendingBalanceHigh: EncryptedBalance;
+      /** The available balance (encrypted by `encrypiton_pubkey`). */
+      availableBalance: EncryptedBalance;
+      /** The decryptable available balance. */
+      decryptableAvailableBalance: ReadonlyUint8Array;
+      /** If `false`, the extended account rejects any incoming confidential transfers. */
+      allowConfidentialCredits: ReadonlyUint8Array;
+      /** If `false`, the base account rejects any incoming transfers. */
+      allowNonConfidentialCredits: ReadonlyUint8Array;
+      /** The total number of `Deposit` and `Transfer` instructions that have credited `pending_balance`. */
+      pendingBalanceCreditCounter: ReadonlyUint8Array;
+      /**
+       * The maximum number of `Deposit` and `Transfer` instructions that can
+       * credit `pending_balance` before the `ApplyPendingBalance`
+       * instruction is executed.
+       */
+      maximumPendingBalanceCreditCounter: ReadonlyUint8Array;
+      /**
+       * The `expected_pending_balance_credit_counter` value that was included in
+       * the last `ApplyPendingBalance` instruction.
+       */
+      expectedPendingBalanceCreditCounter: ReadonlyUint8Array;
+      /**
+       * The actual `pending_balance_credit_counter` when the last
+       * `ApplyPendingBalance` instruction was executed.
+       */
+      actualPendingBalanceCreditCounter: ReadonlyUint8Array;
+    }
   | { __kind: 'DefaultAccountState'; state: AccountState }
   | { __kind: 'ImmutableOwner' }
   | {
@@ -159,7 +200,7 @@ export type MintExtension =
        * Withheld confidential transfer fee tokens that have been moved to the
        * mint for withdrawal.
        */
-      withheldAmount: ReadonlyUint8Array;
+      withheldAmount: EncryptedBalance;
     }
   | {
       __kind: 'ConfidentialTransferFeeAmount';
@@ -257,7 +298,46 @@ export type MintExtensionArgs =
       /** Authority to decode any transfer amount in a confidential transfer. */
       auditorElgamalPubkey: OptionOrNullable<Address>;
     }
-  | { __kind: 'ConfidentialTransferAccount'; data: ReadonlyUint8Array }
+  | {
+      __kind: 'ConfidentialTransferAccount';
+      /**
+       * `true` if this account has been approved for use. All confidential
+       * transfer operations for the account will fail until approval is granted.
+       */
+      approved: boolean;
+      /** The public key associated with ElGamal encryption. */
+      elgamalPubkey: Address;
+      /** The low 16 bits of the pending balance (encrypted by `elgamal_pubkey`). */
+      pendingBalanceLow: EncryptedBalanceArgs;
+      /** The high 48 bits of the pending balance (encrypted by `elgamal_pubkey`). */
+      pendingBalanceHigh: EncryptedBalanceArgs;
+      /** The available balance (encrypted by `encrypiton_pubkey`). */
+      availableBalance: EncryptedBalanceArgs;
+      /** The decryptable available balance. */
+      decryptableAvailableBalance: ReadonlyUint8Array;
+      /** If `false`, the extended account rejects any incoming confidential transfers. */
+      allowConfidentialCredits: ReadonlyUint8Array;
+      /** If `false`, the base account rejects any incoming transfers. */
+      allowNonConfidentialCredits: ReadonlyUint8Array;
+      /** The total number of `Deposit` and `Transfer` instructions that have credited `pending_balance`. */
+      pendingBalanceCreditCounter: ReadonlyUint8Array;
+      /**
+       * The maximum number of `Deposit` and `Transfer` instructions that can
+       * credit `pending_balance` before the `ApplyPendingBalance`
+       * instruction is executed.
+       */
+      maximumPendingBalanceCreditCounter: ReadonlyUint8Array;
+      /**
+       * The `expected_pending_balance_credit_counter` value that was included in
+       * the last `ApplyPendingBalance` instruction.
+       */
+      expectedPendingBalanceCreditCounter: ReadonlyUint8Array;
+      /**
+       * The actual `pending_balance_credit_counter` when the last
+       * `ApplyPendingBalance` instruction was executed.
+       */
+      actualPendingBalanceCreditCounter: ReadonlyUint8Array;
+    }
   | { __kind: 'DefaultAccountState'; state: AccountStateArgs }
   | { __kind: 'ImmutableOwner' }
   | {
@@ -315,7 +395,7 @@ export type MintExtensionArgs =
        * Withheld confidential transfer fee tokens that have been moved to the
        * mint for withdrawal.
        */
-      withheldAmount: ReadonlyUint8Array;
+      withheldAmount: EncryptedBalanceArgs;
     }
   | {
       __kind: 'ConfidentialTransferFeeAmount';
@@ -419,7 +499,20 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
       [
         'ConfidentialTransferAccount',
         addEncoderSizePrefix(
-          getStructEncoder([['data', getBytesEncoder()]]),
+          getStructEncoder([
+            ['approved', getBooleanEncoder()],
+            ['elgamalPubkey', getAddressEncoder()],
+            ['pendingBalanceLow', getEncryptedBalanceEncoder()],
+            ['pendingBalanceHigh', getEncryptedBalanceEncoder()],
+            ['availableBalance', getEncryptedBalanceEncoder()],
+            ['decryptableAvailableBalance', getBytesEncoder()],
+            ['allowConfidentialCredits', getBytesEncoder()],
+            ['allowNonConfidentialCredits', getBytesEncoder()],
+            ['pendingBalanceCreditCounter', getBytesEncoder()],
+            ['maximumPendingBalanceCreditCounter', getBytesEncoder()],
+            ['expectedPendingBalanceCreditCounter', getBytesEncoder()],
+            ['actualPendingBalanceCreditCounter', getBytesEncoder()],
+          ]),
           getU16Encoder()
         ),
       ],
@@ -502,7 +595,7 @@ export function getMintExtensionEncoder(): Encoder<MintExtensionArgs> {
             ['authority', getZeroableOptionEncoder(getAddressEncoder())],
             ['elgamalPubkey', getAddressEncoder()],
             ['harvestToMintEnabled', getBooleanEncoder()],
-            ['withheldAmount', fixEncoderSize(getBytesEncoder(), 64)],
+            ['withheldAmount', getEncryptedBalanceEncoder()],
           ]),
           getU16Encoder()
         ),
@@ -636,7 +729,20 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
       [
         'ConfidentialTransferAccount',
         addDecoderSizePrefix(
-          getStructDecoder([['data', getBytesDecoder()]]),
+          getStructDecoder([
+            ['approved', getBooleanDecoder()],
+            ['elgamalPubkey', getAddressDecoder()],
+            ['pendingBalanceLow', getEncryptedBalanceDecoder()],
+            ['pendingBalanceHigh', getEncryptedBalanceDecoder()],
+            ['availableBalance', getEncryptedBalanceDecoder()],
+            ['decryptableAvailableBalance', getBytesDecoder()],
+            ['allowConfidentialCredits', getBytesDecoder()],
+            ['allowNonConfidentialCredits', getBytesDecoder()],
+            ['pendingBalanceCreditCounter', getBytesDecoder()],
+            ['maximumPendingBalanceCreditCounter', getBytesDecoder()],
+            ['expectedPendingBalanceCreditCounter', getBytesDecoder()],
+            ['actualPendingBalanceCreditCounter', getBytesDecoder()],
+          ]),
           getU16Decoder()
         ),
       ],
@@ -719,7 +825,7 @@ export function getMintExtensionDecoder(): Decoder<MintExtension> {
             ['authority', getZeroableOptionDecoder(getAddressDecoder())],
             ['elgamalPubkey', getAddressDecoder()],
             ['harvestToMintEnabled', getBooleanDecoder()],
-            ['withheldAmount', fixDecoderSize(getBytesDecoder(), 64)],
+            ['withheldAmount', getEncryptedBalanceDecoder()],
           ]),
           getU16Decoder()
         ),

@@ -2380,6 +2380,18 @@
       },
       {
         "kind": "definedTypeNode",
+        "name": "encryptedBalance",
+        "docs": ["Ciphertext for the ElGamal encryption scheme."],
+        "type": {
+          "kind": "fixedSizeTypeNode",
+          "size": 64,
+          "type": {
+            "kind": "bytesTypeNode"
+          }
+        }
+      },
+      {
+        "kind": "definedTypeNode",
         "name": "mintExtension",
         "docs": [],
         "type": {
@@ -2588,8 +2600,131 @@
                   "fields": [
                     {
                       "kind": "structFieldTypeNode",
-                      "name": "data",
-                      "docs": [],
+                      "name": "approved",
+                      "docs": [
+                        "`true` if this account has been approved for use. All confidential",
+                        "transfer operations for the account will fail until approval is granted."
+                      ],
+                      "type": {
+                        "kind": "booleanTypeNode",
+                        "size": {
+                          "kind": "numberTypeNode",
+                          "format": "u8",
+                          "endian": "le"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "elgamalPubkey",
+                      "docs": [
+                        "The public key associated with ElGamal encryption."
+                      ],
+                      "type": {
+                        "kind": "publicKeyTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "pendingBalanceLow",
+                      "docs": [
+                        "The low 16 bits of the pending balance (encrypted by `elgamal_pubkey`)."
+                      ],
+                      "type": {
+                        "kind": "definedTypeLinkNode",
+                        "name": "encryptedBalance"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "pendingBalanceHigh",
+                      "docs": [
+                        "The high 48 bits of the pending balance (encrypted by `elgamal_pubkey`)."
+                      ],
+                      "type": {
+                        "kind": "definedTypeLinkNode",
+                        "name": "encryptedBalance"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "availableBalance",
+                      "docs": [
+                        "The available balance (encrypted by `encrypiton_pubkey`)."
+                      ],
+                      "type": {
+                        "kind": "definedTypeLinkNode",
+                        "name": "encryptedBalance"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "decryptableAvailableBalance",
+                      "docs": ["The decryptable available balance."],
+                      "type": {
+                        "kind": "bytesTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "allowConfidentialCredits",
+                      "docs": [
+                        "If `false`, the extended account rejects any incoming confidential transfers."
+                      ],
+                      "type": {
+                        "kind": "bytesTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "allowNonConfidentialCredits",
+                      "docs": [
+                        "If `false`, the base account rejects any incoming transfers."
+                      ],
+                      "type": {
+                        "kind": "bytesTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "pendingBalanceCreditCounter",
+                      "docs": [
+                        "The total number of `Deposit` and `Transfer` instructions that have credited `pending_balance`."
+                      ],
+                      "type": {
+                        "kind": "bytesTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "maximumPendingBalanceCreditCounter",
+                      "docs": [
+                        "The maximum number of `Deposit` and `Transfer` instructions that can",
+                        "credit `pending_balance` before the `ApplyPendingBalance`",
+                        "instruction is executed."
+                      ],
+                      "type": {
+                        "kind": "bytesTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "expectedPendingBalanceCreditCounter",
+                      "docs": [
+                        "The `expected_pending_balance_credit_counter` value that was included in",
+                        "the last `ApplyPendingBalance` instruction."
+                      ],
+                      "type": {
+                        "kind": "bytesTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "actualPendingBalanceCreditCounter",
+                      "docs": [
+                        "The actual `pending_balance_credit_counter` when the last",
+                        "`ApplyPendingBalance` instruction was executed."
+                      ],
                       "type": {
                         "kind": "bytesTypeNode"
                       }
@@ -2956,11 +3091,8 @@
                         "mint for withdrawal."
                       ],
                       "type": {
-                        "kind": "fixedSizeTypeNode",
-                        "size": 64,
-                        "type": {
-                          "kind": "bytesTypeNode"
-                        }
+                        "kind": "definedTypeLinkNode",
+                        "name": "encryptedBalance"
                       }
                     }
                   ]

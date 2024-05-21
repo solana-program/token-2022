@@ -11,6 +11,7 @@ test('it decodes a token account with extensions', (t) => {
   // When we decode it.
   const decodedData = getTokenDecoder().decode(encodedData);
   console.log(decodedData);
+  console.log(decodedData.extensions[6]);
 
   // Then we expect the following data.
   t.like(decodedData, <Token>{

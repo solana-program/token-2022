@@ -8,5 +8,6 @@
 
 export * from './accountState';
 export * from './authorityType';
+export * from './encryptedBalance';
 export * from './mintExtension';
 export * from './transferFee';
