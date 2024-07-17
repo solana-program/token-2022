@@ -7,18 +7,6 @@
  */
 
 import {
-  Account,
-  Address,
-  Codec,
-  Decoder,
-  EncodedAccount,
-  Encoder,
-  FetchAccountConfig,
-  FetchAccountsConfig,
-  MaybeAccount,
-  MaybeEncodedAccount,
-  Option,
-  OptionOrNullable,
   assertAccountExists,
   assertAccountsExist,
   combineCodec,
@@ -46,12 +34,24 @@ import {
   getU8Decoder,
   getU8Encoder,
   padLeftEncoder,
+  type Account,
+  type Address,
+  type Codec,
+  type Decoder,
+  type EncodedAccount,
+  type Encoder,
+  type FetchAccountConfig,
+  type FetchAccountsConfig,
+  type MaybeAccount,
+  type MaybeEncodedAccount,
+  type Option,
+  type OptionOrNullable,
 } from '@solana/web3.js';
 import {
-  Extension,
-  ExtensionArgs,
   getExtensionDecoder,
   getExtensionEncoder,
+  type Extension,
+  type ExtensionArgs,
 } from '../types';
 
 export type Mint = {
@@ -98,7 +98,7 @@ export function getMintEncoder(): Encoder<MintArgs> {
       'mintAuthority',
       getOptionEncoder(getAddressEncoder(), {
         prefix: getU32Encoder(),
-        fixed: true,
+        noneValue: 'zeroes',
       }),
     ],
     ['supply', getU64Encoder()],
@@ -108,7 +108,7 @@ export function getMintEncoder(): Encoder<MintArgs> {
       'freezeAuthority',
       getOptionEncoder(getAddressEncoder(), {
         prefix: getU32Encoder(),
-        fixed: true,
+        noneValue: 'zeroes',
       }),
     ],
     [
@@ -127,7 +127,7 @@ export function getMintDecoder(): Decoder<Mint> {
       'mintAuthority',
       getOptionDecoder(getAddressDecoder(), {
         prefix: getU32Decoder(),
-        fixed: true,
+        noneValue: 'zeroes',
       }),
     ],
     ['supply', getU64Decoder()],
@@ -137,7 +137,7 @@ export function getMintDecoder(): Decoder<Mint> {
       'freezeAuthority',
       getOptionDecoder(getAddressDecoder(), {
         prefix: getU32Decoder(),
-        fixed: true,
+        noneValue: 'zeroes',
       }),
     ],
     [

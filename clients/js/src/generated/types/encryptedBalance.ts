@@ -7,15 +7,15 @@
  */
 
 import {
-  Codec,
-  Decoder,
-  Encoder,
-  ReadonlyUint8Array,
   combineCodec,
   fixDecoderSize,
   fixEncoderSize,
   getBytesDecoder,
   getBytesEncoder,
+  type Codec,
+  type Decoder,
+  type Encoder,
+  type ReadonlyUint8Array,
 } from '@solana/web3.js';
 
 /** ElGamal ciphertext containing an account balance. */
