@@ -7,14 +7,6 @@
  */
 
 import {
-  Address,
-  Codec,
-  Decoder,
-  Encoder,
-  GetDiscriminatedUnionVariant,
-  GetDiscriminatedUnionVariantContent,
-  Option,
-  OptionOrNullable,
   addDecoderSizePrefix,
   addEncoderSizePrefix,
   combineCodec,
@@ -28,6 +20,8 @@ import {
   getI16Encoder,
   getMapDecoder,
   getMapEncoder,
+  getOptionDecoder,
+  getOptionEncoder,
   getStructDecoder,
   getStructEncoder,
   getU16Decoder,
@@ -40,18 +34,16 @@ import {
   getUnitEncoder,
   getUtf8Decoder,
   getUtf8Encoder,
-  getZeroableOptionDecoder,
-  getZeroableOptionEncoder,
+  type Address,
+  type Codec,
+  type Decoder,
+  type Encoder,
+  type GetDiscriminatedUnionVariant,
+  type GetDiscriminatedUnionVariantContent,
+  type Option,
+  type OptionOrNullable,
 } from '@solana/web3.js';
 import {
-  AccountState,
-  AccountStateArgs,
-  DecryptableBalance,
-  DecryptableBalanceArgs,
-  EncryptedBalance,
-  EncryptedBalanceArgs,
-  TransferFee,
-  TransferFeeArgs,
   getAccountStateDecoder,
   getAccountStateEncoder,
   getDecryptableBalanceDecoder,
@@ -60,6 +52,14 @@ import {
   getEncryptedBalanceEncoder,
   getTransferFeeDecoder,
   getTransferFeeEncoder,
+  type AccountState,
+  type AccountStateArgs,
+  type DecryptableBalance,
+  type DecryptableBalanceArgs,
+  type EncryptedBalance,
+  type EncryptedBalanceArgs,
+  type TransferFee,
+  type TransferFeeArgs,
 } from '.';
 
 export type Extension =
@@ -503,11 +503,20 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
         'ConfidentialTransferMint',
         addEncoderSizePrefix(
           getStructEncoder([
-            ['authority', getZeroableOptionEncoder(getAddressEncoder())],
+            [
+              'authority',
+              getOptionEncoder(getAddressEncoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
             ['autoApproveNewAccounts', getBooleanEncoder()],
             [
               'auditorElgamalPubkey',
-              getZeroableOptionEncoder(getAddressEncoder()),
+              getOptionEncoder(getAddressEncoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
             ],
           ]),
           getU16Encoder()
@@ -609,7 +618,13 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
         'ConfidentialTransferFee',
         addEncoderSizePrefix(
           getStructEncoder([
-            ['authority', getZeroableOptionEncoder(getAddressEncoder())],
+            [
+              'authority',
+              getOptionEncoder(getAddressEncoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
             ['elgamalPubkey', getAddressEncoder()],
             ['harvestToMintEnabled', getBooleanEncoder()],
             ['withheldAmount', getEncryptedBalanceEncoder()],
@@ -628,8 +643,20 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
         'MetadataPointer',
         addEncoderSizePrefix(
           getStructEncoder([
-            ['authority', getZeroableOptionEncoder(getAddressEncoder())],
-            ['metadataAddress', getZeroableOptionEncoder(getAddressEncoder())],
+            [
+              'authority',
+              getOptionEncoder(getAddressEncoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
+            [
+              'metadataAddress',
+              getOptionEncoder(getAddressEncoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
           ]),
           getU16Encoder()
         ),
@@ -638,7 +665,13 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
         'TokenMetadata',
         addEncoderSizePrefix(
           getStructEncoder([
-            ['updateAuthority', getZeroableOptionEncoder(getAddressEncoder())],
+            [
+              'updateAuthority',
+              getOptionEncoder(getAddressEncoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
             ['mint', getAddressEncoder()],
             ['name', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
             ['symbol', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
@@ -658,8 +691,20 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
         'GroupPointer',
         addEncoderSizePrefix(
           getStructEncoder([
-            ['authority', getZeroableOptionEncoder(getAddressEncoder())],
-            ['groupAddress', getZeroableOptionEncoder(getAddressEncoder())],
+            [
+              'authority',
+              getOptionEncoder(getAddressEncoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
+            [
+              'groupAddress',
+              getOptionEncoder(getAddressEncoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
           ]),
           getU16Encoder()
         ),
@@ -668,7 +713,13 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
         'TokenGroup',
         addEncoderSizePrefix(
           getStructEncoder([
-            ['updateAuthority', getZeroableOptionEncoder(getAddressEncoder())],
+            [
+              'updateAuthority',
+              getOptionEncoder(getAddressEncoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
             ['mint', getAddressEncoder()],
             ['size', getU32Encoder()],
             ['maxSize', getU32Encoder()],
@@ -680,8 +731,20 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
         'GroupMemberPointer',
         addEncoderSizePrefix(
           getStructEncoder([
-            ['authority', getZeroableOptionEncoder(getAddressEncoder())],
-            ['memberAddress', getZeroableOptionEncoder(getAddressEncoder())],
+            [
+              'authority',
+              getOptionEncoder(getAddressEncoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
+            [
+              'memberAddress',
+              getOptionEncoder(getAddressEncoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
           ]),
           getU16Encoder()
         ),
@@ -737,11 +800,20 @@ export function getExtensionDecoder(): Decoder<Extension> {
         'ConfidentialTransferMint',
         addDecoderSizePrefix(
           getStructDecoder([
-            ['authority', getZeroableOptionDecoder(getAddressDecoder())],
+            [
+              'authority',
+              getOptionDecoder(getAddressDecoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
             ['autoApproveNewAccounts', getBooleanDecoder()],
             [
               'auditorElgamalPubkey',
-              getZeroableOptionDecoder(getAddressDecoder()),
+              getOptionDecoder(getAddressDecoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
             ],
           ]),
           getU16Decoder()
@@ -843,7 +915,13 @@ export function getExtensionDecoder(): Decoder<Extension> {
         'ConfidentialTransferFee',
         addDecoderSizePrefix(
           getStructDecoder([
-            ['authority', getZeroableOptionDecoder(getAddressDecoder())],
+            [
+              'authority',
+              getOptionDecoder(getAddressDecoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
             ['elgamalPubkey', getAddressDecoder()],
             ['harvestToMintEnabled', getBooleanDecoder()],
             ['withheldAmount', getEncryptedBalanceDecoder()],
@@ -862,8 +940,20 @@ export function getExtensionDecoder(): Decoder<Extension> {
         'MetadataPointer',
         addDecoderSizePrefix(
           getStructDecoder([
-            ['authority', getZeroableOptionDecoder(getAddressDecoder())],
-            ['metadataAddress', getZeroableOptionDecoder(getAddressDecoder())],
+            [
+              'authority',
+              getOptionDecoder(getAddressDecoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
+            [
+              'metadataAddress',
+              getOptionDecoder(getAddressDecoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
           ]),
           getU16Decoder()
         ),
@@ -872,7 +962,13 @@ export function getExtensionDecoder(): Decoder<Extension> {
         'TokenMetadata',
         addDecoderSizePrefix(
           getStructDecoder([
-            ['updateAuthority', getZeroableOptionDecoder(getAddressDecoder())],
+            [
+              'updateAuthority',
+              getOptionDecoder(getAddressDecoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
             ['mint', getAddressDecoder()],
             ['name', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
             ['symbol', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
@@ -892,8 +988,20 @@ export function getExtensionDecoder(): Decoder<Extension> {
         'GroupPointer',
         addDecoderSizePrefix(
           getStructDecoder([
-            ['authority', getZeroableOptionDecoder(getAddressDecoder())],
-            ['groupAddress', getZeroableOptionDecoder(getAddressDecoder())],
+            [
+              'authority',
+              getOptionDecoder(getAddressDecoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
+            [
+              'groupAddress',
+              getOptionDecoder(getAddressDecoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
           ]),
           getU16Decoder()
         ),
@@ -902,7 +1010,13 @@ export function getExtensionDecoder(): Decoder<Extension> {
         'TokenGroup',
         addDecoderSizePrefix(
           getStructDecoder([
-            ['updateAuthority', getZeroableOptionDecoder(getAddressDecoder())],
+            [
+              'updateAuthority',
+              getOptionDecoder(getAddressDecoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
             ['mint', getAddressDecoder()],
             ['size', getU32Decoder()],
             ['maxSize', getU32Decoder()],
@@ -914,8 +1028,20 @@ export function getExtensionDecoder(): Decoder<Extension> {
         'GroupMemberPointer',
         addDecoderSizePrefix(
           getStructDecoder([
-            ['authority', getZeroableOptionDecoder(getAddressDecoder())],
-            ['memberAddress', getZeroableOptionDecoder(getAddressDecoder())],
+            [
+              'authority',
+              getOptionDecoder(getAddressDecoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
+            [
+              'memberAddress',
+              getOptionDecoder(getAddressDecoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
           ]),
           getU16Decoder()
         ),

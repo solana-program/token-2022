@@ -1,11 +1,9 @@
 import { env } from 'node:process';
-import path from 'path';
 import { defineConfig, Options } from 'tsup';
 
 const SHARED_OPTIONS: Options = {
   define: { __VERSION__: `"${env.npm_package_version}"` },
   entry: ['./src/index.ts'],
-  inject: [path.resolve(__dirname, 'env-shim.ts')],
   outDir: './dist/src',
   outExtension: ({ format }) => ({ js: format === 'cjs' ? '.js' : '.mjs' }),
   sourcemap: true,

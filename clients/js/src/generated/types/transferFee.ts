@@ -7,9 +7,6 @@
  */
 
 import {
-  Codec,
-  Decoder,
-  Encoder,
   combineCodec,
   getStructDecoder,
   getStructEncoder,
@@ -17,6 +14,9 @@ import {
   getU16Encoder,
   getU64Decoder,
   getU64Encoder,
+  type Codec,
+  type Decoder,
+  type Encoder,
 } from '@solana/web3.js';
 
 export type TransferFee = {
