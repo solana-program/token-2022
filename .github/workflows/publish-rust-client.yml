@@ -54,9 +54,6 @@ jobs:
       - name: Lint Rust Client
         run: pnpm clients:rust:lint
 
-      - name: Build Programs
-        run: pnpm programs:build
-
       - name: Test Rust Client
         run: pnpm clients:rust:test
 
