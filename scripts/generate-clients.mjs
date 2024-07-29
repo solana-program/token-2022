@@ -1,20 +1,20 @@
 #!/usr/bin/env zx
-import "zx/globals";
-import { createFromRoot } from "kinobi";
-import { renderVisitor as renderJavaScriptVisitor } from "@kinobi-so/renderers-js";
+import 'zx/globals';
+import { createFromRoot } from 'kinobi';
+import { renderVisitor as renderJavaScriptVisitor } from '@kinobi-so/renderers-js';
 // import { renderVisitor as renderRustVisitor } from "@kinobi-so/renderers-rust";
-import { workingDirectory } from "./utils.mjs";
+import { workingDirectory } from './utils.mjs';
 
 // Instanciate Kinobi.
 const kinobi = createFromRoot(
-  require(path.join(workingDirectory, "program", "idl.json"))
+  require(path.join(workingDirectory, 'program', 'idl.json'))
 );
 
 // Render JavaScript.
-const jsClient = path.join(__dirname, "..", "clients", "js");
+const jsClient = path.join(__dirname, '..', 'clients', 'js');
 kinobi.accept(
-  renderJavaScriptVisitor(path.join(jsClient, "src", "generated"), {
-    prettier: require(path.join(jsClient, ".prettierrc.json")),
+  renderJavaScriptVisitor(path.join(jsClient, 'src', 'generated'), {
+    prettier: require(path.join(jsClient, '.prettierrc.json')),
   })
 );
 

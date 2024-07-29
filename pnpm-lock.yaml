@@ -12,8 +12,8 @@ importers:
         specifier: ^2.2.5
         version: 2.2.5
       '@kinobi-so/renderers-js':
-        specifier: ^0.21.0
-        version: 0.21.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.5.3)
+        specifier: ^0.21.2
+        version: 0.21.2(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.5.3)
       '@kinobi-so/renderers-rust':
         specifier: ^0.21.0
         version: 0.21.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.5.3)
@@ -48,8 +48,8 @@ packages:
   '@kinobi-so/renderers-core@0.20.7':
     resolution: {integrity: sha512-KJhU8+UMowO9dDkLhEodAkbRkgSxdfBWeY+DIgOCgXcakt0T140K7OREuaAo9fp12Owf+10SAEGx9AzTNySoHA==}
 
-  '@kinobi-so/renderers-js@0.21.0':
-    resolution: {integrity: sha512-KjYU9BB8U2O9u2FZD+CIoMHgt6dSqO+cwDGIjCaH/GIsiKU5WDfO2IuBSoDWTO37icSVbzM2NeHyW3+RfUyYDg==}
+  '@kinobi-so/renderers-js@0.21.2':
+    resolution: {integrity: sha512-G576GAQ10ugmA63EZRlEbv892th37q9ow+AMzZD1vtypRCEJ7znakzySSDG3aeqaZujk2igKXFQTD+FHuY/xPg==}
 
   '@kinobi-so/renderers-rust@0.21.0':
     resolution: {integrity: sha512-BLe1SW6XFBhjtZdCc7cuukMWrJTbhCafCCmXryLmjzF7jaiK9nyZZFinHxljSac4HCk2vDn22mHAwOjabaDQ2Q==}
@@ -432,7 +432,7 @@ snapshots:
       '@kinobi-so/nodes': 0.21.0
       '@kinobi-so/visitors-core': 0.21.0
 
-  '@kinobi-so/renderers-js@0.21.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.5.3)':
+  '@kinobi-so/renderers-js@0.21.2(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.5.3)':
     dependencies:
       '@kinobi-so/errors': 0.21.0
       '@kinobi-so/nodes': 0.21.0

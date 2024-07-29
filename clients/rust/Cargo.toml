@@ -1,6 +1,8 @@
 [package]
 name = "spl-token-2022-client"
 version = "0.0.0"
+description = "A generated Rust library for the Token 2022 program"
+repository = "https://github.com/solana-program/token-2022"
 edition = "2021"
 readme = "README.md"
 license-file = "../../LICENSE"
