@@ -1,20 +1,28 @@
 {
   "private": true,
   "scripts": {
+    "solana:check": "zx ./scripts/check-solana-version.mjs",
+    "solana:link": "zx ./scripts/link-solana-version.mjs",
     "generate": "pnpm generate:clients",
     "generate:clients": "zx ./scripts/generate-clients.mjs",
     "validator:start": "zx ./scripts/start-validator.mjs",
     "validator:restart": "pnpm validator:start --restart",
     "validator:stop": "zx ./scripts/stop-validator.mjs",
+    "clients:js:format": "zx ./scripts/client/format-js.mjs",
+    "clients:js:lint": "zx ./scripts/client/lint-js.mjs",
+    "clients:js:publish": "zx ./scripts/client/publish-js.mjs",
     "clients:js:test": "zx ./scripts/client/test-js.mjs",
+    "clients:rust:format": "zx ./scripts/client/format-rust.mjs",
+    "clients:rust:lint": "zx ./scripts/client/lint-rust.mjs",
+    "clients:rust:publish": "zx ./scripts/client/publish-rust.mjs",
     "clients:rust:test": "zx ./scripts/client/test-rust.mjs",
     "template:upgrade": "zx ./scripts/upgrade-template.mjs"
   },
   "devDependencies": {
     "@iarna/toml": "^2.2.5",
-    "kinobi": "^0.21.0",
-    "@kinobi-so/renderers-js": "^0.21.0",
+    "@kinobi-so/renderers-js": "^0.21.2",
     "@kinobi-so/renderers-rust": "^0.21.0",
+    "kinobi": "^0.21.0",
     "typescript": "^5.5.2",
     "zx": "^7.2.3"
   },

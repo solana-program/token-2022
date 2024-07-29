@@ -1,12 +1,17 @@
 #!/usr/bin/env zx
 import 'zx/globals';
-import { workingDirectory } from '../utils.mjs';
+import { cliArguments, workingDirectory } from '../utils.mjs';
+
+// Configure additional arguments here, e.g.:
+// ['--arg1', '--arg2', ...cliArguments()]
+const testArgs = cliArguments();
+
+const hasSolfmt = await which('solfmt', { nothrow: true });
 
 // Run the tests.
 cd(path.join(workingDirectory, 'clients', 'rust'));
-const hasSolfmt = await which('solfmt', { nothrow: true });
 if (hasSolfmt) {
-  await $`cargo test-sbf ${argv._} 2>&1 | solfmt`;
+  await $`cargo test-sbf ${testArgs} 2>&1 | solfmt`;
 } else {
-  await $`cargo test-sbf ${argv._}`;
+  await $`cargo test-sbf ${testArgs}`;
 }

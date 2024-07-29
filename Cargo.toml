@@ -1,3 +1,12 @@
 [workspace]
 resolver = "2"
 members = ["clients/rust"]
+
+[workspace.metadata.cli]
+solana = "1.18.18"
+
+# Specify Rust toolchains for rustfmt, clippy, and build.
+# Any unprovided toolchains default to stable.
+[workspace.metadata.toolchains]
+format = "1.78.0"
+lint = "1.78.0"

@@ -1,0 +1,99 @@
+name: Publish JS Client
+
+on:
+  workflow_dispatch:
+    inputs:
+      level:
+        description: Version level
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - prerelease
+          - prepatch
+          - preminor
+          - premajor
+      tag:
+        description: NPM Tag (and preid for pre-releases)
+        required: true
+        type: string
+        default: latest
+      create_release:
+        description: Create a GitHub release
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  test_js:
+    name: Test JS client
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup
+        with:
+          cargo-cache-key: cargo-programs
+          solana: true
+
+      - name: Format JS Client
+        run: pnpm clients:js:format
+
+      - name: Lint JS Client
+        run: pnpm clients:js:lint
+
+      - name: Build Programs
+        run: pnpm programs:build
+
+      - name: Test JS Client
+        run: pnpm clients:js:test
+
+  publish_js:
+    name: Publish JS client
+    runs-on: ubuntu-latest
+    needs: test_js
+    permissions:
+      contents: write
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup
+
+      - name: Ensure NPM_TOKEN variable is set
+        env:
+          token: ${{ secrets.NPM_TOKEN }}
+        if: ${{ env.token == '' }}
+        run: |
+          echo "The NPM_TOKEN secret variable is not set"
+          echo "Go to \"Settings\" -> \"Secrets and variables\" -> \"Actions\" -> \"New repository secret\"."
+          exit 1
+
+      - name: NPM Authentication
+        run: pnpm config set '//registry.npmjs.org/:_authToken' "${NODE_AUTH_TOKEN}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Set Git Author
+        run: |
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: Publish JS Client
+        id: publish
+        run: pnpm clients:js:publish ${{ inputs.level }} ${{ inputs.tag }}
+
+      - name: Push Commit and Tag
+        run: git push origin --follow-tags
+
+      - name: Create GitHub release
+        if: github.event.inputs.create_release == 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          tag: js@v${{ steps.publish.outputs.new_version }}

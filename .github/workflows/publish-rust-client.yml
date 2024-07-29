@@ -1,0 +1,125 @@
+name: Publish Rust Client
+
+on:
+  workflow_dispatch:
+    inputs:
+      level:
+        description: Level
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - rc
+          - beta
+          - alpha
+          - release
+          - version
+      version:
+        description: Version
+        required: false
+        type: string
+      dry_run:
+        description: Dry run
+        required: true
+        default: true
+        type: boolean
+      create_release:
+        description: Create a GitHub release
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  test_rust:
+    name: Test Rust client
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup
+        with:
+          cargo-cache-key: cargo-rust-client
+          clippy: true
+          rustfmt: true
+          solana: true
+
+      - name: Format Rust Client
+        run: pnpm clients:rust:format
+
+      - name: Lint Rust Client
+        run: pnpm clients:rust:lint
+
+      - name: Build Programs
+        run: pnpm programs:build
+
+      - name: Test Rust Client
+        run: pnpm clients:rust:test
+
+  publish_rust:
+    name: Publish Rust Client
+    runs-on: ubuntu-latest
+    needs: test_rust
+    permissions:
+      contents: write
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup
+        with:
+          cargo-cache-key: cargo-publish-rust-client
+          cargo-cache-fallback-key: cargo-rust-client
+          clippy: true
+          rustfmt: true
+
+      - name: Install Cargo Release
+        run: which cargo-release || cargo install cargo-release
+
+      - name: Ensure CARGO_REGISTRY_TOKEN variable is set
+        env:
+          token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        if: ${{ env.token == '' }}
+        run: |
+          echo "The CARGO_REGISTRY_TOKEN secret variable is not set"
+          echo "Go to \"Settings\" -> \"Secrets and variables\" -> \"Actions\" -> \"New repository secret\"."
+          exit 1
+
+      - name: Set Git Author
+        run: |
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: Publish Rust Client
+        id: publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ "${{ inputs.level }}" == "version" ]; then
+            LEVEL=${{ inputs.version }}
+          else
+            LEVEL=${{ inputs.level }}
+          fi
+
+          if [ "${{ inputs.dry_run }}" == "true" ]; then
+            OPTIONS="--dry-run"
+          else
+            OPTIONS=""
+          fi
+
+          pnpm clients:rust:publish $LEVEL $OPTIONS
+
+      - name: Push Commit and Tag
+        if: github.event.inputs.dry_run != 'true'
+        run: git push origin --follow-tags
+
+      - name: Create GitHub release
+        if: github.event.inputs.create_release == 'true' && github.event.inputs.dry_run != 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          tag: rust@v${{ steps.publish.outputs.new_version }}
