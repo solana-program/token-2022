@@ -7,7 +7,8 @@
     "validator:restart": "pnpm validator:start --restart",
     "validator:stop": "zx ./scripts/stop-validator.mjs",
     "clients:js:test": "zx ./scripts/client/test-js.mjs",
-    "clients:rust:test": "zx ./scripts/client/test-rust.mjs"
+    "clients:rust:test": "zx ./scripts/client/test-rust.mjs",
+    "template:upgrade": "zx ./scripts/upgrade-template.mjs"
   },
   "devDependencies": {
     "@iarna/toml": "^2.2.5",
