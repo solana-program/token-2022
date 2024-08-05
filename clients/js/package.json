@@ -34,14 +34,14 @@
   },
   "license": "Apache-2.0",
   "peerDependencies": {
-    "@solana/web3.js": "2.0.0-preview.4"
+    "@solana/web3.js": "2.0.0-rc.0"
   },
   "devDependencies": {
     "@ava/typescript": "^4.1.0",
-    "@solana-program/system": "^0.4.0",
+    "@solana-program/system": "^0.4.1",
     "@solana/eslint-config-solana": "^3.0.3",
-    "@solana/web3.js": "2.0.0-preview.4",
-    "@solana/webcrypto-ed25519-polyfill": "2.0.0-preview.4",
+    "@solana/web3.js": "2.0.0-rc.0",
+    "@solana/webcrypto-ed25519-polyfill": "2.0.0-rc.0",
     "@types/node": "^20",
     "@typescript-eslint/eslint-plugin": "^7.16.1",
     "@typescript-eslint/parser": "^7.16.1",

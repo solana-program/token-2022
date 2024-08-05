@@ -121,10 +121,6 @@ export async function getInstalledSolanaVersion() {
     const { stdout } = await $`solana --version`.quiet();
     return stdout.match(/(\d+\.\d+\.\d+)/)?.[1];
   } catch (error) {
-    echo(
-      chalk.red('[ ERROR ]'),
-      `No Solana installation found. Please install Solana ${getSolanaVersion()} before proceeding.`
-    );
-    process.exit(1);
+    return '';
   }
 }
