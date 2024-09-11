@@ -18,7 +18,7 @@ test('it decodes a mint account with extensions', (t) => {
     decimals: 9,
     isInitialized: true,
     freezeAuthority: some('FdrdFuo1RQ9LrQ3FRfQUE7RigyANe5kFNLyMhCYk1xgJ'),
-    extensions: [
+    extensions: some([
       {
         __kind: 'MintCloseAuthority',
         closeAuthority: 'FdrdFuo1RQ9LrQ3FRfQUE7RigyANe5kFNLyMhCYk1xgJ',
@@ -104,6 +104,6 @@ test('it decodes a mint account with extensions', (t) => {
         size: 0,
         maxSize: 1000,
       },
-    ],
+    ]),
   });
 });

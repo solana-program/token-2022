@@ -26,9 +26,11 @@ import {
   type ParsedInitializeAccountInstruction,
   type ParsedInitializeImmutableOwnerInstruction,
   type ParsedInitializeMint2Instruction,
+  type ParsedInitializeMintCloseAuthorityInstruction,
   type ParsedInitializeMintInstruction,
   type ParsedInitializeMultisig2Instruction,
   type ParsedInitializeMultisigInstruction,
+  type ParsedInitializeTransferFeeConfigInstruction,
   type ParsedMintToCheckedInstruction,
   type ParsedMintToInstruction,
   type ParsedRevokeInstruction,
@@ -93,6 +95,8 @@ export enum Token2022Instruction {
   InitializeImmutableOwner,
   AmountToUiAmount,
   UiAmountToAmount,
+  InitializeMintCloseAuthority,
+  InitializeTransferFeeConfig,
 }
 
 export function identifyToken2022Instruction(
@@ -173,6 +177,15 @@ export function identifyToken2022Instruction(
   }
   if (containsBytes(data, getU8Encoder().encode(24), 0)) {
     return Token2022Instruction.UiAmountToAmount;
+  }
+  if (containsBytes(data, getU8Encoder().encode(25), 0)) {
+    return Token2022Instruction.InitializeMintCloseAuthority;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(26), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
+    return Token2022Instruction.InitializeTransferFeeConfig;
   }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
@@ -256,4 +269,10 @@ export type ParsedToken2022Instruction<
     } & ParsedAmountToUiAmountInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.UiAmountToAmount;
-    } & ParsedUiAmountToAmountInstruction<TProgram>);
+    } & ParsedUiAmountToAmountInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeMintCloseAuthority;
+    } & ParsedInitializeMintCloseAuthorityInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeTransferFeeConfig;
+    } & ParsedInitializeTransferFeeConfigInstruction<TProgram>);

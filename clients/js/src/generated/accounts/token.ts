@@ -80,7 +80,7 @@ export type Token = {
   /** Optional authority to close the account. */
   closeAuthority: Option<Address>;
   /** The extensions activated on the token account. */
-  extensions: Array<Extension>;
+  extensions: Option<Array<Extension>>;
 };
 
 export type TokenArgs = {
@@ -109,7 +109,7 @@ export type TokenArgs = {
   /** Optional authority to close the account. */
   closeAuthority: OptionOrNullable<Address>;
   /** The extensions activated on the token account. */
-  extensions: Array<ExtensionArgs>;
+  extensions: OptionOrNullable<Array<ExtensionArgs>>;
 };
 
 export function getTokenEncoder(): Encoder<TokenArgs> {
@@ -142,9 +142,12 @@ export function getTokenEncoder(): Encoder<TokenArgs> {
     ],
     [
       'extensions',
-      getHiddenPrefixEncoder(
-        getArrayEncoder(getExtensionEncoder(), { size: 'remainder' }),
-        [getConstantEncoder(getU8Encoder().encode(2))]
+      getOptionEncoder(
+        getHiddenPrefixEncoder(
+          getArrayEncoder(getExtensionEncoder(), { size: 'remainder' }),
+          [getConstantEncoder(getU8Encoder().encode(2))]
+        ),
+        { prefix: null }
       ),
     ],
   ]);
@@ -180,9 +183,12 @@ export function getTokenDecoder(): Decoder<Token> {
     ],
     [
       'extensions',
-      getHiddenPrefixDecoder(
-        getArrayDecoder(getExtensionDecoder(), { size: 'remainder' }),
-        [getConstantDecoder(getU8Encoder().encode(2))]
+      getOptionDecoder(
+        getHiddenPrefixDecoder(
+          getArrayDecoder(getExtensionDecoder(), { size: 'remainder' }),
+          [getConstantDecoder(getU8Encoder().encode(2))]
+        ),
+        { prefix: null }
       ),
     ],
   ]);

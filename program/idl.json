@@ -95,36 +95,39 @@
               "name": "extensions",
               "docs": ["The extensions activated on the mint account."],
               "type": {
-                "kind": "hiddenPrefixTypeNode",
-                "type": {
-                  "kind": "arrayTypeNode",
-                  "item": {
-                    "kind": "definedTypeLinkNode",
-                    "name": "extension"
-                  },
-                  "count": {
-                    "kind": "remainderCountNode"
-                  }
-                },
-                "prefix": [
-                  {
-                    "kind": "constantValueNode",
-                    "type": {
-                      "kind": "preOffsetTypeNode",
-                      "offset": 83,
-                      "strategy": "padded",
-                      "type": {
-                        "kind": "numberTypeNode",
-                        "format": "u8",
-                        "endian": "le"
-                      }
+                "kind": "remainderOptionTypeNode",
+                "item": {
+                  "kind": "hiddenPrefixTypeNode",
+                  "type": {
+                    "kind": "arrayTypeNode",
+                    "item": {
+                      "kind": "definedTypeLinkNode",
+                      "name": "extension"
                     },
-                    "value": {
-                      "kind": "numberValueNode",
-                      "number": 1
+                    "count": {
+                      "kind": "remainderCountNode"
                     }
-                  }
-                ]
+                  },
+                  "prefix": [
+                    {
+                      "kind": "constantValueNode",
+                      "type": {
+                        "kind": "preOffsetTypeNode",
+                        "offset": 83,
+                        "strategy": "padded",
+                        "type": {
+                          "kind": "numberTypeNode",
+                          "format": "u8",
+                          "endian": "le"
+                        }
+                      },
+                      "value": {
+                        "kind": "numberValueNode",
+                        "number": 1
+                      }
+                    }
+                  ]
+                }
               }
             }
           ]
@@ -249,37 +252,39 @@
                 }
               }
             },
-
             {
               "kind": "structFieldTypeNode",
               "name": "extensions",
               "docs": ["The extensions activated on the token account."],
               "type": {
-                "kind": "hiddenPrefixTypeNode",
-                "type": {
-                  "kind": "arrayTypeNode",
-                  "item": {
-                    "kind": "definedTypeLinkNode",
-                    "name": "extension"
-                  },
-                  "count": {
-                    "kind": "remainderCountNode"
-                  }
-                },
-                "prefix": [
-                  {
-                    "kind": "constantValueNode",
-                    "type": {
-                      "kind": "numberTypeNode",
-                      "format": "u8",
-                      "endian": "le"
+                "kind": "remainderOptionTypeNode",
+                "item": {
+                  "kind": "hiddenPrefixTypeNode",
+                  "type": {
+                    "kind": "arrayTypeNode",
+                    "item": {
+                      "kind": "definedTypeLinkNode",
+                      "name": "extension"
                     },
-                    "value": {
-                      "kind": "numberValueNode",
-                      "number": 2
+                    "count": {
+                      "kind": "remainderCountNode"
                     }
-                  }
-                ]
+                  },
+                  "prefix": [
+                    {
+                      "kind": "constantValueNode",
+                      "type": {
+                        "kind": "numberTypeNode",
+                        "format": "u8",
+                        "endian": "le"
+                      },
+                      "value": {
+                        "kind": "numberValueNode",
+                        "number": 2
+                      }
+                    }
+                  ]
+                }
               }
             }
           ]
@@ -2267,6 +2272,197 @@
             "offset": 0
           }
         ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "initializeMintCloseAuthority",
+        "docs": [
+          "Initialize the close account authority on a new mint.",
+          "",
+          "Fails if the mint has already been initialized, so must be called before `InitializeMint`.",
+          "",
+          "The mint must have exactly enough space allocated for the base mint (82",
+          "bytes), plus 83 bytes of padding, 1 byte reserved for the account type,",
+          "then space required for this extension, plus any others."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint to initialize."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 25
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "closeAuthority",
+            "docs": [
+              "Authority that must sign the `CloseAccount` instruction on a mint."
+            ],
+            "type": {
+              "kind": "optionTypeNode",
+              "fixed": false,
+              "item": {
+                "kind": "publicKeyTypeNode"
+              },
+              "prefix": {
+                "kind": "numberTypeNode",
+                "format": "u8",
+                "endian": "le"
+              }
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "initializeTransferFeeConfig",
+        "docs": [
+          "Initialize the transfer fee on a new mint.",
+          "",
+          "Fails if the mint has already been initialized, so must be called before `InitializeMint`.",
+          "",
+          "The mint must have exactly enough space allocated for the base mint (82",
+          "bytes), plus 83 bytes of padding, 1 byte reserved for the account type,",
+          "then space required for this extension, plus any others."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint to initialize."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 26
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "transferFeeDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 0
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "transferFeeConfigAuthority",
+            "docs": ["Pubkey that may update the fees."],
+            "type": {
+              "kind": "optionTypeNode",
+              "fixed": false,
+              "item": {
+                "kind": "publicKeyTypeNode"
+              },
+              "prefix": {
+                "kind": "numberTypeNode",
+                "format": "u8",
+                "endian": "le"
+              }
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "withdrawWithheldAuthority",
+            "docs": ["Withdraw instructions must be signed by this key."],
+            "type": {
+              "kind": "optionTypeNode",
+              "fixed": false,
+              "item": {
+                "kind": "publicKeyTypeNode"
+              },
+              "prefix": {
+                "kind": "numberTypeNode",
+                "format": "u8",
+                "endian": "le"
+              }
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "transferFeeBasisPoints",
+            "docs": [
+              "Amount of transfer collected as fees, expressed as basis points of the transfer amount."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u16",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "maximumFee",
+            "docs": ["Maximum fee assessed on transfers."],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "transferFeeDiscriminator",
+            "offset": 1
+          }
+        ]
       }
     ],
     "definedTypes": [
@@ -3797,7 +3993,7 @@
               "docs": ["SPL Token program."],
               "defaultValue": {
                 "kind": "publicKeyValueNode",
-                "publicKey": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+                "publicKey": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
               }
             }
           ],
@@ -3919,7 +4115,7 @@
               "docs": ["SPL Token program."],
               "defaultValue": {
                 "kind": "publicKeyValueNode",
-                "publicKey": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+                "publicKey": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
               }
             }
           ],
@@ -4115,7 +4311,7 @@
               "docs": ["SPL Token program."],
               "defaultValue": {
                 "kind": "publicKeyValueNode",
-                "publicKey": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+                "publicKey": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
               }
             }
           ],

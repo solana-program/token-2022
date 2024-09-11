@@ -1,4 +1,9 @@
-import { getBase16Encoder, getBase64Encoder, none } from '@solana/web3.js';
+import {
+  getBase16Encoder,
+  getBase64Encoder,
+  none,
+  some,
+} from '@solana/web3.js';
 import test from 'ava';
 import { AccountState, Token, getTokenDecoder } from '../../src';
 
@@ -21,7 +26,7 @@ test('it decodes a token account with extensions', (t) => {
     isNative: none(),
     delegatedAmount: 0n,
     closeAuthority: none(),
-    extensions: [
+    extensions: some([
       { __kind: 'ImmutableOwner' },
       { __kind: 'NonTransferableAccount' },
       { __kind: 'TransferFeeAmount', withheldAmount: 0n },
@@ -49,6 +54,6 @@ test('it decodes a token account with extensions', (t) => {
         __kind: 'ConfidentialTransferFeeAmount',
         withheldAmount: new Uint8Array(64).fill(0),
       },
-    ],
+    ]),
   });
 });

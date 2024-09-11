@@ -70,7 +70,7 @@ export type Mint = {
   /** Optional authority to freeze token accounts. */
   freezeAuthority: Option<Address>;
   /** The extensions activated on the mint account. */
-  extensions: Array<Extension>;
+  extensions: Option<Array<Extension>>;
 };
 
 export type MintArgs = {
@@ -89,7 +89,7 @@ export type MintArgs = {
   /** Optional authority to freeze token accounts. */
   freezeAuthority: OptionOrNullable<Address>;
   /** The extensions activated on the mint account. */
-  extensions: Array<ExtensionArgs>;
+  extensions: OptionOrNullable<Array<ExtensionArgs>>;
 };
 
 export function getMintEncoder(): Encoder<MintArgs> {
@@ -113,9 +113,12 @@ export function getMintEncoder(): Encoder<MintArgs> {
     ],
     [
       'extensions',
-      getHiddenPrefixEncoder(
-        getArrayEncoder(getExtensionEncoder(), { size: 'remainder' }),
-        [getConstantEncoder(padLeftEncoder(getU8Encoder(), 83).encode(1))]
+      getOptionEncoder(
+        getHiddenPrefixEncoder(
+          getArrayEncoder(getExtensionEncoder(), { size: 'remainder' }),
+          [getConstantEncoder(padLeftEncoder(getU8Encoder(), 83).encode(1))]
+        ),
+        { prefix: null }
       ),
     ],
   ]);
@@ -142,9 +145,12 @@ export function getMintDecoder(): Decoder<Mint> {
     ],
     [
       'extensions',
-      getHiddenPrefixDecoder(
-        getArrayDecoder(getExtensionDecoder(), { size: 'remainder' }),
-        [getConstantDecoder(padLeftEncoder(getU8Encoder(), 83).encode(1))]
+      getOptionDecoder(
+        getHiddenPrefixDecoder(
+          getArrayDecoder(getExtensionDecoder(), { size: 'remainder' }),
+          [getConstantDecoder(padLeftEncoder(getU8Encoder(), 83).encode(1))]
+        ),
+        { prefix: null }
       ),
     ],
   ]);
