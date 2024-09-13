@@ -35,6 +35,14 @@ import {
   type ResolvedAccount,
 } from '../shared';
 
+export const CREATE_ASSOCIATED_TOKEN_IDEMPOTENT_DISCRIMINATOR = 1;
+
+export function getCreateAssociatedTokenIdempotentDiscriminatorBytes() {
+  return getU8Encoder().encode(
+    CREATE_ASSOCIATED_TOKEN_IDEMPOTENT_DISCRIMINATOR
+  );
+}
+
 export type CreateAssociatedTokenIdempotentInstruction<
   TProgram extends string = typeof ASSOCIATED_TOKEN_PROGRAM_ADDRESS,
   TAccountPayer extends string | IAccountMeta<string> = string,
@@ -46,7 +54,7 @@ export type CreateAssociatedTokenIdempotentInstruction<
     | IAccountMeta<string> = '11111111111111111111111111111111',
   TAccountTokenProgram extends
     | string
-    | IAccountMeta<string> = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+    | IAccountMeta<string> = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
@@ -82,7 +90,10 @@ export type CreateAssociatedTokenIdempotentInstructionDataArgs = {};
 export function getCreateAssociatedTokenIdempotentInstructionDataEncoder(): Encoder<CreateAssociatedTokenIdempotentInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: 1 })
+    (value) => ({
+      ...value,
+      discriminator: CREATE_ASSOCIATED_TOKEN_IDEMPOTENT_DISCRIMINATOR,
+    })
   );
 }
 
@@ -169,7 +180,7 @@ export async function getCreateAssociatedTokenIdempotentInstructionAsync<
   // Resolve default values.
   if (!accounts.tokenProgram.value) {
     accounts.tokenProgram.value =
-      'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
+      'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb' as Address<'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'>;
   }
   if (!accounts.ata.value) {
     accounts.ata.value = await findAssociatedTokenPda({
@@ -275,7 +286,7 @@ export function getCreateAssociatedTokenIdempotentInstruction<
   // Resolve default values.
   if (!accounts.tokenProgram.value) {
     accounts.tokenProgram.value =
-      'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
+      'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb' as Address<'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'>;
   }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =

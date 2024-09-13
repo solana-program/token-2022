@@ -1,4 +1,3 @@
-import { getCreateAccountInstruction } from '@solana-program/system';
 import {
   Account,
   appendTransactionMessageInstructions,
@@ -10,14 +9,15 @@ import {
 import test from 'ava';
 import {
   Mint,
-  TOKEN_2022_PROGRAM_ADDRESS,
   fetchMint,
   getInitializeMintInstruction,
+  getMintSize,
 } from '../src';
 import {
   createDefaultSolanaClient,
   createDefaultTransaction,
   generateKeyPairSignerWithSol,
+  getCreateToken22AccountInstruction,
   signAndSendTransaction,
 } from './_setup';
 
@@ -28,16 +28,9 @@ test('it creates and initializes a new mint account', async (t) => {
   const mint = await generateKeyPairSigner();
 
   // When we create and initialize a mint account at this address.
-  const space = 82n;
-  const rent = await client.rpc.getMinimumBalanceForRentExemption(space).send();
+  const space = BigInt(getMintSize());
   const instructions = [
-    getCreateAccountInstruction({
-      payer: authority,
-      newAccount: mint,
-      lamports: rent,
-      space,
-      programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-    }),
+    await getCreateToken22AccountInstruction(client, authority, mint, space),
     getInitializeMintInstruction({
       mint: mint.address,
       decimals: 2,
@@ -75,16 +68,9 @@ test('it creates a new mint account with a freeze authority', async (t) => {
   ]);
 
   // When we create and initialize a mint account at this address.
-  const space = 82n;
-  const rent = await client.rpc.getMinimumBalanceForRentExemption(space).send();
+  const space = BigInt(getMintSize());
   const instructions = [
-    getCreateAccountInstruction({
-      payer,
-      newAccount: mint,
-      lamports: rent,
-      space,
-      programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-    }),
+    await getCreateToken22AccountInstruction(client, payer, mint, space),
     getInitializeMintInstruction({
       mint: mint.address,
       decimals: 0,

@@ -35,6 +35,12 @@ import {
   type ResolvedAccount,
 } from '../shared';
 
+export const RECOVER_NESTED_ASSOCIATED_TOKEN_DISCRIMINATOR = 2;
+
+export function getRecoverNestedAssociatedTokenDiscriminatorBytes() {
+  return getU8Encoder().encode(RECOVER_NESTED_ASSOCIATED_TOKEN_DISCRIMINATOR);
+}
+
 export type RecoverNestedAssociatedTokenInstruction<
   TProgram extends string = typeof ASSOCIATED_TOKEN_PROGRAM_ADDRESS,
   TAccountNestedAssociatedAccountAddress extends
@@ -51,7 +57,7 @@ export type RecoverNestedAssociatedTokenInstruction<
   TAccountWalletAddress extends string | IAccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
-    | IAccountMeta<string> = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+    | IAccountMeta<string> = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
@@ -92,7 +98,10 @@ export type RecoverNestedAssociatedTokenInstructionDataArgs = {};
 export function getRecoverNestedAssociatedTokenInstructionDataEncoder(): Encoder<RecoverNestedAssociatedTokenInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: 2 })
+    (value) => ({
+      ...value,
+      discriminator: RECOVER_NESTED_ASSOCIATED_TOKEN_DISCRIMINATOR,
+    })
   );
 }
 
@@ -201,7 +210,7 @@ export async function getRecoverNestedAssociatedTokenInstructionAsync<
   // Resolve default values.
   if (!accounts.tokenProgram.value) {
     accounts.tokenProgram.value =
-      'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
+      'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb' as Address<'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'>;
   }
   if (!accounts.ownerAssociatedAccountAddress.value) {
     accounts.ownerAssociatedAccountAddress.value = await findAssociatedTokenPda(
@@ -345,7 +354,7 @@ export function getRecoverNestedAssociatedTokenInstruction<
   // Resolve default values.
   if (!accounts.tokenProgram.value) {
     accounts.tokenProgram.value =
-      'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
+      'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb' as Address<'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'>;
   }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

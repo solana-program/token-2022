@@ -87,6 +87,24 @@ export const getBalance = async (client: Client, address: Address) =>
   (await client.rpc.getBalance(address, { commitment: 'confirmed' }).send())
     .value;
 
+export const getCreateToken22AccountInstruction = async (
+  client: Client,
+  payer: TransactionSigner,
+  newAccount: TransactionSigner,
+  space: number | bigint
+) => {
+  const rent = await client.rpc
+    .getMinimumBalanceForRentExemption(BigInt(space))
+    .send();
+  return getCreateAccountInstruction({
+    payer,
+    newAccount,
+    lamports: rent,
+    space,
+    programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+  });
+};
+
 export const createMint = async (
   client: Client,
   payer: TransactionSigner,

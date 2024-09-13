@@ -8,12 +8,14 @@
 
 import {
   combineCodec,
+  getAddressDecoder,
+  getAddressEncoder,
+  getOptionDecoder,
+  getOptionEncoder,
   getStructDecoder,
   getStructEncoder,
   getU8Decoder,
   getU8Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
   transformEncoder,
   type Address,
   type Codec,
@@ -23,18 +25,20 @@ import {
   type IInstruction,
   type IInstructionWithAccounts,
   type IInstructionWithData,
-  type ReadonlyAccount,
+  type Option,
+  type OptionOrNullable,
+  type WritableAccount,
 } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const UI_AMOUNT_TO_AMOUNT_DISCRIMINATOR = 24;
+export const INITIALIZE_MINT_CLOSE_AUTHORITY_DISCRIMINATOR = 25;
 
-export function getUiAmountToAmountDiscriminatorBytes() {
-  return getU8Encoder().encode(UI_AMOUNT_TO_AMOUNT_DISCRIMINATOR);
+export function getInitializeMintCloseAuthorityDiscriminatorBytes() {
+  return getU8Encoder().encode(INITIALIZE_MINT_CLOSE_AUTHORITY_DISCRIMINATOR);
 }
 
-export type UiAmountToAmountInstruction<
+export type InitializeMintCloseAuthorityInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountMint extends string | IAccountMeta<string> = string,
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
@@ -43,59 +47,66 @@ export type UiAmountToAmountInstruction<
   IInstructionWithAccounts<
     [
       TAccountMint extends string
-        ? ReadonlyAccount<TAccountMint>
+        ? WritableAccount<TAccountMint>
         : TAccountMint,
       ...TRemainingAccounts,
     ]
   >;
 
-export type UiAmountToAmountInstructionData = {
+export type InitializeMintCloseAuthorityInstructionData = {
   discriminator: number;
-  /** The ui_amount of tokens to reformat. */
-  uiAmount: string;
+  /** Authority that must sign the `CloseAccount` instruction on a mint. */
+  closeAuthority: Option<Address>;
 };
 
-export type UiAmountToAmountInstructionDataArgs = {
-  /** The ui_amount of tokens to reformat. */
-  uiAmount: string;
+export type InitializeMintCloseAuthorityInstructionDataArgs = {
+  /** Authority that must sign the `CloseAccount` instruction on a mint. */
+  closeAuthority: OptionOrNullable<Address>;
 };
 
-export function getUiAmountToAmountInstructionDataEncoder(): Encoder<UiAmountToAmountInstructionDataArgs> {
+export function getInitializeMintCloseAuthorityInstructionDataEncoder(): Encoder<InitializeMintCloseAuthorityInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
-      ['uiAmount', getUtf8Encoder()],
+      ['closeAuthority', getOptionEncoder(getAddressEncoder())],
     ]),
-    (value) => ({ ...value, discriminator: UI_AMOUNT_TO_AMOUNT_DISCRIMINATOR })
+    (value) => ({
+      ...value,
+      discriminator: INITIALIZE_MINT_CLOSE_AUTHORITY_DISCRIMINATOR,
+    })
   );
 }
 
-export function getUiAmountToAmountInstructionDataDecoder(): Decoder<UiAmountToAmountInstructionData> {
+export function getInitializeMintCloseAuthorityInstructionDataDecoder(): Decoder<InitializeMintCloseAuthorityInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
-    ['uiAmount', getUtf8Decoder()],
+    ['closeAuthority', getOptionDecoder(getAddressDecoder())],
   ]);
 }
 
-export function getUiAmountToAmountInstructionDataCodec(): Codec<
-  UiAmountToAmountInstructionDataArgs,
-  UiAmountToAmountInstructionData
+export function getInitializeMintCloseAuthorityInstructionDataCodec(): Codec<
+  InitializeMintCloseAuthorityInstructionDataArgs,
+  InitializeMintCloseAuthorityInstructionData
 > {
   return combineCodec(
-    getUiAmountToAmountInstructionDataEncoder(),
-    getUiAmountToAmountInstructionDataDecoder()
+    getInitializeMintCloseAuthorityInstructionDataEncoder(),
+    getInitializeMintCloseAuthorityInstructionDataDecoder()
   );
 }
 
-export type UiAmountToAmountInput<TAccountMint extends string = string> = {
-  /** The mint to calculate for. */
+export type InitializeMintCloseAuthorityInput<
+  TAccountMint extends string = string,
+> = {
+  /** The mint to initialize. */
   mint: Address<TAccountMint>;
-  uiAmount: UiAmountToAmountInstructionDataArgs['uiAmount'];
+  closeAuthority: InitializeMintCloseAuthorityInstructionDataArgs['closeAuthority'];
 };
 
-export function getUiAmountToAmountInstruction<TAccountMint extends string>(
-  input: UiAmountToAmountInput<TAccountMint>
-): UiAmountToAmountInstruction<
+export function getInitializeMintCloseAuthorityInstruction<
+  TAccountMint extends string,
+>(
+  input: InitializeMintCloseAuthorityInput<TAccountMint>
+): InitializeMintCloseAuthorityInstruction<
   typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountMint
 > {
@@ -104,7 +115,7 @@ export function getUiAmountToAmountInstruction<TAccountMint extends string>(
 
   // Original accounts.
   const originalAccounts = {
-    mint: { value: input.mint ?? null, isWritable: false },
+    mint: { value: input.mint ?? null, isWritable: true },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -118,10 +129,10 @@ export function getUiAmountToAmountInstruction<TAccountMint extends string>(
   const instruction = {
     accounts: [getAccountMeta(accounts.mint)],
     programAddress,
-    data: getUiAmountToAmountInstructionDataEncoder().encode(
-      args as UiAmountToAmountInstructionDataArgs
+    data: getInitializeMintCloseAuthorityInstructionDataEncoder().encode(
+      args as InitializeMintCloseAuthorityInstructionDataArgs
     ),
-  } as UiAmountToAmountInstruction<
+  } as InitializeMintCloseAuthorityInstruction<
     typeof TOKEN_2022_PROGRAM_ADDRESS,
     TAccountMint
   >;
@@ -129,26 +140,26 @@ export function getUiAmountToAmountInstruction<TAccountMint extends string>(
   return instruction;
 }
 
-export type ParsedUiAmountToAmountInstruction<
+export type ParsedInitializeMintCloseAuthorityInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** The mint to calculate for. */
+    /** The mint to initialize. */
     mint: TAccountMetas[0];
   };
-  data: UiAmountToAmountInstructionData;
+  data: InitializeMintCloseAuthorityInstructionData;
 };
 
-export function parseUiAmountToAmountInstruction<
+export function parseInitializeMintCloseAuthorityInstruction<
   TProgram extends string,
   TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
-): ParsedUiAmountToAmountInstruction<TProgram, TAccountMetas> {
+): ParsedInitializeMintCloseAuthorityInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 1) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
@@ -164,6 +175,8 @@ export function parseUiAmountToAmountInstruction<
     accounts: {
       mint: getNextAccount(),
     },
-    data: getUiAmountToAmountInstructionDataDecoder().decode(instruction.data),
+    data: getInitializeMintCloseAuthorityInstructionDataDecoder().decode(
+      instruction.data
+    ),
   };
 }
