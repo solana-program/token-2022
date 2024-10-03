@@ -1,8 +1,4 @@
-import {
-  appendTransactionMessageInstruction,
-  generateKeyPairSigner,
-  pipe,
-} from '@solana/web3.js';
+import { generateKeyPairSigner } from '@solana/web3.js';
 import test from 'ava';
 import {
   Mint,
@@ -13,12 +9,11 @@ import {
 } from '../src';
 import {
   createDefaultSolanaClient,
-  createDefaultTransaction,
   createMint,
   createToken,
   createTokenWithAmount,
   generateKeyPairSignerWithSol,
-  signAndSendTransaction,
+  sendAndConfirmInstructions,
 } from './_setup';
 
 test('it transfers tokens from one account to another', async (t) => {
@@ -31,17 +26,21 @@ test('it transfers tokens from one account to another', async (t) => {
     generateKeyPairSigner(),
     generateKeyPairSigner(),
   ]);
-  const mint = await createMint(client, payer, mintAuthority.address);
+  const mint = await createMint({
+    client,
+    payer,
+    authority: mintAuthority.address,
+  });
   const [tokenA, tokenB] = await Promise.all([
-    createTokenWithAmount(
+    createTokenWithAmount({
       client,
       payer,
       mintAuthority,
       mint,
-      ownerA.address,
-      100n
-    ),
-    createToken(client, payer, mint, ownerB.address),
+      owner: ownerA.address,
+      amount: 100n,
+    }),
+    createToken({ client, payer, mint, owner: ownerB.address }),
   ]);
 
   // When owner A transfers 50 tokens to owner B.
@@ -51,11 +50,7 @@ test('it transfers tokens from one account to another', async (t) => {
     authority: ownerA,
     amount: 50n,
   });
-  await pipe(
-    await createDefaultTransaction(client, payer),
-    (tx) => appendTransactionMessageInstruction(transfer, tx),
-    (tx) => signAndSendTransaction(client, tx)
-  );
+  await sendAndConfirmInstructions(client, payer, [transfer]);
 
   // Then we expect the mint and token accounts to have the following updated data.
   const [{ data: mintData }, { data: tokenDataA }, { data: tokenDataB }] =

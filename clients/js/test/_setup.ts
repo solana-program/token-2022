@@ -3,6 +3,7 @@ import {
   Address,
   Commitment,
   CompilableTransactionMessage,
+  IInstruction,
   Rpc,
   RpcSubscriptions,
   SolanaRpcApi,
@@ -24,10 +25,13 @@ import {
   signTransactionMessageWithSigners,
 } from '@solana/web3.js';
 import {
+  ExtensionArgs,
   TOKEN_2022_PROGRAM_ADDRESS,
   getInitializeAccountInstruction,
   getInitializeMintInstruction,
+  getMintSize,
   getMintToInstruction,
+  getTokenSize,
 } from '../src';
 
 type Client = {
@@ -83,124 +87,110 @@ export const signAndSendTransaction = async (
   return signature;
 };
 
-export const getBalance = async (client: Client, address: Address) =>
-  (await client.rpc.getBalance(address, { commitment: 'confirmed' }).send())
-    .value;
-
-export const getCreateToken22AccountInstruction = async (
+export const sendAndConfirmInstructions = async (
   client: Client,
   payer: TransactionSigner,
-  newAccount: TransactionSigner,
-  space: number | bigint
+  instructions: IInstruction[]
 ) => {
-  const rent = await client.rpc
-    .getMinimumBalanceForRentExemption(BigInt(space))
-    .send();
-  return getCreateAccountInstruction({
-    payer,
-    newAccount,
-    lamports: rent,
-    space,
-    programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-  });
-};
-
-export const createMint = async (
-  client: Client,
-  payer: TransactionSigner,
-  mintAuthority: Address,
-  decimals: number = 0
-): Promise<Address> => {
-  const space = 82n;
-  const [transactionMessage, rent, mint] = await Promise.all([
-    createDefaultTransaction(client, payer),
-    client.rpc.getMinimumBalanceForRentExemption(space).send(),
-    generateKeyPairSigner(),
-  ]);
-  const instructions = [
-    getCreateAccountInstruction({
-      payer,
-      newAccount: mint,
-      lamports: rent,
-      space,
-      programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-    }),
-    getInitializeMintInstruction({
-      mint: mint.address,
-      decimals,
-      mintAuthority,
-    }),
-  ];
   await pipe(
-    transactionMessage,
+    await createDefaultTransaction(client, payer),
     (tx) => appendTransactionMessageInstructions(instructions, tx),
     (tx) => signAndSendTransaction(client, tx)
   );
+};
 
+export const getCreateMintInstructions = async (input: {
+  authority: Address;
+  client: Client;
+  decimals?: number;
+  extensions?: ExtensionArgs[];
+  mint: TransactionSigner;
+  payer: TransactionSigner;
+  programAddress?: Address;
+}) => {
+  const space = getMintSize(input.extensions);
+  const rent = await input.client.rpc
+    .getMinimumBalanceForRentExemption(BigInt(space))
+    .send();
+  return [
+    getCreateAccountInstruction({
+      payer: input.payer,
+      newAccount: input.mint,
+      lamports: rent,
+      space,
+      programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS,
+    }),
+    getInitializeMintInstruction({
+      mint: input.mint.address,
+      decimals: input.decimals ?? 0,
+      mintAuthority: input.authority,
+    }),
+  ];
+};
+
+export const getCreateTokenInstructions = async (input: {
+  client: Client;
+  extensions?: ExtensionArgs[];
+  mint: Address;
+  owner: Address;
+  payer: TransactionSigner;
+  programAddress?: Address;
+  token: TransactionSigner;
+}) => {
+  const space = getTokenSize(input.extensions);
+  const rent = await input.client.rpc
+    .getMinimumBalanceForRentExemption(BigInt(space))
+    .send();
+  return [
+    getCreateAccountInstruction({
+      payer: input.payer,
+      newAccount: input.token,
+      lamports: rent,
+      space,
+      programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS,
+    }),
+    getInitializeAccountInstruction({
+      account: input.token.address,
+      mint: input.mint,
+      owner: input.owner,
+    }),
+  ];
+};
+
+export const createMint = async (
+  input: Omit<Parameters<typeof getCreateMintInstructions>[0], 'mint'>
+): Promise<Address> => {
+  const mint = await generateKeyPairSigner();
+  const instructions = await getCreateMintInstructions({ ...input, mint });
+  await sendAndConfirmInstructions(input.client, input.payer, instructions);
   return mint.address;
 };
 
 export const createToken = async (
-  client: Client,
-  payer: TransactionSigner,
-  mint: Address,
-  owner: Address
+  input: Omit<Parameters<typeof getCreateTokenInstructions>[0], 'token'>
 ): Promise<Address> => {
-  const space = 165n;
-  const [transactionMessage, rent, token] = await Promise.all([
-    createDefaultTransaction(client, payer),
-    client.rpc.getMinimumBalanceForRentExemption(space).send(),
-    generateKeyPairSigner(),
-  ]);
-  const instructions = [
-    getCreateAccountInstruction({
-      payer,
-      newAccount: token,
-      lamports: rent,
-      space,
-      programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-    }),
-    getInitializeAccountInstruction({ account: token.address, mint, owner }),
-  ];
-  await pipe(
-    transactionMessage,
-    (tx) => appendTransactionMessageInstructions(instructions, tx),
-    (tx) => signAndSendTransaction(client, tx)
-  );
-
+  const token = await generateKeyPairSigner();
+  const instructions = await getCreateTokenInstructions({ ...input, token });
+  await sendAndConfirmInstructions(input.client, input.payer, instructions);
   return token.address;
 };
 
 export const createTokenWithAmount = async (
-  client: Client,
-  payer: TransactionSigner,
-  mintAuthority: TransactionSigner,
-  mint: Address,
-  owner: Address,
-  amount: bigint
+  input: Omit<Parameters<typeof getCreateTokenInstructions>[0], 'token'> & {
+    amount: number | bigint;
+    mintAuthority: TransactionSigner;
+  }
 ): Promise<Address> => {
-  const space = 165n;
-  const [transactionMessage, rent, token] = await Promise.all([
-    createDefaultTransaction(client, payer),
-    client.rpc.getMinimumBalanceForRentExemption(space).send(),
-    generateKeyPairSigner(),
-  ]);
-  const instructions = [
-    getCreateAccountInstruction({
-      payer,
-      newAccount: token,
-      lamports: rent,
-      space,
-      programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+  const token = await generateKeyPairSigner();
+  const instructions = await getCreateTokenInstructions({ ...input, token });
+  await sendAndConfirmInstructions(input.client, input.payer, [
+    ...instructions,
+    getMintToInstruction({
+      mint: input.mint,
+      token: token.address,
+      mintAuthority: input.mintAuthority,
+      amount: input.amount,
     }),
-    getInitializeAccountInstruction({ account: token.address, mint, owner }),
-    getMintToInstruction({ mint, token: token.address, mintAuthority, amount }),
-  ];
-  await pipe(
-    transactionMessage,
-    (tx) => appendTransactionMessageInstructions(instructions, tx),
-    (tx) => signAndSendTransaction(client, tx)
-  );
-
+  ]);
   return token.address;
 };

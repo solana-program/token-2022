@@ -1,31 +1,19 @@
-import {
-  Account,
-  address,
-  appendTransactionMessageInstruction,
-  appendTransactionMessageInstructions,
-  generateKeyPairSigner,
-  pipe,
-  some,
-} from '@solana/web3.js';
+import { Account, address, generateKeyPairSigner, some } from '@solana/web3.js';
 import test from 'ava';
 import {
   Token,
   extension,
   fetchToken,
-  getInitializeAccountInstruction,
-  getInitializeMintInstruction,
   getInitializeTransferFeeConfigInstruction,
-  getMintSize,
   getMintToInstruction,
-  getTokenSize,
   getTransferCheckedWithFeeInstruction,
 } from '../../src';
 import {
   createDefaultSolanaClient,
-  createDefaultTransaction,
   generateKeyPairSignerWithSol,
-  getCreateToken22AccountInstruction,
-  signAndSendTransaction,
+  getCreateMintInstructions,
+  getCreateTokenInstructions,
+  sendAndConfirmInstructions,
 } from '../_setup';
 
 test('it transfers tokens with pre-configured fees', async (t) => {
@@ -58,9 +46,17 @@ test('it transfers tokens with pre-configured fees', async (t) => {
     // Used for transitioning configs. Starts by being the same as newerTransferFee.
     olderTransferFee: transferFees,
   });
-  const space = getMintSize([transferFeeConfigExtension]);
-  const createMintInstructions = [
-    await getCreateToken22AccountInstruction(client, authority, mint, space),
+  const [createMintInstruction, initMintInstruction] =
+    await getCreateMintInstructions({
+      authority: authority.address,
+      client,
+      decimals: 2,
+      extensions: [transferFeeConfigExtension],
+      mint,
+      payer: authority,
+    });
+  await sendAndConfirmInstructions(client, authority, [
+    createMintInstruction,
     getInitializeTransferFeeConfigInstruction({
       mint: mint.address,
       transferFeeConfigAuthority:
@@ -70,74 +66,53 @@ test('it transfers tokens with pre-configured fees', async (t) => {
       transferFeeBasisPoints: transferFees.transferFeeBasisPoints,
       maximumFee: transferFees.maximumFee,
     }),
-    getInitializeMintInstruction({
-      mint: mint.address,
-      decimals: 2,
-      mintAuthority: authority.address,
-    }),
-  ];
-  await pipe(
-    await createDefaultTransaction(client, authority),
-    (tx) => appendTransactionMessageInstructions(createMintInstructions, tx),
-    (tx) => signAndSendTransaction(client, tx)
-  );
+    initMintInstruction,
+  ]);
 
   // And two token accounts with 10.00 and 0.00 tokens respectively.
   const transferFeeAmount = extension('TransferFeeAmount', {
     withheldAmount: 0n,
   });
-  const tokenSpace = getTokenSize([transferFeeAmount]);
-  const createTokensInstructions = [
-    await getCreateToken22AccountInstruction(
+  const createTokensInstructions = await Promise.all([
+    getCreateTokenInstructions({
       client,
-      authority,
-      tokenA,
-      tokenSpace
-    ),
-    getInitializeAccountInstruction({
-      account: tokenA.address,
+      extensions: [transferFeeAmount],
       mint: mint.address,
       owner: ownerA.address,
+      payer: authority,
+      token: tokenA,
     }),
+    getCreateTokenInstructions({
+      client,
+      extensions: [transferFeeAmount],
+      mint: mint.address,
+      owner: ownerB.address,
+      payer: authority,
+      token: tokenB,
+    }),
+  ]);
+  await sendAndConfirmInstructions(client, authority, [
+    ...createTokensInstructions.flat(),
     getMintToInstruction({
       mint: mint.address,
       token: tokenA.address,
       mintAuthority: authority,
       amount: 1000n,
     }),
-    await getCreateToken22AccountInstruction(
-      client,
-      authority,
-      tokenB,
-      tokenSpace
-    ),
-    getInitializeAccountInstruction({
-      account: tokenB.address,
-      mint: mint.address,
-      owner: ownerB.address,
-    }),
-  ];
-  await pipe(
-    await createDefaultTransaction(client, authority),
-    (tx) => appendTransactionMessageInstructions(createTokensInstructions, tx),
-    (tx) => signAndSendTransaction(client, tx)
-  );
+  ]);
 
   // When we transfer 2.00 tokens from owner A to owner B with fees.
-  const transferInstruction = getTransferCheckedWithFeeInstruction({
-    source: tokenA.address,
-    mint: mint.address,
-    destination: tokenB.address,
-    authority: ownerA,
-    amount: 200n,
-    decimals: 2,
-    fee: 3n, // 1.5% of 2.00 is 0.03.
-  });
-  await pipe(
-    await createDefaultTransaction(client, authority),
-    (tx) => appendTransactionMessageInstruction(transferInstruction, tx),
-    (tx) => signAndSendTransaction(client, tx)
-  );
+  await sendAndConfirmInstructions(client, authority, [
+    getTransferCheckedWithFeeInstruction({
+      source: tokenA.address,
+      mint: mint.address,
+      destination: tokenB.address,
+      authority: ownerA,
+      amount: 200n,
+      decimals: 2,
+      fee: 3n, // 1.5% of 2.00 is 0.03.
+    }),
+  ]);
 
   // Then we expect token A to have 8.00 tokens and no fees withheld.
   const tokenAccountA = await fetchToken(client.rpc, tokenA.address);

@@ -1,47 +1,46 @@
-import {
-  Account,
-  appendTransactionMessageInstructions,
-  generateKeyPairSigner,
-  none,
-  pipe,
-  some,
-} from '@solana/web3.js';
+import { Account, generateKeyPairSigner, none, some } from '@solana/web3.js';
 import test from 'ava';
 import {
   Mint,
+  TOKEN_2022_PROGRAM_ADDRESS,
   fetchMint,
   getInitializeMintInstruction,
   getMintSize,
 } from '../src';
 import {
   createDefaultSolanaClient,
-  createDefaultTransaction,
   generateKeyPairSignerWithSol,
-  getCreateToken22AccountInstruction,
-  signAndSendTransaction,
+  sendAndConfirmInstructions,
 } from './_setup';
+import { getCreateAccountInstruction } from '@solana-program/system';
 
 test('it creates and initializes a new mint account', async (t) => {
   // Given an authority and a mint account.
   const client = createDefaultSolanaClient();
-  const authority = await generateKeyPairSignerWithSol(client);
-  const mint = await generateKeyPairSigner();
+  const [authority, mint] = await Promise.all([
+    generateKeyPairSignerWithSol(client),
+    generateKeyPairSigner(),
+  ]);
 
   // When we create and initialize a mint account at this address.
   const space = getMintSize();
-  const instructions = [
-    await getCreateToken22AccountInstruction(client, authority, mint, space),
+  const rent = await client.rpc
+    .getMinimumBalanceForRentExemption(BigInt(space))
+    .send();
+  await sendAndConfirmInstructions(client, authority, [
+    getCreateAccountInstruction({
+      payer: authority,
+      newAccount: mint,
+      lamports: rent,
+      space,
+      programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+    }),
     getInitializeMintInstruction({
       mint: mint.address,
       decimals: 2,
       mintAuthority: authority.address,
     }),
-  ];
-  await pipe(
-    await createDefaultTransaction(client, authority),
-    (tx) => appendTransactionMessageInstructions(instructions, tx),
-    (tx) => signAndSendTransaction(client, tx)
-  );
+  ]);
 
   // Then we expect the mint account to exist and have the following data.
   const mintAccount = await fetchMint(client.rpc, mint.address);
@@ -69,20 +68,24 @@ test('it creates a new mint account with a freeze authority', async (t) => {
 
   // When we create and initialize a mint account at this address.
   const space = getMintSize();
-  const instructions = [
-    await getCreateToken22AccountInstruction(client, payer, mint, space),
+  const rent = await client.rpc
+    .getMinimumBalanceForRentExemption(BigInt(space))
+    .send();
+  await sendAndConfirmInstructions(client, payer, [
+    getCreateAccountInstruction({
+      payer,
+      newAccount: mint,
+      lamports: rent,
+      space,
+      programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+    }),
     getInitializeMintInstruction({
       mint: mint.address,
       decimals: 0,
       mintAuthority: mintAuthority.address,
       freezeAuthority: freezeAuthority.address,
     }),
-  ];
-  await pipe(
-    await createDefaultTransaction(client, payer),
-    (tx) => appendTransactionMessageInstructions(instructions, tx),
-    (tx) => signAndSendTransaction(client, tx)
-  );
+  ]);
 
   // Then we expect the mint account to exist and have the following data.
   const mintAccount = await fetchMint(client.rpc, mint.address);
