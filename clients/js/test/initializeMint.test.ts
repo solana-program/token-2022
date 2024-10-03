@@ -28,7 +28,7 @@ test('it creates and initializes a new mint account', async (t) => {
   const mint = await generateKeyPairSigner();
 
   // When we create and initialize a mint account at this address.
-  const space = BigInt(getMintSize());
+  const space = getMintSize();
   const instructions = [
     await getCreateToken22AccountInstruction(client, authority, mint, space),
     getInitializeMintInstruction({
@@ -68,7 +68,7 @@ test('it creates a new mint account with a freeze authority', async (t) => {
   ]);
 
   // When we create and initialize a mint account at this address.
-  const space = BigInt(getMintSize());
+  const space = getMintSize();
   const instructions = [
     await getCreateToken22AccountInstruction(client, payer, mint, space),
     getInitializeMintInstruction({

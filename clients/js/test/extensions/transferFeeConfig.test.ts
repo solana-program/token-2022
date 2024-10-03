@@ -50,7 +50,7 @@ test('it initializes a mint account with transfer fee configurations', async (t)
   });
 
   // When we create and initialize a mint account with this extension.
-  const space = BigInt(getMintSize([transferFeeConfigExtension]));
+  const space = getMintSize([transferFeeConfigExtension]);
   const instructions = [
     await getCreateToken22AccountInstruction(client, authority, mint, space),
     getInitializeTransferFeeConfigInstruction({

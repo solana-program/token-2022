@@ -36,7 +36,7 @@ test('it initializes a mint account with a close authority', async (t) => {
   });
 
   // When we create and initialize a mint account with this extension.
-  const space = BigInt(getMintSize([mintCloseAuthorityExtension]));
+  const space = getMintSize([mintCloseAuthorityExtension]);
   const instructions = [
     await getCreateToken22AccountInstruction(client, authority, mint, space),
     getInitializeMintCloseAuthorityInstruction({
