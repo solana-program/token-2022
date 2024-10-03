@@ -38,6 +38,7 @@ import {
   type ParsedSyncNativeInstruction,
   type ParsedThawAccountInstruction,
   type ParsedTransferCheckedInstruction,
+  type ParsedTransferCheckedWithFeeInstruction,
   type ParsedTransferInstruction,
   type ParsedUiAmountToAmountInstruction,
 } from '../instructions';
@@ -97,6 +98,7 @@ export enum Token2022Instruction {
   UiAmountToAmount,
   InitializeMintCloseAuthority,
   InitializeTransferFeeConfig,
+  TransferCheckedWithFee,
 }
 
 export function identifyToken2022Instruction(
@@ -187,6 +189,12 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.InitializeTransferFeeConfig;
   }
+  if (
+    containsBytes(data, getU8Encoder().encode(26), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.TransferCheckedWithFee;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -275,4 +283,7 @@ export type ParsedToken2022Instruction<
     } & ParsedInitializeMintCloseAuthorityInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeTransferFeeConfig;
-    } & ParsedInitializeTransferFeeConfigInstruction<TProgram>);
+    } & ParsedInitializeTransferFeeConfigInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.TransferCheckedWithFee;
+    } & ParsedTransferCheckedWithFeeInstruction<TProgram>);

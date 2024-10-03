@@ -35,4 +35,5 @@ export * from './syncNative';
 export * from './thawAccount';
 export * from './transfer';
 export * from './transferChecked';
+export * from './transferCheckedWithFee';
 export * from './uiAmountToAmount';
