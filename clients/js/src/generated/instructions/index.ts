@@ -16,6 +16,7 @@ export * from './createAssociatedToken';
 export * from './createAssociatedTokenIdempotent';
 export * from './freezeAccount';
 export * from './getAccountDataSize';
+export * from './harvestWithheldTokensToMint';
 export * from './initializeAccount';
 export * from './initializeAccount2';
 export * from './initializeAccount3';

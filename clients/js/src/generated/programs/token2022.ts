@@ -21,6 +21,7 @@ import {
   type ParsedCloseAccountInstruction,
   type ParsedFreezeAccountInstruction,
   type ParsedGetAccountDataSizeInstruction,
+  type ParsedHarvestWithheldTokensToMintInstruction,
   type ParsedInitializeAccount2Instruction,
   type ParsedInitializeAccount3Instruction,
   type ParsedInitializeAccountInstruction,
@@ -103,6 +104,7 @@ export enum Token2022Instruction {
   TransferCheckedWithFee,
   WithdrawWithheldTokensFromMint,
   WithdrawWithheldTokensFromAccounts,
+  HarvestWithheldTokensToMint,
 }
 
 export function identifyToken2022Instruction(
@@ -211,6 +213,12 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.WithdrawWithheldTokensFromAccounts;
   }
+  if (
+    containsBytes(data, getU8Encoder().encode(26), 0) &&
+    containsBytes(data, getU8Encoder().encode(4), 1)
+  ) {
+    return Token2022Instruction.HarvestWithheldTokensToMint;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -308,4 +316,7 @@ export type ParsedToken2022Instruction<
     } & ParsedWithdrawWithheldTokensFromMintInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.WithdrawWithheldTokensFromAccounts;
-    } & ParsedWithdrawWithheldTokensFromAccountsInstruction<TProgram>);
+    } & ParsedWithdrawWithheldTokensFromAccountsInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.HarvestWithheldTokensToMint;
+    } & ParsedHarvestWithheldTokensToMintInstruction<TProgram>);
