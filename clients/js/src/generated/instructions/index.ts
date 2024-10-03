@@ -37,3 +37,4 @@ export * from './transfer';
 export * from './transferChecked';
 export * from './transferCheckedWithFee';
 export * from './uiAmountToAmount';
+export * from './withdrawWithheldTokensFromMint';

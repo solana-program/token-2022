@@ -2612,6 +2612,107 @@
             "offset": 1
           }
         ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "withdrawWithheldTokensFromMint",
+        "docs": [
+          "Transfer all withheld tokens in the mint to an account. Signed by the",
+          "mint's withdraw withheld tokens authority."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The token mint. Must include the `TransferFeeConfig` extension."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "feeReceiver",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The fee receiver account. Must include the `TransferFeeAmount`",
+              "extension associated with the provided mint."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "withdrawWithheldAuthority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The mint's `withdraw_withheld_authority` or its multisignature account."
+            ],
+            "defaultValue": {
+              "kind": "identityValueNode"
+            }
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 26
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "transferFeeDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 2
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "transferFeeDiscriminator",
+            "offset": 1
+          }
+        ]
       }
     ],
     "definedTypes": [
