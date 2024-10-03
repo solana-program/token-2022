@@ -32,6 +32,7 @@ export * from './mintToChecked';
 export * from './recoverNestedAssociatedToken';
 export * from './revoke';
 export * from './setAuthority';
+export * from './setTransferFee';
 export * from './syncNative';
 export * from './thawAccount';
 export * from './transfer';

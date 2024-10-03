@@ -2915,6 +2915,116 @@
             "offset": 1
           }
         ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "setTransferFee",
+        "docs": [
+          "Set transfer fee. Only supported for mints that include the",
+          "`TransferFeeConfig` extension."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "transferFeeConfigAuthority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The mint's fee account owner or its multisignature account."
+            ],
+            "defaultValue": {
+              "kind": "identityValueNode"
+            }
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 26
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "transferFeeDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 5
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "transferFeeBasisPoints",
+            "docs": [
+              "Amount of transfer collected as fees, expressed as basis points of the transfer amount."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u16",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "maximumFee",
+            "docs": ["Maximum fee assessed on transfers."],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "transferFeeDiscriminator",
+            "offset": 1
+          }
+        ]
       }
     ],
     "definedTypes": [
