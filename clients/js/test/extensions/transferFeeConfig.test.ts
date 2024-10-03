@@ -1,10 +1,8 @@
 import {
   Account,
   address,
-  appendTransactionMessageInstructions,
   generateKeyPairSigner,
   none,
-  pipe,
   some,
 } from '@solana/web3.js';
 import test from 'ava';
@@ -12,23 +10,22 @@ import {
   Mint,
   extension,
   fetchMint,
-  getInitializeMintInstruction,
   getInitializeTransferFeeConfigInstruction,
-  getMintSize,
 } from '../../src';
 import {
   createDefaultSolanaClient,
-  createDefaultTransaction,
   generateKeyPairSignerWithSol,
-  getCreateToken22AccountInstruction,
-  signAndSendTransaction,
+  getCreateMintInstructions,
+  sendAndConfirmInstructions,
 } from '../_setup';
 
 test('it initializes a mint account with transfer fee configurations', async (t) => {
   // Given an authority and a mint account.
   const client = createDefaultSolanaClient();
-  const authority = await generateKeyPairSignerWithSol(client);
-  const mint = await generateKeyPairSigner();
+  const [authority, mint] = await Promise.all([
+    generateKeyPairSignerWithSol(client),
+    generateKeyPairSigner(),
+  ]);
 
   // And a transfer fee config extension.
   const transferFees = {
@@ -50,9 +47,17 @@ test('it initializes a mint account with transfer fee configurations', async (t)
   });
 
   // When we create and initialize a mint account with this extension.
-  const space = BigInt(getMintSize([transferFeeConfigExtension]));
-  const instructions = [
-    await getCreateToken22AccountInstruction(client, authority, mint, space),
+  const [createMintInstruction, initMintInstruction] =
+    await getCreateMintInstructions({
+      authority: authority.address,
+      client,
+      decimals: 2,
+      extensions: [transferFeeConfigExtension],
+      mint,
+      payer: authority,
+    });
+  await sendAndConfirmInstructions(client, authority, [
+    createMintInstruction,
     getInitializeTransferFeeConfigInstruction({
       mint: mint.address,
       transferFeeConfigAuthority:
@@ -63,17 +68,8 @@ test('it initializes a mint account with transfer fee configurations', async (t)
         transferFeeConfigExtension.newerTransferFee.transferFeeBasisPoints,
       maximumFee: transferFeeConfigExtension.newerTransferFee.maximumFee,
     }),
-    getInitializeMintInstruction({
-      mint: mint.address,
-      decimals: 2,
-      mintAuthority: authority.address,
-    }),
-  ];
-  await pipe(
-    await createDefaultTransaction(client, authority),
-    (tx) => appendTransactionMessageInstructions(instructions, tx),
-    (tx) => signAndSendTransaction(client, tx)
-  );
+    initMintInstruction,
+  ]);
 
   // Then we expect the mint account to exist and have the following data.
   const mintAccount = await fetchMint(client.rpc, mint.address);
@@ -85,20 +81,7 @@ test('it initializes a mint account with transfer fee configurations', async (t)
       decimals: 2,
       isInitialized: true,
       freezeAuthority: none(),
-      extensions: some([
-        {
-          __kind: 'TransferFeeConfig',
-          transferFeeConfigAuthority: address(
-            '6sPR6MzvjMMP5LSZzEtTe4ZBVX9rhBmtM1dmfFtkNTbW'
-          ),
-          withdrawWithheldAuthority: address(
-            'BTNEPmmWuj7Sg4Fo5i1FC5eiV2Aj4jiv9boarvE5XeaX'
-          ),
-          withheldAmount: 0n,
-          newerTransferFee: transferFees,
-          olderTransferFee: transferFees,
-        },
-      ]),
+      extensions: some([transferFeeConfigExtension]),
     },
   });
 });

@@ -21,6 +21,7 @@ import {
   type ParsedCloseAccountInstruction,
   type ParsedFreezeAccountInstruction,
   type ParsedGetAccountDataSizeInstruction,
+  type ParsedHarvestWithheldTokensToMintInstruction,
   type ParsedInitializeAccount2Instruction,
   type ParsedInitializeAccount3Instruction,
   type ParsedInitializeAccountInstruction,
@@ -35,11 +36,15 @@ import {
   type ParsedMintToInstruction,
   type ParsedRevokeInstruction,
   type ParsedSetAuthorityInstruction,
+  type ParsedSetTransferFeeInstruction,
   type ParsedSyncNativeInstruction,
   type ParsedThawAccountInstruction,
   type ParsedTransferCheckedInstruction,
+  type ParsedTransferCheckedWithFeeInstruction,
   type ParsedTransferInstruction,
   type ParsedUiAmountToAmountInstruction,
+  type ParsedWithdrawWithheldTokensFromAccountsInstruction,
+  type ParsedWithdrawWithheldTokensFromMintInstruction,
 } from '../instructions';
 
 export const TOKEN_2022_PROGRAM_ADDRESS =
@@ -97,6 +102,11 @@ export enum Token2022Instruction {
   UiAmountToAmount,
   InitializeMintCloseAuthority,
   InitializeTransferFeeConfig,
+  TransferCheckedWithFee,
+  WithdrawWithheldTokensFromMint,
+  WithdrawWithheldTokensFromAccounts,
+  HarvestWithheldTokensToMint,
+  SetTransferFee,
 }
 
 export function identifyToken2022Instruction(
@@ -187,6 +197,36 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.InitializeTransferFeeConfig;
   }
+  if (
+    containsBytes(data, getU8Encoder().encode(26), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.TransferCheckedWithFee;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(26), 0) &&
+    containsBytes(data, getU8Encoder().encode(2), 1)
+  ) {
+    return Token2022Instruction.WithdrawWithheldTokensFromMint;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(26), 0) &&
+    containsBytes(data, getU8Encoder().encode(3), 1)
+  ) {
+    return Token2022Instruction.WithdrawWithheldTokensFromAccounts;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(26), 0) &&
+    containsBytes(data, getU8Encoder().encode(4), 1)
+  ) {
+    return Token2022Instruction.HarvestWithheldTokensToMint;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(26), 0) &&
+    containsBytes(data, getU8Encoder().encode(5), 1)
+  ) {
+    return Token2022Instruction.SetTransferFee;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -275,4 +315,19 @@ export type ParsedToken2022Instruction<
     } & ParsedInitializeMintCloseAuthorityInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeTransferFeeConfig;
-    } & ParsedInitializeTransferFeeConfigInstruction<TProgram>);
+    } & ParsedInitializeTransferFeeConfigInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.TransferCheckedWithFee;
+    } & ParsedTransferCheckedWithFeeInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.WithdrawWithheldTokensFromMint;
+    } & ParsedWithdrawWithheldTokensFromMintInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.WithdrawWithheldTokensFromAccounts;
+    } & ParsedWithdrawWithheldTokensFromAccountsInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.HarvestWithheldTokensToMint;
+    } & ParsedHarvestWithheldTokensToMintInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.SetTransferFee;
+    } & ParsedSetTransferFeeInstruction<TProgram>);

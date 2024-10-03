@@ -1,10 +1,4 @@
-import {
-  Account,
-  appendTransactionMessageInstruction,
-  generateKeyPairSigner,
-  none,
-  pipe,
-} from '@solana/web3.js';
+import { Account, generateKeyPairSigner, none } from '@solana/web3.js';
 import test from 'ava';
 import {
   AccountState,
@@ -16,10 +10,9 @@ import {
 } from '../src';
 import {
   createDefaultSolanaClient,
-  createDefaultTransaction,
   createMint,
   generateKeyPairSignerWithSol,
-  signAndSendTransaction,
+  sendAndConfirmInstructions,
 } from './_setup';
 
 test('it creates a new associated token account', async (t) => {
@@ -30,7 +23,11 @@ test('it creates a new associated token account', async (t) => {
     generateKeyPairSigner(),
     generateKeyPairSigner(),
   ]);
-  const mint = await createMint(client, payer, mintAuthority.address);
+  const mint = await createMint({
+    client,
+    payer,
+    authority: mintAuthority.address,
+  });
 
   // When we create and initialize a token account at this address.
   const createAta = await getCreateAssociatedTokenIdempotentInstructionAsync({
@@ -38,12 +35,7 @@ test('it creates a new associated token account', async (t) => {
     mint,
     owner: owner.address,
   });
-
-  await pipe(
-    await createDefaultTransaction(client, payer),
-    (tx) => appendTransactionMessageInstruction(createAta, tx),
-    (tx) => signAndSendTransaction(client, tx)
-  );
+  await sendAndConfirmInstructions(client, payer, [createAta]);
 
   // Then we expect the token account to exist and have the following data.
   const [ata] = await findAssociatedTokenPda({

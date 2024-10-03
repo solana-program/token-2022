@@ -2463,6 +2463,568 @@
             "offset": 1
           }
         ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "transferCheckedWithFee",
+        "docs": [
+          "Transfer, providing expected mint information and fees.",
+          "",
+          "This instruction succeeds if the mint has no configured transfer fee",
+          "and the provided fee is 0. This allows applications to use",
+          "`TransferCheckedWithFee` with any mint."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "source",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The source account. May include the `TransferFeeAmount` extension."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The token mint. May include the `TransferFeeConfig` extension."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "destination",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The destination account. May include the `TransferFeeAmount` extension."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ],
+            "defaultValue": {
+              "kind": "identityValueNode"
+            }
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 26
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "transferFeeDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 1
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "amount",
+            "docs": ["The amount of tokens to transfer."],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "decimals",
+            "docs": [
+              "Expected number of base 10 digits to the right of the decimal place."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "fee",
+            "docs": [
+              "Expected fee assessed on this transfer, calculated off-chain based",
+              "on the transfer_fee_basis_points and maximum_fee of the mint. May",
+              "be 0 for a mint without a configured transfer fee."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "transferFeeDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "withdrawWithheldTokensFromMint",
+        "docs": [
+          "Transfer all withheld tokens in the mint to an account. Signed by the",
+          "mint's withdraw withheld tokens authority."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The token mint. Must include the `TransferFeeConfig` extension."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "feeReceiver",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The fee receiver account. Must include the `TransferFeeAmount`",
+              "extension associated with the provided mint."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "withdrawWithheldAuthority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The mint's `withdraw_withheld_authority` or its multisignature account."
+            ],
+            "defaultValue": {
+              "kind": "identityValueNode"
+            }
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 26
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "transferFeeDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 2
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "transferFeeDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "withdrawWithheldTokensFromAccounts",
+        "docs": [
+          "Transfer all withheld tokens to an account. Signed by the mint's",
+          "withdraw withheld tokens authority."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The token mint. Must include the `TransferFeeConfig` extension."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "feeReceiver",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The fee receiver account. Must include the `TransferFeeAmount`",
+              "extension associated with the provided mint."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "withdrawWithheldAuthority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The mint's `withdraw_withheld_authority` or its multisignature account."
+            ],
+            "defaultValue": {
+              "kind": "identityValueNode"
+            }
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 26
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "transferFeeDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 3
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "numTokenAccounts",
+            "docs": ["Number of token accounts harvested."],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          },
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": false,
+            "isWritable": true,
+            "isSigner": false,
+            "docs": ["The source accounts to withdraw from."],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "sources"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "transferFeeDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "harvestWithheldTokensToMint",
+        "docs": [
+          "Permissionless instruction to transfer all withheld tokens to the mint.",
+          "",
+          "Succeeds for frozen accounts.",
+          "",
+          "Accounts provided should include the `TransferFeeAmount` extension.",
+          "If not, the account is skipped."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The token mint."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 26
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "transferFeeDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 4
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": false,
+            "isWritable": true,
+            "isSigner": false,
+            "docs": ["The source accounts to harvest from."],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "sources"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "transferFeeDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "setTransferFee",
+        "docs": [
+          "Set transfer fee. Only supported for mints that include the",
+          "`TransferFeeConfig` extension."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "transferFeeConfigAuthority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The mint's fee account owner or its multisignature account."
+            ],
+            "defaultValue": {
+              "kind": "identityValueNode"
+            }
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 26
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "transferFeeDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 5
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "transferFeeBasisPoints",
+            "docs": [
+              "Amount of transfer collected as fees, expressed as basis points of the transfer amount."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u16",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "maximumFee",
+            "docs": ["Maximum fee assessed on transfers."],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "transferFeeDiscriminator",
+            "offset": 1
+          }
+        ]
       }
     ],
     "definedTypes": [
