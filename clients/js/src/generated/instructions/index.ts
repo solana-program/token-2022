@@ -24,6 +24,7 @@ export * from './createAssociatedTokenIdempotent';
 export * from './disableConfidentialCredits';
 export * from './emptyConfidentialAccount';
 export * from './enableConfidentialCredits';
+export * from './enableNonConfidentialCredits';
 export * from './freezeAccount';
 export * from './getAccountDataSize';
 export * from './harvestWithheldTokensToMint';

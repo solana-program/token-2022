@@ -29,6 +29,7 @@ import {
   type ParsedDisableConfidentialCreditsInstruction,
   type ParsedEmptyConfidentialAccountInstruction,
   type ParsedEnableConfidentialCreditsInstruction,
+  type ParsedEnableNonConfidentialCreditsInstruction,
   type ParsedFreezeAccountInstruction,
   type ParsedGetAccountDataSizeInstruction,
   type ParsedHarvestWithheldTokensToMintInstruction,
@@ -130,6 +131,7 @@ export enum Token2022Instruction {
   ApplyConfidentialPendingBalance,
   EnableConfidentialCredits,
   DisableConfidentialCredits,
+  EnableNonConfidentialCredits,
   ConfidentialTransferWithFee,
 }
 
@@ -319,6 +321,12 @@ export function identifyToken2022Instruction(
   }
   if (
     containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(11), 1)
+  ) {
+    return Token2022Instruction.EnableNonConfidentialCredits;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
     containsBytes(data, getU8Encoder().encode(13), 1)
   ) {
     return Token2022Instruction.ConfidentialTransferWithFee;
@@ -460,6 +468,9 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.DisableConfidentialCredits;
     } & ParsedDisableConfidentialCreditsInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.EnableNonConfidentialCredits;
+    } & ParsedEnableNonConfidentialCreditsInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.ConfidentialTransferWithFee;
     } & ParsedConfidentialTransferWithFeeInstruction<TProgram>);
