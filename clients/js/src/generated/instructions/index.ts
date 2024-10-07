@@ -7,6 +7,7 @@
  */
 
 export * from './amountToUiAmount';
+export * from './applyConfidentialPendingBalance';
 export * from './approve';
 export * from './approveChecked';
 export * from './approveConfidentialAccount';

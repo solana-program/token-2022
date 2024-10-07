@@ -4172,6 +4172,125 @@
       },
       {
         "kind": "instructionNode",
+        "name": "applyConfidentialPendingBalance",
+        "docs": [
+          "Applies the pending balance to the available balance, based on the",
+          "history of `Deposit` and/or `Transfer` instructions.",
+          "",
+          "After submitting `ApplyPendingBalance`, the client should compare",
+          "`ConfidentialTransferAccount::expected_pending_balance_credit_counter`",
+          "with",
+          "`ConfidentialTransferAccount::actual_applied_pending_balance_instructions`.  If they are",
+          "equal then the",
+          "`ConfidentialTransferAccount::decryptable_available_balance` is",
+          "consistent with `ConfidentialTransferAccount::available_balance`. If",
+          "they differ then there is more pending balance to be applied."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 8
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "expectedPendingBalanceCreditCounter",
+            "docs": [
+              "The expected number of pending balance credits since the last successful",
+              "`ApplyPendingBalance` instruction"
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "newDecryptableAvailableBalance",
+            "docs": [
+              "The new decryptable balance if the pending balance is applied",
+              "successfully"
+            ],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "decryptableBalance"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
         "name": "confidentialTransferWithFee",
         "docs": [
           "Transfer tokens confidentially with fee.",

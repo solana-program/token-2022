@@ -14,6 +14,7 @@ import {
 } from '@solana/web3.js';
 import {
   type ParsedAmountToUiAmountInstruction,
+  type ParsedApplyConfidentialPendingBalanceInstruction,
   type ParsedApproveCheckedInstruction,
   type ParsedApproveConfidentialAccountInstruction,
   type ParsedApproveInstruction,
@@ -124,6 +125,7 @@ export enum Token2022Instruction {
   ConfidentialDeposit,
   ConfidentialWithdraw,
   ConfidentialTransfer,
+  ApplyConfidentialPendingBalance,
   ConfidentialTransferWithFee,
 }
 
@@ -295,6 +297,12 @@ export function identifyToken2022Instruction(
   }
   if (
     containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(8), 1)
+  ) {
+    return Token2022Instruction.ApplyConfidentialPendingBalance;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
     containsBytes(data, getU8Encoder().encode(13), 1)
   ) {
     return Token2022Instruction.ConfidentialTransferWithFee;
@@ -427,6 +435,9 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.ConfidentialTransfer;
     } & ParsedConfidentialTransferInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.ApplyConfidentialPendingBalance;
+    } & ParsedApplyConfidentialPendingBalanceInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.ConfidentialTransferWithFee;
     } & ParsedConfidentialTransferWithFeeInstruction<TProgram>);
