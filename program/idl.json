@@ -3243,7 +3243,7 @@
       },
       {
         "kind": "instructionNode",
-        "name": "configureConfidentialAccount",
+        "name": "configureConfidentialTransferAccount",
         "docs": [
           "Configures confidential transfers for a token account.",
           "",
@@ -3417,7 +3417,7 @@
       },
       {
         "kind": "instructionNode",
-        "name": "approveConfidentialAccount",
+        "name": "approveConfidentialTransferAccount",
         "docs": [
           "Approves a token account for confidential transfers.",
           "",
@@ -3501,7 +3501,7 @@
       },
       {
         "kind": "instructionNode",
-        "name": "emptyConfidentialAccount",
+        "name": "emptyConfidentialTransferAccount",
         "docs": [
           "Empty the available balance in a confidential token account.",
           "",

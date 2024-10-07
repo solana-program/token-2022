@@ -16,7 +16,7 @@ import {
   type ParsedAmountToUiAmountInstruction,
   type ParsedApplyConfidentialPendingBalanceInstruction,
   type ParsedApproveCheckedInstruction,
-  type ParsedApproveConfidentialAccountInstruction,
+  type ParsedApproveConfidentialTransferAccountInstruction,
   type ParsedApproveInstruction,
   type ParsedBurnCheckedInstruction,
   type ParsedBurnInstruction,
@@ -25,10 +25,10 @@ import {
   type ParsedConfidentialTransferInstruction,
   type ParsedConfidentialTransferWithFeeInstruction,
   type ParsedConfidentialWithdrawInstruction,
-  type ParsedConfigureConfidentialAccountInstruction,
+  type ParsedConfigureConfidentialTransferAccountInstruction,
   type ParsedDisableConfidentialCreditsInstruction,
   type ParsedDisableNonConfidentialCreditsInstruction,
-  type ParsedEmptyConfidentialAccountInstruction,
+  type ParsedEmptyConfidentialTransferAccountInstruction,
   type ParsedEnableConfidentialCreditsInstruction,
   type ParsedEnableNonConfidentialCreditsInstruction,
   type ParsedFreezeAccountInstruction,
@@ -123,9 +123,9 @@ export enum Token2022Instruction {
   SetTransferFee,
   InitializeConfidentialTransferMint,
   UpdateConfidentialTransferMint,
-  ConfigureConfidentialAccount,
-  ApproveConfidentialAccount,
-  EmptyConfidentialAccount,
+  ConfigureConfidentialTransferAccount,
+  ApproveConfidentialTransferAccount,
+  EmptyConfidentialTransferAccount,
   ConfidentialDeposit,
   ConfidentialWithdraw,
   ConfidentialTransfer,
@@ -271,19 +271,19 @@ export function identifyToken2022Instruction(
     containsBytes(data, getU8Encoder().encode(27), 0) &&
     containsBytes(data, getU8Encoder().encode(2), 1)
   ) {
-    return Token2022Instruction.ConfigureConfidentialAccount;
+    return Token2022Instruction.ConfigureConfidentialTransferAccount;
   }
   if (
     containsBytes(data, getU8Encoder().encode(27), 0) &&
     containsBytes(data, getU8Encoder().encode(3), 1)
   ) {
-    return Token2022Instruction.ApproveConfidentialAccount;
+    return Token2022Instruction.ApproveConfidentialTransferAccount;
   }
   if (
     containsBytes(data, getU8Encoder().encode(27), 0) &&
     containsBytes(data, getU8Encoder().encode(4), 1)
   ) {
-    return Token2022Instruction.EmptyConfidentialAccount;
+    return Token2022Instruction.EmptyConfidentialTransferAccount;
   }
   if (
     containsBytes(data, getU8Encoder().encode(27), 0) &&
@@ -450,14 +450,14 @@ export type ParsedToken2022Instruction<
       instructionType: Token2022Instruction.UpdateConfidentialTransferMint;
     } & ParsedUpdateConfidentialTransferMintInstruction<TProgram>)
   | ({
-      instructionType: Token2022Instruction.ConfigureConfidentialAccount;
-    } & ParsedConfigureConfidentialAccountInstruction<TProgram>)
+      instructionType: Token2022Instruction.ConfigureConfidentialTransferAccount;
+    } & ParsedConfigureConfidentialTransferAccountInstruction<TProgram>)
   | ({
-      instructionType: Token2022Instruction.ApproveConfidentialAccount;
-    } & ParsedApproveConfidentialAccountInstruction<TProgram>)
+      instructionType: Token2022Instruction.ApproveConfidentialTransferAccount;
+    } & ParsedApproveConfidentialTransferAccountInstruction<TProgram>)
   | ({
-      instructionType: Token2022Instruction.EmptyConfidentialAccount;
-    } & ParsedEmptyConfidentialAccountInstruction<TProgram>)
+      instructionType: Token2022Instruction.EmptyConfidentialTransferAccount;
+    } & ParsedEmptyConfidentialTransferAccountInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.ConfidentialDeposit;
     } & ParsedConfidentialDepositInstruction<TProgram>)
