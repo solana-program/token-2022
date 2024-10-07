@@ -12,6 +12,7 @@ export * from './approveChecked';
 export * from './burn';
 export * from './burnChecked';
 export * from './closeAccount';
+export * from './configureConfidentialAccount';
 export * from './createAssociatedToken';
 export * from './createAssociatedTokenIdempotent';
 export * from './freezeAccount';
