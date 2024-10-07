@@ -11,13 +11,13 @@ import {
   extension,
   fetchMint,
   getInitializeTransferFeeConfigInstruction,
-} from '../../src';
+} from '../../../src';
 import {
   createDefaultSolanaClient,
   generateKeyPairSignerWithSol,
   getCreateMintInstructions,
   sendAndConfirmInstructions,
-} from '../_setup';
+} from '../../_setup';
 
 test('it initializes a mint account with transfer fee configurations', async (t) => {
   // Given an authority and a mint account.

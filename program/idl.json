@@ -3025,6 +3025,1886 @@
             "offset": 1
           }
         ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "initializeConfidentialTransferMint",
+        "docs": [
+          "Initializes confidential transfers for a mint.",
+          "",
+          "The `ConfidentialTransferInstruction::InitializeMint` instruction",
+          "requires no signers and MUST be included within the same Transaction",
+          "as `TokenInstruction::InitializeMint`. Otherwise another party can",
+          "initialize the configuration.",
+          "",
+          "The instruction fails if the `TokenInstruction::InitializeMint`",
+          "instruction has already executed for the mint."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token mint."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 0
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "authority",
+            "docs": [
+              "Authority to modify the `ConfidentialTransferMint` configuration and to",
+              "approve new accounts."
+            ],
+            "type": {
+              "kind": "zeroableOptionTypeNode",
+              "item": {
+                "kind": "publicKeyTypeNode"
+              }
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "autoApproveNewAccounts",
+            "docs": [
+              "Determines if newly configured accounts must be approved by the",
+              "`authority` before they may be used by the user."
+            ],
+            "type": {
+              "kind": "booleanTypeNode",
+              "size": {
+                "kind": "numberTypeNode",
+                "format": "u8",
+                "endian": "le"
+              }
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "auditorElgamalPubkey",
+            "docs": [
+              "New authority to decode any transfer amount in a confidential transfer."
+            ],
+            "type": {
+              "kind": "zeroableOptionTypeNode",
+              "item": {
+                "kind": "publicKeyTypeNode"
+              }
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "updateConfidentialTransferMint",
+        "docs": [
+          "Updates the confidential transfer mint configuration for a mint.",
+          "",
+          "Use `TokenInstruction::SetAuthority` to update the confidential transfer",
+          "mint authority."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": true,
+            "isOptional": false,
+            "docs": ["Confidential transfer mint authority."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 1
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "autoApproveNewAccounts",
+            "docs": [
+              "Determines if newly configured accounts must be approved by the",
+              "`authority` before they may be used by the user."
+            ],
+            "type": {
+              "kind": "booleanTypeNode",
+              "size": {
+                "kind": "numberTypeNode",
+                "format": "u8",
+                "endian": "le"
+              }
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "auditorElgamalPubkey",
+            "docs": [
+              "New authority to decode any transfer amount in a confidential transfer."
+            ],
+            "type": {
+              "kind": "zeroableOptionTypeNode",
+              "item": {
+                "kind": "publicKeyTypeNode"
+              }
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "configureConfidentialAccount",
+        "docs": [
+          "Configures confidential transfers for a token account.",
+          "",
+          "The instruction fails if the confidential transfers are already",
+          "configured, or if the mint was not initialized with confidential",
+          "transfer support.",
+          "",
+          "The instruction fails if the `TokenInstruction::InitializeAccount`",
+          "instruction has not yet successfully executed for the token account.",
+          "",
+          "Upon success, confidential and non-confidential deposits and transfers",
+          "are enabled. Use the `DisableConfidentialCredits` and",
+          "`DisableNonConfidentialCredits` instructions to disable.",
+          "",
+          "In order for this instruction to be successfully processed, it must be",
+          "accompanied by the `VerifyPubkeyValidity` instruction of the",
+          "`zk_elgamal_proof` program in the same transaction or the address of a",
+          "context state account for the proof must be provided."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The corresponding SPL Token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "instructionsSysvarOrContextState",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "Instructions sysvar if `VerifyPubkeyValidity` is included in",
+              "the same transaction or context state account if",
+              "`VerifyPubkeyValidity` is pre-verified into a context state",
+              "account."
+            ],
+            "defaultValue": {
+              "kind": "publicKeyValueNode",
+              "publicKey": "Sysvar1nstructions1111111111111111111111111"
+            }
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "record",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Record account if the accompanying proof is to be read from a record account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 2
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "decryptableZeroBalance",
+            "docs": [
+              "The decryptable balance (always 0) once the configure account succeeds."
+            ],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "decryptableBalance"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "maximumPendingBalanceCreditCounter",
+            "docs": [
+              "The maximum number of despots and transfers that an account can receiver",
+              "before the `ApplyPendingBalance` is executed"
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "proofInstructionOffset",
+            "docs": [
+              "Relative location of the `ProofInstruction::ZeroCiphertextProof`",
+              "instruction to the `ConfigureAccount` instruction in the",
+              "transaction. If the offset is `0`, then use a context state account",
+              "for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "approveConfidentialAccount",
+        "docs": [
+          "Approves a token account for confidential transfers.",
+          "",
+          "Approval is only required when the",
+          "`ConfidentialTransferMint::approve_new_accounts` field is set in the",
+          "SPL Token mint.  This instruction must be executed after the account",
+          "owner configures their account for confidential transfers with",
+          "`ConfidentialTransferInstruction::ConfigureAccount`."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token account to approve."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The corresponding SPL Token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": true,
+            "isOptional": false,
+            "docs": ["Confidential transfer mint authority."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 3
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "emptyConfidentialAccount",
+        "docs": [
+          "Empty the available balance in a confidential token account.",
+          "",
+          "A token account that is extended for confidential transfers can only be",
+          "closed if the pending and available balance ciphertexts are emptied.",
+          "The pending balance can be emptied",
+          "via the `ConfidentialTransferInstruction::ApplyPendingBalance`",
+          "instruction. Use the `ConfidentialTransferInstruction::EmptyAccount`",
+          "instruction to empty the available balance ciphertext.",
+          "",
+          "Note that a newly configured account is always empty, so this",
+          "instruction is not required prior to account closing if no",
+          "instructions beyond",
+          "`ConfidentialTransferInstruction::ConfigureAccount` have affected the",
+          "token account.",
+          "",
+          "In order for this instruction to be successfully processed, it must be",
+          "accompanied by the `VerifyZeroCiphertext` instruction of the",
+          "`zk_elgamal_proof` program in the same transaction or the address of a",
+          "context state account for the proof must be provided."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "instructionsSysvarOrContextState",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "Instructions sysvar if `VerifyZeroCiphertext` is included in",
+              "the same transaction or context state account if",
+              "`VerifyZeroCiphertext` is pre-verified into a context state",
+              "account."
+            ],
+            "defaultValue": {
+              "kind": "publicKeyValueNode",
+              "publicKey": "Sysvar1nstructions1111111111111111111111111"
+            }
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "record",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Record account if the accompanying proof is to be read from a record account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 4
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "proofInstructionOffset",
+            "docs": [
+              "Relative location of the `ProofInstruction::VerifyCloseAccount`",
+              "instruction to the `EmptyAccount` instruction in the transaction. If",
+              "the offset is `0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "confidentialDeposit",
+        "docs": [
+          "Deposit SPL Tokens into the pending balance of a confidential token",
+          "account.",
+          "",
+          "The account owner can then invoke the `ApplyPendingBalance` instruction",
+          "to roll the deposit into their available balance at a time of their",
+          "choosing.",
+          "",
+          "Fails if the source or destination accounts are frozen.",
+          "Fails if the associated mint is extended as `NonTransferable`."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The corresponding SPL Token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 5
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "amount",
+            "docs": ["The amount of tokens to deposit."],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "decimals",
+            "docs": [
+              "Expected number of base 10 digits to the right of the decimal place."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "confidentialWithdraw",
+        "docs": [
+          "Withdraw SPL Tokens from the available balance of a confidential token",
+          "account.",
+          "",
+          "In order for this instruction to be successfully processed, it must be",
+          "accompanied by the following list of `zk_elgamal_proof` program",
+          "instructions:",
+          "- `VerifyCiphertextCommitmentEquality`",
+          "- `VerifyBatchedRangeProofU64`",
+          "These instructions can be accompanied in the same transaction or can be",
+          "pre-verified into a context state account, in which case, only their",
+          "context state account address need to be provided.",
+          "",
+          "Fails if the source or destination accounts are frozen.",
+          "Fails if the associated mint is extended as `NonTransferable`."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The corresponding SPL Token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "instructionsSysvar",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "Instructions sysvar if at least one of the",
+              "`zk_elgamal_proof` instructions are included in the same",
+              "transaction."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "equalityRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Equality proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "rangeRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Range proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 6
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "amount",
+            "docs": ["The amount of tokens to withdraw."],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "decimals",
+            "docs": [
+              "Expected number of base 10 digits to the right of the decimal place."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "newDecryptableAvailableBalance",
+            "docs": ["The new decryptable balance if the withdrawal succeeds."],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "decryptableBalance"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "equalityProofInstructionOffset",
+            "docs": [
+              "Relative location of the",
+              "`ProofInstruction::VerifyCiphertextCommitmentEquality` instruction",
+              "to the `Withdraw` instruction in the transaction. If the offset is",
+              "`0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "rangeProofInstructionOffset",
+            "docs": [
+              "Relative location of the `ProofInstruction::BatchedRangeProofU64`",
+              "instruction to the `Withdraw` instruction in the transaction. If the",
+              "offset is `0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "confidentialTransfer",
+        "docs": [
+          "Transfer tokens confidentially.",
+          "",
+          "In order for this instruction to be successfully processed, it must be",
+          "accompanied by the following list of `zk_elgamal_proof` program",
+          "instructions:",
+          "- `VerifyCiphertextCommitmentEquality`",
+          "- `VerifyBatchedGroupedCiphertext3HandlesValidity`",
+          "- `VerifyBatchedRangeProofU128`",
+          "These instructions can be accompanied in the same transaction or can be",
+          "pre-verified into a context state account, in which case, only their",
+          "context state account addresses need to be provided.",
+          "",
+          "Fails if the associated mint is extended as `NonTransferable`."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "sourceToken",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The source SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The corresponding SPL Token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "destinationToken",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The destination SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "instructionsSysvar",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Instructions sysvar if at least one of the",
+              "`zk_elgamal_proof` instructions are included in the same",
+              "transaction."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "equalityRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Equality proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "ciphertextValidityRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Ciphertext validity proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "rangeRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Range proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 7
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "newSourceDecryptableAvailableBalance",
+            "docs": [
+              "The new source decryptable balance if the transfer succeeds."
+            ],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "decryptableBalance"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "equalityProofInstructionOffset",
+            "docs": [
+              "Relative location of the",
+              "`ProofInstruction::VerifyCiphertextCommitmentEquality` instruction",
+              "to the `Transfer` instruction in the transaction. If the offset is",
+              "`0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "ciphertextValidityProofInstructionOffset",
+            "docs": [
+              "Relative location of the",
+              "`ProofInstruction::VerifyBatchedGroupedCiphertext3HandlesValidity`",
+              "instruction to the `Transfer` instruction in the transaction. If the",
+              "offset is `0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "rangeProofInstructionOffset",
+            "docs": [
+              "Relative location of the `ProofInstruction::BatchedRangeProofU128Data`",
+              "instruction to the `Transfer` instruction in the transaction. If the",
+              "offset is `0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "applyConfidentialPendingBalance",
+        "docs": [
+          "Applies the pending balance to the available balance, based on the",
+          "history of `Deposit` and/or `Transfer` instructions.",
+          "",
+          "After submitting `ApplyPendingBalance`, the client should compare",
+          "`ConfidentialTransferAccount::expected_pending_balance_credit_counter`",
+          "with",
+          "`ConfidentialTransferAccount::actual_applied_pending_balance_instructions`.  If they are",
+          "equal then the",
+          "`ConfidentialTransferAccount::decryptable_available_balance` is",
+          "consistent with `ConfidentialTransferAccount::available_balance`. If",
+          "they differ then there is more pending balance to be applied."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 8
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "expectedPendingBalanceCreditCounter",
+            "docs": [
+              "The expected number of pending balance credits since the last successful",
+              "`ApplyPendingBalance` instruction"
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "newDecryptableAvailableBalance",
+            "docs": [
+              "The new decryptable balance if the pending balance is applied",
+              "successfully"
+            ],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "decryptableBalance"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "enableConfidentialCredits",
+        "docs": [
+          "Configure a confidential extension account to accept incoming",
+          "confidential transfers."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 9
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "disableConfidentialCredits",
+        "docs": [
+          "Configure a confidential extension account to reject any incoming",
+          "confidential transfers.",
+          "",
+          "If the `allow_non_confidential_credits` field is `true`, then the base",
+          "account can still receive non-confidential transfers.",
+          "",
+          "This instruction can be used to disable confidential payments after a",
+          "token account has already been extended for confidential transfers."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 10
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "enableNonConfidentialCredits",
+        "docs": [
+          "Configure an account with the confidential extension to accept incoming",
+          "non-confidential transfers."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 11
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "disableNonConfidentialCredits",
+        "docs": [
+          "Configure an account with the confidential extension to reject any",
+          "incoming non-confidential transfers.",
+          "",
+          "This instruction can be used to configure a confidential extension",
+          "account to exclusively receive confidential payments."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 12
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "confidentialTransferWithFee",
+        "docs": [
+          "Transfer tokens confidentially with fee.",
+          "",
+          "In order for this instruction to be successfully processed, it must be",
+          "accompanied by the following list of `zk_elgamal_proof` program",
+          "instructions:",
+          "- `VerifyCiphertextCommitmentEquality`",
+          "- `VerifyBatchedGroupedCiphertext3HandlesValidity` (transfer amount",
+          "  ciphertext)",
+          "- `VerifyPercentageWithFee`",
+          "- `VerifyBatchedGroupedCiphertext2HandlesValidity` (fee ciphertext)",
+          "- `VerifyBatchedRangeProofU256`",
+          "These instructions can be accompanied in the same transaction or can be",
+          "pre-verified into a context state account, in which case, only their",
+          "context state account addresses need to be provided.",
+          "",
+          "The same restrictions for the `Transfer` applies to",
+          "`TransferWithFee`. Namely, the instruction fails if the",
+          "associated mint is extended as `NonTransferable`."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "sourceToken",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The source SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The corresponding SPL Token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "destinationToken",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The destination SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "instructionsSysvar",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Instructions sysvar if at least one of the",
+              "`zk_elgamal_proof` instructions are included in the same",
+              "transaction."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "equalityRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Equality proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "transferAmountCiphertextValidityRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Transfer amount ciphertext validity proof record",
+              "account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "feeSigmaRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Fee sigma proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "feeCiphertextValidityRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Fee ciphertext validity proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "rangeRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Range proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 13
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "newSourceDecryptableAvailableBalance",
+            "docs": [
+              "The new source decryptable balance if the transfer succeeds."
+            ],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "decryptableBalance"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "equalityProofInstructionOffset",
+            "docs": [
+              "Relative location of the",
+              "`ProofInstruction::VerifyCiphertextCommitmentEquality` instruction",
+              "to the `TransferWithFee` instruction in the transaction. If the offset",
+              "is `0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "transferAmountCiphertextValidityProofInstructionOffset",
+            "docs": [
+              "Relative location of the",
+              "`ProofInstruction::VerifyBatchedGroupedCiphertext3HandlesValidity`",
+              "instruction to the `TransferWithFee` instruction in the transaction.",
+              "If the offset is `0`, then use a context state account for the",
+              "proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "feeSigmaProofInstructionOffset",
+            "docs": [
+              "Relative location of the `ProofInstruction::VerifyPercentageWithFee`",
+              "instruction to the `TransferWithFee` instruction in the transaction.",
+              "If the offset is `0`, then use a context state account for the",
+              "proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "feeCiphertextValidityProofInstructionOffset",
+            "docs": [
+              "Relative location of the",
+              "`ProofInstruction::VerifyBatchedGroupedCiphertext2HandlesValidity`",
+              "instruction to the `TransferWithFee` instruction in the transaction.",
+              "If the offset is `0`, then use a context state account for the",
+              "proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "rangeProofInstructionOffset",
+            "docs": [
+              "Relative location of the `ProofInstruction::BatchedRangeProofU256Data`",
+              "instruction to the `TransferWithFee` instruction in the transaction.",
+              "If the offset is `0`, then use a context state account for the",
+              "proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
       }
     ],
     "definedTypes": [

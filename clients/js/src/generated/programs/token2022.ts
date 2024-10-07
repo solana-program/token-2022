@@ -14,17 +14,30 @@ import {
 } from '@solana/web3.js';
 import {
   type ParsedAmountToUiAmountInstruction,
+  type ParsedApplyConfidentialPendingBalanceInstruction,
   type ParsedApproveCheckedInstruction,
+  type ParsedApproveConfidentialAccountInstruction,
   type ParsedApproveInstruction,
   type ParsedBurnCheckedInstruction,
   type ParsedBurnInstruction,
   type ParsedCloseAccountInstruction,
+  type ParsedConfidentialDepositInstruction,
+  type ParsedConfidentialTransferInstruction,
+  type ParsedConfidentialTransferWithFeeInstruction,
+  type ParsedConfidentialWithdrawInstruction,
+  type ParsedConfigureConfidentialAccountInstruction,
+  type ParsedDisableConfidentialCreditsInstruction,
+  type ParsedDisableNonConfidentialCreditsInstruction,
+  type ParsedEmptyConfidentialAccountInstruction,
+  type ParsedEnableConfidentialCreditsInstruction,
+  type ParsedEnableNonConfidentialCreditsInstruction,
   type ParsedFreezeAccountInstruction,
   type ParsedGetAccountDataSizeInstruction,
   type ParsedHarvestWithheldTokensToMintInstruction,
   type ParsedInitializeAccount2Instruction,
   type ParsedInitializeAccount3Instruction,
   type ParsedInitializeAccountInstruction,
+  type ParsedInitializeConfidentialTransferMintInstruction,
   type ParsedInitializeImmutableOwnerInstruction,
   type ParsedInitializeMint2Instruction,
   type ParsedInitializeMintCloseAuthorityInstruction,
@@ -43,6 +56,7 @@ import {
   type ParsedTransferCheckedWithFeeInstruction,
   type ParsedTransferInstruction,
   type ParsedUiAmountToAmountInstruction,
+  type ParsedUpdateConfidentialTransferMintInstruction,
   type ParsedWithdrawWithheldTokensFromAccountsInstruction,
   type ParsedWithdrawWithheldTokensFromMintInstruction,
 } from '../instructions';
@@ -107,6 +121,20 @@ export enum Token2022Instruction {
   WithdrawWithheldTokensFromAccounts,
   HarvestWithheldTokensToMint,
   SetTransferFee,
+  InitializeConfidentialTransferMint,
+  UpdateConfidentialTransferMint,
+  ConfigureConfidentialAccount,
+  ApproveConfidentialAccount,
+  EmptyConfidentialAccount,
+  ConfidentialDeposit,
+  ConfidentialWithdraw,
+  ConfidentialTransfer,
+  ApplyConfidentialPendingBalance,
+  EnableConfidentialCredits,
+  DisableConfidentialCredits,
+  EnableNonConfidentialCredits,
+  DisableNonConfidentialCredits,
+  ConfidentialTransferWithFee,
 }
 
 export function identifyToken2022Instruction(
@@ -227,6 +255,90 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.SetTransferFee;
   }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
+    return Token2022Instruction.InitializeConfidentialTransferMint;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.UpdateConfidentialTransferMint;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(2), 1)
+  ) {
+    return Token2022Instruction.ConfigureConfidentialAccount;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(3), 1)
+  ) {
+    return Token2022Instruction.ApproveConfidentialAccount;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(4), 1)
+  ) {
+    return Token2022Instruction.EmptyConfidentialAccount;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(5), 1)
+  ) {
+    return Token2022Instruction.ConfidentialDeposit;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(6), 1)
+  ) {
+    return Token2022Instruction.ConfidentialWithdraw;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(7), 1)
+  ) {
+    return Token2022Instruction.ConfidentialTransfer;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(8), 1)
+  ) {
+    return Token2022Instruction.ApplyConfidentialPendingBalance;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(9), 1)
+  ) {
+    return Token2022Instruction.EnableConfidentialCredits;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(10), 1)
+  ) {
+    return Token2022Instruction.DisableConfidentialCredits;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(11), 1)
+  ) {
+    return Token2022Instruction.EnableNonConfidentialCredits;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(12), 1)
+  ) {
+    return Token2022Instruction.DisableNonConfidentialCredits;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(13), 1)
+  ) {
+    return Token2022Instruction.ConfidentialTransferWithFee;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -330,4 +442,46 @@ export type ParsedToken2022Instruction<
     } & ParsedHarvestWithheldTokensToMintInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.SetTransferFee;
-    } & ParsedSetTransferFeeInstruction<TProgram>);
+    } & ParsedSetTransferFeeInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeConfidentialTransferMint;
+    } & ParsedInitializeConfidentialTransferMintInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.UpdateConfidentialTransferMint;
+    } & ParsedUpdateConfidentialTransferMintInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.ConfigureConfidentialAccount;
+    } & ParsedConfigureConfidentialAccountInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.ApproveConfidentialAccount;
+    } & ParsedApproveConfidentialAccountInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.EmptyConfidentialAccount;
+    } & ParsedEmptyConfidentialAccountInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.ConfidentialDeposit;
+    } & ParsedConfidentialDepositInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.ConfidentialWithdraw;
+    } & ParsedConfidentialWithdrawInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.ConfidentialTransfer;
+    } & ParsedConfidentialTransferInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.ApplyConfidentialPendingBalance;
+    } & ParsedApplyConfidentialPendingBalanceInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.EnableConfidentialCredits;
+    } & ParsedEnableConfidentialCreditsInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.DisableConfidentialCredits;
+    } & ParsedDisableConfidentialCreditsInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.EnableNonConfidentialCredits;
+    } & ParsedEnableNonConfidentialCreditsInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.DisableNonConfidentialCredits;
+    } & ParsedDisableNonConfidentialCreditsInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.ConfidentialTransferWithFee;
+    } & ParsedConfidentialTransferWithFeeInstruction<TProgram>);
