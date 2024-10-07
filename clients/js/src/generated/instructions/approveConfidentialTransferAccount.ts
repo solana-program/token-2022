@@ -30,21 +30,23 @@ import {
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const APPROVE_CONFIDENTIAL_ACCOUNT_DISCRIMINATOR = 27;
+export const APPROVE_CONFIDENTIAL_TRANSFER_ACCOUNT_DISCRIMINATOR = 27;
 
-export function getApproveConfidentialAccountDiscriminatorBytes() {
-  return getU8Encoder().encode(APPROVE_CONFIDENTIAL_ACCOUNT_DISCRIMINATOR);
-}
-
-export const APPROVE_CONFIDENTIAL_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 3;
-
-export function getApproveConfidentialAccountConfidentialTransferDiscriminatorBytes() {
+export function getApproveConfidentialTransferAccountDiscriminatorBytes() {
   return getU8Encoder().encode(
-    APPROVE_CONFIDENTIAL_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR
+    APPROVE_CONFIDENTIAL_TRANSFER_ACCOUNT_DISCRIMINATOR
   );
 }
 
-export type ApproveConfidentialAccountInstruction<
+export const APPROVE_CONFIDENTIAL_TRANSFER_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 3;
+
+export function getApproveConfidentialTransferAccountConfidentialTransferDiscriminatorBytes() {
+  return getU8Encoder().encode(
+    APPROVE_CONFIDENTIAL_TRANSFER_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR
+  );
+}
+
+export type ApproveConfidentialTransferAccountInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountToken extends string | IAccountMeta<string> = string,
   TAccountMint extends string | IAccountMeta<string> = string,
@@ -68,14 +70,14 @@ export type ApproveConfidentialAccountInstruction<
     ]
   >;
 
-export type ApproveConfidentialAccountInstructionData = {
+export type ApproveConfidentialTransferAccountInstructionData = {
   discriminator: number;
   confidentialTransferDiscriminator: number;
 };
 
-export type ApproveConfidentialAccountInstructionDataArgs = {};
+export type ApproveConfidentialTransferAccountInstructionDataArgs = {};
 
-export function getApproveConfidentialAccountInstructionDataEncoder(): Encoder<ApproveConfidentialAccountInstructionDataArgs> {
+export function getApproveConfidentialTransferAccountInstructionDataEncoder(): Encoder<ApproveConfidentialTransferAccountInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -83,31 +85,31 @@ export function getApproveConfidentialAccountInstructionDataEncoder(): Encoder<A
     ]),
     (value) => ({
       ...value,
-      discriminator: APPROVE_CONFIDENTIAL_ACCOUNT_DISCRIMINATOR,
+      discriminator: APPROVE_CONFIDENTIAL_TRANSFER_ACCOUNT_DISCRIMINATOR,
       confidentialTransferDiscriminator:
-        APPROVE_CONFIDENTIAL_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR,
+        APPROVE_CONFIDENTIAL_TRANSFER_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR,
     })
   );
 }
 
-export function getApproveConfidentialAccountInstructionDataDecoder(): Decoder<ApproveConfidentialAccountInstructionData> {
+export function getApproveConfidentialTransferAccountInstructionDataDecoder(): Decoder<ApproveConfidentialTransferAccountInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferDiscriminator', getU8Decoder()],
   ]);
 }
 
-export function getApproveConfidentialAccountInstructionDataCodec(): Codec<
-  ApproveConfidentialAccountInstructionDataArgs,
-  ApproveConfidentialAccountInstructionData
+export function getApproveConfidentialTransferAccountInstructionDataCodec(): Codec<
+  ApproveConfidentialTransferAccountInstructionDataArgs,
+  ApproveConfidentialTransferAccountInstructionData
 > {
   return combineCodec(
-    getApproveConfidentialAccountInstructionDataEncoder(),
-    getApproveConfidentialAccountInstructionDataDecoder()
+    getApproveConfidentialTransferAccountInstructionDataEncoder(),
+    getApproveConfidentialTransferAccountInstructionDataDecoder()
   );
 }
 
-export type ApproveConfidentialAccountInput<
+export type ApproveConfidentialTransferAccountInput<
   TAccountToken extends string = string,
   TAccountMint extends string = string,
   TAccountAuthority extends string = string,
@@ -120,17 +122,17 @@ export type ApproveConfidentialAccountInput<
   authority: TransactionSigner<TAccountAuthority>;
 };
 
-export function getApproveConfidentialAccountInstruction<
+export function getApproveConfidentialTransferAccountInstruction<
   TAccountToken extends string,
   TAccountMint extends string,
   TAccountAuthority extends string,
 >(
-  input: ApproveConfidentialAccountInput<
+  input: ApproveConfidentialTransferAccountInput<
     TAccountToken,
     TAccountMint,
     TAccountAuthority
   >
-): ApproveConfidentialAccountInstruction<
+): ApproveConfidentialTransferAccountInstruction<
   typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountToken,
   TAccountMint,
@@ -158,8 +160,10 @@ export function getApproveConfidentialAccountInstruction<
       getAccountMeta(accounts.authority),
     ],
     programAddress,
-    data: getApproveConfidentialAccountInstructionDataEncoder().encode({}),
-  } as ApproveConfidentialAccountInstruction<
+    data: getApproveConfidentialTransferAccountInstructionDataEncoder().encode(
+      {}
+    ),
+  } as ApproveConfidentialTransferAccountInstruction<
     typeof TOKEN_2022_PROGRAM_ADDRESS,
     TAccountToken,
     TAccountMint,
@@ -169,7 +173,7 @@ export function getApproveConfidentialAccountInstruction<
   return instruction;
 }
 
-export type ParsedApproveConfidentialAccountInstruction<
+export type ParsedApproveConfidentialTransferAccountInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
@@ -182,17 +186,20 @@ export type ParsedApproveConfidentialAccountInstruction<
     /** Confidential transfer mint authority. */
     authority: TAccountMetas[2];
   };
-  data: ApproveConfidentialAccountInstructionData;
+  data: ApproveConfidentialTransferAccountInstructionData;
 };
 
-export function parseApproveConfidentialAccountInstruction<
+export function parseApproveConfidentialTransferAccountInstruction<
   TProgram extends string,
   TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
-): ParsedApproveConfidentialAccountInstruction<TProgram, TAccountMetas> {
+): ParsedApproveConfidentialTransferAccountInstruction<
+  TProgram,
+  TAccountMetas
+> {
   if (instruction.accounts.length < 3) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
@@ -210,7 +217,7 @@ export function parseApproveConfidentialAccountInstruction<
       mint: getNextAccount(),
       authority: getNextAccount(),
     },
-    data: getApproveConfidentialAccountInstructionDataDecoder().decode(
+    data: getApproveConfidentialTransferAccountInstructionDataDecoder().decode(
       instruction.data
     ),
   };
