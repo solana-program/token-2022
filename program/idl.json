@@ -3960,6 +3960,215 @@
             "offset": 1
           }
         ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "confidentialTransfer",
+        "docs": [
+          "Transfer tokens confidentially.",
+          "",
+          "In order for this instruction to be successfully processed, it must be",
+          "accompanied by the following list of `zk_elgamal_proof` program",
+          "instructions:",
+          "- `VerifyCiphertextCommitmentEquality`",
+          "- `VerifyBatchedGroupedCiphertext3HandlesValidity`",
+          "- `VerifyBatchedRangeProofU128`",
+          "These instructions can be accompanied in the same transaction or can be",
+          "pre-verified into a context state account, in which case, only their",
+          "context state account addresses need to be provided.",
+          "",
+          "Fails if the associated mint is extended as `NonTransferable`."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "sourceToken",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The source SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The corresponding SPL Token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "destinationToken",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The destination SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "instructionsSysvar",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Instructions sysvar if at least one of the",
+              "`zk_elgamal_proof` instructions are included in the same",
+              "transaction."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "equalityRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Equality proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "ciphertextValidityRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Ciphertext validity proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "rangeRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Range proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 7
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "newSourceDecryptableAvailableBalance",
+            "docs": [
+              "The new source decryptable balance if the transfer succeeds."
+            ],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "decryptableBalance"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "equalityProofInstructionOffset",
+            "docs": [
+              "Relative location of the",
+              "`ProofInstruction::VerifyCiphertextCommitmentEquality` instruction",
+              "to the `Transfer` instruction in the transaction. If the offset is",
+              "`0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "ciphertextValidityProofInstructionOffset",
+            "docs": [
+              "Relative location of the",
+              "`ProofInstruction::VerifyBatchedGroupedCiphertext3HandlesValidity`",
+              "instruction to the `Transfer` instruction in the transaction. If the",
+              "offset is `0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "rangeProofInstructionOffset",
+            "docs": [
+              "Relative location of the `ProofInstruction::BatchedRangeProofU128Data`",
+              "instruction to the `Transfer` instruction in the transaction. If the",
+              "offset is `0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
       }
     ],
     "definedTypes": [

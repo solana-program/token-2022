@@ -14,6 +14,7 @@ export * from './burn';
 export * from './burnChecked';
 export * from './closeAccount';
 export * from './confidentialDeposit';
+export * from './confidentialTransfer';
 export * from './confidentialWithdraw';
 export * from './configureConfidentialAccount';
 export * from './createAssociatedToken';
