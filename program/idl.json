@@ -3285,7 +3285,7 @@
             "kind": "instructionAccountNode",
             "name": "instructionsSysvarOrContextState",
             "isWritable": false,
-            "isSigner": true,
+            "isSigner": false,
             "isOptional": false,
             "docs": [
               "Instructions sysvar if `VerifyPubkeyValidity` is included in",
@@ -3483,6 +3483,149 @@
             "defaultValue": {
               "kind": "numberValueNode",
               "number": 3
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "emptyConfidentialAccount",
+        "docs": [
+          "Empty the available balance in a confidential token account.",
+          "",
+          "A token account that is extended for confidential transfers can only be",
+          "closed if the pending and available balance ciphertexts are emptied.",
+          "The pending balance can be emptied",
+          "via the `ConfidentialTransferInstruction::ApplyPendingBalance`",
+          "instruction. Use the `ConfidentialTransferInstruction::EmptyAccount`",
+          "instruction to empty the available balance ciphertext.",
+          "",
+          "Note that a newly configured account is always empty, so this",
+          "instruction is not required prior to account closing if no",
+          "instructions beyond",
+          "`ConfidentialTransferInstruction::ConfigureAccount` have affected the",
+          "token account.",
+          "",
+          "In order for this instruction to be successfully processed, it must be",
+          "accompanied by the `VerifyZeroCiphertext` instruction of the",
+          "`zk_elgamal_proof` program in the same transaction or the address of a",
+          "context state account for the proof must be provided."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "instructionsSysvarOrContextState",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "Instructions sysvar if `VerifyZeroCiphertext` is included in",
+              "the same transaction or context state account if",
+              "`VerifyZeroCiphertext` is pre-verified into a context state",
+              "account."
+            ],
+            "defaultValue": {
+              "kind": "publicKeyValueNode",
+              "publicKey": "Sysvar1nstructions1111111111111111111111111"
+            }
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "record",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Record account if the accompanying proof is to be read from a record account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 4
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "proofInstructionOffset",
+            "docs": [
+              "Relative location of the `ProofInstruction::VerifyCloseAccount`",
+              "instruction to the `EmptyAccount` instruction in the transaction. If",
+              "the offset is `0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
             }
           }
         ],

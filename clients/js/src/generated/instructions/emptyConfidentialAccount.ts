@@ -13,8 +13,6 @@ import {
   getI8Encoder,
   getStructDecoder,
   getStructEncoder,
-  getU64Decoder,
-  getU64Encoder,
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
@@ -34,31 +32,24 @@ import {
 } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
-import {
-  getDecryptableBalanceDecoder,
-  getDecryptableBalanceEncoder,
-  type DecryptableBalance,
-  type DecryptableBalanceArgs,
-} from '../types';
 
-export const CONFIGURE_CONFIDENTIAL_ACCOUNT_DISCRIMINATOR = 27;
+export const EMPTY_CONFIDENTIAL_ACCOUNT_DISCRIMINATOR = 27;
 
-export function getConfigureConfidentialAccountDiscriminatorBytes() {
-  return getU8Encoder().encode(CONFIGURE_CONFIDENTIAL_ACCOUNT_DISCRIMINATOR);
+export function getEmptyConfidentialAccountDiscriminatorBytes() {
+  return getU8Encoder().encode(EMPTY_CONFIDENTIAL_ACCOUNT_DISCRIMINATOR);
 }
 
-export const CONFIGURE_CONFIDENTIAL_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 2;
+export const EMPTY_CONFIDENTIAL_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 4;
 
-export function getConfigureConfidentialAccountConfidentialTransferDiscriminatorBytes() {
+export function getEmptyConfidentialAccountConfidentialTransferDiscriminatorBytes() {
   return getU8Encoder().encode(
-    CONFIGURE_CONFIDENTIAL_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR
+    EMPTY_CONFIDENTIAL_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR
   );
 }
 
-export type ConfigureConfidentialAccountInstruction<
+export type EmptyConfidentialAccountInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountToken extends string | IAccountMeta<string> = string,
-  TAccountMint extends string | IAccountMeta<string> = string,
   TAccountInstructionsSysvarOrContextState extends
     | string
     | IAccountMeta<string> = 'Sysvar1nstructions1111111111111111111111111',
@@ -72,9 +63,6 @@ export type ConfigureConfidentialAccountInstruction<
       TAccountToken extends string
         ? WritableAccount<TAccountToken>
         : TAccountToken,
-      TAccountMint extends string
-        ? ReadonlyAccount<TAccountMint>
-        : TAccountMint,
       TAccountInstructionsSysvarOrContextState extends string
         ? ReadonlyAccount<TAccountInstructionsSysvarOrContextState>
         : TAccountInstructionsSysvarOrContextState,
@@ -88,95 +76,72 @@ export type ConfigureConfidentialAccountInstruction<
     ]
   >;
 
-export type ConfigureConfidentialAccountInstructionData = {
+export type EmptyConfidentialAccountInstructionData = {
   discriminator: number;
   confidentialTransferDiscriminator: number;
-  /** The decryptable balance (always 0) once the configure account succeeds. */
-  decryptableZeroBalance: DecryptableBalance;
   /**
-   * The maximum number of despots and transfers that an account can receiver
-   * before the `ApplyPendingBalance` is executed
-   */
-  maximumPendingBalanceCreditCounter: bigint;
-  /**
-   * Relative location of the `ProofInstruction::ZeroCiphertextProof`
-   * instruction to the `ConfigureAccount` instruction in the
-   * transaction. If the offset is `0`, then use a context state account
-   * for the proof.
+   * Relative location of the `ProofInstruction::VerifyCloseAccount`
+   * instruction to the `EmptyAccount` instruction in the transaction. If
+   * the offset is `0`, then use a context state account for the proof.
    */
   proofInstructionOffset: number;
 };
 
-export type ConfigureConfidentialAccountInstructionDataArgs = {
-  /** The decryptable balance (always 0) once the configure account succeeds. */
-  decryptableZeroBalance: DecryptableBalanceArgs;
+export type EmptyConfidentialAccountInstructionDataArgs = {
   /**
-   * The maximum number of despots and transfers that an account can receiver
-   * before the `ApplyPendingBalance` is executed
-   */
-  maximumPendingBalanceCreditCounter: number | bigint;
-  /**
-   * Relative location of the `ProofInstruction::ZeroCiphertextProof`
-   * instruction to the `ConfigureAccount` instruction in the
-   * transaction. If the offset is `0`, then use a context state account
-   * for the proof.
+   * Relative location of the `ProofInstruction::VerifyCloseAccount`
+   * instruction to the `EmptyAccount` instruction in the transaction. If
+   * the offset is `0`, then use a context state account for the proof.
    */
   proofInstructionOffset: number;
 };
 
-export function getConfigureConfidentialAccountInstructionDataEncoder(): Encoder<ConfigureConfidentialAccountInstructionDataArgs> {
+export function getEmptyConfidentialAccountInstructionDataEncoder(): Encoder<EmptyConfidentialAccountInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
       ['confidentialTransferDiscriminator', getU8Encoder()],
-      ['decryptableZeroBalance', getDecryptableBalanceEncoder()],
-      ['maximumPendingBalanceCreditCounter', getU64Encoder()],
       ['proofInstructionOffset', getI8Encoder()],
     ]),
     (value) => ({
       ...value,
-      discriminator: CONFIGURE_CONFIDENTIAL_ACCOUNT_DISCRIMINATOR,
+      discriminator: EMPTY_CONFIDENTIAL_ACCOUNT_DISCRIMINATOR,
       confidentialTransferDiscriminator:
-        CONFIGURE_CONFIDENTIAL_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR,
+        EMPTY_CONFIDENTIAL_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR,
     })
   );
 }
 
-export function getConfigureConfidentialAccountInstructionDataDecoder(): Decoder<ConfigureConfidentialAccountInstructionData> {
+export function getEmptyConfidentialAccountInstructionDataDecoder(): Decoder<EmptyConfidentialAccountInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferDiscriminator', getU8Decoder()],
-    ['decryptableZeroBalance', getDecryptableBalanceDecoder()],
-    ['maximumPendingBalanceCreditCounter', getU64Decoder()],
     ['proofInstructionOffset', getI8Decoder()],
   ]);
 }
 
-export function getConfigureConfidentialAccountInstructionDataCodec(): Codec<
-  ConfigureConfidentialAccountInstructionDataArgs,
-  ConfigureConfidentialAccountInstructionData
+export function getEmptyConfidentialAccountInstructionDataCodec(): Codec<
+  EmptyConfidentialAccountInstructionDataArgs,
+  EmptyConfidentialAccountInstructionData
 > {
   return combineCodec(
-    getConfigureConfidentialAccountInstructionDataEncoder(),
-    getConfigureConfidentialAccountInstructionDataDecoder()
+    getEmptyConfidentialAccountInstructionDataEncoder(),
+    getEmptyConfidentialAccountInstructionDataDecoder()
   );
 }
 
-export type ConfigureConfidentialAccountInput<
+export type EmptyConfidentialAccountInput<
   TAccountToken extends string = string,
-  TAccountMint extends string = string,
   TAccountInstructionsSysvarOrContextState extends string = string,
   TAccountRecord extends string = string,
   TAccountAuthority extends string = string,
 > = {
   /** The SPL Token account. */
   token: Address<TAccountToken>;
-  /** The corresponding SPL Token mint. */
-  mint: Address<TAccountMint>;
   /**
-   * Instructions sysvar if `VerifyPubkeyValidity` is included in
+   * Instructions sysvar if `VerifyZeroCiphertext` is included in
    * the same transaction or context state account if
-   * `VerifyPubkeyValidity` is pre-verified into a context state
+   * `VerifyZeroCiphertext` is pre-verified into a context state
    * account.
    */
   instructionsSysvarOrContextState?: Address<TAccountInstructionsSysvarOrContextState>;
@@ -184,30 +149,25 @@ export type ConfigureConfidentialAccountInput<
   record?: Address<TAccountRecord>;
   /** The source account's owner/delegate or its multisignature account. */
   authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
-  decryptableZeroBalance: ConfigureConfidentialAccountInstructionDataArgs['decryptableZeroBalance'];
-  maximumPendingBalanceCreditCounter: ConfigureConfidentialAccountInstructionDataArgs['maximumPendingBalanceCreditCounter'];
-  proofInstructionOffset: ConfigureConfidentialAccountInstructionDataArgs['proofInstructionOffset'];
+  proofInstructionOffset: EmptyConfidentialAccountInstructionDataArgs['proofInstructionOffset'];
   multiSigners?: Array<TransactionSigner>;
 };
 
-export function getConfigureConfidentialAccountInstruction<
+export function getEmptyConfidentialAccountInstruction<
   TAccountToken extends string,
-  TAccountMint extends string,
   TAccountInstructionsSysvarOrContextState extends string,
   TAccountRecord extends string,
   TAccountAuthority extends string,
 >(
-  input: ConfigureConfidentialAccountInput<
+  input: EmptyConfidentialAccountInput<
     TAccountToken,
-    TAccountMint,
     TAccountInstructionsSysvarOrContextState,
     TAccountRecord,
     TAccountAuthority
   >
-): ConfigureConfidentialAccountInstruction<
+): EmptyConfidentialAccountInstruction<
   typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountToken,
-  TAccountMint,
   TAccountInstructionsSysvarOrContextState,
   TAccountRecord,
   (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
@@ -221,7 +181,6 @@ export function getConfigureConfidentialAccountInstruction<
   // Original accounts.
   const originalAccounts = {
     token: { value: input.token ?? null, isWritable: true },
-    mint: { value: input.mint ?? null, isWritable: false },
     instructionsSysvarOrContextState: {
       value: input.instructionsSysvarOrContextState ?? null,
       isWritable: false,
@@ -256,20 +215,18 @@ export function getConfigureConfidentialAccountInstruction<
   const instruction = {
     accounts: [
       getAccountMeta(accounts.token),
-      getAccountMeta(accounts.mint),
       getAccountMeta(accounts.instructionsSysvarOrContextState),
       getAccountMeta(accounts.record),
       getAccountMeta(accounts.authority),
       ...remainingAccounts,
     ],
     programAddress,
-    data: getConfigureConfidentialAccountInstructionDataEncoder().encode(
-      args as ConfigureConfidentialAccountInstructionDataArgs
+    data: getEmptyConfidentialAccountInstructionDataEncoder().encode(
+      args as EmptyConfidentialAccountInstructionDataArgs
     ),
-  } as ConfigureConfidentialAccountInstruction<
+  } as EmptyConfidentialAccountInstruction<
     typeof TOKEN_2022_PROGRAM_ADDRESS,
     TAccountToken,
-    TAccountMint,
     TAccountInstructionsSysvarOrContextState,
     TAccountRecord,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
@@ -281,7 +238,7 @@ export function getConfigureConfidentialAccountInstruction<
   return instruction;
 }
 
-export type ParsedConfigureConfidentialAccountInstruction<
+export type ParsedEmptyConfidentialAccountInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
@@ -289,33 +246,31 @@ export type ParsedConfigureConfidentialAccountInstruction<
   accounts: {
     /** The SPL Token account. */
     token: TAccountMetas[0];
-    /** The corresponding SPL Token mint. */
-    mint: TAccountMetas[1];
     /**
-     * Instructions sysvar if `VerifyPubkeyValidity` is included in
+     * Instructions sysvar if `VerifyZeroCiphertext` is included in
      * the same transaction or context state account if
-     * `VerifyPubkeyValidity` is pre-verified into a context state
+     * `VerifyZeroCiphertext` is pre-verified into a context state
      * account.
      */
 
-    instructionsSysvarOrContextState: TAccountMetas[2];
+    instructionsSysvarOrContextState: TAccountMetas[1];
     /** (Optional) Record account if the accompanying proof is to be read from a record account. */
-    record?: TAccountMetas[3] | undefined;
+    record?: TAccountMetas[2] | undefined;
     /** The source account's owner/delegate or its multisignature account. */
-    authority: TAccountMetas[4];
+    authority: TAccountMetas[3];
   };
-  data: ConfigureConfidentialAccountInstructionData;
+  data: EmptyConfidentialAccountInstructionData;
 };
 
-export function parseConfigureConfidentialAccountInstruction<
+export function parseEmptyConfidentialAccountInstruction<
   TProgram extends string,
   TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
-): ParsedConfigureConfidentialAccountInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 5) {
+): ParsedEmptyConfidentialAccountInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 4) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -335,12 +290,11 @@ export function parseConfigureConfidentialAccountInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       token: getNextAccount(),
-      mint: getNextAccount(),
       instructionsSysvarOrContextState: getNextAccount(),
       record: getNextOptionalAccount(),
       authority: getNextAccount(),
     },
-    data: getConfigureConfidentialAccountInstructionDataDecoder().decode(
+    data: getEmptyConfidentialAccountInstructionDataDecoder().decode(
       instruction.data
     ),
   };
