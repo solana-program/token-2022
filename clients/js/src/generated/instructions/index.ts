@@ -22,6 +22,7 @@ export * from './configureConfidentialAccount';
 export * from './createAssociatedToken';
 export * from './createAssociatedTokenIdempotent';
 export * from './emptyConfidentialAccount';
+export * from './enableConfidentialCredits';
 export * from './freezeAccount';
 export * from './getAccountDataSize';
 export * from './harvestWithheldTokensToMint';
