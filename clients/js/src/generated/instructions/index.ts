@@ -13,6 +13,7 @@ export * from './approveConfidentialAccount';
 export * from './burn';
 export * from './burnChecked';
 export * from './closeAccount';
+export * from './confidentialDeposit';
 export * from './configureConfidentialAccount';
 export * from './createAssociatedToken';
 export * from './createAssociatedTokenIdempotent';
