@@ -20,6 +20,7 @@ export * from './harvestWithheldTokensToMint';
 export * from './initializeAccount';
 export * from './initializeAccount2';
 export * from './initializeAccount3';
+export * from './initializeConfidentialTransferMint';
 export * from './initializeImmutableOwner';
 export * from './initializeMint';
 export * from './initializeMint2';
