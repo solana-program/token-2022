@@ -40,5 +40,6 @@ export * from './transfer';
 export * from './transferChecked';
 export * from './transferCheckedWithFee';
 export * from './uiAmountToAmount';
+export * from './updateConfidentialTransferMint';
 export * from './withdrawWithheldTokensFromAccounts';
 export * from './withdrawWithheldTokensFromMint';

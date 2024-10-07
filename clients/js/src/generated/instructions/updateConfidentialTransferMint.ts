@@ -24,35 +24,37 @@ import {
   type Decoder,
   type Encoder,
   type IAccountMeta,
+  type IAccountSignerMeta,
   type IInstruction,
   type IInstructionWithAccounts,
   type IInstructionWithData,
   type Option,
   type OptionOrNullable,
+  type ReadonlySignerAccount,
+  type TransactionSigner,
   type WritableAccount,
 } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const INITIALIZE_CONFIDENTIAL_TRANSFER_MINT_DISCRIMINATOR = 27;
+export const UPDATE_CONFIDENTIAL_TRANSFER_MINT_DISCRIMINATOR = 27;
 
-export function getInitializeConfidentialTransferMintDiscriminatorBytes() {
+export function getUpdateConfidentialTransferMintDiscriminatorBytes() {
+  return getU8Encoder().encode(UPDATE_CONFIDENTIAL_TRANSFER_MINT_DISCRIMINATOR);
+}
+
+export const UPDATE_CONFIDENTIAL_TRANSFER_MINT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 1;
+
+export function getUpdateConfidentialTransferMintConfidentialTransferDiscriminatorBytes() {
   return getU8Encoder().encode(
-    INITIALIZE_CONFIDENTIAL_TRANSFER_MINT_DISCRIMINATOR
+    UPDATE_CONFIDENTIAL_TRANSFER_MINT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR
   );
 }
 
-export const INITIALIZE_CONFIDENTIAL_TRANSFER_MINT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 0;
-
-export function getInitializeConfidentialTransferMintConfidentialTransferDiscriminatorBytes() {
-  return getU8Encoder().encode(
-    INITIALIZE_CONFIDENTIAL_TRANSFER_MINT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR
-  );
-}
-
-export type InitializeConfidentialTransferMintInstruction<
+export type UpdateConfidentialTransferMintInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountMint extends string | IAccountMeta<string> = string,
+  TAccountAuthority extends string | IAccountMeta<string> = string,
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
@@ -61,18 +63,17 @@ export type InitializeConfidentialTransferMintInstruction<
       TAccountMint extends string
         ? WritableAccount<TAccountMint>
         : TAccountMint,
+      TAccountAuthority extends string
+        ? ReadonlySignerAccount<TAccountAuthority> &
+            IAccountSignerMeta<TAccountAuthority>
+        : TAccountAuthority,
       ...TRemainingAccounts,
     ]
   >;
 
-export type InitializeConfidentialTransferMintInstructionData = {
+export type UpdateConfidentialTransferMintInstructionData = {
   discriminator: number;
   confidentialTransferDiscriminator: number;
-  /**
-   * Authority to modify the `ConfidentialTransferMint` configuration and to
-   * approve new accounts.
-   */
-  authority: Option<Address>;
   /**
    * Determines if newly configured accounts must be approved by the
    * `authority` before they may be used by the user.
@@ -82,12 +83,7 @@ export type InitializeConfidentialTransferMintInstructionData = {
   auditorElgamalPubkey: Option<Address>;
 };
 
-export type InitializeConfidentialTransferMintInstructionDataArgs = {
-  /**
-   * Authority to modify the `ConfidentialTransferMint` configuration and to
-   * approve new accounts.
-   */
-  authority: OptionOrNullable<Address>;
+export type UpdateConfidentialTransferMintInstructionDataArgs = {
   /**
    * Determines if newly configured accounts must be approved by the
    * `authority` before they may be used by the user.
@@ -97,18 +93,11 @@ export type InitializeConfidentialTransferMintInstructionDataArgs = {
   auditorElgamalPubkey: OptionOrNullable<Address>;
 };
 
-export function getInitializeConfidentialTransferMintInstructionDataEncoder(): Encoder<InitializeConfidentialTransferMintInstructionDataArgs> {
+export function getUpdateConfidentialTransferMintInstructionDataEncoder(): Encoder<UpdateConfidentialTransferMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
       ['confidentialTransferDiscriminator', getU8Encoder()],
-      [
-        'authority',
-        getOptionEncoder(getAddressEncoder(), {
-          prefix: null,
-          noneValue: 'zeroes',
-        }),
-      ],
       ['autoApproveNewAccounts', getBooleanEncoder()],
       [
         'auditorElgamalPubkey',
@@ -120,24 +109,17 @@ export function getInitializeConfidentialTransferMintInstructionDataEncoder(): E
     ]),
     (value) => ({
       ...value,
-      discriminator: INITIALIZE_CONFIDENTIAL_TRANSFER_MINT_DISCRIMINATOR,
+      discriminator: UPDATE_CONFIDENTIAL_TRANSFER_MINT_DISCRIMINATOR,
       confidentialTransferDiscriminator:
-        INITIALIZE_CONFIDENTIAL_TRANSFER_MINT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR,
+        UPDATE_CONFIDENTIAL_TRANSFER_MINT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR,
     })
   );
 }
 
-export function getInitializeConfidentialTransferMintInstructionDataDecoder(): Decoder<InitializeConfidentialTransferMintInstructionData> {
+export function getUpdateConfidentialTransferMintInstructionDataDecoder(): Decoder<UpdateConfidentialTransferMintInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferDiscriminator', getU8Decoder()],
-    [
-      'authority',
-      getOptionDecoder(getAddressDecoder(), {
-        prefix: null,
-        noneValue: 'zeroes',
-      }),
-    ],
     ['autoApproveNewAccounts', getBooleanDecoder()],
     [
       'auditorElgamalPubkey',
@@ -149,33 +131,37 @@ export function getInitializeConfidentialTransferMintInstructionDataDecoder(): D
   ]);
 }
 
-export function getInitializeConfidentialTransferMintInstructionDataCodec(): Codec<
-  InitializeConfidentialTransferMintInstructionDataArgs,
-  InitializeConfidentialTransferMintInstructionData
+export function getUpdateConfidentialTransferMintInstructionDataCodec(): Codec<
+  UpdateConfidentialTransferMintInstructionDataArgs,
+  UpdateConfidentialTransferMintInstructionData
 > {
   return combineCodec(
-    getInitializeConfidentialTransferMintInstructionDataEncoder(),
-    getInitializeConfidentialTransferMintInstructionDataDecoder()
+    getUpdateConfidentialTransferMintInstructionDataEncoder(),
+    getUpdateConfidentialTransferMintInstructionDataDecoder()
   );
 }
 
-export type InitializeConfidentialTransferMintInput<
+export type UpdateConfidentialTransferMintInput<
   TAccountMint extends string = string,
+  TAccountAuthority extends string = string,
 > = {
   /** The SPL Token mint. */
   mint: Address<TAccountMint>;
-  authority: InitializeConfidentialTransferMintInstructionDataArgs['authority'];
-  autoApproveNewAccounts: InitializeConfidentialTransferMintInstructionDataArgs['autoApproveNewAccounts'];
-  auditorElgamalPubkey: InitializeConfidentialTransferMintInstructionDataArgs['auditorElgamalPubkey'];
+  /** Confidential transfer mint authority. */
+  authority: TransactionSigner<TAccountAuthority>;
+  autoApproveNewAccounts: UpdateConfidentialTransferMintInstructionDataArgs['autoApproveNewAccounts'];
+  auditorElgamalPubkey: UpdateConfidentialTransferMintInstructionDataArgs['auditorElgamalPubkey'];
 };
 
-export function getInitializeConfidentialTransferMintInstruction<
+export function getUpdateConfidentialTransferMintInstruction<
   TAccountMint extends string,
+  TAccountAuthority extends string,
 >(
-  input: InitializeConfidentialTransferMintInput<TAccountMint>
-): InitializeConfidentialTransferMintInstruction<
+  input: UpdateConfidentialTransferMintInput<TAccountMint, TAccountAuthority>
+): UpdateConfidentialTransferMintInstruction<
   typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint
+  TAccountMint,
+  TAccountAuthority
 > {
   // Program address.
   const programAddress = TOKEN_2022_PROGRAM_ADDRESS;
@@ -183,6 +169,7 @@ export function getInitializeConfidentialTransferMintInstruction<
   // Original accounts.
   const originalAccounts = {
     mint: { value: input.mint ?? null, isWritable: true },
+    authority: { value: input.authority ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -194,20 +181,24 @@ export function getInitializeConfidentialTransferMintInstruction<
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   const instruction = {
-    accounts: [getAccountMeta(accounts.mint)],
+    accounts: [
+      getAccountMeta(accounts.mint),
+      getAccountMeta(accounts.authority),
+    ],
     programAddress,
-    data: getInitializeConfidentialTransferMintInstructionDataEncoder().encode(
-      args as InitializeConfidentialTransferMintInstructionDataArgs
+    data: getUpdateConfidentialTransferMintInstructionDataEncoder().encode(
+      args as UpdateConfidentialTransferMintInstructionDataArgs
     ),
-  } as InitializeConfidentialTransferMintInstruction<
+  } as UpdateConfidentialTransferMintInstruction<
     typeof TOKEN_2022_PROGRAM_ADDRESS,
-    TAccountMint
+    TAccountMint,
+    TAccountAuthority
   >;
 
   return instruction;
 }
 
-export type ParsedInitializeConfidentialTransferMintInstruction<
+export type ParsedUpdateConfidentialTransferMintInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
@@ -215,22 +206,21 @@ export type ParsedInitializeConfidentialTransferMintInstruction<
   accounts: {
     /** The SPL Token mint. */
     mint: TAccountMetas[0];
+    /** Confidential transfer mint authority. */
+    authority: TAccountMetas[1];
   };
-  data: InitializeConfidentialTransferMintInstructionData;
+  data: UpdateConfidentialTransferMintInstructionData;
 };
 
-export function parseInitializeConfidentialTransferMintInstruction<
+export function parseUpdateConfidentialTransferMintInstruction<
   TProgram extends string,
   TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
-): ParsedInitializeConfidentialTransferMintInstruction<
-  TProgram,
-  TAccountMetas
-> {
-  if (instruction.accounts.length < 1) {
+): ParsedUpdateConfidentialTransferMintInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 2) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -244,8 +234,9 @@ export function parseInitializeConfidentialTransferMintInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       mint: getNextAccount(),
+      authority: getNextAccount(),
     },
-    data: getInitializeConfidentialTransferMintInstructionDataDecoder().decode(
+    data: getUpdateConfidentialTransferMintInstructionDataDecoder().decode(
       instruction.data
     ),
   };

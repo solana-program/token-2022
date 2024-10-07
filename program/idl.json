@@ -3048,7 +3048,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": ["The mint."]
+            "docs": ["The SPL Token mint."]
           }
         ],
         "arguments": [
@@ -3094,6 +3094,108 @@
               "item": {
                 "kind": "publicKeyTypeNode"
               }
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "autoApproveNewAccounts",
+            "docs": [
+              "Determines if newly configured accounts must be approved by the",
+              "`authority` before they may be used by the user."
+            ],
+            "type": {
+              "kind": "booleanTypeNode",
+              "size": {
+                "kind": "numberTypeNode",
+                "format": "u8",
+                "endian": "le"
+              }
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "auditorElgamalPubkey",
+            "docs": [
+              "New authority to decode any transfer amount in a confidential transfer."
+            ],
+            "type": {
+              "kind": "zeroableOptionTypeNode",
+              "item": {
+                "kind": "publicKeyTypeNode"
+              }
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "updateConfidentialTransferMint",
+        "docs": [
+          "Updates the confidential transfer mint configuration for a mint.",
+          "",
+          "Use `TokenInstruction::SetAuthority` to update the confidential transfer",
+          "mint authority."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": true,
+            "isOptional": false,
+            "docs": ["Confidential transfer mint authority."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 1
             }
           },
           {
