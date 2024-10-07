@@ -21,6 +21,7 @@ import {
   type ParsedBurnInstruction,
   type ParsedCloseAccountInstruction,
   type ParsedConfidentialDepositInstruction,
+  type ParsedConfidentialWithdrawInstruction,
   type ParsedConfigureConfidentialAccountInstruction,
   type ParsedEmptyConfidentialAccountInstruction,
   type ParsedFreezeAccountInstruction,
@@ -119,6 +120,7 @@ export enum Token2022Instruction {
   ApproveConfidentialAccount,
   EmptyConfidentialAccount,
   ConfidentialDeposit,
+  ConfidentialWithdraw,
 }
 
 export function identifyToken2022Instruction(
@@ -275,6 +277,12 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.ConfidentialDeposit;
   }
+  if (
+    containsBytes(data, getU8Encoder().encode(27), 0) &&
+    containsBytes(data, getU8Encoder().encode(6), 1)
+  ) {
+    return Token2022Instruction.ConfidentialWithdraw;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -396,4 +404,7 @@ export type ParsedToken2022Instruction<
     } & ParsedEmptyConfidentialAccountInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.ConfidentialDeposit;
-    } & ParsedConfidentialDepositInstruction<TProgram>);
+    } & ParsedConfidentialDepositInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.ConfidentialWithdraw;
+    } & ParsedConfidentialWithdrawInstruction<TProgram>);
