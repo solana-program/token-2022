@@ -7,14 +7,14 @@ import {
   getInitializeTransferFeeConfigInstruction,
   getMintToInstruction,
   getTransferCheckedWithFeeInstruction,
-} from '../../src';
+} from '../../../src';
 import {
   createDefaultSolanaClient,
   generateKeyPairSignerWithSol,
   getCreateMintInstructions,
   getCreateTokenInstructions,
   sendAndConfirmInstructions,
-} from '../_setup';
+} from '../../_setup';
 
 test('it transfers tokens with pre-configured fees', async (t) => {
   // Given some signer accounts.
