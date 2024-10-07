@@ -9,6 +9,7 @@
 export * from './amountToUiAmount';
 export * from './approve';
 export * from './approveChecked';
+export * from './approveConfidentialAccount';
 export * from './burn';
 export * from './burnChecked';
 export * from './closeAccount';

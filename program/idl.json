@@ -3414,6 +3414,90 @@
             "offset": 1
           }
         ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "approveConfidentialAccount",
+        "docs": [
+          "Approves a token account for confidential transfers.",
+          "",
+          "Approval is only required when the",
+          "`ConfidentialTransferMint::approve_new_accounts` field is set in the",
+          "SPL Token mint.  This instruction must be executed after the account",
+          "owner configures their account for confidential transfers with",
+          "`ConfidentialTransferInstruction::ConfigureAccount`."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token account to approve."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The corresponding SPL Token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": true,
+            "isOptional": false,
+            "docs": ["Confidential transfer mint authority."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 27
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 3
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferDiscriminator",
+            "offset": 1
+          }
+        ]
       }
     ],
     "definedTypes": [
