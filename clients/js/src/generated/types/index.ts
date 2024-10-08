@@ -11,4 +11,5 @@ export * from './authorityType';
 export * from './decryptableBalance';
 export * from './encryptedBalance';
 export * from './extension';
+export * from './extensionType';
 export * from './transferFee';

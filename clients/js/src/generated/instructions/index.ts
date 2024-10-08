@@ -43,6 +43,7 @@ export * from './initializeMultisig2';
 export * from './initializeTransferFeeConfig';
 export * from './mintTo';
 export * from './mintToChecked';
+export * from './reallocate';
 export * from './recoverNestedAssociatedToken';
 export * from './revoke';
 export * from './setAuthority';
