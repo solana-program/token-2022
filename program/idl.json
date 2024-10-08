@@ -5088,11 +5088,11 @@
         "accounts": [
           {
             "kind": "instructionAccountNode",
-            "name": "account",
+            "name": "token",
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": ["The account to reallocate."]
+            "docs": ["The token account to reallocate."]
           },
           {
             "kind": "instructionAccountNode",

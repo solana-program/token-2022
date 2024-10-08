@@ -48,7 +48,7 @@ export function getReallocateDiscriminatorBytes() {
 
 export type ReallocateInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountAccount extends string | IAccountMeta<string> = string,
+  TAccountToken extends string | IAccountMeta<string> = string,
   TAccountPayer extends string | IAccountMeta<string> = string,
   TAccountSystemProgram extends
     | string
@@ -59,9 +59,9 @@ export type ReallocateInstruction<
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
     [
-      TAccountAccount extends string
-        ? WritableAccount<TAccountAccount>
-        : TAccountAccount,
+      TAccountToken extends string
+        ? WritableAccount<TAccountToken>
+        : TAccountToken,
       TAccountPayer extends string
         ? WritableSignerAccount<TAccountPayer> &
             IAccountSignerMeta<TAccountPayer>
@@ -115,13 +115,13 @@ export function getReallocateInstructionDataCodec(): Codec<
 }
 
 export type ReallocateInput<
-  TAccountAccount extends string = string,
+  TAccountToken extends string = string,
   TAccountPayer extends string = string,
   TAccountSystemProgram extends string = string,
   TAccountAuthority extends string = string,
 > = {
-  /** The account to reallocate. */
-  account: Address<TAccountAccount>;
+  /** The token account to reallocate. */
+  token: Address<TAccountToken>;
   /** The payer account to fund reallocation. */
   payer: TransactionSigner<TAccountPayer>;
   /** System program for reallocation funding. */
@@ -133,20 +133,20 @@ export type ReallocateInput<
 };
 
 export function getReallocateInstruction<
-  TAccountAccount extends string,
+  TAccountToken extends string,
   TAccountPayer extends string,
   TAccountSystemProgram extends string,
   TAccountAuthority extends string,
 >(
   input: ReallocateInput<
-    TAccountAccount,
+    TAccountToken,
     TAccountPayer,
     TAccountSystemProgram,
     TAccountAuthority
   >
 ): ReallocateInstruction<
   typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountAccount,
+  TAccountToken,
   TAccountPayer,
   TAccountSystemProgram,
   (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
@@ -159,7 +159,7 @@ export function getReallocateInstruction<
 
   // Original accounts.
   const originalAccounts = {
-    account: { value: input.account ?? null, isWritable: true },
+    token: { value: input.token ?? null, isWritable: true },
     payer: { value: input.payer ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
     authority: { value: input.authority ?? null, isWritable: false },
@@ -190,7 +190,7 @@ export function getReallocateInstruction<
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   const instruction = {
     accounts: [
-      getAccountMeta(accounts.account),
+      getAccountMeta(accounts.token),
       getAccountMeta(accounts.payer),
       getAccountMeta(accounts.systemProgram),
       getAccountMeta(accounts.authority),
@@ -202,7 +202,7 @@ export function getReallocateInstruction<
     ),
   } as ReallocateInstruction<
     typeof TOKEN_2022_PROGRAM_ADDRESS,
-    TAccountAccount,
+    TAccountToken,
     TAccountPayer,
     TAccountSystemProgram,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
@@ -220,8 +220,8 @@ export type ParsedReallocateInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** The account to reallocate. */
-    account: TAccountMetas[0];
+    /** The token account to reallocate. */
+    token: TAccountMetas[0];
     /** The payer account to fund reallocation. */
     payer: TAccountMetas[1];
     /** System program for reallocation funding. */
@@ -253,7 +253,7 @@ export function parseReallocateInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
-      account: getNextAccount(),
+      token: getNextAccount(),
       payer: getNextAccount(),
       systemProgram: getNextAccount(),
       authority: getNextAccount(),
