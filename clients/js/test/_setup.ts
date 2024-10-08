@@ -104,6 +104,7 @@ export const getCreateMintInstructions = async (input: {
   client: Client;
   decimals?: number;
   extensions?: ExtensionArgs[];
+  freezeAuthority?: Address;
   mint: TransactionSigner;
   payer: TransactionSigner;
   programAddress?: Address;
@@ -123,6 +124,7 @@ export const getCreateMintInstructions = async (input: {
     getInitializeMintInstruction({
       mint: input.mint.address,
       decimals: input.decimals ?? 0,
+      freezeAuthority: input.freezeAuthority,
       mintAuthority: input.authority,
     }),
   ];

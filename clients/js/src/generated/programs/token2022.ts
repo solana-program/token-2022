@@ -38,6 +38,7 @@ import {
   type ParsedInitializeAccount3Instruction,
   type ParsedInitializeAccountInstruction,
   type ParsedInitializeConfidentialTransferMintInstruction,
+  type ParsedInitializeDefaultAccountStateInstruction,
   type ParsedInitializeImmutableOwnerInstruction,
   type ParsedInitializeMint2Instruction,
   type ParsedInitializeMintCloseAuthorityInstruction,
@@ -57,6 +58,7 @@ import {
   type ParsedTransferInstruction,
   type ParsedUiAmountToAmountInstruction,
   type ParsedUpdateConfidentialTransferMintInstruction,
+  type ParsedUpdateDefaultAccountStateInstruction,
   type ParsedWithdrawWithheldTokensFromAccountsInstruction,
   type ParsedWithdrawWithheldTokensFromMintInstruction,
 } from '../instructions';
@@ -135,6 +137,8 @@ export enum Token2022Instruction {
   EnableNonConfidentialCredits,
   DisableNonConfidentialCredits,
   ConfidentialTransferWithFee,
+  InitializeDefaultAccountState,
+  UpdateDefaultAccountState,
 }
 
 export function identifyToken2022Instruction(
@@ -339,6 +343,18 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.ConfidentialTransferWithFee;
   }
+  if (
+    containsBytes(data, getU8Encoder().encode(28), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
+    return Token2022Instruction.InitializeDefaultAccountState;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(28), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.UpdateDefaultAccountState;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -484,4 +500,10 @@ export type ParsedToken2022Instruction<
     } & ParsedDisableNonConfidentialCreditsInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.ConfidentialTransferWithFee;
-    } & ParsedConfidentialTransferWithFeeInstruction<TProgram>);
+    } & ParsedConfidentialTransferWithFeeInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeDefaultAccountState;
+    } & ParsedInitializeDefaultAccountStateInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.UpdateDefaultAccountState;
+    } & ParsedUpdateDefaultAccountStateInstruction<TProgram>);

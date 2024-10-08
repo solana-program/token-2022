@@ -4905,6 +4905,176 @@
             "offset": 1
           }
         ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "initializeDefaultAccountState",
+        "docs": [
+          "Initialize a new mint with the default state for new Accounts.",
+          "",
+          "Fails if the mint has already been initialized, so must be called before",
+          "`InitializeMint`.",
+          "",
+          "The mint must have exactly enough space allocated for the base mint (82",
+          "bytes), plus 83 bytes of padding, 1 byte reserved for the account type,",
+          "then space required for this extension, plus any others."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 28
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "defaultAccountStateDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 0
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "state",
+            "docs": ["The state each new token account should start with."],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "accountState"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "defaultAccountStateDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "updateDefaultAccountState",
+        "docs": [
+          "Update the default state for new Accounts. Only supported for mints that",
+          "include the `DefaultAccountState` extension."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "freezeAuthority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": ["The mint freeze authority or its multisignature account."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 28
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "defaultAccountStateDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 1
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "state",
+            "docs": ["The state each new token account should start with."],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "accountState"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "defaultAccountStateDiscriminator",
+            "offset": 1
+          }
+        ]
       }
     ],
     "definedTypes": [
