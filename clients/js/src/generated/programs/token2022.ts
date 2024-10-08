@@ -48,6 +48,7 @@ import {
   type ParsedInitializeTransferFeeConfigInstruction,
   type ParsedMintToCheckedInstruction,
   type ParsedMintToInstruction,
+  type ParsedReallocateInstruction,
   type ParsedRevokeInstruction,
   type ParsedSetAuthorityInstruction,
   type ParsedSetTransferFeeInstruction,
@@ -139,6 +140,7 @@ export enum Token2022Instruction {
   ConfidentialTransferWithFee,
   InitializeDefaultAccountState,
   UpdateDefaultAccountState,
+  Reallocate,
 }
 
 export function identifyToken2022Instruction(
@@ -355,6 +357,9 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.UpdateDefaultAccountState;
   }
+  if (containsBytes(data, getU8Encoder().encode(29), 0)) {
+    return Token2022Instruction.Reallocate;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -506,4 +511,7 @@ export type ParsedToken2022Instruction<
     } & ParsedInitializeDefaultAccountStateInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.UpdateDefaultAccountState;
-    } & ParsedUpdateDefaultAccountStateInstruction<TProgram>);
+    } & ParsedUpdateDefaultAccountStateInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.Reallocate;
+    } & ParsedReallocateInstruction<TProgram>);
