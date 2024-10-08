@@ -53,7 +53,7 @@ export type ReallocateInstruction<
   TAccountSystemProgram extends
     | string
     | IAccountMeta<string> = '11111111111111111111111111111111',
-  TAccountAuthority extends string | IAccountMeta<string> = string,
+  TAccountOwner extends string | IAccountMeta<string> = string,
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
@@ -69,9 +69,9 @@ export type ReallocateInstruction<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      TAccountAuthority extends string
-        ? ReadonlyAccount<TAccountAuthority>
-        : TAccountAuthority,
+      TAccountOwner extends string
+        ? ReadonlyAccount<TAccountOwner>
+        : TAccountOwner,
       ...TRemainingAccounts,
     ]
   >;
@@ -91,7 +91,10 @@ export function getReallocateInstructionDataEncoder(): Encoder<ReallocateInstruc
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
-      ['newExtensionTypes', getArrayEncoder(getExtensionTypeEncoder())],
+      [
+        'newExtensionTypes',
+        getArrayEncoder(getExtensionTypeEncoder(), { size: 'remainder' }),
+      ],
     ]),
     (value) => ({ ...value, discriminator: REALLOCATE_DISCRIMINATOR })
   );
@@ -100,7 +103,10 @@ export function getReallocateInstructionDataEncoder(): Encoder<ReallocateInstruc
 export function getReallocateInstructionDataDecoder(): Decoder<ReallocateInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
-    ['newExtensionTypes', getArrayDecoder(getExtensionTypeDecoder())],
+    [
+      'newExtensionTypes',
+      getArrayDecoder(getExtensionTypeDecoder(), { size: 'remainder' }),
+    ],
   ]);
 }
 
@@ -118,7 +124,7 @@ export type ReallocateInput<
   TAccountToken extends string = string,
   TAccountPayer extends string = string,
   TAccountSystemProgram extends string = string,
-  TAccountAuthority extends string = string,
+  TAccountOwner extends string = string,
 > = {
   /** The token account to reallocate. */
   token: Address<TAccountToken>;
@@ -127,7 +133,7 @@ export type ReallocateInput<
   /** System program for reallocation funding. */
   systemProgram?: Address<TAccountSystemProgram>;
   /** The account's owner or its multisignature account. */
-  authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
+  owner: Address<TAccountOwner> | TransactionSigner<TAccountOwner>;
   newExtensionTypes: ReallocateInstructionDataArgs['newExtensionTypes'];
   multiSigners?: Array<TransactionSigner>;
 };
@@ -136,23 +142,22 @@ export function getReallocateInstruction<
   TAccountToken extends string,
   TAccountPayer extends string,
   TAccountSystemProgram extends string,
-  TAccountAuthority extends string,
+  TAccountOwner extends string,
 >(
   input: ReallocateInput<
     TAccountToken,
     TAccountPayer,
     TAccountSystemProgram,
-    TAccountAuthority
+    TAccountOwner
   >
 ): ReallocateInstruction<
   typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountToken,
   TAccountPayer,
   TAccountSystemProgram,
-  (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-    ? ReadonlySignerAccount<TAccountAuthority> &
-        IAccountSignerMeta<TAccountAuthority>
-    : TAccountAuthority
+  (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
+    ? ReadonlySignerAccount<TAccountOwner> & IAccountSignerMeta<TAccountOwner>
+    : TAccountOwner
 > {
   // Program address.
   const programAddress = TOKEN_2022_PROGRAM_ADDRESS;
@@ -162,7 +167,7 @@ export function getReallocateInstruction<
     token: { value: input.token ?? null, isWritable: true },
     payer: { value: input.payer ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
-    authority: { value: input.authority ?? null, isWritable: false },
+    owner: { value: input.owner ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -193,7 +198,7 @@ export function getReallocateInstruction<
       getAccountMeta(accounts.token),
       getAccountMeta(accounts.payer),
       getAccountMeta(accounts.systemProgram),
-      getAccountMeta(accounts.authority),
+      getAccountMeta(accounts.owner),
       ...remainingAccounts,
     ],
     programAddress,
@@ -205,10 +210,9 @@ export function getReallocateInstruction<
     TAccountToken,
     TAccountPayer,
     TAccountSystemProgram,
-    (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-      ? ReadonlySignerAccount<TAccountAuthority> &
-          IAccountSignerMeta<TAccountAuthority>
-      : TAccountAuthority
+    (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
+      ? ReadonlySignerAccount<TAccountOwner> & IAccountSignerMeta<TAccountOwner>
+      : TAccountOwner
   >;
 
   return instruction;
@@ -227,7 +231,7 @@ export type ParsedReallocateInstruction<
     /** System program for reallocation funding. */
     systemProgram: TAccountMetas[2];
     /** The account's owner or its multisignature account. */
-    authority: TAccountMetas[3];
+    owner: TAccountMetas[3];
   };
   data: ReallocateInstructionData;
 };
@@ -256,7 +260,7 @@ export function parseReallocateInstruction<
       token: getNextAccount(),
       payer: getNextAccount(),
       systemProgram: getNextAccount(),
-      authority: getNextAccount(),
+      owner: getNextAccount(),
     },
     data: getReallocateInstructionDataDecoder().decode(instruction.data),
   };

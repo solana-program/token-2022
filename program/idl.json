@@ -5116,7 +5116,7 @@
           },
           {
             "kind": "instructionAccountNode",
-            "name": "authority",
+            "name": "owner",
             "isWritable": false,
             "isSigner": "either",
             "isOptional": false,
@@ -5152,12 +5152,7 @@
                 "name": "extensionType"
               },
               "count": {
-                "kind": "prefixedCountNode",
-                "prefix": {
-                  "kind": "numberTypeNode",
-                  "format": "u32",
-                  "endian": "le"
-                }
+                "kind": "remainderCountNode"
               }
             }
           }

@@ -42,14 +42,21 @@ test('it reallocates token accounts to fit the provided extensions', async (t) =
   await sendAndConfirmInstructions(client, authority, [
     getReallocateInstruction({
       token,
-      authority: owner,
+      owner,
       newExtensionTypes: [ExtensionType.MemoTransfer],
       payer: authority,
     }),
   ]);
 
   // Then
-  t.is(await getAccountLength(client, token), 9999);
+  t.is(
+    await getAccountLength(client, token),
+    165 /** base token length */ +
+      1 /** account type discriminator */ +
+      2 /** memo transfer discriminator */ +
+      2 /** memo transfer length */ +
+      1 /** memo transfer boolean */
+  );
 });
 
 async function getAccountLength(
