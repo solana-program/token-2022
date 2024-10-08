@@ -4,14 +4,13 @@ import {
   Token,
   extension,
   fetchToken,
-  getInitializeTransferFeeConfigInstruction,
   getMintToInstruction,
   getTransferCheckedWithFeeInstruction,
 } from '../../../src';
 import {
   createDefaultSolanaClient,
+  createMint,
   generateKeyPairSignerWithSol,
-  getCreateMintInstructions,
   getCreateTokenInstructions,
   sendAndConfirmInstructions,
 } from '../../_setup';
@@ -19,9 +18,8 @@ import {
 test('it transfers tokens with pre-configured fees', async (t) => {
   // Given some signer accounts.
   const client = createDefaultSolanaClient();
-  const [authority, mint, ownerA, tokenA, ownerB, tokenB] = await Promise.all([
+  const [authority, ownerA, tokenA, ownerB, tokenB] = await Promise.all([
     generateKeyPairSignerWithSol(client),
-    generateKeyPairSigner(),
     generateKeyPairSigner(),
     generateKeyPairSigner(),
     generateKeyPairSigner(),
@@ -46,28 +44,13 @@ test('it transfers tokens with pre-configured fees', async (t) => {
     // Used for transitioning configs. Starts by being the same as newerTransferFee.
     olderTransferFee: transferFees,
   });
-  const [createMintInstruction, initMintInstruction] =
-    await getCreateMintInstructions({
-      authority: authority.address,
-      client,
-      decimals: 2,
-      extensions: [transferFeeConfigExtension],
-      mint,
-      payer: authority,
-    });
-  await sendAndConfirmInstructions(client, authority, [
-    createMintInstruction,
-    getInitializeTransferFeeConfigInstruction({
-      mint: mint.address,
-      transferFeeConfigAuthority:
-        transferFeeConfigExtension.transferFeeConfigAuthority,
-      withdrawWithheldAuthority:
-        transferFeeConfigExtension.withdrawWithheldAuthority,
-      transferFeeBasisPoints: transferFees.transferFeeBasisPoints,
-      maximumFee: transferFees.maximumFee,
-    }),
-    initMintInstruction,
-  ]);
+  const mint = await createMint({
+    authority: authority.address,
+    client,
+    decimals: 2,
+    extensions: [transferFeeConfigExtension],
+    payer: authority,
+  });
 
   // And two token accounts with 10.00 and 0.00 tokens respectively.
   const transferFeeAmount = extension('TransferFeeAmount', {
@@ -77,7 +60,7 @@ test('it transfers tokens with pre-configured fees', async (t) => {
     getCreateTokenInstructions({
       client,
       extensions: [transferFeeAmount],
-      mint: mint.address,
+      mint,
       owner: ownerA.address,
       payer: authority,
       token: tokenA,
@@ -85,7 +68,7 @@ test('it transfers tokens with pre-configured fees', async (t) => {
     getCreateTokenInstructions({
       client,
       extensions: [transferFeeAmount],
-      mint: mint.address,
+      mint,
       owner: ownerB.address,
       payer: authority,
       token: tokenB,
@@ -94,7 +77,7 @@ test('it transfers tokens with pre-configured fees', async (t) => {
   await sendAndConfirmInstructions(client, authority, [
     ...createTokensInstructions.flat(),
     getMintToInstruction({
-      mint: mint.address,
+      mint,
       token: tokenA.address,
       mintAuthority: authority,
       amount: 1000n,
@@ -105,7 +88,7 @@ test('it transfers tokens with pre-configured fees', async (t) => {
   await sendAndConfirmInstructions(client, authority, [
     getTransferCheckedWithFeeInstruction({
       source: tokenA.address,
-      mint: mint.address,
+      mint,
       destination: tokenB.address,
       authority: ownerA,
       amount: 200n,
@@ -119,7 +102,7 @@ test('it transfers tokens with pre-configured fees', async (t) => {
   t.like(tokenAccountA, <Account<Token>>{
     address: tokenA.address,
     data: {
-      mint: mint.address,
+      mint,
       owner: ownerA.address,
       amount: 800n,
       extensions: some([
@@ -133,7 +116,7 @@ test('it transfers tokens with pre-configured fees', async (t) => {
   t.like(tokenAccountB, <Account<Token>>{
     address: tokenB.address,
     data: {
-      mint: mint.address,
+      mint,
       owner: ownerB.address,
       amount: 197n,
       extensions: some([

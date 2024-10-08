@@ -28,6 +28,7 @@ import {
   ExtensionArgs,
   TOKEN_2022_PROGRAM_ADDRESS,
   getInitializeAccountInstruction,
+  getInitializeInstructionsForMintExtensions,
   getInitializeMintInstruction,
   getMintSize,
   getMintToInstruction,
@@ -163,8 +164,18 @@ export const createMint = async (
   input: Omit<Parameters<typeof getCreateMintInstructions>[0], 'mint'>
 ): Promise<Address> => {
   const mint = await generateKeyPairSigner();
-  const instructions = await getCreateMintInstructions({ ...input, mint });
-  await sendAndConfirmInstructions(input.client, input.payer, instructions);
+  const [createAccount, initMint] = await getCreateMintInstructions({
+    ...input,
+    mint,
+  });
+  await sendAndConfirmInstructions(input.client, input.payer, [
+    createAccount,
+    ...getInitializeInstructionsForMintExtensions(
+      mint.address,
+      input.extensions ?? []
+    ),
+    initMint,
+  ]);
   return mint.address;
 };
 
