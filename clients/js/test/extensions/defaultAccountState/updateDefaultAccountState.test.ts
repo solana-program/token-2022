@@ -5,60 +5,47 @@ import {
   Mint,
   extension,
   fetchMint,
-  getInitializeDefaultAccountStateInstruction,
   getUpdateDefaultAccountStateInstruction,
 } from '../../../src';
 import {
   createDefaultSolanaClient,
+  createMint,
   generateKeyPairSignerWithSol,
-  getCreateMintInstructions,
   sendAndConfirmInstructions,
 } from '../../_setup';
 
 test('it updates the default state account on a mint account', async (t) => {
   // Given some signer accounts.
   const client = createDefaultSolanaClient();
-  const [authority, freezeAuthority, mint] = await Promise.all([
+  const [authority, freezeAuthority] = await Promise.all([
     generateKeyPairSignerWithSol(client),
-    generateKeyPairSigner(),
     generateKeyPairSigner(),
   ]);
 
   // And a mint account initialized with a default account state extension.
-  const defaultAccountStateExtension = extension('DefaultAccountState', {
-    state: AccountState.Frozen,
+  const mint = await createMint({
+    authority: authority.address,
+    client,
+    extensions: [
+      extension('DefaultAccountState', { state: AccountState.Frozen }),
+    ],
+    freezeAuthority: freezeAuthority.address,
+    payer: authority,
   });
-  const [createMintInstruction, initMintInstruction] =
-    await getCreateMintInstructions({
-      authority: authority.address,
-      client,
-      extensions: [defaultAccountStateExtension],
-      freezeAuthority: freezeAuthority.address,
-      mint,
-      payer: authority,
-    });
-  await sendAndConfirmInstructions(client, authority, [
-    createMintInstruction,
-    getInitializeDefaultAccountStateInstruction({
-      mint: mint.address,
-      state: defaultAccountStateExtension.state,
-    }),
-    initMintInstruction,
-  ]);
 
   // When we update the default account state on the mint account.
   await sendAndConfirmInstructions(client, authority, [
     getUpdateDefaultAccountStateInstruction({
-      mint: mint.address,
+      mint,
       freezeAuthority,
       state: AccountState.Initialized,
     }),
   ]);
 
   // Then we expect the mint account to have the following updated data.
-  const mintAccount = await fetchMint(client.rpc, mint.address);
+  const mintAccount = await fetchMint(client.rpc, mint);
   t.like(mintAccount, <Account<Mint>>{
-    address: mint.address,
+    address: mint,
     data: {
       extensions: some([
         extension('DefaultAccountState', { state: AccountState.Initialized }),

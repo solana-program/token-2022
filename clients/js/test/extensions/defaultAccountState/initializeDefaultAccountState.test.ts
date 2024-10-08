@@ -10,6 +10,7 @@ import {
 } from '../../../src';
 import {
   createDefaultSolanaClient,
+  createMint,
   createToken,
   generateKeyPairSignerWithSol,
   getCreateMintInstructions,
@@ -64,38 +65,26 @@ test('it initializes a mint account with a default account state extension', asy
 test('it initializes a token account with the default state defined on the mint account', async (t) => {
   // Given some signer accounts.
   const client = createDefaultSolanaClient();
-  const [authority, freezeAuthority, mint] = await Promise.all([
+  const [authority, freezeAuthority] = await Promise.all([
     generateKeyPairSignerWithSol(client),
-    generateKeyPairSigner(),
     generateKeyPairSigner(),
   ]);
 
   // And a mint account initialized with a default account state extension.
-  const defaultAccountStateExtension = extension('DefaultAccountState', {
-    state: AccountState.Frozen,
+  const mint = await createMint({
+    authority: authority.address,
+    client,
+    extensions: [
+      extension('DefaultAccountState', { state: AccountState.Frozen }),
+    ],
+    freezeAuthority: freezeAuthority.address,
+    payer: authority,
   });
-  const [createMintInstruction, initMintInstruction] =
-    await getCreateMintInstructions({
-      authority: authority.address,
-      client,
-      extensions: [defaultAccountStateExtension],
-      freezeAuthority: freezeAuthority.address,
-      mint,
-      payer: authority,
-    });
-  await sendAndConfirmInstructions(client, authority, [
-    createMintInstruction,
-    getInitializeDefaultAccountStateInstruction({
-      mint: mint.address,
-      state: defaultAccountStateExtension.state,
-    }),
-    initMintInstruction,
-  ]);
 
   // When we create a new token account for the mint.
   const token = await createToken({
     client,
-    mint: mint.address,
+    mint,
     owner: address('HHS1XymmkBpYAkg3XTbZLxgHa5n11PAWUCWdiVtRmzzS'),
     payer: authority,
   });
