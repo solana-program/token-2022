@@ -79,19 +79,19 @@ export type ReallocateInstruction<
 export type ReallocateInstructionData = {
   discriminator: number;
   /** New extension types to include in the reallocated account. */
-  extensionTypes: Array<ExtensionType>;
+  newExtensionTypes: Array<ExtensionType>;
 };
 
 export type ReallocateInstructionDataArgs = {
   /** New extension types to include in the reallocated account. */
-  extensionTypes: Array<ExtensionTypeArgs>;
+  newExtensionTypes: Array<ExtensionTypeArgs>;
 };
 
 export function getReallocateInstructionDataEncoder(): Encoder<ReallocateInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
-      ['extensionTypes', getArrayEncoder(getExtensionTypeEncoder())],
+      ['newExtensionTypes', getArrayEncoder(getExtensionTypeEncoder())],
     ]),
     (value) => ({ ...value, discriminator: REALLOCATE_DISCRIMINATOR })
   );
@@ -100,7 +100,7 @@ export function getReallocateInstructionDataEncoder(): Encoder<ReallocateInstruc
 export function getReallocateInstructionDataDecoder(): Decoder<ReallocateInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
-    ['extensionTypes', getArrayDecoder(getExtensionTypeDecoder())],
+    ['newExtensionTypes', getArrayDecoder(getExtensionTypeDecoder())],
   ]);
 }
 
@@ -128,7 +128,7 @@ export type ReallocateInput<
   systemProgram?: Address<TAccountSystemProgram>;
   /** The account's owner or its multisignature account. */
   authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
-  extensionTypes: ReallocateInstructionDataArgs['extensionTypes'];
+  newExtensionTypes: ReallocateInstructionDataArgs['newExtensionTypes'];
   multiSigners?: Array<TransactionSigner>;
 };
 

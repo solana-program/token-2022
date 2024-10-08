@@ -5141,7 +5141,7 @@
           },
           {
             "kind": "instructionArgumentNode",
-            "name": "extensionTypes",
+            "name": "newExtensionTypes",
             "docs": [
               "New extension types to include in the reallocated account."
             ],
