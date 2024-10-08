@@ -74,12 +74,12 @@ export type UpdateDefaultAccountStateInstructionData = {
   discriminator: number;
   defaultAccountStateDiscriminator: number;
   /** The state each new token account should start with. */
-  accountState: AccountState;
+  state: AccountState;
 };
 
 export type UpdateDefaultAccountStateInstructionDataArgs = {
   /** The state each new token account should start with. */
-  accountState: AccountStateArgs;
+  state: AccountStateArgs;
 };
 
 export function getUpdateDefaultAccountStateInstructionDataEncoder(): Encoder<UpdateDefaultAccountStateInstructionDataArgs> {
@@ -87,7 +87,7 @@ export function getUpdateDefaultAccountStateInstructionDataEncoder(): Encoder<Up
     getStructEncoder([
       ['discriminator', getU8Encoder()],
       ['defaultAccountStateDiscriminator', getU8Encoder()],
-      ['accountState', getAccountStateEncoder()],
+      ['state', getAccountStateEncoder()],
     ]),
     (value) => ({
       ...value,
@@ -102,7 +102,7 @@ export function getUpdateDefaultAccountStateInstructionDataDecoder(): Decoder<Up
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['defaultAccountStateDiscriminator', getU8Decoder()],
-    ['accountState', getAccountStateDecoder()],
+    ['state', getAccountStateDecoder()],
   ]);
 }
 
@@ -126,7 +126,7 @@ export type UpdateDefaultAccountStateInput<
   freezeAuthority:
     | Address<TAccountFreezeAuthority>
     | TransactionSigner<TAccountFreezeAuthority>;
-  accountState: UpdateDefaultAccountStateInstructionDataArgs['accountState'];
+  state: UpdateDefaultAccountStateInstructionDataArgs['state'];
   multiSigners?: Array<TransactionSigner>;
 };
 

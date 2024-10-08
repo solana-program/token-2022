@@ -65,12 +65,12 @@ export type InitializeDefaultAccountStateInstructionData = {
   discriminator: number;
   defaultAccountStateDiscriminator: number;
   /** The state each new token account should start with. */
-  accountState: AccountState;
+  state: AccountState;
 };
 
 export type InitializeDefaultAccountStateInstructionDataArgs = {
   /** The state each new token account should start with. */
-  accountState: AccountStateArgs;
+  state: AccountStateArgs;
 };
 
 export function getInitializeDefaultAccountStateInstructionDataEncoder(): Encoder<InitializeDefaultAccountStateInstructionDataArgs> {
@@ -78,7 +78,7 @@ export function getInitializeDefaultAccountStateInstructionDataEncoder(): Encode
     getStructEncoder([
       ['discriminator', getU8Encoder()],
       ['defaultAccountStateDiscriminator', getU8Encoder()],
-      ['accountState', getAccountStateEncoder()],
+      ['state', getAccountStateEncoder()],
     ]),
     (value) => ({
       ...value,
@@ -93,7 +93,7 @@ export function getInitializeDefaultAccountStateInstructionDataDecoder(): Decode
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['defaultAccountStateDiscriminator', getU8Decoder()],
-    ['accountState', getAccountStateDecoder()],
+    ['state', getAccountStateDecoder()],
   ]);
 }
 
@@ -112,7 +112,7 @@ export type InitializeDefaultAccountStateInput<
 > = {
   /** The mint. */
   mint: Address<TAccountMint>;
-  accountState: InitializeDefaultAccountStateInstructionDataArgs['accountState'];
+  state: InitializeDefaultAccountStateInstructionDataArgs['state'];
 };
 
 export function getInitializeDefaultAccountStateInstruction<

@@ -4963,7 +4963,7 @@
           },
           {
             "kind": "instructionArgumentNode",
-            "name": "accountState",
+            "name": "state",
             "docs": ["The state each new token account should start with."],
             "type": {
               "kind": "definedTypeLinkNode",
@@ -5043,7 +5043,7 @@
           },
           {
             "kind": "instructionArgumentNode",
-            "name": "accountState",
+            "name": "state",
             "docs": ["The state each new token account should start with."],
             "type": {
               "kind": "definedTypeLinkNode",
