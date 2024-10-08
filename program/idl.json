@@ -6451,6 +6451,177 @@
             "endian": "le"
           }
         }
+      },
+      {
+        "kind": "definedTypeNode",
+        "name": "extensionType",
+        "docs": [
+          "Extensions that can be applied to mints or accounts.  Mint extensions must",
+          "only be applied to mint accounts, and account extensions must only be",
+          "applied to token holding accounts."
+        ],
+        "type": {
+          "kind": "enumTypeNode",
+          "variants": [
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "uninitialized",
+              "docs": [
+                "Used as padding if the account size would otherwise be 355, same as a multisig"
+              ]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "transferFeeConfig",
+              "docs": [
+                "Includes transfer fee rate info and accompanying authorities to withdraw",
+                "and set the fee"
+              ]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "transferFeeAmount",
+              "docs": ["Includes withheld transfer fees"]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "mintCloseAuthority",
+              "docs": ["Includes an optional mint close authority"]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "confidentialTransferMint",
+              "docs": ["Auditor configuration for confidential transfers"]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "confidentialTransferAccount",
+              "docs": ["State for confidential transfers"]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "defaultAccountState",
+              "docs": ["Specifies the default Account::state for new Accounts"]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "immutableOwner",
+              "docs": [
+                "Indicates that the Account owner authority cannot be changed"
+              ]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "memoTransfer",
+              "docs": ["Require inbound transfers to have memo"]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "nonTransferable",
+              "docs": [
+                "Indicates that the tokens from this mint can't be transferred"
+              ]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "interestBearingConfig",
+              "docs": ["Tokens accrue interest over time,"]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "cpiGuard",
+              "docs": [
+                "Locks privileged token operations from happening via CPI"
+              ]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "permanentDelegate",
+              "docs": ["Includes an optional permanent delegate"]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "nonTransferableAccount",
+              "docs": [
+                "Indicates that the tokens in this account belong to a non-transferable",
+                "mint"
+              ]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "transferHook",
+              "docs": [
+                "Mint requires a CPI to a program implementing the \"transfer hook\"",
+                "interface"
+              ]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "transferHookAccount",
+              "docs": [
+                "Indicates that the tokens in this account belong to a mint with a",
+                "transfer hook"
+              ]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "confidentialTransferFee",
+              "docs": [
+                "Includes encrypted withheld fees and the encryption public that they are",
+                "encrypted under"
+              ]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "confidentialTransferFeeAmount",
+              "docs": ["Includes confidential withheld transfer fees"]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "metadataPointer",
+              "docs": [
+                "Mint contains a pointer to another account (or the same account) that",
+                "holds metadata"
+              ]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "tokenMetadata",
+              "docs": ["Mint contains token-metadata"]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "groupPointer",
+              "docs": [
+                "Mint contains a pointer to another account (or the same account) that",
+                "holds group configurations"
+              ]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "tokenGroup",
+              "docs": ["Mint contains token group configurations"]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "groupMemberPointer",
+              "docs": [
+                "Mint contains a pointer to another account (or the same account) that",
+                "holds group member configurations"
+              ]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "tokenGroupMember",
+              "docs": ["Mint contains token group member configurations"]
+            }
+          ],
+          "size": {
+            "kind": "numberTypeNode",
+            "format": "u16",
+            "endian": "le"
+          }
+        }
       }
     ],
     "pdas": [],
