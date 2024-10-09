@@ -5,10 +5,12 @@ import {
   extension,
   fetchToken,
   getDisableMemoTransfersInstruction,
+  getEnableMemoTransfersInstruction,
 } from '../../../src';
 import {
   createDefaultSolanaClient,
   createMint,
+  createToken,
   generateKeyPairSignerWithSol,
   getCreateTokenInstructions,
   sendAndConfirmInstructions,
@@ -57,4 +59,44 @@ test('it initializes a token account with a disabled memo transfers extension', 
       extensions: some([memoTransfersExtension]),
     },
   });
+});
+
+test('it disables an active memo transfers extension', async (t) => {
+  // Given some signer accounts.
+  const client = createDefaultSolanaClient();
+  const [authority, owner] = await Promise.all([
+    generateKeyPairSignerWithSol(client),
+    generateKeyPairSigner(),
+  ]);
+
+  // And a token account with an active memo transfers extension.
+  const mint = await createMint({
+    authority: authority.address,
+    client,
+    payer: authority,
+  });
+  const token = await createToken({
+    client,
+    extensions: [
+      extension('MemoTransfer', { requireIncomingTransferMemos: true }),
+    ],
+    mint,
+    owner: owner.address,
+    payer: authority,
+  });
+  await sendAndConfirmInstructions(client, authority, [
+    getEnableMemoTransfersInstruction({ token, owner }),
+  ]);
+
+  // When we disable the memo transfers extension.
+  await sendAndConfirmInstructions(client, authority, [
+    getDisableMemoTransfersInstruction({ token, owner }),
+  ]);
+
+  // Then we expect the token account to have the extension disabled.
+  const tokenAccount = await fetchToken(client.rpc, token);
+  t.deepEqual(
+    tokenAccount.data.extensions,
+    some([extension('MemoTransfer', { requireIncomingTransferMemos: false })])
+  );
 });
