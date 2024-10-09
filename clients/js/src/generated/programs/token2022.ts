@@ -27,9 +27,11 @@ import {
   type ParsedConfidentialWithdrawInstruction,
   type ParsedConfigureConfidentialTransferAccountInstruction,
   type ParsedDisableConfidentialCreditsInstruction,
+  type ParsedDisableMemoTransfersInstruction,
   type ParsedDisableNonConfidentialCreditsInstruction,
   type ParsedEmptyConfidentialTransferAccountInstruction,
   type ParsedEnableConfidentialCreditsInstruction,
+  type ParsedEnableMemoTransfersInstruction,
   type ParsedEnableNonConfidentialCreditsInstruction,
   type ParsedFreezeAccountInstruction,
   type ParsedGetAccountDataSizeInstruction,
@@ -141,6 +143,8 @@ export enum Token2022Instruction {
   InitializeDefaultAccountState,
   UpdateDefaultAccountState,
   Reallocate,
+  EnableMemoTransfers,
+  DisableMemoTransfers,
 }
 
 export function identifyToken2022Instruction(
@@ -360,6 +364,18 @@ export function identifyToken2022Instruction(
   if (containsBytes(data, getU8Encoder().encode(29), 0)) {
     return Token2022Instruction.Reallocate;
   }
+  if (
+    containsBytes(data, getU8Encoder().encode(30), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
+    return Token2022Instruction.EnableMemoTransfers;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(30), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.DisableMemoTransfers;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -514,4 +530,10 @@ export type ParsedToken2022Instruction<
     } & ParsedUpdateDefaultAccountStateInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.Reallocate;
-    } & ParsedReallocateInstruction<TProgram>);
+    } & ParsedReallocateInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.EnableMemoTransfers;
+    } & ParsedEnableMemoTransfersInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.DisableMemoTransfers;
+    } & ParsedDisableMemoTransfersInstruction<TProgram>);
