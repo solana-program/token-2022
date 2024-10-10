@@ -28,11 +28,13 @@ import {
   ExtensionArgs,
   TOKEN_2022_PROGRAM_ADDRESS,
   getInitializeAccountInstruction,
-  getInitializeInstructionsForMintExtensions,
+  getPreInitializeInstructionsForMintExtensions,
   getInitializeMintInstruction,
   getMintSize,
   getMintToInstruction,
   getTokenSize,
+  getPostInitializeInstructionsForMintExtensions,
+  getPostInitializeInstructionsForTokenExtensions,
 } from '../src';
 
 type Client = {
@@ -170,34 +172,67 @@ export const createMint = async (
   });
   await sendAndConfirmInstructions(input.client, input.payer, [
     createAccount,
-    ...getInitializeInstructionsForMintExtensions(
+    ...getPreInitializeInstructionsForMintExtensions(
       mint.address,
       input.extensions ?? []
     ),
     initMint,
+    ...getPostInitializeInstructionsForMintExtensions(
+      mint.address,
+      input.extensions ?? []
+    ),
   ]);
   return mint.address;
 };
 
 export const createToken = async (
-  input: Omit<Parameters<typeof getCreateTokenInstructions>[0], 'token'>
+  input: Omit<
+    Parameters<typeof getCreateTokenInstructions>[0],
+    'token' | 'owner'
+  > & { owner: TransactionSigner }
 ): Promise<Address> => {
   const token = await generateKeyPairSigner();
-  const instructions = await getCreateTokenInstructions({ ...input, token });
-  await sendAndConfirmInstructions(input.client, input.payer, instructions);
+  const [createAccount, initToken] = await getCreateTokenInstructions({
+    ...input,
+    owner: input.owner.address,
+    token,
+  });
+  await sendAndConfirmInstructions(input.client, input.payer, [
+    createAccount,
+    initToken,
+    ...getPostInitializeInstructionsForTokenExtensions(
+      token.address,
+      input.owner,
+      input.extensions ?? []
+    ),
+  ]);
   return token.address;
 };
 
 export const createTokenWithAmount = async (
-  input: Omit<Parameters<typeof getCreateTokenInstructions>[0], 'token'> & {
+  input: Omit<
+    Parameters<typeof getCreateTokenInstructions>[0],
+    'token' | 'owner'
+  > & {
     amount: number | bigint;
     mintAuthority: TransactionSigner;
+    owner: TransactionSigner;
   }
 ): Promise<Address> => {
   const token = await generateKeyPairSigner();
-  const instructions = await getCreateTokenInstructions({ ...input, token });
+  const [createAccount, initToken] = await getCreateTokenInstructions({
+    ...input,
+    owner: input.owner.address,
+    token,
+  });
   await sendAndConfirmInstructions(input.client, input.payer, [
-    ...instructions,
+    createAccount,
+    initToken,
+    ...getPostInitializeInstructionsForTokenExtensions(
+      token.address,
+      input.owner,
+      input.extensions ?? []
+    ),
     getMintToInstruction({
       mint: input.mint,
       token: token.address,
