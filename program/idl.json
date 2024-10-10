@@ -5966,11 +5966,7 @@
             "defaultValueStrategy": "omitted",
             "docs": [],
             "type": {
-              "kind": "fixedSizeTypeNode",
-              "size": 8,
-              "type": {
-                "kind": "bytesTypeNode"
-              }
+              "kind": "bytesTypeNode"
             },
             "defaultValue": {
               "kind": "bytesValueNode",

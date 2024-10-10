@@ -8,8 +8,6 @@
 
 import {
   containsBytes,
-  fixEncoderSize,
-  getBytesEncoder,
   getU8Encoder,
   type Address,
   type ReadonlyUint8Array,
@@ -431,9 +429,7 @@ export function identifyToken2022Instruction(
   if (
     containsBytes(
       data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([210, 225, 30, 162, 88, 184, 77, 141])
-      ),
+      new Uint8Array([210, 225, 30, 162, 88, 184, 77, 141]),
       0
     )
   ) {
