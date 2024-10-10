@@ -5,6 +5,7 @@ import {
   getEnableMemoTransfersInstruction,
   getInitializeConfidentialTransferMintInstruction,
   getInitializeDefaultAccountStateInstruction,
+  getInitializeGroupMemberPointerInstruction,
   getInitializeGroupPointerInstruction,
   getInitializeMetadataPointerInstruction,
   getInitializeTransferFeeConfigInstruction,
@@ -60,6 +61,14 @@ export function getPreInitializeInstructionsForMintExtensions(
             mint,
             authority: extension.authority,
             groupAddress: extension.groupAddress,
+          }),
+        ];
+      case 'GroupMemberPointer':
+        return [
+          getInitializeGroupMemberPointerInstruction({
+            mint,
+            authority: extension.authority,
+            memberAddress: extension.memberAddress,
           }),
         ];
       default:

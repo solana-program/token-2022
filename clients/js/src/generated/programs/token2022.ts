@@ -41,6 +41,7 @@ import {
   type ParsedInitializeAccountInstruction,
   type ParsedInitializeConfidentialTransferMintInstruction,
   type ParsedInitializeDefaultAccountStateInstruction,
+  type ParsedInitializeGroupMemberPointerInstruction,
   type ParsedInitializeGroupPointerInstruction,
   type ParsedInitializeImmutableOwnerInstruction,
   type ParsedInitializeMetadataPointerInstruction,
@@ -64,6 +65,7 @@ import {
   type ParsedUiAmountToAmountInstruction,
   type ParsedUpdateConfidentialTransferMintInstruction,
   type ParsedUpdateDefaultAccountStateInstruction,
+  type ParsedUpdateGroupMemberPointerInstruction,
   type ParsedUpdateGroupPointerInstruction,
   type ParsedUpdateMetadataPointerInstruction,
   type ParsedWithdrawWithheldTokensFromAccountsInstruction,
@@ -153,6 +155,8 @@ export enum Token2022Instruction {
   UpdateMetadataPointer,
   InitializeGroupPointer,
   UpdateGroupPointer,
+  InitializeGroupMemberPointer,
+  UpdateGroupMemberPointer,
 }
 
 export function identifyToken2022Instruction(
@@ -408,6 +412,18 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.UpdateGroupPointer;
   }
+  if (
+    containsBytes(data, getU8Encoder().encode(41), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
+    return Token2022Instruction.InitializeGroupMemberPointer;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(41), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.UpdateGroupMemberPointer;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -580,4 +596,10 @@ export type ParsedToken2022Instruction<
     } & ParsedInitializeGroupPointerInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.UpdateGroupPointer;
-    } & ParsedUpdateGroupPointerInstruction<TProgram>);
+    } & ParsedUpdateGroupPointerInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeGroupMemberPointer;
+    } & ParsedInitializeGroupMemberPointerInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.UpdateGroupMemberPointer;
+    } & ParsedUpdateGroupMemberPointerInstruction<TProgram>);
