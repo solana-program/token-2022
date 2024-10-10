@@ -5,6 +5,7 @@ import {
   getEnableMemoTransfersInstruction,
   getInitializeConfidentialTransferMintInstruction,
   getInitializeDefaultAccountStateInstruction,
+  getInitializeMetadataPointerInstruction,
   getInitializeTransferFeeConfigInstruction,
 } from './generated';
 
@@ -42,6 +43,14 @@ export function getPreInitializeInstructionsForMintExtensions(
             transferFeeBasisPoints:
               extension.newerTransferFee.transferFeeBasisPoints,
             maximumFee: extension.newerTransferFee.maximumFee,
+          }),
+        ];
+      case 'MetadataPointer':
+        return [
+          getInitializeMetadataPointerInstruction({
+            mint,
+            authority: extension.authority,
+            metadataAddress: extension.metadataAddress,
           }),
         ];
       default:
