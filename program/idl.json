@@ -5461,7 +5461,9 @@
             "isWritable": false,
             "isSigner": "either",
             "isOptional": false,
-            "docs": ["The account's owner or its multisignature account."]
+            "docs": [
+              "The metadata pointer authority or its multisignature account."
+            ]
           }
         ],
         "arguments": [

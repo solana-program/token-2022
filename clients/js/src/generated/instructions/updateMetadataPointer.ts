@@ -136,7 +136,7 @@ export type UpdateMetadataPointerInput<
 > = {
   /** The mint to initialize. */
   mint: Address<TAccountMint>;
-  /** The account's owner or its multisignature account. */
+  /** The metadata pointer authority or its multisignature account. */
   metadataPointerAuthority:
     | Address<TAccountMetadataPointerAuthority>
     | TransactionSigner<TAccountMetadataPointerAuthority>;
@@ -221,7 +221,7 @@ export type ParsedUpdateMetadataPointerInstruction<
   accounts: {
     /** The mint to initialize. */
     mint: TAccountMetas[0];
-    /** The account's owner or its multisignature account. */
+    /** The metadata pointer authority or its multisignature account. */
     metadataPointerAuthority: TAccountMetas[1];
   };
   data: UpdateMetadataPointerInstructionData;
