@@ -1,18 +1,18 @@
 #!/usr/bin/env zx
 import 'zx/globals';
-import { createFromRoot } from 'kinobi';
-import { renderVisitor as renderJavaScriptVisitor } from '@kinobi-so/renderers-js';
-// import { renderVisitor as renderRustVisitor } from "@kinobi-so/renderers-rust";
+import { createFromRoot } from 'codama';
+import { renderVisitor as renderJavaScriptVisitor } from '@codama/renderers-js';
+// import { renderVisitor as renderRustVisitor } from "@codama/renderers-rust";
 import { workingDirectory } from './utils.mjs';
 
-// Instanciate Kinobi.
-const kinobi = createFromRoot(
+// Instanciate Codama.
+const codama = createFromRoot(
   require(path.join(workingDirectory, 'program', 'idl.json'))
 );
 
 // Render JavaScript.
 const jsClient = path.join(__dirname, '..', 'clients', 'js');
-kinobi.accept(
+codama.accept(
   renderJavaScriptVisitor(path.join(jsClient, 'src', 'generated'), {
     prettier: require(path.join(jsClient, '.prettierrc.json')),
   })
@@ -20,7 +20,7 @@ kinobi.accept(
 
 // Render Rust.
 // const rustClient = path.join(__dirname, "..", "clients", "rust");
-// kinobi.accept(
+// codama.accept(
 //   renderRustVisitor(path.join(rustClient, "src", "generated"), {
 //     formatCode: true,
 //     crateFolder: rustClient,

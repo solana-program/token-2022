@@ -1,7 +1,7 @@
 {
   "kind": "rootNode",
-  "standard": "kinobi",
-  "version": "0.20.1",
+  "standard": "codama",
+  "version": "1.0.0",
   "program": {
     "kind": "programNode",
     "name": "token-2022",
