@@ -6,7 +6,12 @@ import {
   getInitializeTransferFeeConfigInstruction,
 } from './generated';
 
-export function getInitializeInstructionsForMintExtensions(
+/**
+ * Given a mint address and a list of mint extensions, returns a list of
+ * instructions that MUST be run _before_ the `initializeMint` instruction
+ * to properly initialize the given extensions on the mint account.
+ */
+export function getPreInitializeInstructionsForMintExtensions(
   mint: Address,
   extensions: ExtensionArgs[]
 ): IInstruction[] {
@@ -37,6 +42,40 @@ export function getInitializeInstructionsForMintExtensions(
             maximumFee: extension.newerTransferFee.maximumFee,
           }),
         ];
+      default:
+        return [];
+    }
+  });
+}
+
+/**
+ * Given a mint address and a list of mint extensions, returns a list of
+ * instructions that MUST be run _after_ the `initializeMint` instruction
+ * to properly initialize the given extensions on the mint account.
+ */
+export function getPostInitializeInstructionsForMintExtensions(
+  _mint: Address,
+  extensions: ExtensionArgs[]
+): IInstruction[] {
+  return extensions.flatMap((extension) => {
+    switch (extension.__kind) {
+      default:
+        return [];
+    }
+  });
+}
+
+/**
+ * Given a token address and a list of token extensions, returns a list of
+ * instructions that MUST be run _after_ the `initializeAccount` instruction
+ * to properly initialize the given extensions on the token account.
+ */
+export function getPostInitializeInstructionsForTokenExtensions(
+  _token: Address,
+  extensions: ExtensionArgs[]
+): IInstruction[] {
+  return extensions.flatMap((extension) => {
+    switch (extension.__kind) {
       default:
         return [];
     }

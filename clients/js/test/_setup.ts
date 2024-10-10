@@ -28,11 +28,12 @@ import {
   ExtensionArgs,
   TOKEN_2022_PROGRAM_ADDRESS,
   getInitializeAccountInstruction,
-  getInitializeInstructionsForMintExtensions,
+  getPreInitializeInstructionsForMintExtensions,
   getInitializeMintInstruction,
   getMintSize,
   getMintToInstruction,
   getTokenSize,
+  getPostInitializeInstructionsForMintExtensions,
 } from '../src';
 
 type Client = {
@@ -170,11 +171,15 @@ export const createMint = async (
   });
   await sendAndConfirmInstructions(input.client, input.payer, [
     createAccount,
-    ...getInitializeInstructionsForMintExtensions(
+    ...getPreInitializeInstructionsForMintExtensions(
       mint.address,
       input.extensions ?? []
     ),
     initMint,
+    ...getPostInitializeInstructionsForMintExtensions(
+      mint.address,
+      input.extensions ?? []
+    ),
   ]);
   return mint.address;
 };
@@ -183,8 +188,18 @@ export const createToken = async (
   input: Omit<Parameters<typeof getCreateTokenInstructions>[0], 'token'>
 ): Promise<Address> => {
   const token = await generateKeyPairSigner();
-  const instructions = await getCreateTokenInstructions({ ...input, token });
-  await sendAndConfirmInstructions(input.client, input.payer, instructions);
+  const [createAccount, initToken] = await getCreateTokenInstructions({
+    ...input,
+    token,
+  });
+  await sendAndConfirmInstructions(input.client, input.payer, [
+    createAccount,
+    initToken,
+    ...getPostInitializeInstructionsForMintExtensions(
+      token.address,
+      input.extensions ?? []
+    ),
+  ]);
   return token.address;
 };
 
