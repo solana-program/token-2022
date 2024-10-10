@@ -42,6 +42,7 @@ import {
   type ParsedInitializeConfidentialTransferMintInstruction,
   type ParsedInitializeDefaultAccountStateInstruction,
   type ParsedInitializeImmutableOwnerInstruction,
+  type ParsedInitializeMetadataPointerInstruction,
   type ParsedInitializeMint2Instruction,
   type ParsedInitializeMintCloseAuthorityInstruction,
   type ParsedInitializeMintInstruction,
@@ -62,6 +63,7 @@ import {
   type ParsedUiAmountToAmountInstruction,
   type ParsedUpdateConfidentialTransferMintInstruction,
   type ParsedUpdateDefaultAccountStateInstruction,
+  type ParsedUpdateMetadataPointerInstruction,
   type ParsedWithdrawWithheldTokensFromAccountsInstruction,
   type ParsedWithdrawWithheldTokensFromMintInstruction,
 } from '../instructions';
@@ -145,6 +147,8 @@ export enum Token2022Instruction {
   Reallocate,
   EnableMemoTransfers,
   DisableMemoTransfers,
+  InitializeMetadataPointer,
+  UpdateMetadataPointer,
 }
 
 export function identifyToken2022Instruction(
@@ -376,6 +380,18 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.DisableMemoTransfers;
   }
+  if (
+    containsBytes(data, getU8Encoder().encode(39), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
+    return Token2022Instruction.InitializeMetadataPointer;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(39), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.UpdateMetadataPointer;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -536,4 +552,10 @@ export type ParsedToken2022Instruction<
     } & ParsedEnableMemoTransfersInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.DisableMemoTransfers;
-    } & ParsedDisableMemoTransfersInstruction<TProgram>);
+    } & ParsedDisableMemoTransfersInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeMetadataPointer;
+    } & ParsedInitializeMetadataPointerInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.UpdateMetadataPointer;
+    } & ParsedUpdateMetadataPointerInstruction<TProgram>);
