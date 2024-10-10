@@ -33,7 +33,7 @@ test('it reallocates token accounts to fit the provided extensions', async (t) =
   const token = await createToken({
     client,
     mint,
-    owner: owner.address,
+    owner,
     payer: authority,
   });
   t.is(await getAccountLength(client, token), 165);

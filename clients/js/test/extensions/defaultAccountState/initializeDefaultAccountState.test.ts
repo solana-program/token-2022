@@ -1,4 +1,4 @@
-import { Account, address, generateKeyPairSigner, some } from '@solana/web3.js';
+import { Account, generateKeyPairSigner, some } from '@solana/web3.js';
 import test from 'ava';
 import {
   AccountState,
@@ -65,8 +65,9 @@ test('it initializes a mint account with a default account state extension', asy
 test('it initializes a token account with the default state defined on the mint account', async (t) => {
   // Given some signer accounts.
   const client = createDefaultSolanaClient();
-  const [authority, freezeAuthority] = await Promise.all([
+  const [authority, freezeAuthority, owner] = await Promise.all([
     generateKeyPairSignerWithSol(client),
+    generateKeyPairSigner(),
     generateKeyPairSigner(),
   ]);
 
@@ -82,12 +83,7 @@ test('it initializes a token account with the default state defined on the mint 
   });
 
   // When we create a new token account for the mint.
-  const token = await createToken({
-    client,
-    mint,
-    owner: address('HHS1XymmkBpYAkg3XTbZLxgHa5n11PAWUCWdiVtRmzzS'),
-    payer: authority,
-  });
+  const token = await createToken({ client, mint, owner, payer: authority });
 
   // Then we expect the token account to have the default state defined on the mint account.
   const tokenAccount = await fetchToken(client.rpc, token);

@@ -28,12 +28,7 @@ test('it mints tokens to a token account', async (t) => {
     payer,
     authority: mintAuthority.address,
   });
-  const token = await createToken({
-    client,
-    payer,
-    mint,
-    owner: owner.address,
-  });
+  const token = await createToken({ client, payer, mint, owner });
 
   // When the mint authority mints tokens to the token account.
   const mintTo = getMintToInstruction({

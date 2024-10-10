@@ -81,7 +81,7 @@ test('it disables an active memo transfers extension', async (t) => {
       extension('MemoTransfer', { requireIncomingTransferMemos: true }),
     ],
     mint,
-    owner: owner.address,
+    owner,
     payer: authority,
   });
   await sendAndConfirmInstructions(client, authority, [

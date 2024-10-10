@@ -34,6 +34,7 @@ import {
   getMintToInstruction,
   getTokenSize,
   getPostInitializeInstructionsForMintExtensions,
+  getPostInitializeInstructionsForTokenExtensions,
 } from '../src';
 
 type Client = {
@@ -185,18 +186,23 @@ export const createMint = async (
 };
 
 export const createToken = async (
-  input: Omit<Parameters<typeof getCreateTokenInstructions>[0], 'token'>
+  input: Omit<
+    Parameters<typeof getCreateTokenInstructions>[0],
+    'token' | 'owner'
+  > & { owner: TransactionSigner }
 ): Promise<Address> => {
   const token = await generateKeyPairSigner();
   const [createAccount, initToken] = await getCreateTokenInstructions({
     ...input,
+    owner: input.owner.address,
     token,
   });
   await sendAndConfirmInstructions(input.client, input.payer, [
     createAccount,
     initToken,
-    ...getPostInitializeInstructionsForMintExtensions(
+    ...getPostInitializeInstructionsForTokenExtensions(
       token.address,
+      input.owner,
       input.extensions ?? []
     ),
   ]);
@@ -204,15 +210,29 @@ export const createToken = async (
 };
 
 export const createTokenWithAmount = async (
-  input: Omit<Parameters<typeof getCreateTokenInstructions>[0], 'token'> & {
+  input: Omit<
+    Parameters<typeof getCreateTokenInstructions>[0],
+    'token' | 'owner'
+  > & {
     amount: number | bigint;
     mintAuthority: TransactionSigner;
+    owner: TransactionSigner;
   }
 ): Promise<Address> => {
   const token = await generateKeyPairSigner();
-  const instructions = await getCreateTokenInstructions({ ...input, token });
+  const [createAccount, initToken] = await getCreateTokenInstructions({
+    ...input,
+    owner: input.owner.address,
+    token,
+  });
   await sendAndConfirmInstructions(input.client, input.payer, [
-    ...instructions,
+    createAccount,
+    initToken,
+    ...getPostInitializeInstructionsForTokenExtensions(
+      token.address,
+      input.owner,
+      input.extensions ?? []
+    ),
     getMintToInstruction({
       mint: input.mint,
       token: token.address,

@@ -37,10 +37,10 @@ test('it transfers tokens from one account to another', async (t) => {
       payer,
       mintAuthority,
       mint,
-      owner: ownerA.address,
+      owner: ownerA,
       amount: 100n,
     }),
-    createToken({ client, payer, mint, owner: ownerB.address }),
+    createToken({ client, payer, mint, owner: ownerB }),
   ]);
 
   // When owner A transfers 50 tokens to owner B.

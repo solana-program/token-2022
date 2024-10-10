@@ -1,6 +1,8 @@
-import { Address, IInstruction } from '@solana/web3.js';
+import { Address, IInstruction, TransactionSigner } from '@solana/web3.js';
 import {
   ExtensionArgs,
+  getDisableMemoTransfersInstruction,
+  getEnableMemoTransfersInstruction,
   getInitializeConfidentialTransferMintInstruction,
   getInitializeDefaultAccountStateInstruction,
   getInitializeTransferFeeConfigInstruction,
@@ -66,16 +68,23 @@ export function getPostInitializeInstructionsForMintExtensions(
 }
 
 /**
- * Given a token address and a list of token extensions, returns a list of
- * instructions that MUST be run _after_ the `initializeAccount` instruction
+ * Given a token address, its owner and a list of token extensions, returns a list
+ * of instructions that MUST be run _after_ the `initializeAccount` instruction
  * to properly initialize the given extensions on the token account.
  */
 export function getPostInitializeInstructionsForTokenExtensions(
-  _token: Address,
+  token: Address,
+  owner: TransactionSigner,
   extensions: ExtensionArgs[]
 ): IInstruction[] {
   return extensions.flatMap((extension) => {
     switch (extension.__kind) {
+      case 'MemoTransfer':
+        return [
+          extension.requireIncomingTransferMemos
+            ? getEnableMemoTransfersInstruction({ owner, token })
+            : getDisableMemoTransfersInstruction({ owner, token }),
+        ];
       default:
         return [];
     }
