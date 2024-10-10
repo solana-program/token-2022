@@ -37,26 +37,24 @@ import {
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const UPDATE_METADATA_POINTER_DISCRIMINATOR = 39;
+export const UPDATE_GROUP_POINTER_DISCRIMINATOR = 40;
 
-export function getUpdateMetadataPointerDiscriminatorBytes() {
-  return getU8Encoder().encode(UPDATE_METADATA_POINTER_DISCRIMINATOR);
+export function getUpdateGroupPointerDiscriminatorBytes() {
+  return getU8Encoder().encode(UPDATE_GROUP_POINTER_DISCRIMINATOR);
 }
 
-export const UPDATE_METADATA_POINTER_METADATA_POINTER_DISCRIMINATOR = 1;
+export const UPDATE_GROUP_POINTER_GROUP_POINTER_DISCRIMINATOR = 1;
 
-export function getUpdateMetadataPointerMetadataPointerDiscriminatorBytes() {
+export function getUpdateGroupPointerGroupPointerDiscriminatorBytes() {
   return getU8Encoder().encode(
-    UPDATE_METADATA_POINTER_METADATA_POINTER_DISCRIMINATOR
+    UPDATE_GROUP_POINTER_GROUP_POINTER_DISCRIMINATOR
   );
 }
 
-export type UpdateMetadataPointerInstruction<
+export type UpdateGroupPointerInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountMint extends string | IAccountMeta<string> = string,
-  TAccountMetadataPointerAuthority extends
-    | string
-    | IAccountMeta<string> = string,
+  TAccountGroupPointerAuthority extends string | IAccountMeta<string> = string,
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
@@ -65,32 +63,32 @@ export type UpdateMetadataPointerInstruction<
       TAccountMint extends string
         ? WritableAccount<TAccountMint>
         : TAccountMint,
-      TAccountMetadataPointerAuthority extends string
-        ? ReadonlyAccount<TAccountMetadataPointerAuthority>
-        : TAccountMetadataPointerAuthority,
+      TAccountGroupPointerAuthority extends string
+        ? ReadonlyAccount<TAccountGroupPointerAuthority>
+        : TAccountGroupPointerAuthority,
       ...TRemainingAccounts,
     ]
   >;
 
-export type UpdateMetadataPointerInstructionData = {
+export type UpdateGroupPointerInstructionData = {
   discriminator: number;
-  metadataPointerDiscriminator: number;
-  /** The new account address that holds the metadata. */
-  metadataAddress: Option<Address>;
+  groupPointerDiscriminator: number;
+  /** The new account address that holds the group configurations. */
+  groupAddress: Option<Address>;
 };
 
-export type UpdateMetadataPointerInstructionDataArgs = {
-  /** The new account address that holds the metadata. */
-  metadataAddress: OptionOrNullable<Address>;
+export type UpdateGroupPointerInstructionDataArgs = {
+  /** The new account address that holds the group configurations. */
+  groupAddress: OptionOrNullable<Address>;
 };
 
-export function getUpdateMetadataPointerInstructionDataEncoder(): Encoder<UpdateMetadataPointerInstructionDataArgs> {
+export function getUpdateGroupPointerInstructionDataEncoder(): Encoder<UpdateGroupPointerInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
-      ['metadataPointerDiscriminator', getU8Encoder()],
+      ['groupPointerDiscriminator', getU8Encoder()],
       [
-        'metadataAddress',
+        'groupAddress',
         getOptionEncoder(getAddressEncoder(), {
           prefix: null,
           noneValue: 'zeroes',
@@ -99,19 +97,19 @@ export function getUpdateMetadataPointerInstructionDataEncoder(): Encoder<Update
     ]),
     (value) => ({
       ...value,
-      discriminator: UPDATE_METADATA_POINTER_DISCRIMINATOR,
-      metadataPointerDiscriminator:
-        UPDATE_METADATA_POINTER_METADATA_POINTER_DISCRIMINATOR,
+      discriminator: UPDATE_GROUP_POINTER_DISCRIMINATOR,
+      groupPointerDiscriminator:
+        UPDATE_GROUP_POINTER_GROUP_POINTER_DISCRIMINATOR,
     })
   );
 }
 
-export function getUpdateMetadataPointerInstructionDataDecoder(): Decoder<UpdateMetadataPointerInstructionData> {
+export function getUpdateGroupPointerInstructionDataDecoder(): Decoder<UpdateGroupPointerInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
-    ['metadataPointerDiscriminator', getU8Decoder()],
+    ['groupPointerDiscriminator', getU8Decoder()],
     [
-      'metadataAddress',
+      'groupAddress',
       getOptionDecoder(getAddressDecoder(), {
         prefix: null,
         noneValue: 'zeroes',
@@ -120,47 +118,44 @@ export function getUpdateMetadataPointerInstructionDataDecoder(): Decoder<Update
   ]);
 }
 
-export function getUpdateMetadataPointerInstructionDataCodec(): Codec<
-  UpdateMetadataPointerInstructionDataArgs,
-  UpdateMetadataPointerInstructionData
+export function getUpdateGroupPointerInstructionDataCodec(): Codec<
+  UpdateGroupPointerInstructionDataArgs,
+  UpdateGroupPointerInstructionData
 > {
   return combineCodec(
-    getUpdateMetadataPointerInstructionDataEncoder(),
-    getUpdateMetadataPointerInstructionDataDecoder()
+    getUpdateGroupPointerInstructionDataEncoder(),
+    getUpdateGroupPointerInstructionDataDecoder()
   );
 }
 
-export type UpdateMetadataPointerInput<
+export type UpdateGroupPointerInput<
   TAccountMint extends string = string,
-  TAccountMetadataPointerAuthority extends string = string,
+  TAccountGroupPointerAuthority extends string = string,
 > = {
   /** The mint to initialize. */
   mint: Address<TAccountMint>;
-  /** The metadata pointer authority or its multisignature account. */
-  metadataPointerAuthority:
-    | Address<TAccountMetadataPointerAuthority>
-    | TransactionSigner<TAccountMetadataPointerAuthority>;
-  metadataAddress: UpdateMetadataPointerInstructionDataArgs['metadataAddress'];
+  /** The group pointer authority or its multisignature account. */
+  groupPointerAuthority:
+    | Address<TAccountGroupPointerAuthority>
+    | TransactionSigner<TAccountGroupPointerAuthority>;
+  groupAddress: UpdateGroupPointerInstructionDataArgs['groupAddress'];
   multiSigners?: Array<TransactionSigner>;
 };
 
-export function getUpdateMetadataPointerInstruction<
+export function getUpdateGroupPointerInstruction<
   TAccountMint extends string,
-  TAccountMetadataPointerAuthority extends string,
+  TAccountGroupPointerAuthority extends string,
   TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: UpdateMetadataPointerInput<
-    TAccountMint,
-    TAccountMetadataPointerAuthority
-  >,
+  input: UpdateGroupPointerInput<TAccountMint, TAccountGroupPointerAuthority>,
   config?: { programAddress?: TProgramAddress }
-): UpdateMetadataPointerInstruction<
+): UpdateGroupPointerInstruction<
   TProgramAddress,
   TAccountMint,
-  (typeof input)['metadataPointerAuthority'] extends TransactionSigner<TAccountMetadataPointerAuthority>
-    ? ReadonlySignerAccount<TAccountMetadataPointerAuthority> &
-        IAccountSignerMeta<TAccountMetadataPointerAuthority>
-    : TAccountMetadataPointerAuthority
+  (typeof input)['groupPointerAuthority'] extends TransactionSigner<TAccountGroupPointerAuthority>
+    ? ReadonlySignerAccount<TAccountGroupPointerAuthority> &
+        IAccountSignerMeta<TAccountGroupPointerAuthority>
+    : TAccountGroupPointerAuthority
 > {
   // Program address.
   const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
@@ -168,8 +163,8 @@ export function getUpdateMetadataPointerInstruction<
   // Original accounts.
   const originalAccounts = {
     mint: { value: input.mint ?? null, isWritable: true },
-    metadataPointerAuthority: {
-      value: input.metadataPointerAuthority ?? null,
+    groupPointerAuthority: {
+      value: input.groupPointerAuthority ?? null,
       isWritable: false,
     },
   };
@@ -194,26 +189,26 @@ export function getUpdateMetadataPointerInstruction<
   const instruction = {
     accounts: [
       getAccountMeta(accounts.mint),
-      getAccountMeta(accounts.metadataPointerAuthority),
+      getAccountMeta(accounts.groupPointerAuthority),
       ...remainingAccounts,
     ],
     programAddress,
-    data: getUpdateMetadataPointerInstructionDataEncoder().encode(
-      args as UpdateMetadataPointerInstructionDataArgs
+    data: getUpdateGroupPointerInstructionDataEncoder().encode(
+      args as UpdateGroupPointerInstructionDataArgs
     ),
-  } as UpdateMetadataPointerInstruction<
+  } as UpdateGroupPointerInstruction<
     TProgramAddress,
     TAccountMint,
-    (typeof input)['metadataPointerAuthority'] extends TransactionSigner<TAccountMetadataPointerAuthority>
-      ? ReadonlySignerAccount<TAccountMetadataPointerAuthority> &
-          IAccountSignerMeta<TAccountMetadataPointerAuthority>
-      : TAccountMetadataPointerAuthority
+    (typeof input)['groupPointerAuthority'] extends TransactionSigner<TAccountGroupPointerAuthority>
+      ? ReadonlySignerAccount<TAccountGroupPointerAuthority> &
+          IAccountSignerMeta<TAccountGroupPointerAuthority>
+      : TAccountGroupPointerAuthority
   >;
 
   return instruction;
 }
 
-export type ParsedUpdateMetadataPointerInstruction<
+export type ParsedUpdateGroupPointerInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
@@ -221,20 +216,20 @@ export type ParsedUpdateMetadataPointerInstruction<
   accounts: {
     /** The mint to initialize. */
     mint: TAccountMetas[0];
-    /** The metadata pointer authority or its multisignature account. */
-    metadataPointerAuthority: TAccountMetas[1];
+    /** The group pointer authority or its multisignature account. */
+    groupPointerAuthority: TAccountMetas[1];
   };
-  data: UpdateMetadataPointerInstructionData;
+  data: UpdateGroupPointerInstructionData;
 };
 
-export function parseUpdateMetadataPointerInstruction<
+export function parseUpdateGroupPointerInstruction<
   TProgram extends string,
   TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
-): ParsedUpdateMetadataPointerInstruction<TProgram, TAccountMetas> {
+): ParsedUpdateGroupPointerInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 2) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
@@ -249,9 +244,9 @@ export function parseUpdateMetadataPointerInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       mint: getNextAccount(),
-      metadataPointerAuthority: getNextAccount(),
+      groupPointerAuthority: getNextAccount(),
     },
-    data: getUpdateMetadataPointerInstructionDataDecoder().decode(
+    data: getUpdateGroupPointerInstructionDataDecoder().decode(
       instruction.data
     ),
   };
