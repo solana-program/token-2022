@@ -8,6 +8,8 @@
 
 import {
   containsBytes,
+  fixEncoderSize,
+  getBytesEncoder,
   getU8Encoder,
   type Address,
   type ReadonlyUint8Array,
@@ -50,6 +52,7 @@ import {
   type ParsedInitializeMintInstruction,
   type ParsedInitializeMultisig2Instruction,
   type ParsedInitializeMultisigInstruction,
+  type ParsedInitializeTokenMetadataInstruction,
   type ParsedInitializeTransferFeeConfigInstruction,
   type ParsedMintToCheckedInstruction,
   type ParsedMintToInstruction,
@@ -157,6 +160,7 @@ export enum Token2022Instruction {
   UpdateGroupPointer,
   InitializeGroupMemberPointer,
   UpdateGroupMemberPointer,
+  InitializeTokenMetadata,
 }
 
 export function identifyToken2022Instruction(
@@ -424,6 +428,17 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.UpdateGroupMemberPointer;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([210, 225, 30, 162, 88, 184, 77, 141])
+      ),
+      0
+    )
+  ) {
+    return Token2022Instruction.InitializeTokenMetadata;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -602,4 +617,7 @@ export type ParsedToken2022Instruction<
     } & ParsedInitializeGroupMemberPointerInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.UpdateGroupMemberPointer;
-    } & ParsedUpdateGroupMemberPointerInstruction<TProgram>);
+    } & ParsedUpdateGroupMemberPointerInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeTokenMetadata;
+    } & ParsedInitializeTokenMetadataInstruction<TProgram>);
