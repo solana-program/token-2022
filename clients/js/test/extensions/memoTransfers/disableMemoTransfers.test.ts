@@ -5,7 +5,6 @@ import {
   extension,
   fetchToken,
   getDisableMemoTransfersInstruction,
-  getEnableMemoTransfersInstruction,
 } from '../../../src';
 import {
   createDefaultSolanaClient,
@@ -84,9 +83,6 @@ test('it disables an active memo transfers extension', async (t) => {
     owner,
     payer: authority,
   });
-  await sendAndConfirmInstructions(client, authority, [
-    getEnableMemoTransfersInstruction({ token, owner }),
-  ]);
 
   // When we disable the memo transfers extension.
   await sendAndConfirmInstructions(client, authority, [

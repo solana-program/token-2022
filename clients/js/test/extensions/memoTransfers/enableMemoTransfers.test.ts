@@ -4,7 +4,6 @@ import {
   Token,
   extension,
   fetchToken,
-  getDisableMemoTransfersInstruction,
   getEnableMemoTransfersInstruction,
 } from '../../../src';
 import {
@@ -84,9 +83,6 @@ test('it enables an disabled memo transfers extension', async (t) => {
     owner,
     payer: authority,
   });
-  await sendAndConfirmInstructions(client, authority, [
-    getDisableMemoTransfersInstruction({ token, owner }),
-  ]);
 
   // When we enable the memo transfers extension.
   await sendAndConfirmInstructions(client, authority, [
