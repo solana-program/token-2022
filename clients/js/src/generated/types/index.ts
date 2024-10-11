@@ -12,4 +12,5 @@ export * from './decryptableBalance';
 export * from './encryptedBalance';
 export * from './extension';
 export * from './extensionType';
+export * from './tokenMetadataField';
 export * from './transferFee';

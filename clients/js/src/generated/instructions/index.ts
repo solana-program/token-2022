@@ -65,5 +65,6 @@ export * from './updateDefaultAccountState';
 export * from './updateGroupMemberPointer';
 export * from './updateGroupPointer';
 export * from './updateMetadataPointer';
+export * from './updateTokenMetadataField';
 export * from './withdrawWithheldTokensFromAccounts';
 export * from './withdrawWithheldTokensFromMint';
