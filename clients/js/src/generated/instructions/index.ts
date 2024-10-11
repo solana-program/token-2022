@@ -24,6 +24,7 @@ export * from './createAssociatedTokenIdempotent';
 export * from './disableConfidentialCredits';
 export * from './disableMemoTransfers';
 export * from './disableNonConfidentialCredits';
+export * from './emitTokenMetadata';
 export * from './emptyConfidentialTransferAccount';
 export * from './enableConfidentialCredits';
 export * from './enableMemoTransfers';

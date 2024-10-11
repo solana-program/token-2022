@@ -29,6 +29,7 @@ import {
   type ParsedDisableConfidentialCreditsInstruction,
   type ParsedDisableMemoTransfersInstruction,
   type ParsedDisableNonConfidentialCreditsInstruction,
+  type ParsedEmitTokenMetadataInstruction,
   type ParsedEmptyConfidentialTransferAccountInstruction,
   type ParsedEnableConfidentialCreditsInstruction,
   type ParsedEnableMemoTransfersInstruction,
@@ -165,6 +166,7 @@ export enum Token2022Instruction {
   UpdateTokenMetadataField,
   RemoveTokenMetadataKey,
   UpdateTokenMetadataUpdateAuthority,
+  EmitTokenMetadata,
 }
 
 export function identifyToken2022Instruction(
@@ -464,6 +466,15 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.UpdateTokenMetadataUpdateAuthority;
   }
+  if (
+    containsBytes(
+      data,
+      new Uint8Array([250, 166, 180, 250, 13, 12, 184, 70]),
+      0
+    )
+  ) {
+    return Token2022Instruction.EmitTokenMetadata;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -654,4 +665,7 @@ export type ParsedToken2022Instruction<
     } & ParsedRemoveTokenMetadataKeyInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.UpdateTokenMetadataUpdateAuthority;
-    } & ParsedUpdateTokenMetadataUpdateAuthorityInstruction<TProgram>);
+    } & ParsedUpdateTokenMetadataUpdateAuthorityInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.EmitTokenMetadata;
+    } & ParsedEmitTokenMetadataInstruction<TProgram>);
