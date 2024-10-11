@@ -6180,6 +6180,10 @@
                 "format": "u8",
                 "endian": "le"
               }
+            },
+            "defaultValue": {
+              "kind": "booleanValueNode",
+              "boolean": false
             }
           },
           {

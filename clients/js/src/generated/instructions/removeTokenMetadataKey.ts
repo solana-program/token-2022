@@ -82,7 +82,7 @@ export type RemoveTokenMetadataKeyInstructionDataArgs = {
    * If the idempotent flag is set to true, then the instruction will not
    * error if the key does not exist
    */
-  idempotent: boolean;
+  idempotent?: boolean;
   /** Key to remove in the additional metadata portion. */
   key: string;
 };
@@ -97,6 +97,7 @@ export function getRemoveTokenMetadataKeyInstructionDataEncoder(): Encoder<Remov
     (value) => ({
       ...value,
       discriminator: REMOVE_TOKEN_METADATA_KEY_DISCRIMINATOR,
+      idempotent: value.idempotent ?? false,
     })
   );
 }
@@ -125,7 +126,7 @@ export type RemoveTokenMetadataKeyInput<
 > = {
   metadata: Address<TAccountMetadata>;
   updateAuthority: TransactionSigner<TAccountUpdateAuthority>;
-  idempotent: RemoveTokenMetadataKeyInstructionDataArgs['idempotent'];
+  idempotent?: RemoveTokenMetadataKeyInstructionDataArgs['idempotent'];
   key: RemoveTokenMetadataKeyInstructionDataArgs['key'];
 };
 
