@@ -95,11 +95,12 @@ export const sendAndConfirmInstructions = async (
   payer: TransactionSigner,
   instructions: IInstruction[]
 ) => {
-  await pipe(
+  const signature = await pipe(
     await createDefaultTransaction(client, payer),
     (tx) => appendTransactionMessageInstructions(instructions, tx),
     (tx) => signAndSendTransaction(client, tx)
   );
+  return signature;
 };
 
 export const getCreateMintInstructions = async (input: {
