@@ -113,6 +113,14 @@ export const getCreateMintInstructions = async (input: {
   programAddress?: Address;
 }) => {
   const space = getMintSize(input.extensions);
+  const postInitializeExtensions = ['TokenMetadata', 'TokenGroup'];
+  const spaceWithoutPostInitializeExtensions = input.extensions
+    ? getMintSize(
+        input.extensions.filter(
+          (e) => !postInitializeExtensions.includes(e.__kind)
+        )
+      )
+    : space;
   const rent = await input.client.rpc
     .getMinimumBalanceForRentExemption(BigInt(space))
     .send();
@@ -121,7 +129,7 @@ export const getCreateMintInstructions = async (input: {
       payer: input.payer,
       newAccount: input.mint,
       lamports: rent,
-      space,
+      space: spaceWithoutPostInitializeExtensions,
       programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS,
     }),
     getInitializeMintInstruction({
