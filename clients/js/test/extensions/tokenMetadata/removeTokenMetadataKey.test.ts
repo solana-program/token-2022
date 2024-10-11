@@ -24,7 +24,7 @@ test('it removes a custom field on the token metadata extension', async (t) => {
     generateKeyPairSigner(),
   ]);
 
-  // And a mint account initialized a token metadata extension with a custom field.
+  // And a mint account initialized with a token metadata extension that has a custom field.
   await createMint({
     authority,
     client,
