@@ -1,4 +1,11 @@
-import { Address, IInstruction, TransactionSigner } from '@solana/web3.js';
+import {
+  Address,
+  IInstruction,
+  isNone,
+  isOption,
+  TransactionSigner,
+  wrapNullable,
+} from '@solana/web3.js';
 import {
   ExtensionArgs,
   getDisableMemoTransfersInstruction,
@@ -8,6 +15,7 @@ import {
   getInitializeGroupMemberPointerInstruction,
   getInitializeGroupPointerInstruction,
   getInitializeMetadataPointerInstruction,
+  getInitializeTokenMetadataInstruction,
   getInitializeTransferFeeConfigInstruction,
 } from './generated';
 
@@ -83,11 +91,31 @@ export function getPreInitializeInstructionsForMintExtensions(
  * to properly initialize the given extensions on the mint account.
  */
 export function getPostInitializeInstructionsForMintExtensions(
-  _mint: Address,
+  mint: Address,
+  authority: TransactionSigner,
   extensions: ExtensionArgs[]
 ): IInstruction[] {
   return extensions.flatMap((extension) => {
     switch (extension.__kind) {
+      case 'TokenMetadata':
+        // eslint-disable-next-line no-case-declarations
+        const tokenMetadataUpdateAuthority = isOption(extension.updateAuthority)
+          ? extension.updateAuthority
+          : wrapNullable(extension.updateAuthority);
+        if (isNone(tokenMetadataUpdateAuthority)) {
+          return [];
+        }
+        return [
+          getInitializeTokenMetadataInstruction({
+            metadata: mint,
+            updateAuthority: tokenMetadataUpdateAuthority.value,
+            mint,
+            mintAuthority: authority,
+            name: extension.name,
+            symbol: extension.symbol,
+            uri: extension.uri,
+          }),
+        ];
       default:
         return [];
     }
@@ -101,16 +129,21 @@ export function getPostInitializeInstructionsForMintExtensions(
  */
 export function getPostInitializeInstructionsForTokenExtensions(
   token: Address,
-  owner: TransactionSigner,
-  extensions: ExtensionArgs[]
+  owner: TransactionSigner | Address,
+  extensions: ExtensionArgs[],
+  multiSigners?: TransactionSigner[]
 ): IInstruction[] {
   return extensions.flatMap((extension) => {
     switch (extension.__kind) {
       case 'MemoTransfer':
         return [
           extension.requireIncomingTransferMemos
-            ? getEnableMemoTransfersInstruction({ owner, token })
-            : getDisableMemoTransfersInstruction({ owner, token }),
+            ? getEnableMemoTransfersInstruction({ owner, token, multiSigners })
+            : getDisableMemoTransfersInstruction({
+                owner,
+                token,
+                multiSigners,
+              }),
         ];
       default:
         return [];

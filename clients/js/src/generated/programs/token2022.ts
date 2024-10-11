@@ -29,6 +29,7 @@ import {
   type ParsedDisableConfidentialCreditsInstruction,
   type ParsedDisableMemoTransfersInstruction,
   type ParsedDisableNonConfidentialCreditsInstruction,
+  type ParsedEmitTokenMetadataInstruction,
   type ParsedEmptyConfidentialTransferAccountInstruction,
   type ParsedEnableConfidentialCreditsInstruction,
   type ParsedEnableMemoTransfersInstruction,
@@ -50,10 +51,12 @@ import {
   type ParsedInitializeMintInstruction,
   type ParsedInitializeMultisig2Instruction,
   type ParsedInitializeMultisigInstruction,
+  type ParsedInitializeTokenMetadataInstruction,
   type ParsedInitializeTransferFeeConfigInstruction,
   type ParsedMintToCheckedInstruction,
   type ParsedMintToInstruction,
   type ParsedReallocateInstruction,
+  type ParsedRemoveTokenMetadataKeyInstruction,
   type ParsedRevokeInstruction,
   type ParsedSetAuthorityInstruction,
   type ParsedSetTransferFeeInstruction,
@@ -68,6 +71,8 @@ import {
   type ParsedUpdateGroupMemberPointerInstruction,
   type ParsedUpdateGroupPointerInstruction,
   type ParsedUpdateMetadataPointerInstruction,
+  type ParsedUpdateTokenMetadataFieldInstruction,
+  type ParsedUpdateTokenMetadataUpdateAuthorityInstruction,
   type ParsedWithdrawWithheldTokensFromAccountsInstruction,
   type ParsedWithdrawWithheldTokensFromMintInstruction,
 } from '../instructions';
@@ -157,6 +162,11 @@ export enum Token2022Instruction {
   UpdateGroupPointer,
   InitializeGroupMemberPointer,
   UpdateGroupMemberPointer,
+  InitializeTokenMetadata,
+  UpdateTokenMetadataField,
+  RemoveTokenMetadataKey,
+  UpdateTokenMetadataUpdateAuthority,
+  EmitTokenMetadata,
 }
 
 export function identifyToken2022Instruction(
@@ -424,6 +434,47 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.UpdateGroupMemberPointer;
   }
+  if (
+    containsBytes(
+      data,
+      new Uint8Array([210, 225, 30, 162, 88, 184, 77, 141]),
+      0
+    )
+  ) {
+    return Token2022Instruction.InitializeTokenMetadata;
+  }
+  if (
+    containsBytes(
+      data,
+      new Uint8Array([221, 233, 49, 45, 181, 202, 220, 200]),
+      0
+    )
+  ) {
+    return Token2022Instruction.UpdateTokenMetadataField;
+  }
+  if (
+    containsBytes(data, new Uint8Array([234, 18, 32, 56, 89, 141, 37, 181]), 0)
+  ) {
+    return Token2022Instruction.RemoveTokenMetadataKey;
+  }
+  if (
+    containsBytes(
+      data,
+      new Uint8Array([215, 228, 166, 228, 84, 100, 86, 123]),
+      0
+    )
+  ) {
+    return Token2022Instruction.UpdateTokenMetadataUpdateAuthority;
+  }
+  if (
+    containsBytes(
+      data,
+      new Uint8Array([250, 166, 180, 250, 13, 12, 184, 70]),
+      0
+    )
+  ) {
+    return Token2022Instruction.EmitTokenMetadata;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -602,4 +653,19 @@ export type ParsedToken2022Instruction<
     } & ParsedInitializeGroupMemberPointerInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.UpdateGroupMemberPointer;
-    } & ParsedUpdateGroupMemberPointerInstruction<TProgram>);
+    } & ParsedUpdateGroupMemberPointerInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeTokenMetadata;
+    } & ParsedInitializeTokenMetadataInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.UpdateTokenMetadataField;
+    } & ParsedUpdateTokenMetadataFieldInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.RemoveTokenMetadataKey;
+    } & ParsedRemoveTokenMetadataKeyInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.UpdateTokenMetadataUpdateAuthority;
+    } & ParsedUpdateTokenMetadataUpdateAuthorityInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.EmitTokenMetadata;
+    } & ParsedEmitTokenMetadataInstruction<TProgram>);

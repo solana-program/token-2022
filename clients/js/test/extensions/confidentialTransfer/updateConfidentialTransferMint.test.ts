@@ -29,7 +29,7 @@ test('it updates a mint account with confidential transfer', async (t) => {
 
   // And a mint account initialized with a confidential transfer extension.
   const mint = await createMint({
-    authority: authority.address,
+    authority,
     client,
     extensions: [
       extension('ConfidentialTransferMint', {

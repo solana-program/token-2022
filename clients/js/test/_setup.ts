@@ -95,11 +95,12 @@ export const sendAndConfirmInstructions = async (
   payer: TransactionSigner,
   instructions: IInstruction[]
 ) => {
-  await pipe(
+  const signature = await pipe(
     await createDefaultTransaction(client, payer),
     (tx) => appendTransactionMessageInstructions(instructions, tx),
     (tx) => signAndSendTransaction(client, tx)
   );
+  return signature;
 };
 
 export const getCreateMintInstructions = async (input: {
@@ -113,6 +114,14 @@ export const getCreateMintInstructions = async (input: {
   programAddress?: Address;
 }) => {
   const space = getMintSize(input.extensions);
+  const postInitializeExtensions = ['TokenMetadata', 'TokenGroup'];
+  const spaceWithoutPostInitializeExtensions = input.extensions
+    ? getMintSize(
+        input.extensions.filter(
+          (e) => !postInitializeExtensions.includes(e.__kind)
+        )
+      )
+    : space;
   const rent = await input.client.rpc
     .getMinimumBalanceForRentExemption(BigInt(space))
     .send();
@@ -121,7 +130,7 @@ export const getCreateMintInstructions = async (input: {
       payer: input.payer,
       newAccount: input.mint,
       lamports: rent,
-      space,
+      space: spaceWithoutPostInitializeExtensions,
       programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS,
     }),
     getInitializeMintInstruction({
@@ -163,11 +172,18 @@ export const getCreateTokenInstructions = async (input: {
 };
 
 export const createMint = async (
-  input: Omit<Parameters<typeof getCreateMintInstructions>[0], 'mint'>
+  input: Omit<
+    Parameters<typeof getCreateMintInstructions>[0],
+    'authority' | 'mint'
+  > & {
+    authority: TransactionSigner;
+    mint?: TransactionSigner;
+  }
 ): Promise<Address> => {
-  const mint = await generateKeyPairSigner();
+  const mint = input.mint ?? (await generateKeyPairSigner());
   const [createAccount, initMint] = await getCreateMintInstructions({
     ...input,
+    authority: input.authority.address,
     mint,
   });
   await sendAndConfirmInstructions(input.client, input.payer, [
@@ -179,6 +195,7 @@ export const createMint = async (
     initMint,
     ...getPostInitializeInstructionsForMintExtensions(
       mint.address,
+      input.authority,
       input.extensions ?? []
     ),
   ]);

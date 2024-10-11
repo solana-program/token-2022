@@ -25,7 +25,7 @@ test('it updates the group member pointer extension on a mint account', async (t
 
   // And a mint account initialized with a group member pointer extension.
   const mint = await createMint({
-    authority: authority.address,
+    authority,
     client,
     extensions: [
       extension('GroupMemberPointer', {

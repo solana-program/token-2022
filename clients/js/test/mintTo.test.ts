@@ -23,11 +23,7 @@ test('it mints tokens to a token account', async (t) => {
     generateKeyPairSigner(),
     generateKeyPairSigner(),
   ]);
-  const mint = await createMint({
-    client,
-    payer,
-    authority: mintAuthority.address,
-  });
+  const mint = await createMint({ client, payer, authority: mintAuthority });
   const token = await createToken({ client, payer, mint, owner });
 
   // When the mint authority mints tokens to the token account.
