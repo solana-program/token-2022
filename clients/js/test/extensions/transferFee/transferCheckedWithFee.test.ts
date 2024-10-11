@@ -45,7 +45,7 @@ test('it transfers tokens with pre-configured fees', async (t) => {
     olderTransferFee: transferFees,
   });
   const mint = await createMint({
-    authority: authority.address,
+    authority,
     client,
     decimals: 2,
     extensions: [transferFeeConfigExtension],

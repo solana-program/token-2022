@@ -25,11 +25,7 @@ test('it initializes a token account with a disabled memo transfers extension', 
   ]);
 
   // And a mint account.
-  const mint = await createMint({
-    authority: authority.address,
-    client,
-    payer: authority,
-  });
+  const mint = await createMint({ authority, client, payer: authority });
 
   // When we create a token account and disable memo transfers.
   const memoTransfersExtension = extension('MemoTransfer', {
@@ -69,11 +65,7 @@ test('it disables an active memo transfers extension', async (t) => {
   ]);
 
   // And a token account with an active memo transfers extension.
-  const mint = await createMint({
-    authority: authority.address,
-    client,
-    payer: authority,
-  });
+  const mint = await createMint({ authority, client, payer: authority });
   const token = await createToken({
     client,
     extensions: [

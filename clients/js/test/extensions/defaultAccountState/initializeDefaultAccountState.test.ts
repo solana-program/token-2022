@@ -73,7 +73,7 @@ test('it initializes a token account with the default state defined on the mint 
 
   // And a mint account initialized with a default account state extension.
   const mint = await createMint({
-    authority: authority.address,
+    authority,
     client,
     extensions: [
       extension('DefaultAccountState', { state: AccountState.Frozen }),

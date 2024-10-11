@@ -25,11 +25,7 @@ test('it reallocates token accounts to fit the provided extensions', async (t) =
   ]);
 
   // And a token account with no extensions.
-  const mint = await createMint({
-    authority: authority.address,
-    client,
-    payer: authority,
-  });
+  const mint = await createMint({ authority, client, payer: authority });
   const token = await createToken({
     client,
     mint,

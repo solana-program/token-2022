@@ -24,7 +24,7 @@ test('it updates the default state account on a mint account', async (t) => {
 
   // And a mint account initialized with a default account state extension.
   const mint = await createMint({
-    authority: authority.address,
+    authority,
     client,
     extensions: [
       extension('DefaultAccountState', { state: AccountState.Frozen }),

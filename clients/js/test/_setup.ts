@@ -171,11 +171,18 @@ export const getCreateTokenInstructions = async (input: {
 };
 
 export const createMint = async (
-  input: Omit<Parameters<typeof getCreateMintInstructions>[0], 'mint'>
+  input: Omit<
+    Parameters<typeof getCreateMintInstructions>[0],
+    'authority' | 'mint'
+  > & {
+    authority: TransactionSigner;
+    mint?: TransactionSigner;
+  }
 ): Promise<Address> => {
-  const mint = await generateKeyPairSigner();
+  const mint = input.mint ?? (await generateKeyPairSigner());
   const [createAccount, initMint] = await getCreateMintInstructions({
     ...input,
+    authority: input.authority.address,
     mint,
   });
   await sendAndConfirmInstructions(input.client, input.payer, [
@@ -187,6 +194,7 @@ export const createMint = async (
     initMint,
     ...getPostInitializeInstructionsForMintExtensions(
       mint.address,
+      input.authority,
       input.extensions ?? []
     ),
   ]);

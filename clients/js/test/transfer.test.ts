@@ -26,11 +26,7 @@ test('it transfers tokens from one account to another', async (t) => {
     generateKeyPairSigner(),
     generateKeyPairSigner(),
   ]);
-  const mint = await createMint({
-    client,
-    payer,
-    authority: mintAuthority.address,
-  });
+  const mint = await createMint({ client, payer, authority: mintAuthority });
   const [tokenA, tokenB] = await Promise.all([
     createTokenWithAmount({
       client,

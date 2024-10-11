@@ -26,11 +26,7 @@ test('it creates and initializes a new token account', async (t) => {
     generateKeyPairSigner(),
     generateKeyPairSigner(),
   ]);
-  const mint = await createMint({
-    client,
-    payer,
-    authority: mintAuthority.address,
-  });
+  const mint = await createMint({ client, payer, authority: mintAuthority });
 
   // When we create and initialize a token account at this address.
   const space = BigInt(getTokenSize());
