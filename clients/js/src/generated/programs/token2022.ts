@@ -55,6 +55,7 @@ import {
   type ParsedMintToCheckedInstruction,
   type ParsedMintToInstruction,
   type ParsedReallocateInstruction,
+  type ParsedRemoveTokenMetadataKeyInstruction,
   type ParsedRevokeInstruction,
   type ParsedSetAuthorityInstruction,
   type ParsedSetTransferFeeInstruction,
@@ -161,6 +162,7 @@ export enum Token2022Instruction {
   UpdateGroupMemberPointer,
   InitializeTokenMetadata,
   UpdateTokenMetadataField,
+  RemoveTokenMetadataKey,
 }
 
 export function identifyToken2022Instruction(
@@ -446,6 +448,11 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.UpdateTokenMetadataField;
   }
+  if (
+    containsBytes(data, new Uint8Array([234, 18, 32, 56, 89, 141, 37, 181]), 0)
+  ) {
+    return Token2022Instruction.RemoveTokenMetadataKey;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -630,4 +637,7 @@ export type ParsedToken2022Instruction<
     } & ParsedInitializeTokenMetadataInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.UpdateTokenMetadataField;
-    } & ParsedUpdateTokenMetadataFieldInstruction<TProgram>);
+    } & ParsedUpdateTokenMetadataFieldInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.RemoveTokenMetadataKey;
+    } & ParsedRemoveTokenMetadataKeyInstruction<TProgram>);
