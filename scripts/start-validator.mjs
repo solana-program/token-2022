@@ -23,6 +23,9 @@ if (!restart && isValidatorRunning) {
   process.exit();
 }
 
+// Dump external programs and accounts.
+await $`pnpm programs:dump`;
+
 // Initial message.
 const verb = isValidatorRunning ? 'Restarting' : 'Starting';
 
