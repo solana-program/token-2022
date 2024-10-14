@@ -1,10 +1,16 @@
-import { generateKeyPairSigner, unwrapOption } from '@solana/web3.js';
+import {
+  generateKeyPairSigner,
+  none,
+  some,
+  unwrapOption,
+} from '@solana/web3.js';
 import test from 'ava';
 import {
   extension,
   fetchMint,
   getInitializeTokenGroupMemberInstruction,
   isExtension,
+  Mint,
 } from '../../../src';
 import {
   createDefaultSolanaClient,
@@ -43,16 +49,22 @@ test('it adds members to the token group extension', async (t) => {
     payer: authority,
   });
 
-  // And a member mint account with a group member pointer extension pointing to itself.
+  // And a member mint account with the group member pointer and the token group member extensions.
+  const memberExtensions = [
+    extension('GroupMemberPointer', {
+      authority: none(),
+      memberAddress: some(member.address),
+    }),
+    extension('TokenGroupMember', {
+      mint: member.address,
+      group: group.address,
+      memberNumber: 1n,
+    }),
+  ];
   await createMint({
     authority,
     client,
-    extensions: [
-      extension('GroupMemberPointer', {
-        authority: null,
-        memberAddress: member.address,
-      }),
-    ],
+    extensions: memberExtensions,
     mint: member,
     payer: authority,
   });
@@ -68,9 +80,15 @@ test('it adds members to the token group extension', async (t) => {
     }),
   ]);
 
-  // Then we expect the size of the group mint account to be updated accordingly.
-  const mintAccount = await fetchMint(client.rpc, group.address);
-  const tokenGroupExtension = unwrapOption(mintAccount.data.extensions)?.find(
+  // Then we expect the member mint account to have the following extensions
+  const memberAccount = await fetchMint(client.rpc, member.address);
+  t.like(memberAccount.data, <Mint>{
+    extensions: some(memberExtensions),
+  });
+
+  // And we expect the size of the group mint account to be updated accordingly.
+  const groupAccount = await fetchMint(client.rpc, group.address);
+  const tokenGroupExtension = unwrapOption(groupAccount.data.extensions)?.find(
     (e) => isExtension('TokenGroup', e)
   );
   t.is(tokenGroupExtension?.size, 1n);

@@ -118,6 +118,7 @@ export const getCreateMintInstructions = async (input: {
   const postInitializeExtensions: Extension['__kind'][] = [
     'TokenMetadata',
     'TokenGroup',
+    'TokenGroupMember',
   ];
   const spaceWithoutPostInitializeExtensions = input.extensions
     ? getMintSize(

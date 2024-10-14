@@ -7883,7 +7883,7 @@
                       "docs": ["The member number."],
                       "type": {
                         "kind": "numberTypeNode",
-                        "format": "u32",
+                        "format": "u64",
                         "endian": "le"
                       }
                     }

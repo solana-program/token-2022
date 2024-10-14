@@ -262,7 +262,7 @@ export type Extension =
       /** The pubkey of the `TokenGroup`. */
       group: Address;
       /** The member number. */
-      memberNumber: number;
+      memberNumber: bigint;
     };
 
 export type ExtensionArgs =
@@ -465,7 +465,7 @@ export type ExtensionArgs =
       /** The pubkey of the `TokenGroup`. */
       group: Address;
       /** The member number. */
-      memberNumber: number;
+      memberNumber: number | bigint;
     };
 
 export function getExtensionEncoder(): Encoder<ExtensionArgs> {
@@ -755,7 +755,7 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
           getStructEncoder([
             ['mint', getAddressEncoder()],
             ['group', getAddressEncoder()],
-            ['memberNumber', getU32Encoder()],
+            ['memberNumber', getU64Encoder()],
           ]),
           getU16Encoder()
         ),
@@ -1052,7 +1052,7 @@ export function getExtensionDecoder(): Decoder<Extension> {
           getStructDecoder([
             ['mint', getAddressDecoder()],
             ['group', getAddressDecoder()],
-            ['memberNumber', getU32Decoder()],
+            ['memberNumber', getU64Decoder()],
           ]),
           getU16Decoder()
         ),
