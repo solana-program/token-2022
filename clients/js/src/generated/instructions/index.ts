@@ -47,6 +47,7 @@ export * from './initializeMintCloseAuthority';
 export * from './initializeMultisig';
 export * from './initializeMultisig2';
 export * from './initializeTokenGroup';
+export * from './initializeTokenGroupMember';
 export * from './initializeTokenMetadata';
 export * from './initializeTransferFeeConfig';
 export * from './mintTo';
