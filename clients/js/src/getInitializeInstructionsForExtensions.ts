@@ -15,6 +15,7 @@ import {
   getInitializeGroupMemberPointerInstruction,
   getInitializeGroupPointerInstruction,
   getInitializeMetadataPointerInstruction,
+  getInitializeTokenGroupInstruction,
   getInitializeTokenMetadataInstruction,
   getInitializeTransferFeeConfigInstruction,
 } from './generated';
@@ -95,7 +96,7 @@ export function getPostInitializeInstructionsForMintExtensions(
   authority: TransactionSigner,
   extensions: ExtensionArgs[]
 ): IInstruction[] {
-  return extensions.flatMap((extension) => {
+  return extensions.flatMap((extension): IInstruction[] => {
     switch (extension.__kind) {
       case 'TokenMetadata':
         // eslint-disable-next-line no-case-declarations
@@ -114,6 +115,18 @@ export function getPostInitializeInstructionsForMintExtensions(
             name: extension.name,
             symbol: extension.symbol,
             uri: extension.uri,
+          }),
+        ];
+      case 'TokenGroup':
+        return [
+          getInitializeTokenGroupInstruction({
+            group: mint,
+            updateAuthority: isOption(extension.updateAuthority)
+              ? extension.updateAuthority
+              : wrapNullable(extension.updateAuthority),
+            mint,
+            mintAuthority: authority,
+            maxSize: extension.maxSize,
           }),
         ];
       default:
