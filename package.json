@@ -1,6 +1,7 @@
 {
   "private": true,
   "scripts": {
+    "programs:dump": "zx ./scripts/program/dump.mjs",
     "solana:check": "zx ./scripts/check-solana-version.mjs",
     "solana:link": "zx ./scripts/link-solana-version.mjs",
     "generate": "pnpm generate:clients",
