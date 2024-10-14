@@ -244,9 +244,9 @@ export type Extension =
       /** The associated mint, used to counter spoofing to be sure that group belongs to a particular mint. */
       mint: Address;
       /** The current number of group members. */
-      size: number;
+      size: bigint;
       /** The maximum number of group members. */
-      maxSize: number;
+      maxSize: bigint;
     }
   | {
       __kind: 'GroupMemberPointer';
@@ -447,9 +447,9 @@ export type ExtensionArgs =
       /** The associated mint, used to counter spoofing to be sure that group belongs to a particular mint. */
       mint: Address;
       /** The current number of group members. */
-      size: number;
+      size: number | bigint;
       /** The maximum number of group members. */
-      maxSize: number;
+      maxSize: number | bigint;
     }
   | {
       __kind: 'GroupMemberPointer';
@@ -721,8 +721,8 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
               }),
             ],
             ['mint', getAddressEncoder()],
-            ['size', getU32Encoder()],
-            ['maxSize', getU32Encoder()],
+            ['size', getU64Encoder()],
+            ['maxSize', getU64Encoder()],
           ]),
           getU16Encoder()
         ),
@@ -1018,8 +1018,8 @@ export function getExtensionDecoder(): Decoder<Extension> {
               }),
             ],
             ['mint', getAddressDecoder()],
-            ['size', getU32Decoder()],
-            ['maxSize', getU32Decoder()],
+            ['size', getU64Decoder()],
+            ['maxSize', getU64Decoder()],
           ]),
           getU16Decoder()
         ),

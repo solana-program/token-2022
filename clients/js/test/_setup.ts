@@ -35,6 +35,7 @@ import {
   getTokenSize,
   getPostInitializeInstructionsForMintExtensions,
   getPostInitializeInstructionsForTokenExtensions,
+  Extension,
 } from '../src';
 
 type Client = {
@@ -114,7 +115,10 @@ export const getCreateMintInstructions = async (input: {
   programAddress?: Address;
 }) => {
   const space = getMintSize(input.extensions);
-  const postInitializeExtensions = ['TokenMetadata', 'TokenGroup'];
+  const postInitializeExtensions: Extension['__kind'][] = [
+    'TokenMetadata',
+    'TokenGroup',
+  ];
   const spaceWithoutPostInitializeExtensions = input.extensions
     ? getMintSize(
         input.extensions.filter(

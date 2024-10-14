@@ -27,8 +27,8 @@ test('it initializes a mint account with a token group and group pointer extensi
   const tokenGroupExtension = extension('TokenGroup', {
     updateAuthority: some(updateAuthority.address),
     mint: mint.address,
-    size: 0,
-    maxSize: 20_000,
+    size: 0n,
+    maxSize: 20_000n,
   });
 
   // And a group pointer extension pointing to itself.

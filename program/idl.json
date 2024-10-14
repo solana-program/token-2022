@@ -7594,7 +7594,7 @@
                       "docs": ["The current number of group members."],
                       "type": {
                         "kind": "numberTypeNode",
-                        "format": "u32",
+                        "format": "u64",
                         "endian": "le"
                       }
                     },
@@ -7604,7 +7604,7 @@
                       "docs": ["The maximum number of group members."],
                       "type": {
                         "kind": "numberTypeNode",
-                        "format": "u32",
+                        "format": "u64",
                         "endian": "le"
                       }
                     }
