@@ -68,6 +68,7 @@ export * from './updateDefaultAccountState';
 export * from './updateGroupMemberPointer';
 export * from './updateGroupPointer';
 export * from './updateMetadataPointer';
+export * from './updateTokenGroupMaxSize';
 export * from './updateTokenMetadataField';
 export * from './updateTokenMetadataUpdateAuthority';
 export * from './withdrawWithheldTokensFromAccounts';
