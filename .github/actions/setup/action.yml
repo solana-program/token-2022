@@ -56,7 +56,7 @@ runs:
 
     - name: Install Solana
       if: ${{ inputs.solana == 'true' }}
-      uses: metaplex-foundation/actions/install-solana@v1
+      uses: solana-program/actions/install-solana@v1
       with:
         version: ${{ env.SOLANA_VERSION }}
         cache: true

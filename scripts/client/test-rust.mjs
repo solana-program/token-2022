@@ -7,11 +7,12 @@ import { cliArguments, workingDirectory } from '../utils.mjs';
 const testArgs = cliArguments();
 
 const hasSolfmt = await which('solfmt', { nothrow: true });
+const sbfOutDir = path.join(workingDirectory, 'target', 'deploy');
 
 // Run the tests.
 cd(path.join(workingDirectory, 'clients', 'rust'));
 if (hasSolfmt) {
-  await $`cargo test-sbf ${testArgs} 2>&1 | solfmt`;
+  await $`SBF_OUT_DIR=${sbfOutDir} cargo test --features "test-sbf" ${testArgs} 2>&1 | solfmt`;
 } else {
-  await $`cargo test-sbf ${testArgs}`;
+  await $`SBF_OUT_DIR=${sbfOutDir} cargo test --features "test-sbf" ${testArgs}`;
 }
