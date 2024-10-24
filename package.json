@@ -20,12 +20,15 @@
     "template:upgrade": "zx ./scripts/upgrade-template.mjs"
   },
   "devDependencies": {
-    "@iarna/toml": "^2.2.5",
     "@codama/renderers-js": "^1.0.0",
     "@codama/renderers-rust": "^1.0.0",
+    "@iarna/toml": "^2.2.5",
     "codama": "^1.0.0",
     "typescript": "^5.5.2",
     "zx": "^7.2.3"
+  },
+  "engines": {
+    "node": ">=v20.0.0"
   },
   "packageManager": "pnpm@9.1.0"
 }

@@ -33,6 +33,14 @@
     "registry": "https://registry.npmjs.org"
   },
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/solana-program/token-2022.git"
+  },
+  "bugs": {
+    "url": "https://github.com/solana-program/token-2022/issues"
+  },
+  "homepage": "https://github.com/solana-program/token-2022#readme",
   "peerDependencies": {
     "@solana/web3.js": "2.0.0-rc.1"
   },
@@ -50,7 +58,6 @@
     "rimraf": "^5.0.5",
     "tsup": "^8.1.2",
     "typedoc": "^0.25.12",
-    "typedoc-plugin-missing-exports": "^2.2.0",
     "typescript": "^5.5.3"
   },
   "ava": {
