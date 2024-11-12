@@ -9,7 +9,6 @@ import { getWithdrawExcessLamportsInstruction } from '../src';
 
 test('it withdraws excess lamports from program account', async (t) => {
   // Setup Solana client and accounts
-  console.log("---------------------------Test Started---------------------------------------");
   const client = createDefaultSolanaClient();
 
   // Step 1: Generate the required accounts and fund the program account with excess lamports
@@ -22,9 +21,6 @@ test('it withdraws excess lamports from program account', async (t) => {
   // Step 2: Check initial balances and log them
   const initialProgramBalance = await client.rpc.getBalance(programAccount.address).send();
   const initialDestinationBalance = await client.rpc.getBalance(destinationAccount.address).send();
-  console.log("---------------------------Initial Balances---------------------------------------");
-  console.log("Initial Program Balance: ", initialProgramBalance.value);
-  console.log("Initial Destination Balance: ", initialDestinationBalance.value);
 
   // Step 3: Define the required minimum balance
   const requiredBalance = 1_000_000n; // Assuming 1_000_000 lamports as the minimum required balance
@@ -35,7 +31,6 @@ test('it withdraws excess lamports from program account', async (t) => {
     destinationAccount: destinationAccount.address,
     authority: authority,
   });
-  console.log("Withdraw Instruction: ", withdrawInstruction);
 
   // Step 5: Attempt to send the transaction and catch any errors for better debugging
   try {
