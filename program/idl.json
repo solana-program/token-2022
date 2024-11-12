@@ -1907,20 +1907,24 @@
             "isOptional": false,
             "docs": [
               "The native mint address"
-            ]
+            ],
+            "defaultValue":{
+              "kind":"publicKeyValueNode",
+              "publicKey":"9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP"
+            }
           },
           {
             "kind": "instructionAccountNode",
-            "name": "systemProgram",
+            "name": "tokenProgram",
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
             "docs": [
-              "System program for mint account funding"
+              "SPL Token program"
             ],
             "defaultValue": {
               "kind": "publicKeyValueNode",
-              "publicKey": "11111111111111111111111111111111"
+              "publicKey": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
             }
           }
         ],

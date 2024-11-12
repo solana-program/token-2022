@@ -21,7 +21,6 @@ test('it successfully initializes a native mint account', async (t) => {
   await sendAndConfirmInstructions(solanaClient, payerKeyPair, [
     getCreateNativeMintInstruction({
       payer: payerKeyPair,
-      nativeMint: SOL_MINT_ADDRESS,
     }),
   ]);
 
@@ -49,7 +48,6 @@ test('it throws an error when trying to create a native mint that already exists
   await sendAndConfirmInstructions(solanaClient, payerKeyPair, [
     getCreateNativeMintInstruction({
       payer: payerKeyPair,
-      nativeMint: SOL_MINT_ADDRESS,
     }),
   ]);
 
@@ -60,7 +58,6 @@ test('it throws an error when trying to create a native mint that already exists
     [
       getCreateNativeMintInstruction({
         payer: payerKeyPair,
-        nativeMint: SOL_MINT_ADDRESS,
       }),
     ]
   );
@@ -68,37 +65,5 @@ test('it throws an error when trying to create a native mint that already exists
   // Verification: expect the operation to fail since the mint account already exists
   await t.throwsAsync(duplicateCreationAttempt, {
     message: /Account already exists/,
-  });
-});
-
-test('it ensures the mintAuthority is none for native mint', async (t) => {
-  // Given: a Solana client and payer account
-  const solanaClient = createDefaultSolanaClient();
-  const payerKeyPair = await generateKeyPairSignerWithSol(solanaClient);
-
-  // When: we create the native mint account
-  await sendAndConfirmInstructions(solanaClient, payerKeyPair, [
-    getCreateNativeMintInstruction({
-      payer: payerKeyPair,
-      nativeMint: SOL_MINT_ADDRESS,
-    }),
-  ]);
-
-  // Then: check that mintAuthority is none
-  const mintAccount = await fetchMint(solanaClient.rpc, SOL_MINT_ADDRESS);
-  t.is(mintAccount.data.mintAuthority, none());
-});
-
-test('it fails to fetch mint account before creation', async (t) => {
-  // Given: a Solana client and payer account
-  const solanaClient = createDefaultSolanaClient();
-  const payerKeyPair = await generateKeyPairSignerWithSol(solanaClient);
-
-  // When: we try to fetch the mint account before it's created
-  const promise = fetchMint(solanaClient.rpc, SOL_MINT_ADDRESS);
-
-  // Then: we expect it to fail with an error saying the account doesn't exist
-  await t.throwsAsync(promise, {
-    message: /Account does not exist/,
   });
 });

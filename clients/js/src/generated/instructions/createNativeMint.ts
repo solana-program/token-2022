@@ -39,10 +39,12 @@ export function getCreateNativeMintDiscriminatorBytes() {
 export type CreateNativeMintInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountPayer extends string | IAccountMeta<string> = string,
-  TAccountNativeMint extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
+  TAccountNativeMint extends
     | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
+    | IAccountMeta<string> = '9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP',
+  TAccountTokenProgram extends
+    | string
+    | IAccountMeta<string> = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
@@ -55,9 +57,9 @@ export type CreateNativeMintInstruction<
       TAccountNativeMint extends string
         ? WritableAccount<TAccountNativeMint>
         : TAccountNativeMint,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
+      TAccountTokenProgram extends string
+        ? ReadonlyAccount<TAccountTokenProgram>
+        : TAccountTokenProgram,
       ...TRemainingAccounts,
     ]
   >;
@@ -90,33 +92,33 @@ export function getCreateNativeMintInstructionDataCodec(): Codec<
 export type CreateNativeMintInput<
   TAccountPayer extends string = string,
   TAccountNativeMint extends string = string,
-  TAccountSystemProgram extends string = string,
+  TAccountTokenProgram extends string = string,
 > = {
   /** Funding account */
   payer: TransactionSigner<TAccountPayer>;
   /** The native mint address */
-  nativeMint: Address<TAccountNativeMint>;
-  /** System program for mint account funding */
-  systemProgram?: Address<TAccountSystemProgram>;
+  nativeMint?: Address<TAccountNativeMint>;
+  /** SPL Token program */
+  tokenProgram?: Address<TAccountTokenProgram>;
 };
 
 export function getCreateNativeMintInstruction<
   TAccountPayer extends string,
   TAccountNativeMint extends string,
-  TAccountSystemProgram extends string,
+  TAccountTokenProgram extends string,
   TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
   input: CreateNativeMintInput<
     TAccountPayer,
     TAccountNativeMint,
-    TAccountSystemProgram
+    TAccountTokenProgram
   >,
   config?: { programAddress?: TProgramAddress }
 ): CreateNativeMintInstruction<
   TProgramAddress,
   TAccountPayer,
   TAccountNativeMint,
-  TAccountSystemProgram
+  TAccountTokenProgram
 > {
   // Program address.
   const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
@@ -125,7 +127,7 @@ export function getCreateNativeMintInstruction<
   const originalAccounts = {
     payer: { value: input.payer ?? null, isWritable: true },
     nativeMint: { value: input.nativeMint ?? null, isWritable: true },
-    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+    tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -133,9 +135,13 @@ export function getCreateNativeMintInstruction<
   >;
 
   // Resolve default values.
-  if (!accounts.systemProgram.value) {
-    accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  if (!accounts.nativeMint.value) {
+    accounts.nativeMint.value =
+      '9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP' as Address<'9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP'>;
+  }
+  if (!accounts.tokenProgram.value) {
+    accounts.tokenProgram.value =
+      'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb' as Address<'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'>;
   }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
@@ -143,7 +149,7 @@ export function getCreateNativeMintInstruction<
     accounts: [
       getAccountMeta(accounts.payer),
       getAccountMeta(accounts.nativeMint),
-      getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.tokenProgram),
     ],
     programAddress,
     data: getCreateNativeMintInstructionDataEncoder().encode({}),
@@ -151,7 +157,7 @@ export function getCreateNativeMintInstruction<
     TProgramAddress,
     TAccountPayer,
     TAccountNativeMint,
-    TAccountSystemProgram
+    TAccountTokenProgram
   >;
 
   return instruction;
@@ -167,8 +173,8 @@ export type ParsedCreateNativeMintInstruction<
     payer: TAccountMetas[0];
     /** The native mint address */
     nativeMint: TAccountMetas[1];
-    /** System program for mint account funding */
-    systemProgram: TAccountMetas[2];
+    /** SPL Token program */
+    tokenProgram: TAccountMetas[2];
   };
   data: CreateNativeMintInstructionData;
 };
@@ -196,7 +202,7 @@ export function parseCreateNativeMintInstruction<
     accounts: {
       payer: getNextAccount(),
       nativeMint: getNextAccount(),
-      systemProgram: getNextAccount(),
+      tokenProgram: getNextAccount(),
     },
     data: getCreateNativeMintInstructionDataDecoder().decode(instruction.data),
   };
