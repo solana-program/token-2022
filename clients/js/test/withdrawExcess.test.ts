@@ -1,43 +1,72 @@
-import { Account, generateKeyPairSigner } from '@solana/web3.js';
+import { generateKeyPairSigner, none,PublicKey } from '@solana/web3.js';
 import test from 'ava';
 import {
+  AccountState,
   TOKEN_2022_PROGRAM_ADDRESS,
+  Token,
+  fetchToken,
+  findAssociatedTokenPda,
+  getCreateAssociatedTokenInstructionAsync,
+  getMintToInstruction,
   getWithdrawExcessLamportsInstruction,
 } from '../src';
 import {
   createDefaultSolanaClient,
+  createMint,
+  createToken,
   generateKeyPairSignerWithSol,
   sendAndConfirmInstructions,
 } from './_setup';
-import { getCreateAccountInstruction } from '@solana-program/system';
 
-test('it withdraws excess lamports from a source account to a destination account', async (t) => {
+test('withdraw excess lamports from an associated token account', async (t) => {
   const client = createDefaultSolanaClient();
-  const [sourceAccount, destinationAccount] = await Promise.all([
+  const [payer, mintAuthority, owner, destination] = await Promise.all([
+    generateKeyPairSignerWithSol(client,200_000_000n),
     generateKeyPairSignerWithSol(client),
-    generateKeyPairSigner(),
+    generateKeyPairSignerWithSol(client),
+    generateKeyPairSignerWithSol(client,200_000_000n),
   ]);
 
-  // Create and fund the destination account
-  await sendAndConfirmInstructions(client, sourceAccount, [
-    getCreateAccountInstruction({
-      payer: sourceAccount,
-      newAccount: destinationAccount,
-      lamports: BigInt(1_000_000),
-      space: 0,
-      programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-    }),
-    getWithdrawExcessLamportsInstruction({
-      sourceAccount: sourceAccount.address,
-      destinationAccount: destinationAccount.address,
-      amount: BigInt(500_000),
-    }),
-  ]);
+  // Step 1: Create an SPL Token
+  const mint = await createMint({ client, payer, authority: mintAuthority, decimals:9 });
+  const token = await createToken({ client, payer, mint, owner });
 
-  // Verify withdrawal by checking the balances
-  const sourceBalance = await client.rpc.getBalance(sourceAccount.address).send();
-  const destinationBalance = await client.rpc.getBalance(destinationAccount.address).send();
+  // When the mint authority mints tokens to the token account.
+  const mintTo = getMintToInstruction({
+    mint,
+    token,
+    mintAuthority,
+    amount: 100n,
+  });
+  await sendAndConfirmInstructions(client, payer, [mintTo]);
+  // Step 2: Create an associated token account for the owner
+  const createAta = await getCreateAssociatedTokenInstructionAsync({
+    payer,
+    mint,
+    owner: owner.address,
+  });
+  await sendAndConfirmInstructions(client, payer, [createAta]);
 
-  t.true(sourceBalance < 1_000_000);
-  t.true(destinationBalance >= 1_500_000);
+  const [ata] = await findAssociatedTokenPda({
+    mint,
+    owner: owner.address,
+    tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+  });
+
+  // Ensure the token account was initialized properly
+  const initialTokenAccount = await fetchToken(client.rpc, ata);
+  t.is(initialTokenAccount.data.state, AccountState.Initialized);
+  // Step 3: Withdraw excess lamports from `ata` to `destination`
+  const lamportsBefore = await client.rpc.getBalance(destination.address);
+  const withdrawIx = await getWithdrawExcessLamportsInstruction({
+    sourceAccount: ata,
+    destinationAccount: destination.address,
+    authority: owner.address,
+    amount:5n
+  });
+  await sendAndConfirmInstructions(client, owner, [withdrawIx]);
+
+  // Check balances after withdrawal
+  const lamportsAfter = await client.rpc.getBalance(destination.address);
+  t.true(lamportsAfter > lamportsBefore, "Lamports successfully withdrawn");
 });
