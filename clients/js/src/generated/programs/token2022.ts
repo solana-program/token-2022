@@ -77,6 +77,7 @@ import {
   type ParsedUpdateTokenGroupUpdateAuthorityInstruction,
   type ParsedUpdateTokenMetadataFieldInstruction,
   type ParsedUpdateTokenMetadataUpdateAuthorityInstruction,
+  type ParsedWithdrawExcessLamportsInstruction,
   type ParsedWithdrawWithheldTokensFromAccountsInstruction,
   type ParsedWithdrawWithheldTokensFromMintInstruction,
 } from '../instructions';
@@ -121,6 +122,7 @@ export enum Token2022Instruction {
   CloseAccount,
   FreezeAccount,
   ThawAccount,
+  WithdrawExcessLamports,
   TransferChecked,
   ApproveChecked,
   MintToChecked,
@@ -216,6 +218,9 @@ export function identifyToken2022Instruction(
   }
   if (containsBytes(data, getU8Encoder().encode(11), 0)) {
     return Token2022Instruction.ThawAccount;
+  }
+  if (containsBytes(data, getU8Encoder().encode(27), 0)) {
+    return Token2022Instruction.WithdrawExcessLamports;
   }
   if (containsBytes(data, getU8Encoder().encode(12), 0)) {
     return Token2022Instruction.TransferChecked;
@@ -559,6 +564,9 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.ThawAccount;
     } & ParsedThawAccountInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.WithdrawExcessLamports;
+    } & ParsedWithdrawExcessLamportsInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.TransferChecked;
     } & ParsedTransferCheckedInstruction<TProgram>)
