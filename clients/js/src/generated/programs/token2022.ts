@@ -77,6 +77,7 @@ import {
   type ParsedUpdateTokenGroupUpdateAuthorityInstruction,
   type ParsedUpdateTokenMetadataFieldInstruction,
   type ParsedUpdateTokenMetadataUpdateAuthorityInstruction,
+  type ParsedWithdrawExcessLamportsInstruction,
   type ParsedWithdrawWithheldTokensFromAccountsInstruction,
   type ParsedWithdrawWithheldTokensFromMintInstruction,
 } from '../instructions';
@@ -160,6 +161,7 @@ export enum Token2022Instruction {
   Reallocate,
   EnableMemoTransfers,
   DisableMemoTransfers,
+  WithdrawExcessLamports,
   InitializeMetadataPointer,
   UpdateMetadataPointer,
   InitializeGroupPointer,
@@ -405,6 +407,9 @@ export function identifyToken2022Instruction(
     containsBytes(data, getU8Encoder().encode(1), 1)
   ) {
     return Token2022Instruction.DisableMemoTransfers;
+  }
+  if (containsBytes(data, getU8Encoder().encode(38), 0)) {
+    return Token2022Instruction.WithdrawExcessLamports;
   }
   if (
     containsBytes(data, getU8Encoder().encode(39), 0) &&
@@ -676,6 +681,9 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.DisableMemoTransfers;
     } & ParsedDisableMemoTransfersInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.WithdrawExcessLamports;
+    } & ParsedWithdrawExcessLamportsInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeMetadataPointer;
     } & ParsedInitializeMetadataPointerInstruction<TProgram>)

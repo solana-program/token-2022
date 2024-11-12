@@ -5344,7 +5344,88 @@
             "offset": 1
           }
         ]
-      },
+      },{
+        "kind": "instructionNode",
+        "name": "withdrawExcessLamports",
+        "docs": [
+          "Withdraw excess lamports from the program account.",
+          "",
+          "This instruction withdraws lamports that exceed the required balance",
+          "needed to operate the program."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "programAccount",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The program account from which lamports will be withdrawn."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "destinationAccount",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The account to which the excess lamports will be transferred."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": true,
+            "isOptional": false,
+            "docs": [
+              "The authority authorized to withdraw lamports from the program account."
+            ],
+            "defaultValue": {
+              "kind": "identityValueNode"
+            }
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 38
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },      
       {
         "kind": "instructionNode",
         "name": "initializeMetadataPointer",
