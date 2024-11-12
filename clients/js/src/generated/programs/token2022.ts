@@ -26,6 +26,7 @@ import {
   type ParsedConfidentialTransferWithFeeInstruction,
   type ParsedConfidentialWithdrawInstruction,
   type ParsedConfigureConfidentialTransferAccountInstruction,
+  type ParsedCreateNativeMintInstruction,
   type ParsedDisableConfidentialCreditsInstruction,
   type ParsedDisableMemoTransfersInstruction,
   type ParsedDisableNonConfidentialCreditsInstruction,
@@ -125,6 +126,7 @@ export enum Token2022Instruction {
   ApproveChecked,
   MintToChecked,
   BurnChecked,
+  CreateNativeMint,
   InitializeAccount2,
   SyncNative,
   InitializeAccount3,
@@ -228,6 +230,9 @@ export function identifyToken2022Instruction(
   }
   if (containsBytes(data, getU8Encoder().encode(15), 0)) {
     return Token2022Instruction.BurnChecked;
+  }
+  if (containsBytes(data, getU8Encoder().encode(27), 0)) {
+    return Token2022Instruction.CreateNativeMint;
   }
   if (containsBytes(data, getU8Encoder().encode(16), 0)) {
     return Token2022Instruction.InitializeAccount2;
@@ -571,6 +576,9 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.BurnChecked;
     } & ParsedBurnCheckedInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.CreateNativeMint;
+    } & ParsedCreateNativeMintInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeAccount2;
     } & ParsedInitializeAccount2Instruction<TProgram>)

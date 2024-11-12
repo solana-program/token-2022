@@ -21,6 +21,7 @@ export * from './confidentialWithdraw';
 export * from './configureConfidentialTransferAccount';
 export * from './createAssociatedToken';
 export * from './createAssociatedTokenIdempotent';
+export * from './createNativeMint';
 export * from './disableConfidentialCredits';
 export * from './disableMemoTransfers';
 export * from './disableNonConfidentialCredits';
