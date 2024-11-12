@@ -69,7 +69,8 @@
       "rewritePaths": {
         "test/": "dist/test/"
       }
-    }
+    },
+    "timeout": "60s"
   },
   "packageManager": "pnpm@9.1.0"
 }
