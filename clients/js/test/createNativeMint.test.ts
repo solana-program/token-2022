@@ -60,6 +60,6 @@ test('it fails to create native mint if it already exists', async (t) => {
 
   // Then we expect the operation to fail
   await t.throwsAsync(promise, {
-    message: /Account already exists/,
+    message: /custom program error: #0/,
   });
 });
