@@ -21,7 +21,7 @@ test('it creates a native mint account', async (t) => {
 
   // When we create a native mint account.
   await sendAndConfirmInstructions(client, payer, [
-       getCreateNativeMintInstruction({
+      getCreateNativeMintInstruction({
       payer: payer,
       nativeMint: NATIVE_MINT,
     })

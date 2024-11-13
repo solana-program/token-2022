@@ -7,6 +7,7 @@
  */
 
 import {
+  AccountRole,
   combineCodec,
   getStructDecoder,
   getStructEncoder,
@@ -30,7 +31,7 @@ import {
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const CREATE_NATIVE_MINT_DISCRIMINATOR = 27;
+export const CREATE_NATIVE_MINT_DISCRIMINATOR = 31;
 
 export function getCreateNativeMintDiscriminatorBytes() {
   return getU8Encoder().encode(CREATE_NATIVE_MINT_DISCRIMINATOR);
@@ -98,6 +99,7 @@ export type CreateNativeMintInput<
   nativeMint: Address<TAccountNativeMint>;
   /** System program for mint account funding */
   systemProgram?: Address<TAccountSystemProgram>;
+  multiSigners?: Array<TransactionSigner>;
 };
 
 export function getCreateNativeMintInstruction<
@@ -132,11 +134,23 @@ export function getCreateNativeMintInstruction<
     ResolvedAccount
   >;
 
+  // Original args.
+  const args = { ...input };
+
   // Resolve default values.
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
   }
+
+  // Remaining accounts.
+  const remainingAccounts: IAccountMeta[] = (args.multiSigners ?? []).map(
+    (signer) => ({
+      address: signer.address,
+      role: AccountRole.READONLY_SIGNER,
+      signer,
+    })
+  );
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   const instruction = {
@@ -144,6 +158,7 @@ export function getCreateNativeMintInstruction<
       getAccountMeta(accounts.payer),
       getAccountMeta(accounts.nativeMint),
       getAccountMeta(accounts.systemProgram),
+      ...remainingAccounts,
     ],
     programAddress,
     data: getCreateNativeMintInstructionDataEncoder().encode({}),

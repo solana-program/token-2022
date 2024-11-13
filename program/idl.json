@@ -463,78 +463,6 @@
       },
       {
         "kind": "instructionNode",
-        "name": "createNativeMint",
-        "docs": [
-          "Creates the native mint.",
-          "",
-          "This instruction only needs to be invoked once after deployment and is",
-          "permissionless. Wrapped SOL (`native_mint::id()`) will not be",
-          "available until this instruction is successfully executed."
-        ],
-        "optionalAccountStrategy": "programId",
-        "accounts": [
-          {
-            "kind": "instructionAccountNode",
-            "name": "payer",
-            "isWritable": true,
-            "isSigner": true,
-            "isOptional": false,
-            "docs": [
-              "Funding account (must be a system account)"
-            ]
-          },
-          {
-            "kind": "instructionAccountNode",
-            "name": "nativeMint",
-            "isWritable": true,
-            "isSigner": false,
-            "isOptional": false,
-            "docs": [
-              "The native mint address"
-            ]
-          },
-          {
-            "kind": "instructionAccountNode",
-            "name": "systemProgram",
-            "isWritable": false,
-            "isSigner": false,
-            "isOptional": false,
-            "docs": [
-              "System program for mint account funding"
-            ],
-            "defaultValue": {
-              "kind": "publicKeyValueNode",
-              "publicKey": "11111111111111111111111111111111"
-            }
-          }
-        ],
-        "arguments": [
-          {
-            "kind": "instructionArgumentNode",
-            "name": "discriminator",
-            "defaultValueStrategy": "omitted",
-            "docs": [],
-            "type": {
-              "kind": "numberTypeNode",
-              "format": "u8",
-              "endian": "le"
-            },
-            "defaultValue": {
-              "kind": "numberValueNode",
-              "number": 27
-            }
-          }
-        ],
-        "discriminators": [
-          {
-            "kind": "fieldDiscriminatorNode",
-            "name": "discriminator",
-            "offset": 0
-          }
-        ]
-      },
-      {
-        "kind": "instructionNode",
         "name": "initializeAccount",
         "docs": [
           "Initializes a new account to hold tokens. If this account is associated",
@@ -5414,6 +5342,84 @@
             "kind": "fieldDiscriminatorNode",
             "name": "memoTransfersDiscriminator",
             "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "createNativeMint",
+        "docs": [
+          "Creates the native mint.",
+          "",
+          "This instruction only needs to be invoked once after deployment and is",
+          "permissionless. Wrapped SOL (`native_mint::id()`) will not be",
+          "available until this instruction is successfully executed."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "payer",
+            "isWritable": true,
+            "isSigner": true,
+            "isOptional": false,
+            "docs": ["Funding account (must be a system account)"]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "nativeMint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The native mint address"]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "systemProgram",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["System program for mint account funding"],
+            "defaultValue": {
+              "kind": "publicKeyValueNode",
+              "publicKey": "11111111111111111111111111111111"
+            }
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 31
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
           }
         ]
       },

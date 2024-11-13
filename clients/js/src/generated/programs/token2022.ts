@@ -117,7 +117,6 @@ export function identifyToken2022Account(
 
 export enum Token2022Instruction {
   InitializeMint,
-  CreateNativeMint,
   InitializeAccount,
   InitializeMultisig,
   Transfer,
@@ -168,6 +167,7 @@ export enum Token2022Instruction {
   Reallocate,
   EnableMemoTransfers,
   DisableMemoTransfers,
+  CreateNativeMint,
   InitializeNonTransferableMint,
   EnableCpiGuard,
   DisableCpiGuard,
@@ -197,9 +197,6 @@ export function identifyToken2022Instruction(
   const data = 'data' in instruction ? instruction.data : instruction;
   if (containsBytes(data, getU8Encoder().encode(0), 0)) {
     return Token2022Instruction.InitializeMint;
-  }
-  if (containsBytes(data, getU8Encoder().encode(27), 0)) {
-    return Token2022Instruction.CreateNativeMint;
   }
   if (containsBytes(data, getU8Encoder().encode(1), 0)) {
     return Token2022Instruction.InitializeAccount;
@@ -423,6 +420,9 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.DisableMemoTransfers;
   }
+  if (containsBytes(data, getU8Encoder().encode(31), 0)) {
+    return Token2022Instruction.CreateNativeMint;
+  }
   if (containsBytes(data, getU8Encoder().encode(32), 0)) {
     return Token2022Instruction.InitializeNonTransferableMint;
   }
@@ -574,9 +574,6 @@ export type ParsedToken2022Instruction<
       instructionType: Token2022Instruction.InitializeMint;
     } & ParsedInitializeMintInstruction<TProgram>)
   | ({
-      instructionType: Token2022Instruction.CreateNativeMint;
-    } & ParsedCreateNativeMintInstruction<TProgram>)
-  | ({
       instructionType: Token2022Instruction.InitializeAccount;
     } & ParsedInitializeAccountInstruction<TProgram>)
   | ({
@@ -726,6 +723,9 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.DisableMemoTransfers;
     } & ParsedDisableMemoTransfersInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.CreateNativeMint;
+    } & ParsedCreateNativeMintInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeNonTransferableMint;
     } & ParsedInitializeNonTransferableMintInstruction<TProgram>)
