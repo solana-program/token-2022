@@ -45,7 +45,7 @@ test('it initializes a token account with a disabled CPI guard extension', async
     initTokenInstruction,
     getDisableCpiGuardInstruction({
       token: token.address,
-      owner
+      owner,
     }),
   ]);
 

@@ -43,9 +43,9 @@ test('it initializes a token account with an enabled CPI guard extension', async
   await sendAndConfirmInstructions(client, authority, [
     createTokenInstruction,
     initTokenInstruction,
-    getEnableCpiGuardInstruction({ 
-      token: token.address, 
-      owner 
+    getEnableCpiGuardInstruction({
+      token: token.address,
+      owner,
     }),
   ]);
 
