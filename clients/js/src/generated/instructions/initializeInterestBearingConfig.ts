@@ -8,10 +8,14 @@
 
 import {
   combineCodec,
+  getAddressDecoder,
+  getAddressEncoder,
+  getI16Decoder,
+  getI16Encoder,
+  getOptionDecoder,
+  getOptionEncoder,
   getStructDecoder,
   getStructEncoder,
-  getU16Decoder,
-  getU16Encoder,
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
@@ -23,13 +27,14 @@ import {
   type IInstruction,
   type IInstructionWithAccounts,
   type IInstructionWithData,
-  type ReadonlyAccount,
+  type Option,
+  type OptionOrNullable,
   type WritableAccount,
 } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const INITIALIZE_INTEREST_BEARING_CONFIG_DISCRIMINATOR = 27;
+export const INITIALIZE_INTEREST_BEARING_CONFIG_DISCRIMINATOR = 33;
 
 export function getInitializeInterestBearingConfigDiscriminatorBytes() {
   return getU8Encoder().encode(
@@ -37,10 +42,17 @@ export function getInitializeInterestBearingConfigDiscriminatorBytes() {
   );
 }
 
+export const INITIALIZE_INTEREST_BEARING_CONFIG_INTEREST_BEARING_CONFIG_DISCRIMINATOR = 0;
+
+export function getInitializeInterestBearingConfigInterestBearingConfigDiscriminatorBytes() {
+  return getU8Encoder().encode(
+    INITIALIZE_INTEREST_BEARING_CONFIG_INTEREST_BEARING_CONFIG_DISCRIMINATOR
+  );
+}
+
 export type InitializeInterestBearingConfigInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountMint extends string | IAccountMeta<string> = string,
-  TAccountConfigAuthority extends string | IAccountMeta<string> = string,
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
@@ -49,21 +61,23 @@ export type InitializeInterestBearingConfigInstruction<
       TAccountMint extends string
         ? WritableAccount<TAccountMint>
         : TAccountMint,
-      TAccountConfigAuthority extends string
-        ? ReadonlyAccount<TAccountConfigAuthority>
-        : TAccountConfigAuthority,
       ...TRemainingAccounts,
     ]
   >;
 
 export type InitializeInterestBearingConfigInstructionData = {
   discriminator: number;
-  /** Interest rate in basis points (1/100th of a percent). */
+  interestBearingConfigDiscriminator: number;
+  /** The public key for the account that can update the rate */
+  rateAuthority: Option<Address>;
+  /** Interest rate in basis points. */
   interestRateBasisPoints: number;
 };
 
 export type InitializeInterestBearingConfigInstructionDataArgs = {
-  /** Interest rate in basis points (1/100th of a percent). */
+  /** The public key for the account that can update the rate */
+  rateAuthority: OptionOrNullable<Address>;
+  /** Interest rate in basis points. */
   interestRateBasisPoints: number;
 };
 
@@ -71,11 +85,21 @@ export function getInitializeInterestBearingConfigInstructionDataEncoder(): Enco
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
-      ['interestRateBasisPoints', getU16Encoder()],
+      ['interestBearingConfigDiscriminator', getU8Encoder()],
+      [
+        'rateAuthority',
+        getOptionEncoder(getAddressEncoder(), {
+          prefix: null,
+          noneValue: 'zeroes',
+        }),
+      ],
+      ['interestRateBasisPoints', getI16Encoder()],
     ]),
     (value) => ({
       ...value,
       discriminator: INITIALIZE_INTEREST_BEARING_CONFIG_DISCRIMINATOR,
+      interestBearingConfigDiscriminator:
+        INITIALIZE_INTEREST_BEARING_CONFIG_INTEREST_BEARING_CONFIG_DISCRIMINATOR,
     })
   );
 }
@@ -83,7 +107,15 @@ export function getInitializeInterestBearingConfigInstructionDataEncoder(): Enco
 export function getInitializeInterestBearingConfigInstructionDataDecoder(): Decoder<InitializeInterestBearingConfigInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
-    ['interestRateBasisPoints', getU16Decoder()],
+    ['interestBearingConfigDiscriminator', getU8Decoder()],
+    [
+      'rateAuthority',
+      getOptionDecoder(getAddressDecoder(), {
+        prefix: null,
+        noneValue: 'zeroes',
+      }),
+    ],
+    ['interestRateBasisPoints', getI16Decoder()],
   ]);
 }
 
@@ -99,40 +131,26 @@ export function getInitializeInterestBearingConfigInstructionDataCodec(): Codec<
 
 export type InitializeInterestBearingConfigInput<
   TAccountMint extends string = string,
-  TAccountConfigAuthority extends string = string,
 > = {
   /** The token mint to configure as interest-bearing. */
   mint: Address<TAccountMint>;
-  /** The authority that can modify the interest-bearing parameters. */
-  configAuthority: Address<TAccountConfigAuthority>;
+  rateAuthority: InitializeInterestBearingConfigInstructionDataArgs['rateAuthority'];
   interestRateBasisPoints: InitializeInterestBearingConfigInstructionDataArgs['interestRateBasisPoints'];
 };
 
 export function getInitializeInterestBearingConfigInstruction<
   TAccountMint extends string,
-  TAccountConfigAuthority extends string,
   TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: InitializeInterestBearingConfigInput<
-    TAccountMint,
-    TAccountConfigAuthority
-  >,
+  input: InitializeInterestBearingConfigInput<TAccountMint>,
   config?: { programAddress?: TProgramAddress }
-): InitializeInterestBearingConfigInstruction<
-  TProgramAddress,
-  TAccountMint,
-  TAccountConfigAuthority
-> {
+): InitializeInterestBearingConfigInstruction<TProgramAddress, TAccountMint> {
   // Program address.
   const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
   // Original accounts.
   const originalAccounts = {
     mint: { value: input.mint ?? null, isWritable: true },
-    configAuthority: {
-      value: input.configAuthority ?? null,
-      isWritable: false,
-    },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -144,18 +162,14 @@ export function getInitializeInterestBearingConfigInstruction<
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   const instruction = {
-    accounts: [
-      getAccountMeta(accounts.mint),
-      getAccountMeta(accounts.configAuthority),
-    ],
+    accounts: [getAccountMeta(accounts.mint)],
     programAddress,
     data: getInitializeInterestBearingConfigInstructionDataEncoder().encode(
       args as InitializeInterestBearingConfigInstructionDataArgs
     ),
   } as InitializeInterestBearingConfigInstruction<
     TProgramAddress,
-    TAccountMint,
-    TAccountConfigAuthority
+    TAccountMint
   >;
 
   return instruction;
@@ -169,8 +183,6 @@ export type ParsedInitializeInterestBearingConfigInstruction<
   accounts: {
     /** The token mint to configure as interest-bearing. */
     mint: TAccountMetas[0];
-    /** The authority that can modify the interest-bearing parameters. */
-    configAuthority: TAccountMetas[1];
   };
   data: InitializeInterestBearingConfigInstructionData;
 };
@@ -183,7 +195,7 @@ export function parseInitializeInterestBearingConfigInstruction<
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
 ): ParsedInitializeInterestBearingConfigInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
+  if (instruction.accounts.length < 1) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -197,7 +209,6 @@ export function parseInitializeInterestBearingConfigInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       mint: getNextAccount(),
-      configAuthority: getNextAccount(),
     },
     data: getInitializeInterestBearingConfigInstructionDataDecoder().decode(
       instruction.data

@@ -85,8 +85,8 @@ export function getPreInitializeInstructionsForMintExtensions(
         return [
           getInitializeInterestBearingConfigInstruction({
             mint,
-            configAuthority: extension.rateAuthority,
-            interestRateBasisPoints: extension.currentRate,
+            rateAuthority: extension.rateAuthority,
+            interestRateBasisPoints:extension.currentRate
           })
         ]
       default:

@@ -1,52 +1,63 @@
-import { Account, address, generateKeyPairSigner, some } from '@solana/web3.js';
+import { Account, generateKeyPairSigner, some } from '@solana/web3.js';
 import test from 'ava';
 import {
-  getInitializeInterestBearingMintInstruction,
   fetchMint,
   extension,
   Mint,
-} from '../../../src'; // Assuming these functions are defined in your code
+  getInitializeInterestBearingConfigInstruction,
+} from '../../../src';
 import {
   createDefaultSolanaClient,
-  createMint,
   generateKeyPairSignerWithSol,
+  getCreateMintInstructions,
   sendAndConfirmInstructions,
-} from '../../_setup'; // Assuming these are already defined in your setup
+} from '../../_setup';
 
-test('initialize interest-bearing mint', async (t) => {
-  // Given a client and signer accounts
-  const client = createDefaultSolanaClient();
-  const [authority] = await Promise.all([
-    generateKeyPairSignerWithSol(client),
+test('initializes interest-bearing mint with specified configuration', async (t) => {
+  // Set up Solana client and signer accounts
+  const solClient = createDefaultSolanaClient();
+  const [mintAuthority, mintAccount] = await Promise.all([
+    generateKeyPairSignerWithSol(solClient),
+    generateKeyPairSigner(),
   ]);
 
-  // And the rate authority (the account that can update the rate)
-  const initialRate = 1; // Example initial rate
-  const rateAuthority = address(
-    '3bZ6bS8xjy9c5pVZ8dGFLxKtDpVzj2rVHTg8Zh1s8MgF'
-  );
-  const interestDelegateExtension = extension('InterestBearingConfig', {
-    rateAuthority: rateAuthority,
-    currentRate: initialRate
+  // Define initial interest rate and configure interest-bearing extension
+  const baseInterestRate = 10000;
+  const interestConfigExtension = extension('InterestBearingConfig', {
+    rateAuthority: mintAuthority.address,
+    initializationTimestamp: BigInt(Math.floor(Date.now() / 1000)),
+    lastUpdateTimestamp: BigInt(Math.floor(Date.now() / 1000)),
+    preUpdateAverageRate: baseInterestRate,
+    currentRate: baseInterestRate,
   });
 
-  // When we create a mint with this extension
-  const mintAddress = await createMint({
-    authority,
-    client,
-    extensions: [interestDelegateExtension],
-    payer: authority,
+  // Prepare instructions for creating and initializing the mint account
+  const [createMintInstr, initMintInstr] = await getCreateMintInstructions({
+    authority: mintAuthority.address,
+    client: solClient,
+    extensions: [interestConfigExtension],
+    mint: mintAccount,
+    payer: mintAuthority,
   });
 
+  await sendAndConfirmInstructions(solClient, mintAuthority, [
+    createMintInstr,
+    getInitializeInterestBearingConfigInstruction({
+      rateAuthority: mintAuthority.address,
+      mint: mintAccount.address,
+      interestRateBasisPoints: baseInterestRate,
+    }),
+    initMintInstr,
+  ]);
 
-  // Then we expect the mint account to exist with the permanent delegate
-  const mintAccount = await fetchMint(client.rpc, mintAddress);
-  t.like(mintAccount, <Account<Mint>>{
-    address: mintAddress,
+  // Verify the mint account configuration, including interest-bearing extension
+  const fetchedMintAccount = await fetchMint(solClient.rpc, mintAccount.address);
+  t.like(fetchedMintAccount, <Account<Mint>>{
+    address: mintAccount.address,
     data: {
-      mintAuthority: some(authority.address),
+      mintAuthority: some(mintAuthority.address),
       isInitialized: true,
-      extensions: some([interestDelegateExtension]),
+      extensions: some([interestConfigExtension]),
     },
   });
 });

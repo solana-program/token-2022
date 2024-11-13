@@ -230,7 +230,10 @@ export function identifyToken2022Instruction(
   if (containsBytes(data, getU8Encoder().encode(14), 0)) {
     return Token2022Instruction.MintToChecked;
   }
-  if (containsBytes(data, getU8Encoder().encode(27), 0)) {
+  if (
+    containsBytes(data, getU8Encoder().encode(33), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
     return Token2022Instruction.InitializeInterestBearingConfig;
   }
   if (

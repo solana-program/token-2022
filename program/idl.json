@@ -1654,14 +1654,6 @@
             "isSigner": false,
             "isOptional": false,
             "docs": ["The token mint to configure as interest-bearing."]
-          },
-          {
-            "kind": "instructionAccountNode",
-            "name": "configAuthority",
-            "isWritable": false,
-            "isSigner": false,
-            "isOptional": false,
-            "docs": ["The authority that can modify the interest-bearing parameters."]
           }
         ],
         "arguments": [
@@ -1677,16 +1669,42 @@
             },
             "defaultValue": {
               "kind": "numberValueNode",
-              "number": 27
+              "number": 33
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "interestBearingConfigDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 0
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "rateAuthority",
+            "docs": ["The public key for the account that can update the rate"],
+            "type": {
+              "kind": "zeroableOptionTypeNode",
+              "item": {
+                "kind": "publicKeyTypeNode"
+              }
             }
           },
           {
             "kind": "instructionArgumentNode",
             "name": "interestRateBasisPoints",
-            "docs": ["Interest rate in basis points (1/100th of a percent)."],
+            "docs": ["Interest rate in basis points."],
             "type": {
               "kind": "numberTypeNode",
-              "format": "u16",
+              "format": "i16",
               "endian": "le"
             }
           }
@@ -1696,6 +1714,11 @@
             "kind": "fieldDiscriminatorNode",
             "name": "discriminator",
             "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "interestBearingConfigDiscriminator",
+            "offset": 1
           }
         ]
       },      
