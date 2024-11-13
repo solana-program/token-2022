@@ -5391,6 +5391,189 @@
       },
       {
         "kind": "instructionNode",
+        "name": "initializeInterestBearingMint",
+        "docs": [
+          "Initialize a new mint with the `InterestBearing` extension.",
+          "",
+          "Fails if the mint has already been initialized, so must be called before",
+          "`InitializeMint`.",
+          "",
+          "The mint must have exactly enough space allocated for the base mint (82",
+          "bytes), plus 83 bytes of padding, 1 byte reserved for the account type,",
+          "then space required for this extension, plus any others."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint to initialize."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 33
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "interestBearingMintDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 0
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "rateAuthority",
+            "docs": ["The public key for the account that can update the rate"],
+            "type": {
+              "kind": "zeroableOptionTypeNode",
+              "item": {
+                "kind": "publicKeyTypeNode"
+              }
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "rate",
+            "docs": ["The initial interest rate"],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i16",
+              "endian": "le"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "interestBearingMintDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "updateRateInterestBearingMint",
+        "docs": [
+          "Update the interest rate. Only supported for mints that include the",
+          "`InterestBearingConfig` extension."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "rateAuthority",
+            "isWritable": true,
+            "isSigner": true,
+            "isOptional": false,
+            "docs": ["The mint rate authority."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 33
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "interestBearingMintDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 1
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "rate",
+            "docs": ["The interest rate to update."],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i16",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "interestBearingMintDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
         "name": "enableCpiGuard",
         "docs": [
           "Lock certain token operations from taking place within CPI for this Account, namely:",
@@ -5622,7 +5805,9 @@
           {
             "kind": "instructionArgumentNode",
             "name": "authority",
-            "docs": ["The public key for the account that can update the program id"],
+            "docs": [
+              "The public key for the account that can update the program id"
+            ],
             "type": {
               "kind": "zeroableOptionTypeNode",
               "item": {
@@ -5678,7 +5863,7 @@
             "docs": ["The mint."]
           },
           {
-            "kind": "instructionAccountNode", 
+            "kind": "instructionAccountNode",
             "name": "authority",
             "isWritable": false,
             "isSigner": "either",
@@ -5749,7 +5934,7 @@
           },
           {
             "kind": "fieldDiscriminatorNode",
-            "name": "transferHookDiscriminator", 
+            "name": "transferHookDiscriminator",
             "offset": 1
           }
         ]
