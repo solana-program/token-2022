@@ -5347,6 +5347,50 @@
       },
       {
         "kind": "instructionNode",
+        "name": "initializeNonTransferableMint",
+        "docs": [
+          "Initialize the non transferable extension for the given mint account",
+          "",
+          "Fails if the account has already been initialized, so must be called before `InitializeMint`."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint account to initialize."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 32
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
         "name": "enableCpiGuard",
         "docs": [
           "Lock certain token operations from taking place within CPI for this Account, namely:",

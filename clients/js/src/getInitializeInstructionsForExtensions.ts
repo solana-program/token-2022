@@ -20,6 +20,7 @@ import {
   getInitializeTokenGroupInstruction,
   getInitializeTokenMetadataInstruction,
   getInitializeTransferFeeConfigInstruction,
+  getInitializeNonTransferableMintInstruction,
   getInitializeTransferHookInstruction,
 } from './generated';
 
@@ -83,6 +84,8 @@ export function getPreInitializeInstructionsForMintExtensions(
             memberAddress: extension.memberAddress,
           }),
         ];
+      case 'NonTransferable':
+        return getInitializeNonTransferableMintInstruction({ mint });
       case 'TransferHook':
         return [
           getInitializeTransferHookInstruction({
