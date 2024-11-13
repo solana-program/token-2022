@@ -20,7 +20,11 @@ import {
   getInitializeTokenGroupInstruction,
   getInitializeTokenMetadataInstruction,
   getInitializeTransferFeeConfigInstruction,
+<<<<<<< HEAD
   getInitializeNonTransferableMintInstruction,
+=======
+  getInitializeConfidentialTransferFeeConfigInstruction,
+>>>>>>> main
 } from './generated';
 
 /**
@@ -83,8 +87,14 @@ export function getPreInitializeInstructionsForMintExtensions(
             memberAddress: extension.memberAddress,
           }),
         ];
-      case 'NonTransferable':
-        return getInitializeNonTransferableMintInstruction({ mint });
+      case 'ConfidentialTransferFee':
+        return [
+          getInitializeConfidentialTransferFeeConfigInstruction({
+            mint,
+            authority: extension.authority,
+            withdrawWithheldAuthorityElgamalPubkey: extension.elgamalPubkey,
+          }),
+        ];
       default:
         return [];
     }

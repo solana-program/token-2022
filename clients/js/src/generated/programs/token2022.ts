@@ -42,6 +42,7 @@ import {
   type ParsedInitializeAccount2Instruction,
   type ParsedInitializeAccount3Instruction,
   type ParsedInitializeAccountInstruction,
+  type ParsedInitializeConfidentialTransferFeeConfigInstruction,
   type ParsedInitializeConfidentialTransferMintInstruction,
   type ParsedInitializeDefaultAccountStateInstruction,
   type ParsedInitializeGroupMemberPointerInstruction,
@@ -139,6 +140,7 @@ export enum Token2022Instruction {
   UiAmountToAmount,
   InitializeMintCloseAuthority,
   InitializeTransferFeeConfig,
+  InitializeConfidentialTransferFeeConfig,
   TransferCheckedWithFee,
   WithdrawWithheldTokensFromMint,
   WithdrawWithheldTokensFromAccounts,
@@ -270,6 +272,9 @@ export function identifyToken2022Instruction(
     containsBytes(data, getU8Encoder().encode(0), 1)
   ) {
     return Token2022Instruction.InitializeTransferFeeConfig;
+  }
+  if (containsBytes(data, getU8Encoder().encode(2), 0)) {
+    return Token2022Instruction.InitializeConfidentialTransferFeeConfig;
   }
   if (
     containsBytes(data, getU8Encoder().encode(26), 0) &&
@@ -625,6 +630,9 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.InitializeTransferFeeConfig;
     } & ParsedInitializeTransferFeeConfigInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeConfidentialTransferFeeConfig;
+    } & ParsedInitializeConfidentialTransferFeeConfigInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.TransferCheckedWithFee;
     } & ParsedTransferCheckedWithFeeInstruction<TProgram>)
