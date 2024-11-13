@@ -125,7 +125,6 @@ export enum Token2022Instruction {
   CloseAccount,
   FreezeAccount,
   ThawAccount,
-  WithdrawExcessLamports,
   TransferChecked,
   ApproveChecked,
   MintToChecked,
@@ -168,6 +167,7 @@ export enum Token2022Instruction {
   InitializeNonTransferableMint,
   EnableCpiGuard,
   DisableCpiGuard,
+  WithdrawExcessLamports,
   InitializeMetadataPointer,
   UpdateMetadataPointer,
   InitializeGroupPointer,
@@ -224,9 +224,6 @@ export function identifyToken2022Instruction(
   }
   if (containsBytes(data, getU8Encoder().encode(11), 0)) {
     return Token2022Instruction.ThawAccount;
-  }
-  if (containsBytes(data, getU8Encoder().encode(38), 0)) {
-    return Token2022Instruction.WithdrawExcessLamports;
   }
   if (containsBytes(data, getU8Encoder().encode(12), 0)) {
     return Token2022Instruction.TransferChecked;
@@ -432,6 +429,9 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.DisableCpiGuard;
   }
+  if (containsBytes(data, getU8Encoder().encode(38), 0)) {
+    return Token2022Instruction.WithdrawExcessLamports;
+  }
   if (
     containsBytes(data, getU8Encoder().encode(39), 0) &&
     containsBytes(data, getU8Encoder().encode(0), 1)
@@ -586,9 +586,6 @@ export type ParsedToken2022Instruction<
       instructionType: Token2022Instruction.ThawAccount;
     } & ParsedThawAccountInstruction<TProgram>)
   | ({
-      instructionType: Token2022Instruction.WithdrawExcessLamports;
-    } & ParsedWithdrawExcessLamportsInstruction<TProgram>)
-  | ({
       instructionType: Token2022Instruction.TransferChecked;
     } & ParsedTransferCheckedInstruction<TProgram>)
   | ({
@@ -714,6 +711,9 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.DisableCpiGuard;
     } & ParsedDisableCpiGuardInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.WithdrawExcessLamports;
+    } & ParsedWithdrawExcessLamportsInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeMetadataPointer;
     } & ParsedInitializeMetadataPointerInstruction<TProgram>)

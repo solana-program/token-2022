@@ -5591,7 +5591,7 @@
             "kind": "instructionAccountNode",
             "name": "authority",
             "isWritable": false,
-            "isSigner": true,
+            "isSigner": "either",
             "isOptional": false,
             "docs": [
               "The source account's owner/delegate or its multisignature account."

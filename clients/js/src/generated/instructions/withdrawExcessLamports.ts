@@ -23,6 +23,7 @@ import {
   type IInstruction,
   type IInstructionWithAccounts,
   type IInstructionWithData,
+  type ReadonlyAccount,
   type ReadonlySignerAccount,
   type TransactionSigner,
   type WritableAccount,
@@ -53,8 +54,7 @@ export type WithdrawExcessLamportsInstruction<
         ? WritableAccount<TAccountDestinationAccount>
         : TAccountDestinationAccount,
       TAccountAuthority extends string
-        ? ReadonlySignerAccount<TAccountAuthority> &
-            IAccountSignerMeta<TAccountAuthority>
+        ? ReadonlyAccount<TAccountAuthority>
         : TAccountAuthority,
       ...TRemainingAccounts,
     ]
@@ -98,7 +98,7 @@ export type WithdrawExcessLamportsInput<
   /** Destination account for withdrawn lamports. */
   destinationAccount: Address<TAccountDestinationAccount>;
   /** The source account's owner/delegate or its multisignature account. */
-  authority: TransactionSigner<TAccountAuthority>;
+  authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
   multiSigners?: Array<TransactionSigner>;
 };
 
@@ -118,7 +118,10 @@ export function getWithdrawExcessLamportsInstruction<
   TProgramAddress,
   TAccountSourceAccount,
   TAccountDestinationAccount,
-  TAccountAuthority
+  (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
+    ? ReadonlySignerAccount<TAccountAuthority> &
+        IAccountSignerMeta<TAccountAuthority>
+    : TAccountAuthority
 > {
   // Program address.
   const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
@@ -163,7 +166,10 @@ export function getWithdrawExcessLamportsInstruction<
     TProgramAddress,
     TAccountSourceAccount,
     TAccountDestinationAccount,
-    TAccountAuthority
+    (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
+      ? ReadonlySignerAccount<TAccountAuthority> &
+          IAccountSignerMeta<TAccountAuthority>
+      : TAccountAuthority
   >;
 
   return instruction;
