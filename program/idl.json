@@ -1926,6 +1926,20 @@
               "kind": "publicKeyValueNode",
               "publicKey": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
             }
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "systemProgram",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "System program for reallocation funding."
+            ],
+            "defaultValue": {
+              "kind": "publicKeyValueNode",
+              "publicKey": "11111111111111111111111111111111"
+            }
           }
         ],
         "arguments": [
@@ -1941,7 +1955,7 @@
             },
             "defaultValue": {
               "kind": "numberValueNode",
-              "number": 27
+              "number": 31
             }
           }
         ],

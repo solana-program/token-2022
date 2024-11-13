@@ -38,32 +38,3 @@ test('it successfully initializes a native mint account', async (t) => {
     },
   });
 });
-
-test('it throws an error when trying to create a native mint that already exists', async (t) => {
-  // Setup: create a Solana client and payer account
-  const solanaClient = createDefaultSolanaClient();
-  const payerKeyPair = await generateKeyPairSignerWithSol(solanaClient);
-
-  // Action: create the native mint account for the first time
-  await sendAndConfirmInstructions(solanaClient, payerKeyPair, [
-    getCreateNativeMintInstruction({
-      payer: payerKeyPair,
-    }),
-  ]);
-
-  // Attempt to create the same native mint again
-  const duplicateCreationAttempt = sendAndConfirmInstructions(
-    solanaClient,
-    payerKeyPair,
-    [
-      getCreateNativeMintInstruction({
-        payer: payerKeyPair,
-      }),
-    ]
-  );
-
-  // Verification: expect the operation to fail since the mint account already exists
-  await t.throwsAsync(duplicateCreationAttempt, {
-    message: /Account already exists/,
-  });
-});

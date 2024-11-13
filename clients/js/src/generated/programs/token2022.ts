@@ -231,7 +231,7 @@ export function identifyToken2022Instruction(
   if (containsBytes(data, getU8Encoder().encode(15), 0)) {
     return Token2022Instruction.BurnChecked;
   }
-  if (containsBytes(data, getU8Encoder().encode(27), 0)) {
+  if (containsBytes(data, getU8Encoder().encode(31), 0)) {
     return Token2022Instruction.CreateNativeMint;
   }
   if (containsBytes(data, getU8Encoder().encode(16), 0)) {

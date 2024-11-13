@@ -30,7 +30,7 @@ import {
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const CREATE_NATIVE_MINT_DISCRIMINATOR = 27;
+export const CREATE_NATIVE_MINT_DISCRIMINATOR = 31;
 
 export function getCreateNativeMintDiscriminatorBytes() {
   return getU8Encoder().encode(CREATE_NATIVE_MINT_DISCRIMINATOR);
@@ -45,6 +45,9 @@ export type CreateNativeMintInstruction<
   TAccountTokenProgram extends
     | string
     | IAccountMeta<string> = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
+  TAccountSystemProgram extends
+    | string
+    | IAccountMeta<string> = '11111111111111111111111111111111',
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
@@ -60,6 +63,9 @@ export type CreateNativeMintInstruction<
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
+      TAccountSystemProgram extends string
+        ? ReadonlyAccount<TAccountSystemProgram>
+        : TAccountSystemProgram,
       ...TRemainingAccounts,
     ]
   >;
@@ -93,6 +99,7 @@ export type CreateNativeMintInput<
   TAccountPayer extends string = string,
   TAccountNativeMint extends string = string,
   TAccountTokenProgram extends string = string,
+  TAccountSystemProgram extends string = string,
 > = {
   /** Funding account */
   payer: TransactionSigner<TAccountPayer>;
@@ -100,25 +107,30 @@ export type CreateNativeMintInput<
   nativeMint?: Address<TAccountNativeMint>;
   /** SPL Token program */
   tokenProgram?: Address<TAccountTokenProgram>;
+  /** System program for reallocation funding. */
+  systemProgram?: Address<TAccountSystemProgram>;
 };
 
 export function getCreateNativeMintInstruction<
   TAccountPayer extends string,
   TAccountNativeMint extends string,
   TAccountTokenProgram extends string,
+  TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
   input: CreateNativeMintInput<
     TAccountPayer,
     TAccountNativeMint,
-    TAccountTokenProgram
+    TAccountTokenProgram,
+    TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress }
 ): CreateNativeMintInstruction<
   TProgramAddress,
   TAccountPayer,
   TAccountNativeMint,
-  TAccountTokenProgram
+  TAccountTokenProgram,
+  TAccountSystemProgram
 > {
   // Program address.
   const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
@@ -128,6 +140,7 @@ export function getCreateNativeMintInstruction<
     payer: { value: input.payer ?? null, isWritable: true },
     nativeMint: { value: input.nativeMint ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -143,6 +156,10 @@ export function getCreateNativeMintInstruction<
     accounts.tokenProgram.value =
       'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb' as Address<'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'>;
   }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   const instruction = {
@@ -150,6 +167,7 @@ export function getCreateNativeMintInstruction<
       getAccountMeta(accounts.payer),
       getAccountMeta(accounts.nativeMint),
       getAccountMeta(accounts.tokenProgram),
+      getAccountMeta(accounts.systemProgram),
     ],
     programAddress,
     data: getCreateNativeMintInstructionDataEncoder().encode({}),
@@ -157,7 +175,8 @@ export function getCreateNativeMintInstruction<
     TProgramAddress,
     TAccountPayer,
     TAccountNativeMint,
-    TAccountTokenProgram
+    TAccountTokenProgram,
+    TAccountSystemProgram
   >;
 
   return instruction;
@@ -175,6 +194,8 @@ export type ParsedCreateNativeMintInstruction<
     nativeMint: TAccountMetas[1];
     /** SPL Token program */
     tokenProgram: TAccountMetas[2];
+    /** System program for reallocation funding. */
+    systemProgram: TAccountMetas[3];
   };
   data: CreateNativeMintInstructionData;
 };
@@ -187,7 +208,7 @@ export function parseCreateNativeMintInstruction<
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
 ): ParsedCreateNativeMintInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
+  if (instruction.accounts.length < 4) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -203,6 +224,7 @@ export function parseCreateNativeMintInstruction<
       payer: getNextAccount(),
       nativeMint: getNextAccount(),
       tokenProgram: getNextAccount(),
+      systemProgram: getNextAccount(),
     },
     data: getCreateNativeMintInstructionDataDecoder().decode(instruction.data),
   };
