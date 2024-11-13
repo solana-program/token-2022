@@ -54,6 +54,7 @@ import {
   type ParsedInitializeMultisig2Instruction,
   type ParsedInitializeMultisigInstruction,
   type ParsedInitializeNonTransferableMintInstruction,
+  type ParsedInitializePermanentDelegateInstruction,
   type ParsedInitializeTokenGroupInstruction,
   type ParsedInitializeTokenGroupMemberInstruction,
   type ParsedInitializeTokenMetadataInstruction,
@@ -113,6 +114,7 @@ export function identifyToken2022Account(
 
 export enum Token2022Instruction {
   InitializeMint,
+  InitializePermanentDelegate,
   InitializeAccount,
   InitializeMultisig,
   Transfer,
@@ -189,6 +191,12 @@ export function identifyToken2022Instruction(
   const data = 'data' in instruction ? instruction.data : instruction;
   if (containsBytes(data, getU8Encoder().encode(0), 0)) {
     return Token2022Instruction.InitializeMint;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(170), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.InitializePermanentDelegate;
   }
   if (containsBytes(data, getU8Encoder().encode(1), 0)) {
     return Token2022Instruction.InitializeAccount;
@@ -547,6 +555,9 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.InitializeMint;
     } & ParsedInitializeMintInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializePermanentDelegate;
+    } & ParsedInitializePermanentDelegateInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeAccount;
     } & ParsedInitializeAccountInstruction<TProgram>)
