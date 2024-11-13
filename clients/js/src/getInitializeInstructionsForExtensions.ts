@@ -21,6 +21,7 @@ import {
   getInitializeTokenMetadataInstruction,
   getInitializeTransferFeeConfigInstruction,
   getInitializeNonTransferableMintInstruction,
+  getInitializePermanentDelegateInstruction,
 } from './generated';
 
 /**
@@ -85,6 +86,11 @@ export function getPreInitializeInstructionsForMintExtensions(
         ];
       case 'NonTransferable':
         return getInitializeNonTransferableMintInstruction({ mint });
+      case 'PermanentDelegate':
+        return getInitializePermanentDelegateInstruction({
+          mint,
+          delegate: extension.delegate,
+        });
       default:
         return [];
     }
