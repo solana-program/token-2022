@@ -1,62 +1,35 @@
-import { Account, address, generateKeyPairSigner, some } from '@solana/web3.js';
+import { Account, address, some } from '@solana/web3.js';
 import test from 'ava';
-import {
-  Mint,
-  extension,
-  fetchMint,
-  getInitializeTransferHookInstruction,
-} from '../../../src';
+import { Mint, extension, fetchMint } from '../../../src';
 import {
   createDefaultSolanaClient,
   generateKeyPairSignerWithSol,
-  getCreateMintInstructions,
-  sendAndConfirmInstructions,
+  createMint,
 } from '../../_setup';
 
 test('it initializes a mint with transfer hook extension', async (t) => {
-  // Given some signer accounts
+  // Given some signer accounts and client
   const client = createDefaultSolanaClient();
-  const [authority, mint] = await Promise.all([
-    generateKeyPairSignerWithSol(client),
-    generateKeyPairSigner(),
-  ]);
+  const authority = await generateKeyPairSignerWithSol(client);
 
   // And a transfer hook extension
-  const transferHookAuthority = address(
-    '6sPR6MzvjMMP5LSZzEtTe4ZBVX9rhBmtM1dmfFtkNTbW'
-  );
-  const transferHookProgramId = address(
-    'BTNEPmmWuj7Sg4Fo5i1FC5eiV2Aj4jiv9boarvE5XeaX'
-  );
   const transferHookExtension = extension('TransferHook', {
-    authority: transferHookAuthority,
-    programId: transferHookProgramId,
+    authority: address('6sPR6MzvjMMP5LSZzEtTe4ZBVX9rhBmtM1dmfFtkNTbW'),
+    programId: address('BTNEPmmWuj7Sg4Fo5i1FC5eiV2Aj4jiv9boarvE5XeaX'),
   });
 
-  // When we create and initialize a mint account with this extension
-  const [createMintInstruction, initMintInstruction] =
-    await getCreateMintInstructions({
-      authority: authority.address,
-      client,
-      extensions: [transferHookExtension],
-      mint,
-      payer: authority,
-    });
-
-  await sendAndConfirmInstructions(client, authority, [
-    createMintInstruction,
-    getInitializeTransferHookInstruction({
-      mint: mint.address,
-      authority: some(transferHookAuthority),
-      programId: some(transferHookProgramId),
-    }),
-    initMintInstruction,
-  ]);
+  // When we create a mint with the transfer hook extension
+  const mintAddress = await createMint({
+    authority,
+    client,
+    extensions: [transferHookExtension],
+    payer: authority,
+  });
 
   // Then we expect the mint account to exist with the transfer hook extension
-  const mintAccount = await fetchMint(client.rpc, mint.address);
+  const mintAccount = await fetchMint(client.rpc, mintAddress);
   t.like(mintAccount, <Account<Mint>>{
-    address: mint.address,
+    address: mintAddress,
     data: {
       mintAuthority: some(authority.address),
       isInitialized: true,
