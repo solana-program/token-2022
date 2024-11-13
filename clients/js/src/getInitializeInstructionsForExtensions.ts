@@ -14,6 +14,7 @@ import {
   getInitializeDefaultAccountStateInstruction,
   getInitializeGroupMemberPointerInstruction,
   getInitializeGroupPointerInstruction,
+  getInitializeInterestBearingMintInstruction,
   getInitializeMetadataPointerInstruction,
   getInitializeTokenGroupInstruction,
   getInitializeTokenMetadataInstruction,
@@ -62,6 +63,14 @@ export function getPreInitializeInstructionsForMintExtensions(
             mint,
             authority: extension.authority,
             metadataAddress: extension.metadataAddress,
+          }),
+        ];
+      case 'InterestBearingConfig':
+        return [
+          getInitializeInterestBearingMintInstruction({
+            mint,
+            rateAuthority: extension.rateAuthority,
+            rate: extension.currentRate,
           }),
         ];
       case 'GroupPointer':
