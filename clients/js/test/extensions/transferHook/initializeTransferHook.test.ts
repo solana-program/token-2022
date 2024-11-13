@@ -4,7 +4,7 @@ import {
   Mint,
   extension,
   fetchMint,
-  getInitializePermanentDelegateInstruction,
+  getInitializeTransferHookInstruction,
 } from '../../../src';
 import {
   createDefaultSolanaClient,
@@ -13,7 +13,7 @@ import {
   sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it initializes a mint with permanent delegate', async (t) => {
+test('it initializes a mint with transfer hook extension', async (t) => {
   // Given some signer accounts
   const client = createDefaultSolanaClient();
   const [authority, mint] = await Promise.all([
@@ -21,12 +21,16 @@ test('it initializes a mint with permanent delegate', async (t) => {
     generateKeyPairSigner(),
   ]);
 
-  // And a permanent delegate extension
-  const permanentDelegate = address(
+  // And a transfer hook extension
+  const transferHookAuthority = address(
     '6sPR6MzvjMMP5LSZzEtTe4ZBVX9rhBmtM1dmfFtkNTbW'
   );
-  const permanentDelegateExtension = extension('PermanentDelegate', {
-    delegate: permanentDelegate,
+  const transferHookProgramId = address(
+    'BTNEPmmWuj7Sg4Fo5i1FC5eiV2Aj4jiv9boarvE5XeaX'
+  );
+  const transferHookExtension = extension('TransferHook', {
+    authority: transferHookAuthority,
+    programId: transferHookProgramId,
   });
 
   // When we create and initialize a mint account with this extension
@@ -34,28 +38,29 @@ test('it initializes a mint with permanent delegate', async (t) => {
     await getCreateMintInstructions({
       authority: authority.address,
       client,
-      extensions: [permanentDelegateExtension],
+      extensions: [transferHookExtension],
       mint,
       payer: authority,
     });
 
   await sendAndConfirmInstructions(client, authority, [
     createMintInstruction,
-    getInitializePermanentDelegateInstruction({
+    getInitializeTransferHookInstruction({
       mint: mint.address,
-      delegate: permanentDelegate,
+      authority: some(transferHookAuthority),
+      programId: some(transferHookProgramId),
     }),
     initMintInstruction,
   ]);
 
-  // Then we expect the mint account to exist with the permanent delegate
+  // Then we expect the mint account to exist with the transfer hook extension
   const mintAccount = await fetchMint(client.rpc, mint.address);
   t.like(mintAccount, <Account<Mint>>{
     address: mint.address,
     data: {
       mintAuthority: some(authority.address),
       isInitialized: true,
-      extensions: some([permanentDelegateExtension]),
+      extensions: some([transferHookExtension]),
     },
   });
 });
