@@ -20,6 +20,7 @@ import {
   getInitializeTokenGroupInstruction,
   getInitializeTokenMetadataInstruction,
   getInitializeTransferFeeConfigInstruction,
+  getInitializeTransferHookInstruction,
 } from './generated';
 
 /**
@@ -80,6 +81,14 @@ export function getPreInitializeInstructionsForMintExtensions(
             mint,
             authority: extension.authority,
             memberAddress: extension.memberAddress,
+          }),
+        ];
+      case 'TransferHook':
+        return [
+          getInitializeTransferHookInstruction({
+            mint,
+            authority: extension.authority,
+            programId: extension.programId,
           }),
         ];
       default:
