@@ -37,4 +37,3 @@ test('it creates a native mint account', async (t) => {
     },
   });
 });
-
