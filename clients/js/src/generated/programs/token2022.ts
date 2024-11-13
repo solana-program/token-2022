@@ -412,10 +412,7 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.DisableMemoTransfers;
   }
-  if (
-    containsBytes(data, getU8Encoder().encode(32), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
+  if (containsBytes(data, getU8Encoder().encode(32), 0)) {
     return Token2022Instruction.InitializeNonTransferableMint;
   }
   if (

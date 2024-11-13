@@ -32,14 +32,6 @@ export function getInitializeNonTransferableMintDiscriminatorBytes() {
   return getU8Encoder().encode(INITIALIZE_NON_TRANSFERABLE_MINT_DISCRIMINATOR);
 }
 
-export const INITIALIZE_NON_TRANSFERABLE_MINT_NON_TRANSFER_DISCRIMINATOR = 0;
-
-export function getInitializeNonTransferableMintNonTransferDiscriminatorBytes() {
-  return getU8Encoder().encode(
-    INITIALIZE_NON_TRANSFERABLE_MINT_NON_TRANSFER_DISCRIMINATOR
-  );
-}
-
 export type InitializeNonTransferableMintInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountMint extends string | IAccountMeta<string> = string,
@@ -57,31 +49,22 @@ export type InitializeNonTransferableMintInstruction<
 
 export type InitializeNonTransferableMintInstructionData = {
   discriminator: number;
-  nonTransferDiscriminator: number;
 };
 
 export type InitializeNonTransferableMintInstructionDataArgs = {};
 
 export function getInitializeNonTransferableMintInstructionDataEncoder(): Encoder<InitializeNonTransferableMintInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['nonTransferDiscriminator', getU8Encoder()],
-    ]),
+    getStructEncoder([['discriminator', getU8Encoder()]]),
     (value) => ({
       ...value,
       discriminator: INITIALIZE_NON_TRANSFERABLE_MINT_DISCRIMINATOR,
-      nonTransferDiscriminator:
-        INITIALIZE_NON_TRANSFERABLE_MINT_NON_TRANSFER_DISCRIMINATOR,
     })
   );
 }
 
 export function getInitializeNonTransferableMintInstructionDataDecoder(): Decoder<InitializeNonTransferableMintInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['nonTransferDiscriminator', getU8Decoder()],
-  ]);
+  return getStructDecoder([['discriminator', getU8Decoder()]]);
 }
 
 export function getInitializeNonTransferableMintInstructionDataCodec(): Codec<

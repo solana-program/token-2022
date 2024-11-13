@@ -5379,21 +5379,6 @@
               "kind": "numberValueNode",
               "number": 32
             }
-          },
-          {
-            "kind": "instructionArgumentNode",
-            "name": "nonTransferDiscriminator",
-            "defaultValueStrategy": "omitted",
-            "docs": [],
-            "type": {
-              "kind": "numberTypeNode",
-              "format": "u8",
-              "endian": "le"
-            },
-            "defaultValue": {
-              "kind": "numberValueNode",
-              "number": 0
-            }
           }
         ],
         "discriminators": [
@@ -5401,11 +5386,6 @@
             "kind": "fieldDiscriminatorNode",
             "name": "discriminator",
             "offset": 0
-          },
-          {
-            "kind": "fieldDiscriminatorNode",
-            "name": "nonTransferDiscriminator",
-            "offset": 1
           }
         ]
       },
