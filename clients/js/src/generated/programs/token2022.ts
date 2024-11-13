@@ -47,6 +47,7 @@ import {
   type ParsedInitializeGroupMemberPointerInstruction,
   type ParsedInitializeGroupPointerInstruction,
   type ParsedInitializeImmutableOwnerInstruction,
+  type ParsedInitializeInterestBearingConfigInstruction,
   type ParsedInitializeMetadataPointerInstruction,
   type ParsedInitializeMint2Instruction,
   type ParsedInitializeMintCloseAuthorityInstruction,
@@ -77,6 +78,7 @@ import {
   type ParsedUpdateDefaultAccountStateInstruction,
   type ParsedUpdateGroupMemberPointerInstruction,
   type ParsedUpdateGroupPointerInstruction,
+  type ParsedUpdateInterestRateInstruction,
   type ParsedUpdateMetadataPointerInstruction,
   type ParsedUpdateTokenGroupMaxSizeInstruction,
   type ParsedUpdateTokenGroupUpdateAuthorityInstruction,
@@ -131,6 +133,8 @@ export enum Token2022Instruction {
   TransferChecked,
   ApproveChecked,
   MintToChecked,
+  InitializeInterestBearingConfig,
+  UpdateInterestRate,
   BurnChecked,
   InitializeAccount2,
   SyncNative,
@@ -239,6 +243,18 @@ export function identifyToken2022Instruction(
   }
   if (containsBytes(data, getU8Encoder().encode(14), 0)) {
     return Token2022Instruction.MintToChecked;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(33), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
+    return Token2022Instruction.InitializeInterestBearingConfig;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(37), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.UpdateInterestRate;
   }
   if (containsBytes(data, getU8Encoder().encode(15), 0)) {
     return Token2022Instruction.BurnChecked;
@@ -615,6 +631,12 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.MintToChecked;
     } & ParsedMintToCheckedInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeInterestBearingConfig;
+    } & ParsedInitializeInterestBearingConfigInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.UpdateInterestRate;
+    } & ParsedUpdateInterestRateInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.BurnChecked;
     } & ParsedBurnCheckedInstruction<TProgram>)
