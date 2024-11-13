@@ -83,6 +83,7 @@ import {
   type ParsedUpdateTokenMetadataFieldInstruction,
   type ParsedUpdateTokenMetadataUpdateAuthorityInstruction,
   type ParsedUpdateTransferHookInstruction,
+  type ParsedWithdrawExcessLamportsInstruction,
   type ParsedWithdrawWithheldTokensFromAccountsInstruction,
   type ParsedWithdrawWithheldTokensFromMintInstruction,
 } from '../instructions';
@@ -116,6 +117,7 @@ export function identifyToken2022Account(
 
 export enum Token2022Instruction {
   InitializeMint,
+  WithdrawExcessLamports,
   InitializeAccount,
   InitializeMultisig,
   Transfer,
@@ -195,6 +197,9 @@ export function identifyToken2022Instruction(
   const data = 'data' in instruction ? instruction.data : instruction;
   if (containsBytes(data, getU8Encoder().encode(0), 0)) {
     return Token2022Instruction.InitializeMint;
+  }
+  if (containsBytes(data, getU8Encoder().encode(40), 0)) {
+    return Token2022Instruction.WithdrawExcessLamports;
   }
   if (containsBytes(data, getU8Encoder().encode(1), 0)) {
     return Token2022Instruction.InitializeAccount;
@@ -568,6 +573,9 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.InitializeMint;
     } & ParsedInitializeMintInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.WithdrawExcessLamports;
+    } & ParsedWithdrawExcessLamportsInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeAccount;
     } & ParsedInitializeAccountInstruction<TProgram>)

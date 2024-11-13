@@ -463,6 +463,93 @@
       },
       {
         "kind": "instructionNode",
+        "name": "withdrawExcessLamports",
+        "docs": [
+          "Withdraw excess lamports from a given token account.",
+          "This allows the account owner to withdraw any lamports that exceed the rent-exempt balance."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "sourceAccount",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The token account from which excess lamports will be withdrawn."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "destinationAccount",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The destination account to receive the withdrawn lamports."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "owner",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": ["The owner of the source account."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 40
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "withdrawAmount",
+            "docs": ["The amount of lamports to withdraw."],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [
+              "Optional multisig signer accounts if the owner is a multisig account."
+            ],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
         "name": "initializeAccount",
         "docs": [
           "Initializes a new account to hold tokens. If this account is associated",
