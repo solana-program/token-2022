@@ -51,7 +51,10 @@ test('initializes interest-bearing mint with specified configuration', async (t)
   ]);
 
   // Verify the mint account configuration, including interest-bearing extension
-  const fetchedMintAccount = await fetchMint(solClient.rpc, mintAccount.address);
+  const fetchedMintAccount = await fetchMint(
+    solClient.rpc,
+    mintAccount.address
+  );
   t.like(fetchedMintAccount, <Account<Mint>>{
     address: mintAccount.address,
     data: {

@@ -81,14 +81,14 @@ export function getPreInitializeInstructionsForMintExtensions(
             memberAddress: extension.memberAddress,
           }),
         ];
-      case "InterestBearingConfig":
+      case 'InterestBearingConfig':
         return [
           getInitializeInterestBearingConfigInstruction({
             mint,
             rateAuthority: extension.rateAuthority,
-            interestRateBasisPoints:extension.currentRate
-          })
-        ]
+            interestRateBasisPoints: extension.currentRate,
+          }),
+        ];
       default:
         return [];
     }
