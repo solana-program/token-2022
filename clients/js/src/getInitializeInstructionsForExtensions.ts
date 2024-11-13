@@ -21,6 +21,8 @@ import {
   getInitializeTokenMetadataInstruction,
   getInitializeTransferFeeConfigInstruction,
   getInitializeNonTransferableMintInstruction,
+  getInitializeTransferHookInstruction,
+  getInitializePermanentDelegateInstruction,
 } from './generated';
 
 /**
@@ -85,6 +87,19 @@ export function getPreInitializeInstructionsForMintExtensions(
         ];
       case 'NonTransferable':
         return getInitializeNonTransferableMintInstruction({ mint });
+      case 'TransferHook':
+        return [
+          getInitializeTransferHookInstruction({
+            mint,
+            authority: extension.authority,
+            programId: extension.programId,
+          }),
+        ];
+      case 'PermanentDelegate':
+        return getInitializePermanentDelegateInstruction({
+          mint,
+          delegate: extension.delegate,
+        });
       default:
         return [];
     }
