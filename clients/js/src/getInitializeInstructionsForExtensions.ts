@@ -10,6 +10,8 @@ import {
   ExtensionArgs,
   getDisableMemoTransfersInstruction,
   getEnableMemoTransfersInstruction,
+  getEnableCpiGuardInstruction,
+  getDisableCpiGuardInstruction,
   getInitializeConfidentialTransferMintInstruction,
   getInitializeDefaultAccountStateInstruction,
   getInitializeGroupMemberPointerInstruction,
@@ -19,6 +21,9 @@ import {
   getInitializeTokenGroupInstruction,
   getInitializeTokenMetadataInstruction,
   getInitializeTransferFeeConfigInstruction,
+  getInitializeNonTransferableMintInstruction,
+  getInitializeTransferHookInstruction,
+  getInitializePermanentDelegateInstruction,
 } from './generated';
 
 /**
@@ -81,6 +86,7 @@ export function getPreInitializeInstructionsForMintExtensions(
             memberAddress: extension.memberAddress,
           }),
         ];
+<<<<<<< HEAD
       case 'InterestBearingConfig':
         return [
           getInitializeInterestBearingConfigInstruction({
@@ -89,6 +95,23 @@ export function getPreInitializeInstructionsForMintExtensions(
             interestRateBasisPoints: extension.currentRate,
           }),
         ];
+=======
+      case 'NonTransferable':
+        return getInitializeNonTransferableMintInstruction({ mint });
+      case 'TransferHook':
+        return [
+          getInitializeTransferHookInstruction({
+            mint,
+            authority: extension.authority,
+            programId: extension.programId,
+          }),
+        ];
+      case 'PermanentDelegate':
+        return getInitializePermanentDelegateInstruction({
+          mint,
+          delegate: extension.delegate,
+        });
+>>>>>>> gib-bounty-tok314276
       default:
         return [];
     }
@@ -162,6 +185,16 @@ export function getPostInitializeInstructionsForTokenExtensions(
           extension.requireIncomingTransferMemos
             ? getEnableMemoTransfersInstruction({ owner, token, multiSigners })
             : getDisableMemoTransfersInstruction({
+                owner,
+                token,
+                multiSigners,
+              }),
+        ];
+      case 'CpiGuard':
+        return [
+          extension.lockCpi
+            ? getEnableCpiGuardInstruction({ owner, token, multiSigners })
+            : getDisableCpiGuardInstruction({
                 owner,
                 token,
                 multiSigners,

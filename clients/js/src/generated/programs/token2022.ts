@@ -27,11 +27,13 @@ import {
   type ParsedConfidentialWithdrawInstruction,
   type ParsedConfigureConfidentialTransferAccountInstruction,
   type ParsedDisableConfidentialCreditsInstruction,
+  type ParsedDisableCpiGuardInstruction,
   type ParsedDisableMemoTransfersInstruction,
   type ParsedDisableNonConfidentialCreditsInstruction,
   type ParsedEmitTokenMetadataInstruction,
   type ParsedEmptyConfidentialTransferAccountInstruction,
   type ParsedEnableConfidentialCreditsInstruction,
+  type ParsedEnableCpiGuardInstruction,
   type ParsedEnableMemoTransfersInstruction,
   type ParsedEnableNonConfidentialCreditsInstruction,
   type ParsedFreezeAccountInstruction,
@@ -52,10 +54,13 @@ import {
   type ParsedInitializeMintInstruction,
   type ParsedInitializeMultisig2Instruction,
   type ParsedInitializeMultisigInstruction,
+  type ParsedInitializeNonTransferableMintInstruction,
+  type ParsedInitializePermanentDelegateInstruction,
   type ParsedInitializeTokenGroupInstruction,
   type ParsedInitializeTokenGroupMemberInstruction,
   type ParsedInitializeTokenMetadataInstruction,
   type ParsedInitializeTransferFeeConfigInstruction,
+  type ParsedInitializeTransferHookInstruction,
   type ParsedMintToCheckedInstruction,
   type ParsedMintToInstruction,
   type ParsedReallocateInstruction,
@@ -79,6 +84,7 @@ import {
   type ParsedUpdateTokenGroupUpdateAuthorityInstruction,
   type ParsedUpdateTokenMetadataFieldInstruction,
   type ParsedUpdateTokenMetadataUpdateAuthorityInstruction,
+  type ParsedUpdateTransferHookInstruction,
   type ParsedWithdrawWithheldTokensFromAccountsInstruction,
   type ParsedWithdrawWithheldTokensFromMintInstruction,
 } from '../instructions';
@@ -164,6 +170,12 @@ export enum Token2022Instruction {
   Reallocate,
   EnableMemoTransfers,
   DisableMemoTransfers,
+  InitializeNonTransferableMint,
+  EnableCpiGuard,
+  DisableCpiGuard,
+  InitializePermanentDelegate,
+  InitializeTransferHook,
+  UpdateTransferHook,
   InitializeMetadataPointer,
   UpdateMetadataPointer,
   InitializeGroupPointer,
@@ -421,6 +433,36 @@ export function identifyToken2022Instruction(
     containsBytes(data, getU8Encoder().encode(1), 1)
   ) {
     return Token2022Instruction.DisableMemoTransfers;
+  }
+  if (containsBytes(data, getU8Encoder().encode(32), 0)) {
+    return Token2022Instruction.InitializeNonTransferableMint;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(34), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
+    return Token2022Instruction.EnableCpiGuard;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(34), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.DisableCpiGuard;
+  }
+  if (containsBytes(data, getU8Encoder().encode(35), 0)) {
+    return Token2022Instruction.InitializePermanentDelegate;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(36), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
+    return Token2022Instruction.InitializeTransferHook;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(36), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.UpdateTransferHook;
   }
   if (
     containsBytes(data, getU8Encoder().encode(39), 0) &&
@@ -698,6 +740,24 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.DisableMemoTransfers;
     } & ParsedDisableMemoTransfersInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeNonTransferableMint;
+    } & ParsedInitializeNonTransferableMintInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.EnableCpiGuard;
+    } & ParsedEnableCpiGuardInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.DisableCpiGuard;
+    } & ParsedDisableCpiGuardInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializePermanentDelegate;
+    } & ParsedInitializePermanentDelegateInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeTransferHook;
+    } & ParsedInitializeTransferHookInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.UpdateTransferHook;
+    } & ParsedUpdateTransferHookInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeMetadataPointer;
     } & ParsedInitializeMetadataPointerInstruction<TProgram>)
