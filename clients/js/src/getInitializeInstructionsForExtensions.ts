@@ -20,11 +20,8 @@ import {
   getInitializeTokenGroupInstruction,
   getInitializeTokenMetadataInstruction,
   getInitializeTransferFeeConfigInstruction,
-<<<<<<< HEAD
   getInitializeNonTransferableMintInstruction,
-=======
   getInitializeConfidentialTransferFeeConfigInstruction,
->>>>>>> main
 } from './generated';
 
 /**
@@ -87,6 +84,8 @@ export function getPreInitializeInstructionsForMintExtensions(
             memberAddress: extension.memberAddress,
           }),
         ];
+      case 'NonTransferable':
+        return getInitializeNonTransferableMintInstruction({ mint });
       case 'ConfidentialTransferFee':
         return [
           getInitializeConfidentialTransferFeeConfigInstruction({
