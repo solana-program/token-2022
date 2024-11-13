@@ -463,85 +463,6 @@
       },
       {
         "kind": "instructionNode",
-        "name": "initializePermanentDelegate",
-        "docs": [
-          "Creates the native mint with a permanent delegate.",
-          "Must be called before InitializeMint instruction.",
-          "Requires exact space allocation: 82 bytes for base mint,",
-          "83 bytes padding, 1 byte for account type, plus extension space.",
-          "Will fail if mint is already initialized."
-        ],
-        "optionalAccountStrategy": "programId",
-        "accounts": [
-          {
-            "kind": "instructionAccountNode",
-            "name": "mint",
-            "isWritable": true,
-            "isSigner": false,
-            "isOptional": false,
-            "docs": [
-              "The mint account to initialize with permanent delegate"
-            ]
-          }
-        ],
-        "arguments": [
-          {
-            "kind": "instructionArgumentNode",
-            "name": "discriminator",
-            "defaultValueStrategy": "omitted",
-            "docs": [],
-            "type": {
-              "kind": "numberTypeNode",
-              "format": "u8",
-              "endian": "le"
-            },
-            "defaultValue": {
-              "kind": "numberValueNode",
-              "number": 170
-            }
-          },
-          {
-            "kind": "instructionArgumentNode",
-            "name": "permanentDelegateDiscriminator",
-            "defaultValueStrategy": "omitted",
-            "docs": [],
-            "type": {
-              "kind": "numberTypeNode",
-              "format": "u8",
-              "endian": "le"
-            },
-            "defaultValue": {
-              "kind": "numberValueNode",
-              "number": 1
-            }
-          },
-          {
-            "kind": "instructionArgumentNode",
-            "name": "delegate",
-            "docs": [
-              "Authority that may sign for Transfers and Burns on any account"
-            ],
-            "type": {
-              "kind": "publicKeyTypeNode"
-            }
-          }
-        ],
-        "remainingAccounts": [],
-        "discriminators": [
-          {
-            "kind": "fieldDiscriminatorNode",
-            "name": "discriminator",
-            "offset": 0
-          },
-          {
-            "kind": "fieldDiscriminatorNode",
-            "name": "permanentDelegateDiscriminator",
-            "offset": 1
-          }
-        ]
-      },
-      {
-        "kind": "instructionNode",
         "name": "initializeAccount",
         "docs": [
           "Initializes a new account to hold tokens. If this account is associated",
@@ -5640,6 +5561,83 @@
           {
             "kind": "fieldDiscriminatorNode",
             "name": "cpiGuardDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "initializePermanentDelegate",
+        "docs": [
+          "Creates the native mint with a permanent delegate.",
+          "Must be called before InitializeMint instruction.",
+          "Requires exact space allocation: 82 bytes for base mint,",
+          "83 bytes padding, 1 byte for account type, plus extension space.",
+          "Will fail if mint is already initialized."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint account to initialize with permanent delegate"]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 35
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "permanentDelegateDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 1
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "delegate",
+            "docs": [
+              "Authority that may sign for Transfers and Burns on any account"
+            ],
+            "type": {
+              "kind": "publicKeyTypeNode"
+            }
+          }
+        ],
+        "remainingAccounts": [],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "permanentDelegateDiscriminator",
             "offset": 1
           }
         ]

@@ -28,7 +28,7 @@ import {
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const INITIALIZE_PERMANENT_DELEGATE_DISCRIMINATOR = 170;
+export const INITIALIZE_PERMANENT_DELEGATE_DISCRIMINATOR = 35;
 
 export function getInitializePermanentDelegateDiscriminatorBytes() {
   return getU8Encoder().encode(INITIALIZE_PERMANENT_DELEGATE_DISCRIMINATOR);

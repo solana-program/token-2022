@@ -17,6 +17,7 @@ import {
   getInitializeGroupMemberPointerInstruction,
   getInitializeGroupPointerInstruction,
   getInitializeMetadataPointerInstruction,
+  getInitializePermanentDelegateInstruction,
   getInitializeTokenGroupInstruction,
   getInitializeTokenMetadataInstruction,
   getInitializeTransferFeeConfigInstruction,
@@ -134,6 +135,11 @@ export function getPostInitializeInstructionsForMintExtensions(
             maxSize: extension.maxSize,
           }),
         ];
+      case 'PermanentDelegate':
+        return [getInitializePermanentDelegateInstruction({
+          mint,
+          delegate: extension.delegate,
+        })];
       default:
         return [];
     }

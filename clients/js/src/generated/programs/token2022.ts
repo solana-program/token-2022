@@ -114,7 +114,6 @@ export function identifyToken2022Account(
 
 export enum Token2022Instruction {
   InitializeMint,
-  InitializePermanentDelegate,
   InitializeAccount,
   InitializeMultisig,
   Transfer,
@@ -168,6 +167,7 @@ export enum Token2022Instruction {
   InitializeNonTransferableMint,
   EnableCpiGuard,
   DisableCpiGuard,
+  InitializePermanentDelegate,
   InitializeMetadataPointer,
   UpdateMetadataPointer,
   InitializeGroupPointer,
@@ -191,12 +191,6 @@ export function identifyToken2022Instruction(
   const data = 'data' in instruction ? instruction.data : instruction;
   if (containsBytes(data, getU8Encoder().encode(0), 0)) {
     return Token2022Instruction.InitializeMint;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(170), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
-    return Token2022Instruction.InitializePermanentDelegate;
   }
   if (containsBytes(data, getU8Encoder().encode(1), 0)) {
     return Token2022Instruction.InitializeAccount;
@@ -436,6 +430,12 @@ export function identifyToken2022Instruction(
     return Token2022Instruction.DisableCpiGuard;
   }
   if (
+    containsBytes(data, getU8Encoder().encode(35), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.InitializePermanentDelegate;
+  }
+  if (
     containsBytes(data, getU8Encoder().encode(39), 0) &&
     containsBytes(data, getU8Encoder().encode(0), 1)
   ) {
@@ -555,9 +555,6 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.InitializeMint;
     } & ParsedInitializeMintInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializePermanentDelegate;
-    } & ParsedInitializePermanentDelegateInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeAccount;
     } & ParsedInitializeAccountInstruction<TProgram>)
@@ -717,6 +714,9 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.DisableCpiGuard;
     } & ParsedDisableCpiGuardInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializePermanentDelegate;
+    } & ParsedInitializePermanentDelegateInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeMetadataPointer;
     } & ParsedInitializeMetadataPointerInstruction<TProgram>)
