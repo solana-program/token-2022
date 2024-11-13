@@ -54,6 +54,7 @@ import {
   type ParsedInitializeMultisig2Instruction,
   type ParsedInitializeMultisigInstruction,
   type ParsedInitializeNonTransferableMintInstruction,
+  type ParsedInitializePermanentDelegateInstruction,
   type ParsedInitializeTokenGroupInstruction,
   type ParsedInitializeTokenGroupMemberInstruction,
   type ParsedInitializeTokenMetadataInstruction,
@@ -166,6 +167,7 @@ export enum Token2022Instruction {
   InitializeNonTransferableMint,
   EnableCpiGuard,
   DisableCpiGuard,
+  InitializePermanentDelegate,
   InitializeMetadataPointer,
   UpdateMetadataPointer,
   InitializeGroupPointer,
@@ -426,6 +428,9 @@ export function identifyToken2022Instruction(
     containsBytes(data, getU8Encoder().encode(1), 1)
   ) {
     return Token2022Instruction.DisableCpiGuard;
+  }
+  if (containsBytes(data, getU8Encoder().encode(35), 0)) {
+    return Token2022Instruction.InitializePermanentDelegate;
   }
   if (
     containsBytes(data, getU8Encoder().encode(39), 0) &&
@@ -706,6 +711,9 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.DisableCpiGuard;
     } & ParsedDisableCpiGuardInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializePermanentDelegate;
+    } & ParsedInitializePermanentDelegateInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeMetadataPointer;
     } & ParsedInitializeMetadataPointerInstruction<TProgram>)
