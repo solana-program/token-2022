@@ -10,6 +10,8 @@ import {
   ExtensionArgs,
   getDisableMemoTransfersInstruction,
   getEnableMemoTransfersInstruction,
+  getEnableCpiGuardInstruction,
+  getDisableCpiGuardInstruction,
   getInitializeConfidentialTransferMintInstruction,
   getInitializeDefaultAccountStateInstruction,
   getInitializeGroupMemberPointerInstruction,
@@ -17,7 +19,7 @@ import {
   getInitializeMetadataPointerInstruction,
   getInitializeTokenGroupInstruction,
   getInitializeTokenMetadataInstruction,
-  getInitializeTransferFeeConfigInstruction,
+  getInitializeTransferFeeConfigInstruction
 } from './generated';
 
 /**
@@ -153,10 +155,20 @@ export function getPostInitializeInstructionsForTokenExtensions(
           extension.requireIncomingTransferMemos
             ? getEnableMemoTransfersInstruction({ owner, token, multiSigners })
             : getDisableMemoTransfersInstruction({
-                owner,
-                token,
-                multiSigners,
-              }),
+              owner,
+              token,
+              multiSigners,
+            }),
+        ];
+      case 'CpiGuard':
+        return [
+          extension.lockCpi
+            ? getEnableCpiGuardInstruction({ owner, token, multiSigners })
+            : getDisableCpiGuardInstruction({
+              owner,
+              token,
+              multiSigners,
+            }),
         ];
       default:
         return [];
