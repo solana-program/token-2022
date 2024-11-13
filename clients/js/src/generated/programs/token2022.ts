@@ -219,7 +219,7 @@ export function identifyToken2022Instruction(
   if (containsBytes(data, getU8Encoder().encode(11), 0)) {
     return Token2022Instruction.ThawAccount;
   }
-  if (containsBytes(data, getU8Encoder().encode(42), 0)) {
+  if (containsBytes(data, getU8Encoder().encode(38), 0)) {
     return Token2022Instruction.WithdrawExcessLamports;
   }
   if (containsBytes(data, getU8Encoder().encode(12), 0)) {

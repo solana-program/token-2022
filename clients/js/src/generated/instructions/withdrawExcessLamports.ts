@@ -7,11 +7,10 @@
  */
 
 import {
+  AccountRole,
   combineCodec,
   getStructDecoder,
   getStructEncoder,
-  getU64Decoder,
-  getU64Encoder,
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
@@ -24,7 +23,6 @@ import {
   type IInstruction,
   type IInstructionWithAccounts,
   type IInstructionWithData,
-  type ReadonlyAccount,
   type ReadonlySignerAccount,
   type TransactionSigner,
   type WritableAccount,
@@ -32,7 +30,7 @@ import {
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const WITHDRAW_EXCESS_LAMPORTS_DISCRIMINATOR = 42;
+export const WITHDRAW_EXCESS_LAMPORTS_DISCRIMINATOR = 38;
 
 export function getWithdrawExcessLamportsDiscriminatorBytes() {
   return getU8Encoder().encode(WITHDRAW_EXCESS_LAMPORTS_DISCRIMINATOR);
@@ -55,43 +53,29 @@ export type WithdrawExcessLamportsInstruction<
         ? WritableAccount<TAccountDestinationAccount>
         : TAccountDestinationAccount,
       TAccountAuthority extends string
-        ? ReadonlyAccount<TAccountAuthority>
+        ? ReadonlySignerAccount<TAccountAuthority> &
+            IAccountSignerMeta<TAccountAuthority>
         : TAccountAuthority,
       ...TRemainingAccounts,
     ]
   >;
 
-export type WithdrawExcessLamportsInstructionData = {
-  discriminator: number;
-  /** The amount of sols to transfer. */
-  amount: bigint;
-};
+export type WithdrawExcessLamportsInstructionData = { discriminator: number };
 
-export type WithdrawExcessLamportsInstructionDataArgs = {
-  discriminator?: number;
-  /** The amount of sols to transfer. */
-  amount: number | bigint;
-};
+export type WithdrawExcessLamportsInstructionDataArgs = {};
 
 export function getWithdrawExcessLamportsInstructionDataEncoder(): Encoder<WithdrawExcessLamportsInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['amount', getU64Encoder()],
-    ]),
+    getStructEncoder([['discriminator', getU8Encoder()]]),
     (value) => ({
       ...value,
-      discriminator:
-        value.discriminator ?? WITHDRAW_EXCESS_LAMPORTS_DISCRIMINATOR,
+      discriminator: WITHDRAW_EXCESS_LAMPORTS_DISCRIMINATOR,
     })
   );
 }
 
 export function getWithdrawExcessLamportsInstructionDataDecoder(): Decoder<WithdrawExcessLamportsInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['amount', getU64Decoder()],
-  ]);
+  return getStructDecoder([['discriminator', getU8Decoder()]]);
 }
 
 export function getWithdrawExcessLamportsInstructionDataCodec(): Codec<
@@ -114,9 +98,8 @@ export type WithdrawExcessLamportsInput<
   /** Destination account for withdrawn lamports. */
   destinationAccount: Address<TAccountDestinationAccount>;
   /** The source account's owner/delegate or its multisignature account. */
-  authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
-  discriminator?: WithdrawExcessLamportsInstructionDataArgs['discriminator'];
-  amount: WithdrawExcessLamportsInstructionDataArgs['amount'];
+  authority: TransactionSigner<TAccountAuthority>;
+  multiSigners?: Array<TransactionSigner>;
 };
 
 export function getWithdrawExcessLamportsInstruction<
@@ -135,10 +118,7 @@ export function getWithdrawExcessLamportsInstruction<
   TProgramAddress,
   TAccountSourceAccount,
   TAccountDestinationAccount,
-  (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-    ? ReadonlySignerAccount<TAccountAuthority> &
-        IAccountSignerMeta<TAccountAuthority>
-    : TAccountAuthority
+  TAccountAuthority
 > {
   // Program address.
   const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
@@ -160,25 +140,30 @@ export function getWithdrawExcessLamportsInstruction<
   // Original args.
   const args = { ...input };
 
+  // Remaining accounts.
+  const remainingAccounts: IAccountMeta[] = (args.multiSigners ?? []).map(
+    (signer) => ({
+      address: signer.address,
+      role: AccountRole.READONLY_SIGNER,
+      signer,
+    })
+  );
+
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   const instruction = {
     accounts: [
       getAccountMeta(accounts.sourceAccount),
       getAccountMeta(accounts.destinationAccount),
       getAccountMeta(accounts.authority),
+      ...remainingAccounts,
     ],
     programAddress,
-    data: getWithdrawExcessLamportsInstructionDataEncoder().encode(
-      args as WithdrawExcessLamportsInstructionDataArgs
-    ),
+    data: getWithdrawExcessLamportsInstructionDataEncoder().encode({}),
   } as WithdrawExcessLamportsInstruction<
     TProgramAddress,
     TAccountSourceAccount,
     TAccountDestinationAccount,
-    (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-      ? ReadonlySignerAccount<TAccountAuthority> &
-          IAccountSignerMeta<TAccountAuthority>
-      : TAccountAuthority
+    TAccountAuthority
   >;
 
   return instruction;

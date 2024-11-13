@@ -1435,6 +1435,7 @@
         "kind": "instructionNode",
         "name": "withdrawExcessLamports",
         "docs": ["Withdraws excess lamports from the account."],
+        "optionalAccountStrategy": "programId",
         "accounts": [
           {
             "kind": "instructionAccountNode",
@@ -1449,13 +1450,14 @@
             "name": "destinationAccount",
             "isWritable": true,
             "isSigner": false,
+            "isOptional": false,
             "docs": ["Destination account for withdrawn lamports."]
           },
           {
             "kind": "instructionAccountNode",
             "name": "authority",
             "isWritable": false,
-            "isSigner": "either",
+            "isSigner": true,
             "isOptional": false,
             "docs": [
               "The source account's owner/delegate or its multisignature account."
@@ -1469,19 +1471,28 @@
           {
             "kind": "instructionArgumentNode",
             "name": "discriminator",
-            "type": { "kind": "numberTypeNode", "format": "u8", "endian": "le" },
-            "defaultValue": { "kind": "numberValueNode", "number": 42 }
-          },
-          {
-            "kind": "instructionArgumentNode",
-            "name": "amount",
-            "docs": [
-              "The amount of sols to transfer."
-            ],
+            "defaultValueStrategy": "omitted",
+            "docs": [],
             "type": {
               "kind": "numberTypeNode",
-              "format": "u64",
+              "format": "u8",
               "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 38
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
             }
           }
         ],
