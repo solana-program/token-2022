@@ -1,18 +1,14 @@
-import { Account, address, none,} from '@solana/web3.js';
+import { Account, address, none } from '@solana/web3.js';
 import test from 'ava';
-import {
-  Mint,
-  fetchMint,
-  getCreateNativeMintInstruction,
-} from '../src';
+import { Mint, fetchMint, getCreateNativeMintInstruction } from '../src';
 import {
   createDefaultSolanaClient,
   generateKeyPairSignerWithSol,
   sendAndConfirmInstructions,
 } from './_setup';
 
-//Mint for native SOL Token accounts 
-const NATIVE_MINT = address("9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP");
+//Mint for native SOL Token accounts
+const NATIVE_MINT = address('9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP');
 
 test('it creates a native mint account', async (t) => {
   // Given a payer account.
@@ -21,10 +17,10 @@ test('it creates a native mint account', async (t) => {
 
   // When we create a native mint account.
   await sendAndConfirmInstructions(client, payer, [
-      getCreateNativeMintInstruction({
+    getCreateNativeMintInstruction({
       payer: payer,
       nativeMint: NATIVE_MINT,
-    })
+    }),
   ]);
 
   // Then we expect the native mint account to exist with the following data.
@@ -45,7 +41,7 @@ test('it creates a native mint account', async (t) => {
 test('it fails to create native mint if it already exists', async (t) => {
   // Given a payer and a mint account
   const client = createDefaultSolanaClient();
-   const payer = await generateKeyPairSignerWithSol(client);
+  const payer = await generateKeyPairSignerWithSol(client);
 
   // When we try to create the same native mint twice
   await sendAndConfirmInstructions(client, payer, [
