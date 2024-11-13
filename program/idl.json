@@ -1724,6 +1724,99 @@
       },      
       {
         "kind": "instructionNode",
+        "name": "updateInterestBearingConfig",
+        "docs": [
+          "Update the interest rate. Only supported for mints that include the",
+          "InterestBearingConfig` extension."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "rateAuthority",
+            "isWritable": true,
+            "isSigner": true,
+            "isOptional": false,
+            "docs": ["The mint rate authority."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 33
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "interestBearingConfigDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 1
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "interestRateBasisPoints",
+            "docs": ["Interest rate in basis points to update."],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i16",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "interestBearingConfigDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
         "name": "updateInterestRate",
         "docs": [
           "Update the interest rate. Only supported for mints that include the `InterestBearingConfig` extension.",

@@ -74,6 +74,7 @@ export * from './updateConfidentialTransferMint';
 export * from './updateDefaultAccountState';
 export * from './updateGroupMemberPointer';
 export * from './updateGroupPointer';
+export * from './updateInterestBearingConfig';
 export * from './updateInterestRate';
 export * from './updateMetadataPointer';
 export * from './updateTokenGroupMaxSize';

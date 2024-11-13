@@ -78,6 +78,7 @@ import {
   type ParsedUpdateDefaultAccountStateInstruction,
   type ParsedUpdateGroupMemberPointerInstruction,
   type ParsedUpdateGroupPointerInstruction,
+  type ParsedUpdateInterestBearingConfigInstruction,
   type ParsedUpdateInterestRateInstruction,
   type ParsedUpdateMetadataPointerInstruction,
   type ParsedUpdateTokenGroupMaxSizeInstruction,
@@ -133,6 +134,7 @@ export enum Token2022Instruction {
   ApproveChecked,
   MintToChecked,
   InitializeInterestBearingConfig,
+  UpdateInterestBearingConfig,
   UpdateInterestRate,
   BurnChecked,
   InitializeAccount2,
@@ -247,6 +249,12 @@ export function identifyToken2022Instruction(
     containsBytes(data, getU8Encoder().encode(0), 1)
   ) {
     return Token2022Instruction.InitializeInterestBearingConfig;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(33), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.UpdateInterestBearingConfig;
   }
   if (
     containsBytes(data, getU8Encoder().encode(37), 0) &&
@@ -629,6 +637,9 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.InitializeInterestBearingConfig;
     } & ParsedInitializeInterestBearingConfigInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.UpdateInterestBearingConfig;
+    } & ParsedUpdateInterestBearingConfigInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.UpdateInterestRate;
     } & ParsedUpdateInterestRateInstruction<TProgram>)
