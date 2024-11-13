@@ -41,9 +41,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "supply",
-              "docs": [
-                "Total supply of tokens."
-              ],
+              "docs": ["Total supply of tokens."],
               "type": {
                 "kind": "numberTypeNode",
                 "format": "u64",
@@ -65,9 +63,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "isInitialized",
-              "docs": [
-                "Is `true` if this structure has been initialized."
-              ],
+              "docs": ["Is `true` if this structure has been initialized."],
               "type": {
                 "kind": "booleanTypeNode",
                 "size": {
@@ -80,9 +76,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "freezeAuthority",
-              "docs": [
-                "Optional authority to freeze token accounts."
-              ],
+              "docs": ["Optional authority to freeze token accounts."],
               "type": {
                 "kind": "optionTypeNode",
                 "fixed": true,
@@ -99,9 +93,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "extensions",
-              "docs": [
-                "The extensions activated on the mint account."
-              ],
+              "docs": ["The extensions activated on the mint account."],
               "type": {
                 "kind": "remainderOptionTypeNode",
                 "item": {
@@ -157,9 +149,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "mint",
-              "docs": [
-                "The mint associated with this account."
-              ],
+              "docs": ["The mint associated with this account."],
               "type": {
                 "kind": "publicKeyTypeNode"
               }
@@ -167,9 +157,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "owner",
-              "docs": [
-                "The owner of this account."
-              ],
+              "docs": ["The owner of this account."],
               "type": {
                 "kind": "publicKeyTypeNode"
               }
@@ -177,9 +165,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "amount",
-              "docs": [
-                "The amount of tokens this account holds."
-              ],
+              "docs": ["The amount of tokens this account holds."],
               "type": {
                 "kind": "numberTypeNode",
                 "format": "u64",
@@ -209,9 +195,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "state",
-              "docs": [
-                "The account's state."
-              ],
+              "docs": ["The account's state."],
               "type": {
                 "kind": "definedTypeLinkNode",
                 "name": "accountState"
@@ -244,9 +228,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "delegatedAmount",
-              "docs": [
-                "The amount delegated."
-              ],
+              "docs": ["The amount delegated."],
               "type": {
                 "kind": "numberTypeNode",
                 "format": "u64",
@@ -256,9 +238,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "closeAuthority",
-              "docs": [
-                "Optional authority to close the account."
-              ],
+              "docs": ["Optional authority to close the account."],
               "type": {
                 "kind": "optionTypeNode",
                 "fixed": true,
@@ -275,9 +255,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "extensions",
-              "docs": [
-                "The extensions activated on the token account."
-              ],
+              "docs": ["The extensions activated on the token account."],
               "type": {
                 "kind": "remainderOptionTypeNode",
                 "item": {
@@ -329,9 +307,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "m",
-              "docs": [
-                "Number of signers required."
-              ],
+              "docs": ["Number of signers required."],
               "type": {
                 "kind": "numberTypeNode",
                 "format": "u8",
@@ -341,9 +317,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "n",
-              "docs": [
-                "Number of valid signers."
-              ],
+              "docs": ["Number of valid signers."],
               "type": {
                 "kind": "numberTypeNode",
                 "format": "u8",
@@ -353,9 +327,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "isInitialized",
-              "docs": [
-                "Is `true` if this structure has been initialized."
-              ],
+              "docs": ["Is `true` if this structure has been initialized."],
               "type": {
                 "kind": "booleanTypeNode",
                 "size": {
@@ -368,9 +340,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "signers",
-              "docs": [
-                "Signer public keys."
-              ],
+              "docs": ["Signer public keys."],
               "type": {
                 "kind": "arrayTypeNode",
                 "item": {
@@ -413,9 +383,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "Token mint account."
-            ]
+            "docs": ["Token mint account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -423,9 +391,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "Rent sysvar."
-            ],
+            "docs": ["Rent sysvar."],
             "defaultValue": {
               "kind": "publicKeyValueNode",
               "publicKey": "SysvarRent111111111111111111111111111111111"
@@ -451,9 +417,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "decimals",
-            "docs": [
-              "Number of decimals in token account amounts."
-            ],
+            "docs": ["Number of decimals in token account amounts."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u8",
@@ -463,9 +427,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "mintAuthority",
-            "docs": [
-              "Minting authority."
-            ],
+            "docs": ["Minting authority."],
             "type": {
               "kind": "publicKeyTypeNode"
             }
@@ -473,9 +435,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "freezeAuthority",
-            "docs": [
-              "Optional authority that can freeze token accounts."
-            ],
+            "docs": ["Optional authority that can freeze token accounts."],
             "type": {
               "kind": "optionTypeNode",
               "fixed": false,
@@ -524,9 +484,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The account to initialize."
-            ]
+            "docs": ["The account to initialize."]
           },
           {
             "kind": "instructionAccountNode",
@@ -534,9 +492,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint this account will be associated with."
-            ]
+            "docs": ["The mint this account will be associated with."]
           },
           {
             "kind": "instructionAccountNode",
@@ -544,9 +500,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The new account's owner/multisignature."
-            ]
+            "docs": ["The new account's owner/multisignature."]
           },
           {
             "kind": "instructionAccountNode",
@@ -554,9 +508,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "Rent sysvar."
-            ],
+            "docs": ["Rent sysvar."],
             "defaultValue": {
               "kind": "publicKeyValueNode",
               "publicKey": "SysvarRent111111111111111111111111111111111"
@@ -612,9 +564,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The multisignature account to initialize."
-            ]
+            "docs": ["The multisignature account to initialize."]
           },
           {
             "kind": "instructionAccountNode",
@@ -622,9 +572,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "Rent sysvar."
-            ],
+            "docs": ["Rent sysvar."],
             "defaultValue": {
               "kind": "publicKeyValueNode",
               "publicKey": "SysvarRent111111111111111111111111111111111"
@@ -694,9 +642,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The source account."
-            ]
+            "docs": ["The source account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -704,9 +650,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The destination account."
-            ]
+            "docs": ["The destination account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -741,9 +685,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "amount",
-            "docs": [
-              "The amount of tokens to transfer."
-            ],
+            "docs": ["The amount of tokens to transfer."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u64",
@@ -786,9 +728,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The source account."
-            ]
+            "docs": ["The source account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -796,9 +736,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The delegate."
-            ]
+            "docs": ["The delegate."]
           },
           {
             "kind": "instructionAccountNode",
@@ -806,9 +744,7 @@
             "isWritable": false,
             "isSigner": "either",
             "isOptional": false,
-            "docs": [
-              "The source account owner or its multisignature account."
-            ]
+            "docs": ["The source account owner or its multisignature account."]
           }
         ],
         "arguments": [
@@ -830,9 +766,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "amount",
-            "docs": [
-              "The amount of tokens the delegate is approved for."
-            ],
+            "docs": ["The amount of tokens the delegate is approved for."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u64",
@@ -863,9 +797,7 @@
       {
         "kind": "instructionNode",
         "name": "revoke",
-        "docs": [
-          "Revokes the delegate's authority."
-        ],
+        "docs": ["Revokes the delegate's authority."],
         "optionalAccountStrategy": "programId",
         "accounts": [
           {
@@ -874,9 +806,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The source account."
-            ]
+            "docs": ["The source account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -884,9 +814,7 @@
             "isWritable": false,
             "isSigner": "either",
             "isOptional": false,
-            "docs": [
-              "The source account owner or its multisignature."
-            ]
+            "docs": ["The source account owner or its multisignature."]
           }
         ],
         "arguments": [
@@ -929,9 +857,7 @@
       {
         "kind": "instructionNode",
         "name": "setAuthority",
-        "docs": [
-          "Sets a new authority of a mint or account."
-        ],
+        "docs": ["Sets a new authority of a mint or account."],
         "optionalAccountStrategy": "programId",
         "accounts": [
           {
@@ -940,9 +866,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint or account to change the authority of."
-            ]
+            "docs": ["The mint or account to change the authority of."]
           },
           {
             "kind": "instructionAccountNode",
@@ -974,9 +898,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "authorityType",
-            "docs": [
-              "The type of authority to update."
-            ],
+            "docs": ["The type of authority to update."],
             "type": {
               "kind": "definedTypeLinkNode",
               "name": "authorityType"
@@ -985,9 +907,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "newAuthority",
-            "docs": [
-              "The new authority"
-            ],
+            "docs": ["The new authority"],
             "type": {
               "kind": "optionTypeNode",
               "fixed": false,
@@ -1036,9 +956,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint account."
-            ]
+            "docs": ["The mint account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1046,9 +964,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The account to mint tokens to."
-            ]
+            "docs": ["The account to mint tokens to."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1080,9 +996,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "amount",
-            "docs": [
-              "The amount of new tokens to mint."
-            ],
+            "docs": ["The amount of new tokens to mint."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u64",
@@ -1125,9 +1039,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The account to burn from."
-            ]
+            "docs": ["The account to burn from."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1135,9 +1047,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The token mint."
-            ]
+            "docs": ["The token mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1158,9 +1068,7 @@
             "kind": "instructionArgumentNode",
             "name": "discriminator",
             "defaultValueStrategy": "omitted",
-            "docs": [
-              "The amount of tokens to burn."
-            ],
+            "docs": ["The amount of tokens to burn."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u8",
@@ -1217,9 +1125,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The account to close."
-            ]
+            "docs": ["The account to close."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1227,9 +1133,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The destination account."
-            ]
+            "docs": ["The destination account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1237,9 +1141,7 @@
             "isWritable": false,
             "isSigner": "either",
             "isOptional": false,
-            "docs": [
-              "The account's owner or its multisignature account."
-            ]
+            "docs": ["The account's owner or its multisignature account."]
           }
         ],
         "arguments": [
@@ -1293,9 +1195,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The account to freeze."
-            ]
+            "docs": ["The account to freeze."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1303,9 +1203,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The token mint."
-            ]
+            "docs": ["The token mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1313,9 +1211,7 @@
             "isWritable": false,
             "isSigner": "either",
             "isOptional": false,
-            "docs": [
-              "The mint freeze authority or its multisignature account."
-            ]
+            "docs": ["The mint freeze authority or its multisignature account."]
           }
         ],
         "arguments": [
@@ -1369,9 +1265,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The account to thaw."
-            ]
+            "docs": ["The account to thaw."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1379,9 +1273,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The token mint."
-            ]
+            "docs": ["The token mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1389,9 +1281,7 @@
             "isWritable": false,
             "isSigner": "either",
             "isOptional": false,
-            "docs": [
-              "The mint freeze authority or its multisignature account."
-            ]
+            "docs": ["The mint freeze authority or its multisignature account."]
           }
         ],
         "arguments": [
@@ -1433,79 +1323,6 @@
       },
       {
         "kind": "instructionNode",
-        "name": "withdrawExcessLamports",
-        "docs": ["Withdraws excess lamports from the account."],
-        "optionalAccountStrategy": "programId",
-        "accounts": [
-          {
-            "kind": "instructionAccountNode",
-            "name": "sourceAccount",
-            "isWritable": true,
-            "isSigner": false,
-            "isOptional": false,
-            "docs": ["Account holding excess lamports."]
-          },
-          {
-            "kind": "instructionAccountNode",
-            "name": "destinationAccount",
-            "isWritable": true,
-            "isSigner": false,
-            "isOptional": false,
-            "docs": ["Destination account for withdrawn lamports."]
-          },
-          {
-            "kind": "instructionAccountNode",
-            "name": "authority",
-            "isWritable": false,
-            "isSigner": true,
-            "isOptional": false,
-            "docs": [
-              "The source account's owner/delegate or its multisignature account."
-            ],
-            "defaultValue": {
-              "kind": "identityValueNode"
-            }
-          }
-        ],
-        "arguments": [
-          {
-            "kind": "instructionArgumentNode",
-            "name": "discriminator",
-            "defaultValueStrategy": "omitted",
-            "docs": [],
-            "type": {
-              "kind": "numberTypeNode",
-              "format": "u8",
-              "endian": "le"
-            },
-            "defaultValue": {
-              "kind": "numberValueNode",
-              "number": 38
-            }
-          }
-        ],
-        "remainingAccounts": [
-          {
-            "kind": "instructionRemainingAccountsNode",
-            "isOptional": true,
-            "isSigner": true,
-            "docs": [],
-            "value": {
-              "kind": "argumentValueNode",
-              "name": "multiSigners"
-            }
-          }
-        ],
-        "discriminators": [
-          {
-            "kind": "fieldDiscriminatorNode",
-            "name": "discriminator",
-            "offset": 0
-          }
-        ]
-      },    
-      {
-        "kind": "instructionNode",
         "name": "transferChecked",
         "docs": [
           "Transfers tokens from one account to another either directly or via a",
@@ -1524,9 +1341,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The source account."
-            ]
+            "docs": ["The source account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1534,9 +1349,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The token mint."
-            ]
+            "docs": ["The token mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1544,9 +1357,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The destination account."
-            ]
+            "docs": ["The destination account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1581,9 +1392,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "amount",
-            "docs": [
-              "The amount of tokens to transfer."
-            ],
+            "docs": ["The amount of tokens to transfer."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u64",
@@ -1642,9 +1451,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The source account."
-            ]
+            "docs": ["The source account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1652,9 +1459,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The token mint."
-            ]
+            "docs": ["The token mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1662,9 +1467,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The delegate."
-            ]
+            "docs": ["The delegate."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1672,9 +1475,7 @@
             "isWritable": false,
             "isSigner": "either",
             "isOptional": false,
-            "docs": [
-              "The source account owner or its multisignature account."
-            ]
+            "docs": ["The source account owner or its multisignature account."]
           }
         ],
         "arguments": [
@@ -1696,9 +1497,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "amount",
-            "docs": [
-              "The amount of tokens the delegate is approved for."
-            ],
+            "docs": ["The amount of tokens the delegate is approved for."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u64",
@@ -1756,9 +1555,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint."
-            ]
+            "docs": ["The mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1766,9 +1563,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The account to mint tokens to."
-            ]
+            "docs": ["The account to mint tokens to."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1800,9 +1595,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "amount",
-            "docs": [
-              "The amount of new tokens to mint."
-            ],
+            "docs": ["The amount of new tokens to mint."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u64",
@@ -1861,9 +1654,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The account to burn from."
-            ]
+            "docs": ["The account to burn from."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1871,9 +1662,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The token mint."
-            ]
+            "docs": ["The token mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1908,9 +1697,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "amount",
-            "docs": [
-              "The amount of tokens to burn."
-            ],
+            "docs": ["The amount of tokens to burn."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u64",
@@ -1967,9 +1754,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The account to initialize."
-            ]
+            "docs": ["The account to initialize."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1977,9 +1762,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint this account will be associated with."
-            ]
+            "docs": ["The mint this account will be associated with."]
           },
           {
             "kind": "instructionAccountNode",
@@ -1987,9 +1770,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "Rent sysvar."
-            ],
+            "docs": ["Rent sysvar."],
             "defaultValue": {
               "kind": "publicKeyValueNode",
               "publicKey": "SysvarRent111111111111111111111111111111111"
@@ -2015,9 +1796,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "owner",
-            "docs": [
-              "The new account's owner/multisignature."
-            ],
+            "docs": ["The new account's owner/multisignature."],
             "type": {
               "kind": "publicKeyTypeNode"
             }
@@ -2093,9 +1872,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The account to initialize."
-            ]
+            "docs": ["The account to initialize."]
           },
           {
             "kind": "instructionAccountNode",
@@ -2103,9 +1880,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint this account will be associated with."
-            ]
+            "docs": ["The mint this account will be associated with."]
           }
         ],
         "arguments": [
@@ -2127,9 +1902,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "owner",
-            "docs": [
-              "The new account's owner/multisignature."
-            ],
+            "docs": ["The new account's owner/multisignature."],
             "type": {
               "kind": "publicKeyTypeNode"
             }
@@ -2157,9 +1930,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The multisignature account to initialize."
-            ]
+            "docs": ["The multisignature account to initialize."]
           }
         ],
         "arguments": [
@@ -2223,9 +1994,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint to initialize."
-            ]
+            "docs": ["The mint to initialize."]
           }
         ],
         "arguments": [
@@ -2259,9 +2028,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "mintAuthority",
-            "docs": [
-              "The authority/multisignature to mint tokens."
-            ],
+            "docs": ["The authority/multisignature to mint tokens."],
             "type": {
               "kind": "publicKeyTypeNode"
             }
@@ -2315,9 +2082,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint to calculate for."
-            ]
+            "docs": ["The mint to calculate for."]
           }
         ],
         "arguments": [
@@ -2365,9 +2130,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The account to initialize."
-            ]
+            "docs": ["The account to initialize."]
           }
         ],
         "arguments": [
@@ -2416,9 +2179,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint to calculate for."
-            ]
+            "docs": ["The mint to calculate for."]
           }
         ],
         "arguments": [
@@ -2440,9 +2201,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "amount",
-            "docs": [
-              "The amount of tokens to reformat."
-            ],
+            "docs": ["The amount of tokens to reformat."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u64",
@@ -2477,9 +2236,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint to calculate for."
-            ]
+            "docs": ["The mint to calculate for."]
           }
         ],
         "arguments": [
@@ -2501,9 +2258,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "uiAmount",
-            "docs": [
-              "The ui_amount of tokens to reformat."
-            ],
+            "docs": ["The ui_amount of tokens to reformat."],
             "type": {
               "kind": "stringTypeNode",
               "encoding": "utf8"
@@ -2538,9 +2293,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint to initialize."
-            ]
+            "docs": ["The mint to initialize."]
           }
         ],
         "arguments": [
@@ -2607,9 +2360,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint to initialize."
-            ]
+            "docs": ["The mint to initialize."]
           }
         ],
         "arguments": [
@@ -2646,9 +2397,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "transferFeeConfigAuthority",
-            "docs": [
-              "Pubkey that may update the fees."
-            ],
+            "docs": ["Pubkey that may update the fees."],
             "type": {
               "kind": "optionTypeNode",
               "fixed": false,
@@ -2665,9 +2414,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "withdrawWithheldAuthority",
-            "docs": [
-              "Withdraw instructions must be signed by this key."
-            ],
+            "docs": ["Withdraw instructions must be signed by this key."],
             "type": {
               "kind": "optionTypeNode",
               "fixed": false,
@@ -2696,9 +2443,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "maximumFee",
-            "docs": [
-              "Maximum fee assessed on transfers."
-            ],
+            "docs": ["Maximum fee assessed on transfers."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u64",
@@ -2809,9 +2554,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "amount",
-            "docs": [
-              "The amount of tokens to transfer."
-            ],
+            "docs": ["The amount of tokens to transfer."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u64",
@@ -3049,9 +2792,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "numTokenAccounts",
-            "docs": [
-              "Number of token accounts harvested."
-            ],
+            "docs": ["Number of token accounts harvested."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u8",
@@ -3075,9 +2816,7 @@
             "isOptional": false,
             "isWritable": true,
             "isSigner": false,
-            "docs": [
-              "The source accounts to withdraw from."
-            ],
+            "docs": ["The source accounts to withdraw from."],
             "value": {
               "kind": "argumentValueNode",
               "name": "sources"
@@ -3116,9 +2855,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The token mint."
-            ]
+            "docs": ["The token mint."]
           }
         ],
         "arguments": [
@@ -3159,9 +2896,7 @@
             "isOptional": false,
             "isWritable": true,
             "isSigner": false,
-            "docs": [
-              "The source accounts to harvest from."
-            ],
+            "docs": ["The source accounts to harvest from."],
             "value": {
               "kind": "argumentValueNode",
               "name": "sources"
@@ -3196,9 +2931,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint."
-            ]
+            "docs": ["The mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -3260,9 +2993,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "maximumFee",
-            "docs": [
-              "Maximum fee assessed on transfers."
-            ],
+            "docs": ["Maximum fee assessed on transfers."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u64",
@@ -3317,9 +3048,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The SPL Token mint."
-            ]
+            "docs": ["The SPL Token mint."]
           }
         ],
         "arguments": [
@@ -3427,9 +3156,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The SPL Token mint."
-            ]
+            "docs": ["The SPL Token mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -3437,9 +3164,7 @@
             "isWritable": false,
             "isSigner": true,
             "isOptional": false,
-            "docs": [
-              "Confidential transfer mint authority."
-            ]
+            "docs": ["Confidential transfer mint authority."]
           }
         ],
         "arguments": [
@@ -3546,9 +3271,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The SPL Token account."
-            ]
+            "docs": ["The SPL Token account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -3556,9 +3279,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The corresponding SPL Token mint."
-            ]
+            "docs": ["The corresponding SPL Token mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -3714,9 +3435,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The SPL Token account to approve."
-            ]
+            "docs": ["The SPL Token account to approve."]
           },
           {
             "kind": "instructionAccountNode",
@@ -3724,9 +3443,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The corresponding SPL Token mint."
-            ]
+            "docs": ["The corresponding SPL Token mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -3734,9 +3451,7 @@
             "isWritable": false,
             "isSigner": true,
             "isOptional": false,
-            "docs": [
-              "Confidential transfer mint authority."
-            ]
+            "docs": ["Confidential transfer mint authority."]
           }
         ],
         "arguments": [
@@ -3816,9 +3531,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The SPL Token account."
-            ]
+            "docs": ["The SPL Token account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -3951,9 +3664,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The SPL Token account."
-            ]
+            "docs": ["The SPL Token account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -3961,9 +3672,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The corresponding SPL Token mint."
-            ]
+            "docs": ["The corresponding SPL Token mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -4010,9 +3719,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "amount",
-            "docs": [
-              "The amount of tokens to deposit."
-            ],
+            "docs": ["The amount of tokens to deposit."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u64",
@@ -4084,9 +3791,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The SPL Token account."
-            ]
+            "docs": ["The SPL Token account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -4094,9 +3799,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The corresponding SPL Token mint."
-            ]
+            "docs": ["The corresponding SPL Token mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -4175,9 +3878,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "amount",
-            "docs": [
-              "The amount of tokens to withdraw."
-            ],
+            "docs": ["The amount of tokens to withdraw."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u64",
@@ -4199,9 +3900,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "newDecryptableAvailableBalance",
-            "docs": [
-              "The new decryptable balance if the withdrawal succeeds."
-            ],
+            "docs": ["The new decryptable balance if the withdrawal succeeds."],
             "type": {
               "kind": "definedTypeLinkNode",
               "name": "decryptableBalance"
@@ -4288,9 +3987,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The source SPL Token account."
-            ]
+            "docs": ["The source SPL Token account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -4298,9 +3995,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The corresponding SPL Token mint."
-            ]
+            "docs": ["The corresponding SPL Token mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -4308,9 +4003,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The destination SPL Token account."
-            ]
+            "docs": ["The destination SPL Token account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -4501,9 +4194,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The SPL Token account."
-            ]
+            "docs": ["The SPL Token account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -4613,9 +4304,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The SPL Token account."
-            ]
+            "docs": ["The SPL Token account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -4706,9 +4395,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The SPL Token account."
-            ]
+            "docs": ["The SPL Token account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -4793,9 +4480,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The SPL Token account."
-            ]
+            "docs": ["The SPL Token account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -4883,9 +4568,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The SPL Token account."
-            ]
+            "docs": ["The SPL Token account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -4986,9 +4669,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The source SPL Token account."
-            ]
+            "docs": ["The source SPL Token account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -4996,9 +4677,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The corresponding SPL Token mint."
-            ]
+            "docs": ["The corresponding SPL Token mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -5006,9 +4685,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The destination SPL Token account."
-            ]
+            "docs": ["The destination SPL Token account."]
           },
           {
             "kind": "instructionAccountNode",
@@ -5250,9 +4927,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint."
-            ]
+            "docs": ["The mint."]
           }
         ],
         "arguments": [
@@ -5289,9 +4964,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "state",
-            "docs": [
-              "The state each new token account should start with."
-            ],
+            "docs": ["The state each new token account should start with."],
             "type": {
               "kind": "definedTypeLinkNode",
               "name": "accountState"
@@ -5326,9 +4999,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint."
-            ]
+            "docs": ["The mint."]
           },
           {
             "kind": "instructionAccountNode",
@@ -5336,9 +5007,7 @@
             "isWritable": false,
             "isSigner": "either",
             "isOptional": false,
-            "docs": [
-              "The mint freeze authority or its multisignature account."
-            ]
+            "docs": ["The mint freeze authority or its multisignature account."]
           }
         ],
         "arguments": [
@@ -5375,9 +5044,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "state",
-            "docs": [
-              "The state each new token account should start with."
-            ],
+            "docs": ["The state each new token account should start with."],
             "type": {
               "kind": "definedTypeLinkNode",
               "name": "accountState"
@@ -5425,9 +5092,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The token account to reallocate."
-            ]
+            "docs": ["The token account to reallocate."]
           },
           {
             "kind": "instructionAccountNode",
@@ -5435,9 +5100,7 @@
             "isWritable": true,
             "isSigner": true,
             "isOptional": false,
-            "docs": [
-              "The payer account to fund reallocation."
-            ]
+            "docs": ["The payer account to fund reallocation."]
           },
           {
             "kind": "instructionAccountNode",
@@ -5445,9 +5108,7 @@
             "isWritable": false,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "System program for reallocation funding."
-            ],
+            "docs": ["System program for reallocation funding."],
             "defaultValue": {
               "kind": "publicKeyValueNode",
               "publicKey": "11111111111111111111111111111111"
@@ -5459,9 +5120,7 @@
             "isWritable": false,
             "isSigner": "either",
             "isOptional": false,
-            "docs": [
-              "The account's owner or its multisignature account."
-            ]
+            "docs": ["The account's owner or its multisignature account."]
           }
         ],
         "arguments": [
@@ -5533,9 +5192,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The token account to update."
-            ]
+            "docs": ["The token account to update."]
           },
           {
             "kind": "instructionAccountNode",
@@ -5543,9 +5200,7 @@
             "isWritable": false,
             "isSigner": "either",
             "isOptional": false,
-            "docs": [
-              "The account's owner or its multisignature account."
-            ]
+            "docs": ["The account's owner or its multisignature account."]
           }
         ],
         "arguments": [
@@ -5622,9 +5277,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The token account to update."
-            ]
+            "docs": ["The token account to update."]
           },
           {
             "kind": "instructionAccountNode",
@@ -5632,9 +5285,7 @@
             "isWritable": false,
             "isSigner": "either",
             "isOptional": false,
-            "docs": [
-              "The account's owner or its multisignature account."
-            ]
+            "docs": ["The account's owner or its multisignature account."]
           }
         ],
         "arguments": [
@@ -5696,6 +5347,79 @@
       },
       {
         "kind": "instructionNode",
+        "name": "withdrawExcessLamports",
+        "docs": ["Withdraws excess lamports from the account."],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "sourceAccount",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["Account holding excess lamports."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "destinationAccount",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["Destination account for withdrawn lamports."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": true,
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ],
+            "defaultValue": {
+              "kind": "identityValueNode"
+            }
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 38
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      }, 
+      {
+        "kind": "instructionNode",
         "name": "initializeMetadataPointer",
         "docs": [
           "Initialize a new mint with a metadata pointer",
@@ -5715,9 +5439,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint to initialize."
-            ]
+            "docs": ["The mint to initialize."]
           }
         ],
         "arguments": [
@@ -5767,9 +5489,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "metadataAddress",
-            "docs": [
-              "The account address that holds the metadata."
-            ],
+            "docs": ["The account address that holds the metadata."],
             "type": {
               "kind": "zeroableOptionTypeNode",
               "item": {
@@ -5806,9 +5526,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint to initialize."
-            ]
+            "docs": ["The mint to initialize."]
           },
           {
             "kind": "instructionAccountNode",
@@ -5855,9 +5573,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "metadataAddress",
-            "docs": [
-              "The new account address that holds the metadata."
-            ],
+            "docs": ["The new account address that holds the metadata."],
             "type": {
               "kind": "zeroableOptionTypeNode",
               "item": {
@@ -5912,9 +5628,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint to initialize."
-            ]
+            "docs": ["The mint to initialize."]
           }
         ],
         "arguments": [
@@ -5964,9 +5678,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "groupAddress",
-            "docs": [
-              "The account address that holds the group."
-            ],
+            "docs": ["The account address that holds the group."],
             "type": {
               "kind": "zeroableOptionTypeNode",
               "item": {
@@ -6003,9 +5715,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint to initialize."
-            ]
+            "docs": ["The mint to initialize."]
           },
           {
             "kind": "instructionAccountNode",
@@ -6109,9 +5819,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint to initialize."
-            ]
+            "docs": ["The mint to initialize."]
           }
         ],
         "arguments": [
@@ -6161,9 +5869,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "memberAddress",
-            "docs": [
-              "The account address that holds the member."
-            ],
+            "docs": ["The account address that holds the member."],
             "type": {
               "kind": "zeroableOptionTypeNode",
               "item": {
@@ -6200,9 +5906,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint to initialize."
-            ]
+            "docs": ["The mint to initialize."]
           },
           {
             "kind": "instructionAccountNode",
@@ -6249,9 +5953,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "memberAddress",
-            "docs": [
-              "The new account address that holds the member."
-            ],
+            "docs": ["The new account address that holds the member."],
             "type": {
               "kind": "zeroableOptionTypeNode",
               "item": {
@@ -6348,9 +6050,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "name",
-            "docs": [
-              "Longer name of the token."
-            ],
+            "docs": ["Longer name of the token."],
             "type": {
               "kind": "sizePrefixTypeNode",
               "type": {
@@ -6367,9 +6067,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "symbol",
-            "docs": [
-              "Shortened symbol of the token."
-            ],
+            "docs": ["Shortened symbol of the token."],
             "type": {
               "kind": "sizePrefixTypeNode",
               "type": {
@@ -6386,9 +6084,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "uri",
-            "docs": [
-              "URI pointing to more metadata (image, video, etc.)."
-            ],
+            "docs": ["URI pointing to more metadata (image, video, etc.)."],
             "type": {
               "kind": "sizePrefixTypeNode",
               "type": {
@@ -6465,9 +6161,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "field",
-            "docs": [
-              "Field to update in the metadata."
-            ],
+            "docs": ["Field to update in the metadata."],
             "type": {
               "kind": "definedTypeLinkNode",
               "name": "tokenMetadataField"
@@ -6476,9 +6170,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "value",
-            "docs": [
-              "Value to write for the field."
-            ],
+            "docs": ["Value to write for the field."],
             "type": {
               "kind": "sizePrefixTypeNode",
               "type": {
@@ -6570,9 +6262,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "key",
-            "docs": [
-              "Key to remove in the additional metadata portion."
-            ],
+            "docs": ["Key to remove in the additional metadata portion."],
             "type": {
               "kind": "sizePrefixTypeNode",
               "type": {
@@ -6598,9 +6288,7 @@
       {
         "kind": "instructionNode",
         "name": "updateTokenMetadataUpdateAuthority",
-        "docs": [
-          "Updates the token-metadata authority."
-        ],
+        "docs": ["Updates the token-metadata authority."],
         "optionalAccountStrategy": "programId",
         "accounts": [
           {
@@ -6700,9 +6388,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "start",
-            "docs": [
-              "Start of range of data to emit"
-            ],
+            "docs": ["Start of range of data to emit"],
             "type": {
               "kind": "optionTypeNode",
               "item": {
@@ -6723,9 +6409,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "end",
-            "docs": [
-              "End of range of data to emit"
-            ],
+            "docs": ["End of range of data to emit"],
             "type": {
               "kind": "optionTypeNode",
               "item": {
@@ -6805,9 +6489,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "updateAuthority",
-            "docs": [
-              "Update authority for the group"
-            ],
+            "docs": ["Update authority for the group"],
             "type": {
               "kind": "zeroableOptionTypeNode",
               "item": {
@@ -6818,9 +6500,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "maxSize",
-            "docs": [
-              "The maximum number of group members"
-            ],
+            "docs": ["The maximum number of group members"],
             "type": {
               "kind": "numberTypeNode",
               "format": "u64",
@@ -6839,9 +6519,7 @@
       {
         "kind": "instructionNode",
         "name": "updateTokenGroupMaxSize",
-        "docs": [
-          "Update the max size of a `Group`."
-        ],
+        "docs": ["Update the max size of a `Group`."],
         "optionalAccountStrategy": "programId",
         "accounts": [
           {
@@ -6879,9 +6557,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "maxSize",
-            "docs": [
-              "New max size for the group"
-            ],
+            "docs": ["New max size for the group"],
             "type": {
               "kind": "numberTypeNode",
               "format": "u64",
@@ -6900,9 +6576,7 @@
       {
         "kind": "instructionNode",
         "name": "updateTokenGroupUpdateAuthority",
-        "docs": [
-          "Update the authority of a `Group`."
-        ],
+        "docs": ["Update the authority of a `Group`."],
         "optionalAccountStrategy": "programId",
         "accounts": [
           {
@@ -6919,9 +6593,7 @@
             "isWritable": false,
             "isSigner": true,
             "isOptional": false,
-            "docs": [
-              "Current update authority"
-            ]
+            "docs": ["Current update authority"]
           }
         ],
         "arguments": [
@@ -6942,9 +6614,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "newUpdateAuthority",
-            "docs": [
-              "New authority for the group, or unset if `None`"
-            ],
+            "docs": ["New authority for the group, or unset if `None`"],
             "type": {
               "kind": "zeroableOptionTypeNode",
               "item": {
@@ -7107,9 +6777,7 @@
             {
               "kind": "structFieldTypeNode",
               "name": "epoch",
-              "docs": [
-                "First epoch where the transfer fee takes effect."
-              ],
+              "docs": ["First epoch where the transfer fee takes effect."],
               "type": {
                 "kind": "numberTypeNode",
                 "format": "u64",
@@ -7152,9 +6820,7 @@
       {
         "kind": "definedTypeNode",
         "name": "encryptedBalance",
-        "docs": [
-          "ElGamal ciphertext containing an account balance."
-        ],
+        "docs": ["ElGamal ciphertext containing an account balance."],
         "type": {
           "kind": "fixedSizeTypeNode",
           "size": 64,
@@ -7166,9 +6832,7 @@
       {
         "kind": "definedTypeNode",
         "name": "decryptableBalance",
-        "docs": [
-          "Authenticated encryption containing an account balance."
-        ],
+        "docs": ["Authenticated encryption containing an account balance."],
         "type": {
           "kind": "fixedSizeTypeNode",
           "size": 36,
@@ -7199,9 +6863,7 @@
                     {
                       "kind": "structFieldTypeNode",
                       "name": "transferFeeConfigAuthority",
-                      "docs": [
-                        "Optional authority to set the fee."
-                      ],
+                      "docs": ["Optional authority to set the fee."],
                       "type": {
                         "kind": "publicKeyTypeNode"
                       }
@@ -7449,9 +7111,7 @@
                     {
                       "kind": "structFieldTypeNode",
                       "name": "decryptableAvailableBalance",
-                      "docs": [
-                        "The decryptable available balance."
-                      ],
+                      "docs": ["The decryptable available balance."],
                       "type": {
                         "kind": "definedTypeLinkNode",
                         "name": "decryptableBalance"
@@ -7787,9 +7447,7 @@
                     {
                       "kind": "structFieldTypeNode",
                       "name": "authority",
-                      "docs": [
-                        "The transfer hook update authority."
-                      ],
+                      "docs": ["The transfer hook update authority."],
                       "type": {
                         "kind": "publicKeyTypeNode"
                       }
@@ -7797,9 +7455,7 @@
                     {
                       "kind": "structFieldTypeNode",
                       "name": "programId",
-                      "docs": [
-                        "The transfer hook program account."
-                      ],
+                      "docs": ["The transfer hook program account."],
                       "type": {
                         "kind": "publicKeyTypeNode"
                       }
@@ -8023,9 +7679,7 @@
                     {
                       "kind": "structFieldTypeNode",
                       "name": "name",
-                      "docs": [
-                        "The longer name of the token."
-                      ],
+                      "docs": ["The longer name of the token."],
                       "type": {
                         "kind": "sizePrefixTypeNode",
                         "type": {
@@ -8042,9 +7696,7 @@
                     {
                       "kind": "structFieldTypeNode",
                       "name": "symbol",
-                      "docs": [
-                        "The shortened symbol for the token."
-                      ],
+                      "docs": ["The shortened symbol for the token."],
                       "type": {
                         "kind": "sizePrefixTypeNode",
                         "type": {
@@ -8061,9 +7713,7 @@
                     {
                       "kind": "structFieldTypeNode",
                       "name": "uri",
-                      "docs": [
-                        "The URI pointing to richer metadata."
-                      ],
+                      "docs": ["The URI pointing to richer metadata."],
                       "type": {
                         "kind": "sizePrefixTypeNode",
                         "type": {
@@ -8205,9 +7855,7 @@
                     {
                       "kind": "structFieldTypeNode",
                       "name": "size",
-                      "docs": [
-                        "The current number of group members."
-                      ],
+                      "docs": ["The current number of group members."],
                       "type": {
                         "kind": "numberTypeNode",
                         "format": "u64",
@@ -8217,9 +7865,7 @@
                     {
                       "kind": "structFieldTypeNode",
                       "name": "maxSize",
-                      "docs": [
-                        "The maximum number of group members."
-                      ],
+                      "docs": ["The maximum number of group members."],
                       "type": {
                         "kind": "numberTypeNode",
                         "format": "u64",
@@ -8299,9 +7945,7 @@
                     {
                       "kind": "structFieldTypeNode",
                       "name": "group",
-                      "docs": [
-                        "The pubkey of the `TokenGroup`."
-                      ],
+                      "docs": ["The pubkey of the `TokenGroup`."],
                       "type": {
                         "kind": "publicKeyTypeNode"
                       }
@@ -8309,9 +7953,7 @@
                     {
                       "kind": "structFieldTypeNode",
                       "name": "memberNumber",
-                      "docs": [
-                        "The member number."
-                      ],
+                      "docs": ["The member number."],
                       "type": {
                         "kind": "numberTypeNode",
                         "format": "u64",
@@ -8364,37 +8006,27 @@
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "transferFeeAmount",
-              "docs": [
-                "Includes withheld transfer fees"
-              ]
+              "docs": ["Includes withheld transfer fees"]
             },
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "mintCloseAuthority",
-              "docs": [
-                "Includes an optional mint close authority"
-              ]
+              "docs": ["Includes an optional mint close authority"]
             },
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "confidentialTransferMint",
-              "docs": [
-                "Auditor configuration for confidential transfers"
-              ]
+              "docs": ["Auditor configuration for confidential transfers"]
             },
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "confidentialTransferAccount",
-              "docs": [
-                "State for confidential transfers"
-              ]
+              "docs": ["State for confidential transfers"]
             },
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "defaultAccountState",
-              "docs": [
-                "Specifies the default Account::state for new Accounts"
-              ]
+              "docs": ["Specifies the default Account::state for new Accounts"]
             },
             {
               "kind": "enumEmptyVariantTypeNode",
@@ -8406,9 +8038,7 @@
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "memoTransfer",
-              "docs": [
-                "Require inbound transfers to have memo"
-              ]
+              "docs": ["Require inbound transfers to have memo"]
             },
             {
               "kind": "enumEmptyVariantTypeNode",
@@ -8420,9 +8050,7 @@
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "interestBearingConfig",
-              "docs": [
-                "Tokens accrue interest over time,"
-              ]
+              "docs": ["Tokens accrue interest over time,"]
             },
             {
               "kind": "enumEmptyVariantTypeNode",
@@ -8434,9 +8062,7 @@
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "permanentDelegate",
-              "docs": [
-                "Includes an optional permanent delegate"
-              ]
+              "docs": ["Includes an optional permanent delegate"]
             },
             {
               "kind": "enumEmptyVariantTypeNode",
@@ -8473,9 +8099,7 @@
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "confidentialTransferFeeAmount",
-              "docs": [
-                "Includes confidential withheld transfer fees"
-              ]
+              "docs": ["Includes confidential withheld transfer fees"]
             },
             {
               "kind": "enumEmptyVariantTypeNode",
@@ -8488,9 +8112,7 @@
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "tokenMetadata",
-              "docs": [
-                "Mint contains token-metadata"
-              ]
+              "docs": ["Mint contains token-metadata"]
             },
             {
               "kind": "enumEmptyVariantTypeNode",
@@ -8503,9 +8125,7 @@
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "tokenGroup",
-              "docs": [
-                "Mint contains token group configurations"
-              ]
+              "docs": ["Mint contains token group configurations"]
             },
             {
               "kind": "enumEmptyVariantTypeNode",
@@ -8518,9 +8138,7 @@
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "tokenGroupMember",
-              "docs": [
-                "Mint contains token group member configurations"
-              ]
+              "docs": ["Mint contains token group member configurations"]
             }
           ],
           "size": {
@@ -8533,18 +8151,14 @@
       {
         "kind": "definedTypeNode",
         "name": "tokenMetadataField",
-        "docs": [
-          "Fields in the metadata account, used for updating."
-        ],
+        "docs": ["Fields in the metadata account, used for updating."],
         "type": {
           "kind": "enumTypeNode",
           "variants": [
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "name",
-              "docs": [
-                "The name field, corresponding to `TokenMetadata.name`"
-              ]
+              "docs": ["The name field, corresponding to `TokenMetadata.name`"]
             },
             {
               "kind": "enumEmptyVariantTypeNode",
@@ -8556,9 +8170,7 @@
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "uri",
-              "docs": [
-                "The uri field, corresponding to `TokenMetadata.uri`"
-              ]
+              "docs": ["The uri field, corresponding to `TokenMetadata.uri`"]
             },
             {
               "kind": "enumTupleVariantTypeNode",
@@ -8600,63 +8212,49 @@
         "name": "notRentExempt",
         "code": 0,
         "message": "Lamport balance below rent-exempt threshold",
-        "docs": [
-          "NotRentExempt: Lamport balance below rent-exempt threshold"
-        ]
+        "docs": ["NotRentExempt: Lamport balance below rent-exempt threshold"]
       },
       {
         "kind": "errorNode",
         "name": "insufficientFunds",
         "code": 1,
         "message": "Insufficient funds",
-        "docs": [
-          "InsufficientFunds: Insufficient funds"
-        ]
+        "docs": ["InsufficientFunds: Insufficient funds"]
       },
       {
         "kind": "errorNode",
         "name": "invalidMint",
         "code": 2,
         "message": "Invalid Mint",
-        "docs": [
-          "InvalidMint: Invalid Mint"
-        ]
+        "docs": ["InvalidMint: Invalid Mint"]
       },
       {
         "kind": "errorNode",
         "name": "mintMismatch",
         "code": 3,
         "message": "Account not associated with this Mint",
-        "docs": [
-          "MintMismatch: Account not associated with this Mint"
-        ]
+        "docs": ["MintMismatch: Account not associated with this Mint"]
       },
       {
         "kind": "errorNode",
         "name": "ownerMismatch",
         "code": 4,
         "message": "Owner does not match",
-        "docs": [
-          "OwnerMismatch: Owner does not match"
-        ]
+        "docs": ["OwnerMismatch: Owner does not match"]
       },
       {
         "kind": "errorNode",
         "name": "fixedSupply",
         "code": 5,
         "message": "Fixed supply",
-        "docs": [
-          "FixedSupply: Fixed supply"
-        ]
+        "docs": ["FixedSupply: Fixed supply"]
       },
       {
         "kind": "errorNode",
         "name": "alreadyInUse",
         "code": 6,
         "message": "Already in use",
-        "docs": [
-          "AlreadyInUse: Already in use"
-        ]
+        "docs": ["AlreadyInUse: Already in use"]
       },
       {
         "kind": "errorNode",
@@ -8681,9 +8279,7 @@
         "name": "uninitializedState",
         "code": 9,
         "message": "State is unititialized",
-        "docs": [
-          "UninitializedState: State is unititialized"
-        ]
+        "docs": ["UninitializedState: State is unititialized"]
       },
       {
         "kind": "errorNode",
@@ -8708,27 +8304,21 @@
         "name": "invalidInstruction",
         "code": 12,
         "message": "Invalid instruction",
-        "docs": [
-          "InvalidInstruction: Invalid instruction"
-        ]
+        "docs": ["InvalidInstruction: Invalid instruction"]
       },
       {
         "kind": "errorNode",
         "name": "invalidState",
         "code": 13,
         "message": "State is invalid for requested operation",
-        "docs": [
-          "InvalidState: State is invalid for requested operation"
-        ]
+        "docs": ["InvalidState: State is invalid for requested operation"]
       },
       {
         "kind": "errorNode",
         "name": "overflow",
         "code": 14,
         "message": "Operation overflowed",
-        "docs": [
-          "Overflow: Operation overflowed"
-        ]
+        "docs": ["Overflow: Operation overflowed"]
       },
       {
         "kind": "errorNode",
@@ -8744,18 +8334,14 @@
         "name": "mintCannotFreeze",
         "code": 16,
         "message": "This token mint cannot freeze accounts",
-        "docs": [
-          "MintCannotFreeze: This token mint cannot freeze accounts"
-        ]
+        "docs": ["MintCannotFreeze: This token mint cannot freeze accounts"]
       },
       {
         "kind": "errorNode",
         "name": "accountFrozen",
         "code": 17,
         "message": "Account is frozen",
-        "docs": [
-          "AccountFrozen: Account is frozen"
-        ]
+        "docs": ["AccountFrozen: Account is frozen"]
       },
       {
         "kind": "errorNode",
@@ -8796,12 +8382,8 @@
               "isWritable": true,
               "isSigner": true,
               "isOptional": false,
-              "docs": [
-                "Funding account (must be a system account)."
-              ],
-              "defaultValue": {
-                "kind": "payerValueNode"
-              }
+              "docs": ["Funding account (must be a system account)."],
+              "defaultValue": { "kind": "payerValueNode" }
             },
             {
               "kind": "instructionAccountNode",
@@ -8809,9 +8391,7 @@
               "isWritable": true,
               "isSigner": false,
               "isOptional": false,
-              "docs": [
-                "Associated token account address to be created."
-              ],
+              "docs": ["Associated token account address to be created."],
               "defaultValue": {
                 "kind": "pdaValueNode",
                 "pda": {
@@ -8852,9 +8432,7 @@
               "isWritable": false,
               "isSigner": false,
               "isOptional": false,
-              "docs": [
-                "Wallet address for the new associated token account."
-              ]
+              "docs": ["Wallet address for the new associated token account."]
             },
             {
               "kind": "instructionAccountNode",
@@ -8862,9 +8440,7 @@
               "isWritable": false,
               "isSigner": false,
               "isOptional": false,
-              "docs": [
-                "The token mint for the new associated token account."
-              ]
+              "docs": ["The token mint for the new associated token account."]
             },
             {
               "kind": "instructionAccountNode",
@@ -8872,9 +8448,7 @@
               "isWritable": false,
               "isSigner": false,
               "isOptional": false,
-              "docs": [
-                "System program."
-              ],
+              "docs": ["System program."],
               "defaultValue": {
                 "kind": "publicKeyValueNode",
                 "publicKey": "11111111111111111111111111111111"
@@ -8886,9 +8460,7 @@
               "isWritable": false,
               "isSigner": false,
               "isOptional": false,
-              "docs": [
-                "SPL Token program."
-              ],
+              "docs": ["SPL Token program."],
               "defaultValue": {
                 "kind": "publicKeyValueNode",
                 "publicKey": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
@@ -8905,10 +8477,7 @@
                 "endian": "le"
               },
               "docs": [],
-              "defaultValue": {
-                "kind": "numberValueNode",
-                "number": 0
-              },
+              "defaultValue": { "kind": "numberValueNode", "number": 0 },
               "defaultValueStrategy": "omitted"
             }
           ],
@@ -8935,12 +8504,8 @@
               "isWritable": true,
               "isSigner": true,
               "isOptional": false,
-              "docs": [
-                "Funding account (must be a system account)."
-              ],
-              "defaultValue": {
-                "kind": "payerValueNode"
-              }
+              "docs": ["Funding account (must be a system account)."],
+              "defaultValue": { "kind": "payerValueNode" }
             },
             {
               "kind": "instructionAccountNode",
@@ -8948,9 +8513,7 @@
               "isWritable": true,
               "isSigner": false,
               "isOptional": false,
-              "docs": [
-                "Associated token account address to be created."
-              ],
+              "docs": ["Associated token account address to be created."],
               "defaultValue": {
                 "kind": "pdaValueNode",
                 "pda": {
@@ -8991,9 +8554,7 @@
               "isWritable": false,
               "isSigner": false,
               "isOptional": false,
-              "docs": [
-                "Wallet address for the new associated token account."
-              ]
+              "docs": ["Wallet address for the new associated token account."]
             },
             {
               "kind": "instructionAccountNode",
@@ -9001,9 +8562,7 @@
               "isWritable": false,
               "isSigner": false,
               "isOptional": false,
-              "docs": [
-                "The token mint for the new associated token account."
-              ]
+              "docs": ["The token mint for the new associated token account."]
             },
             {
               "kind": "instructionAccountNode",
@@ -9011,9 +8570,7 @@
               "isWritable": false,
               "isSigner": false,
               "isOptional": false,
-              "docs": [
-                "System program."
-              ],
+              "docs": ["System program."],
               "defaultValue": {
                 "kind": "publicKeyValueNode",
                 "publicKey": "11111111111111111111111111111111"
@@ -9025,9 +8582,7 @@
               "isWritable": false,
               "isSigner": false,
               "isOptional": false,
-              "docs": [
-                "SPL Token program."
-              ],
+              "docs": ["SPL Token program."],
               "defaultValue": {
                 "kind": "publicKeyValueNode",
                 "publicKey": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
@@ -9044,10 +8599,7 @@
                 "endian": "le"
               },
               "docs": [],
-              "defaultValue": {
-                "kind": "numberValueNode",
-                "number": 1
-              },
+              "defaultValue": { "kind": "numberValueNode", "number": 1 },
               "defaultValueStrategy": "omitted"
             }
           ],
@@ -9118,9 +8670,7 @@
               "isWritable": false,
               "isSigner": false,
               "isOptional": false,
-              "docs": [
-                "Token mint for the nested associated token account."
-              ]
+              "docs": ["Token mint for the nested associated token account."]
             },
             {
               "kind": "instructionAccountNode",
@@ -9128,9 +8678,7 @@
               "isWritable": true,
               "isSigner": false,
               "isOptional": false,
-              "docs": [
-                "Wallet's associated token account."
-              ],
+              "docs": ["Wallet's associated token account."],
               "defaultValue": {
                 "kind": "pdaValueNode",
                 "pda": {
@@ -9214,9 +8762,7 @@
               "isWritable": false,
               "isSigner": false,
               "isOptional": false,
-              "docs": [
-                "Token mint for the owner associated token account."
-              ]
+              "docs": ["Token mint for the owner associated token account."]
             },
             {
               "kind": "instructionAccountNode",
@@ -9224,9 +8770,7 @@
               "isWritable": true,
               "isSigner": true,
               "isOptional": false,
-              "docs": [
-                "Wallet address for the owner associated token account."
-              ]
+              "docs": ["Wallet address for the owner associated token account."]
             },
             {
               "kind": "instructionAccountNode",
@@ -9234,9 +8778,7 @@
               "isWritable": false,
               "isSigner": false,
               "isOptional": false,
-              "docs": [
-                "SPL Token program."
-              ],
+              "docs": ["SPL Token program."],
               "defaultValue": {
                 "kind": "publicKeyValueNode",
                 "publicKey": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
@@ -9253,10 +8795,7 @@
                 "endian": "le"
               },
               "docs": [],
-              "defaultValue": {
-                "kind": "numberValueNode",
-                "number": 2
-              },
+              "defaultValue": { "kind": "numberValueNode", "number": 2 },
               "defaultValueStrategy": "omitted"
             }
           ],
@@ -9293,9 +8832,7 @@
             {
               "kind": "variablePdaSeedNode",
               "name": "owner",
-              "docs": [
-                "The wallet address of the associated token account."
-              ],
+              "docs": ["The wallet address of the associated token account."],
               "type": {
                 "kind": "publicKeyTypeNode"
               }
@@ -9303,9 +8840,7 @@
             {
               "kind": "variablePdaSeedNode",
               "name": "tokenProgram",
-              "docs": [
-                "The address of the token program to use."
-              ],
+              "docs": ["The address of the token program to use."],
               "type": {
                 "kind": "publicKeyTypeNode"
               }
@@ -9313,9 +8848,7 @@
             {
               "kind": "variablePdaSeedNode",
               "name": "mint",
-              "docs": [
-                "The mint address of the associated token account."
-              ],
+              "docs": ["The mint address of the associated token account."],
               "type": {
                 "kind": "publicKeyTypeNode"
               }

@@ -17,8 +17,8 @@ import {
 } from './_setup';
 import { getTransferSolInstruction } from '@solana-program/system';
 
-test('withdraw excess lamports from an associated token account', async (t) => {
-  // Arrange: Setup client, accounts, mint, token, and fund accounts
+test('it withdraws excess lamports from an associated token account', async (t) => {
+  // Given: A client, a payer, mint authority, token owner, and destination account
   const client = createDefaultSolanaClient();
   const [payer, mintAuthority, owner, destination] = await Promise.all([
     generateKeyPairSignerWithSol(client, 200_000_000n),
@@ -27,7 +27,7 @@ test('withdraw excess lamports from an associated token account', async (t) => {
     generateKeyPairSignerWithSol(client),
   ]);
 
-  // Create an SPL Token
+  // And a mint and token are created
   const mint = await createMint({
     client,
     payer,
@@ -36,22 +36,22 @@ test('withdraw excess lamports from an associated token account', async (t) => {
   });
   const token = await createToken({ client, payer, mint, owner });
 
-  // Mint tokens to the token account
-  const mintTo = getMintToInstruction({
+  // And tokens are minted to the token account
+  const mintToInstruction = getMintToInstruction({
     mint,
     token,
     mintAuthority,
     amount: 100_000n,
   });
-  await sendAndConfirmInstructions(client, payer, [mintTo]);
+  await sendAndConfirmInstructions(client, payer, [mintToInstruction]);
 
-  // Create an associated token account (ATA) for the owner
-  const createAta = await getCreateAssociatedTokenInstructionAsync({
+  // And an associated token account (ATA) is created for the owner
+  const createAtaInstruction = await getCreateAssociatedTokenInstructionAsync({
     payer,
     mint,
     owner: owner.address,
   });
-  await sendAndConfirmInstructions(client, payer, [createAta]);
+  await sendAndConfirmInstructions(client, payer, [createAtaInstruction]);
 
   const [ata] = await findAssociatedTokenPda({
     mint,
@@ -59,44 +59,41 @@ test('withdraw excess lamports from an associated token account', async (t) => {
     tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
   });
 
-  // Ensure the token account was initialized properly
+  // Ensure the token account was initialized correctly
   const initialTokenAccount = await fetchToken(client.rpc, ata);
   t.is(initialTokenAccount.data.state, AccountState.Initialized);
 
-  // Act: Transfer SOL to the ATA mistakenly and then withdraw excess lamports
-  // Step 1: Mistaken SOL transfer to ATA
-  const transferSolIx = await getTransferSolInstruction({
+  // When: SOL is mistakenly transferred to the ATA
+  const transferSolInstruction = await getTransferSolInstruction({
     source: payer,
     destination: ata,
     amount: 1_000_000n,
   });
-  await sendAndConfirmInstructions(client, payer, [transferSolIx]);
+  await sendAndConfirmInstructions(client, payer, [transferSolInstruction]);
 
-  // Check initial balances before withdrawal
-  const lamportsBefore = await client.rpc
-    .getBalance(destination.address)
-    .send();
+  // Capture initial balances for comparison after withdrawal
+  const lamportsBefore = await client.rpc.getBalance(destination.address).send();
   const ataLamportsBefore = await client.rpc.getBalance(ata).send();
 
-  // Step 2: Withdraw excess lamports from ATA to destination
-  const withdrawIx = await getWithdrawExcessLamportsInstruction({
+  // And we initiate withdrawal of excess lamports from the ATA to the destination
+  const withdrawInstruction = await getWithdrawExcessLamportsInstruction({
     sourceAccount: ata,
     destinationAccount: destination.address,
     authority: owner,
   });
-  await sendAndConfirmInstructions(client, owner, [withdrawIx]);
+  await sendAndConfirmInstructions(client, owner, [withdrawInstruction]);
 
-  // Assert: Check that lamports were successfully withdrawn from ATA to destination
+  // Then: Verify that lamports were successfully withdrawn to the destination
   const lamportsAfter = await client.rpc.getBalance(destination.address).send();
   const ataLamportsAfter = await client.rpc.getBalance(ata).send();
 
-  // Assertions for balance changes
+  // Assertions to confirm successful transfer of lamports
   t.true(
     Number(lamportsAfter.value) > Number(lamportsBefore.value),
-    'Lamports successfully withdrawn to destination.'
+    'Lamports were successfully withdrawn to the destination account.'
   );
   t.true(
     Number(ataLamportsBefore.value) > Number(ataLamportsAfter.value),
-    'Lamports successfully withdrawn from ATA.'
+    'Lamports were successfully withdrawn from the ATA.'
   );
 });
