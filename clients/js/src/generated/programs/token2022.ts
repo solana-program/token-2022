@@ -429,10 +429,7 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.DisableCpiGuard;
   }
-  if (
-    containsBytes(data, getU8Encoder().encode(35), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
+  if (containsBytes(data, getU8Encoder().encode(35), 0)) {
     return Token2022Instruction.InitializePermanentDelegate;
   }
   if (

@@ -34,14 +34,6 @@ export function getInitializePermanentDelegateDiscriminatorBytes() {
   return getU8Encoder().encode(INITIALIZE_PERMANENT_DELEGATE_DISCRIMINATOR);
 }
 
-export const INITIALIZE_PERMANENT_DELEGATE_PERMANENT_DELEGATE_DISCRIMINATOR = 1;
-
-export function getInitializePermanentDelegatePermanentDelegateDiscriminatorBytes() {
-  return getU8Encoder().encode(
-    INITIALIZE_PERMANENT_DELEGATE_PERMANENT_DELEGATE_DISCRIMINATOR
-  );
-}
-
 export type InitializePermanentDelegateInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountMint extends string | IAccountMeta<string> = string,
@@ -59,7 +51,6 @@ export type InitializePermanentDelegateInstruction<
 
 export type InitializePermanentDelegateInstructionData = {
   discriminator: number;
-  permanentDelegateDiscriminator: number;
   /** Authority that may sign for Transfers and Burns on any account */
   delegate: Address;
 };
@@ -73,14 +64,11 @@ export function getInitializePermanentDelegateInstructionDataEncoder(): Encoder<
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
-      ['permanentDelegateDiscriminator', getU8Encoder()],
       ['delegate', getAddressEncoder()],
     ]),
     (value) => ({
       ...value,
       discriminator: INITIALIZE_PERMANENT_DELEGATE_DISCRIMINATOR,
-      permanentDelegateDiscriminator:
-        INITIALIZE_PERMANENT_DELEGATE_PERMANENT_DELEGATE_DISCRIMINATOR,
     })
   );
 }
@@ -88,7 +76,6 @@ export function getInitializePermanentDelegateInstructionDataEncoder(): Encoder<
 export function getInitializePermanentDelegateInstructionDataDecoder(): Decoder<InitializePermanentDelegateInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
-    ['permanentDelegateDiscriminator', getU8Decoder()],
     ['delegate', getAddressDecoder()],
   ]);
 }

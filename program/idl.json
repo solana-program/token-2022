@@ -5604,21 +5604,6 @@
           },
           {
             "kind": "instructionArgumentNode",
-            "name": "permanentDelegateDiscriminator",
-            "defaultValueStrategy": "omitted",
-            "docs": [],
-            "type": {
-              "kind": "numberTypeNode",
-              "format": "u8",
-              "endian": "le"
-            },
-            "defaultValue": {
-              "kind": "numberValueNode",
-              "number": 1
-            }
-          },
-          {
-            "kind": "instructionArgumentNode",
             "name": "delegate",
             "docs": [
               "Authority that may sign for Transfers and Burns on any account"
@@ -5634,11 +5619,6 @@
             "kind": "fieldDiscriminatorNode",
             "name": "discriminator",
             "offset": 0
-          },
-          {
-            "kind": "fieldDiscriminatorNode",
-            "name": "permanentDelegateDiscriminator",
-            "offset": 1
           }
         ]
       },
