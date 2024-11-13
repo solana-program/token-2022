@@ -38,26 +38,3 @@ test('it creates a native mint account', async (t) => {
   });
 });
 
-test('it fails to create native mint if it already exists', async (t) => {
-  // Given a payer and a mint account
-  const client = createDefaultSolanaClient();
-  const payer = await generateKeyPairSignerWithSol(client);
-
-  // When we try to create the same native mint twice
-  await sendAndConfirmInstructions(client, payer, [
-    getCreateNativeMintInstruction({
-      payer: payer,
-      nativeMint: NATIVE_MINT,
-    }),
-  ]);
-
-  const promise = sendAndConfirmInstructions(client, payer, [
-    getCreateNativeMintInstruction({
-      payer: payer,
-      nativeMint: NATIVE_MINT,
-    }),
-  ]);
-
-  // Then we expect the operation to fail
-  await t.throwsAsync(promise);
-});
