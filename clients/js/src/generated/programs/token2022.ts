@@ -45,6 +45,7 @@ import {
   type ParsedInitializeGroupMemberPointerInstruction,
   type ParsedInitializeGroupPointerInstruction,
   type ParsedInitializeImmutableOwnerInstruction,
+  type ParsedInitializeInterestBearingMintInstruction,
   type ParsedInitializeMetadataPointerInstruction,
   type ParsedInitializeMint2Instruction,
   type ParsedInitializeMintCloseAuthorityInstruction,
@@ -73,6 +74,7 @@ import {
   type ParsedUpdateGroupMemberPointerInstruction,
   type ParsedUpdateGroupPointerInstruction,
   type ParsedUpdateMetadataPointerInstruction,
+  type ParsedUpdateRateInterestBearingMintInstruction,
   type ParsedUpdateTokenGroupMaxSizeInstruction,
   type ParsedUpdateTokenGroupUpdateAuthorityInstruction,
   type ParsedUpdateTokenMetadataFieldInstruction,
@@ -160,6 +162,8 @@ export enum Token2022Instruction {
   Reallocate,
   EnableMemoTransfers,
   DisableMemoTransfers,
+  InitializeInterestBearingMint,
+  UpdateRateInterestBearingMint,
   InitializeMetadataPointer,
   UpdateMetadataPointer,
   InitializeGroupPointer,
@@ -405,6 +409,18 @@ export function identifyToken2022Instruction(
     containsBytes(data, getU8Encoder().encode(1), 1)
   ) {
     return Token2022Instruction.DisableMemoTransfers;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(33), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
+    return Token2022Instruction.InitializeInterestBearingMint;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(33), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.UpdateRateInterestBearingMint;
   }
   if (
     containsBytes(data, getU8Encoder().encode(39), 0) &&
@@ -676,6 +692,12 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.DisableMemoTransfers;
     } & ParsedDisableMemoTransfersInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeInterestBearingMint;
+    } & ParsedInitializeInterestBearingMintInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.UpdateRateInterestBearingMint;
+    } & ParsedUpdateRateInterestBearingMintInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeMetadataPointer;
     } & ParsedInitializeMetadataPointerInstruction<TProgram>)
