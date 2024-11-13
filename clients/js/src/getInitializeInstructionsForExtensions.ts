@@ -18,7 +18,7 @@ import {
   getInitializeTokenGroupInstruction,
   getInitializeTokenMetadataInstruction,
   getInitializeTransferFeeConfigInstruction,
-  getInitializeNonTransferableMintInstruction
+  getInitializeNonTransferableMintInstruction,
 } from './generated';
 
 /**
