@@ -22,6 +22,7 @@ import {
   getInitializeTransferFeeConfigInstruction,
   getInitializeNonTransferableMintInstruction,
   getInitializeTransferHookInstruction,
+  getInitializePermanentDelegateInstruction,
 } from './generated';
 
 /**
@@ -94,6 +95,11 @@ export function getPreInitializeInstructionsForMintExtensions(
             programId: extension.programId,
           }),
         ];
+      case 'PermanentDelegate':
+        return getInitializePermanentDelegateInstruction({
+          mint,
+          delegate: extension.delegate,
+        });
       default:
         return [];
     }

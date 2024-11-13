@@ -5567,6 +5567,64 @@
       },
       {
         "kind": "instructionNode",
+        "name": "initializePermanentDelegate",
+        "docs": [
+          "Initialize the permanent delegate on a new mint.",
+          "",
+          "Fails if the mint has already been initialized, so must be called before `InitializeMint`.",
+          "",
+          "The mint must have exactly enough space allocated for the base mint (82 bytes),",
+          "plus 83 bytes of padding, 1 byte reserved for the account type,",
+          "then space required for this extension, plus any others."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint to initialize."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 35
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "delegate",
+            "docs": [
+              "Authority that may sign for `Transfer`s and `Burn`s on any account"
+            ],
+            "type": {
+              "kind": "publicKeyTypeNode"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
         "name": "initializeTransferHook",
         "docs": [
           "Initialize a new mint with a transfer hook program.",
@@ -5622,7 +5680,9 @@
           {
             "kind": "instructionArgumentNode",
             "name": "authority",
-            "docs": ["The public key for the account that can update the program id"],
+            "docs": [
+              "The public key for the account that can update the program id"
+            ],
             "type": {
               "kind": "zeroableOptionTypeNode",
               "item": {
@@ -5678,7 +5738,7 @@
             "docs": ["The mint."]
           },
           {
-            "kind": "instructionAccountNode", 
+            "kind": "instructionAccountNode",
             "name": "authority",
             "isWritable": false,
             "isSigner": "either",
@@ -5749,7 +5809,7 @@
           },
           {
             "kind": "fieldDiscriminatorNode",
-            "name": "transferHookDiscriminator", 
+            "name": "transferHookDiscriminator",
             "offset": 1
           }
         ]
