@@ -19,7 +19,7 @@ test('it initializes a mint with transfer hook extension', async (t) => {
   });
 
   // When we create a mint with the transfer hook extension
-  const mintAddress = await createMint({
+  const mint = await createMint({
     authority,
     client,
     extensions: [transferHookExtension],
@@ -27,9 +27,9 @@ test('it initializes a mint with transfer hook extension', async (t) => {
   });
 
   // Then we expect the mint account to exist with the transfer hook extension
-  const mintAccount = await fetchMint(client.rpc, mintAddress);
+  const mintAccount = await fetchMint(client.rpc, mint);
   t.like(mintAccount, <Account<Mint>>{
-    address: mintAddress,
+    address: mint,
     data: {
       mintAuthority: some(authority.address),
       isInitialized: true,
