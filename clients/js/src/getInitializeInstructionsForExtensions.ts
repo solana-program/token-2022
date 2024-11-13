@@ -18,6 +18,7 @@ import {
   getInitializeTokenGroupInstruction,
   getInitializeTokenMetadataInstruction,
   getInitializeTransferFeeConfigInstruction,
+  getInitializeConfidentialTransferFeeConfigInstruction,
 } from './generated';
 
 /**
@@ -78,6 +79,14 @@ export function getPreInitializeInstructionsForMintExtensions(
             mint,
             authority: extension.authority,
             memberAddress: extension.memberAddress,
+          }),
+        ];
+      case 'ConfidentialTransferFee':
+        return [
+          getInitializeConfidentialTransferFeeConfigInstruction({
+            mint,
+            authority: extension.authority,
+            withdrawWithheldAuthorityElgamalPubkey: extension.elgamalPubkey,
           }),
         ];
       default:

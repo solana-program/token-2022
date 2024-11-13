@@ -2466,6 +2466,83 @@
       },
       {
         "kind": "instructionNode",
+        "name": "initializeConfidentialTransferFeeConfig",
+        "docs": [
+          "Initializes a confidential transfer fee configuration for a given mint.",
+          "",
+          "This instruction allows setting an optional authority and the public key",
+          "for the entity allowed to withdraw withheld fees, providing a confidential",
+          "mechanism for transfer fee management."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint account to which the confidential transfer fee configuration will be applied."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 2
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "authority",
+            "docs": ["Optional authority to manage the confidential transfer fee configuration."],
+            "type": {
+              "kind": "optionTypeNode",
+              "fixed": false,
+              "item": {
+                "kind": "publicKeyTypeNode"
+              },
+              "prefix": {
+                "kind": "numberTypeNode",
+                "format": "u8",
+                "endian": "le"
+              }
+            },
+            "defaultValue": {
+              "kind": "noneValueNode"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "withdrawWithheldAuthorityElgamalPubkey",
+            "docs": ["ElGamal public key for the authority permitted to withdraw withheld fees."],
+            "type": {
+              "kind": "zeroableOptionTypeNode",
+              "item": {
+                "kind": "publicKeyTypeNode"
+              }
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },      
+      {
+        "kind": "instructionNode",
         "name": "transferCheckedWithFee",
         "docs": [
           "Transfer, providing expected mint information and fees.",

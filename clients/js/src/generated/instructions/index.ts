@@ -35,6 +35,7 @@ export * from './harvestWithheldTokensToMint';
 export * from './initializeAccount';
 export * from './initializeAccount2';
 export * from './initializeAccount3';
+export * from './initializeConfidentialTransferFeeConfig';
 export * from './initializeConfidentialTransferMint';
 export * from './initializeDefaultAccountState';
 export * from './initializeGroupMemberPointer';
