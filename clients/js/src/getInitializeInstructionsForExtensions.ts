@@ -86,7 +86,6 @@ export function getPreInitializeInstructionsForMintExtensions(
             memberAddress: extension.memberAddress,
           }),
         ];
-<<<<<<< HEAD
       case 'InterestBearingConfig':
         return [
           getInitializeInterestBearingConfigInstruction({
@@ -95,7 +94,6 @@ export function getPreInitializeInstructionsForMintExtensions(
             interestRateBasisPoints: extension.currentRate,
           }),
         ];
-=======
       case 'NonTransferable':
         return getInitializeNonTransferableMintInstruction({ mint });
       case 'TransferHook':
@@ -111,7 +109,6 @@ export function getPreInitializeInstructionsForMintExtensions(
           mint,
           delegate: extension.delegate,
         });
->>>>>>> gib-bounty-tok314276
       default:
         return [];
     }
