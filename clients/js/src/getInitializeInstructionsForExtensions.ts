@@ -10,6 +10,8 @@ import {
   ExtensionArgs,
   getDisableMemoTransfersInstruction,
   getEnableMemoTransfersInstruction,
+  getEnableCpiGuardInstruction,
+  getDisableCpiGuardInstruction,
   getInitializeConfidentialTransferMintInstruction,
   getInitializeDefaultAccountStateInstruction,
   getInitializeGroupMemberPointerInstruction,
@@ -19,6 +21,8 @@ import {
   getInitializeTokenGroupInstruction,
   getInitializeTokenMetadataInstruction,
   getInitializeTransferFeeConfigInstruction,
+  getInitializeNonTransferableMintInstruction,
+  getInitializeTransferHookInstruction,
 } from './generated';
 
 /**
@@ -87,6 +91,16 @@ export function getPreInitializeInstructionsForMintExtensions(
             mint,
             authority: extension.authority,
             memberAddress: extension.memberAddress,
+          }),
+        ];
+      case 'NonTransferable':
+        return getInitializeNonTransferableMintInstruction({ mint });
+      case 'TransferHook':
+        return [
+          getInitializeTransferHookInstruction({
+            mint,
+            authority: extension.authority,
+            programId: extension.programId,
           }),
         ];
       default:
@@ -162,6 +176,16 @@ export function getPostInitializeInstructionsForTokenExtensions(
           extension.requireIncomingTransferMemos
             ? getEnableMemoTransfersInstruction({ owner, token, multiSigners })
             : getDisableMemoTransfersInstruction({
+                owner,
+                token,
+                multiSigners,
+              }),
+        ];
+      case 'CpiGuard':
+        return [
+          extension.lockCpi
+            ? getEnableCpiGuardInstruction({ owner, token, multiSigners })
+            : getDisableCpiGuardInstruction({
                 owner,
                 token,
                 multiSigners,

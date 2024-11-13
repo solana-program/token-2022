@@ -5347,15 +5347,234 @@
       },
       {
         "kind": "instructionNode",
-        "name": "initializeInterestBearingMint",
+        "name": "initializeNonTransferableMint",
         "docs": [
-          "Initialize a new mint with the `InterestBearing` extension.",
+          "Initialize the non transferable extension for the given mint account",
           "",
-          "Fails if the mint has already been initialized, so must be called before",
-          "`InitializeMint`.",
+          "Fails if the account has already been initialized, so must be called before `InitializeMint`."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint account to initialize."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 32
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "enableCpiGuard",
+        "docs": [
+          "Lock certain token operations from taking place within CPI for this Account, namely:",
+          "* Transfer and Burn must go through a delegate.",
+          "* CloseAccount can only return lamports to owner.",
+          "* SetAuthority can only be used to remove an existing close authority.",
+          "* Approve is disallowed entirely.",
           "",
-          "The mint must have exactly enough space allocated for the base mint (82",
-          "bytes), plus 83 bytes of padding, 1 byte reserved for the account type,",
+          "In addition, CPI Guard cannot be enabled or disabled via CPI."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The token account to update."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "owner",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 34
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "cpiGuardDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 0
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "cpiGuardDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "disableCpiGuard",
+        "docs": [
+          "Allow all token operations to happen via CPI as normal.",
+          "",
+          "Implicitly initializes the extension in the case where it is not present."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The token account to update."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "owner",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The account's owner/delegate or its multisignature account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 34
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "cpiGuardDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 1
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "cpiGuardDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "initializeTransferHook",
+        "docs": [
+          "Initialize a new mint with a transfer hook program.",
+          "",
+          "Fails if the mint has already been initialized, so must be called before `InitializeMint`.",
+          "",
+          "The mint must have exactly enough space allocated for the base mint (82 bytes),",
+          "plus 83 bytes of padding, 1 byte reserved for the account type,",
           "then space required for this extension, plus any others."
         ],
         "optionalAccountStrategy": "programId",
@@ -5382,12 +5601,12 @@
             },
             "defaultValue": {
               "kind": "numberValueNode",
-              "number": 33
+              "number": 36
             }
           },
           {
             "kind": "instructionArgumentNode",
-            "name": "interestBearingMintDiscriminator",
+            "name": "transferHookDiscriminator",
             "defaultValueStrategy": "omitted",
             "docs": [],
             "type": {
@@ -5402,8 +5621,8 @@
           },
           {
             "kind": "instructionArgumentNode",
-            "name": "rateAuthority",
-            "docs": ["The public key for the account that can update the rate"],
+            "name": "authority",
+            "docs": ["The public key for the account that can update the program id"],
             "type": {
               "kind": "zeroableOptionTypeNode",
               "item": {
@@ -5413,12 +5632,13 @@
           },
           {
             "kind": "instructionArgumentNode",
-            "name": "rate",
-            "docs": ["The initial interest rate"],
+            "name": "programId",
+            "docs": ["The program id that performs logic during transfers"],
             "type": {
-              "kind": "numberTypeNode",
-              "format": "i16",
-              "endian": "le"
+              "kind": "zeroableOptionTypeNode",
+              "item": {
+                "kind": "publicKeyTypeNode"
+              }
             }
           }
         ],
@@ -5430,17 +5650,22 @@
           },
           {
             "kind": "fieldDiscriminatorNode",
-            "name": "interestBearingMintDiscriminator",
+            "name": "transferHookDiscriminator",
             "offset": 1
           }
         ]
       },
       {
         "kind": "instructionNode",
-        "name": "updateRateInterestBearingMint",
+        "name": "updateTransferHook",
         "docs": [
-          "Update the interest rate. Only supported for mints that include the",
-          "`InterestBearingConfig` extension."
+          "Update the transfer hook program id. Only supported for mints that",
+          "include the `TransferHook` extension.",
+          "",
+          "Accounts expected by this instruction:",
+          "",
+          "  0. `[writable]` The mint.",
+          "  1. `[signer]` The transfer hook authority."
         ],
         "optionalAccountStrategy": "programId",
         "accounts": [
@@ -5453,12 +5678,12 @@
             "docs": ["The mint."]
           },
           {
-            "kind": "instructionAccountNode",
-            "name": "rateAuthority",
-            "isWritable": true,
-            "isSigner": true,
+            "kind": "instructionAccountNode", 
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
             "isOptional": false,
-            "docs": ["The mint rate authority."]
+            "docs": ["The transfer hook authority."]
           }
         ],
         "arguments": [
@@ -5474,12 +5699,12 @@
             },
             "defaultValue": {
               "kind": "numberValueNode",
-              "number": 33
+              "number": 36
             }
           },
           {
             "kind": "instructionArgumentNode",
-            "name": "interestBearingMintDiscriminator",
+            "name": "transferHookDiscriminator",
             "defaultValueStrategy": "omitted",
             "docs": [],
             "type": {
@@ -5494,12 +5719,13 @@
           },
           {
             "kind": "instructionArgumentNode",
-            "name": "rate",
-            "docs": ["The interest rate to update."],
+            "name": "programId",
+            "docs": ["The program id that performs logic during transfers"],
             "type": {
-              "kind": "numberTypeNode",
-              "format": "i16",
-              "endian": "le"
+              "kind": "zeroableOptionTypeNode",
+              "item": {
+                "kind": "publicKeyTypeNode"
+              }
             }
           }
         ],
@@ -5523,7 +5749,7 @@
           },
           {
             "kind": "fieldDiscriminatorNode",
-            "name": "interestBearingMintDiscriminator",
+            "name": "transferHookDiscriminator", 
             "offset": 1
           }
         ]
