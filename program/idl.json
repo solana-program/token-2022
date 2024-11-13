@@ -1637,15 +1637,13 @@
       },
       {
         "kind": "instructionNode",
-        "name": "initializeInterestBearingMint",
+        "name": "initializeInterestBearingConfig",
         "docs": [
-          "Initialize a new mint with interest accrual.",
+          "Initializes the interest-bearing configuration for a mint.",
           "",
-          "Fails if the mint has already been initialized, so must be called before `InitializeMint`.",
-          "",
-          "The mint must have exactly enough space allocated for the base mint (82 bytes),",
-          "plus 83 bytes of padding, 1 byte reserved for the account type,",
-          "then space required for this extension, plus any others."
+          "This instruction must be called before any other operations if the mint is",
+          "to be interest-bearing. Sets up parameters such as interest rate and",
+          "compounding period."
         ],
         "optionalAccountStrategy": "programId",
         "accounts": [
@@ -1655,7 +1653,15 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": ["The mint to initialize."]
+            "docs": ["The token mint to configure as interest-bearing."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "configAuthority",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The authority that can modify the interest-bearing parameters."]
           }
         ],
         "arguments": [
@@ -1671,39 +1677,13 @@
             },
             "defaultValue": {
               "kind": "numberValueNode",
-              "number": 37
-            }
-          },
-          {
-            "kind": "instructionArgumentNode",
-            "name": "interestBearingDiscriminator",
-            "defaultValueStrategy": "omitted",
-            "docs": [],
-            "type": {
-              "kind": "numberTypeNode",
-              "format": "u8",
-              "endian": "le"
-            },
-            "defaultValue": {
-              "kind": "numberValueNode",
-              "number": 0
-            }
-          },
-          {
-            "kind": "instructionArgumentNode",
-            "name": "authority",
-            "docs": ["The public key for the account that can update the interest rate"],
-            "type": {
-              "kind": "zeroableOptionTypeNode",
-              "item": {
-                "kind": "publicKeyTypeNode"
-              }
+              "number": 27
             }
           },
           {
             "kind": "instructionArgumentNode",
             "name": "interestRateBasisPoints",
-            "docs": ["The basis points for interest calculation"],
+            "docs": ["Interest rate in basis points (1/100th of a percent)."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u16",
@@ -1716,14 +1696,9 @@
             "kind": "fieldDiscriminatorNode",
             "name": "discriminator",
             "offset": 0
-          },
-          {
-            "kind": "fieldDiscriminatorNode",
-            "name": "interestBearingDiscriminator",
-            "offset": 1
           }
         ]
-      },
+      },      
       {
         "kind": "instructionNode",
         "name": "updateInterestRate",

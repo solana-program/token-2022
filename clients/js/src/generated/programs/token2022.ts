@@ -45,7 +45,7 @@ import {
   type ParsedInitializeGroupMemberPointerInstruction,
   type ParsedInitializeGroupPointerInstruction,
   type ParsedInitializeImmutableOwnerInstruction,
-  type ParsedInitializeInterestBearingMintInstruction,
+  type ParsedInitializeInterestBearingConfigInstruction,
   type ParsedInitializeMetadataPointerInstruction,
   type ParsedInitializeMint2Instruction,
   type ParsedInitializeMintCloseAuthorityInstruction,
@@ -126,7 +126,7 @@ export enum Token2022Instruction {
   TransferChecked,
   ApproveChecked,
   MintToChecked,
-  InitializeInterestBearingMint,
+  InitializeInterestBearingConfig,
   UpdateInterestRate,
   BurnChecked,
   InitializeAccount2,
@@ -230,11 +230,8 @@ export function identifyToken2022Instruction(
   if (containsBytes(data, getU8Encoder().encode(14), 0)) {
     return Token2022Instruction.MintToChecked;
   }
-  if (
-    containsBytes(data, getU8Encoder().encode(37), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
-    return Token2022Instruction.InitializeInterestBearingMint;
+  if (containsBytes(data, getU8Encoder().encode(27), 0)) {
+    return Token2022Instruction.InitializeInterestBearingConfig;
   }
   if (
     containsBytes(data, getU8Encoder().encode(37), 0) &&
@@ -585,8 +582,8 @@ export type ParsedToken2022Instruction<
       instructionType: Token2022Instruction.MintToChecked;
     } & ParsedMintToCheckedInstruction<TProgram>)
   | ({
-      instructionType: Token2022Instruction.InitializeInterestBearingMint;
-    } & ParsedInitializeInterestBearingMintInstruction<TProgram>)
+      instructionType: Token2022Instruction.InitializeInterestBearingConfig;
+    } & ParsedInitializeInterestBearingConfigInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.UpdateInterestRate;
     } & ParsedUpdateInterestRateInstruction<TProgram>)

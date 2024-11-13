@@ -14,6 +14,7 @@ import {
   getInitializeDefaultAccountStateInstruction,
   getInitializeGroupMemberPointerInstruction,
   getInitializeGroupPointerInstruction,
+  getInitializeInterestBearingConfigInstruction,
   getInitializeMetadataPointerInstruction,
   getInitializeTokenGroupInstruction,
   getInitializeTokenMetadataInstruction,
@@ -80,6 +81,14 @@ export function getPreInitializeInstructionsForMintExtensions(
             memberAddress: extension.memberAddress,
           }),
         ];
+      case "InterestBearingConfig":
+        return [
+          getInitializeInterestBearingConfigInstruction({
+            mint,
+            configAuthority: extension.rateAuthority,
+            interestRateBasisPoints: extension.currentRate,
+          })
+        ]
       default:
         return [];
     }

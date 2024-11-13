@@ -40,7 +40,7 @@ export * from './initializeDefaultAccountState';
 export * from './initializeGroupMemberPointer';
 export * from './initializeGroupPointer';
 export * from './initializeImmutableOwner';
-export * from './initializeInterestBearingMint';
+export * from './initializeInterestBearingConfig';
 export * from './initializeMetadataPointer';
 export * from './initializeMint';
 export * from './initializeMint2';
