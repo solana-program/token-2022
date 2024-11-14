@@ -26,6 +26,7 @@ import {
   type ParsedConfidentialTransferWithFeeInstruction,
   type ParsedConfidentialWithdrawInstruction,
   type ParsedConfigureConfidentialTransferAccountInstruction,
+  type ParsedCreateNativeMintInstruction,
   type ParsedDisableConfidentialCreditsInstruction,
   type ParsedDisableCpiGuardInstruction,
   type ParsedDisableMemoTransfersInstruction,
@@ -166,6 +167,7 @@ export enum Token2022Instruction {
   Reallocate,
   EnableMemoTransfers,
   DisableMemoTransfers,
+  CreateNativeMint,
   InitializeNonTransferableMint,
   EnableCpiGuard,
   DisableCpiGuard,
@@ -417,6 +419,9 @@ export function identifyToken2022Instruction(
     containsBytes(data, getU8Encoder().encode(1), 1)
   ) {
     return Token2022Instruction.DisableMemoTransfers;
+  }
+  if (containsBytes(data, getU8Encoder().encode(31), 0)) {
+    return Token2022Instruction.CreateNativeMint;
   }
   if (containsBytes(data, getU8Encoder().encode(32), 0)) {
     return Token2022Instruction.InitializeNonTransferableMint;
@@ -718,6 +723,9 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.DisableMemoTransfers;
     } & ParsedDisableMemoTransfersInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.CreateNativeMint;
+    } & ParsedCreateNativeMintInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeNonTransferableMint;
     } & ParsedInitializeNonTransferableMintInstruction<TProgram>)
