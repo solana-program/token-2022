@@ -273,7 +273,7 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.InitializeTransferFeeConfig;
   }
-  if (containsBytes(data, getU8Encoder().encode(2), 0)) {
+  if (containsBytes(data, getU8Encoder().encode(12), 0)) {
     return Token2022Instruction.InitializeConfidentialTransferFeeConfig;
   }
   if (

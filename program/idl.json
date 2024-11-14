@@ -2466,13 +2466,16 @@
       },
       {
         "kind": "instructionNode",
-        "name": "initializeConfidentialTransferFeeConfig",
+        "name": "initializeConfidentialTransferFeeConfig", 
         "docs": [
-          "Initializes a confidential transfer fee configuration for a given mint.",
+          "Initializes confidential transfer fees for a mint.",
           "",
-          "This instruction allows setting an optional authority and the public key",
-          "for the entity allowed to withdraw withheld fees, providing a confidential",
-          "mechanism for transfer fee management."
+          "The `InitializeConfidentialTransferFeeConfig` instruction requires no signers and MUST be",
+          "included within the same Transaction as `TokenInstruction::InitializeMint`. Otherwise another", 
+          "party can initialize the configuration.",
+          "",
+          "The instruction fails if the `TokenInstruction::InitializeMint` instruction has already",
+          "executed for the mint."
         ],
         "optionalAccountStrategy": "programId",
         "accounts": [
@@ -2482,12 +2485,12 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": ["The mint account to which the confidential transfer fee configuration will be applied."]
+            "docs": ["The SPL Token mint."]
           }
         ],
         "arguments": [
           {
-            "kind": "instructionArgumentNode",
+            "kind": "instructionArgumentNode", 
             "name": "discriminator",
             "defaultValueStrategy": "omitted",
             "docs": [],
@@ -2498,13 +2501,13 @@
             },
             "defaultValue": {
               "kind": "numberValueNode",
-              "number": 2
+              "number": 12
             }
           },
           {
             "kind": "instructionArgumentNode",
             "name": "authority",
-            "docs": ["Optional authority to manage the confidential transfer fee configuration."],
+            "docs": ["Optional confidential transfer fee authority"],
             "type": {
               "kind": "optionTypeNode",
               "fixed": false,
@@ -2512,7 +2515,7 @@
                 "kind": "publicKeyTypeNode"
               },
               "prefix": {
-                "kind": "numberTypeNode",
+                "kind": "numberTypeNode", 
                 "format": "u8",
                 "endian": "le"
               }
@@ -2524,23 +2527,22 @@
           {
             "kind": "instructionArgumentNode",
             "name": "withdrawWithheldAuthorityElgamalPubkey",
-            "docs": ["ElGamal public key for the authority permitted to withdraw withheld fees."],
+            "docs": ["ElGamal public key used to encrypt withheld fees"],
             "type": {
-              "kind": "zeroableOptionTypeNode",
-              "item": {
-                "kind": "publicKeyTypeNode"
-              }
+              "kind": "publicKeyTypeNode",
+              "name": "PodElGamalPubkey",
+              "docs": ["A public key in the ElGamal cryptosystem serialized as a Pod type"]
             }
           }
         ],
         "discriminators": [
           {
             "kind": "fieldDiscriminatorNode",
-            "name": "discriminator",
+            "name": "discriminator", 
             "offset": 0
           }
         ]
-      },      
+      },     
       {
         "kind": "instructionNode",
         "name": "transferCheckedWithFee",

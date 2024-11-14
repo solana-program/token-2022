@@ -48,8 +48,9 @@ test('it initializes a mint account with confidential transfer fee configuration
     getInitializeConfidentialTransferFeeConfigInstruction({
       mint: mint.address,
       authority: some(authority.address),
-      withdrawWithheldAuthorityElgamalPubkey:
-      address('ENFvQcBnPT599PsYBcKwa8wRFiyWcDYiELvZ7bdvQWPp'),
+      withdrawWithheldAuthorityElgamalPubkey: address(
+        'ENFvQcBnPT599PsYBcKwa8wRFiyWcDYiELvZ7bdvQWPp'
+      ),
     }),
     initMintInstruction,
   ]);

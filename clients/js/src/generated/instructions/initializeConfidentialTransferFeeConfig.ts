@@ -33,7 +33,7 @@ import {
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const INITIALIZE_CONFIDENTIAL_TRANSFER_FEE_CONFIG_DISCRIMINATOR = 2;
+export const INITIALIZE_CONFIDENTIAL_TRANSFER_FEE_CONFIG_DISCRIMINATOR = 12;
 
 export function getInitializeConfidentialTransferFeeConfigDiscriminatorBytes() {
   return getU8Encoder().encode(
@@ -58,17 +58,17 @@ export type InitializeConfidentialTransferFeeConfigInstruction<
 
 export type InitializeConfidentialTransferFeeConfigInstructionData = {
   discriminator: number;
-  /** Optional authority to manage the confidential transfer fee configuration. */
+  /** Optional confidential transfer fee authority */
   authority: Option<Address>;
-  /** ElGamal public key for the authority permitted to withdraw withheld fees. */
-  withdrawWithheldAuthorityElgamalPubkey: Option<Address>;
+  /** ElGamal public key used to encrypt withheld fees */
+  withdrawWithheldAuthorityElgamalPubkey: Address;
 };
 
 export type InitializeConfidentialTransferFeeConfigInstructionDataArgs = {
-  /** Optional authority to manage the confidential transfer fee configuration. */
+  /** Optional confidential transfer fee authority */
   authority?: OptionOrNullable<Address>;
-  /** ElGamal public key for the authority permitted to withdraw withheld fees. */
-  withdrawWithheldAuthorityElgamalPubkey: OptionOrNullable<Address>;
+  /** ElGamal public key used to encrypt withheld fees */
+  withdrawWithheldAuthorityElgamalPubkey: Address;
 };
 
 export function getInitializeConfidentialTransferFeeConfigInstructionDataEncoder(): Encoder<InitializeConfidentialTransferFeeConfigInstructionDataArgs> {
@@ -76,13 +76,7 @@ export function getInitializeConfidentialTransferFeeConfigInstructionDataEncoder
     getStructEncoder([
       ['discriminator', getU8Encoder()],
       ['authority', getOptionEncoder(getAddressEncoder())],
-      [
-        'withdrawWithheldAuthorityElgamalPubkey',
-        getOptionEncoder(getAddressEncoder(), {
-          prefix: null,
-          noneValue: 'zeroes',
-        }),
-      ],
+      ['withdrawWithheldAuthorityElgamalPubkey', getAddressEncoder()],
     ]),
     (value) => ({
       ...value,
@@ -96,13 +90,7 @@ export function getInitializeConfidentialTransferFeeConfigInstructionDataDecoder
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['authority', getOptionDecoder(getAddressDecoder())],
-    [
-      'withdrawWithheldAuthorityElgamalPubkey',
-      getOptionDecoder(getAddressDecoder(), {
-        prefix: null,
-        noneValue: 'zeroes',
-      }),
-    ],
+    ['withdrawWithheldAuthorityElgamalPubkey', getAddressDecoder()],
   ]);
 }
 
@@ -119,7 +107,7 @@ export function getInitializeConfidentialTransferFeeConfigInstructionDataCodec()
 export type InitializeConfidentialTransferFeeConfigInput<
   TAccountMint extends string = string,
 > = {
-  /** The mint account to which the confidential transfer fee configuration will be applied. */
+  /** The SPL Token mint. */
   mint: Address<TAccountMint>;
   authority?: InitializeConfidentialTransferFeeConfigInstructionDataArgs['authority'];
   withdrawWithheldAuthorityElgamalPubkey: InitializeConfidentialTransferFeeConfigInstructionDataArgs['withdrawWithheldAuthorityElgamalPubkey'];
@@ -171,7 +159,7 @@ export type ParsedInitializeConfidentialTransferFeeConfigInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** The mint account to which the confidential transfer fee configuration will be applied. */
+    /** The SPL Token mint. */
     mint: TAccountMetas[0];
   };
   data: InitializeConfidentialTransferFeeConfigInstructionData;
