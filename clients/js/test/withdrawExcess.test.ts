@@ -16,15 +16,16 @@ import {
   sendAndConfirmInstructions,
 } from './_setup';
 import { getTransferSolInstruction } from '@solana-program/system';
+import { generateKeyPairSigner } from '@solana/web3.js';
 
 test('it withdraws excess lamports from an associated token account', async (t) => {
   // Given: A client, a payer, mint authority, token owner, and destination account
   const client = createDefaultSolanaClient();
   const [payer, mintAuthority, owner, destination] = await Promise.all([
     generateKeyPairSignerWithSol(client, 200_000_000n),
-    generateKeyPairSignerWithSol(client),
-    generateKeyPairSignerWithSol(client),
-    generateKeyPairSignerWithSol(client),
+    generateKeyPairSigner(),
+    generateKeyPairSigner(),
+    generateKeyPairSigner(),
   ]);
 
   // And a mint and token are created
