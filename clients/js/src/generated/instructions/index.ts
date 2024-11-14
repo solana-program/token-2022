@@ -84,6 +84,7 @@ export * from './updateTokenGroupUpdateAuthority';
 export * from './updateTokenMetadataField';
 export * from './updateTokenMetadataUpdateAuthority';
 export * from './updateTransferHook';
+export * from './withdrawExcessLamports';
 export * from './withdrawWithheldTokensFromAccounts';
 export * from './withdrawWithheldTokensFromAccountsForConfidentialTransferFee';
 export * from './withdrawWithheldTokensFromMint';

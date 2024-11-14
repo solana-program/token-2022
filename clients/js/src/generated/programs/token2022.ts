@@ -88,6 +88,7 @@ import {
   type ParsedUpdateTokenMetadataFieldInstruction,
   type ParsedUpdateTokenMetadataUpdateAuthorityInstruction,
   type ParsedUpdateTransferHookInstruction,
+  type ParsedWithdrawExcessLamportsInstruction,
   type ParsedWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruction,
   type ParsedWithdrawWithheldTokensFromAccountsInstruction,
   type ParsedWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction,
@@ -186,6 +187,7 @@ export enum Token2022Instruction {
   HarvestWithheldTokensToMintForConfidentialTransferFee,
   EnableHarvestToMint,
   DisableHarvestToMint,
+  WithdrawExcessLamports,
   InitializeMetadataPointer,
   UpdateMetadataPointer,
   InitializeGroupPointer,
@@ -501,6 +503,9 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.DisableHarvestToMint;
   }
+  if (containsBytes(data, getU8Encoder().encode(38), 0)) {
+    return Token2022Instruction.WithdrawExcessLamports;
+  }
   if (
     containsBytes(data, getU8Encoder().encode(39), 0) &&
     containsBytes(data, getU8Encoder().encode(0), 1)
@@ -810,6 +815,9 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.DisableHarvestToMint;
     } & ParsedDisableHarvestToMintInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.WithdrawExcessLamports;
+    } & ParsedWithdrawExcessLamportsInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeMetadataPointer;
     } & ParsedInitializeMetadataPointerInstruction<TProgram>)
