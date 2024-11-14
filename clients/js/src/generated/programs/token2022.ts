@@ -26,22 +26,27 @@ import {
   type ParsedConfidentialTransferWithFeeInstruction,
   type ParsedConfidentialWithdrawInstruction,
   type ParsedConfigureConfidentialTransferAccountInstruction,
+  type ParsedCreateNativeMintInstruction,
   type ParsedDisableConfidentialCreditsInstruction,
   type ParsedDisableCpiGuardInstruction,
+  type ParsedDisableHarvestToMintInstruction,
   type ParsedDisableMemoTransfersInstruction,
   type ParsedDisableNonConfidentialCreditsInstruction,
   type ParsedEmitTokenMetadataInstruction,
   type ParsedEmptyConfidentialTransferAccountInstruction,
   type ParsedEnableConfidentialCreditsInstruction,
   type ParsedEnableCpiGuardInstruction,
+  type ParsedEnableHarvestToMintInstruction,
   type ParsedEnableMemoTransfersInstruction,
   type ParsedEnableNonConfidentialCreditsInstruction,
   type ParsedFreezeAccountInstruction,
   type ParsedGetAccountDataSizeInstruction,
+  type ParsedHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction,
   type ParsedHarvestWithheldTokensToMintInstruction,
   type ParsedInitializeAccount2Instruction,
   type ParsedInitializeAccount3Instruction,
   type ParsedInitializeAccountInstruction,
+  type ParsedInitializeConfidentialTransferFeeInstruction,
   type ParsedInitializeConfidentialTransferMintInstruction,
   type ParsedInitializeDefaultAccountStateInstruction,
   type ParsedInitializeGroupMemberPointerInstruction,
@@ -84,7 +89,9 @@ import {
   type ParsedUpdateTokenMetadataUpdateAuthorityInstruction,
   type ParsedUpdateTransferHookInstruction,
   type ParsedWithdrawExcessLamportsInstruction,
+  type ParsedWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruction,
   type ParsedWithdrawWithheldTokensFromAccountsInstruction,
+  type ParsedWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction,
   type ParsedWithdrawWithheldTokensFromMintInstruction,
 } from '../instructions';
 
@@ -167,6 +174,7 @@ export enum Token2022Instruction {
   Reallocate,
   EnableMemoTransfers,
   DisableMemoTransfers,
+  CreateNativeMint,
   InitializeNonTransferableMint,
   EnableCpiGuard,
   DisableCpiGuard,
@@ -174,6 +182,12 @@ export enum Token2022Instruction {
   InitializeTransferHook,
   UpdateTransferHook,
   WithdrawExcessLamports,
+  InitializeConfidentialTransferFee,
+  WithdrawWithheldTokensFromMintForConfidentialTransferFee,
+  WithdrawWithheldTokensFromAccountsForConfidentialTransferFee,
+  HarvestWithheldTokensToMintForConfidentialTransferFee,
+  EnableHarvestToMint,
+  DisableHarvestToMint,
   InitializeMetadataPointer,
   UpdateMetadataPointer,
   InitializeGroupPointer,
@@ -420,6 +434,9 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.DisableMemoTransfers;
   }
+  if (containsBytes(data, getU8Encoder().encode(31), 0)) {
+    return Token2022Instruction.CreateNativeMint;
+  }
   if (containsBytes(data, getU8Encoder().encode(32), 0)) {
     return Token2022Instruction.InitializeNonTransferableMint;
   }
@@ -452,6 +469,42 @@ export function identifyToken2022Instruction(
   }
   if (containsBytes(data, getU8Encoder().encode(38), 0)) {
     return Token2022Instruction.WithdrawExcessLamports;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(37), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
+    return Token2022Instruction.InitializeConfidentialTransferFee;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(37), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.WithdrawWithheldTokensFromMintForConfidentialTransferFee;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(37), 0) &&
+    containsBytes(data, getU8Encoder().encode(2), 1)
+  ) {
+    return Token2022Instruction.WithdrawWithheldTokensFromAccountsForConfidentialTransferFee;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(37), 0) &&
+    containsBytes(data, getU8Encoder().encode(3), 1)
+  ) {
+    return Token2022Instruction.HarvestWithheldTokensToMintForConfidentialTransferFee;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(37), 0) &&
+    containsBytes(data, getU8Encoder().encode(4), 1)
+  ) {
+    return Token2022Instruction.EnableHarvestToMint;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(37), 0) &&
+    containsBytes(data, getU8Encoder().encode(5), 1)
+  ) {
+    return Token2022Instruction.DisableHarvestToMint;
   }
   if (
     containsBytes(data, getU8Encoder().encode(39), 0) &&
@@ -724,6 +777,9 @@ export type ParsedToken2022Instruction<
       instructionType: Token2022Instruction.DisableMemoTransfers;
     } & ParsedDisableMemoTransfersInstruction<TProgram>)
   | ({
+      instructionType: Token2022Instruction.CreateNativeMint;
+    } & ParsedCreateNativeMintInstruction<TProgram>)
+  | ({
       instructionType: Token2022Instruction.InitializeNonTransferableMint;
     } & ParsedInitializeNonTransferableMintInstruction<TProgram>)
   | ({
@@ -744,6 +800,23 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.WithdrawExcessLamports;
     } & ParsedWithdrawExcessLamportsInstruction<TProgram>)
+      instructionType: Token2022Instruction.InitializeConfidentialTransferFee;
+    } & ParsedInitializeConfidentialTransferFeeInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.WithdrawWithheldTokensFromMintForConfidentialTransferFee;
+    } & ParsedWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.WithdrawWithheldTokensFromAccountsForConfidentialTransferFee;
+    } & ParsedWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.HarvestWithheldTokensToMintForConfidentialTransferFee;
+    } & ParsedHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.EnableHarvestToMint;
+    } & ParsedEnableHarvestToMintInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.DisableHarvestToMint;
+    } & ParsedDisableHarvestToMintInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeMetadataPointer;
     } & ParsedInitializeMetadataPointerInstruction<TProgram>)
