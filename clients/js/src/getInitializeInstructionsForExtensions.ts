@@ -23,6 +23,7 @@ import {
   getInitializeNonTransferableMintInstruction,
   getInitializeTransferHookInstruction,
   getInitializePermanentDelegateInstruction,
+  getInitializeConfidentialTransferFeeInstruction,
 } from './generated';
 
 /**
@@ -100,6 +101,14 @@ export function getPreInitializeInstructionsForMintExtensions(
           mint,
           delegate: extension.delegate,
         });
+      case 'ConfidentialTransferFee':
+        return [
+          getInitializeConfidentialTransferFeeInstruction({
+            mint,
+            authority: extension.authority,
+            withdrawWithheldAuthorityElGamalPubkey: extension.elgamalPubkey,
+          }),
+        ];
       default:
         return [];
     }
