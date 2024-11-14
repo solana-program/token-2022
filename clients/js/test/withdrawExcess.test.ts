@@ -24,7 +24,7 @@ test('it withdraws excess lamports from an associated token account', async (t) 
   const [payer, mintAuthority, owner, destination] = await Promise.all([
     generateKeyPairSignerWithSol(client, 200_000_000n),
     generateKeyPairSigner(),
-    generateKeyPairSignerWithSol(client, 200_000_000n),
+    generateKeyPairSigner(),
     generateKeyPairSigner(),
   ]);
 
@@ -84,7 +84,7 @@ test('it withdraws excess lamports from an associated token account', async (t) 
     destinationAccount: destination.address,
     authority: owner,
   });
-  await sendAndConfirmInstructions(client, owner, [withdrawInstruction]);
+  await sendAndConfirmInstructions(client, payer, [withdrawInstruction]);
 
   // Then: Verify that lamports were successfully withdrawn to the destination
   const lamportsAfter = await client.rpc.getBalance(destination.address).send();
