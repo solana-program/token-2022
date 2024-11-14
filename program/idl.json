@@ -5816,6 +5816,618 @@
       },
       {
         "kind": "instructionNode",
+        "name": "initializeConfidentialTransferFee",
+        "docs": [
+          "Initializes confidential transfer fees for a mint.",
+          "",
+          "The instruction must be included within the same Transaction as TokenInstruction::InitializeMint.",
+          "Otherwise another party can initialize the configuration.",
+          "",
+          "The instruction fails if TokenInstruction::InitializeMint has already executed for the mint."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token mint."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 37
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferFeeDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 0
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "authority",
+            "docs": [
+              "Optional authority to set the withdraw withheld authority ElGamal key"
+            ],
+            "type": {
+              "kind": "zeroableOptionTypeNode",
+              "item": {
+                "kind": "publicKeyTypeNode"
+              }
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "withdrawWithheldAuthorityElGamalPubkey",
+            "docs": [
+              "Withheld fees from accounts must be encrypted with this ElGamal key"
+            ],
+            "type": {
+              "kind": "zeroableOptionTypeNode",
+              "item": {
+                "kind": "publicKeyTypeNode"
+              }
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferFeeDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "withdrawWithheldTokensFromMintForConfidentialTransferFee",
+        "docs": [
+          "Transfer all withheld confidential tokens in the mint to an account.",
+          "Signed by the mint's withdraw withheld tokens authority.",
+          "",
+          "The withheld confidential tokens are aggregated directly into the destination available balance.",
+          "",
+          "Must be accompanied by the VerifyCiphertextCiphertextEquality instruction",
+          "of the zk_elgamal_proof program in the same transaction or the address of",
+          "a context state account for the proof must be provided."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "destination",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The fee receiver account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "instructionsSysvarOrContextState",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["Instructions sysvar or context state account"]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "record",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": ["Optional record account if proof is read from record"]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": ["The mint's withdraw_withheld_authority"]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 37
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferFeeDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 1
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "proofInstructionOffset",
+            "docs": ["Proof instruction offset"],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "newDecryptableAvailableBalance",
+            "docs": [
+              "The new decryptable balance in the destination token account"
+            ],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "decryptableBalance"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferFeeDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "withdrawWithheldTokensFromAccountsForConfidentialTransferFee",
+        "docs": [
+          "Transfer all withheld tokens to an account. Signed by the mint's withdraw withheld",
+          "tokens authority. This instruction is susceptible to front-running.",
+          "Use `HarvestWithheldTokensToMint` and `WithdrawWithheldTokensFromMint` as alternative.",
+          "",
+          "Must be accompanied by the VerifyWithdrawWithheldTokens instruction."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "destination",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The fee receiver account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "instructionsSysvarOrContextState",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["Instructions sysvar or context state account"]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "record",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": ["Optional record account"]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": ["The mint's withdraw_withheld_authority"]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 37
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferFeeDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 2
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "numTokenAccounts",
+            "docs": ["Number of token accounts harvested"],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "proofInstructionOffset",
+            "docs": ["Proof instruction offset"],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "newDecryptableAvailableBalance",
+            "docs": [
+              "The new decryptable balance in the destination token account"
+            ],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "decryptableBalance"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferFeeDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "harvestWithheldTokensToMintForConfidentialTransferFee",
+        "docs": [
+          "Permissionless instruction to transfer all withheld confidential tokens to the mint.",
+          "",
+          "Succeeds for frozen accounts.",
+          "",
+          "Accounts provided should include both the `TransferFeeAmount` and",
+          "`ConfidentialTransferAccount` extension. If not, the account is skipped."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 37
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferFeeDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 3
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": false,
+            "isWritable": true,
+            "docs": ["The source accounts to harvest from"],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "sources"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferFeeDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "enableHarvestToMint",
+        "docs": [
+          "Configure a confidential transfer fee mint to accept harvested confidential fees."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": ["The confidential transfer fee authority"]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 37
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferFeeDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 4
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferFeeDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "disableHarvestToMint",
+        "docs": [
+          "Configure a confidential transfer fee mint to reject any harvested confidential fees."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": ["The confidential transfer fee authority"]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 37
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialTransferFeeDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 5
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialTransferFeeDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
         "name": "initializeMetadataPointer",
         "docs": [
           "Initialize a new mint with a metadata pointer",
