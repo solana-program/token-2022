@@ -73,7 +73,9 @@ test('it withdraws excess lamports from an associated token account', async (t) 
   await sendAndConfirmInstructions(client, payer, [transferSolInstruction]);
 
   // Capture initial balances for comparison after withdrawal
-  const lamportsBefore = await client.rpc.getBalance(destination.address).send();
+  const lamportsBefore = await client.rpc
+    .getBalance(destination.address)
+    .send();
   const ataLamportsBefore = await client.rpc.getBalance(ata).send();
 
   // And we initiate withdrawal of excess lamports from the ATA to the destination
