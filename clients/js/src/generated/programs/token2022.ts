@@ -52,6 +52,7 @@ import {
   type ParsedInitializeGroupMemberPointerInstruction,
   type ParsedInitializeGroupPointerInstruction,
   type ParsedInitializeImmutableOwnerInstruction,
+  type ParsedInitializeInterestBearingMintInstruction,
   type ParsedInitializeMetadataPointerInstruction,
   type ParsedInitializeMint2Instruction,
   type ParsedInitializeMintCloseAuthorityInstruction,
@@ -83,6 +84,7 @@ import {
   type ParsedUpdateGroupMemberPointerInstruction,
   type ParsedUpdateGroupPointerInstruction,
   type ParsedUpdateMetadataPointerInstruction,
+  type ParsedUpdateRateInterestBearingMintInstruction,
   type ParsedUpdateTokenGroupMaxSizeInstruction,
   type ParsedUpdateTokenGroupUpdateAuthorityInstruction,
   type ParsedUpdateTokenMetadataFieldInstruction,
@@ -176,6 +178,8 @@ export enum Token2022Instruction {
   DisableMemoTransfers,
   CreateNativeMint,
   InitializeNonTransferableMint,
+  InitializeInterestBearingMint,
+  UpdateRateInterestBearingMint,
   EnableCpiGuard,
   DisableCpiGuard,
   InitializePermanentDelegate,
@@ -439,6 +443,18 @@ export function identifyToken2022Instruction(
   }
   if (containsBytes(data, getU8Encoder().encode(32), 0)) {
     return Token2022Instruction.InitializeNonTransferableMint;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(33), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
+    return Token2022Instruction.InitializeInterestBearingMint;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(33), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.UpdateRateInterestBearingMint;
   }
   if (
     containsBytes(data, getU8Encoder().encode(34), 0) &&
@@ -782,6 +798,12 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.InitializeNonTransferableMint;
     } & ParsedInitializeNonTransferableMintInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeInterestBearingMint;
+    } & ParsedInitializeInterestBearingMintInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.UpdateRateInterestBearingMint;
+    } & ParsedUpdateRateInterestBearingMintInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.EnableCpiGuard;
     } & ParsedEnableCpiGuardInstruction<TProgram>)
