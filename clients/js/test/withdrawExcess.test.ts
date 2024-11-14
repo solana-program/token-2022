@@ -24,7 +24,7 @@ test('it withdraws excess lamports from an associated token account', async (t) 
   const [payer, mintAuthority, owner, destination] = await Promise.all([
     generateKeyPairSignerWithSol(client, 200_000_000n),
     generateKeyPairSigner(),
-    generateKeyPairSigner(),
+    generateKeyPairSignerWithSol(client, 200_000_000n),
     generateKeyPairSigner(),
   ]);
 
