@@ -5500,7 +5500,7 @@
             "kind": "instructionAccountNode",
             "name": "rateAuthority",
             "isWritable": true,
-            "isSigner": true,
+            "isSigner": "either",
             "isOptional": false,
             "docs": ["The mint rate authority."]
           }

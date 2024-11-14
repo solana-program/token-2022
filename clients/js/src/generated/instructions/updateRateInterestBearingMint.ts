@@ -59,8 +59,7 @@ export type UpdateRateInterestBearingMintInstruction<
         ? WritableAccount<TAccountMint>
         : TAccountMint,
       TAccountRateAuthority extends string
-        ? WritableSignerAccount<TAccountRateAuthority> &
-            IAccountSignerMeta<TAccountRateAuthority>
+        ? WritableAccount<TAccountRateAuthority>
         : TAccountRateAuthority,
       ...TRemainingAccounts,
     ]
@@ -119,7 +118,9 @@ export type UpdateRateInterestBearingMintInput<
   /** The mint. */
   mint: Address<TAccountMint>;
   /** The mint rate authority. */
-  rateAuthority: TransactionSigner<TAccountRateAuthority>;
+  rateAuthority:
+    | Address<TAccountRateAuthority>
+    | TransactionSigner<TAccountRateAuthority>;
   rate: UpdateRateInterestBearingMintInstructionDataArgs['rate'];
   multiSigners?: Array<TransactionSigner>;
 };
@@ -137,7 +138,10 @@ export function getUpdateRateInterestBearingMintInstruction<
 ): UpdateRateInterestBearingMintInstruction<
   TProgramAddress,
   TAccountMint,
-  TAccountRateAuthority
+  (typeof input)['rateAuthority'] extends TransactionSigner<TAccountRateAuthority>
+    ? WritableSignerAccount<TAccountRateAuthority> &
+        IAccountSignerMeta<TAccountRateAuthority>
+    : TAccountRateAuthority
 > {
   // Program address.
   const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
@@ -178,7 +182,10 @@ export function getUpdateRateInterestBearingMintInstruction<
   } as UpdateRateInterestBearingMintInstruction<
     TProgramAddress,
     TAccountMint,
-    TAccountRateAuthority
+    (typeof input)['rateAuthority'] extends TransactionSigner<TAccountRateAuthority>
+      ? WritableSignerAccount<TAccountRateAuthority> &
+          IAccountSignerMeta<TAccountRateAuthority>
+      : TAccountRateAuthority
   >;
 
   return instruction;
