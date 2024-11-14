@@ -23,6 +23,7 @@ import {
   getInitializeNonTransferableMintInstruction,
   getInitializeTransferHookInstruction,
   getInitializePermanentDelegateInstruction,
+  getInitializeInterestBearingMintInstruction,
 } from './generated';
 
 /**
@@ -100,6 +101,14 @@ export function getPreInitializeInstructionsForMintExtensions(
           mint,
           delegate: extension.delegate,
         });
+      case 'InterestBearingConfig':
+        return [
+          getInitializeInterestBearingMintInstruction({
+            mint,
+            rateAuthority: extension.rateAuthority,
+            rate: extension.currentRate,
+          }),
+        ];
       default:
         return [];
     }

@@ -5391,6 +5391,188 @@
       },
       {
         "kind": "instructionNode",
+        "name": "initializeInterestBearingMint",
+        "docs": [
+          "Initialize a new mint with interest accrual.",
+          "",
+          "Fails if the mint has already been initialized, so must be called before `InitializeMint`.",
+          "",
+          "The mint must have exactly enough space allocated for the base mint (82 bytes),",
+          "plus 83 bytes of padding, 1 byte reserved for the account type,",
+          "then space required for this extension, plus any others."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint to initialize."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 33
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "interestBearingDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 0
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "rateAuthority",
+            "docs": ["The public key for the account that can update the rate"],
+            "type": {
+              "kind": "zeroableOptionTypeNode",
+              "item": {
+                "kind": "publicKeyTypeNode"
+              }
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "rate",
+            "docs": ["The initial interest rate in basis points"],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i16",
+              "endian": "le"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "interestBearingDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "updateInterestBearingRate",
+        "docs": [
+          "Update the interest rate. Only supported for mints that include the",
+          "`InterestBearingConfig` extension."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "rateAuthority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": ["The mint rate authority."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 33
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "interestBearingDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 1
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "rate",
+            "docs": ["The new interest rate in basis points"],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i16",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "interestBearingDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
         "name": "enableCpiGuard",
         "docs": [
           "Lock certain token operations from taking place within CPI for this Account, namely:",
