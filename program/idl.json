@@ -6495,6 +6495,83 @@
       },
       {
         "kind": "instructionNode",
+        "name": "withdrawExcessLamports",
+        "docs": [
+          "This instruction is to be used to rescue SOLs sent to any TokenProgram",
+          "owned account by sending them to any other account, leaving behind only",
+          "lamports for rent exemption."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "sourceAccount",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["Account holding excess lamports."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "destinationAccount",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["Destination account for withdrawn lamports."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner/delegate or its multisignature account."
+            ],
+            "defaultValue": {
+              "kind": "identityValueNode"
+            }
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 38
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      }, 
+      {
+        "kind": "instructionNode",
         "name": "initializeMetadataPointer",
         "docs": [
           "Initialize a new mint with a metadata pointer",
