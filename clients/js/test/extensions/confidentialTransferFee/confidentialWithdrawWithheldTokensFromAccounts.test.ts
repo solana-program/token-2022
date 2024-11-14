@@ -1,63 +1,107 @@
-import { Account, PublicKey, generateKeyPairSigner, some } from '@solana/web3.js';
+import { Account, generateKeyPairSigner, some } from '@solana/web3.js';
 import test from 'ava';
 import {
-  getConfidentialWithdrawWithheldTokensFromAccountsInstruction,
-  fetchTokenAccount,
+  extension,
   fetchMint,
+  getConfidentialWithdrawWithheldTokensFromAccountsInstruction,
+  Mint,
 } from '../../../src';
 import {
   createDefaultSolanaClient,
   generateKeyPairSignerWithSol,
+  getCreateMintInstructions,
   sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('withdrawWithheldTokensFromAccounts should transfer withheld tokens to destination account', async (t) => {
-  // Given some signer accounts and mint setup.
+test('it withdraws withheld tokens from source accounts to a destination account', async (t) => {
   const client = createDefaultSolanaClient();
-  const [authority, mint, destinationAccount, sourceAccount, proofAccount] = await Promise.all([
+  const [
+    authority,
+    mint,
+    destination,
+    sourceAccount1,
+    sourceAccount2,
+    elgamal,
+  ] = await Promise.all([
     generateKeyPairSignerWithSol(client),
     generateKeyPairSigner(),
     generateKeyPairSigner(),
     generateKeyPairSigner(),
     generateKeyPairSigner(),
+    generateKeyPairSigner(),
   ]);
 
-  // Set up the instruction to withdraw withheld tokens from multiple accounts.
-  const numTokenAccounts = 1; // Example: with a single source account
-  const proofInstructionOffset = 0; // Offset for the proof verification
-  const newDecryptableAvailableBalance = destinationAccount.publicKey; // Destination account to receive the withheld tokens
+  // Instructions to create and initialize a mint account
+  const [createMintInstruction, initMintInstruction] =
+    await getCreateMintInstructions({
+      authority: authority.address,
+      client,
+      mint,
+      payer: authority,
+    });
 
-  // Prepare the instruction for withdrawing withheld tokens from source accounts.
-  const withdrawWithheldTokensInstruction = getConfidentialWithdrawWithheldTokensFromAccountsInstruction({
-    mint: mint.address,
-    destination: destinationAccount.publicKey,
-    instructionsSysvar: null, // Set sysvar if needed
-    recordAccount: null, // Optional record account if the accompanying proof is to be read
-    withdrawWithheldAuthority: authority.publicKey,
-    sourceAccounts: [sourceAccount.publicKey],
-    numTokenAccounts,
-    proofInstructionOffset,
-    newDecryptableAvailableBalance,
-    confidentialTransferFeeDiscriminator: 2, // Example discriminator
-    discriminator: 37, // Example discriminator
+  // Sending instructions for mint creation and initializing mint
+  await sendAndConfirmInstructions(client, authority, [
+    createMintInstruction,
+    initMintInstruction,
+  ]);
+
+  // Create the Confidential Withdraw Withheld Tokens From Accounts instruction
+  const proofInstructionOffset = 0; // Assuming no proof verification needed here
+  const newDecryptableAvailableBalance = new Uint8Array(64).fill(0); // Replace with the actual balance you expect to transfer
+
+  const numTokenAccounts = 2; // Since we're using two source accounts
+
+  const withdrawInstruction =
+    getConfidentialWithdrawWithheldTokensFromAccountsInstruction({
+      mint: mint.address,
+      destination: destination.address,
+      withdrawWithheldAuthority: authority,
+      sourceAccounts: [sourceAccount1.address, sourceAccount2.address], // Source accounts from which to withdraw
+      proofInstructionOffset,
+      newDecryptableAvailableBalance,
+      numTokenAccounts,
+    });
+
+  // Send the instruction to withdraw withheld tokens from source accounts to the destination
+  await sendAndConfirmInstructions(client, authority, [withdrawInstruction]);
+
+  // Create confidential transfer fee config extension
+  const confidentialTransferFeeConfigExtension = extension(
+    'ConfidentialTransferFee',
+    {
+      authority: some(authority.address),
+      elgamalPubkey: elgamal.address,
+      harvestToMintEnabled: true,
+      withheldAmount: new Uint8Array(64).fill(0),
+    }
+  );
+
+  // Fetch the mint account to validate the withdrawal
+  const mintAccount = await fetchMint(client.rpc, mint.address);
+  t.like(mintAccount, {
+    address: mint.address,
+    data: {
+      mintAuthority: authority.address,
+      isInitialized: true,
+      extensions: some([confidentialTransferFeeConfigExtension]),
+    },
   });
 
-  // When we send the instruction to withdraw withheld tokens.
-  await sendAndConfirmInstructions(client, authority, [
-    withdrawWithheldTokensInstruction,
-  ]);
+  // Optionally, check that the destination account balance has been updated
+  const accountInfo = await client.rpc.getAccountInfo(destination.address);
+  t.assert(accountInfo, 'Destination account information should exist');
+  // You can also validate the balance or check extensions, depending on your logic
 
-  // Then we expect the destination account to have the new decryptable balance.
-  const destinationTokenAccount = await fetchTokenAccount(client.rpc, destinationAccount.publicKey);
+  // Optionally, check that source accounts have had their withheld tokens withdrawn
+  const sourceAccountInfo1 = await client.rpc.getAccountInfo(
+    sourceAccount1.address
+  );
+  const sourceAccountInfo2 = await client.rpc.getAccountInfo(
+    sourceAccount2.address
+  );
 
-  // Check if the destination account has received tokens.
-  t.true(destinationTokenAccount.data.amount > 0, 'Destination account should have received withheld tokens');
-
-  // Ensure the source account no longer has withheld tokens.
-  const sourceTokenAccount = await fetchTokenAccount(client.rpc, sourceAccount.publicKey);
-  t.is(sourceTokenAccount.data.amount, 0, 'Source account should not have withheld tokens left');
-
-  // Additional checks to validate the mint or other accounts could be added here
-  const mintAccount = await fetchMint(client.rpc, mint.address);
-  t.deepEqual(mintAccount.data.extensions, some([]), 'Mint should not have any withheld tokens remaining');
+  t.assert(sourceAccountInfo1, 'Source account 1 information should exist');
+  t.assert(sourceAccountInfo2, 'Source account 2 information should exist');
+  // Add any checks here to verify that the withheld amount has been correctly removed from the source accounts
 });

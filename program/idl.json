@@ -5585,9 +5585,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The SPL Token mint."
-            ]
+            "docs": ["The SPL Token mint."]
           }
         ],
         "arguments": [
@@ -5624,9 +5622,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "authority",
-            "docs": [
-              "Confidential transfer fee authority."
-            ],
+            "docs": ["Confidential transfer fee authority."],
             "type": {
               "kind": "zeroableOptionTypeNode",
               "item": {
@@ -5637,9 +5633,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "withdrawWithheldAuthorityElgamalPubkey",
-            "docs": [
-              "ElGamal public key used to encrypt withheld fees."
-            ],
+            "docs": ["ElGamal public key used to encrypt withheld fees."],
             "type": {
               "kind": "publicKeyTypeNode"
             }
@@ -5722,9 +5716,7 @@
             "isWritable": false,
             "isSigner": true,
             "isOptional": false,
-            "docs": [
-              "The mint's `withdraw_withheld_authority`."
-            ]
+            "docs": ["The mint's `withdraw_withheld_authority`."]
           }
         ],
         "arguments": [
@@ -5873,9 +5865,7 @@
             "isWritable": false,
             "isSigner": true,
             "isOptional": false,
-            "docs": [
-              "The mint's `withdraw_withheld_authority`."
-            ]
+            "docs": ["The mint's `withdraw_withheld_authority`."]
           },
           {
             "kind": "instructionAccountNode",
@@ -5883,9 +5873,13 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The source accounts to withdraw from."
-            ]
+            "docs": ["The source accounts to withdraw from."],
+            "type": {
+              "kind": "arrayTypeNode",
+              "items": {
+                "kind": "addressTypeNode"
+              }
+            }
           }
         ],
         "arguments": [
@@ -5922,9 +5916,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "numTokenAccounts",
-            "docs": [
-              "Number of token accounts harvested."
-            ],
+            "docs": ["Number of token accounts harvested."],
             "type": {
               "kind": "numberTypeNode",
               "format": "u8",
@@ -5989,9 +5981,7 @@
             "isWritable": true,
             "isSigner": false,
             "isOptional": false,
-            "docs": [
-              "The mint account that will receive the withheld tokens."
-            ]
+            "docs": ["The mint account that will receive the withheld tokens."]
           },
           {
             "kind": "instructionAccountNode",
