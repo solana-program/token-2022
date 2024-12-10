@@ -12,16 +12,66 @@ import { fetchMint } from './generated';
  * Calculates the exponent for the interest rate formula.
  * @param t1 - The start time in seconds.
  * @param t2 - The end time in seconds.
- * @param r - The interest rate in basis points.
+ * @param r  - The interest rate in basis points.
+ *
  * @returns The calculated exponent.
  */
 function calculateExponentForTimesAndRate(t1: number, t2: number, r: number) {
   const ONE_IN_BASIS_POINTS = 10000;
   const SECONDS_PER_YEAR = 60 * 60 * 24 * 365.24;
   const timespan = t2 - t1;
+  if (timespan < 0) {
+    throw new Error('Invalid timespan: end time before start time');
+  }
+
   const numerator = r * timespan;
   const exponent = numerator / (SECONDS_PER_YEAR * ONE_IN_BASIS_POINTS);
   return Math.exp(exponent);
+}
+
+/**
+ * Calculates the total scale factor for an interest bearing token by combining two exponential functions:
+ * One for the period between initialization and last update using the pre-update average rate,
+ * and another for the period between last update and current time using the current rate.
+ *
+ * @param currentTimestamp         Current timestamp in seconds
+ * @param lastUpdateTimestamp      Last time the interest rate was updated in seconds
+ * @param initializationTimestamp  Time the interest bearing extension was initialized in seconds
+ * @param preUpdateAverageRate     Interest rate in basis points before last update
+ * @param currentRate              Current interest rate in basis points
+ *
+ * @returns The total scale factor as a product of the two exponential functions
+ */
+function calculateTotalScale({
+  currentTimestamp,
+  lastUpdateTimestamp,
+  initializationTimestamp,
+  preUpdateAverageRate,
+  currentRate,
+}: {
+  currentTimestamp: number;
+  lastUpdateTimestamp: number;
+  initializationTimestamp: number;
+  preUpdateAverageRate: number;
+  currentRate: number;
+}): number {
+  // Calculate pre-update exponent
+  // e^(preUpdateAverageRate * (lastUpdateTimestamp - initializationTimestamp) / (SECONDS_PER_YEAR * ONE_IN_BASIS_POINTS))
+  const preUpdateExp = calculateExponentForTimesAndRate(
+    initializationTimestamp,
+    lastUpdateTimestamp,
+    preUpdateAverageRate
+  );
+
+  // Calculate post-update exponent
+  // e^(currentRate * (currentTimestamp - lastUpdateTimestamp) / (SECONDS_PER_YEAR * ONE_IN_BASIS_POINTS))
+  const postUpdateExp = calculateExponentForTimesAndRate(
+    lastUpdateTimestamp,
+    currentTimestamp,
+    currentRate
+  );
+
+  return preUpdateExp * postUpdateExp;
 }
 
 /**
@@ -75,24 +125,13 @@ export function amountToUiAmountWithoutSimulation(
   preUpdateAverageRate: number,
   currentRate: number
 ): string {
-  // Calculate pre-update exponent
-  // e^(preUpdateAverageRate * (lastUpdateTimestamp - initializationTimestamp) / (SECONDS_PER_YEAR * ONE_IN_BASIS_POINTS))
-  const preUpdateExp = calculateExponentForTimesAndRate(
-    initializationTimestamp,
-    lastUpdateTimestamp,
-    preUpdateAverageRate
-  );
-
-  // Calculate post-update exponent
-  // e^(currentRate * (currentTimestamp - lastUpdateTimestamp) / (SECONDS_PER_YEAR * ONE_IN_BASIS_POINTS))
-  const postUpdateExp = calculateExponentForTimesAndRate(
-    lastUpdateTimestamp,
+  const totalScale = calculateTotalScale({
     currentTimestamp,
-    currentRate
-  );
-
-  // Calculate total scale
-  const totalScale = preUpdateExp * postUpdateExp;
+    lastUpdateTimestamp,
+    initializationTimestamp,
+    preUpdateAverageRate,
+    currentRate,
+  });
   // Scale the amount by the total interest factor
   const scaledAmount = Number(amount) * totalScale;
 
@@ -108,12 +147,13 @@ export function amountToUiAmountWithoutSimulation(
 
 /**
  * Convert amount to UiAmount for a mint without simulating a transaction
- * This implements the same logic as `process_amount_to_ui_amount` in /token/program-2022/src/processor.rs
- * and `process_amount_to_ui_amount` in /token/program/src/processor.rs
+ * This implements the same logic as `process_amount_to_ui_amount` in
+ * solana-labs/solana-program-library/token/program-2022/src/processor.rs
+ * and `process_amount_to_ui_amount` in solana-labs/solana-program-library/token/program/src/processor.rs
  *
- * @param rpc     rpc to use
- * @param mint           Mint to use for calculations
- * @param amount         Amount of tokens to be converted to Ui Amount
+ * @param rpc     Rpc to use
+ * @param mint    Mint to use for calculations
+ * @param amount  Amount of tokens to be converted to Ui Amount
  *
  * @return Ui Amount generated
  */
@@ -122,7 +162,6 @@ export async function amountToUiAmountForMintWithoutSimulation(
   mint: Address,
   amount: bigint
 ): Promise<string> {
-  console.log('CONSOLE amountToUiAmountForMintWithoutSimulation', rpc.getAccountInfo(mint));
   const accountInfo = await fetchMint(rpc, mint);
   const extensions = unwrapOption(accountInfo.data.extensions);
   const interestBearingMintConfigState = extensions?.find(
@@ -188,22 +227,13 @@ export function uiAmountToAmountWithoutSimulation(
   const decimalsFactor = Math.pow(10, decimals);
   const uiAmountScaled = uiAmountNumber * decimalsFactor;
 
-  // Calculate pre-update exponent
-  const preUpdateExp = calculateExponentForTimesAndRate(
-    initializationTimestamp,
-    lastUpdateTimestamp,
-    preUpdateAverageRate
-  );
-
-  // Calculate post-update exponent
-  const postUpdateExp = calculateExponentForTimesAndRate(
-    lastUpdateTimestamp,
+  const totalScale = calculateTotalScale({
     currentTimestamp,
-    currentRate
-  );
-
-  // Calculate total scale
-  const totalScale = preUpdateExp * postUpdateExp;
+    lastUpdateTimestamp,
+    initializationTimestamp,
+    preUpdateAverageRate,
+    currentRate,
+  });
 
   // Calculate original principal by dividing the UI amount (principal + interest) by the total scale
   const originalPrincipal = uiAmountScaled / totalScale;
@@ -213,10 +243,9 @@ export function uiAmountToAmountWithoutSimulation(
 /**
  * Convert a UI amount back to the raw amount
  *
- * @param rpc     rpc to use
- * @param mint           Mint to use for calculations
- * @param uiAmount       UI Amount to be converted back to raw amount
- *
+ * @param rpc      Rpc to use
+ * @param mint     Mint to use for calculations
+ * @param uiAmount UI Amount to be converted back to raw amount
  *
  * @return Raw amount
  */

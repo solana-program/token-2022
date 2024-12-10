@@ -4,10 +4,11 @@ import type {
   Lamports,
   Rpc,
   Base64EncodedBytes,
-  AccountInfoWithJsonData,
   Commitment,
+  UnixTimestamp,
 } from '@solana/web3.js';
 import { address, Address } from '@solana/web3.js';
+import { getSysvarClockEncoder, SYSVAR_CLOCK_ADDRESS } from '@solana/sysvars';
 import {
   amountToUiAmountForMintWithoutSimulation,
   uiAmountToAmountForMintWithoutSimulation,
@@ -22,7 +23,7 @@ type AccountInfo = Readonly<{
   lamports: Lamports;
   owner: Address;
   rentEpoch: bigint;
-  data: Buffer | AccountInfoWithJsonData;
+  data: Buffer;
 }>;
 
 function getMockRpc(
@@ -31,27 +32,45 @@ function getMockRpc(
   const getAccountInfo = (
     address: Address,
     _config?: { commitment?: Commitment }
-  ) => ({
-    send: async () => ({
-      context: { slot: 0n },
-      value: accounts[address]
-        ? {
-            executable: accounts[address].executable,
-            lamports: accounts[address].lamports,
-            owner: accounts[address].owner,
-            rentEpoch: accounts[address].rentEpoch,
-            data:
-              accounts[address].data instanceof Uint8Array
-                ? ([
-                    Buffer.from(accounts[address].data).toString('base64'),
-                    'base64',
-                  ] as [Base64EncodedBytes, 'base64'])
-                : accounts[address].data,
-          }
-        : null,
-    }),
-  });
-  return { getAccountInfo } as unknown as Rpc<GetAccountInfoApi>;
+  ) => {
+    const account = accounts[address];
+    if (!account) {
+      throw new Error(`Account not found for address: ${address}`);
+    }
+    if (!(account.data instanceof Uint8Array)) {
+      throw new Error(
+        `Account data is not a Uint8Array for address: ${address}`
+      );
+    }
+    return {
+      send: async () => ({
+        context: { slot: 0n },
+        value: account
+          ? {
+              executable: account.executable,
+              lamports: account.lamports,
+              owner: account.owner,
+              rentEpoch: account.rentEpoch,
+              data: [
+                Buffer.from(account.data).toString('base64'),
+                'base64',
+              ] as [Base64EncodedBytes, 'base64'],
+            }
+          : null,
+      }),
+    };
+  };
+  return { getAccountInfo } as unknown as Rpc<GetAccountInfoApi>
+}
+
+function populateMockAccount(data: Buffer) {
+  return {
+    executable: false,
+    lamports: 1000000n as Lamports,
+    owner: TOKEN_2022_PROGRAM_ADDRESS,
+    rentEpoch: 0n,
+    data,
+  };
 }
 
 function createMockMintAccountInfo(
@@ -59,19 +78,20 @@ function createMockMintAccountInfo(
   hasInterestBearingConfig = false,
   config: { preUpdateAverageRate?: number; currentRate?: number } = {}
 ) {
+  const defaultAddress = address('11111111111111111111111111111111');
   const mintEncoder = getMintEncoder();
   const bufferData = Buffer.from(
     mintEncoder.encode({
-      mintAuthority: address('11111111111111111111111111111111'),
+      mintAuthority: defaultAddress,
       supply: BigInt(1000000),
       decimals: decimals,
       isInitialized: true,
-      freezeAuthority: address('11111111111111111111111111111111'),
+      freezeAuthority: defaultAddress,
       extensions: hasInterestBearingConfig
         ? [
             {
               __kind: 'InterestBearingConfig',
-              rateAuthority: address('11111111111111111111111111111111'),
+              rateAuthority: defaultAddress,
               initializationTimestamp: BigInt(0),
               preUpdateAverageRate: config.preUpdateAverageRate || 500,
               lastUpdateTimestamp: BigInt(ONE_YEAR_IN_SECONDS),
@@ -81,43 +101,27 @@ function createMockMintAccountInfo(
         : [],
     })
   );
-  return {
-    owner: TOKEN_2022_PROGRAM_ADDRESS,
-    lamports: 1000000n as Lamports,
-    executable: false,
-    rentEpoch: 0n,
-    data: bufferData,
-  };
+  return populateMockAccount(bufferData);
 }
 
-const createMockClockAccountInfo = (unixTimestamp: number) => ({
-  owner: TOKEN_2022_PROGRAM_ADDRESS,
-  lamports: 1000000n as Lamports,
-  executable: false,
-  rentEpoch: 0n,
-  data: {
-    data: {
-      parsed: {
-        info: {
-          epoch: 0,
-          epochStartTimestamp: 0,
-          leaderScheduleEpoch: 0,
-          slot: 0,
-          unixTimestamp,
-        },
-        type: 'clock',
-      },
-      program: 'sysvar',
-      space: 40n,
-    },
-  },
-});
+const createMockClockAccountInfo = (unixTimestamp: number) => {
+  const clockEncoder = getSysvarClockEncoder();
+  const bufferData = Buffer.from(
+    clockEncoder.encode({
+      epoch: 0n,
+      epochStartTimestamp: BigInt(0) as UnixTimestamp,
+      leaderScheduleEpoch: 0n,
+      slot: 0n,
+      unixTimestamp: BigInt(unixTimestamp) as UnixTimestamp,
+    })
+  );
+  return populateMockAccount(bufferData);
+};
 
 const mint = address('So11111111111111111111111111111111111111112');
-const clock = address('SysvarC1ock11111111111111111111111111111111');
+const clock = SYSVAR_CLOCK_ADDRESS;
 
 test('should return the correct UiAmount when interest bearing config is not present', async (t) => {
-
   const testCases = [
     { decimals: 0, amount: BigInt(100), expected: '100' },
     { decimals: 2, amount: BigInt(100), expected: '1' },
@@ -127,12 +131,12 @@ test('should return the correct UiAmount when interest bearing config is not pre
   ];
 
   for (const { decimals, amount, expected } of testCases) {
-    const connection = getMockRpc({
+    const rpc = getMockRpc({
       [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS),
       [mint]: createMockMintAccountInfo(decimals, false),
     });
     const result = await amountToUiAmountForMintWithoutSimulation(
-      connection,
+      rpc,
       mint,
       amount
     );
@@ -149,13 +153,13 @@ test('should return the correct UiAmount for constant 5% rate', async (t) => {
   ];
 
   for (const { decimals, amount, expected } of testCases) {
-    const connection = getMockRpc({
+    const rpc = getMockRpc({
       [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS),
       [mint]: createMockMintAccountInfo(decimals, true),
     });
 
     const result = await amountToUiAmountForMintWithoutSimulation(
-      connection,
+      rpc,
       mint,
       amount
     );
@@ -164,7 +168,7 @@ test('should return the correct UiAmount for constant 5% rate', async (t) => {
 });
 
 test('should return the correct UiAmount for constant -5% rate', async (t) => {
-  const connection = getMockRpc({
+  const rpc = getMockRpc({
     [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS),
     [mint]: createMockMintAccountInfo(10, true, {
       preUpdateAverageRate: -500,
@@ -173,7 +177,7 @@ test('should return the correct UiAmount for constant -5% rate', async (t) => {
   });
 
   const result = await amountToUiAmountForMintWithoutSimulation(
-    connection,
+    rpc,
     mint,
     BigInt(10000000000)
   );
@@ -181,7 +185,7 @@ test('should return the correct UiAmount for constant -5% rate', async (t) => {
 });
 
 test('should return the correct UiAmount for netting out rates', async (t) => {
-  const connection = getMockRpc({
+  const rpc = getMockRpc({
     [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
     [mint]: createMockMintAccountInfo(10, true, {
       preUpdateAverageRate: -500,
@@ -190,7 +194,7 @@ test('should return the correct UiAmount for netting out rates', async (t) => {
   });
 
   const result = await amountToUiAmountForMintWithoutSimulation(
-    connection,
+    rpc,
     mint,
     BigInt(10000000000)
   );
@@ -198,13 +202,13 @@ test('should return the correct UiAmount for netting out rates', async (t) => {
 });
 
 test('should handle huge values correctly', async (t) => {
-  const connection = getMockRpc({
+  const rpc = getMockRpc({
     [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
     [mint]: createMockMintAccountInfo(6, true),
   });
 
   const result = await amountToUiAmountForMintWithoutSimulation(
-    connection,
+    rpc,
     mint,
     BigInt('18446744073709551615')
   );
@@ -212,13 +216,13 @@ test('should handle huge values correctly', async (t) => {
 });
 
 test('should return the correct amount for constant 5% rate', async (t) => {
-  const connection = getMockRpc({
+  const rpc = getMockRpc({
     [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS),
     [mint]: createMockMintAccountInfo(0, true),
   });
 
   const result = await uiAmountToAmountForMintWithoutSimulation(
-    connection,
+    rpc,
     mint,
     '1.0512710963760241'
   );
@@ -233,13 +237,13 @@ test('should handle decimal places correctly', async (t) => {
   ];
 
   for (const { decimals, uiAmount, expected } of testCases) {
-    const connection = getMockRpc({
+    const rpc = getMockRpc({
       [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS),
       [mint]: createMockMintAccountInfo(decimals, true),
     });
 
     const result = await uiAmountToAmountForMintWithoutSimulation(
-      connection,
+      rpc,
       mint,
       uiAmount
     );
@@ -248,7 +252,7 @@ test('should handle decimal places correctly', async (t) => {
 });
 
 test('should return the correct amount for constant -5% rate', async (t) => {
-  const connection = getMockRpc({
+  const rpc = getMockRpc({
     [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS),
     [mint]: createMockMintAccountInfo(10, true, {
       preUpdateAverageRate: -500,
@@ -257,7 +261,7 @@ test('should return the correct amount for constant -5% rate', async (t) => {
   });
 
   const result = await uiAmountToAmountForMintWithoutSimulation(
-    connection,
+    rpc,
     mint,
     '0.951229424500714'
   );
@@ -265,7 +269,7 @@ test('should return the correct amount for constant -5% rate', async (t) => {
 });
 
 test('should return the correct amount for netting out rates', async (t) => {
-  const connection = getMockRpc({
+  const rpc = getMockRpc({
     [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
     [mint]: createMockMintAccountInfo(10, true, {
       preUpdateAverageRate: -500,
@@ -274,7 +278,7 @@ test('should return the correct amount for netting out rates', async (t) => {
   });
 
   const result = await uiAmountToAmountForMintWithoutSimulation(
-    connection,
+    rpc,
     mint,
     '1'
   );
@@ -282,14 +286,13 @@ test('should return the correct amount for netting out rates', async (t) => {
 });
 
 test('should handle huge values correctly for amount to ui amount', async (t) => {
-  const connection = getMockRpc({
+  const rpc = getMockRpc({
     [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
     [mint]: createMockMintAccountInfo(0, true),
   });
 
-
   const result = await uiAmountToAmountForMintWithoutSimulation(
-    connection,
+    rpc,
     mint,
     '20386805083448100000'
   );
