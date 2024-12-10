@@ -1,0 +1,297 @@
+import test from 'ava';
+import type {
+  GetAccountInfoApi,
+  Lamports,
+  Rpc,
+  Base64EncodedBytes,
+  AccountInfoWithJsonData,
+  Commitment,
+} from '@solana/web3.js';
+import { address, Address } from '@solana/web3.js';
+import {
+  amountToUiAmountForMintWithoutSimulation,
+  uiAmountToAmountForMintWithoutSimulation,
+  TOKEN_2022_PROGRAM_ADDRESS,
+  getMintEncoder,
+} from '../../../src';
+
+const ONE_YEAR_IN_SECONDS = 31556736;
+
+type AccountInfo = Readonly<{
+  executable: boolean;
+  lamports: Lamports;
+  owner: Address;
+  rentEpoch: bigint;
+  data: Buffer | AccountInfoWithJsonData;
+}>;
+
+function getMockRpc(
+  accounts: Record<Address, AccountInfo>
+): Rpc<GetAccountInfoApi> {
+  const getAccountInfo = (
+    address: Address,
+    _config?: { commitment?: Commitment }
+  ) => ({
+    send: async () => ({
+      context: { slot: 0n },
+      value: accounts[address]
+        ? {
+            executable: accounts[address].executable,
+            lamports: accounts[address].lamports,
+            owner: accounts[address].owner,
+            rentEpoch: accounts[address].rentEpoch,
+            data:
+              accounts[address].data instanceof Uint8Array
+                ? ([
+                    Buffer.from(accounts[address].data).toString('base64'),
+                    'base64',
+                  ] as [Base64EncodedBytes, 'base64'])
+                : accounts[address].data,
+          }
+        : null,
+    }),
+  });
+  return { getAccountInfo } as unknown as Rpc<GetAccountInfoApi>;
+}
+
+function createMockMintAccountInfo(
+  decimals = 2,
+  hasInterestBearingConfig = false,
+  config: { preUpdateAverageRate?: number; currentRate?: number } = {}
+) {
+  const mintEncoder = getMintEncoder();
+  const bufferData = Buffer.from(
+    mintEncoder.encode({
+      mintAuthority: address('11111111111111111111111111111111'),
+      supply: BigInt(1000000),
+      decimals: decimals,
+      isInitialized: true,
+      freezeAuthority: address('11111111111111111111111111111111'),
+      extensions: hasInterestBearingConfig
+        ? [
+            {
+              __kind: 'InterestBearingConfig',
+              rateAuthority: address('11111111111111111111111111111111'),
+              initializationTimestamp: BigInt(0),
+              preUpdateAverageRate: config.preUpdateAverageRate || 500,
+              lastUpdateTimestamp: BigInt(ONE_YEAR_IN_SECONDS),
+              currentRate: config.currentRate || 500,
+            },
+          ]
+        : [],
+    })
+  );
+  return {
+    owner: TOKEN_2022_PROGRAM_ADDRESS,
+    lamports: 1000000n as Lamports,
+    executable: false,
+    rentEpoch: 0n,
+    data: bufferData,
+  };
+}
+
+const createMockClockAccountInfo = (unixTimestamp: number) => ({
+  owner: TOKEN_2022_PROGRAM_ADDRESS,
+  lamports: 1000000n as Lamports,
+  executable: false,
+  rentEpoch: 0n,
+  data: {
+    data: {
+      parsed: {
+        info: {
+          epoch: 0,
+          epochStartTimestamp: 0,
+          leaderScheduleEpoch: 0,
+          slot: 0,
+          unixTimestamp,
+        },
+        type: 'clock',
+      },
+      program: 'sysvar',
+      space: 40n,
+    },
+  },
+});
+
+const mint = address('So11111111111111111111111111111111111111112');
+const clock = address('SysvarC1ock11111111111111111111111111111111');
+
+test('should return the correct UiAmount when interest bearing config is not present', async (t) => {
+
+  const testCases = [
+    { decimals: 0, amount: BigInt(100), expected: '100' },
+    { decimals: 2, amount: BigInt(100), expected: '1' },
+    { decimals: 9, amount: BigInt(1000000000), expected: '1' },
+    { decimals: 10, amount: BigInt(1), expected: '1e-10' },
+    { decimals: 10, amount: BigInt(1000000000), expected: '0.1' },
+  ];
+
+  for (const { decimals, amount, expected } of testCases) {
+    const connection = getMockRpc({
+      [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS),
+      [mint]: createMockMintAccountInfo(decimals, false),
+    });
+    const result = await amountToUiAmountForMintWithoutSimulation(
+      connection,
+      mint,
+      amount
+    );
+    t.is(result, expected);
+  }
+});
+
+test('should return the correct UiAmount for constant 5% rate', async (t) => {
+  const testCases = [
+    { decimals: 0, amount: BigInt(1), expected: '1' },
+    { decimals: 1, amount: BigInt(1), expected: '0.1' },
+    { decimals: 10, amount: BigInt(1), expected: '1e-10' },
+    { decimals: 10, amount: BigInt(10000000000), expected: '1.0512710963' },
+  ];
+
+  for (const { decimals, amount, expected } of testCases) {
+    const connection = getMockRpc({
+      [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS),
+      [mint]: createMockMintAccountInfo(decimals, true),
+    });
+
+    const result = await amountToUiAmountForMintWithoutSimulation(
+      connection,
+      mint,
+      amount
+    );
+    t.is(result, expected);
+  }
+});
+
+test('should return the correct UiAmount for constant -5% rate', async (t) => {
+  const connection = getMockRpc({
+    [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS),
+    [mint]: createMockMintAccountInfo(10, true, {
+      preUpdateAverageRate: -500,
+      currentRate: -500,
+    }),
+  });
+
+  const result = await amountToUiAmountForMintWithoutSimulation(
+    connection,
+    mint,
+    BigInt(10000000000)
+  );
+  t.is(result, '0.9512294245');
+});
+
+test('should return the correct UiAmount for netting out rates', async (t) => {
+  const connection = getMockRpc({
+    [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
+    [mint]: createMockMintAccountInfo(10, true, {
+      preUpdateAverageRate: -500,
+      currentRate: 500,
+    }),
+  });
+
+  const result = await amountToUiAmountForMintWithoutSimulation(
+    connection,
+    mint,
+    BigInt(10000000000)
+  );
+  t.is(result, '1');
+});
+
+test('should handle huge values correctly', async (t) => {
+  const connection = getMockRpc({
+    [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
+    [mint]: createMockMintAccountInfo(6, true),
+  });
+
+  const result = await amountToUiAmountForMintWithoutSimulation(
+    connection,
+    mint,
+    BigInt('18446744073709551615')
+  );
+  t.is(result, '20386805083448.098');
+});
+
+test('should return the correct amount for constant 5% rate', async (t) => {
+  const connection = getMockRpc({
+    [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS),
+    [mint]: createMockMintAccountInfo(0, true),
+  });
+
+  const result = await uiAmountToAmountForMintWithoutSimulation(
+    connection,
+    mint,
+    '1.0512710963760241'
+  );
+  t.is(result, 1n);
+});
+
+test('should handle decimal places correctly', async (t) => {
+  const testCases = [
+    { decimals: 1, uiAmount: '0.10512710963760241', expected: 1n },
+    { decimals: 10, uiAmount: '0.00000000010512710963760242', expected: 1n },
+    { decimals: 10, uiAmount: '1.0512710963760241', expected: 10000000000n },
+  ];
+
+  for (const { decimals, uiAmount, expected } of testCases) {
+    const connection = getMockRpc({
+      [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS),
+      [mint]: createMockMintAccountInfo(decimals, true),
+    });
+
+    const result = await uiAmountToAmountForMintWithoutSimulation(
+      connection,
+      mint,
+      uiAmount
+    );
+    t.is(result, expected);
+  }
+});
+
+test('should return the correct amount for constant -5% rate', async (t) => {
+  const connection = getMockRpc({
+    [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS),
+    [mint]: createMockMintAccountInfo(10, true, {
+      preUpdateAverageRate: -500,
+      currentRate: -500,
+    }),
+  });
+
+  const result = await uiAmountToAmountForMintWithoutSimulation(
+    connection,
+    mint,
+    '0.951229424500714'
+  );
+  t.is(result, 9999999999n); // calculation truncates to avoid floating point precision issues in transfers
+});
+
+test('should return the correct amount for netting out rates', async (t) => {
+  const connection = getMockRpc({
+    [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
+    [mint]: createMockMintAccountInfo(10, true, {
+      preUpdateAverageRate: -500,
+      currentRate: 500,
+    }),
+  });
+
+  const result = await uiAmountToAmountForMintWithoutSimulation(
+    connection,
+    mint,
+    '1'
+  );
+  t.is(result, 10000000000n);
+});
+
+test('should handle huge values correctly for amount to ui amount', async (t) => {
+  const connection = getMockRpc({
+    [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
+    [mint]: createMockMintAccountInfo(0, true),
+  });
+
+
+  const result = await uiAmountToAmountForMintWithoutSimulation(
+    connection,
+    mint,
+    '20386805083448100000'
+  );
+  t.is(result, 18446744073709551616n);
+});
