@@ -70,8 +70,7 @@
       "rewritePaths": {
         "test/": "dist/test/"
       }
-    },
-    "verbose": true
+    }
   },
   "packageManager": "pnpm@9.1.0"
 }
