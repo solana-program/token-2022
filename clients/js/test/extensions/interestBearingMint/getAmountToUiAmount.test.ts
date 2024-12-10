@@ -60,7 +60,7 @@ function getMockRpc(
       }),
     };
   };
-  return { getAccountInfo } as unknown as Rpc<GetAccountInfoApi>
+  return { getAccountInfo } as unknown as Rpc<GetAccountInfoApi>;
 }
 
 function populateMockAccount(data: Buffer) {
@@ -277,11 +277,7 @@ test('should return the correct amount for netting out rates', async (t) => {
     }),
   });
 
-  const result = await uiAmountToAmountForMintWithoutSimulation(
-    rpc,
-    mint,
-    '1'
-  );
+  const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '1');
   t.is(result, 10000000000n);
 });
 
