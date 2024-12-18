@@ -17,9 +17,8 @@ This will start a new local validator, if one is not already running, and run th
 Alternatively, you can go into the client directory and run the tests directly.
 
 ```sh
-# Build your programs
-pnpm build
-# Start the validator (from the root of the repository)
+# Build your programs and start the validator.
+pnpm programs:build
 pnpm validator:restart
 
 # Go into the client directory and run the tests.

@@ -116,7 +116,7 @@ async function getSysvarClockTimestamp(
  *
  * @return Amount scaled by accrued interest as a string with appropriate decimal places
  */
-export function amountToUiAmountWithoutSimulation(
+export function amountToUiAmountForInterestBearingMintWithoutSimulation(
   amount: bigint,
   decimals: number,
   currentTimestamp: number, // in seconds
@@ -175,7 +175,7 @@ export async function amountToUiAmountForMintWithoutSimulation(
 
   const timestamp = await getSysvarClockTimestamp(rpc);
 
-  return amountToUiAmountWithoutSimulation(
+  return amountToUiAmountForInterestBearingMintWithoutSimulation(
     amount,
     accountInfo.data.decimals,
     Number(timestamp),
@@ -214,7 +214,7 @@ export async function amountToUiAmountForMintWithoutSimulation(
  *
  * @return Original amount (principal) without interest
  */
-export function uiAmountToAmountWithoutSimulation(
+export function uiAmountToAmountForInterestBearingMintWithoutSimulation(
   uiAmount: string,
   decimals: number,
   currentTimestamp: number, // in seconds
@@ -267,7 +267,7 @@ export async function uiAmountToAmountForMintWithoutSimulation(
 
   const timestamp = await getSysvarClockTimestamp(rpc);
 
-  return uiAmountToAmountWithoutSimulation(
+  return uiAmountToAmountForInterestBearingMintWithoutSimulation(
     uiAmount,
     accountInfo.data.decimals,
     Number(timestamp),

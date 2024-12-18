@@ -6,8 +6,9 @@ import type {
   Base64EncodedBytes,
   Commitment,
   UnixTimestamp,
+  ReadonlyUint8Array,
 } from '@solana/web3.js';
-import { address, Address } from '@solana/web3.js';
+import { address, Address, getBase64Decoder, getBase64Encoder } from '@solana/web3.js';
 import { getSysvarClockEncoder, SYSVAR_CLOCK_ADDRESS } from '@solana/sysvars';
 import {
   amountToUiAmountForMintWithoutSimulation,
@@ -23,7 +24,7 @@ type AccountInfo = Readonly<{
   lamports: Lamports;
   owner: Address;
   rentEpoch: bigint;
-  data: Buffer;
+  data: ReadonlyUint8Array;
 }>;
 
 function getMockRpc(
@@ -52,7 +53,7 @@ function getMockRpc(
               owner: account.owner,
               rentEpoch: account.rentEpoch,
               data: [
-                Buffer.from(account.data).toString('base64'),
+                getBase64Decoder().decode(account.data),
                 'base64',
               ] as [Base64EncodedBytes, 'base64'],
             }
@@ -63,7 +64,7 @@ function getMockRpc(
   return { getAccountInfo } as unknown as Rpc<GetAccountInfoApi>;
 }
 
-function populateMockAccount(data: Buffer) {
+function populateMockAccount(data: ReadonlyUint8Array) {
   return {
     executable: false,
     lamports: 1000000n as Lamports,
@@ -80,8 +81,8 @@ function createMockMintAccountInfo(
 ) {
   const defaultAddress = address('11111111111111111111111111111111');
   const mintEncoder = getMintEncoder();
-  const bufferData = Buffer.from(
-    mintEncoder.encode({
+  
+  const data = mintEncoder.encode({
       mintAuthority: defaultAddress,
       supply: BigInt(1000000),
       decimals: decimals,
@@ -100,22 +101,19 @@ function createMockMintAccountInfo(
           ]
         : [],
     })
-  );
-  return populateMockAccount(bufferData);
+  return populateMockAccount(data);
 }
 
 const createMockClockAccountInfo = (unixTimestamp: number) => {
   const clockEncoder = getSysvarClockEncoder();
-  const bufferData = Buffer.from(
-    clockEncoder.encode({
-      epoch: 0n,
-      epochStartTimestamp: BigInt(0) as UnixTimestamp,
-      leaderScheduleEpoch: 0n,
-      slot: 0n,
-      unixTimestamp: BigInt(unixTimestamp) as UnixTimestamp,
-    })
-  );
-  return populateMockAccount(bufferData);
+  const data = clockEncoder.encode({
+    epoch: 0n,
+    epochStartTimestamp: BigInt(0) as UnixTimestamp,
+    leaderScheduleEpoch: 0n,
+    slot: 0n,
+    unixTimestamp: BigInt(unixTimestamp) as UnixTimestamp,
+  });
+  return populateMockAccount(data);
 };
 
 const mint = address('So11111111111111111111111111111111111111112');
