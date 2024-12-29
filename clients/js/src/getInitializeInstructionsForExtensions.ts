@@ -123,7 +123,7 @@ export function getPreInitializeInstructionsForMintExtensions(
         return getInitializeMintCloseAuthorityInstruction({
           closeAuthority: extension.closeAuthority,
           mint,
-        })
+        });
       default:
         return [];
     }
