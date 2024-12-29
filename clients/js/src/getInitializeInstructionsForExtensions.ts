@@ -18,6 +18,7 @@ import {
   getInitializeGroupPointerInstruction,
   getInitializeInterestBearingMintInstruction,
   getInitializeMetadataPointerInstruction,
+  getInitializeMintCloseAuthorityInstruction,
   getInitializeTokenGroupInstruction,
   getInitializeTokenMetadataInstruction,
   getInitializeTransferFeeConfigInstruction,
@@ -118,6 +119,11 @@ export function getPreInitializeInstructionsForMintExtensions(
             withdrawWithheldAuthorityElGamalPubkey: extension.elgamalPubkey,
           }),
         ];
+      case 'MintCloseAuthority':
+        return getInitializeMintCloseAuthorityInstruction({
+          closeAuthority: extension.closeAuthority,
+          mint,
+        })
       default:
         return [];
     }
