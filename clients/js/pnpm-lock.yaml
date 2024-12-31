@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@solana/sysvars':
+        specifier: ^2.0.0
+        version: 2.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.5.3)
     devDependencies:
       '@ava/typescript':
         specifier: ^4.1.0
