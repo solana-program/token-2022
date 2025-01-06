@@ -76,9 +76,6 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: NPM configs
-        run: pnpm config list
-
       - name: Set Git Author
         run: |
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
