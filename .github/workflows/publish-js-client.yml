@@ -84,8 +84,6 @@ jobs:
       - name: Publish JS Client
         id: publish
         run: pnpm clients:js:publish ${{ inputs.level }} ${{ inputs.tag }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Push Commit and Tag
         run: git push origin --follow-tags
