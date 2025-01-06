@@ -71,11 +71,6 @@ jobs:
           echo "Go to \"Settings\" -> \"Secrets and variables\" -> \"Actions\" -> \"New repository secret\"."
           exit 1
 
-      - name: NPM Authentication
-        run: pnpm config set '//registry.npmjs.org/:_authToken' "${NODE_AUTH_TOKEN}"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Set Git Author
         run: |
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -84,6 +79,9 @@ jobs:
       - name: Publish JS Client
         id: publish
         run: pnpm clients:js:publish ${{ inputs.level }} ${{ inputs.tag }}
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+          NPM_CONFIG_PROVENANCE: true
 
       - name: Push Commit and Tag
         run: git push origin --follow-tags
