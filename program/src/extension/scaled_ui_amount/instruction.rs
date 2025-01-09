@@ -48,7 +48,7 @@ pub enum ScaledUiAmountMintInstruction {
     /// Fails if the multiplier is less than or equal to 0 or if it's
     /// [subnormal](https://en.wikipedia.org/wiki/Subnormal_number).
     ///
-    /// The authority provides a new multiplier and a unix timestamp on which
+    /// The authority provides a new multiplier and a UNIX timestamp on which
     /// it should take effect. If the timestamp is before the current time,
     /// immediately sets the multiplier.
     ///
