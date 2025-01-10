@@ -30,7 +30,7 @@ await $`pnpm programs:dump`;
 const verb = isValidatorRunning ? 'Restarting' : 'Starting';
 
 // Get programs and accounts.
-const programs = [...getPrograms(), ...getExternalPrograms()];
+const programs = [...getPrograms(), ...getExternalPrograms(), ...getFixturePrograms()];
 const programPluralized = programs.length === 1 ? 'program' : 'programs';
 const accounts = [...getExternalAccounts()];
 const accountsPluralized = accounts.length === 1 ? 'account' : 'accounts';
@@ -117,6 +117,14 @@ function getExternalPrograms() {
     programId: address,
     deployPath: path.join(binaryDir, `${address}.so`),
   }));
+}
+
+function getFixturePrograms() {
+  const binaryDir = path.join(__dirname, '..', 'clients', 'rust-legacy', 'tests', 'fixtures');
+  return [{
+    programId: 'TokenHookExampLe8smaVNrxTBezWTRbEwxwb1Zykrb',
+    deployPath: path.join(binaryDir, 'spl_transfer_hook_example_no_default_features.so'),
+  }];
 }
 
 function getExternalAccounts() {

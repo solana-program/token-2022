@@ -1,12 +1,42 @@
+# The curve25519-dalek crate uses the `simd` backend by default in v4 if
+# possible, which has very slow performance on some platforms with opt-level 0,
+# which is the default for `dev` and `test` builds. This slowdown causes
+# certain interactions in the solana-test-validator, such as verifying ZK
+# proofs in transactions, to take much more than 400ms, creating problems in
+# the test environment. To give better performance in the solana-test-validator
+# during tests and dev builds, override the opt-level to 3 for the crate.
+[profile.dev.package.curve25519-dalek]
+opt-level = 3
+
 [workspace]
 resolver = "2"
-members = ["clients/rust"]
+members = [
+  "clients/cli",
+  #"clients/rust", omitted from workspace until a real client is generated
+  "clients/rust-legacy",
+  "confidential-transfer/ciphertext-arithmetic",
+  "confidential-transfer/elgamal-registry",
+  "confidential-transfer/proof-extraction",
+  "confidential-transfer/proof-generation",
+  "confidential-transfer/proof-tests",
+  "program",
+]
+
+[workspace.lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]
 
 [workspace.metadata.cli]
-solana = "1.18.18"
+solana = "2.1.0"
 
 # Specify Rust toolchains for rustfmt, clippy, and build.
 # Any unprovided toolchains default to stable.
 [workspace.metadata.toolchains]
-format = "1.78.0"
-lint = "1.78.0"
+format = "nightly-2024-08-08"
+lint = "nightly-2024-08-08"
+
+[workspace.metadata.spellcheck]
+config = "scripts/spellcheck.toml"

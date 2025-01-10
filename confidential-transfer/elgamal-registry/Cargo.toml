@@ -15,7 +15,7 @@ test-sbf = []
 bytemuck = { version = "1.21.0", features = ["derive"] }
 solana-program = "2.1.0"
 solana-zk-sdk = "2.1.0"
-spl-pod = { version = "0.5.0", path = "../../../libraries/pod" }
+spl-pod = "0.5.0"
 spl-token-confidential-transfer-proof-extraction = { version = "0.2.0", path = "../proof-extraction" }
 
 [lib]
@@ -23,6 +23,9 @@ crate-type = ["cdylib", "lib"]
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+
+[package.metadata.solana]
+program-id = "regVYJW7tcT8zipN5YiBvHsvR5jXW1uLFxaHSbugABg"
 
 [lints]
 workspace = true
