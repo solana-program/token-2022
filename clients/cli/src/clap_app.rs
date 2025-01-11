@@ -1229,6 +1229,7 @@ pub fn app<'a>(
                         ),
                 )
                 .arg(owner_address_arg())
+                .arg(multisig_signer_arg())
                 .nonce_args(true)
         )
         .subcommand(
