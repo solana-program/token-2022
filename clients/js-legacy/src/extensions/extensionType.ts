@@ -209,8 +209,8 @@ export function getAccountTypeOfMintType(e: ExtensionType): ExtensionType {
             return ExtensionType.NonTransferableAccount;
         case ExtensionType.TransferHook:
             return ExtensionType.TransferHookAccount;
-        case ExtensionType.PausableAccount:
-            return ExtensionType.PausableConfig;
+        case ExtensionType.PausableConfig:
+            return ExtensionType.PausableAccount;
         case ExtensionType.TransferFeeAmount:
         case ExtensionType.ConfidentialTransferAccount:
         case ExtensionType.CpiGuard:
@@ -230,7 +230,7 @@ export function getAccountTypeOfMintType(e: ExtensionType): ExtensionType {
         case ExtensionType.TokenGroup:
         case ExtensionType.TokenGroupMember:
         case ExtensionType.ScaledUiAmountConfig:
-        case ExtensionType.PausableConfig:
+        case ExtensionType.PausableAccount:
             return ExtensionType.Uninitialized;
     }
 }
