@@ -10,7 +10,7 @@ import {
     TokenInvalidInstructionTypeError,
 } from '../errors.js';
 import { TokenInstruction } from './types.js';
-import { COptionPublicKeyLayout } from '../serialization.js';
+import { COptionPublicKeyLayout, getSetOfPossibleSpans } from '../serialization.js';
 
 /** TODO: docs */
 export interface InitializeMint2InstructionData {
@@ -27,6 +27,8 @@ export const initializeMint2InstructionData = struct<InitializeMint2InstructionD
     publicKey('mintAuthority'),
     new COptionPublicKeyLayout('freezeAuthority'),
 ]);
+
+const ALLOWED_SPANS = getSetOfPossibleSpans(initializeMint2InstructionData);
 
 /**
  * Construct an InitializeMint2 instruction
@@ -89,7 +91,7 @@ export function decodeInitializeMint2Instruction(
     programId = TOKEN_PROGRAM_ID,
 ): DecodedInitializeMint2Instruction {
     if (!instruction.programId.equals(programId)) throw new TokenInvalidInstructionProgramError();
-    if (instruction.data.length !== initializeMint2InstructionData.span) throw new TokenInvalidInstructionDataError();
+    if (!ALLOWED_SPANS.has(instruction.data.length)) throw new TokenInvalidInstructionDataError();
 
     const {
         keys: { mint },
