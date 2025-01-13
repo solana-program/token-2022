@@ -8,11 +8,7 @@ import type {
   UnixTimestamp,
   ReadonlyUint8Array,
 } from '@solana/web3.js';
-import {
-  address,
-  Address,
-  getBase64Decoder,
-} from '@solana/web3.js';
+import { address, Address, getBase64Decoder } from '@solana/web3.js';
 import { getSysvarClockEncoder, SYSVAR_CLOCK_ADDRESS } from '@solana/sysvars';
 import {
   amountToUiAmountForMintWithoutSimulation,
