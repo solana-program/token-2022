@@ -44,4 +44,5 @@ export enum TokenInstruction {
     GroupMemberPointerExtension = 41,
     // ConfidentialMintBurnExtension = 42,
     ScaledUiAmountExtension = 43,
+    PausableExtension = 44,
 }

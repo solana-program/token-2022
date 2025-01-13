@@ -17,6 +17,7 @@ import { MEMO_TRANSFER_SIZE } from './memoTransfer/index.js';
 import { METADATA_POINTER_SIZE } from './metadataPointer/state.js';
 import { MINT_CLOSE_AUTHORITY_SIZE } from './mintCloseAuthority.js';
 import { NON_TRANSFERABLE_SIZE, NON_TRANSFERABLE_ACCOUNT_SIZE } from './nonTransferable.js';
+import { PAUSABLE_CONFIG_SIZE, PAUSABLE_ACCOUNT_SIZE } from './pausable/index.js';
 import { PERMANENT_DELEGATE_SIZE } from './permanentDelegate.js';
 import { SCALED_UI_AMOUNT_CONFIG_SIZE } from './scaledUiAmount/index.js';
 import { TRANSFER_FEE_AMOUNT_SIZE, TRANSFER_FEE_CONFIG_SIZE } from './transferFee/index.js';
@@ -51,6 +52,8 @@ export enum ExtensionType {
     TokenGroupMember = 23,
     // ConfidentialMintBurn, // Not implemented yet
     ScaledUiAmountConfig = 25,
+    PausableConfig = 26,
+    PausableAccount = 27,
 }
 
 export const TYPE_SIZE = 2;
@@ -117,6 +120,10 @@ export function getTypeLen(e: ExtensionType): number {
             return TOKEN_GROUP_MEMBER_SIZE;
         case ExtensionType.ScaledUiAmountConfig:
             return SCALED_UI_AMOUNT_CONFIG_SIZE;
+        case ExtensionType.PausableConfig:
+            return PAUSABLE_CONFIG_SIZE;
+        case ExtensionType.PausableAccount:
+            return PAUSABLE_ACCOUNT_SIZE;
         case ExtensionType.TokenMetadata:
             throw Error(`Cannot get type length for variable extension type: ${e}`);
         default:
@@ -141,6 +148,7 @@ export function isMintExtension(e: ExtensionType): boolean {
         case ExtensionType.TokenGroup:
         case ExtensionType.TokenGroupMember:
         case ExtensionType.ScaledUiAmountConfig:
+        case ExtensionType.PausableConfig:
             return true;
         case ExtensionType.Uninitialized:
         case ExtensionType.TransferFeeAmount:
@@ -150,6 +158,7 @@ export function isMintExtension(e: ExtensionType): boolean {
         case ExtensionType.CpiGuard:
         case ExtensionType.NonTransferableAccount:
         case ExtensionType.TransferHookAccount:
+        case ExtensionType.PausableAccount:
             return false;
         default:
             throw Error(`Unknown extension type: ${e}`);
@@ -165,6 +174,7 @@ export function isAccountExtension(e: ExtensionType): boolean {
         case ExtensionType.CpiGuard:
         case ExtensionType.NonTransferableAccount:
         case ExtensionType.TransferHookAccount:
+        case ExtensionType.PausableAccount:
             return true;
         case ExtensionType.Uninitialized:
         case ExtensionType.TransferFeeConfig:
@@ -182,6 +192,7 @@ export function isAccountExtension(e: ExtensionType): boolean {
         case ExtensionType.TokenGroup:
         case ExtensionType.TokenGroupMember:
         case ExtensionType.ScaledUiAmountConfig:
+        case ExtensionType.PausableConfig:
             return false;
         default:
             throw Error(`Unknown extension type: ${e}`);
@@ -198,6 +209,8 @@ export function getAccountTypeOfMintType(e: ExtensionType): ExtensionType {
             return ExtensionType.NonTransferableAccount;
         case ExtensionType.TransferHook:
             return ExtensionType.TransferHookAccount;
+        case ExtensionType.PausableAccount:
+            return ExtensionType.PausableConfig;
         case ExtensionType.TransferFeeAmount:
         case ExtensionType.ConfidentialTransferAccount:
         case ExtensionType.CpiGuard:
@@ -217,6 +230,7 @@ export function getAccountTypeOfMintType(e: ExtensionType): ExtensionType {
         case ExtensionType.TokenGroup:
         case ExtensionType.TokenGroupMember:
         case ExtensionType.ScaledUiAmountConfig:
+        case ExtensionType.PausableConfig:
             return ExtensionType.Uninitialized;
     }
 }
