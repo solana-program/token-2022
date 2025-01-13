@@ -48,7 +48,7 @@ export function createInitializeMint2Instruction(
 ): TransactionInstruction {
     const keys = [{ pubkey: mint, isSigner: false, isWritable: true }];
 
-    const data = Buffer.alloc(initializeMint2InstructionData.span);
+    const data = Buffer.alloc(67); // worst-case size
     initializeMint2InstructionData.encode(
         {
             instruction: TokenInstruction.InitializeMint2,
@@ -59,7 +59,11 @@ export function createInitializeMint2Instruction(
         data,
     );
 
-    return new TransactionInstruction({ keys, programId, data });
+    return new TransactionInstruction({
+        keys,
+        programId,
+        data: data.subarray(0, initializeMint2InstructionData.getSpan(data)),
+    });
 }
 
 /** A decoded, valid InitializeMint2 instruction */
@@ -89,7 +93,8 @@ export function decodeInitializeMint2Instruction(
     programId = TOKEN_PROGRAM_ID,
 ): DecodedInitializeMint2Instruction {
     if (!instruction.programId.equals(programId)) throw new TokenInvalidInstructionProgramError();
-    if (instruction.data.length !== initializeMint2InstructionData.span) throw new TokenInvalidInstructionDataError();
+    if (instruction.data.length !== initializeMint2InstructionData.getSpan(instruction.data))
+        throw new TokenInvalidInstructionDataError();
 
     const {
         keys: { mint },

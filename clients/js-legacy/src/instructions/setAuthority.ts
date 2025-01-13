@@ -69,7 +69,7 @@ export function createSetAuthorityInstruction(
 ): TransactionInstruction {
     const keys = addSigners([{ pubkey: account, isSigner: false, isWritable: true }], currentAuthority, multiSigners);
 
-    const data = Buffer.alloc(setAuthorityInstructionData.span);
+    const data = Buffer.alloc(35); // worst-case
     setAuthorityInstructionData.encode(
         {
             instruction: TokenInstruction.SetAuthority,
@@ -79,7 +79,11 @@ export function createSetAuthorityInstruction(
         data,
     );
 
-    return new TransactionInstruction({ keys, programId, data });
+    return new TransactionInstruction({
+        keys,
+        programId,
+        data: data.subarray(0, setAuthorityInstructionData.getSpan(data)),
+    });
 }
 
 /** A decoded, valid SetAuthority instruction */
@@ -110,7 +114,8 @@ export function decodeSetAuthorityInstruction(
     programId = TOKEN_PROGRAM_ID,
 ): DecodedSetAuthorityInstruction {
     if (!instruction.programId.equals(programId)) throw new TokenInvalidInstructionProgramError();
-    if (instruction.data.length !== setAuthorityInstructionData.span) throw new TokenInvalidInstructionDataError();
+    if (instruction.data.length !== setAuthorityInstructionData.getSpan(instruction.data))
+        throw new TokenInvalidInstructionDataError();
 
     const {
         keys: { account, currentAuthority, multiSigners },

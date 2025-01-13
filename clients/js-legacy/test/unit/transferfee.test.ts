@@ -3,7 +3,8 @@ import {
     calculateEpochFee,
     ONE_IN_BASIS_POINTS,
     createInitializeTransferFeeConfigInstruction,
-    decodeInitializeTransferFeeConfigInstructionUnchecked,
+    decodeInitializeTransferFeeConfigInstruction,
+    TOKEN_2022_PROGRAM_ID,
 } from '../../src';
 import { expect } from 'chai';
 import { Keypair, PublicKey } from '@solana/web3.js';
@@ -21,7 +22,8 @@ describe('transferFee', () => {
                 100,
                 100n,
             );
-            const decoded = decodeInitializeTransferFeeConfigInstructionUnchecked(instruction);
+            expect(instruction.data.length).to.eql(78);
+            const decoded = decodeInitializeTransferFeeConfigInstruction(instruction, TOKEN_2022_PROGRAM_ID);
             expect(decoded.data.transferFeeConfigAuthority).to.eql(transferFeeConfigAuthority);
             expect(decoded.data.withdrawWithheldAuthority).to.eql(withdrawWithheldAuthority);
             expect(decoded.data.transferFeeBasisPoints).to.eql(100);
@@ -37,7 +39,8 @@ describe('transferFee', () => {
                 100,
                 100n,
             );
-            const decoded = decodeInitializeTransferFeeConfigInstructionUnchecked(instruction);
+            expect(instruction.data.length).to.eql(46);
+            const decoded = decodeInitializeTransferFeeConfigInstruction(instruction, TOKEN_2022_PROGRAM_ID);
             expect(decoded.data.transferFeeConfigAuthority).to.eql(null);
             expect(decoded.data.withdrawWithheldAuthority).to.eql(withdrawWithheldAuthority);
             expect(decoded.data.transferFeeBasisPoints).to.eql(100);
@@ -53,7 +56,8 @@ describe('transferFee', () => {
                 100,
                 100n,
             );
-            const decoded = decodeInitializeTransferFeeConfigInstructionUnchecked(instruction);
+            expect(instruction.data.length).to.eql(46);
+            const decoded = decodeInitializeTransferFeeConfigInstruction(instruction, TOKEN_2022_PROGRAM_ID);
             expect(decoded.data.transferFeeConfigAuthority).to.eql(transferFeeConfigAuthority);
             expect(decoded.data.withdrawWithheldAuthority).to.eql(null);
             expect(decoded.data.transferFeeBasisPoints).to.eql(100);
@@ -62,7 +66,8 @@ describe('transferFee', () => {
         it('should encode and decode with no authorities', () => {
             const mint = Keypair.generate().publicKey;
             const instruction = createInitializeTransferFeeConfigInstruction(mint, null, null, 100, 100n);
-            const decoded = decodeInitializeTransferFeeConfigInstructionUnchecked(instruction);
+            expect(instruction.data.length).to.eql(14);
+            const decoded = decodeInitializeTransferFeeConfigInstruction(instruction, TOKEN_2022_PROGRAM_ID);
             expect(decoded.data.transferFeeConfigAuthority).to.eql(null);
             expect(decoded.data.withdrawWithheldAuthority).to.eql(null);
             expect(decoded.data.transferFeeBasisPoints).to.eql(100);
