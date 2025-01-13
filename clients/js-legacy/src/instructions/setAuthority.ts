@@ -30,6 +30,7 @@ export enum AuthorityType {
     MetadataPointer = 12,
     GroupPointer = 13,
     GroupMemberPointer = 14,
+    ScaledUiAmountConfig = 15,
 }
 
 /** TODO: docs */

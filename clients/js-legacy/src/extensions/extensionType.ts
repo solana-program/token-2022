@@ -17,6 +17,7 @@ import { METADATA_POINTER_SIZE } from './metadataPointer/state.js';
 import { MINT_CLOSE_AUTHORITY_SIZE } from './mintCloseAuthority.js';
 import { NON_TRANSFERABLE_SIZE, NON_TRANSFERABLE_ACCOUNT_SIZE } from './nonTransferable.js';
 import { PERMANENT_DELEGATE_SIZE } from './permanentDelegate.js';
+import { SCALED_UI_AMOUNT_CONFIG_SIZE } from './scaledUiAmount/index.js';
 import { TRANSFER_FEE_AMOUNT_SIZE, TRANSFER_FEE_CONFIG_SIZE } from './transferFee/index.js';
 import { TRANSFER_HOOK_ACCOUNT_SIZE, TRANSFER_HOOK_SIZE } from './transferHook/index.js';
 import { TOKEN_2022_PROGRAM_ID } from '../constants.js';
@@ -47,6 +48,8 @@ export enum ExtensionType {
     TokenGroup = 21,
     GroupMemberPointer = 22,
     TokenGroupMember = 23,
+    // ConfidentialMintBurn, // Not implemented yet
+    ScaledUiAmountConfig = 25,
 }
 
 export const TYPE_SIZE = 2;
@@ -111,6 +114,8 @@ export function getTypeLen(e: ExtensionType): number {
             return TOKEN_GROUP_SIZE;
         case ExtensionType.TokenGroupMember:
             return TOKEN_GROUP_MEMBER_SIZE;
+        case ExtensionType.ScaledUiAmountConfig:
+            return SCALED_UI_AMOUNT_CONFIG_SIZE;
         case ExtensionType.TokenMetadata:
             throw Error(`Cannot get type length for variable extension type: ${e}`);
         default:
@@ -134,6 +139,7 @@ export function isMintExtension(e: ExtensionType): boolean {
         case ExtensionType.GroupMemberPointer:
         case ExtensionType.TokenGroup:
         case ExtensionType.TokenGroupMember:
+        case ExtensionType.ScaledUiAmountConfig:
             return true;
         case ExtensionType.Uninitialized:
         case ExtensionType.TransferFeeAmount:
@@ -174,6 +180,7 @@ export function isAccountExtension(e: ExtensionType): boolean {
         case ExtensionType.GroupMemberPointer:
         case ExtensionType.TokenGroup:
         case ExtensionType.TokenGroupMember:
+        case ExtensionType.ScaledUiAmountConfig:
             return false;
         default:
             throw Error(`Unknown extension type: ${e}`);
@@ -208,6 +215,7 @@ export function getAccountTypeOfMintType(e: ExtensionType): ExtensionType {
         case ExtensionType.GroupMemberPointer:
         case ExtensionType.TokenGroup:
         case ExtensionType.TokenGroupMember:
+        case ExtensionType.ScaledUiAmountConfig:
             return ExtensionType.Uninitialized;
     }
 }
