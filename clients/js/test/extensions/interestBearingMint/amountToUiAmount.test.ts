@@ -8,7 +8,11 @@ import type {
   UnixTimestamp,
   ReadonlyUint8Array,
 } from '@solana/web3.js';
-import { address, Address, getBase64Decoder, getBase64Encoder } from '@solana/web3.js';
+import {
+  address,
+  Address,
+  getBase64Decoder,
+} from '@solana/web3.js';
 import { getSysvarClockEncoder, SYSVAR_CLOCK_ADDRESS } from '@solana/sysvars';
 import {
   amountToUiAmountForMintWithoutSimulation,
@@ -52,10 +56,10 @@ function getMockRpc(
               lamports: account.lamports,
               owner: account.owner,
               rentEpoch: account.rentEpoch,
-              data: [
-                getBase64Decoder().decode(account.data),
+              data: [getBase64Decoder().decode(account.data), 'base64'] as [
+                Base64EncodedBytes,
                 'base64',
-              ] as [Base64EncodedBytes, 'base64'],
+              ],
             }
           : null,
       }),
@@ -81,26 +85,26 @@ function createMockMintAccountInfo(
 ) {
   const defaultAddress = address('11111111111111111111111111111111');
   const mintEncoder = getMintEncoder();
-  
+
   const data = mintEncoder.encode({
-      mintAuthority: defaultAddress,
-      supply: BigInt(1000000),
-      decimals: decimals,
-      isInitialized: true,
-      freezeAuthority: defaultAddress,
-      extensions: hasInterestBearingConfig
-        ? [
-            {
-              __kind: 'InterestBearingConfig',
-              rateAuthority: defaultAddress,
-              initializationTimestamp: BigInt(0),
-              preUpdateAverageRate: config.preUpdateAverageRate || 500,
-              lastUpdateTimestamp: BigInt(ONE_YEAR_IN_SECONDS),
-              currentRate: config.currentRate || 500,
-            },
-          ]
-        : [],
-    })
+    mintAuthority: defaultAddress,
+    supply: BigInt(1000000),
+    decimals: decimals,
+    isInitialized: true,
+    freezeAuthority: defaultAddress,
+    extensions: hasInterestBearingConfig
+      ? [
+          {
+            __kind: 'InterestBearingConfig',
+            rateAuthority: defaultAddress,
+            initializationTimestamp: BigInt(0),
+            preUpdateAverageRate: config.preUpdateAverageRate || 500,
+            lastUpdateTimestamp: BigInt(ONE_YEAR_IN_SECONDS),
+            currentRate: config.currentRate || 500,
+          },
+        ]
+      : [],
+  });
   return populateMockAccount(data);
 }
 
