@@ -6,6 +6,7 @@ import { MINT_SIZE, unpackMint } from '../state/mint.js';
 import { MULTISIG_SIZE } from '../state/multisig.js';
 import { ACCOUNT_TYPE_SIZE } from './accountType.js';
 import { CPI_GUARD_SIZE } from './cpiGuard/index.js';
+import { CONFIDENTIAL_TRANSFER_MINT_SIZE, CONFIDENTIAL_TRANSFER_ACCOUNT_SIZE } from './confidentialTransfer/index.js';
 import { DEFAULT_ACCOUNT_STATE_SIZE } from './defaultAccountState/index.js';
 import { TOKEN_GROUP_SIZE, TOKEN_GROUP_MEMBER_SIZE } from './tokenGroup/index.js';
 import { GROUP_MEMBER_POINTER_SIZE } from './groupMemberPointer/state.js';
@@ -81,9 +82,9 @@ export function getTypeLen(e: ExtensionType): number {
         case ExtensionType.MintCloseAuthority:
             return MINT_CLOSE_AUTHORITY_SIZE;
         case ExtensionType.ConfidentialTransferMint:
-            return 65;
+            return CONFIDENTIAL_TRANSFER_MINT_SIZE;
         case ExtensionType.ConfidentialTransferAccount:
-            return 295;
+            return CONFIDENTIAL_TRANSFER_ACCOUNT_SIZE;
         case ExtensionType.CpiGuard:
             return CPI_GUARD_SIZE;
         case ExtensionType.DefaultAccountState:
