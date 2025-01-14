@@ -42,6 +42,8 @@ runs:
       if: ${{ inputs.purge == 'true' }}
       shell: bash
       run: |
+        # If there are still disk space issues, try to add more packages from
+        # https://github.com/jlumbroso/free-disk-space
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /usr/share/swift
         sudo rm -rf /usr/share/mysql
@@ -56,6 +58,8 @@ runs:
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /usr/local/lib/heroku
         sudo rm -rf /imagegeneration
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        sudo docker image prune --all --force
 
     - name: Install Dependencies
       run: pnpm install --frozen-lockfile
