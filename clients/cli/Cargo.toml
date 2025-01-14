@@ -13,7 +13,7 @@ walkdir = "2"
 
 [dependencies]
 base64 = "0.22.1"
-clap = "3.2.23"
+clap = "4.5.24"
 console = "0.15.10"
 futures = "0.3"
 serde = "1.0.217"
