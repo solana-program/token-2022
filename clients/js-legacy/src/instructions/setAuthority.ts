@@ -31,6 +31,7 @@ export enum AuthorityType {
     GroupPointer = 13,
     GroupMemberPointer = 14,
     ScaledUiAmountConfig = 15,
+    PausableConfig = 16,
 }
 
 /** TODO: docs */
