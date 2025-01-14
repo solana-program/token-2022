@@ -48,9 +48,9 @@ fn signers_of(
     name: &str,
     wallet_manager: &mut Option<Rc<RemoteWalletManager>>,
 ) -> Result<Option<SignersOf>, Box<dyn std::error::Error>> {
-    if let Some(values) = matches.values_of(name) {
+    if let Some(values) = matches.try_get_many(name).ok().flatten() {
         let mut results = Vec::new();
-        for (i, value) in values.enumerate() {
+        for (i, value) in values.copied().enumerate() {
             let name = format!("{}-{}", name, i.saturating_add(1));
             let signer = signer_from_path(matches, value, &name, wallet_manager)?;
             let signer_pubkey = signer.pubkey();
