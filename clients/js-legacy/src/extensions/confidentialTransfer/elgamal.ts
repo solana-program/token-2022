@@ -23,7 +23,7 @@ export const elgamalPublicKey = (property?: string): Layout<PodElGamalPubkey> =>
 };
 
 export const elgamalCiphertext = (property?: string): Layout<PodElGamalCiphertext> => {
-    const layout = blob(32, property);
+    const layout = blob(64, property);
     const { encode, decode } = encodeDecode(layout);
 
     const elgamalCiphertextLayout = layout as Layout<unknown> as Layout<PodElGamalCiphertext>;
