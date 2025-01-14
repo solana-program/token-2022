@@ -79,6 +79,7 @@ jobs:
           clippy: true
           rustfmt: true
           cli: true
+          purge: true
           cargo-cache-key: cargo-cli-lint
           cargo-cache-fallback-key: cargo-cli
 
@@ -120,6 +121,7 @@ jobs:
         with:
           clippy: true
           rustfmt: true
+          purge: true
           cargo-cache-key: cargo-client-rust-legacy-lint
           cargo-cache-fallback-key: cargo-client-rust-legacy
 
