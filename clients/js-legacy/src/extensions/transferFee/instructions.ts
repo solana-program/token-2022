@@ -70,7 +70,7 @@ export function createInitializeTransferFeeConfigInstruction(
     }
     const keys = [{ pubkey: mint, isSigner: false, isWritable: true }];
 
-    const data = Buffer.alloc(initializeTransferFeeConfigInstructionData.span);
+    const data = Buffer.alloc(78); // worst-case size
     initializeTransferFeeConfigInstructionData.encode(
         {
             instruction: TokenInstruction.TransferFeeExtension,
@@ -83,7 +83,11 @@ export function createInitializeTransferFeeConfigInstruction(
         data,
     );
 
-    return new TransactionInstruction({ keys, programId, data });
+    return new TransactionInstruction({
+        keys,
+        programId,
+        data: data.subarray(0, initializeTransferFeeConfigInstructionData.getSpan(data)),
+    });
 }
 
 /** A decoded, valid InitializeTransferFeeConfig instruction */
@@ -115,7 +119,7 @@ export function decodeInitializeTransferFeeConfigInstruction(
     programId: PublicKey,
 ): DecodedInitializeTransferFeeConfigInstruction {
     if (!instruction.programId.equals(programId)) throw new TokenInvalidInstructionProgramError();
-    if (instruction.data.length !== initializeTransferFeeConfigInstructionData.span)
+    if (instruction.data.length !== initializeTransferFeeConfigInstructionData.getSpan(instruction.data))
         throw new TokenInvalidInstructionDataError();
 
     const {

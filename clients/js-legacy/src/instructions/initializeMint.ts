@@ -51,7 +51,7 @@ export function createInitializeMintInstruction(
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
     ];
 
-    const data = Buffer.alloc(initializeMintInstructionData.span);
+    const data = Buffer.alloc(67); // worst-case size
     initializeMintInstructionData.encode(
         {
             instruction: TokenInstruction.InitializeMint,
@@ -62,7 +62,11 @@ export function createInitializeMintInstruction(
         data,
     );
 
-    return new TransactionInstruction({ keys, programId, data });
+    return new TransactionInstruction({
+        keys,
+        programId,
+        data: data.subarray(0, initializeMintInstructionData.getSpan(data)),
+    });
 }
 
 /** A decoded, valid InitializeMint instruction */
@@ -93,7 +97,8 @@ export function decodeInitializeMintInstruction(
     programId = TOKEN_PROGRAM_ID,
 ): DecodedInitializeMintInstruction {
     if (!instruction.programId.equals(programId)) throw new TokenInvalidInstructionProgramError();
-    if (instruction.data.length !== initializeMintInstructionData.span) throw new TokenInvalidInstructionDataError();
+    if (instruction.data.length !== initializeMintInstructionData.getSpan(instruction.data))
+        throw new TokenInvalidInstructionDataError();
 
     const {
         keys: { mint, rent },

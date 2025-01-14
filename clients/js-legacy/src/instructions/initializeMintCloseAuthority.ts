@@ -43,7 +43,7 @@ export function createInitializeMintCloseAuthorityInstruction(
     }
     const keys = [{ pubkey: mint, isSigner: false, isWritable: true }];
 
-    const data = Buffer.alloc(initializeMintCloseAuthorityInstructionData.span);
+    const data = Buffer.alloc(34); // worst-case size
     initializeMintCloseAuthorityInstructionData.encode(
         {
             instruction: TokenInstruction.InitializeMintCloseAuthority,
@@ -52,7 +52,11 @@ export function createInitializeMintCloseAuthorityInstruction(
         data,
     );
 
-    return new TransactionInstruction({ keys, programId, data });
+    return new TransactionInstruction({
+        keys,
+        programId,
+        data: data.subarray(0, initializeMintCloseAuthorityInstructionData.getSpan(data)),
+    });
 }
 
 /** A decoded, valid InitializeMintCloseAuthority instruction */
@@ -80,7 +84,7 @@ export function decodeInitializeMintCloseAuthorityInstruction(
     programId: PublicKey,
 ): DecodedInitializeMintCloseAuthorityInstruction {
     if (!instruction.programId.equals(programId)) throw new TokenInvalidInstructionProgramError();
-    if (instruction.data.length !== initializeMintCloseAuthorityInstructionData.span)
+    if (instruction.data.length !== initializeMintCloseAuthorityInstructionData.getSpan(instruction.data))
         throw new TokenInvalidInstructionDataError();
 
     const {

@@ -34,6 +34,6 @@ export class COptionPublicKeyLayout extends Layout<PublicKey | null> {
             const option = buffer[offset];
             return option === 0 ? 1 : 1 + this.publicKeyLayout.span;
         }
-        return 1 + this.publicKeyLayout.span;
+        throw new RangeError('Buffer must be provided');
     }
 }
