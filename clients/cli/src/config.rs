@@ -48,7 +48,7 @@ fn signers_of(
     name: &str,
     wallet_manager: &mut Option<Rc<RemoteWalletManager>>,
 ) -> Result<Option<SignersOf>, Box<dyn std::error::Error>> {
-    if let Some(values) = matches.values_of(name) {
+    if let Some(values) = matches.try_get_many::<String>(name).ok().flatten() {
         let mut results = Vec::new();
         for (i, value) in values.enumerate() {
             let name = format!("{}-{}", name, i.saturating_add(1));
