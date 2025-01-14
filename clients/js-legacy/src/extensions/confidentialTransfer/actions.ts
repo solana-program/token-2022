@@ -12,6 +12,7 @@ import type { PodElGamalPubkey } from '@solana/zk-sdk';
  * @param mint                      The token mint
  * @param autoApproveNewAccounts    New auto-approve account policy
  * @param auditorElGamalPubkey      New Auditor ElGamal public key
+ * @param authority                 Confidential transfer authority of the mint
  * @param confirmOptions            Options for confirming the transaction
  * @param programId                 SPL Token program account
  *

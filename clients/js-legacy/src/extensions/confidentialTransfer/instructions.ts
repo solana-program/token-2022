@@ -29,7 +29,7 @@ export const initializeMintData = struct<InitializeMintData>([
 ]);
 
 /**
- * Construct an InitializeConfidentialTransferInitializeMint instruction
+ * Construct a ConfidentialTransferInitializeMint instruction
  *
  * @param mint                              Token mint account
  * @param confidentialTransferMintAuthority Authority that can update confidential transfer mint
