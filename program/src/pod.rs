@@ -262,7 +262,7 @@ impl TryFrom<PodCOption<Pubkey>> for OptionalNonZeroPubkey {
 }
 
 #[cfg(test)]
-pub mod test {
+pub(crate) mod test {
     use {
         super::*,
         crate::state::{
