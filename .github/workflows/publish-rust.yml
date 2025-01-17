@@ -145,4 +145,3 @@ jobs:
         with:
           tag: ${{ steps.publish.outputs.new_git_tag }}
           bodyFile: TEMP_CHANGELOG.md
-          name: ${{ steps.publish.outputs.release_title }}

@@ -33,11 +33,9 @@ if (dryRun) {
 const newVersion = getCargo(folder).package.version;
 const newGitTag = `${tagName}@v${newVersion}`;
 const oldGitTag = `${tagName}@v${oldVersion}`;
-const releaseTitle = `${packageName} - v${newVersion}`;
 
 // Expose the new version to CI if needed.
 if (process.env.CI) {
   await $`echo "new_git_tag=${newGitTag}" >> $GITHUB_OUTPUT`;
   await $`echo "old_git_tag=${oldGitTag}" >> $GITHUB_OUTPUT`;
-  await $`echo "release_title=${releaseTitle}" >> $GITHUB_OUTPUT`;
 }
