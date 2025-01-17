@@ -3,18 +3,25 @@ import 'zx/globals';
 import { cliArguments, getCargo, workingDirectory } from '../utils.mjs';
 
 const dryRun = argv['dry-run'] ?? false;
-const [level] = cliArguments();
+const [folder, level] = cliArguments();
+if (!folder) {
+  throw new Error('A path to a directory with a Rust package — e.g. "clients/cli" — must be provided.');
+}
 if (!level) {
-  throw new Error('A version level — e.g. "path" — must be provided.');
+  throw new Error('A version level — e.g. "patch" — must be provided.');
 }
 
-// Go to the client directory and install the dependencies.
-cd(path.join(workingDirectory, 'clients', 'rust'));
+cd(path.join(workingDirectory, folder));
 
-// Publish the new version.
+const packageToml = getCargo(folder).package;
+const oldVersion = packageToml.version;
+const packageName = packageToml.name;
+const tagName = packageName.replace('spl-', '');
+
+// Publish the new version, commit the repo change, tag it, and push it all.
 const releaseArgs = dryRun
   ? []
-  : ['--no-push', '--no-tag', '--no-confirm', '--execute'];
+  : ['--tag-name', `${tagName}-v{{version}}`, '--no-confirm', '--execute'];
 await $`cargo release ${level} ${releaseArgs}`;
 
 // Stop here if this is a dry run.
@@ -23,18 +30,14 @@ if (dryRun) {
 }
 
 // Get the new version.
-const newVersion = getCargo(path.join('clients', 'rust')).package.version;
+const newVersion = getCargo(folder).package.version;
+const newGitTag = `${tagName}-v${newVersion}`;
+const oldGitTag = `${tagName}-v${oldVersion}`;
+const releaseTitle = `SPL ${tagName} - v${newVersion}`;
 
 // Expose the new version to CI if needed.
 if (process.env.CI) {
-  await $`echo "new_version=${newVersion}" >> $GITHUB_OUTPUT`;
+  await $`echo "new_git_tag=${newGitTag}" >> $GITHUB_OUTPUT`;
+  await $`echo "old_git_tag=${oldGitTag}" >> $GITHUB_OUTPUT`;
+  await $`echo "release_title=${releaseTitle}" >> $GITHUB_OUTPUT`;
 }
-
-// Soft reset the last commit so we can create our own commit and tag.
-await $`git reset --soft HEAD~1`;
-
-// Commit the new version.
-await $`git commit -am "Publish Rust client v${newVersion}"`;
-
-// Tag the new version.
-await $`git tag -a rust@v${newVersion} -m "Rust client v${newVersion}"`;

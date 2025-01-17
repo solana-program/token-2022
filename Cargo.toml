@@ -40,3 +40,8 @@ lint = "nightly-2024-08-08"
 
 [workspace.metadata.spellcheck]
 config = "scripts/spellcheck.toml"
+
+[workspace.metadata.release]
+pre-release-commit-message = "Publish {{crate_name}} v{{version}}"
+tag-message = "Publish {{crate_name}} v{{version}}"
+consolidate-commits = false

@@ -1,8 +1,12 @@
-name: Publish Rust Client
+name: Publish Rust Crate
 
 on:
   workflow_dispatch:
     inputs:
+      package_path:
+        description: Path to directory with package to release
+        required: true
+        type: string
       level:
         description: Level
         required: true
@@ -18,7 +22,7 @@ on:
           - release
           - version
       version:
-        description: Version
+        description: Version (used with level "version")
         required: false
         type: string
       dry_run:
@@ -33,8 +37,8 @@ on:
         default: true
 
 jobs:
-  test_rust:
-    name: Test Rust client
+  test:
+    name: Test Rust Crate
     runs-on: ubuntu-latest
     steps:
       - name: Git Checkout
@@ -43,37 +47,47 @@ jobs:
       - name: Setup Environment
         uses: ./.github/actions/setup
         with:
-          cargo-cache-key: cargo-rust-client
           clippy: true
           rustfmt: true
           solana: true
+          cli: true
+          purge: true
+          cargo-cache-key: cargo-test-publish-${{ inputs.package_path }}
+          cargo-cache-fallback-key: cargo-test-publish
 
-      - name: Format Rust Client
-        run: pnpm clients:rust:format
+      - name: Format
+        run: pnpm zx ./scripts/rust/format.mjs "${{ inputs.package_path }}"
 
-      - name: Lint Rust Client
-        run: pnpm clients:rust:lint
+      - name: Lint
+        run: pnpm zx ./scripts/rust/lint.mjs "${{ inputs.package_path }}"
 
-      - name: Test Rust Client
-        run: pnpm clients:rust:test
+      - name: Build Token-2022
+        run: pnpm programs:build
 
-  publish_rust:
-    name: Publish Rust Client
+      - name: Build ElGamal Registry
+        run: pnpm confidential-transfer:elgamal-registry:build
+
+      - name: Test
+        run: pnpm zx ./scripts/rust/test.mjs "${{ inputs.package_path }}"
+
+  publish:
+    name: Publish Rust Crate
     runs-on: ubuntu-latest
-    needs: test_rust
+    needs: test
     permissions:
       contents: write
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # get the whole history for git-cliff
 
       - name: Setup Environment
         uses: ./.github/actions/setup
         with:
-          cargo-cache-key: cargo-publish-rust-client
-          cargo-cache-fallback-key: cargo-rust-client
-          clippy: true
-          rustfmt: true
+          cli: true
+          cargo-cache-key: cargo-publish-${{ inputs.package_path }}
+          cargo-cache-fallback-key: cargo-publish
 
       - name: Install Cargo Release
         run: which cargo-release || cargo install cargo-release
@@ -92,7 +106,7 @@ jobs:
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
 
-      - name: Publish Rust Client
+      - name: Publish Crate
         id: publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -109,14 +123,25 @@ jobs:
             OPTIONS=""
           fi
 
-          pnpm clients:rust:publish $LEVEL $OPTIONS
+          pnpm rust:publish "${{ inputs.package_path }}" $LEVEL $OPTIONS
 
-      - name: Push Commit and Tag
-        if: github.event.inputs.dry_run != 'true'
-        run: git push origin --follow-tags
+      - name: Generate a changelog
+        if: github.event.inputs.create_release == 'true'
+        uses: orhun/git-cliff-action@v3
+        with:
+          config: "scripts/cliff.toml"
+          args: |
+            "${{ steps.publish.outputs.old_git_tag }}"..master
+            --include-path "${{ inputs.package_path }}/**"
+            --github-repo "${{ github.repository }}"
+        env:
+          OUTPUT: TEMP_CHANGELOG.md
+          GITHUB_REPO: ${{ github.repository }}
 
       - name: Create GitHub release
         if: github.event.inputs.create_release == 'true' && github.event.inputs.dry_run != 'true'
         uses: ncipollo/release-action@v1
         with:
-          tag: rust@v${{ steps.publish.outputs.new_version }}
+          tag: ${{ steps.publish.outputs.new_git_tag }}
+          bodyFile: TEMP_CHANGELOG.md
+          name: ${{ steps.publish.outputs.release_title }}
