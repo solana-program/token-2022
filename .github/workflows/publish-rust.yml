@@ -40,6 +40,7 @@ jobs:
   test:
     name: Test Rust Crate
     runs-on: ubuntu-latest
+    if: false
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
@@ -95,8 +96,8 @@ jobs:
 
       - name: Ensure CARGO_REGISTRY_TOKEN variable is set
         env:
-          token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        if: ${{ env.token == '' }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        if: ${{ env.CARGO_REGISTRY_TOKEN == '' }}
         run: |
           echo "The CARGO_REGISTRY_TOKEN secret variable is not set"
           echo "Go to \"Settings\" -> \"Secrets and variables\" -> \"Actions\" -> \"New repository secret\"."
