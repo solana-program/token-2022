@@ -16,12 +16,12 @@ cd(path.join(workingDirectory, folder));
 const packageToml = getCargo(folder).package;
 const oldVersion = packageToml.version;
 const packageName = packageToml.name;
-const tagName = packageName.replace('spl-', '');
+const tagName = path.basename(folder);
 
 // Publish the new version, commit the repo change, tag it, and push it all.
 const releaseArgs = dryRun
   ? []
-  : ['--tag-name', `${tagName}-v{{version}}`, '--no-confirm', '--execute'];
+  : ['--tag-name', `${tagName}@v{{version}}`, '--no-confirm', '--execute'];
 await $`cargo release ${level} ${releaseArgs}`;
 
 // Stop here if this is a dry run.
@@ -31,9 +31,9 @@ if (dryRun) {
 
 // Get the new version.
 const newVersion = getCargo(folder).package.version;
-const newGitTag = `${tagName}-v${newVersion}`;
-const oldGitTag = `${tagName}-v${oldVersion}`;
-const releaseTitle = `SPL ${tagName} - v${newVersion}`;
+const newGitTag = `${tagName}@v${newVersion}`;
+const oldGitTag = `${tagName}@v${oldVersion}`;
+const releaseTitle = `${packageName} - v${newVersion}`;
 
 // Expose the new version to CI if needed.
 if (process.env.CI) {
