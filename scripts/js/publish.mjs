@@ -1,15 +1,23 @@
 #!/usr/bin/env zx
 import 'zx/globals';
-import { cliArguments, workingDirectory } from '../utils.mjs';
+import { cliArguments, getPackageJson, workingDirectory } from '../utils.mjs';
 
-const [level, tag = 'latest'] = cliArguments();
+const [folder, level, tag = 'latest'] = cliArguments();
+if (!folder) {
+  throw new Error('A path to a directory with a JS package — e.g. "clients/js" — must be provided.');
+}
 if (!level) {
-  throw new Error('A version level — e.g. "path" — must be provided.');
+  throw new Error('A version level — e.g. "patch" — must be provided.');
 }
 
 // Go to the client directory and install the dependencies.
-cd(path.join(workingDirectory, 'clients', 'js'));
+cd(path.join(workingDirectory, folder));
 await $`pnpm install`;
+
+const tagName = path.basename(folder);
+const packageJson = getPackageJson(folder);
+const oldVersion = packageJson.version;
+const oldGitTag = `${tagName}@v${oldVersion}`;
 
 // Update the version.
 const versionArgs = [
@@ -18,10 +26,12 @@ const versionArgs = [
 ];
 let { stdout } = await $`pnpm version ${level} ${versionArgs}`;
 const newVersion = stdout.slice(1).trim();
+const newGitTag = `${tagName}@v${newVersion}`;
 
 // Expose the new version to CI if needed.
 if (process.env.CI) {
-  await $`echo "new_version=${newVersion}" >> $GITHUB_OUTPUT`;
+  await $`echo "new_git_tag=${newGitTag}" >> $GITHUB_OUTPUT`;
+  await $`echo "old_git_tag=${oldGitTag}" >> $GITHUB_OUTPUT`;
 }
 
 // Publish the package.
@@ -29,7 +39,7 @@ if (process.env.CI) {
 await $`pnpm publish --no-git-checks --tag ${tag}`;
 
 // Commit the new version.
-await $`git commit -am "Publish JS client v${newVersion}"`;
+await $`git commit -am "Publish ${tagName} v${newVersion}"`;
 
 // Tag the new version.
-await $`git tag -a js@v${newVersion} -m "JS client v${newVersion}"`;
+await $`git tag -a ${newGitTag} -m "${tagName} v${newVersion}"`;

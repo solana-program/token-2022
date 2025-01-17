@@ -15,7 +15,6 @@
     "validator:stop": "zx ./scripts/stop-validator.mjs",
     "clients:js:format": "zx ./scripts/js/format.mjs clients/js",
     "clients:js:lint": "zx ./scripts/js/lint.mjs clients/js",
-    "clients:js:publish": "zx ./scripts/js/publish.mjs",
     "clients:js:test": "zx ./scripts/js/test.mjs clients/js",
     "clients:js-legacy:format": "zx ./scripts/js/format.mjs clients/js-legacy",
     "clients:js-legacy:lint": "zx ./scripts/js/lint.mjs clients/js-legacy",
@@ -45,7 +44,8 @@
     "rust:spellcheck": "cargo spellcheck --code 1",
     "rust:audit": "zx ./scripts/rust/audit.mjs",
     "rust:semver": "cargo semver-checks",
-    "rust:publish": "zx ./scripts/rust/publish.mjs"
+    "rust:publish": "zx ./scripts/rust/publish.mjs",
+    "js:publish": "zx ./scripts/js/publish.mjs"
   },
   "devDependencies": {
     "@codama/renderers-js": "^1.0.0",
