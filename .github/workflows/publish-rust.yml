@@ -40,7 +40,6 @@ jobs:
   test:
     name: Test Rust Crate
     runs-on: ubuntu-latest
-    if: false
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
@@ -74,7 +73,7 @@ jobs:
   publish:
     name: Publish Rust Crate
     runs-on: ubuntu-latest
-    #needs: test
+    needs: test
     permissions:
       contents: write
     steps:
@@ -133,7 +132,7 @@ jobs:
         with:
           config: "scripts/cliff.toml"
           args: |
-            "${{ steps.publish.outputs.old_git_tag }}"..master
+            "${{ steps.publish.outputs.old_git_tag }}"..main
             --include-path "${{ inputs.package_path }}/**"
             --github-repo "${{ github.repository }}"
         env:
