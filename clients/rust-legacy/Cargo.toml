@@ -1,11 +1,14 @@
 [package]
-authors = ["Solana Labs Maintainers <maintainers@solanalabs.com>"]
-description = "SPL-Token Rust Client"
-edition = "2021"
-license = "Apache-2.0"
 name = "spl-token-client"
-repository = "https://github.com/solana-labs/solana-program-library"
 version = "0.13.0"
+description = "SPL-Token Rust Client"
+documentation = "https://docs.rs/spl-token-client"
+readme = "README.md"
+authors = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
 
 [features]
 default = ["display"]

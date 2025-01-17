@@ -2,11 +2,13 @@
 name = "spl-token-2022"
 version = "6.0.0"
 description = "Solana Program Library Token 2022"
-authors = ["Solana Labs Maintainers <maintainers@solanalabs.com>"]
-repository = "https://github.com/solana-labs/solana-program-library"
-license = "Apache-2.0"
-edition = "2021"
-exclude = ["js/**"]
+documentation = "https://docs.rs/spl-token-2022"
+readme = "README.md"
+authors = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
 
 [features]
 no-entrypoint = []
