@@ -2,10 +2,11 @@
 name = "spl-token-confidential-transfer-proof-generation"
 version = "0.2.0"
 description = "Solana Program Library Confidential Transfer Proof Generation"
-authors = ["Solana Labs Maintainers <maintainers@solanalabs.com>"]
-repository = "https://github.com/solana-labs/solana-program-library"
-license = "Apache-2.0"
-edition = "2021"
+authors = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
 
 [dependencies]
 curve25519-dalek = "4.1.3"

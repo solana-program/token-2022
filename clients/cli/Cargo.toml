@@ -1,12 +1,14 @@
 [package]
-authors = ["Solana Labs Maintainers <maintainers@solanalabs.com>"]
-description = "SPL-Token Command-line Utility"
-edition = "2021"
-homepage = "https://spl.solana.com/token"
-license = "Apache-2.0"
 name = "spl-token-cli"
-repository = "https://github.com/solana-labs/solana-program-library"
 version = "5.0.0"
+description = "SPL-Token Command-line Utility"
+documentation = "https://docs.rs/spl-token-cli"
+readme = "README.md"
+authors = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
 
 [build-dependencies]
 walkdir = "2"
