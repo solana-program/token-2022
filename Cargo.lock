@@ -7912,7 +7912,7 @@ dependencies = [
  "spl-pod 0.5.0",
  "spl-tlv-account-resolution 0.9.0",
  "spl-token 7.0.0",
- "spl-token-confidential-transfer-ciphertext-arithmetic 0.2.0",
+ "spl-token-confidential-transfer-ciphertext-arithmetic 0.2.1",
  "spl-token-confidential-transfer-proof-extraction 0.2.1",
  "spl-token-confidential-transfer-proof-generation 0.3.0",
  "spl-token-group-interface 0.5.0",
@@ -7940,7 +7940,7 @@ dependencies = [
  "spl-memo 6.0.0",
  "spl-pod 0.5.0",
  "spl-token 7.0.0",
- "spl-token-confidential-transfer-ciphertext-arithmetic 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-token-confidential-transfer-ciphertext-arithmetic 0.2.0",
  "spl-token-confidential-transfer-proof-extraction 0.2.0",
  "spl-token-confidential-transfer-proof-generation 0.2.0",
  "spl-token-group-interface 0.5.0",
@@ -8028,18 +8028,6 @@ dependencies = [
 [[package]]
 name = "spl-token-confidential-transfer-ciphertext-arithmetic"
 version = "0.2.0"
-dependencies = [
- "base64 0.22.1",
- "bytemuck",
- "curve25519-dalek 4.1.3",
- "solana-curve25519",
- "solana-zk-sdk",
- "spl-token-confidential-transfer-proof-generation 0.3.0",
-]
-
-[[package]]
-name = "spl-token-confidential-transfer-ciphertext-arithmetic"
-version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1f1bf731fc65546330a7929a9735679add70f828dd076a4e69b59d3afb5423c"
 dependencies = [
@@ -8047,6 +8035,18 @@ dependencies = [
  "bytemuck",
  "solana-curve25519",
  "solana-zk-sdk",
+]
+
+[[package]]
+name = "spl-token-confidential-transfer-ciphertext-arithmetic"
+version = "0.2.1"
+dependencies = [
+ "base64 0.22.1",
+ "bytemuck",
+ "curve25519-dalek 4.1.3",
+ "solana-curve25519",
+ "solana-zk-sdk",
+ "spl-token-confidential-transfer-proof-generation 0.3.0",
 ]
 
 [[package]]
