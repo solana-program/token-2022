@@ -169,6 +169,8 @@ pub enum CommandName {
     UpdateGroupAddress,
     UpdateMemberAddress,
     UpdateUiAmountMultiplier,
+    Pause,
+    Resume,
 }
 impl fmt::Display for CommandName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -241,6 +243,7 @@ pub enum CliAuthorityType {
     GroupMemberPointer,
     Group,
     ScaledUiAmount,
+    Pause,
 }
 impl TryFrom<CliAuthorityType> for AuthorityType {
     type Error = Error;
@@ -272,6 +275,7 @@ impl TryFrom<CliAuthorityType> for AuthorityType {
                 Err("Group update authority does not map to a token authority type".into())
             }
             CliAuthorityType::ScaledUiAmount => Ok(AuthorityType::ScaledUiAmount),
+            CliAuthorityType::Pause => Ok(AuthorityType::Pause),
         }
     }
 }
@@ -904,6 +908,14 @@ pub fn app<'a>(
                             "Specify the UI multiplier. \
                             Multiplier authority defaults to the mint authority."
                         ),
+                )
+                .arg(
+                    Arg::with_name("pausable")
+                        .long("pausable")
+                        .takes_value(false)
+                        .help(
+                            "Enable the mint authority to pause mint, burn, and transfer for this mint"
+                        )
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
@@ -2740,6 +2752,58 @@ pub fn app<'a>(
                     .takes_value(true)
                     .help(
                         "Specify the multiplier authority keypair. \
+                        Defaults to the client keypair address."
+                    )
+                )
+                .arg(multisig_signer_arg())
+                .nonce_args(true)
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::Pause.into())
+                .about("Pause mint, burn, and transfer")
+                .arg(
+                    Arg::with_name("token")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("The pausable token address"),
+                )
+                .arg(
+                    Arg::with_name("pause_authority")
+                    .long("pause-authority")
+                    .validator(|s| is_valid_signer(s))
+                    .value_name("SIGNER")
+                    .takes_value(true)
+                    .help(
+                        "Specify the pause authority keypair. \
+                        Defaults to the client keypair address."
+                    )
+                )
+                .arg(multisig_signer_arg())
+                .nonce_args(true)
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::Resume.into())
+                .about("Resume mint, burn, and transfer")
+                .arg(
+                    Arg::with_name("token")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("The pausable token address"),
+                )
+                .arg(
+                    Arg::with_name("pause_authority")
+                    .long("pause-authority")
+                    .validator(|s| is_valid_signer(s))
+                    .value_name("SIGNER")
+                    .takes_value(true)
+                    .help(
+                        "Specify the pause authority keypair. \
                         Defaults to the client keypair address."
                     )
                 )
