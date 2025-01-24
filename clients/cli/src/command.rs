@@ -52,6 +52,7 @@ use {
             memo_transfer::MemoTransfer,
             metadata_pointer::MetadataPointer,
             mint_close_authority::MintCloseAuthority,
+            pausable::PausableConfig,
             permanent_delegate::PermanentDelegate,
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::TransferHook,
@@ -258,6 +259,7 @@ async fn command_create_token(
     enable_metadata: bool,
     enable_group: bool,
     enable_member: bool,
+    pausable: bool,
     bulk_signers: Vec<Arc<dyn Signer>>,
 ) -> CommandResult {
     println_display(
@@ -383,6 +385,10 @@ async fn command_create_token(
             authority: Some(authority),
             member_address,
         });
+    }
+
+    if pausable {
+        extensions.push(ExtensionInitializationParams::PausableConfig { authority });
     }
 
     let res = token
@@ -1083,6 +1089,16 @@ async fn command_authorize(
                         Err(format!("Mint `{}` does not support token groups", account))
                     }
                 }
+                CliAuthorityType::Pause => {
+                    if let Ok(extension) = mint.get_extension::<PausableConfig>() {
+                        Ok(Option::<Pubkey>::from(extension.authority))
+                    } else {
+                        Err(format!(
+                            "Mint `{}` does not support pause or resume",
+                            account
+                        ))
+                    }
+                }
             }?;
 
             Ok((account, previous_authority))
@@ -1124,7 +1140,8 @@ async fn command_authorize(
                 | CliAuthorityType::Metadata
                 | CliAuthorityType::GroupPointer
                 | CliAuthorityType::Group
-                | CliAuthorityType::GroupMemberPointer => Err(format!(
+                | CliAuthorityType::GroupMemberPointer
+                | CliAuthorityType::Pause => Err(format!(
                     "Authority type `{auth_str}` not supported for SPL Token accounts",
                 )),
                 CliAuthorityType::Owner => {
@@ -3536,6 +3553,67 @@ async fn command_apply_pending_balance(
     })
 }
 
+async fn command_pause_resume(
+    config: &Config<'_>,
+    token_pubkey: Pubkey,
+    pause_authority: Pubkey,
+    bulk_signers: Vec<Arc<dyn Signer>>,
+    allow_mint_burn_transfer: bool,
+) -> CommandResult {
+    if !config.sign_only {
+        let mint_account = config.get_account_checked(&token_pubkey).await?;
+
+        let mint_state = StateWithExtensionsOwned::<Mint>::unpack(mint_account.data)
+            .map_err(|_| format!("Could not deserialize token mint {}", token_pubkey))?;
+
+        if let Ok(pausable_config) = mint_state.get_extension::<PausableConfig>() {
+            let pause_authority_pubkey = Option::<Pubkey>::from(pausable_config.authority);
+
+            if pause_authority_pubkey != Some(pause_authority) {
+                return Err(format!(
+                    "Mint {} has pause authority {}, but {} was provided",
+                    token_pubkey,
+                    pause_authority_pubkey
+                        .map(|pubkey| pubkey.to_string())
+                        .unwrap_or_else(|| "disabled".to_string()),
+                    pause_authority
+                )
+                .into());
+            }
+        } else {
+            return Err(format!("Mint {} is not pausable", token_pubkey).into());
+        }
+    }
+
+    let res = if allow_mint_burn_transfer {
+        println_display(
+            config,
+            format!("Resuming mint, burn, and transfer for {}", token_pubkey,),
+        );
+
+        let token = token_client_from_config(config, &token_pubkey, None)?;
+        token.resume(&pause_authority, &bulk_signers).await?
+    } else {
+        println_display(
+            config,
+            format!("Pausing mint, burn, and transfer for {}", token_pubkey,),
+        );
+
+        let token = token_client_from_config(config, &token_pubkey, None)?;
+        token.pause(&pause_authority, &bulk_signers).await?
+    };
+
+    let tx_return = finish_tx(config, &res, false).await?;
+    Ok(match tx_return {
+        TransactionReturnData::CliSignature(signature) => {
+            config.output_format.formatted_string(&signature)
+        }
+        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
+            config.output_format.formatted_string(&sign_only_data)
+        }
+    })
+}
+
 struct ConfidentialTransferArgs {
     sender_elgamal_keypair: ElGamalKeypair,
     sender_aes_key: AeKey,
@@ -3632,6 +3710,7 @@ pub async fn process_command<'a>(
                 arg_matches.is_present("enable_metadata"),
                 arg_matches.is_present("enable_group"),
                 arg_matches.is_present("enable_member"),
+                arg_matches.is_present("pausable"),
                 bulk_signers,
             )
             .await
@@ -4672,6 +4751,29 @@ pub async fn process_command<'a>(
                 bulk_signers,
                 &elgamal_keypair,
                 &aes_key,
+            )
+            .await
+        }
+        (c @ CommandName::Pause, arg_matches) | (c @ CommandName::Resume, arg_matches) => {
+            let token_pubkey = pubkey_of_signer(arg_matches, "token", &mut wallet_manager)
+                .unwrap()
+                .unwrap();
+            let (pause_authority_signer, pause_authority_pubkey) =
+                config.signer_or_default(arg_matches, "pause_authority", &mut wallet_manager);
+            let bulk_signers = vec![pause_authority_signer];
+
+            let allow_mint_burn_transfer = match c {
+                CommandName::Pause => false,
+                CommandName::Resume => true,
+                _ => panic!("Instruction not supported"),
+            };
+
+            command_pause_resume(
+                config,
+                token_pubkey,
+                pause_authority_pubkey,
+                bulk_signers,
+                allow_mint_burn_transfer,
             )
             .await
         }
