@@ -48,7 +48,7 @@
     "rust:publish": "zx ./scripts/rust/publish.mjs"
   },
   "devDependencies": {
-    "@codama/renderers-js": "^1.0.0",
+    "@codama/renderers-js": "^1.1.2",
     "@codama/renderers-rust": "^1.0.7",
     "@iarna/toml": "^2.2.5",
     "codama": "^1.0.0",
