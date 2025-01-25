@@ -2729,7 +2729,7 @@ pub fn app<'a>(
                         .takes_value(true)
                         .index(3)
                         .required(true)
-                        .help("The effective time for the new multiplier",)
+                        .help("The effective time for the new multiplier, given as a UNIX timestamp",)
                 )
                 .arg(
                     Arg::with_name("multiplier_authority")
