@@ -910,8 +910,8 @@ pub fn app<'a>(
                         ),
                 )
                 .arg(
-                    Arg::with_name("pausable")
-                        .long("pausable")
+                    Arg::with_name("enable_pause")
+                        .long("enable-pause")
                         .takes_value(false)
                         .help(
                             "Enable the mint authority to pause mint, burn, and transfer for this mint"
@@ -2773,6 +2773,7 @@ pub fn app<'a>(
                 .arg(
                     Arg::with_name("pause_authority")
                     .long("pause-authority")
+                    .alias("owner")
                     .validator(|s| is_valid_signer(s))
                     .value_name("SIGNER")
                     .takes_value(true)
@@ -2799,6 +2800,7 @@ pub fn app<'a>(
                 .arg(
                     Arg::with_name("pause_authority")
                     .long("pause-authority")
+                    .alias("owner")
                     .validator(|s| is_valid_signer(s))
                     .value_name("SIGNER")
                     .takes_value(true)
