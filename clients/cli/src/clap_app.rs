@@ -2734,6 +2734,7 @@ pub fn app<'a>(
                 .arg(
                     Arg::with_name("ui_multiplier_authority")
                     .long("ui-multiplier-authority")
+                    .alias("owner")
                     .validator(|s| is_valid_signer(s))
                     .value_name("SIGNER")
                     .takes_value(true)
