@@ -3650,7 +3650,7 @@ pub async fn process_command<'a>(
             let metadata_address = value_t!(arg_matches, "metadata_address", Pubkey).ok();
             let group_address = value_t!(arg_matches, "group_address", Pubkey).ok();
             let member_address = value_t!(arg_matches, "member_address", Pubkey).ok();
-            let ui_multiplier = value_t!(arg_matches, "ui_multiplier", f64).ok();
+            let ui_multiplier = value_t!(arg_matches, "ui_amount_multiplier", f64).ok();
 
             let transfer_fee = arg_matches.values_of("transfer_fee").map(|mut v| {
                 println_display(config,"transfer-fee has been deprecated and will be removed in a future release. Please specify --transfer-fee-basis-points and --transfer-fee-maximum-fee with a UI amount".to_string());
@@ -4758,11 +4758,11 @@ pub async fn process_command<'a>(
             )
             .await
         }
-        (CommandName::UpdateUiMultiplier, arg_matches) => {
+        (CommandName::UpdateUiAmountMultiplier, arg_matches) => {
             let token_pubkey = pubkey_of_signer(arg_matches, "token", &mut wallet_manager)
                 .unwrap()
                 .unwrap();
-            let new_multiplier = value_t_or_exit!(arg_matches, "ui-multiplier", f64);
+            let new_multiplier = value_t_or_exit!(arg_matches, "multiplier", f64);
             let new_multiplier_effective_timestamp =
                 value_t_or_exit!(arg_matches, "timestamp", i64);
             let (multiplier_authority_signer, multiplier_authority_pubkey) =

@@ -4334,7 +4334,7 @@ async fn scaled_ui_amount(test_validator: &TestValidator, payer: &Keypair) {
             "spl-token",
             CommandName::CreateToken.into(),
             token_keypair_file.path().to_str().unwrap(),
-            "--ui-multiplier",
+            "--ui-amount-multiplier",
             &ui_multiplier.to_string(),
         ],
     )
@@ -4355,7 +4355,7 @@ async fn scaled_ui_amount(test_validator: &TestValidator, payer: &Keypair) {
         payer,
         &[
             "spl-token",
-            CommandName::UpdateUiMultiplier.into(),
+            CommandName::UpdateUiAmountMultiplier.into(),
             &token_pubkey.to_string(),
             &new_ui_multiplier.to_string(),
             &new_ui_multiplier_timestamp.to_string(),
