@@ -77,7 +77,15 @@ use {
     },
     spl_token_group_interface::state::TokenGroup,
     spl_token_metadata_interface::state::{Field, TokenMetadata},
-    std::{collections::HashMap, fmt::Display, process::exit, rc::Rc, str::FromStr, sync::Arc},
+    std::{
+        collections::HashMap,
+        fmt::Display,
+        process::exit,
+        rc::Rc,
+        str::FromStr,
+        sync::Arc,
+        time::{SystemTime, UNIX_EPOCH},
+    },
 };
 
 fn print_error_and_exit<T, E: Display>(e: E) -> T {
@@ -4764,7 +4772,14 @@ pub async fn process_command<'a>(
                 .unwrap();
             let new_multiplier = value_t_or_exit!(arg_matches, "multiplier", f64);
             let new_multiplier_effective_timestamp =
-                value_t_or_exit!(arg_matches, "timestamp", i64);
+                if let Some(timestamp) = arg_matches.value_of("timestamp") {
+                    timestamp.parse::<i64>().unwrap()
+                } else {
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs() as i64
+                };
             let (ui_multiplier_authority_signer, ui_multiplier_authority_pubkey) = config
                 .signer_or_default(arg_matches, "ui_multiplier_authority", &mut wallet_manager);
             let bulk_signers = vec![ui_multiplier_authority_signer];

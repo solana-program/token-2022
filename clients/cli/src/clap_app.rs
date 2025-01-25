@@ -2728,8 +2728,8 @@ pub fn app<'a>(
                         .value_name("TIMESTAMP")
                         .takes_value(true)
                         .index(3)
-                        .required(true)
-                        .help("The effective time for the new multiplier, given as a UNIX timestamp",)
+                        .help("The effective time for the new multiplier, given as a UNIX timestamp \
+                            [default: current time]",)
                 )
                 .arg(
                     Arg::with_name("ui_multiplier_authority")
