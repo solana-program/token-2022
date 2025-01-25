@@ -4480,4 +4480,9 @@ async fn pause(test_validator: &TestValidator, payer: &Keypair) {
     )
     .await
     .unwrap();
+
+    let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
+    let extension = test_mint.get_extension::<PausableConfig>().unwrap();
+    assert_eq!(Option::<Pubkey>::from(extension.authority), None,);
 }
