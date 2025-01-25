@@ -2889,6 +2889,13 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     )
     .await
     .unwrap();
+
+    let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
+    let extension = test_mint
+        .get_extension::<ConfidentialTransferMint>()
+        .unwrap();
+    assert_eq!(Option::<Pubkey>::from(extension.authority), None,);
 }
 
 async fn confidential_transfer_with_fee(test_validator: &TestValidator, payer: &Keypair) {
@@ -4388,4 +4395,9 @@ async fn scaled_ui_amount(test_validator: &TestValidator, payer: &Keypair) {
     )
     .await
     .unwrap();
+
+    let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
+    let extension = test_mint.get_extension::<ScaledUiAmountConfig>().unwrap();
+    assert_eq!(Option::<Pubkey>::from(extension.authority), None,);
 }
