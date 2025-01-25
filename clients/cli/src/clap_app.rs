@@ -168,7 +168,7 @@ pub enum CommandName {
     ApplyPendingBalance,
     UpdateGroupAddress,
     UpdateMemberAddress,
-    UpdateUiMultiplier,
+    UpdateUiAmountMultiplier,
 }
 impl fmt::Display for CommandName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -741,7 +741,7 @@ pub fn app<'a>(
                         .long("interest-rate")
                         .value_name("RATE_BPS")
                         .takes_value(true)
-                        .conflicts_with("ui_multiplier")
+                        .conflicts_with("ui_amount_multiplier")
                         .help(
                             "Specify the interest rate in basis points. \
                             Rate authority defaults to the mint authority."
@@ -895,9 +895,9 @@ pub fn app<'a>(
                         .help("Enables group member configurations in the mint. The mint authority must initialize the member."),
                 )
                 .arg(
-                    Arg::with_name("ui_multiplier")
-                        .long("ui-multiplier")
-                        .value_name("UI_MULTIPLIER")
+                    Arg::with_name("ui_amount_multiplier")
+                        .long("ui-amount-multiplier")
+                        .value_name("MULTIPLIER")
                         .takes_value(true)
                         .conflicts_with("interest_rate")
                         .help(
@@ -2704,7 +2704,7 @@ pub fn app<'a>(
                 .nonce_args(true)
         )
         .subcommand(
-            SubCommand::with_name(CommandName::UpdateUiMultiplier.into())
+            SubCommand::with_name(CommandName::UpdateUiAmountMultiplier.into())
                 .about("Update UI multiplier")
                 .arg(
                     Arg::with_name("token")
@@ -2716,7 +2716,7 @@ pub fn app<'a>(
                         .help("The token address with scaled UI amount multiplier"),
                 )
                 .arg(
-                    Arg::with_name("ui-multiplier")
+                    Arg::with_name("multiplier")
                         .value_name("MULTIPLIER")
                         .takes_value(true)
                         .index(2)
