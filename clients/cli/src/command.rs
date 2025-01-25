@@ -3801,7 +3801,7 @@ pub async fn process_command<'a>(
                 arg_matches.is_present("enable_group"),
                 arg_matches.is_present("enable_member"),
                 ui_multiplier,
-                arg_matches.is_present("pausable"),
+                arg_matches.is_present("enable_pause"),
                 bulk_signers,
             )
             .await

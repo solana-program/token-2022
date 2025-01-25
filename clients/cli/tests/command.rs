@@ -4419,7 +4419,7 @@ async fn pause(test_validator: &TestValidator, payer: &Keypair) {
             "spl-token",
             CommandName::CreateToken.into(),
             token_keypair_file.path().to_str().unwrap(),
-            "--pausable",
+            "--enable-pause",
         ],
     )
     .await
