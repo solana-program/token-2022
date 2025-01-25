@@ -2732,8 +2732,8 @@ pub fn app<'a>(
                         .help("The effective time for the new multiplier, given as a UNIX timestamp",)
                 )
                 .arg(
-                    Arg::with_name("multiplier_authority")
-                    .long("multiplier-authority")
+                    Arg::with_name("ui_multiplier_authority")
+                    .long("ui-multiplier-authority")
                     .validator(|s| is_valid_signer(s))
                     .value_name("SIGNER")
                     .takes_value(true)

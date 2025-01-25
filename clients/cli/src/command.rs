@@ -3556,7 +3556,7 @@ async fn command_apply_pending_balance(
 async fn command_update_multiplier(
     config: &Config<'_>,
     token_pubkey: Pubkey,
-    multiplier_authority: Pubkey,
+    ui_multiplier_authority: Pubkey,
     new_multiplier: f64,
     new_multiplier_effective_timestamp: i64,
     bulk_signers: Vec<Arc<dyn Signer>>,
@@ -3573,14 +3573,14 @@ async fn command_update_multiplier(
             let scaled_ui_amount_authority_pubkey =
                 Option::<Pubkey>::from(scaled_ui_amount_config.authority);
 
-            if scaled_ui_amount_authority_pubkey != Some(multiplier_authority) {
+            if scaled_ui_amount_authority_pubkey != Some(ui_multiplier_authority) {
                 return Err(format!(
                     "Mint {} has multiplier authority {}, but {} was provided",
                     token_pubkey,
                     scaled_ui_amount_authority_pubkey
                         .map(|pubkey| pubkey.to_string())
                         .unwrap_or_else(|| "disabled".to_string()),
-                    multiplier_authority
+                    ui_multiplier_authority
                 )
                 .into());
             }
@@ -3599,7 +3599,7 @@ async fn command_update_multiplier(
 
     let res = token
         .update_multiplier(
-            &multiplier_authority,
+            &ui_multiplier_authority,
             new_multiplier,
             new_multiplier_effective_timestamp,
             &bulk_signers,
@@ -4765,14 +4765,14 @@ pub async fn process_command<'a>(
             let new_multiplier = value_t_or_exit!(arg_matches, "multiplier", f64);
             let new_multiplier_effective_timestamp =
                 value_t_or_exit!(arg_matches, "timestamp", i64);
-            let (multiplier_authority_signer, multiplier_authority_pubkey) =
-                config.signer_or_default(arg_matches, "multiplier_authority", &mut wallet_manager);
-            let bulk_signers = vec![multiplier_authority_signer];
+            let (ui_multiplier_authority_signer, ui_multiplier_authority_pubkey) = config
+                .signer_or_default(arg_matches, "ui_multiplier_authority", &mut wallet_manager);
+            let bulk_signers = vec![ui_multiplier_authority_signer];
 
             command_update_multiplier(
                 config,
                 token_pubkey,
-                multiplier_authority_pubkey,
+                ui_multiplier_authority_pubkey,
                 new_multiplier,
                 new_multiplier_effective_timestamp,
                 bulk_signers,
