@@ -3,6 +3,7 @@ import { parse as parseToml } from '@iarna/toml';
 
 process.env.FORCE_COLOR = 3;
 process.env.CARGO_TERM_COLOR = 'always';
+$.verbose = true;
 
 export const workingDirectory = (await $`pwd`.quiet()).toString().trim();
 
