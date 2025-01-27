@@ -6,7 +6,11 @@ on:
       package_path:
         description: Path to directory with package to release
         required: true
-        type: string
+        default: 'clients/js'
+        type: choice
+        options:
+          - clients/js
+          - clients/js-legacy
       level:
         description: Version level
         required: true
@@ -20,14 +24,6 @@ on:
           - prepatch
           - preminor
           - premajor
-      npm_org:
-        description: NPM Organization
-        required: true
-        default: solana
-        type: choice
-        options:
-          - solana
-          - solana-program
       tag:
         description: NPM Tag (and preid for pre-releases)
         required: true
@@ -88,32 +84,37 @@ jobs:
       - name: Ensure SOLANA_NPM_TOKEN variable is set
         env:
           token: ${{ secrets.SOLANA_NPM_TOKEN }}
-        if: ${{ env.token == '' }} && ${{ inputs.npm_org == 'solana' }}
+        if: ${{ env.token == '' }}
         run: |
           echo "The SOLANA_NPM_TOKEN secret variable is not set"
           echo "Go to \"Settings\" -> \"Secrets and variables\" -> \"Actions\" -> \"New repository secret\"."
           exit 1
 
-      - name: Solana NPM Authentication
-        run: pnpm config set '//registry.npmjs.org/:_authToken' "${NODE_AUTH_TOKEN}"
-        if: ${{ inputs.npm_org == 'solana' }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.SOLANA_NPM_TOKEN }}
-
       - name: Ensure SOLANA_PROGRAM_NPM_TOKEN variable is set
         env:
           token: ${{ secrets.SOLANA_PROGRAM_NPM_TOKEN }}
-        if: ${{ env.token == '' }} && ${{ inputs.npm_org == 'solana-program' }}
+        if: ${{ env.token == '' }}
         run: |
           echo "The SOLANA_PROGRAM_NPM_TOKEN secret variable is not set"
           echo "Go to \"Settings\" -> \"Secrets and variables\" -> \"Actions\" -> \"New repository secret\"."
           exit 1
 
-      - name: Solana-program NPM Authentication
-        run: pnpm config set '//registry.npmjs.org/:_authToken' "${NODE_AUTH_TOKEN}"
-        if: ${{ inputs.npm_org == 'solana-program' }}
+      - name: NPM Authentication
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.SOLANA_PROGRAM_NPM_TOKEN }}
+          SOLANA_NPM_TOKEN: ${{ secrets.SOLANA_NPM_TOKEN }}
+          SOLANA_PROGRAM_NPM_TOKEN: ${{ secrets.SOLANA_PROGRAM_NPM_TOKEN }}
+        shell: bash
+        run: |
+          cd "${{ inputs.package_path }}"
+          org="$(jq '.name|split("/")|.[0]' package.json)"
+          if [[ $org == "\"@solana-program\"" ]] then
+            pnpm config set '//registry.npmjs.org/:_authToken' "${SOLANA_PROGRAM_NPM_TOKEN}"
+          elif [[ $org == "\"@solana\"" ]] then
+            pnpm config set '//registry.npmjs.org/:_authToken' "${SOLANA_NPM_TOKEN}"
+          else
+            echo "Unknown organization: $org"
+            exit 1
+          fi
 
       - name: Set Git Author
         run: |
