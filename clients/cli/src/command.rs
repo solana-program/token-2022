@@ -53,6 +53,7 @@ use {
             metadata_pointer::MetadataPointer,
             mint_close_authority::MintCloseAuthority,
             permanent_delegate::PermanentDelegate,
+            scaled_ui_amount::ScaledUiAmountConfig,
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::TransferHook,
             BaseStateWithExtensions, ExtensionType, StateWithExtensionsOwned,
@@ -76,7 +77,15 @@ use {
     },
     spl_token_group_interface::state::TokenGroup,
     spl_token_metadata_interface::state::{Field, TokenMetadata},
-    std::{collections::HashMap, fmt::Display, process::exit, rc::Rc, str::FromStr, sync::Arc},
+    std::{
+        collections::HashMap,
+        fmt::Display,
+        process::exit,
+        rc::Rc,
+        str::FromStr,
+        sync::Arc,
+        time::{SystemTime, UNIX_EPOCH},
+    },
 };
 
 fn print_error_and_exit<T, E: Display>(e: E) -> T {
@@ -258,6 +267,7 @@ async fn command_create_token(
     enable_metadata: bool,
     enable_group: bool,
     enable_member: bool,
+    ui_multiplier: Option<f64>,
     bulk_signers: Vec<Arc<dyn Signer>>,
 ) -> CommandResult {
     println_display(
@@ -341,6 +351,13 @@ async fn command_create_token(
         extensions.push(ExtensionInitializationParams::TransferHook {
             authority: Some(authority),
             program_id: Some(program_id),
+        });
+    }
+
+    if let Some(ui_multiplier) = ui_multiplier {
+        extensions.push(ExtensionInitializationParams::ScaledUiAmountConfig {
+            authority: Some(authority),
+            multiplier: ui_multiplier,
         });
     }
 
@@ -1083,6 +1100,13 @@ async fn command_authorize(
                         Err(format!("Mint `{}` does not support token groups", account))
                     }
                 }
+                CliAuthorityType::ScaledUiAmount => {
+                    if let Ok(extension) = mint.get_extension::<ScaledUiAmountConfig>() {
+                        Ok(Option::<Pubkey>::from(extension.authority))
+                    } else {
+                        Err(format!("Mint `{}` does not support UI multiplier", account))
+                    }
+                }
             }?;
 
             Ok((account, previous_authority))
@@ -1124,7 +1148,8 @@ async fn command_authorize(
                 | CliAuthorityType::Metadata
                 | CliAuthorityType::GroupPointer
                 | CliAuthorityType::Group
-                | CliAuthorityType::GroupMemberPointer => Err(format!(
+                | CliAuthorityType::GroupMemberPointer
+                | CliAuthorityType::ScaledUiAmount => Err(format!(
                     "Authority type `{auth_str}` not supported for SPL Token accounts",
                 )),
                 CliAuthorityType::Owner => {
@@ -3536,6 +3561,70 @@ async fn command_apply_pending_balance(
     })
 }
 
+async fn command_update_multiplier(
+    config: &Config<'_>,
+    token_pubkey: Pubkey,
+    ui_multiplier_authority: Pubkey,
+    new_multiplier: f64,
+    new_multiplier_effective_timestamp: i64,
+    bulk_signers: Vec<Arc<dyn Signer>>,
+) -> CommandResult {
+    let token = token_client_from_config(config, &token_pubkey, None)?;
+
+    if !config.sign_only {
+        let mint_account = config.get_account_checked(&token_pubkey).await?;
+
+        let mint_state = StateWithExtensionsOwned::<Mint>::unpack(mint_account.data)
+            .map_err(|_| format!("Could not deserialize token mint {}", token_pubkey))?;
+
+        if let Ok(scaled_ui_amount_config) = mint_state.get_extension::<ScaledUiAmountConfig>() {
+            let scaled_ui_amount_authority_pubkey =
+                Option::<Pubkey>::from(scaled_ui_amount_config.authority);
+
+            if scaled_ui_amount_authority_pubkey != Some(ui_multiplier_authority) {
+                return Err(format!(
+                    "Mint {} has multiplier authority {}, but {} was provided",
+                    token_pubkey,
+                    scaled_ui_amount_authority_pubkey
+                        .map(|pubkey| pubkey.to_string())
+                        .unwrap_or_else(|| "disabled".to_string()),
+                    ui_multiplier_authority
+                )
+                .into());
+            }
+        } else {
+            return Err(format!("Mint {} does not have a UI multiplier", token_pubkey).into());
+        }
+    }
+
+    println_display(
+        config,
+        format!(
+            "Setting UI Multiplier for {} to {} at UNIX timestamp {}",
+            token_pubkey, new_multiplier, new_multiplier_effective_timestamp
+        ),
+    );
+
+    let res = token
+        .update_multiplier(
+            &ui_multiplier_authority,
+            new_multiplier,
+            new_multiplier_effective_timestamp,
+            &bulk_signers,
+        )
+        .await?;
+
+    let tx_return = finish_tx(config, &res, false).await?;
+    Ok(match tx_return {
+        TransactionReturnData::CliSignature(signature) => {
+            config.output_format.formatted_string(&signature)
+        }
+        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
+            config.output_format.formatted_string(&sign_only_data)
+        }
+    })
+}
+
 struct ConfidentialTransferArgs {
     sender_elgamal_keypair: ElGamalKeypair,
     sender_aes_key: AeKey,
@@ -3569,6 +3658,7 @@ pub async fn process_command<'a>(
             let metadata_address = value_t!(arg_matches, "metadata_address", Pubkey).ok();
             let group_address = value_t!(arg_matches, "group_address", Pubkey).ok();
             let member_address = value_t!(arg_matches, "member_address", Pubkey).ok();
+            let ui_multiplier = value_t!(arg_matches, "ui_amount_multiplier", f64).ok();
 
             let transfer_fee = arg_matches.values_of("transfer_fee").map(|mut v| {
                 println_display(config,"transfer-fee has been deprecated and will be removed in a future release. Please specify --transfer-fee-basis-points and --transfer-fee-maximum-fee with a UI amount".to_string());
@@ -3632,6 +3722,7 @@ pub async fn process_command<'a>(
                 arg_matches.is_present("enable_metadata"),
                 arg_matches.is_present("enable_group"),
                 arg_matches.is_present("enable_member"),
+                ui_multiplier,
                 bulk_signers,
             )
             .await
@@ -4672,6 +4763,34 @@ pub async fn process_command<'a>(
                 bulk_signers,
                 &elgamal_keypair,
                 &aes_key,
+            )
+            .await
+        }
+        (CommandName::UpdateUiAmountMultiplier, arg_matches) => {
+            let token_pubkey = pubkey_of_signer(arg_matches, "token", &mut wallet_manager)
+                .unwrap()
+                .unwrap();
+            let new_multiplier = value_t_or_exit!(arg_matches, "multiplier", f64);
+            let new_multiplier_effective_timestamp =
+                if let Some(timestamp) = arg_matches.value_of("timestamp") {
+                    timestamp.parse::<i64>().unwrap()
+                } else {
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs() as i64
+                };
+            let (ui_multiplier_authority_signer, ui_multiplier_authority_pubkey) = config
+                .signer_or_default(arg_matches, "ui_multiplier_authority", &mut wallet_manager);
+            let bulk_signers = vec![ui_multiplier_authority_signer];
+
+            command_update_multiplier(
+                config,
+                token_pubkey,
+                ui_multiplier_authority_pubkey,
+                new_multiplier,
+                new_multiplier_effective_timestamp,
+                bulk_signers,
             )
             .await
         }

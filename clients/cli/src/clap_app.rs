@@ -168,6 +168,7 @@ pub enum CommandName {
     ApplyPendingBalance,
     UpdateGroupAddress,
     UpdateMemberAddress,
+    UpdateUiAmountMultiplier,
 }
 impl fmt::Display for CommandName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -239,6 +240,7 @@ pub enum CliAuthorityType {
     GroupPointer,
     GroupMemberPointer,
     Group,
+    ScaledUiAmount,
 }
 impl TryFrom<CliAuthorityType> for AuthorityType {
     type Error = Error;
@@ -269,6 +271,7 @@ impl TryFrom<CliAuthorityType> for AuthorityType {
             CliAuthorityType::Group => {
                 Err("Group update authority does not map to a token authority type".into())
             }
+            CliAuthorityType::ScaledUiAmount => Ok(AuthorityType::ScaledUiAmount),
         }
     }
 }
@@ -738,6 +741,7 @@ pub fn app<'a>(
                         .long("interest-rate")
                         .value_name("RATE_BPS")
                         .takes_value(true)
+                        .conflicts_with("ui_amount_multiplier")
                         .help(
                             "Specify the interest rate in basis points. \
                             Rate authority defaults to the mint authority."
@@ -889,6 +893,17 @@ pub fn app<'a>(
                         .conflicts_with("member_address")
                         .takes_value(false)
                         .help("Enables group member configurations in the mint. The mint authority must initialize the member."),
+                )
+                .arg(
+                    Arg::with_name("ui_amount_multiplier")
+                        .long("ui-amount-multiplier")
+                        .value_name("MULTIPLIER")
+                        .takes_value(true)
+                        .conflicts_with("interest_rate")
+                        .help(
+                            "Specify the UI multiplier. \
+                            Multiplier authority defaults to the mint authority."
+                        ),
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
@@ -2684,6 +2699,49 @@ pub fn app<'a>(
                 )
                 .arg(
                     owner_address_arg()
+                )
+                .arg(multisig_signer_arg())
+                .nonce_args(true)
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::UpdateUiAmountMultiplier.into())
+                .about("Update UI multiplier")
+                .arg(
+                    Arg::with_name("token")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("The token address with scaled UI amount multiplier"),
+                )
+                .arg(
+                    Arg::with_name("multiplier")
+                        .value_name("MULTIPLIER")
+                        .takes_value(true)
+                        .index(2)
+                        .required(true)
+                        .help("The new multiplier"),
+                )
+                .arg(
+                    Arg::with_name("timestamp")
+                        .value_name("TIMESTAMP")
+                        .takes_value(true)
+                        .index(3)
+                        .help("The effective time for the new multiplier, given as a UNIX timestamp \
+                            [default: current time]",)
+                )
+                .arg(
+                    Arg::with_name("ui_multiplier_authority")
+                    .long("ui-multiplier-authority")
+                    .alias("owner")
+                    .validator(|s| is_valid_signer(s))
+                    .value_name("SIGNER")
+                    .takes_value(true)
+                    .help(
+                        "Specify the multiplier authority keypair. \
+                        Defaults to the client keypair address."
+                    )
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)

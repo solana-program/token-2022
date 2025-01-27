@@ -27,6 +27,7 @@ use {
             memo_transfer::MemoTransfer,
             metadata_pointer::MetadataPointer,
             non_transferable::NonTransferable,
+            scaled_ui_amount::ScaledUiAmountConfig,
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::TransferHook,
             BaseStateWithExtensions, StateWithExtensionsOwned,
@@ -144,6 +145,7 @@ async fn main() {
         async_trial!(group, test_validator, payer),
         async_trial!(confidential_transfer_with_fee, test_validator, payer),
         async_trial!(compute_budget, test_validator, payer),
+        async_trial!(scaled_ui_amount, test_validator, payer),
         // GC messes with every other test, so have it on its own test validator
         async_trial!(gc, gc_test_validator, gc_payer),
     ];
@@ -2887,6 +2889,13 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     )
     .await
     .unwrap();
+
+    let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
+    let extension = test_mint
+        .get_extension::<ConfidentialTransferMint>()
+        .unwrap();
+    assert_eq!(Option::<Pubkey>::from(extension.authority), None,);
 }
 
 async fn confidential_transfer_with_fee(test_validator: &TestValidator, payer: &Keypair) {
@@ -4313,4 +4322,82 @@ async fn compute_budget(test_validator: &TestValidator, payer: &Keypair) {
         config.compute_unit_limit = ComputeUnitLimit::Static(40_000);
         run_transfer_test(&config, payer).await;
     }
+}
+
+async fn scaled_ui_amount(test_validator: &TestValidator, payer: &Keypair) {
+    let config = test_config_with_default_signer(test_validator, payer, &spl_token_2022::id());
+
+    // create token with scaled ui amount extension
+    let token = Keypair::new();
+    let token_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&token, &token_keypair_file).unwrap();
+    let token_pubkey = token.pubkey();
+    let ui_multiplier = 1.0;
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::CreateToken.into(),
+            token_keypair_file.path().to_str().unwrap(),
+            "--ui-amount-multiplier",
+            &ui_multiplier.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
+    let extension = test_mint.get_extension::<ScaledUiAmountConfig>().unwrap();
+    assert_eq!(f64::from(extension.multiplier), ui_multiplier);
+
+    // update multiplier
+    let new_ui_multiplier = 5.0;
+    let new_ui_multiplier_timestamp = 0;
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::UpdateUiAmountMultiplier.into(),
+            &token_pubkey.to_string(),
+            &new_ui_multiplier.to_string(),
+            &new_ui_multiplier_timestamp.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
+    let extension = test_mint.get_extension::<ScaledUiAmountConfig>().unwrap();
+    assert_eq!(f64::from(extension.multiplier), new_ui_multiplier);
+    assert_eq!(f64::from(extension.new_multiplier), new_ui_multiplier);
+    assert_eq!(
+        i64::from(extension.new_multiplier_effective_timestamp),
+        new_ui_multiplier_timestamp
+    );
+
+    // disable authority
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Authorize.into(),
+            &token_pubkey.to_string(),
+            "scaled-ui-amount",
+            "--disable",
+        ],
+    )
+    .await
+    .unwrap();
+
+    let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
+    let extension = test_mint.get_extension::<ScaledUiAmountConfig>().unwrap();
+    assert_eq!(Option::<Pubkey>::from(extension.authority), None,);
 }
