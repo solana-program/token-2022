@@ -27,6 +27,7 @@ use {
             memo_transfer::MemoTransfer,
             metadata_pointer::MetadataPointer,
             non_transferable::NonTransferable,
+            pausable::PausableConfig,
             scaled_ui_amount::ScaledUiAmountConfig,
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::TransferHook,
@@ -146,6 +147,7 @@ async fn main() {
         async_trial!(confidential_transfer_with_fee, test_validator, payer),
         async_trial!(compute_budget, test_validator, payer),
         async_trial!(scaled_ui_amount, test_validator, payer),
+        async_trial!(pause, test_validator, payer),
         // GC messes with every other test, so have it on its own test validator
         async_trial!(gc, gc_test_validator, gc_payer),
     ];
@@ -4399,5 +4401,88 @@ async fn scaled_ui_amount(test_validator: &TestValidator, payer: &Keypair) {
     let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
     let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
     let extension = test_mint.get_extension::<ScaledUiAmountConfig>().unwrap();
+    assert_eq!(Option::<Pubkey>::from(extension.authority), None,);
+}
+
+async fn pause(test_validator: &TestValidator, payer: &Keypair) {
+    let config = test_config_with_default_signer(test_validator, payer, &spl_token_2022::id());
+
+    // create token with pausable extension
+    let token = Keypair::new();
+    let token_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&token, &token_keypair_file).unwrap();
+    let token_pubkey = token.pubkey();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::CreateToken.into(),
+            token_keypair_file.path().to_str().unwrap(),
+            "--enable-pause",
+        ],
+    )
+    .await
+    .unwrap();
+
+    let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
+    let extension = test_mint.get_extension::<PausableConfig>().unwrap();
+    assert!(!bool::from(extension.paused));
+
+    // pause the mint
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Pause.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
+    let extension = test_mint.get_extension::<PausableConfig>().unwrap();
+    assert!(bool::from(extension.paused));
+
+    // resume the mint
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Resume.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
+    let extension = test_mint.get_extension::<PausableConfig>().unwrap();
+    assert!(!bool::from(extension.paused));
+
+    // disable pause
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Authorize.into(),
+            &token_pubkey.to_string(),
+            "pause",
+            "--disable",
+        ],
+    )
+    .await
+    .unwrap();
+
+    let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
+    let extension = test_mint.get_extension::<PausableConfig>().unwrap();
     assert_eq!(Option::<Pubkey>::from(extension.authority), None,);
 }
