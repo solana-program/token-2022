@@ -28,6 +28,7 @@
         "import": "./lib/esm/index.js"
     },
     "scripts": {
+        "prepublishOnly": "pnpm build",
         "nuke": "shx rm -rf node_modules package-lock.json || true",
         "reinstall": "npm run nuke && npm install",
         "clean": "shx rm -rf lib **/*.tsbuildinfo || true",
