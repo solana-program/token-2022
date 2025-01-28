@@ -125,3 +125,12 @@ export async function getInstalledSolanaVersion() {
     return '';
   }
 }
+
+export function getPackageJson(folder) {
+  return JSON.parse(
+    fs.readFileSync(
+      path.join(workingDirectory, folder ? folder : '.', 'package.json'),
+      'utf8'
+    )
+  );
+}
