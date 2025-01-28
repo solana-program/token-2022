@@ -12,8 +12,8 @@ importers:
         specifier: ^1.2.0
         version: 1.2.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.7.3)
       '@codama/renderers-rust':
-        specifier: ^1.0.7
-        version: 1.0.7(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.7.3)
+        specifier: ^1.0.8
+        version: 1.0.8(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.7.3)
       '@iarna/toml':
         specifier: ^2.2.5
         version: 2.2.5
@@ -48,8 +48,8 @@ packages:
   '@codama/renderers-js@1.2.0':
     resolution: {integrity: sha512-EVju+LqDwfR9Fl2PZ0sGTbF8FQ8nBTdvyPSSKjKv/eZ9DERlTKwBXlb7i7aXbYg5bT24D4dVYH3bb3MOsMfrag==}
 
-  '@codama/renderers-rust@1.0.7':
-    resolution: {integrity: sha512-AgHzJ4pOah7obNVlDUKhvl+A226q6ZSIXxogENjx6RbVvjAufHlYsXsNIjXpa0NPo2f/x0KlpRA+mbR31qGUoA==}
+  '@codama/renderers-rust@1.0.8':
+    resolution: {integrity: sha512-9qBA8ZtSMEaVGEF0DL2ps1bHaq49ylOFBz2V0FlKEMBpNWZNRhXYg0k4TnRhnIXDnWKgxzRGKFKSiRrAFZkCew==}
 
   '@codama/validators@1.2.1':
     resolution: {integrity: sha512-K+ZKSp2BEWjAhOoRs/0xqFw8awXGf+GruorDX4LAlc3fVoV7Ba3ItK7xHpqzoisoJQUasBWAqf4uDzAfn0koqA==}
@@ -329,7 +329,7 @@ snapshots:
       - fastestsmallesttextencoderdecoder
       - typescript
 
-  '@codama/renderers-rust@1.0.7(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.7.3)':
+  '@codama/renderers-rust@1.0.8(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.7.3)':
     dependencies:
       '@codama/errors': 1.2.1
       '@codama/nodes': 1.2.1
