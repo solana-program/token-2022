@@ -69,7 +69,7 @@ describe('confidentialTransfer', () => {
             confidentialTransferMintAuthority = Keypair.generate();
             autoApproveNewAccounts = true;
             auditorKeypair = ElGamalKeypair.newRand();
-            auditorPubkey = PodElGamalPubkey.encode(auditorKeypair.pubkey_owned());
+            auditorPubkey = PodElGamalPubkey.encode(auditorKeypair.pubkeyOwned());
 
             await setupConfidentialTransferMint(
                 confidentialTransferMintAuthority.publicKey,
@@ -94,7 +94,7 @@ describe('confidentialTransfer', () => {
         it('update mint', async () => {
             const newAutoApproveNewAccounts = false;
             const newAuditorElGamalKeypair = ElGamalKeypair.newRand();
-            const newAuditorElGamalPubkey = PodElGamalPubkey.encode(newAuditorElGamalKeypair.pubkey_owned());
+            const newAuditorElGamalPubkey = PodElGamalPubkey.encode(newAuditorElGamalKeypair.pubkeyOwned());
 
             await updateMint(
                 connection,
