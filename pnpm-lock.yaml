@@ -24,8 +24,8 @@ importers:
         specifier: ^5.5.2
         version: 5.7.3
       zx:
-        specifier: ^8.3.0
-        version: 8.3.0
+        specifier: ^8.3.1
+        version: 8.3.1
 
 packages:
 
@@ -143,8 +143,8 @@ packages:
   '@types/jsonfile@6.1.4':
     resolution: {integrity: sha512-D5qGUYwjvnNNextdU59/+fI+spnwtTFmyQP0h+PfIOSkNfpU6AOICUOkm4i0OnSk+NyjdPJrxCDro0sJsWlRpQ==}
 
-  '@types/node@22.10.5':
-    resolution: {integrity: sha512-F8Q+SeGimwOo86fiovQh8qiXfFEh2/ocYv7tU5pJ3EXMSSxk1Joj5wefpFK2fHTf/N6HKGSxIDBT9f3gCxXPkQ==}
+  '@types/node@22.12.0':
+    resolution: {integrity: sha512-Fll2FZ1riMjNmlmJOdAyY5pUbkftXslB5DgEzlIuNaiWhXd00FhWxVC/r4yV/4wBb9JfImTu+jiSvXTkJ7F/gA==}
 
   a-sync-waterfall@1.0.1:
     resolution: {integrity: sha512-RYTOHHdWipFUliRFMCS4X2Yn2X8M87V/OpSqWzKKOGhzqyUxzyVmhHDH9sAvG+ZuQf/TAOFsLCpMw09I1ufUnA==}
@@ -277,8 +277,8 @@ packages:
   undici-types@6.20.0:
     resolution: {integrity: sha512-Ny6QZ2Nju20vw1SRHe3d9jVu6gJ+4e3+MMpqu7pqE5HT6WsTSlce++GQmK5UXS8mzV8DSYHrQH+Xrf2jVcuKNg==}
 
-  zx@8.3.0:
-    resolution: {integrity: sha512-L8mY3yfJwo3a8ZDD6f9jZzAcRWJZYcV8GauZmBxLB/aSTwaMzMIEVpPp2Kyx+7yF0gdvuxKnMxAZRft9UCawiw==}
+  zx@8.3.1:
+    resolution: {integrity: sha512-MjNXfysB0Rv/lMi8oFa3a3flNC/KKqhguuarqxYM/uz/WFoD/AgHDkDdoDD4Y4nRjaCDphJJBTeeaPAE1P7fhA==}
     engines: {node: '>= 12.17.0'}
     hasBin: true
 
@@ -446,15 +446,15 @@ snapshots:
   '@types/fs-extra@11.0.4':
     dependencies:
       '@types/jsonfile': 6.1.4
-      '@types/node': 22.10.5
+      '@types/node': 22.12.0
     optional: true
 
   '@types/jsonfile@6.1.4':
     dependencies:
-      '@types/node': 22.10.5
+      '@types/node': 22.12.0
     optional: true
 
-  '@types/node@22.10.5':
+  '@types/node@22.12.0':
     dependencies:
       undici-types: 6.20.0
     optional: true
@@ -587,7 +587,7 @@ snapshots:
   undici-types@6.20.0:
     optional: true
 
-  zx@8.3.0:
+  zx@8.3.1:
     optionalDependencies:
       '@types/fs-extra': 11.0.4
-      '@types/node': 22.10.5
+      '@types/node': 22.12.0
