@@ -249,7 +249,6 @@ jobs:
         run: pnpm rust:audit
 
   semver_rust:
-    if: false # enable after token-2022 bumps to a new major version
     name: Check semver Rust
     runs-on: ubuntu-latest
     steps:
@@ -259,9 +258,10 @@ jobs:
       - name: Setup Environment
         uses: ./.github/actions/setup
         with:
+          cli: true
           cargo-cache-key: cargo-semver
 
-      - name: Install cargo-audit
+      - name: Install cargo-semver-checks
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-semver-checks
