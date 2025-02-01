@@ -63,6 +63,12 @@ use {
     std::convert::{TryFrom, TryInto},
 };
 
+pub(crate) enum TransferInstruction {
+    Unchecked,
+    Checked { decimals: u8 },
+    CheckedWithFee { decimals: u8, fee: u64 },
+}
+
 /// Program state handler.
 pub struct Processor {}
 impl Processor {
@@ -287,24 +293,22 @@ impl Processor {
     }
 
     /// Processes a [`Transfer`](enum.TokenInstruction.html) instruction.
-    pub fn process_transfer(
+    pub(crate) fn process_transfer(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
-        expected_decimals: Option<u8>,
-        expected_fee: Option<u64>,
+        transfer_instruction: TransferInstruction,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
         let source_account_info = next_account_info(account_info_iter)?;
 
-        let expected_mint_info = if let Some(expected_decimals) = expected_decimals {
-            Some((next_account_info(account_info_iter)?, expected_decimals))
-        } else {
-            // Transfer must not be called with an expected fee but no mint,
-            // otherwise it's a programmer error.
-            assert!(expected_fee.is_none());
-            None
+        let expected_mint_info = match transfer_instruction {
+            TransferInstruction::Unchecked => None,
+            TransferInstruction::Checked { decimals }
+            | TransferInstruction::CheckedWithFee { decimals, .. } => {
+                Some((next_account_info(account_info_iter)?, decimals))
+            }
         };
 
         let destination_account_info = next_account_info(account_info_iter)?;
@@ -328,7 +332,7 @@ impl Processor {
             return Err(TokenError::NonTransferable.into());
         }
 
-        let (fee, maybe_permanent_delegate, maybe_transfer_hook_program_id) =
+        let (calculated_fee, maybe_permanent_delegate, maybe_transfer_hook_program_id) =
             if let Some((mint_info, expected_decimals)) = expected_mint_info {
                 if &source_account.base.mint != mint_info.key {
                     return Err(TokenError::MintMismatch.into());
@@ -391,9 +395,9 @@ impl Processor {
 
                 (0, None, None)
             };
-        if let Some(expected_fee) = expected_fee {
-            if expected_fee != fee {
-                msg!("Calculated fee {}, received {}", fee, expected_fee);
+        if let TransferInstruction::CheckedWithFee { fee, .. } = transfer_instruction {
+            if calculated_fee != fee {
+                msg!("Calculated fee {calculated_fee}, received {fee}");
                 return Err(TokenError::FeeMismatch.into());
             }
         }
@@ -499,15 +503,17 @@ impl Processor {
             .checked_sub(amount)
             .ok_or(TokenError::Overflow)?
             .into();
-        let credited_amount = amount.checked_sub(fee).ok_or(TokenError::Overflow)?;
+        let credited_amount = amount
+            .checked_sub(calculated_fee)
+            .ok_or(TokenError::Overflow)?;
         destination_account.base.amount = u64::from(destination_account.base.amount)
             .checked_add(credited_amount)
             .ok_or(TokenError::Overflow)?
             .into();
-        if fee > 0 {
+        if calculated_fee > 0 {
             if let Ok(extension) = destination_account.get_extension_mut::<TransferFeeAmount>() {
                 let new_withheld_amount = u64::from(extension.withheld_amount)
-                    .checked_add(fee)
+                    .checked_add(calculated_fee)
                     .ok_or(TokenError::Overflow)?;
                 extension.withheld_amount = new_withheld_amount.into();
             } else {
@@ -1665,7 +1671,12 @@ impl Processor {
                 PodTokenInstruction::Transfer => {
                     msg!("Instruction: Transfer");
                     let data = decode_instruction_data::<AmountData>(input)?;
-                    Self::process_transfer(program_id, accounts, data.amount.into(), None, None)
+                    Self::process_transfer(
+                        program_id,
+                        accounts,
+                        data.amount.into(),
+                        TransferInstruction::Unchecked,
+                    )
                 }
                 PodTokenInstruction::Approve => {
                     msg!("Instruction: Approve");
@@ -1716,8 +1727,9 @@ impl Processor {
                         program_id,
                         accounts,
                         data.amount.into(),
-                        Some(data.decimals),
-                        None,
+                        TransferInstruction::Checked {
+                            decimals: data.decimals,
+                        },
                     )
                 }
                 PodTokenInstruction::ApproveChecked => {
