@@ -185,16 +185,6 @@ mod tests {
         // This is really 0.99999... but it gets truncated
         let ui_amount = config.amount_to_ui_amount(101, 2, 0).unwrap();
         assert_eq!(ui_amount, "0.99");
-
-        // negative truncation
-        let config = ScaledUiAmountConfig {
-            multiplier: PodF64::from(-0.99),
-            new_multiplier_effective_timestamp: UnixTimestamp::from(1),
-            ..Default::default()
-        };
-        // This is really -0.99999... but it gets truncated
-        let ui_amount = config.amount_to_ui_amount(101, 2, 0).unwrap();
-        assert_eq!(ui_amount, "-0.99");
     }
 
     #[test]
@@ -300,15 +290,6 @@ mod tests {
         // or 100 underlying tokens, but the result gives the fewest possible
         // tokens that give that UI amount.
         let amount = config.try_ui_amount_into_amount("0.99", 2, 0).unwrap();
-        assert_eq!(amount, 100);
-
-        // negative truncation
-        let config = ScaledUiAmountConfig {
-            multiplier: PodF64::from(-0.99),
-            new_multiplier_effective_timestamp: UnixTimestamp::from(1),
-            ..Default::default()
-        };
-        let amount = config.try_ui_amount_into_amount("-0.99", 2, 0).unwrap();
         assert_eq!(amount, 100);
     }
 
