@@ -519,6 +519,14 @@ pub enum TokenInstruction<'a> {
     /// Return data can be fetched using `sol_get_return_data` and deserialized
     /// with `String::from_utf8`.
     ///
+    /// WARNING: For mints using the interest-bearing or scaled-ui-amount
+    /// extensions, this instruction uses standard floating-point arithmetic to
+    /// convert values, which is not guaranteed to give consistent behavior.
+    ///
+    /// In particular, conversions will not always work in reverse. For example,
+    /// if you pass amount `A` to `AmountToUiAmount` and receive `B`, and pass
+    /// the result `B` to `UiAmountToAmount`, you will not always get back `A`.
+    ///
     /// Accounts expected by this instruction:
     ///
     ///   0. `[]` The mint to calculate for
@@ -531,6 +539,14 @@ pub enum TokenInstruction<'a> {
     ///
     /// Return data can be fetched using `sol_get_return_data` and deserializing
     /// the return data as a little-endian `u64`.
+    ///
+    /// WARNING: For mints using the interest-bearing or scaled-ui-amount
+    /// extensions, this instruction uses standard floating-point arithmetic to
+    /// convert values, which is not guaranteed to give consistent behavior.
+    ///
+    /// In particular, conversions will not always work in reverse. For example,
+    /// if you pass amount `A` to `UiAmountToAmount` and receive `B`, and pass
+    /// the result `B` to `AmountToUiAmount`, you will not always get back `A`.
     ///
     /// Accounts expected by this instruction:
     ///
