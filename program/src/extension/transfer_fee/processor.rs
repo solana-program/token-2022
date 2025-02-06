@@ -11,7 +11,7 @@ use {
             PodStateWithExtensionsMut,
         },
         pod::{PodAccount, PodMint},
-        processor::Processor,
+        processor::{Processor, TransferInstruction},
     },
     solana_program::{
         account_info::{next_account_info, AccountInfo},
@@ -301,7 +301,12 @@ pub(crate) fn process_instruction(
             fee,
         } => {
             msg!("TransferFeeInstruction: TransferCheckedWithFee");
-            Processor::process_transfer(program_id, accounts, amount, Some(decimals), Some(fee))
+            Processor::process_transfer(
+                program_id,
+                accounts,
+                amount,
+                TransferInstruction::CheckedWithFee { decimals, fee },
+            )
         }
         TransferFeeInstruction::WithdrawWithheldTokensFromMint => {
             msg!("TransferFeeInstruction: WithdrawWithheldTokensFromMint");
