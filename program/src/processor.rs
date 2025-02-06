@@ -69,6 +69,11 @@ pub(crate) enum TransferInstruction {
     CheckedWithFee { decimals: u8, fee: u64 },
 }
 
+pub(crate) enum InstructionVariant {
+    Unchecked,
+    Checked { decimals: u8 },
+}
+
 /// Program state handler.
 pub struct Processor {}
 impl Processor {
@@ -567,21 +572,22 @@ impl Processor {
     }
 
     /// Processes an [`Approve`](enum.TokenInstruction.html) instruction.
-    pub fn process_approve(
+    pub(crate) fn process_approve(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
-        expected_decimals: Option<u8>,
+        instruction_variant: InstructionVariant,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
         let source_account_info = next_account_info(account_info_iter)?;
 
-        let expected_mint_info = if let Some(expected_decimals) = expected_decimals {
-            Some((next_account_info(account_info_iter)?, expected_decimals))
-        } else {
-            None
-        };
+        let expected_mint_info =
+            if let InstructionVariant::Checked { decimals } = instruction_variant {
+                Some((next_account_info(account_info_iter)?, decimals))
+            } else {
+                None
+            };
         let delegate_info = next_account_info(account_info_iter)?;
         let owner_info = next_account_info(account_info_iter)?;
         let owner_info_data_len = owner_info.data_len();
@@ -965,11 +971,11 @@ impl Processor {
     }
 
     /// Processes a [`MintTo`](enum.TokenInstruction.html) instruction.
-    pub fn process_mint_to(
+    pub(crate) fn process_mint_to(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
-        expected_decimals: Option<u8>,
+        instruction_variant: InstructionVariant,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let mint_info = next_account_info(account_info_iter)?;
@@ -1014,8 +1020,8 @@ impl Processor {
             return Err(TokenError::IllegalMintBurnConversion.into());
         }
 
-        if let Some(expected_decimals) = expected_decimals {
-            if expected_decimals != mint.base.decimals {
+        if let InstructionVariant::Checked { decimals } = instruction_variant {
+            if decimals != mint.base.decimals {
                 return Err(TokenError::MintDecimalsMismatch.into());
             }
         }
@@ -1054,11 +1060,11 @@ impl Processor {
     }
 
     /// Processes a [`Burn`](enum.TokenInstruction.html) instruction.
-    pub fn process_burn(
+    pub(crate) fn process_burn(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
-        expected_decimals: Option<u8>,
+        instruction_variant: InstructionVariant,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1086,8 +1092,8 @@ impl Processor {
             return Err(TokenError::MintMismatch.into());
         }
 
-        if let Some(expected_decimals) = expected_decimals {
-            if expected_decimals != mint.base.decimals {
+        if let InstructionVariant::Checked { decimals } = instruction_variant {
+            if decimals != mint.base.decimals {
                 return Err(TokenError::MintDecimalsMismatch.into());
             }
         }
@@ -1681,7 +1687,12 @@ impl Processor {
                 PodTokenInstruction::Approve => {
                     msg!("Instruction: Approve");
                     let data = decode_instruction_data::<AmountData>(input)?;
-                    Self::process_approve(program_id, accounts, data.amount.into(), None)
+                    Self::process_approve(
+                        program_id,
+                        accounts,
+                        data.amount.into(),
+                        InstructionVariant::Unchecked,
+                    )
                 }
                 PodTokenInstruction::Revoke => {
                     msg!("Instruction: Revoke");
@@ -1701,12 +1712,22 @@ impl Processor {
                 PodTokenInstruction::MintTo => {
                     msg!("Instruction: MintTo");
                     let data = decode_instruction_data::<AmountData>(input)?;
-                    Self::process_mint_to(program_id, accounts, data.amount.into(), None)
+                    Self::process_mint_to(
+                        program_id,
+                        accounts,
+                        data.amount.into(),
+                        InstructionVariant::Unchecked,
+                    )
                 }
                 PodTokenInstruction::Burn => {
                     msg!("Instruction: Burn");
                     let data = decode_instruction_data::<AmountData>(input)?;
-                    Self::process_burn(program_id, accounts, data.amount.into(), None)
+                    Self::process_burn(
+                        program_id,
+                        accounts,
+                        data.amount.into(),
+                        InstructionVariant::Unchecked,
+                    )
                 }
                 PodTokenInstruction::CloseAccount => {
                     msg!("Instruction: CloseAccount");
@@ -1739,7 +1760,9 @@ impl Processor {
                         program_id,
                         accounts,
                         data.amount.into(),
-                        Some(data.decimals),
+                        InstructionVariant::Checked {
+                            decimals: data.decimals,
+                        },
                     )
                 }
                 PodTokenInstruction::MintToChecked => {
@@ -1749,7 +1772,9 @@ impl Processor {
                         program_id,
                         accounts,
                         data.amount.into(),
-                        Some(data.decimals),
+                        InstructionVariant::Checked {
+                            decimals: data.decimals,
+                        },
                     )
                 }
                 PodTokenInstruction::BurnChecked => {
@@ -1759,7 +1784,9 @@ impl Processor {
                         program_id,
                         accounts,
                         data.amount.into(),
-                        Some(data.decimals),
+                        InstructionVariant::Checked {
+                            decimals: data.decimals,
+                        },
                     )
                 }
                 PodTokenInstruction::SyncNative => {
