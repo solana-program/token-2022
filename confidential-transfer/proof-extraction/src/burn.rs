@@ -12,8 +12,8 @@ use {
 /// The public keys associated with a confidential burn
 pub struct BurnPubkeys {
     pub source: PodElGamalPubkey,
-    pub auditor: PodElGamalPubkey,
     pub supply: PodElGamalPubkey,
+    pub auditor: PodElGamalPubkey,
 }
 
 /// The proof context information needed to process a confidential burn
@@ -51,8 +51,8 @@ impl BurnProofContext {
         // `BurnProofContext`.
         let BatchedGroupedCiphertext3HandlesValidityProofContext {
             first_pubkey: source_elgamal_pubkey_from_validity_proof,
-            second_pubkey: auditor_elgamal_pubkey,
-            third_pubkey: supply_elgamal_pubkey,
+            second_pubkey: supply_elgamal_pubkey,
+            third_pubkey: auditor_elgamal_pubkey,
             grouped_ciphertext_lo: burn_amount_ciphertext_lo,
             grouped_ciphertext_hi: burn_amount_ciphertext_hi,
         } = ciphertext_validity_proof_context;
@@ -116,8 +116,8 @@ impl BurnProofContext {
 
         let burn_pubkeys = BurnPubkeys {
             source: *source_elgamal_pubkey_from_equality_proof,
-            auditor: *auditor_elgamal_pubkey,
             supply: *supply_elgamal_pubkey,
+            auditor: *auditor_elgamal_pubkey,
         };
 
         Ok(BurnProofContext {

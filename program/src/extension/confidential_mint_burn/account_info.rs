@@ -201,8 +201,8 @@ impl BurnAccountInfo {
             burn_amount,
             source_elgamal_keypair,
             aes_key,
-            auditor_elgamal_pubkey,
             supply_elgamal_pubkey,
+            auditor_elgamal_pubkey,
         )
         .map_err(|e| -> TokenError { e.into() })
     }

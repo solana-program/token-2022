@@ -95,12 +95,12 @@ impl BurnAmountCiphertext {
     pub fn new(
         amount: u64,
         source_pubkey: &ElGamalPubkey,
-        auditor_pubkey: &ElGamalPubkey,
         supply_pubkey: &ElGamalPubkey,
+        auditor_pubkey: &ElGamalPubkey,
     ) -> (Self, PedersenOpening) {
         let opening = PedersenOpening::new_rand();
         let grouped_ciphertext = GroupedElGamal::<3>::encrypt_with(
-            [source_pubkey, auditor_pubkey, supply_pubkey],
+            [source_pubkey, supply_pubkey, auditor_pubkey],
             amount,
             &opening,
         );
@@ -121,12 +121,12 @@ impl MintAmountCiphertext {
     pub fn new(
         amount: u64,
         source_pubkey: &ElGamalPubkey,
-        auditor_pubkey: &ElGamalPubkey,
         supply_pubkey: &ElGamalPubkey,
+        auditor_pubkey: &ElGamalPubkey,
     ) -> (Self, PedersenOpening) {
         let opening = PedersenOpening::new_rand();
         let grouped_ciphertext = GroupedElGamal::<3>::encrypt_with(
-            [source_pubkey, auditor_pubkey, supply_pubkey],
+            [source_pubkey, supply_pubkey, auditor_pubkey],
             amount,
             &opening,
         );
