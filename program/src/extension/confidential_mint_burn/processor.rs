@@ -268,6 +268,13 @@ fn process_confidential_mint(
             .map_err(|_| ProgramError::InvalidAccountData)?,
     )
     .ok_or(TokenError::CiphertextArithmeticFailed)?;
+
+    // Check that the computed supply ciphertext is consistent with what was
+    // actually used to generate the zkp on the client side.
+    if mint_burn_extension.confidential_supply != proof_context.new_supply_ciphertext {
+        return Err(TokenError::ConfidentialTransferBalanceMismatch.into());
+    }
+
     mint_burn_extension.decryptable_supply = data.new_decryptable_supply;
 
     Ok(())
