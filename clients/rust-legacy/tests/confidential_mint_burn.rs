@@ -1077,6 +1077,7 @@ async fn confidential_mint_burn_with_option(option: ConfidentialTransferOption) 
     .await
     .unwrap();
 
+    // check that the right amount is minted to the destination account
     let state = token
         .get_account_info(&alice_meta.token_account)
         .await
@@ -1100,6 +1101,23 @@ async fn confidential_mint_burn_with_option(option: ConfidentialTransferOption) 
             .decrypt_u32(&extension.pending_balance_hi.try_into().unwrap())
             .unwrap(),
         0
+    );
+
+    // check that the supply in the mint is updated correctly
+    let mint = token.get_mint_info().await.unwrap();
+    let extension = mint.get_extension::<ConfidentialMintBurn>().unwrap();
+    assert_eq!(
+        supply_elgamal_keypair
+            .secret()
+            .decrypt_u32(&extension.confidential_supply.try_into().unwrap())
+            .unwrap(),
+        mint_amount
+    ); // this test fails due to wrong supply ciphertexts being added
+    assert_eq!(
+        supply_aes_key
+            .decrypt(&extension.decryptable_supply.try_into().unwrap())
+            .unwrap(),
+        mint_amount
     );
 
     token
@@ -1129,6 +1147,7 @@ async fn confidential_mint_burn_with_option(option: ConfidentialTransferOption) 
     .await
     .unwrap();
 
+    // check that the right amount is burned in the source account
     let state = token
         .get_account_info(&alice_meta.token_account)
         .await
@@ -1152,5 +1171,41 @@ async fn confidential_mint_burn_with_option(option: ConfidentialTransferOption) 
             .decrypt_u32(&extension.pending_balance_hi.try_into().unwrap())
             .unwrap(),
         0
+    );
+
+    // check that the supply in the mint is updated correctly
+    let mint = token.get_mint_info().await.unwrap();
+    let extension = mint.get_extension::<ConfidentialMintBurn>().unwrap();
+    assert_eq!(
+        supply_elgamal_keypair
+            .secret()
+            .decrypt_u32(&extension.confidential_supply.try_into().unwrap())
+            .unwrap(),
+        0
+    ); // this test fails due to wrong supply ciphertexts being subtracted
+    assert_eq!(
+        supply_aes_key
+            .decrypt(&extension.decryptable_supply.try_into().unwrap())
+            .unwrap(),
+        mint_amount,
+    );
+
+    let new_decryptable_supply = supply_aes_key.encrypt(0).into();
+    token
+        .confidential_transfer_update_decrypt_supply(
+            &mint_authority.pubkey(),
+            &new_decryptable_supply,
+            &[&mint_authority],
+        )
+        .await
+        .unwrap();
+
+    let mint = token.get_mint_info().await.unwrap();
+    let extension = mint.get_extension::<ConfidentialMintBurn>().unwrap();
+    assert_eq!(
+        supply_aes_key
+            .decrypt(&extension.decryptable_supply.try_into().unwrap())
+            .unwrap(),
+        0,
     );
 }
