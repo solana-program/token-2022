@@ -1112,7 +1112,7 @@ async fn confidential_mint_burn_with_option(option: ConfidentialTransferOption) 
             .decrypt_u32(&extension.confidential_supply.try_into().unwrap())
             .unwrap(),
         mint_amount
-    ); // this test fails due to wrong supply ciphertexts being added
+    );
     assert_eq!(
         supply_aes_key
             .decrypt(&extension.decryptable_supply.try_into().unwrap())
@@ -1182,7 +1182,7 @@ async fn confidential_mint_burn_with_option(option: ConfidentialTransferOption) 
             .decrypt_u32(&extension.confidential_supply.try_into().unwrap())
             .unwrap(),
         0
-    ); // this test fails due to wrong supply ciphertexts being subtracted
+    );
     assert_eq!(
         supply_aes_key
             .decrypt(&extension.decryptable_supply.try_into().unwrap())
