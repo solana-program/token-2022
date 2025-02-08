@@ -3203,14 +3203,6 @@ async fn confidential_transfer_configure_token_account_with_registry() {
 
     let TokenContext { token, alice, .. } = context.token_context.unwrap();
     let alice_account_keypair = Keypair::new();
-    token
-        .create_auxiliary_token_account_with_extension_space(
-            &alice_account_keypair,
-            &alice.pubkey(),
-            vec![ExtensionType::ConfidentialTransferAccount],
-        )
-        .await
-        .unwrap();
     let elgamal_keypair = ElGamalKeypair::new_rand();
 
     // create ElGamal registry
@@ -3273,7 +3265,6 @@ async fn confidential_transfer_configure_token_account_with_registry() {
     drop(ctx);
 
     // configure account using ElGamal registry
-    let alice_account_keypair = Keypair::new();
     let alice_token_account = alice_account_keypair.pubkey();
     token
         .create_auxiliary_token_account_with_extension_space(
