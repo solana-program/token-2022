@@ -157,6 +157,9 @@ fn reallocate_for_configure_account_with_registry<'a>(
     // `try_calculate_account_len` dedupes extension types, so always push
     // the `ConfidentialTransferAccount` type
     current_extension_types.push(ExtensionType::ConfidentialTransferAccount);
+    if current_extension_types.contains(&ExtensionType::TransferFeeAmount) {
+        current_extension_types.push(ExtensionType::ConfidentialTransferFeeAmount);
+    }
     let needed_account_len =
         ExtensionType::try_calculate_account_len::<Account>(&current_extension_types)?;
 
