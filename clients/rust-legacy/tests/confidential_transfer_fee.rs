@@ -24,7 +24,7 @@ use {
                 account_info::WithheldTokensInfo, ConfidentialTransferFeeAmount,
                 ConfidentialTransferFeeConfig,
             },
-            transfer_fee::TransferFee,
+            transfer_fee::{TransferFee, TransferFeeAmount},
             BaseStateWithExtensions, ExtensionType,
         },
         instruction,
@@ -1319,10 +1319,26 @@ async fn confidential_transfer_configure_token_account_with_fee_with_registry() 
         .unwrap();
 
     let state = token.get_account_info(&alice_token_account).await.unwrap();
-    let extension = state
+    let confidential_transfer_account = state
         .get_extension::<ConfidentialTransferAccount>()
         .unwrap();
-    assert!(bool::from(&extension.approved));
-    assert!(bool::from(&extension.allow_confidential_credits));
-    assert_eq!(extension.elgamal_pubkey, (*elgamal_keypair.pubkey()).into());
+    assert!(bool::from(&confidential_transfer_account.approved));
+    assert!(bool::from(
+        &confidential_transfer_account.allow_confidential_credits
+    ));
+    assert_eq!(
+        confidential_transfer_account.elgamal_pubkey,
+        (*elgamal_keypair.pubkey()).into()
+    );
+
+    let transfer_fee = state.get_extension::<TransferFeeAmount>().unwrap();
+    assert_eq!(transfer_fee.withheld_amount, 0.into());
+
+    let confidential_transfer_fee = state
+        .get_extension::<ConfidentialTransferFeeAmount>()
+        .unwrap();
+    assert_eq!(
+        confidential_transfer_fee.withheld_amount,
+        PodElGamalCiphertext::default(),
+    );
 }
