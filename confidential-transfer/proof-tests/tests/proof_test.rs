@@ -288,8 +288,8 @@ fn test_burn_validity(spendable_balance: u64, burn_amount: u64) {
         burn_amount,
         &source_keypair,
         &aes_key,
-        Some(auditor_pubkey),
         supply_pubkey,
+        Some(auditor_pubkey),
     )
     .unwrap();
 

@@ -260,11 +260,11 @@ fn process_confidential_mint(
         &current_supply,
         &proof_context
             .mint_amount_ciphertext_lo
-            .try_extract_ciphertext(2)
+            .try_extract_ciphertext(1)
             .map_err(|_| ProgramError::InvalidAccountData)?,
         &proof_context
             .mint_amount_ciphertext_hi
-            .try_extract_ciphertext(2)
+            .try_extract_ciphertext(1)
             .map_err(|_| ProgramError::InvalidAccountData)?,
     )
     .ok_or(TokenError::CiphertextArithmeticFailed)?;
@@ -395,11 +395,11 @@ fn process_confidential_burn(
         &current_supply,
         &proof_context
             .burn_amount_ciphertext_lo
-            .try_extract_ciphertext(2)
+            .try_extract_ciphertext(1)
             .map_err(|_| ProgramError::InvalidAccountData)?,
         &proof_context
             .burn_amount_ciphertext_hi
-            .try_extract_ciphertext(2)
+            .try_extract_ciphertext(1)
             .map_err(|_| ProgramError::InvalidAccountData)?,
     )
     .ok_or(TokenError::CiphertextArithmeticFailed)?;
