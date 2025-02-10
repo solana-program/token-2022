@@ -1209,3 +1209,138 @@ async fn confidential_mint_burn_with_option(option: ConfidentialTransferOption) 
         0,
     );
 }
+
+#[tokio::test]
+async fn pause_confidential_mint_burn() {
+    let pausable_authority = Keypair::new();
+
+    let confidential_transfer_authority = Keypair::new();
+    let auto_approve_new_accounts = true;
+    let auditor_elgamal_keypair = ElGamalKeypair::new_rand();
+    let auditor_elgamal_pubkey = (*auditor_elgamal_keypair.pubkey()).into();
+
+    let supply_elgamal_keypair = ElGamalKeypair::new_rand();
+    let supply_elgamal_pubkey = (*supply_elgamal_keypair.pubkey()).into();
+    let supply_aes_key = AeKey::new_rand();
+    let decryptable_supply = supply_aes_key.encrypt(0).into();
+
+    let mut context = TestContext::new().await;
+    context
+        .init_token_with_mint(vec![
+            ExtensionInitializationParams::ConfidentialTransferMint {
+                authority: Some(confidential_transfer_authority.pubkey()),
+                auto_approve_new_accounts,
+                auditor_elgamal_pubkey: Some(auditor_elgamal_pubkey),
+            },
+            ExtensionInitializationParams::ConfidentialMintBurn {
+                supply_elgamal_pubkey,
+                decryptable_supply,
+            },
+            ExtensionInitializationParams::PausableConfig {
+                authority: pausable_authority.pubkey(),
+            },
+        ])
+        .await
+        .unwrap();
+
+    let TokenContext {
+        token,
+        mint_authority,
+        alice,
+        ..
+    } = context.token_context.unwrap();
+
+    let alice_meta = ConfidentialTokenAccountMeta::new(&token, &alice).await;
+
+    // add some token in advance to try burning later
+    token
+        .confidential_transfer_mint(
+            &mint_authority.pubkey(),
+            &alice_meta.token_account,
+            None,
+            None,
+            None,
+            120,
+            &supply_elgamal_keypair,
+            alice_meta.elgamal_keypair.pubkey(),
+            Some(auditor_elgamal_keypair.pubkey()),
+            &supply_aes_key,
+            None,
+            &[&mint_authority],
+        )
+        .await
+        .unwrap();
+
+    token
+        .confidential_transfer_apply_pending_balance(
+            &alice_meta.token_account,
+            &alice.pubkey(),
+            None,
+            alice_meta.elgamal_keypair.secret(),
+            &alice_meta.aes_key,
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    token
+        .pause(&pausable_authority.pubkey(), &[&pausable_authority])
+        .await
+        .unwrap();
+
+    let error = token
+        .confidential_transfer_mint(
+            &mint_authority.pubkey(),
+            &alice_meta.token_account,
+            None,
+            None,
+            None,
+            10,
+            &supply_elgamal_keypair,
+            alice_meta.elgamal_keypair.pubkey(),
+            Some(auditor_elgamal_keypair.pubkey()),
+            &supply_aes_key,
+            None,
+            &[&mint_authority],
+        )
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        error,
+        TokenClientError::Client(Box::new(TransportError::TransactionError(
+            TransactionError::InstructionError(
+                0,
+                InstructionError::Custom(TokenError::MintPaused as u32)
+            )
+        )))
+    );
+
+    let error = token
+        .confidential_transfer_burn(
+            &alice.pubkey(),
+            &alice_meta.token_account,
+            None,
+            None,
+            None,
+            10,
+            &alice_meta.elgamal_keypair,
+            supply_elgamal_keypair.pubkey(),
+            Some(auditor_elgamal_keypair.pubkey()),
+            &alice_meta.aes_key,
+            None,
+            &[&alice],
+        )
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        error,
+        TokenClientError::Client(Box::new(TransportError::TransactionError(
+            TransactionError::InstructionError(
+                0,
+                InstructionError::Custom(TokenError::MintPaused as u32)
+            )
+        )))
+    );
+}
