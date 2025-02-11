@@ -51,7 +51,7 @@
     "@codama/renderers-js": "^1.2.4",
     "@codama/renderers-rust": "^1.0.13",
     "@iarna/toml": "^2.2.5",
-    "codama": "^1.2.4",
+    "codama": "^1.2.5",
     "typescript": "^5.5.2",
     "zx": "^8.3.2"
   },
