@@ -31,15 +31,15 @@ impl WithdrawProofContext {
             bit_lengths: range_proof_bit_lengths,
         } = range_proof_context;
 
-        if range_proof_commitments.is_empty()
-            || range_proof_commitments[0] != *remaining_balance_commitment
-        {
+        // range proof context always contains 8 commitments and therefore,
+        // we can assume that `range_proof_commitments` is not empty
+        if range_proof_commitments[0] != *remaining_balance_commitment {
             return Err(TokenProofExtractionError::PedersenCommitmentMismatch);
         }
 
-        if range_proof_bit_lengths.is_empty()
-            || range_proof_bit_lengths[0] != REMAINING_BALANCE_BIT_LENGTH
-        {
+        // range proof context always contains 8 bit lengths and therefore,
+        // we can assume that `range_proof_bit_lengths` is not empty
+        if range_proof_bit_lengths[0] != REMAINING_BALANCE_BIT_LENGTH {
             return Err(TokenProofExtractionError::RangeProofLengthMismatch);
         }
 
