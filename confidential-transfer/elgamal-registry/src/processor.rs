@@ -78,7 +78,7 @@ pub fn process_create_registry_account(
 
 /// Processes `UpdateRegistry` instruction
 pub fn process_update_registry_account(
-    _program_id: &Pubkey,
+    program_id: &Pubkey,
     accounts: &[AccountInfo],
     proof_instruction_offset: i64,
 ) -> ProgramResult {
@@ -95,7 +95,8 @@ pub fn process_update_registry_account(
     >(account_info_iter, proof_instruction_offset, None)?;
 
     let owner_info = next_account_info(account_info_iter)?;
-    validate_owner(owner_info, &elgamal_registry_account.owner)?;
+    validate_registry_owner(owner_info, &elgamal_registry_account.owner)?;
+    validate_program_owner(elgamal_registry_account_info, program_id)?;
 
     elgamal_registry_account.elgamal_pubkey = proof_context.pubkey;
     Ok(())
@@ -124,12 +125,19 @@ pub fn process_instruction(
     }
 }
 
-fn validate_owner(owner_info: &AccountInfo, expected_owner: &Pubkey) -> ProgramResult {
+fn validate_registry_owner(owner_info: &AccountInfo, expected_owner: &Pubkey) -> ProgramResult {
     if expected_owner != owner_info.key {
         return Err(ProgramError::InvalidAccountOwner);
     }
     if !owner_info.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
+    }
+    Ok(())
+}
+
+fn validate_program_owner(registry_info: &AccountInfo, program_id: &Pubkey) -> ProgramResult {
+    if registry_info.owner != program_id {
+        return Err(ProgramError::InvalidAccountOwner);
     }
     Ok(())
 }
