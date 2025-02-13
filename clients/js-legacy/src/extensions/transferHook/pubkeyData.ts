@@ -27,7 +27,7 @@ function unpackPubkeyDataFromInstructionData(remaining: Uint8Array, instructionD
     if (instructionData.length < 32) {
         throw new TokenTransferHookPubkeyDataTooSmall();
     }
-    return new PublicKey(instructionData.slice(remaining[0], remaining[0] + 32));
+    return new PublicKey(instructionData.subarray(remaining[0], remaining[0] + 32));
 }
 
 async function unpackPubkeyDataFromAccountData(remaining: Uint8Array, previousMetas: AccountMeta[], connection: Connection): Promise<PublicKey> {
@@ -45,5 +45,5 @@ async function unpackPubkeyDataFromAccountData(remaining: Uint8Array, previousMe
     if (accountInfo.data.length < dataIndex + 32) {
         throw new TokenTransferHookPubkeyDataTooSmall();
     }
-    return new PublicKey(accountInfo.data.slice(dataIndex, dataIndex + 32));
+    return new PublicKey(accountInfo.data.subarray(dataIndex, dataIndex + 32));
 }
