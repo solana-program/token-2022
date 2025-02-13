@@ -84,3 +84,13 @@ export class TokenTransferHookInvalidSeed extends TokenError {
 export class TokenTransferHookAccountDataNotFound extends TokenError {
     name = 'TokenTransferHookAccountDataNotFound';
 }
+
+/** Thrown if pubkey data extra accounts config is invalid */
+export class TokenTransferHookInvalidPubkeyData extends TokenError {
+    name = 'TokenTransferHookInvalidPubkeyData';
+}
+
+/** Thrown if pubkey data source is too small for a pubkey */
+export class TokenTransferHookPubkeyDataTooSmall extends TokenError {
+    name = 'TokenTransferHookPubkeyDataTooSmall';
+}
