@@ -85,6 +85,9 @@ impl BurnProofContext {
             burn_amount_commitment_hi,
         ];
 
+        // range proof context always contains 8 commitments and therefore,
+        // this check will verify equality of all expected commitments
+        // (`zip` will not be short-circuited)
         if !range_proof_commitments
             .iter()
             .zip(expected_commitments.iter())
@@ -106,6 +109,9 @@ impl BurnProofContext {
         ]
         .iter();
 
+        // range proof context always contains 8 bit lengths and therefore,
+        // this check will verify equality of all expected bit lengths
+        // (`zip` will not be short-circuited)
         if !range_proof_bit_lengths
             .iter()
             .zip(expected_bit_lengths)
