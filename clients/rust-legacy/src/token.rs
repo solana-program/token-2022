@@ -3563,6 +3563,27 @@ where
         .await
     }
 
+    /// Apply pending burn amount to the confidential supply amount
+    pub async fn confidential_transfer_apply_pending_burn<S: Signers>(
+        &self,
+        authority: &Pubkey,
+        signing_keypairs: &S,
+    ) -> TokenResult<T::Output> {
+        let signing_pubkeys = signing_keypairs.pubkeys();
+        let multisig_signers = self.get_multisig_signers(authority, &signing_pubkeys);
+
+        self.process_ixs(
+            &[confidential_mint_burn::instruction::apply_pending_burn(
+                &self.program_id,
+                &self.pubkey,
+                authority,
+                &multisig_signers,
+            )?],
+            signing_keypairs,
+        )
+        .await
+    }
+
     // Creates `ProofLocation` from proof data and `ProofAccount`. If both
     // `proof_data` and `proof_account` are `None`, then the result is `None`.
     fn confidential_transfer_create_proof_location<'a, ZK: ZkProofData<U>, U: Pod>(

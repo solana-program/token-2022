@@ -30,6 +30,8 @@ pub struct ConfidentialMintBurn {
     pub decryptable_supply: PodAeCiphertext,
     /// The ElGamal pubkey used to encrypt the confidential supply
     pub supply_elgamal_pubkey: PodElGamalPubkey,
+    /// The amount of burn amounts not yet aggregated into the confidential supply
+    pub pending_burn: PodElGamalCiphertext,
 }
 
 impl Extension for ConfidentialMintBurn {

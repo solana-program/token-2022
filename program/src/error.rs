@@ -269,6 +269,9 @@ pub enum TokenError {
     /// Transferring, minting, and burning is paused on this mint
     #[error("Transferring, minting, and burning is paused on this mint")]
     MintPaused,
+    /// Pending supply is not zero
+    #[error("Key rotation attempted while pending balance is not zero")]
+    PendingBalanceNonZero,
 }
 impl From<TokenError> for ProgramError {
     fn from(e: TokenError) -> Self {
@@ -464,6 +467,9 @@ impl PrintProgramError for TokenError {
             }
             TokenError::MintPaused => {
                 msg!("Transferring, minting, and burning is paused on this mint")
+            }
+            TokenError::PendingBalanceNonZero => {
+                msg!("Key rotation attempted while pending balance is not zero")
             }
         }
     }

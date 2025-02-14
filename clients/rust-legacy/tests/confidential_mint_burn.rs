@@ -148,6 +148,7 @@ async fn confidential_mint_burn_config() {
         extension.confidential_supply,
         PodElGamalCiphertext::default()
     );
+    assert_eq!(extension.pending_burn, PodElGamalCiphertext::default())
 }
 
 async fn rotate_supply_elgamal_pubkey<S: Signers>(
@@ -335,6 +336,7 @@ async fn confidential_mint_burn_rotate_supply_elgamal_pubkey_with_option(
     let TokenContext {
         token,
         mint_authority,
+        alice,
         ..
     } = context.token_context.unwrap();
 
@@ -370,6 +372,74 @@ async fn confidential_mint_burn_rotate_supply_elgamal_pubkey_with_option(
             .decrypt_u32(new_supply_elgamal_keypair.secret())
             .unwrap(),
         0
+    );
+
+    // check that rotation fails when pending burn is non-zero
+    let alice_meta = ConfidentialTokenAccountMeta::new(&token, &alice).await;
+    let mint_amount = 120;
+
+    mint_with_option(
+        &token,
+        &mint_authority.pubkey(),
+        &alice_meta.token_account,
+        mint_amount,
+        &new_supply_elgamal_keypair,
+        alice_meta.elgamal_keypair.pubkey(),
+        Some(auditor_elgamal_keypair.pubkey()),
+        &supply_aes_key,
+        &[&mint_authority],
+        option,
+    )
+    .await
+    .unwrap();
+
+    token
+        .confidential_transfer_apply_pending_balance(
+            &alice_meta.token_account,
+            &alice.pubkey(),
+            None,
+            alice_meta.elgamal_keypair.secret(),
+            &alice_meta.aes_key,
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    burn_with_option(
+        &token,
+        &alice.pubkey(),
+        &alice_meta.token_account,
+        mint_amount,
+        &alice_meta.elgamal_keypair,
+        new_supply_elgamal_keypair.pubkey(),
+        Some(auditor_elgamal_keypair.pubkey()),
+        &alice_meta.aes_key,
+        &[&alice],
+        option,
+    )
+    .await
+    .unwrap();
+
+    let err = rotate_supply_elgamal_pubkey(
+        &token,
+        &mint_authority.pubkey(),
+        &new_supply_elgamal_keypair,
+        new_supply_elgamal_pubkey,
+        &supply_aes_key,
+        &[&mint_authority],
+        option,
+    )
+    .await
+    .unwrap_err();
+
+    assert_eq!(
+        err,
+        TokenClientError::Client(Box::new(TransportError::TransactionError(
+            TransactionError::InstructionError(
+                0,
+                InstructionError::Custom(TokenError::PendingBalanceNonZero as u32),
+            )
+        )))
     );
 }
 
@@ -1173,16 +1243,48 @@ async fn confidential_mint_burn_with_option(option: ConfidentialTransferOption) 
         0
     );
 
-    // check that the supply in the mint is updated correctly
     let mint = token.get_mint_info().await.unwrap();
     let extension = mint.get_extension::<ConfidentialMintBurn>().unwrap();
+    // check that the pending burn in the mint is updated correctly
     assert_eq!(
         supply_elgamal_keypair
             .secret()
-            .decrypt_u32(&extension.confidential_supply.try_into().unwrap())
+            .decrypt_u32(&extension.pending_burn.try_into().unwrap())
             .unwrap(),
-        0
+        mint_amount
     );
+
+    // the pending supply remains the same since the burn amount is not yet fully applied
+    assert_eq!(
+        supply_elgamal_keypair
+            .secret()
+            .decrypt_u32(&extension.pending_burn.try_into().unwrap())
+            .unwrap(),
+        mint_amount
+    );
+
+    // apply pending burn amount
+    token
+        .confidential_transfer_apply_pending_burn(&mint_authority.pubkey(), &[&mint_authority])
+        .await
+        .unwrap();
+
+    let mint = token.get_mint_info().await.unwrap();
+    let extension = mint.get_extension::<ConfidentialMintBurn>().unwrap();
+
+    // the pending burn ciphertext should be zeroed out
+    assert_eq!(extension.pending_burn, PodElGamalCiphertext::default());
+
+    // the pending supply should now account the burn amounts
+    assert_eq!(
+        supply_elgamal_keypair
+            .secret()
+            .decrypt_u32(&extension.pending_burn.try_into().unwrap())
+            .unwrap(),
+        0,
+    );
+
+    // decryptable supply is not yet updated until it is manually updated
     assert_eq!(
         supply_aes_key
             .decrypt(&extension.decryptable_supply.try_into().unwrap())

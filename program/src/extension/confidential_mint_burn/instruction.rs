@@ -65,6 +65,9 @@ pub enum ConfidentialMintBurnInstruction {
     InitializeMint,
     /// Rotates the ElGamal pubkey used to encrypt confidential supply
     ///
+    /// The pending burn amount must be zero in order for this instruction
+    /// to be processed successfully.
+    ///
     /// Accounts expected by this instruction:
     ///
     ///   * Single authority
@@ -183,6 +186,19 @@ pub enum ConfidentialMintBurnInstruction {
     /// Data expected by this instruction:
     ///   `BurnInstructionData`
     Burn,
+
+    /// Applies the pending burn amount to the confidential supply
+    ///
+    ///   * Single authority
+    ///   0. `[writable]` The SPL token mint.
+    ///   1. `[signer]` The single mint authority.
+    ///
+    ///   * Multisignature authority
+    ///   0. `[writable]` The SPL token mint.
+    ///   1. `[]` The multisig account owner.
+    ///   2. .. `[signer]` Required M signer accounts for the SPL Token Multisig
+    ///      account.
+    ApplyPendingBurn,
 }
 
 /// Data expected by `ConfidentialMintBurnInstruction::InitializeMint`
@@ -571,4 +587,28 @@ pub fn confidential_burn_with_split_proofs(
     instructions.extend(proof_instructions);
 
     Ok(instructions)
+}
+
+/// Create a `ApplyPendingBurn` instruction
+pub fn apply_pending_burn(
+    token_program_id: &Pubkey,
+    mint: &Pubkey,
+    authority: &Pubkey,
+    multisig_signers: &[&Pubkey],
+) -> Result<Instruction, ProgramError> {
+    check_program_account(token_program_id)?;
+    let mut accounts = vec![
+        AccountMeta::new(*mint, false),
+        AccountMeta::new_readonly(*authority, multisig_signers.is_empty()),
+    ];
+    for multisig_signer in multisig_signers.iter() {
+        accounts.push(AccountMeta::new_readonly(**multisig_signer, true));
+    }
+    Ok(encode_instruction(
+        token_program_id,
+        accounts,
+        TokenInstruction::ConfidentialMintBurnExtension,
+        ConfidentialMintBurnInstruction::ApplyPendingBurn,
+        &(),
+    ))
 }
