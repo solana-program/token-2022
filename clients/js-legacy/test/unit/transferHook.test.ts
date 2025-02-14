@@ -104,13 +104,57 @@ describe('transferHook', () => {
             Buffer.from([1]), // bool isWritable
         ]);
 
+        const addressConfigForKeyDataFromInstructionData = Buffer.concat([
+            Buffer.from([1]), // u8 from instruction data
+            Buffer.from([2]), // u8 data offset
+        ], 32);
+
+        const keyDataExtraAccountMetaFromInstructionData = {
+            discriminator: 2,
+            addressConfig: addressConfigForKeyDataFromInstructionData,
+            isSigner: false,
+            isWritable: false,
+        };
+        
+        const keyDataExtraAccountFromInstructionData = Buffer.concat([
+            Buffer.from([2]), // u8 discriminator
+            addressConfigForKeyDataFromInstructionData, // 32 bytes address config
+            Buffer.from([0]), // bool isSigner
+            Buffer.from([0]), // bool isWritable
+        ]);
+
+        const instructionDataForKeyData = Buffer.from([0, 0, ...plainAccount.toBuffer()]);
+        const addressConfigForKeyDataFromAccountInfo = Buffer.concat([
+            Buffer.from([2]), // u8 from account info
+            Buffer.from([0]), // u8 account index
+            Buffer.from([6]), // u8 data index
+        ], 32);
+
+        const keyDataExtraAccountMetaFromAccountInfo = {
+            discriminator: 2,
+            addressConfig: addressConfigForKeyDataFromAccountInfo,
+            isSigner: false,
+            isWritable: false,
+        };
+
+        
+        const keyDataExtraAccountFromAccountInfo= Buffer.concat([
+            Buffer.from([2]), // u8 discriminator
+            addressConfigForKeyDataFromAccountInfo, // 32 bytes address config
+            Buffer.from([0]), // bool isSigner
+            Buffer.from([0]), // bool isWritable
+        ]);
+
+        
         const extraAccountList = Buffer.concat([
             Buffer.from([0, 0, 0, 0, 0, 0, 0, 0]), // u64 accountDiscriminator
             Buffer.from([0, 0, 0, 0]), // u32 length
-            Buffer.from([3, 0, 0, 0]), // u32 count
+            Buffer.from([5, 0, 0, 0]), // u32 count
             plainExtraAccount,
             pdaExtraAccount,
             pdaExtraAccountWithProgramId,
+            keyDataExtraAccountFromAccountInfo,
+            keyDataExtraAccountFromInstructionData,
         ]);
 
         before(async () => {
@@ -119,11 +163,12 @@ describe('transferHook', () => {
                 _publicKey: PublicKey,
                 _commitmentOrConfig?: Parameters<(typeof connection)['getAccountInfo']>[1],
             ): ReturnType<(typeof connection)['getAccountInfo']> => ({
-                data: Buffer.from([0, 0, 2, 2, 2, 2]),
-                owner: PublicKey.default,
-                executable: false,
-                lamports: 0,
-            });
+                    data: Buffer.from([0, 0, 2, 2, 2, 2, ...plainAccount.toBuffer()]),
+                    owner: PublicKey.default,
+                    executable: false,
+                    lamports: 0,
+                }
+            );
         });
 
         it('can parse extra metas', () => {
@@ -139,8 +184,8 @@ describe('transferHook', () => {
                 return;
             }
 
-            expect(parsedExtraAccounts).to.have.length(3);
-            if (parsedExtraAccounts.length !== 3) {
+            expect(parsedExtraAccounts).to.have.length(5);
+            if (parsedExtraAccounts.length !== 5) {
                 return;
             }
 
@@ -158,6 +203,16 @@ describe('transferHook', () => {
             expect(parsedExtraAccounts[2].addressConfig).to.eql(addressConfig);
             expect(parsedExtraAccounts[2].isSigner).to.equal(false);
             expect(parsedExtraAccounts[2].isWritable).to.equal(true);
+
+            expect(parsedExtraAccounts[3].discriminator).to.eql(2);
+            expect(parsedExtraAccounts[3].addressConfig).to.eql(addressConfigForKeyDataFromAccountInfo);
+            expect(parsedExtraAccounts[3].isSigner).to.equal(false);
+            expect(parsedExtraAccounts[3].isWritable).to.equal(false);
+
+            expect(parsedExtraAccounts[4].discriminator).to.eql(2);
+            expect(parsedExtraAccounts[4].addressConfig).to.eql(addressConfigForKeyDataFromInstructionData);
+            expect(parsedExtraAccounts[4].isSigner).to.equal(false);
+            expect(parsedExtraAccounts[4].isWritable).to.equal(false);
         });
 
         it('can resolve extra metas', async () => {
@@ -196,6 +251,30 @@ describe('transferHook', () => {
             expect(resolvedPdaAccountWithProgramId.pubkey).to.eql(pdaPublicKeyWithProgramId);
             expect(resolvedPdaAccountWithProgramId.isSigner).to.equal(false);
             expect(resolvedPdaAccountWithProgramId.isWritable).to.equal(true);
+
+            const resolvedKeyDataFromInstructionData = await resolveExtraAccountMeta(
+                connection,
+                keyDataExtraAccountMetaFromInstructionData,
+                [],
+                instructionDataForKeyData,
+                testProgramId,
+            );
+
+            expect(resolvedKeyDataFromInstructionData.pubkey).to.eql(plainAccount);
+            expect(resolvedKeyDataFromInstructionData.isSigner).to.equal(false);
+            expect(resolvedKeyDataFromInstructionData.isWritable).to.equal(false);
+
+            const resolvedKeyDataFromAccountInfo = await resolveExtraAccountMeta(
+                connection,
+                keyDataExtraAccountMetaFromAccountInfo,
+                [resolvedPlainAccount],
+                instructionData,
+                testProgramId,
+            );
+
+            expect(resolvedKeyDataFromAccountInfo.pubkey).to.eql(plainAccount);
+            expect(resolvedKeyDataFromAccountInfo.isSigner).to.equal(false);
+            expect(resolvedKeyDataFromAccountInfo.isWritable).to.equal(false);
         });
     });
 

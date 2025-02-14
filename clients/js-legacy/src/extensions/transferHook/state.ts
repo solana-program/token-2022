@@ -7,6 +7,7 @@ import { bool, publicKey, u64 } from '@solana/buffer-layout-utils';
 import type { Account } from '../../state/account.js';
 import { TokenTransferHookAccountNotFound } from '../../errors.js';
 import { unpackSeeds } from './seeds.js';
+import { unpackPubkeyData } from './pubkeyData.js';
 
 /** TransferHook as stored by the program */
 export interface TransferHook {
@@ -116,6 +117,13 @@ export async function resolveExtraAccountMeta(
     if (extraMeta.discriminator === 0) {
         return {
             pubkey: new PublicKey(extraMeta.addressConfig),
+            isSigner: extraMeta.isSigner,
+            isWritable: extraMeta.isWritable,
+        };
+    } else if (extraMeta.discriminator === 2) {
+        const pubkey = await unpackPubkeyData(extraMeta.addressConfig, previousMetas, instructionData, connection);
+        return {
+            pubkey,
             isSigner: extraMeta.isSigner,
             isWritable: extraMeta.isWritable,
         };
