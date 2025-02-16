@@ -3713,7 +3713,7 @@ struct ConfidentialTransferArgs {
 pub async fn process_command(
     sub_command: &CommandName,
     sub_matches: &ArgMatches,
-    config: &Config,
+    config: &Config<'_>,
     mut wallet_manager: Option<Rc<RemoteWalletManager>>,
     mut bulk_signers: Vec<Arc<dyn Signer>>,
 ) -> CommandResult {
@@ -4914,7 +4914,7 @@ enum TransactionReturnData {
 }
 
 async fn finish_tx(
-    config: &Config,
+    config: &Config<'_>,
     rpc_response: &RpcClientResponse,
     no_wait: bool,
 ) -> Result<TransactionReturnData, Error> {
