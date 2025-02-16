@@ -3710,10 +3710,10 @@ struct ConfidentialTransferArgs {
     auditor_elgamal_pubkey: Option<PodElGamalPubkey>,
 }
 
-pub async fn process_command<'a>(
+pub async fn process_command(
     sub_command: &CommandName,
     sub_matches: &ArgMatches,
-    config: &Config<'a>,
+    config: &Config,
     mut wallet_manager: Option<Rc<RemoteWalletManager>>,
     mut bulk_signers: Vec<Arc<dyn Signer>>,
 ) -> CommandResult {
@@ -4913,8 +4913,8 @@ enum TransactionReturnData {
     CliSignOnlyData(CliSignOnlyData),
 }
 
-async fn finish_tx<'a>(
-    config: &Config<'a>,
+async fn finish_tx(
+    config: &Config,
     rpc_response: &RpcClientResponse,
     no_wait: bool,
 ) -> Result<TransactionReturnData, Error> {
