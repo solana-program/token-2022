@@ -12,7 +12,7 @@ publish = false
 solana-account-info = "2.1.0"
 solana-program-entrypoint = "2.1.0"
 solana-program-error = "2.1.0"
-solana-pubkey = "2.1.0"
+solana-pubkey = "2.2.0"
 
 [lib]
 crate-type = ["cdylib", "lib"]

@@ -97,7 +97,7 @@ pub mod aeciphertext_fromstr {
 
     struct AeCiphertextVisitor;
 
-    impl<'de> Visitor<'de> for AeCiphertextVisitor {
+    impl Visitor<'_> for AeCiphertextVisitor {
         type Value = PodAeCiphertext;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -142,7 +142,7 @@ pub mod elgamalpubkey_fromstr {
 
     struct ElGamalPubkeyVisitor;
 
-    impl<'de> Visitor<'de> for ElGamalPubkeyVisitor {
+    impl Visitor<'_> for ElGamalPubkeyVisitor {
         type Value = PodElGamalPubkey;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -187,7 +187,7 @@ pub mod elgamalciphertext_fromstr {
 
     struct ElGamalCiphertextVisitor;
 
-    impl<'de> Visitor<'de> for ElGamalCiphertextVisitor {
+    impl Visitor<'_> for ElGamalCiphertextVisitor {
         type Value = PodElGamalCiphertext;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

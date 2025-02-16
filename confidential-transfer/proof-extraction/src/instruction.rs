@@ -89,7 +89,7 @@ pub enum ProofLocation<'a, T> {
     ContextStateAccount(&'a Pubkey),
 }
 
-impl<'a, T> ProofLocation<'a, T> {
+impl<T> ProofLocation<'_, T> {
     /// Returns true if the proof location is an instruction offset
     pub fn is_instruction_offset(&self) -> bool {
         match self {
