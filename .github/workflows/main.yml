@@ -120,6 +120,7 @@ jobs:
         uses: ./.github/actions/setup
         with:
           clippy: true
+          cli: true
           rustfmt: true
           purge: true
           cargo-cache-key: cargo-client-rust-legacy-lint
