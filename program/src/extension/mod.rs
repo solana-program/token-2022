@@ -532,7 +532,7 @@ impl<'data, S: BaseState + Pack> StateWithExtensions<'data, S> {
         Ok(Self { base, tlv_data })
     }
 }
-impl<'a, S: BaseState + Pack> BaseStateWithExtensions<S> for StateWithExtensions<'a, S> {
+impl<S: BaseState + Pack> BaseStateWithExtensions<S> for StateWithExtensions<'_, S> {
     fn get_tlv_data(&self) -> &[u8] {
         self.tlv_data
     }
@@ -563,7 +563,7 @@ impl<'data, S: BaseState + Pod> PodStateWithExtensions<'data, S> {
         }
     }
 }
-impl<'a, S: BaseState + Pod> BaseStateWithExtensions<S> for PodStateWithExtensions<'a, S> {
+impl<S: BaseState + Pod> BaseStateWithExtensions<S> for PodStateWithExtensions<'_, S> {
     fn get_tlv_data(&self) -> &[u8] {
         self.tlv_data
     }
@@ -874,12 +874,12 @@ impl<'data, S: BaseState + Pack> StateWithExtensionsMut<'data, S> {
         S::pack_into_slice(&self.base, self.base_data);
     }
 }
-impl<'a, S: BaseState> BaseStateWithExtensions<S> for StateWithExtensionsMut<'a, S> {
+impl<S: BaseState> BaseStateWithExtensions<S> for StateWithExtensionsMut<'_, S> {
     fn get_tlv_data(&self) -> &[u8] {
         self.tlv_data
     }
 }
-impl<'a, S: BaseState> BaseStateWithExtensionsMut<S> for StateWithExtensionsMut<'a, S> {
+impl<S: BaseState> BaseStateWithExtensionsMut<S> for StateWithExtensionsMut<'_, S> {
     fn get_tlv_data_mut(&mut self) -> &mut [u8] {
         self.tlv_data
     }
@@ -941,12 +941,12 @@ impl<'data, S: BaseState + Pod> PodStateWithExtensionsMut<'data, S> {
     }
 }
 
-impl<'a, S: BaseState> BaseStateWithExtensions<S> for PodStateWithExtensionsMut<'a, S> {
+impl<S: BaseState> BaseStateWithExtensions<S> for PodStateWithExtensionsMut<'_, S> {
     fn get_tlv_data(&self) -> &[u8] {
         self.tlv_data
     }
 }
-impl<'a, S: BaseState> BaseStateWithExtensionsMut<S> for PodStateWithExtensionsMut<'a, S> {
+impl<S: BaseState> BaseStateWithExtensionsMut<S> for PodStateWithExtensionsMut<'_, S> {
     fn get_tlv_data_mut(&mut self) -> &mut [u8] {
         self.tlv_data
     }
