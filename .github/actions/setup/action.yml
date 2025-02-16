@@ -93,7 +93,7 @@ runs:
     - name: Install CLI dependencies
       if: ${{ inputs.cli == 'true' }}
       shell: bash
-      run: sudo apt update && sudo apt install libudev-dev protobuf-compiler -y
+      run: sudo apt update && sudo apt install pkg-config libudev-dev protobuf-compiler -y
 
     - name: Cache Cargo Dependencies
       if: ${{ inputs.cargo-cache-key && !inputs.cargo-cache-fallback-key }}
