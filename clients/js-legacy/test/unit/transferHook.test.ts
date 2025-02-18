@@ -232,7 +232,10 @@ describe('transferHook', () => {
             arbitraryProgramId = Keypair.generate().publicKey;
         });
 
-        function createMockFetchAccountDataFn(extraAccounts: ExtraAccountMeta[]) {
+        function createMockFetchAccountDataFn(
+            extraAccounts: ExtraAccountMeta[],
+            notExistingAccounts: PublicKey[] = [],
+        ) {
             return async function mockFetchAccountDataFn(
                 publicKey: PublicKey,
                 _commitmentOrConfig?: Parameters<Connection['getAccountInfo']>[1],
@@ -300,6 +303,9 @@ describe('transferHook', () => {
                     };
                 }
 
+                if (notExistingAccounts.some(notExistingAccount => notExistingAccount.equals(publicKey))) {
+                    return null;
+                }
                 return {
                     data: Buffer.from([]),
                     owner: PublicKey.default,
@@ -431,6 +437,67 @@ describe('transferHook', () => {
                 { pubkey: extraMeta4Pubkey, isSigner: false, isWritable: false },
                 { pubkey: extraMeta5Pubkey, isSigner: false, isWritable: false },
                 { pubkey: extraMeta6Pubkey, isSigner: false, isWritable: false },
+                { pubkey: transferHookProgramId, isSigner: false, isWritable: false },
+                { pubkey: validateStatePubkey, isSigner: false, isWritable: false },
+            ];
+
+            expect(instruction.keys).to.eql(checkMetas);
+        });
+
+        it('can fallback to zeroed pubkey for fallbackAccountDataNotFound', async () => {
+            // prettier-ignore
+            connection.getAccountInfo = createMockFetchAccountDataFn([
+                pda([
+                    3, 0, // First seed: Account key at index 0 (2)
+                    3, 2, // Second seed: Account key at index 2 (2)
+                ], false, false),
+                pda([
+                    1, 6, 112, 114, 101, 102, 105, 120, // First seed: Literal "prefix" (8)
+                    4, 2, 32, 64, // Second seed: Account data 32..64 at index 2 (destination account) (4)
+                ], false, false),
+            ], [
+              destinationPubkey, // mock as destination account is not created yet
+            ]);
+
+            const instruction = new TransactionInstruction({
+                keys: [
+                    { pubkey: sourcePubkey, isSigner: false, isWritable: true },
+                    { pubkey: mintPubkey, isSigner: false, isWritable: false },
+                    { pubkey: destinationPubkey, isSigner: false, isWritable: true },
+                    { pubkey: authorityPubkey, isSigner: true, isWritable: false },
+                ],
+                programId: transferHookProgramId,
+            });
+
+            await addExtraAccountMetasForExecute(
+                connection,
+                instruction,
+                transferHookProgramId,
+                sourcePubkey,
+                mintPubkey,
+                destinationPubkey,
+                authorityPubkey,
+                amount,
+                undefined,
+                true,
+            );
+
+            const extraMeta1Pubkey = PublicKey.findProgramAddressSync(
+                [
+                    sourcePubkey.toBuffer(), // Account key at index 0
+                    destinationPubkey.toBuffer(), // Account key at index 2
+                ],
+                transferHookProgramId,
+            )[0];
+            const extraMeta2Pubkey = PublicKey.default;
+
+            const checkMetas = [
+                { pubkey: sourcePubkey, isSigner: false, isWritable: true },
+                { pubkey: mintPubkey, isSigner: false, isWritable: false },
+                { pubkey: destinationPubkey, isSigner: false, isWritable: true },
+                { pubkey: authorityPubkey, isSigner: true, isWritable: false },
+                { pubkey: extraMeta1Pubkey, isSigner: false, isWritable: false },
+                { pubkey: extraMeta2Pubkey, isSigner: false, isWritable: false },
                 { pubkey: transferHookProgramId, isSigner: false, isWritable: false },
                 { pubkey: validateStatePubkey, isSigner: false, isWritable: false },
             ];
