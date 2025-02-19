@@ -3090,7 +3090,11 @@ async fn do_offline_multisig_transfer(
 
         let nonce_account = config.rpc_client.get_account(&nonce).await.unwrap();
         let start_hash_index = 4 + 4 + 32;
-        let blockhash = Hash::new(&nonce_account.data[start_hash_index..start_hash_index + 32]);
+        let blockhash = Hash::new_from_array(
+            nonce_account.data[start_hash_index..start_hash_index + 32]
+                .try_into()
+                .unwrap(),
+        );
 
         let multisig = Arc::new(Keypair::new());
         let multisig_pubkey = multisig.pubkey();
@@ -3241,7 +3245,11 @@ async fn do_offline_multisig_transfer(
 
         // get new nonce
         let nonce_account = config.rpc_client.get_account(&nonce).await.unwrap();
-        let blockhash = Hash::new(&nonce_account.data[start_hash_index..start_hash_index + 32]);
+        let blockhash = Hash::new_from_array(
+            nonce_account.data[start_hash_index..start_hash_index + 32]
+                .try_into()
+                .unwrap(),
+        );
         let mut args = vec![
             "spl-token".to_string(),
             CommandName::Close.as_ref().to_string(),

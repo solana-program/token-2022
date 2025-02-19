@@ -33,7 +33,7 @@ edition = "2021"
 level = "warn"
 check-cfg = [
     'cfg(target_os, values("solana"))',
-    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint", "custom-heap", "custom-panic"))',
 ]
 
 [workspace.metadata.cli]
@@ -42,8 +42,8 @@ solana = "2.1.0"
 # Specify Rust toolchains for rustfmt, clippy, and build.
 # Any unprovided toolchains default to stable.
 [workspace.metadata.toolchains]
-format = "nightly-2024-08-08"
-lint = "nightly-2024-08-08"
+format = "nightly-2024-11-22"
+lint = "nightly-2024-11-22"
 
 [workspace.metadata.spellcheck]
 config = "scripts/spellcheck.toml"
