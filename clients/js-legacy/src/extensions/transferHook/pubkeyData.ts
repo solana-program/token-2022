@@ -1,6 +1,11 @@
-import { PublicKey } from '@solana/web3.js';
+import { PUBLIC_KEY_LENGTH, PublicKey } from '@solana/web3.js';
 import type { AccountMeta, Connection } from '@solana/web3.js';
-import { TokenTransferHookAccountDataNotFound, TokenTransferHookInvalidPubkeyData, TokenTransferHookPubkeyDataTooSmall, TokenTransferHookAccountNotFound} from '../../errors.js';
+import {
+    TokenTransferHookAccountDataNotFound,
+    TokenTransferHookInvalidPubkeyData,
+    TokenTransferHookPubkeyDataTooSmall,
+    TokenTransferHookAccountNotFound,
+} from '../../errors.js';
 
 export async function unpackPubkeyData(
     keyDataConfig: Uint8Array,
@@ -14,7 +19,7 @@ export async function unpackPubkeyData(
         case 1:
             return unpackPubkeyDataFromInstructionData(remaining, instructionData);
         case 2:
-            return await unpackPubkeyDataFromAccountData(remaining, previousMetas, connection);
+            return unpackPubkeyDataFromAccountData(remaining, previousMetas, connection);
         default:
             throw new TokenTransferHookInvalidPubkeyData();
     }
@@ -24,13 +29,18 @@ function unpackPubkeyDataFromInstructionData(remaining: Uint8Array, instructionD
     if (remaining.length < 1) {
         throw new TokenTransferHookInvalidPubkeyData();
     }
-    if (instructionData.length < 32) {
+    const dataIndex = remaining[0];
+    if (instructionData.length < dataIndex + PUBLIC_KEY_LENGTH) {
         throw new TokenTransferHookPubkeyDataTooSmall();
     }
-    return new PublicKey(instructionData.subarray(remaining[0], remaining[0] + 32));
+    return new PublicKey(instructionData.subarray(dataIndex, dataIndex + PUBLIC_KEY_LENGTH));
 }
 
-async function unpackPubkeyDataFromAccountData(remaining: Uint8Array, previousMetas: AccountMeta[], connection: Connection): Promise<PublicKey> {
+async function unpackPubkeyDataFromAccountData(
+    remaining: Uint8Array,
+    previousMetas: AccountMeta[],
+    connection: Connection,
+): Promise<PublicKey> {
     if (remaining.length < 2) {
         throw new TokenTransferHookInvalidPubkeyData();
     }
@@ -42,8 +52,8 @@ async function unpackPubkeyDataFromAccountData(remaining: Uint8Array, previousMe
     if (accountInfo == null) {
         throw new TokenTransferHookAccountNotFound();
     }
-    if (accountInfo.data.length < dataIndex + 32) {
+    if (accountInfo.data.length < dataIndex + PUBLIC_KEY_LENGTH) {
         throw new TokenTransferHookPubkeyDataTooSmall();
     }
-    return new PublicKey(accountInfo.data.subarray(dataIndex, dataIndex + 32));
+    return new PublicKey(accountInfo.data.subarray(dataIndex, dataIndex + PUBLIC_KEY_LENGTH));
 }
