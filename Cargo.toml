@@ -42,8 +42,8 @@ solana = "2.1.0"
 # Specify Rust toolchains for rustfmt, clippy, and build.
 # Any unprovided toolchains default to stable.
 [workspace.metadata.toolchains]
-format = "nightly-2024-12-01"
-lint = "nightly-2024-12-01"
+format = "nightly-2024-11-22"
+lint = "nightly-2024-11-22"
 
 [workspace.metadata.spellcheck]
 config = "scripts/spellcheck.toml"
