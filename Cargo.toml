@@ -37,7 +37,7 @@ check-cfg = [
 ]
 
 [workspace.metadata.cli]
-solana = "2.1.0"
+solana = "2.2.0"
 
 # Specify Rust toolchains for rustfmt, clippy, and build.
 # Any unprovided toolchains default to stable.
