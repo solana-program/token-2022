@@ -27,9 +27,22 @@ use(chaiAsPromised);
 describe('transferHook', () => {
     describe('validation data', () => {
         let connection: Connection;
+
+        /** Plain account keys **/
         const testProgramId = new PublicKey('7N4HggYEJAtCLJdnHGCtFqfxcB5rhQCsQTze3ftYstVj');
-        const instructionData = Buffer.from(Array.from(Array(32).keys()));
         const plainAccount = new PublicKey('6c5q79ccBTWvZTEx3JkdHThtMa2eALba5bfvHGf8kA2c');
+        /** **/
+
+        /** Account data for getAccountInfo **/
+        const accountData = {
+            data: Buffer.from([0, 0, 2, 2, 2, 2, ...plainAccount.toBuffer()]),
+            owner: PublicKey.default,
+            executable: false,
+            lamports: 0,
+        };
+        /** **/
+
+        /** PDA keys and derivation **/
         const seeds = [
             Buffer.from('seed'),
             Buffer.from([4, 5, 6, 7]),
@@ -38,92 +51,176 @@ describe('transferHook', () => {
         ];
         const pdaPublicKey = PublicKey.findProgramAddressSync(seeds, testProgramId)[0];
         const pdaPublicKeyWithProgramId = PublicKey.findProgramAddressSync(seeds, plainAccount)[0];
+        /** **/
 
+        /** Instruction data **/
+        const instructionData = Buffer.concat([Buffer.from(Array.from(Array(32).keys())), plainAccount.toBuffer()]);
+        /** **/
+
+        /** Seed derivations for extra account meta address config **/
+
+        // literal seed config
         const plainSeed = Buffer.concat([
             Buffer.from([1]), // u8 discriminator
             Buffer.from([4]), // u8 length
             Buffer.from('seed'), // 4 bytes seed
         ]);
 
+        // instruction data based seed config
         const instructionDataSeed = Buffer.concat([
             Buffer.from([2]), // u8 discriminator
             Buffer.from([4]), // u8 offset
             Buffer.from([4]), // u8 length
         ]);
 
+        // account key based seed config
         const accountKeySeed = Buffer.concat([
             Buffer.from([3]), // u8 discriminator
             Buffer.from([0]), // u8 index
         ]);
 
+        // account data based seed config
         const accountDataSeed = Buffer.concat([
             Buffer.from([4]), // u8 discriminator
             Buffer.from([0]), // u8 account index
             Buffer.from([2]), // u8 account data offset
             Buffer.from([4]), // u8 account data length
         ]);
+        /** **/
 
+        /**  Address configs **/
+        // seed based address config
         const addressConfig = Buffer.concat([plainSeed, instructionDataSeed, accountKeySeed, accountDataSeed], 32);
 
-        const plainExtraAccountMeta = {
-            discriminator: 0,
-            addressConfig: plainAccount.toBuffer(),
-            isSigner: false,
-            isWritable: false,
-        };
-        const plainExtraAccount = Buffer.concat([
-            Buffer.from([0]), // u8 discriminator
-            plainAccount.toBuffer(), // 32 bytes address
-            Buffer.from([0]), // bool isSigner
-            Buffer.from([0]), // bool isWritable
-        ]);
+        // instruction data based address config
+        const addressConfigForKeyDataFromInstructionData = Buffer.concat(
+            [
+                Buffer.from([1]), // u8 from instruction data
+                Buffer.from([32]), // u8 data offset
+            ],
+            32,
+        );
 
+        // account data based address config
+        const addressConfigForKeyDataFromAccountInfo = Buffer.concat(
+            [
+                Buffer.from([2]), // u8 from account info
+                Buffer.from([0]), // u8 account index
+                Buffer.from([6]), // u8 data index
+            ],
+            32,
+        );
+        /** **/
+
+        /** PDA account extra account meta **/
+        // deserialized format
         const pdaExtraAccountMeta = {
             discriminator: 1,
             addressConfig,
             isSigner: true,
             isWritable: false,
         };
+
+        // serialized format
         const pdaExtraAccount = Buffer.concat([
             Buffer.from([1]), // u8 discriminator
             addressConfig, // 32 bytes address config
             Buffer.from([1]), // bool isSigner
             Buffer.from([0]), // bool isWritable
         ]);
+        /** **/
 
+        /** Plain account extra account meta **/
+        // deserialized format
+        const plainExtraAccountMeta = {
+            discriminator: 0,
+            addressConfig: plainAccount.toBuffer(),
+            isSigner: false,
+            isWritable: false,
+        };
+
+        // serialized format
+        const plainExtraAccount = Buffer.concat([
+            Buffer.from([0]), // u8 discriminator
+            plainAccount.toBuffer(), // 32 bytes address
+            Buffer.from([0]), // bool isSigner
+            Buffer.from([0]), // bool isWritable
+        ]);
+        /** **/
+
+        /** PDA account with program id extra account meta**/
+        // deserialized format
         const pdaExtraAccountMetaWithProgramId = {
             discriminator: 128,
             addressConfig,
             isSigner: false,
             isWritable: true,
         };
+
+        // serialized format
         const pdaExtraAccountWithProgramId = Buffer.concat([
             Buffer.from([128]), // u8 discriminator
             addressConfig, // 32 bytes address config
             Buffer.from([0]), // bool isSigner
             Buffer.from([1]), // bool isWritable
         ]);
+        /** **/
 
+        /** Key data from instruction data extra account meta **/
+        // deserialized format
+        const keyDataExtraAccountMetaFromInstructionData = {
+            discriminator: 2,
+            addressConfig: addressConfigForKeyDataFromInstructionData,
+            isSigner: false,
+            isWritable: false,
+        };
+
+        // serialized format
+        const keyDataExtraAccountFromInstructionData = Buffer.concat([
+            Buffer.from([2]), // u8 discriminator
+            addressConfigForKeyDataFromInstructionData, // 32 bytes address config
+            Buffer.from([0]), // bool isSigner
+            Buffer.from([0]), // bool isWritable
+        ]);
+        /** **/
+
+        /** Key data from account info extra account meta **/
+        // deserialized format
+        const keyDataExtraAccountMetaFromAccountInfo = {
+            discriminator: 2,
+            addressConfig: addressConfigForKeyDataFromAccountInfo,
+            isSigner: false,
+            isWritable: false,
+        };
+
+        // serialized format
+        const keyDataExtraAccountFromAccountInfo = Buffer.concat([
+            Buffer.from([2]), // u8 discriminator
+            addressConfigForKeyDataFromAccountInfo, // 32 bytes address config
+            Buffer.from([0]), // bool isSigner
+            Buffer.from([0]), // bool isWritable
+        ]);
+        /** **/
+
+        /** Serialized extra account metas list **/
         const extraAccountList = Buffer.concat([
             Buffer.from([0, 0, 0, 0, 0, 0, 0, 0]), // u64 accountDiscriminator
             Buffer.from([0, 0, 0, 0]), // u32 length
-            Buffer.from([3, 0, 0, 0]), // u32 count
+            Buffer.from([5, 0, 0, 0]), // u32 count
             plainExtraAccount,
             pdaExtraAccount,
             pdaExtraAccountWithProgramId,
+            keyDataExtraAccountFromAccountInfo,
+            keyDataExtraAccountFromInstructionData,
         ]);
+        /** **/
 
         before(async () => {
             connection = await getConnection();
             connection.getAccountInfo = async (
                 _publicKey: PublicKey,
                 _commitmentOrConfig?: Parameters<(typeof connection)['getAccountInfo']>[1],
-            ): ReturnType<(typeof connection)['getAccountInfo']> => ({
-                data: Buffer.from([0, 0, 2, 2, 2, 2]),
-                owner: PublicKey.default,
-                executable: false,
-                lamports: 0,
-            });
+            ): ReturnType<(typeof connection)['getAccountInfo']> => accountData;
         });
 
         it('can parse extra metas', () => {
@@ -139,8 +236,8 @@ describe('transferHook', () => {
                 return;
             }
 
-            expect(parsedExtraAccounts).to.have.length(3);
-            if (parsedExtraAccounts.length !== 3) {
+            expect(parsedExtraAccounts).to.have.length(5);
+            if (parsedExtraAccounts.length !== 5) {
                 return;
             }
 
@@ -158,6 +255,16 @@ describe('transferHook', () => {
             expect(parsedExtraAccounts[2].addressConfig).to.eql(addressConfig);
             expect(parsedExtraAccounts[2].isSigner).to.equal(false);
             expect(parsedExtraAccounts[2].isWritable).to.equal(true);
+
+            expect(parsedExtraAccounts[3].discriminator).to.eql(2);
+            expect(parsedExtraAccounts[3].addressConfig).to.eql(addressConfigForKeyDataFromAccountInfo);
+            expect(parsedExtraAccounts[3].isSigner).to.equal(false);
+            expect(parsedExtraAccounts[3].isWritable).to.equal(false);
+
+            expect(parsedExtraAccounts[4].discriminator).to.eql(2);
+            expect(parsedExtraAccounts[4].addressConfig).to.eql(addressConfigForKeyDataFromInstructionData);
+            expect(parsedExtraAccounts[4].isSigner).to.equal(false);
+            expect(parsedExtraAccounts[4].isWritable).to.equal(false);
         });
 
         it('can resolve extra metas', async () => {
@@ -196,6 +303,30 @@ describe('transferHook', () => {
             expect(resolvedPdaAccountWithProgramId.pubkey).to.eql(pdaPublicKeyWithProgramId);
             expect(resolvedPdaAccountWithProgramId.isSigner).to.equal(false);
             expect(resolvedPdaAccountWithProgramId.isWritable).to.equal(true);
+
+            const resolvedKeyDataFromInstructionData = await resolveExtraAccountMeta(
+                connection,
+                keyDataExtraAccountMetaFromInstructionData,
+                [],
+                instructionData,
+                testProgramId,
+            );
+
+            expect(resolvedKeyDataFromInstructionData.pubkey).to.eql(plainAccount);
+            expect(resolvedKeyDataFromInstructionData.isSigner).to.equal(false);
+            expect(resolvedKeyDataFromInstructionData.isWritable).to.equal(false);
+
+            const resolvedKeyDataFromAccountInfo = await resolveExtraAccountMeta(
+                connection,
+                keyDataExtraAccountMetaFromAccountInfo,
+                [resolvedPlainAccount],
+                instructionData,
+                testProgramId,
+            );
+
+            expect(resolvedKeyDataFromAccountInfo.pubkey).to.eql(plainAccount);
+            expect(resolvedKeyDataFromAccountInfo.isSigner).to.equal(false);
+            expect(resolvedKeyDataFromAccountInfo.isWritable).to.equal(false);
         });
     });
 
