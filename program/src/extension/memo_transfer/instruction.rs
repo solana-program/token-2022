@@ -6,11 +6,9 @@ use {
         instruction::{encode_instruction, TokenInstruction},
     },
     num_enum::{IntoPrimitive, TryFromPrimitive},
-    solana_program::{
-        instruction::{AccountMeta, Instruction},
-        program_error::ProgramError,
-        pubkey::Pubkey,
-    },
+    solana_instruction::{AccountMeta, Instruction},
+    solana_program_error::ProgramError,
+    solana_pubkey::Pubkey,
 };
 
 /// Required Memo Transfers extension instructions

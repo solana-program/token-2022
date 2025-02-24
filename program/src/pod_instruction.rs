@@ -4,10 +4,8 @@ use {
     crate::pod::PodCOption,
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
-    solana_program::{
-        program_error::ProgramError,
-        pubkey::{Pubkey, PUBKEY_BYTES},
-    },
+    solana_program_error::ProgramError,
+    solana_pubkey::{Pubkey, PUBKEY_BYTES},
     spl_pod::{
         bytemuck::{pod_from_bytes, pod_get_packed_len},
         primitives::PodU64,
