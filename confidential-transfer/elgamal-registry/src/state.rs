@@ -1,6 +1,6 @@
 use {
     bytemuck::{Pod, Zeroable},
-    solana_program::pubkey::Pubkey,
+    solana_pubkey::Pubkey,
     solana_zk_sdk::encryption::pod::elgamal::PodElGamalPubkey,
 };
 
