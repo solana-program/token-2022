@@ -176,15 +176,16 @@ export function createExecuteInstruction(
  *
  * Note this will modify the instruction passed in.
  *
- * @param connection            Connection to use
- * @param instruction           The instruction to add accounts to
- * @param programId             Transfer hook program ID
- * @param source                The source account
- * @param mint                  The mint account
- * @param destination           The destination account
- * @param owner                 Owner of the source account
- * @param amount                The amount of tokens to transfer
- * @param commitment            Commitment to use
+ * @param connection                    Connection to use
+ * @param instruction                   The instruction to add accounts to
+ * @param programId                     Transfer hook program ID
+ * @param source                        The source account
+ * @param mint                          The mint account
+ * @param destination                   The destination account
+ * @param owner                         Owner of the source account
+ * @param amount                        The amount of tokens to transfer
+ * @param commitment                    Commitment to use
+ * @param allowAccountDataFallback      Fallback to zeroed pubkey when resolveExtraAccountMeta fails with TokenTransferHookAccountDataNotFound
  */
 export async function addExtraAccountMetasForExecute(
     connection: Connection,
@@ -196,6 +197,7 @@ export async function addExtraAccountMetasForExecute(
     owner: PublicKey,
     amount: number | bigint,
     commitment?: Commitment,
+    allowAccountDataFallback = false,
 ) {
     const validateStatePubkey = getExtraAccountMetaAddress(mint, programId);
     const validateStateAccount = await connection.getAccountInfo(validateStatePubkey, commitment);
@@ -228,6 +230,7 @@ export async function addExtraAccountMetasForExecute(
                     executeInstruction.keys,
                     executeInstruction.data,
                     executeInstruction.programId,
+                    allowAccountDataFallback,
                 ),
                 executeInstruction.keys,
             ),
@@ -245,16 +248,17 @@ export async function addExtraAccountMetasForExecute(
 /**
  * Construct an transferChecked instruction with extra accounts for transfer hook
  *
- * @param connection            Connection to use
- * @param source                Source account
- * @param mint                  Mint to update
- * @param destination           Destination account
- * @param owner                 Owner of the source account
- * @param amount                The amount of tokens to transfer
- * @param decimals              Number of decimals in transfer amount
- * @param multiSigners          The signer account(s) for a multisig
- * @param commitment            Commitment to use
- * @param programId             SPL Token program account
+ * @param connection                    Connection to use
+ * @param source                        Source account
+ * @param mint                          Mint to update
+ * @param destination                   Destination account
+ * @param owner                         Owner of the source account
+ * @param amount                        The amount of tokens to transfer
+ * @param decimals                      Number of decimals in transfer amount
+ * @param multiSigners                  The signer account(s) for a multisig
+ * @param commitment                    Commitment to use
+ * @param programId                     SPL Token program account
+ * @param allowAccountDataFallback      Fallback to zeroed pubkey when resolveExtraAccountMeta fails with TokenTransferHookAccountDataNotFound
  *
  * @return Instruction to add to a transaction
  */
@@ -269,6 +273,7 @@ export async function createTransferCheckedWithTransferHookInstruction(
     multiSigners: (Signer | PublicKey)[] = [],
     commitment?: Commitment,
     programId = TOKEN_PROGRAM_ID,
+    allowAccountDataFallback = false,
 ) {
     const instruction = createTransferCheckedInstruction(
         source,
@@ -295,6 +300,7 @@ export async function createTransferCheckedWithTransferHookInstruction(
             owner,
             amount,
             commitment,
+            allowAccountDataFallback,
         );
     }
 
@@ -304,17 +310,18 @@ export async function createTransferCheckedWithTransferHookInstruction(
 /**
  * Construct an transferChecked instruction with extra accounts for transfer hook
  *
- * @param connection            Connection to use
- * @param source                Source account
- * @param mint                  Mint to update
- * @param destination           Destination account
- * @param owner                 Owner of the source account
- * @param amount                The amount of tokens to transfer
- * @param decimals              Number of decimals in transfer amount
- * @param fee                   The calculated fee for the transfer fee extension
- * @param multiSigners          The signer account(s) for a multisig
- * @param commitment            Commitment to use
- * @param programId             SPL Token program account
+ * @param connection                    Connection to use
+ * @param source                        Source account
+ * @param mint                          Mint to update
+ * @param destination                   Destination account
+ * @param owner                         Owner of the source account
+ * @param amount                        The amount of tokens to transfer
+ * @param decimals                      Number of decimals in transfer amount
+ * @param fee                           The calculated fee for the transfer fee extension
+ * @param multiSigners                  The signer account(s) for a multisig
+ * @param commitment                    Commitment to use
+ * @param programId                     SPL Token program account
+ * @param allowAccountDataFallback      Fallback to zeroed pubkey when resolveExtraAccountMeta fails with TokenTransferHookAccountDataNotFound
  *
  * @return Instruction to add to a transaction
  */
@@ -330,6 +337,7 @@ export async function createTransferCheckedWithFeeAndTransferHookInstruction(
     multiSigners: (Signer | PublicKey)[] = [],
     commitment?: Commitment,
     programId = TOKEN_PROGRAM_ID,
+    allowAccountDataFallback = false,
 ) {
     const instruction = createTransferCheckedWithFeeInstruction(
         source,
@@ -357,6 +365,7 @@ export async function createTransferCheckedWithFeeAndTransferHookInstruction(
             owner,
             amount,
             commitment,
+            allowAccountDataFallback,
         );
     }
 
