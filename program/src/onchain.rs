@@ -158,8 +158,8 @@ mod tests {
     use {super::*, solana_program::instruction::Instruction};
 
     thread_local! {
-        static CAPTURED_INSTRUCTION: RefCell<Option<Instruction>> = RefCell::new(None);
-        static CAPTURED_ACCOUNT_KEYS: RefCell<Option<Vec<Pubkey>>> = RefCell::new(None);
+        static CAPTURED_INSTRUCTION: RefCell<Option<Instruction>> = const { RefCell::new(None) };
+        static CAPTURED_ACCOUNT_KEYS: RefCell<Option<Vec<Pubkey>>> = const { RefCell::new(None) };
     }
 
     fn get_captured_params() -> (Instruction, Vec<Pubkey>) {
