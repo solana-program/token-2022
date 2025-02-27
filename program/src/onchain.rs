@@ -2,21 +2,19 @@
 //! correct accounts
 
 use {
-    crate::state::Mint,
+    crate::{
+        extension::{transfer_fee, transfer_hook, StateWithExtensions},
+        instruction,
+        state::Mint,
+    },
     solana_program::{
         account_info::AccountInfo, entrypoint::ProgramResult, program::invoke_signed,
         pubkey::Pubkey,
     },
-};
-use {
-    crate::{
-        extension::{transfer_fee, transfer_hook, StateWithExtensions},
-        instruction,
-    },
     spl_transfer_hook_interface::onchain::add_extra_accounts_for_execute_cpi,
 };
 
-/// Internal function that uses dependency injection for testing
+/// Internal function to reduce redundancy between the callers
 #[allow(clippy::too_many_arguments)]
 fn _invoke_transfer_internal<'a>(
     token_program_id: &Pubkey,
@@ -151,11 +149,15 @@ pub fn invoke_transfer_checked_with_fee<'a>(
 
 #[cfg(test)]
 mod tests {
-    use solana_program::instruction::AccountMeta;
-    use solana_program::program_option::COption;
-    use solana_program::program_pack::Pack;
-    use std::cell::RefCell;
-    use {super::*, solana_program::instruction::Instruction};
+    use {
+        super::*,
+        solana_program::{
+            instruction::{AccountMeta, Instruction},
+            program_option::COption,
+            program_pack::Pack,
+        },
+        std::cell::RefCell,
+    };
 
     thread_local! {
         static CAPTURED_INSTRUCTION: RefCell<Option<Instruction>> = const { RefCell::new(None) };
