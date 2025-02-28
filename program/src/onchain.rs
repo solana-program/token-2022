@@ -169,6 +169,7 @@ mod tests {
             get_extra_account_metas_address, instruction::ExecuteInstruction,
         },
         std::cell::RefCell,
+        test_case::test_case,
     };
 
     thread_local! {
@@ -272,6 +273,14 @@ mod tests {
     }
 
     // Parameterized test function
+    #[test_case(false, false, false; "single signer")]
+    #[test_case(false, true, false; "single signer with fee")]
+    #[test_case(false, false, true; "single signer with transfer hook")]
+    #[test_case(false, true, true; "single signer with fee and transfer hook")]
+    #[test_case(true, false, false; "multisig")]
+    #[test_case(true, true, false; "multisig with fee")]
+    #[test_case(true, false, true; "multisig with transfer hook")]
+    #[test_case(true, true, true; "multisig with fee and transfer_hook")]
     fn test_parameterized_invoke_fns(
         with_multisig: bool,
         with_fee: bool,
@@ -625,45 +634,5 @@ mod tests {
                 transfer_hook_program_id
             );
         }
-    }
-
-    #[test]
-    fn test_single_signer() {
-        test_parameterized_invoke_fns(false, false, false);
-    }
-
-    #[test]
-    fn test_single_signer_with_fee() {
-        test_parameterized_invoke_fns(false, true, false);
-    }
-
-    #[test]
-    fn test_single_signer_with_transfer_hook() {
-        test_parameterized_invoke_fns(false, false, true);
-    }
-
-    #[test]
-    fn test_single_signer_with_fee_and_transfer_hook() {
-        test_parameterized_invoke_fns(false, true, true);
-    }
-
-    #[test]
-    fn test_multisig() {
-        test_parameterized_invoke_fns(true, false, false);
-    }
-
-    #[test]
-    fn test_multisig_with_fee() {
-        test_parameterized_invoke_fns(true, true, false);
-    }
-
-    #[test]
-    fn test_multisig_with_transfer_hook() {
-        test_parameterized_invoke_fns(true, false, true);
-    }
-
-    #[test]
-    fn test_multisig_with_fee_and_transfer_hook() {
-        test_parameterized_invoke_fns(true, true, true);
     }
 }
