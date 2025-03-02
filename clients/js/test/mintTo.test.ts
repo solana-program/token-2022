@@ -1,4 +1,4 @@
-import { generateKeyPairSigner } from '@solana/web3.js';
+import { generateKeyPairSigner } from '@solana/kit';
 import test from 'ava';
 import {
   Mint,

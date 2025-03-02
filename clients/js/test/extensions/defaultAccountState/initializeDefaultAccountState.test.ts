@@ -1,4 +1,4 @@
-import { Account, generateKeyPairSigner, some } from '@solana/web3.js';
+import { Account, generateKeyPairSigner, some } from '@solana/kit';
 import test from 'ava';
 import {
   AccountState,
