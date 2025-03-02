@@ -1,9 +1,4 @@
-import {
-  generateKeyPairSigner,
-  none,
-  some,
-  unwrapOption,
-} from '@solana/kit';
+import { generateKeyPairSigner, none, some, unwrapOption } from '@solana/kit';
 import test from 'ava';
 import {
   extension,
