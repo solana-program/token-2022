@@ -6,6 +6,11 @@ import { unpackMint } from '../state/mint.js';
 import { getInterestBearingMintConfigState } from '../extensions/interestBearingMint/state.js';
 import { getScaledUiAmountConfig } from '../extensions/scaledUiAmount/state.js';
 
+// Constants for interest calculations
+const ONE_IN_BASIS_POINTS = 10000;
+const SECONDS_PER_YEAR = 60 * 60 * 24 * 365.24;
+const SYSVAR_CLOCK_PUBKEY = new PublicKey('SysvarC1ock11111111111111111111111111111111');
+
 /**
  * Amount as a string using mint-prescribed decimals
  *
@@ -15,7 +20,7 @@ import { getScaledUiAmountConfig } from '../extensions/scaledUiAmount/state.js';
  * @param amount         Amount of tokens to be converted to Ui Amount
  * @param programId      SPL Token program account
  *
- * @return Ui Amount generated
+ * @return Ui Amount generated or error
  */
 export async function amountToUiAmount(
     connection: Connection,
@@ -26,6 +31,7 @@ export async function amountToUiAmount(
 ): Promise<string | TransactionError | null> {
     const transaction = new Transaction().add(createAmountToUiAmountInstruction(mint, amount, programId));
     const { returnData, err } = (await connection.simulateTransaction(transaction, [payer], false)).value;
+    
     if (returnData?.data) {
         return Buffer.from(returnData.data[0], returnData.data[1]).toString('utf-8');
     }
@@ -39,9 +45,7 @@ export async function amountToUiAmount(
  * @param r - The interest rate in basis points.
  * @returns The calculated exponent.
  */
-function calculateExponentForTimesAndRate(t1: number, t2: number, r: number) {
-    const ONE_IN_BASIS_POINTS = 10000;
-    const SECONDS_PER_YEAR = 60 * 60 * 24 * 365.24;
+function calculateExponentForTimesAndRate(t1: number, t2: number, r: number): number {
     const timespan = t2 - t1;
     const numerator = r * timespan;
     const exponent = numerator / (SECONDS_PER_YEAR * ONE_IN_BASIS_POINTS);
@@ -55,24 +59,51 @@ function calculateExponentForTimesAndRate(t1: number, t2: number, r: number) {
  * @throws An error if the sysvar clock cannot be fetched or parsed.
  */
 async function getSysvarClockTimestamp(connection: Connection): Promise<number> {
-    const info = await connection.getParsedAccountInfo(new PublicKey('SysvarC1ock11111111111111111111111111111111'));
-    if (!info) {
+    const info = await connection.getParsedAccountInfo(SYSVAR_CLOCK_PUBKEY);
+    
+    if (!info?.value) {
         throw new Error('Failed to fetch sysvar clock');
     }
-    if (typeof info.value === 'object' && info.value && 'data' in info.value && 'parsed' in info.value.data) {
+    
+    if (typeof info.value === 'object' && 'data' in info.value && 'parsed' in info.value.data) {
         return info.value.data.parsed.info.unixTimestamp;
     }
+    
     throw new Error('Failed to parse sysvar clock');
+}
+
+/**
+ * Calculates the decimal factor for a given number of decimals
+ * @param decimals - Number of decimals
+ * @returns The decimal factor (e.g., 100 for 2 decimals)
+ */
+function getDecimalFactor(decimals: number): number {
+    return Math.pow(10, decimals);
+}
+
+/**
+ * Convert a UI amount to the atomic UI amount
+ * This is the amount of the mint in the smallest unit of the mint
+ *
+ * @param uiAmount       UI Amount to be converted to atomic UI amount
+ * @param decimals       Number of decimals for the mint
+ *
+ * @return Atomic UI amount
+ */
+function uiAmountToAtomicUiAmount(uiAmount: string, decimals: number): number {
+    const uiAmountNumber = parseFloat(uiAmount);
+    const decimalFactor = getDecimalFactor(decimals);
+    return uiAmountNumber * decimalFactor;
 }
 
 /**
  * Convert amount to UiAmount for a mint with interest bearing extension without simulating a transaction
  * This implements the same logic as the CPI instruction available in /token/program-2022/src/extension/interest_bearing_mint/mod.rs
- * In general to calculate compounding interest over a period of time, the formula is:
- * A = P * e^(r * t) where
+ * 
+ * Formula: A = P * e^(r * t) where
  * A = final amount after interest
  * P = principal amount (initial investment)
- * r = annual interest rate (as a decimal, e.g., 5% = 0.05)
+ * r = annual interest rate (as a decimal)
  * t = time in years
  * e = mathematical constant (~2.718)
  *
@@ -100,40 +131,47 @@ export function amountToUiAmountForInterestBearingMintWithoutSimulation(
     preUpdateAverageRate: number,
     currentRate: number,
 ): string {
-    // Calculate pre-update exponent
-    // e^(preUpdateAverageRate * (lastUpdateTimestamp - initializationTimestamp) / (SECONDS_PER_YEAR * ONE_IN_BASIS_POINTS))
+    // Calculate pre-update exponent (interest accrued from initialization to last update)
     const preUpdateExp = calculateExponentForTimesAndRate(
         initializationTimestamp,
         lastUpdateTimestamp,
         preUpdateAverageRate,
     );
 
-    // Calculate post-update exponent
-    // e^(currentRate * (currentTimestamp - lastUpdateTimestamp) / (SECONDS_PER_YEAR * ONE_IN_BASIS_POINTS))
-    const postUpdateExp = calculateExponentForTimesAndRate(lastUpdateTimestamp, currentTimestamp, currentRate);
+    // Calculate post-update exponent (interest accrued from last update to current time)
+    const postUpdateExp = calculateExponentForTimesAndRate(
+        lastUpdateTimestamp, 
+        currentTimestamp, 
+        currentRate,
+    );
 
-    // Calculate total scale
+    // Calculate total scale factor
     const totalScale = preUpdateExp * postUpdateExp;
+    
     // Scale the amount by the total interest factor
     const scaledAmount = Number(amount) * totalScale;
 
     // Calculate the decimal factor (e.g. 100 for 2 decimals)
-    const decimalFactor = Math.pow(10, decimals);
+    const decimalFactor = getDecimalFactor(decimals);
 
-    // Convert to UI amount by:
-    // 1. Truncating to remove any remaining decimals
-    // 2. Dividing by decimal factor to get final UI amount
-    // 3. Converting to string
+    // Convert to UI amount by truncating and dividing by decimal factor
     return (Math.trunc(scaledAmount) / decimalFactor).toString();
 }
 
+/**
+ * Convert amount to UiAmount for a mint with scaled UI amount extension
+ * @param amount     Amount of tokens to be converted
+ * @param decimals   Number of decimals of the mint
+ * @param multiplier Multiplier to scale the amount
+ * @return Scaled UI amount as a string
+ */
 export function amountToUiAmountForScaledUiAmountMintWithoutSimulation(
     amount: bigint,
     decimals: number,
     multiplier: number,
 ): string {
     const scaledAmount = Number(amount) * multiplier;
-    const decimalFactor = Math.pow(10, decimals);
+    const decimalFactor = getDecimalFactor(decimals);
     return (Math.trunc(scaledAmount) / decimalFactor).toString();
 }
 
@@ -155,6 +193,7 @@ export async function amountToUiAmountForMintWithoutSimulation(
 ): Promise<string> {
     const accountInfo = await connection.getAccountInfo(mint);
     const programId = accountInfo?.owner;
+    
     if (programId !== TOKEN_PROGRAM_ID && programId !== TOKEN_2022_PROGRAM_ID) {
         throw new Error('Invalid program ID');
     }
@@ -162,6 +201,7 @@ export async function amountToUiAmountForMintWithoutSimulation(
     const mintInfo = unpackMint(mint, accountInfo, programId);
     const timestamp = await getSysvarClockTimestamp(connection);
 
+    // Check for interest bearing mint extension
     const interestBearingMintConfigState = getInterestBearingMintConfigState(mintInfo);
     if (interestBearingMintConfigState) {
         return amountToUiAmountForInterestBearingMintWithoutSimulation(
@@ -175,6 +215,7 @@ export async function amountToUiAmountForMintWithoutSimulation(
         );
     }
 
+    // Check for scaled UI amount extension
     const scaledUiAmountConfig = getScaledUiAmountConfig(mintInfo);
     if (scaledUiAmountConfig) {
         let multiplier = scaledUiAmountConfig.multiplier;
@@ -184,29 +225,20 @@ export async function amountToUiAmountForMintWithoutSimulation(
         return amountToUiAmountForScaledUiAmountMintWithoutSimulation(amount, mintInfo.decimals, multiplier);
     }
 
-    const amountNumber = Number(amount);
-    const decimalsFactor = Math.pow(10, mintInfo.decimals);
-    return (amountNumber / decimalsFactor).toString();
-}
-
-/**
- * Convert a UI amount to the atomic UI amount
- * This is the amount of the mint in the smallest unit of the mint
- *
- * @param uiAmount       UI Amount to be converted to atomic UI amount
- * @param decimals       Number of decimals for the mint
- *
- * @return Atomic UI amount
- */
-function uiAmountToAtomicUiAmount(uiAmount: string, decimals: number): number {
-    const uiAmountNumber = parseFloat(uiAmount);
-    const decimalFactor = Math.pow(10, decimals);
-    return uiAmountNumber * decimalFactor;
+    // Standard conversion for regular mints
+    const decimalFactor = getDecimalFactor(mintInfo.decimals);
+    return (Number(amount) / decimalFactor).toString();
 }
 
 /**
  * Convert an amount with interest back to the original amount without interest
  * This implements the same logic as the CPI instruction available in /token/program-2022/src/extension/interest_bearing_mint/mod.rs
+ *
+ * Formula: P = A / (e^(r * t)) where
+ * P = principal
+ * A = UI amount
+ * r = annual interest rate (as a decimal)
+ * t = time in years
  *
  * @param uiAmount                  UI Amount (principal plus continuously compounding interest) to be converted back to original principal
  * @param decimals                  Number of decimals for the mint
@@ -214,21 +246,7 @@ function uiAmountToAtomicUiAmount(uiAmount: string, decimals: number): number {
  * @param lastUpdateTimestamp       Last time the interest rate was updated in seconds
  * @param initializationTimestamp   Time the interest bearing extension was initialized in seconds
  * @param preUpdateAverageRate      Interest rate in basis points (hundredths of a percent) before the last update
- * @param currentRate              Current interest rate in basis points
- *
- * In general to calculate the principal from the UI amount, the formula is:
- * P = A / (e^(r * t)) where
- * P = principal
- * A = UI amount
- * r = annual interest rate (as a decimal, e.g., 5% = 0.05)
- * t = time in years
- *
- * In this case, we are calculating the principal by dividing the UI amount by the total scale factor which is the product of two exponential functions:
- * totalScale = e^(r1 * t1) * e^(r2 * t2)
- * where r1 is the pre-update average rate, r2 is the current rate, t1 is the time in years between the initialization timestamp and the last update timestamp,
- * and t2 is the time in years between the last update timestamp and the current timestamp.
- * then to calculate the principal, we divide the UI amount by the total scale factor:
- * P = A / totalScale
+ * @param currentRate               Current interest rate in basis points
  *
  * @return Original amount (principal) without interest
  */
@@ -251,7 +269,11 @@ export function uiAmountToAmountForInterestBearingMintWithoutSimulation(
     );
 
     // Calculate post-update exponent
-    const postUpdateExp = calculateExponentForTimesAndRate(lastUpdateTimestamp, currentTimestamp, currentRate);
+    const postUpdateExp = calculateExponentForTimesAndRate(
+        lastUpdateTimestamp, 
+        currentTimestamp, 
+        currentRate,
+    );
 
     // Calculate total scale
     const totalScale = preUpdateExp * postUpdateExp;
@@ -277,7 +299,6 @@ export function uiAmountToAmountForScaledUiAmountMintWithoutSimulation(
     multiplier: number,
 ): bigint {
     const uiAmountScaled = uiAmountToAtomicUiAmount(uiAmount, decimals);
-
     const rawAmount = uiAmountScaled / multiplier;
     return BigInt(Math.trunc(rawAmount));
 }
@@ -289,7 +310,6 @@ export function uiAmountToAmountForScaledUiAmountMintWithoutSimulation(
  * @param mint           Mint to use for calculations
  * @param uiAmount       UI Amount to be converted back to raw amount
  *
- *
  * @return Raw amount
  */
 export async function uiAmountToAmountForMintWithoutSimulation(
@@ -299,14 +319,16 @@ export async function uiAmountToAmountForMintWithoutSimulation(
 ): Promise<bigint> {
     const accountInfo = await connection.getAccountInfo(mint);
     const programId = accountInfo?.owner;
+    
     if (programId !== TOKEN_PROGRAM_ID && programId !== TOKEN_2022_PROGRAM_ID) {
         throw new Error('Invalid program ID');
     }
 
     const mintInfo = unpackMint(mint, accountInfo, programId);
-    const interestBearingMintConfigState = getInterestBearingMintConfigState(mintInfo);
     const timestamp = await getSysvarClockTimestamp(connection);
 
+    // Check for interest bearing mint extension
+    const interestBearingMintConfigState = getInterestBearingMintConfigState(mintInfo);
     if (interestBearingMintConfigState) {
         return uiAmountToAmountForInterestBearingMintWithoutSimulation(
             uiAmount,
@@ -319,6 +341,7 @@ export async function uiAmountToAmountForMintWithoutSimulation(
         );
     }
 
+    // Check for scaled UI amount extension
     const scaledUiAmountConfig = getScaledUiAmountConfig(mintInfo);
     if (scaledUiAmountConfig) {
         let multiplier = scaledUiAmountConfig.multiplier;
@@ -328,6 +351,6 @@ export async function uiAmountToAmountForMintWithoutSimulation(
         return uiAmountToAmountForScaledUiAmountMintWithoutSimulation(uiAmount, mintInfo.decimals, multiplier);
     }
 
-    const uiAmountScaled = parseFloat(uiAmount) * Math.pow(10, mintInfo.decimals);
-    return BigInt(Math.trunc(uiAmountScaled));
+    // Standard conversion for regular mints
+    return BigInt(Math.trunc(uiAmountToAtomicUiAmount(uiAmount, mintInfo.decimals)));
 }
