@@ -4,6 +4,7 @@ import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '../constants.js';
 import { createAmountToUiAmountInstruction } from '../instructions/amountToUiAmount.js';
 import { unpackMint } from '../state/mint.js';
 import { getInterestBearingMintConfigState } from '../extensions/interestBearingMint/state.js';
+import { getScaledUiAmountConfig } from '../extensions/scaledUiAmount/state.js';
 
 /**
  * Amount as a string using mint-prescribed decimals
@@ -90,7 +91,7 @@ async function getSysvarClockTimestamp(connection: Connection): Promise<number> 
  *
  * @return Amount scaled by accrued interest as a string with appropriate decimal places
  */
-export function amountToUiAmountWithoutSimulation(
+export function amountToUiAmountForInterestBearingMintWithoutSimulation(
     amount: bigint,
     decimals: number,
     currentTimestamp: number, // in seconds
@@ -126,6 +127,16 @@ export function amountToUiAmountWithoutSimulation(
     return (Math.trunc(scaledAmount) / decimalFactor).toString();
 }
 
+export function amountToUiAmountForScaledUiAmountMintWithoutSimulation(
+    amount: bigint,
+    decimals: number,
+    multiplier: number,
+): string {
+    const scaledAmount = Number(amount) * multiplier;
+    const decimalFactor = Math.pow(10, decimals);
+    return (Math.trunc(scaledAmount) / decimalFactor).toString();
+}
+
 /**
  * Convert amount to UiAmount for a mint without simulating a transaction
  * This implements the same logic as `process_amount_to_ui_amount` in /token/program-2022/src/processor.rs
@@ -149,25 +160,48 @@ export async function amountToUiAmountForMintWithoutSimulation(
     }
 
     const mintInfo = unpackMint(mint, accountInfo, programId);
-
-    const interestBearingMintConfigState = getInterestBearingMintConfigState(mintInfo);
-    if (!interestBearingMintConfigState) {
-        const amountNumber = Number(amount);
-        const decimalsFactor = Math.pow(10, mintInfo.decimals);
-        return (amountNumber / decimalsFactor).toString();
-    }
-
     const timestamp = await getSysvarClockTimestamp(connection);
 
-    return amountToUiAmountWithoutSimulation(
-        amount,
-        mintInfo.decimals,
-        timestamp,
-        Number(interestBearingMintConfigState.lastUpdateTimestamp),
-        Number(interestBearingMintConfigState.initializationTimestamp),
-        interestBearingMintConfigState.preUpdateAverageRate,
-        interestBearingMintConfigState.currentRate,
-    );
+    const interestBearingMintConfigState = getInterestBearingMintConfigState(mintInfo);
+    if (interestBearingMintConfigState) {
+        return amountToUiAmountForInterestBearingMintWithoutSimulation(
+            amount,
+            mintInfo.decimals,
+            timestamp,
+            Number(interestBearingMintConfigState.lastUpdateTimestamp),
+            Number(interestBearingMintConfigState.initializationTimestamp),
+            interestBearingMintConfigState.preUpdateAverageRate,
+            interestBearingMintConfigState.currentRate,
+        );
+    }
+
+    const scaledUiAmountConfig = getScaledUiAmountConfig(mintInfo);
+    if (scaledUiAmountConfig) {
+        let multiplier = scaledUiAmountConfig.multiplier;
+        if (timestamp >= Number(scaledUiAmountConfig.newMultiplierEffectiveTimestamp)) {
+            multiplier = scaledUiAmountConfig.newMultiplier;
+        }
+        return amountToUiAmountForScaledUiAmountMintWithoutSimulation(amount, mintInfo.decimals, multiplier);
+    }
+
+    const amountNumber = Number(amount);
+    const decimalsFactor = Math.pow(10, mintInfo.decimals);
+    return (amountNumber / decimalsFactor).toString();
+}
+
+/**
+ * Convert a UI amount to the atomic UI amount
+ * This is the amount of the mint in the smallest unit of the mint
+ *
+ * @param uiAmount       UI Amount to be converted to atomic UI amount
+ * @param decimals       Number of decimals for the mint
+ *
+ * @return Atomic UI amount
+ */
+function uiAmountToAtomicUiAmount(uiAmount: string, decimals: number): number {
+    const uiAmountNumber = parseFloat(uiAmount);
+    const decimalFactor = Math.pow(10, decimals);
+    return uiAmountNumber * decimalFactor;
 }
 
 /**
@@ -198,7 +232,7 @@ export async function amountToUiAmountForMintWithoutSimulation(
  *
  * @return Original amount (principal) without interest
  */
-export function uiAmountToAmountWithoutSimulation(
+export function uiAmountToAmountForInterestBearingMintWithoutSimulation(
     uiAmount: string,
     decimals: number,
     currentTimestamp: number, // in seconds
@@ -207,9 +241,7 @@ export function uiAmountToAmountWithoutSimulation(
     preUpdateAverageRate: number,
     currentRate: number,
 ): bigint {
-    const uiAmountNumber = parseFloat(uiAmount);
-    const decimalsFactor = Math.pow(10, decimals);
-    const uiAmountScaled = uiAmountNumber * decimalsFactor;
+    const uiAmountScaled = uiAmountToAtomicUiAmount(uiAmount, decimals);
 
     // Calculate pre-update exponent
     const preUpdateExp = calculateExponentForTimesAndRate(
@@ -227,6 +259,27 @@ export function uiAmountToAmountWithoutSimulation(
     // Calculate original principal by dividing the UI amount (principal + interest) by the total scale
     const originalPrincipal = uiAmountScaled / totalScale;
     return BigInt(Math.trunc(originalPrincipal));
+}
+
+/**
+ * Convert a UI amount back to the raw amount for a mint with a scaled UI amount extension
+ * This implements the same logic as the CPI instruction available in /token/program-2022/src/extension/scaled_ui_amount/mod.rs
+ *
+ * @param uiAmount       UI Amount to be converted back to raw amount
+ * @param decimals       Number of decimals for the mint
+ * @param multiplier     Multiplier for the scaled UI amount
+ *
+ * @return Raw amount
+ */
+export function uiAmountToAmountForScaledUiAmountMintWithoutSimulation(
+    uiAmount: string,
+    decimals: number,
+    multiplier: number,
+): bigint {
+    const uiAmountScaled = uiAmountToAtomicUiAmount(uiAmount, decimals);
+
+    const rawAmount = uiAmountScaled / multiplier;
+    return BigInt(Math.trunc(rawAmount));
 }
 
 /**
@@ -252,20 +305,29 @@ export async function uiAmountToAmountForMintWithoutSimulation(
 
     const mintInfo = unpackMint(mint, accountInfo, programId);
     const interestBearingMintConfigState = getInterestBearingMintConfigState(mintInfo);
-    if (!interestBearingMintConfigState) {
-        const uiAmountScaled = parseFloat(uiAmount) * Math.pow(10, mintInfo.decimals);
-        return BigInt(Math.trunc(uiAmountScaled));
-    }
-
     const timestamp = await getSysvarClockTimestamp(connection);
 
-    return uiAmountToAmountWithoutSimulation(
-        uiAmount,
-        mintInfo.decimals,
-        timestamp,
-        Number(interestBearingMintConfigState.lastUpdateTimestamp),
-        Number(interestBearingMintConfigState.initializationTimestamp),
-        interestBearingMintConfigState.preUpdateAverageRate,
-        interestBearingMintConfigState.currentRate,
-    );
+    if (interestBearingMintConfigState) {
+        return uiAmountToAmountForInterestBearingMintWithoutSimulation(
+            uiAmount,
+            mintInfo.decimals,
+            timestamp,
+            Number(interestBearingMintConfigState.lastUpdateTimestamp),
+            Number(interestBearingMintConfigState.initializationTimestamp),
+            interestBearingMintConfigState.preUpdateAverageRate,
+            interestBearingMintConfigState.currentRate,
+        );
+    }
+
+    const scaledUiAmountConfig = getScaledUiAmountConfig(mintInfo);
+    if (scaledUiAmountConfig) {
+        let multiplier = scaledUiAmountConfig.multiplier;
+        if (timestamp >= Number(scaledUiAmountConfig.newMultiplierEffectiveTimestamp)) {
+            multiplier = scaledUiAmountConfig.newMultiplier;
+        }
+        return uiAmountToAmountForScaledUiAmountMintWithoutSimulation(uiAmount, mintInfo.decimals, multiplier);
+    }
+
+    const uiAmountScaled = parseFloat(uiAmount) * Math.pow(10, mintInfo.decimals);
+    return BigInt(Math.trunc(uiAmountScaled));
 }
