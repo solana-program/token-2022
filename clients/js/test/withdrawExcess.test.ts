@@ -16,7 +16,7 @@ import {
   sendAndConfirmInstructions,
 } from './_setup';
 import { getTransferSolInstruction } from '@solana-program/system';
-import { generateKeyPairSigner } from '@solana/web3.js';
+import { generateKeyPairSigner } from '@solana/kit';
 
 test('it withdraws excess lamports from an associated token account', async (t) => {
   // Given: A client, a payer, mint authority, token owner, and destination account

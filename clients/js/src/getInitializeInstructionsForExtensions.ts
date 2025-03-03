@@ -5,7 +5,7 @@ import {
   isOption,
   TransactionSigner,
   wrapNullable,
-} from '@solana/web3.js';
+} from '@solana/kit';
 import {
   ExtensionArgs,
   getDisableMemoTransfersInstruction,

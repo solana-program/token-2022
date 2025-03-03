@@ -16,7 +16,7 @@ import {
   type Decoder,
   type Encoder,
   type ReadonlyUint8Array,
-} from '@solana/web3.js';
+} from '@solana/kit';
 
 /** ElGamal ciphertext containing an account balance. */
 export type EncryptedBalance = ReadonlyUint8Array;

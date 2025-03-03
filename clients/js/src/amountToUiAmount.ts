@@ -4,7 +4,7 @@ import {
   Address,
   UnixTimestamp,
   unwrapOption,
-} from '@solana/web3.js';
+} from '@solana/kit';
 import { fetchSysvarClock } from '@solana/sysvars';
 import { fetchMint } from './generated';
 
