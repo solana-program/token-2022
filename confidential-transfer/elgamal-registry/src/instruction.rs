@@ -152,7 +152,10 @@ fn proof_instruction_offset(
 ) -> i8 {
     match proof_location {
         ProofLocation::InstructionOffset(proof_instruction_offset, proof_data) => {
-            accounts.push(AccountMeta::new_readonly(solana_sdk_ids::sysvar::instructions::id(), false));
+            accounts.push(AccountMeta::new_readonly(
+                solana_sdk_ids::sysvar::instructions::id(),
+                false,
+            ));
             if let ProofData::RecordAccount(record_address, _) = proof_data {
                 accounts.push(AccountMeta::new_readonly(*record_address, false));
             }

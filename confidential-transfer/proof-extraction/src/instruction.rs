@@ -4,10 +4,10 @@
 use {
     bytemuck::Pod,
     solana_account_info::{next_account_info, AccountInfo},
-    solana_program_error::{ProgramError, ProgramResult},
     solana_instruction::{AccountMeta, Instruction},
     solana_instructions_sysvar::get_instruction_relative,
     solana_msg::msg,
+    solana_program_error::{ProgramError, ProgramResult},
     solana_pubkey::Pubkey,
     solana_zk_sdk::zk_elgamal_proof_program::{
         self,
@@ -168,7 +168,10 @@ where
             }
 
             if push_sysvar_to_accounts {
-                accounts.push(AccountMeta::new_readonly(solana_sdk_ids::sysvar::instructions::id(), false));
+                accounts.push(AccountMeta::new_readonly(
+                    solana_sdk_ids::sysvar::instructions::id(),
+                    false,
+                ));
             }
             match proof_data {
                 ProofData::InstructionData(data) => proof_instructions
