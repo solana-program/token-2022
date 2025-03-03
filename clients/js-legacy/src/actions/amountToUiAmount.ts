@@ -31,7 +31,7 @@ export async function amountToUiAmount(
 ): Promise<string | TransactionError | null> {
     const transaction = new Transaction().add(createAmountToUiAmountInstruction(mint, amount, programId));
     const { returnData, err } = (await connection.simulateTransaction(transaction, [payer], false)).value;
-    
+
     if (returnData?.data) {
         return Buffer.from(returnData.data[0], returnData.data[1]).toString('utf-8');
     }
@@ -60,15 +60,15 @@ function calculateExponentForTimesAndRate(t1: number, t2: number, r: number): nu
  */
 async function getSysvarClockTimestamp(connection: Connection): Promise<number> {
     const info = await connection.getParsedAccountInfo(SYSVAR_CLOCK_PUBKEY);
-    
+
     if (!info?.value) {
         throw new Error('Failed to fetch sysvar clock');
     }
-    
+
     if (typeof info.value === 'object' && 'data' in info.value && 'parsed' in info.value.data) {
         return info.value.data.parsed.info.unixTimestamp;
     }
-    
+
     throw new Error('Failed to parse sysvar clock');
 }
 
@@ -99,7 +99,7 @@ function uiAmountToAtomicUiAmount(uiAmount: string, decimals: number): number {
 /**
  * Convert amount to UiAmount for a mint with interest bearing extension without simulating a transaction
  * This implements the same logic as the CPI instruction available in /token/program-2022/src/extension/interest_bearing_mint/mod.rs
- * 
+ *
  * Formula: A = P * e^(r * t) where
  * A = final amount after interest
  * P = principal amount (initial investment)
@@ -139,15 +139,11 @@ export function amountToUiAmountForInterestBearingMintWithoutSimulation(
     );
 
     // Calculate post-update exponent (interest accrued from last update to current time)
-    const postUpdateExp = calculateExponentForTimesAndRate(
-        lastUpdateTimestamp, 
-        currentTimestamp, 
-        currentRate,
-    );
+    const postUpdateExp = calculateExponentForTimesAndRate(lastUpdateTimestamp, currentTimestamp, currentRate);
 
     // Calculate total scale factor
     const totalScale = preUpdateExp * postUpdateExp;
-    
+
     // Scale the amount by the total interest factor
     const scaledAmount = Number(amount) * totalScale;
 
@@ -193,7 +189,7 @@ export async function amountToUiAmountForMintWithoutSimulation(
 ): Promise<string> {
     const accountInfo = await connection.getAccountInfo(mint);
     const programId = accountInfo?.owner;
-    
+
     if (programId !== TOKEN_PROGRAM_ID && programId !== TOKEN_2022_PROGRAM_ID) {
         throw new Error('Invalid program ID');
     }
@@ -269,11 +265,7 @@ export function uiAmountToAmountForInterestBearingMintWithoutSimulation(
     );
 
     // Calculate post-update exponent
-    const postUpdateExp = calculateExponentForTimesAndRate(
-        lastUpdateTimestamp, 
-        currentTimestamp, 
-        currentRate,
-    );
+    const postUpdateExp = calculateExponentForTimesAndRate(lastUpdateTimestamp, currentTimestamp, currentRate);
 
     // Calculate total scale
     const totalScale = preUpdateExp * postUpdateExp;
@@ -319,7 +311,7 @@ export async function uiAmountToAmountForMintWithoutSimulation(
 ): Promise<bigint> {
     const accountInfo = await connection.getAccountInfo(mint);
     const programId = accountInfo?.owner;
-    
+
     if (programId !== TOKEN_PROGRAM_ID && programId !== TOKEN_2022_PROGRAM_ID) {
         throw new Error('Invalid program ID');
     }
