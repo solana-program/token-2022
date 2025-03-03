@@ -5,7 +5,7 @@ import {
   generateKeyPairSigner,
   GetAccountInfoApi,
   Rpc,
-} from '@solana/web3.js';
+} from '@solana/kit';
 import test from 'ava';
 import { ExtensionType, getReallocateInstruction } from '../../src';
 import {

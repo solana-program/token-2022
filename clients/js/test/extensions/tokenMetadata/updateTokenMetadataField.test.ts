@@ -1,4 +1,4 @@
-import { generateKeyPairSigner, unwrapOption } from '@solana/web3.js';
+import { generateKeyPairSigner, unwrapOption } from '@solana/kit';
 import test from 'ava';
 import {
   extension,

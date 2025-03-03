@@ -1,4 +1,4 @@
-import { generateKeyPairSigner, getBase64Encoder } from '@solana/web3.js';
+import { generateKeyPairSigner, getBase64Encoder } from '@solana/kit';
 import test from 'ava';
 import {
   extension,

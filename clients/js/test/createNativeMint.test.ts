@@ -1,4 +1,4 @@
-import { Account, address, none } from '@solana/web3.js';
+import { Account, address, none } from '@solana/kit';
 import test from 'ava';
 import { Mint, fetchMint, getCreateNativeMintInstruction } from '../src';
 import {

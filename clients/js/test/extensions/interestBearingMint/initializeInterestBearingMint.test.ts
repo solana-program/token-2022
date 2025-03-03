@@ -5,7 +5,7 @@ import {
   getCreateMintInstructions,
   sendAndConfirmInstructions,
 } from '../../_setup';
-import { Account, generateKeyPairSigner, isSome } from '@solana/web3.js';
+import { Account, generateKeyPairSigner, isSome } from '@solana/kit';
 import {
   extension,
   fetchMint,

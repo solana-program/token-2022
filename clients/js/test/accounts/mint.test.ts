@@ -1,4 +1,4 @@
-import { getBase64Encoder, none, some } from '@solana/web3.js';
+import { getBase64Encoder, none, some } from '@solana/kit';
 import test from 'ava';
 import { AccountState, Mint, getMintDecoder } from '../../src';
 

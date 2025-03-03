@@ -27,7 +27,7 @@ import {
   type Encoder,
   type GetDiscriminatedUnionVariant,
   type GetDiscriminatedUnionVariantContent,
-} from '@solana/web3.js';
+} from '@solana/kit';
 
 /** Fields in the metadata account, used for updating. */
 export type TokenMetadataField =
