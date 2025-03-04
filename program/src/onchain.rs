@@ -18,27 +18,22 @@ use {
 
 /// Takes a list of accounts and returns the multisig signers' keys and accounts
 pub fn extract_multisig_accounts<'a>(
-    multisig_account: &AccountInfo,
-    accounts: &[AccountInfo<'a>],
-) -> Result<(Vec<&'a Pubkey>, Vec<AccountInfo<'a>>), ProgramError> {
+    multisig_account: &AccountInfo<'a>,
+    accounts: &'a [AccountInfo<'a>],
+) -> Result<Box<dyn Iterator<Item = &'a AccountInfo<'a>> + 'a>, ProgramError> {
     if multisig_account.data_len() != PodMultisig::SIZE_OF {
-        return Ok((vec![], vec![]));
+        return Ok(Box::new(std::iter::empty()));
     }
 
     let multisig_data = &multisig_account.data.borrow();
     let multisig = pod_from_bytes::<PodMultisig>(multisig_data)?;
+    let signers = multisig.signers;
 
-    let mut signer_keys = Vec::new();
-    let mut signer_accounts = Vec::new();
-
-    for account in accounts {
-        if multisig.signers.contains(account.key) {
-            signer_keys.push(account.key);
-            signer_accounts.push(account.clone());
-        }
-    }
-
-    Ok((signer_keys, signer_accounts))
+    Ok(Box::new(
+        accounts
+            .iter()
+            .filter(move |info| signers.contains(info.key)),
+    ))
 }
 
 /// Internal function to gather account infos and create instruction
@@ -49,22 +44,11 @@ fn transfer_instruction_and_account_infos<'a>(
     mint_info: AccountInfo<'a>,
     destination_info: AccountInfo<'a>,
     authority_info: AccountInfo<'a>,
-    additional_accounts: &[AccountInfo<'a>],
+    additional_accounts: &'a [AccountInfo<'a>],
     amount: u64,
     decimals: u8,
     fee: Option<u64>,
 ) -> Result<(Instruction, Vec<AccountInfo<'a>>), ProgramError> {
-    let mut cpi_account_infos = vec![
-        source_info.clone(),
-        mint_info.clone(),
-        destination_info.clone(),
-        authority_info.clone(),
-    ];
-
-    let (multisig_keys, multisig_accounts) =
-        extract_multisig_accounts(&authority_info, additional_accounts)?;
-    cpi_account_infos.extend(multisig_accounts);
-
     let mut cpi_instruction = match fee {
         None => instruction::transfer_checked(
             token_program_id,
@@ -72,7 +56,7 @@ fn transfer_instruction_and_account_infos<'a>(
             mint_info.key,
             destination_info.key,
             authority_info.key,
-            &multisig_keys,
+            &[], // Later added
             amount,
             decimals,
         )?,
@@ -82,12 +66,33 @@ fn transfer_instruction_and_account_infos<'a>(
             mint_info.key,
             destination_info.key,
             authority_info.key,
-            &multisig_keys,
+            &[], // Later added
             amount,
             decimals,
             fee,
         )?,
     };
+
+    // Given no multisig signers were sent into the above helpers, it will default
+    // to giving the transfer authority signer status. This manually corrects
+    // that if it is a multisig.
+    if authority_info.data_len() == PodMultisig::SIZE_OF {
+        cpi_instruction.accounts[3].is_signer = false;
+    }
+
+    let mut cpi_account_infos = vec![
+        source_info.clone(),
+        mint_info.clone(),
+        destination_info.clone(),
+        authority_info.clone(),
+    ];
+
+    extract_multisig_accounts(&authority_info, additional_accounts)?.for_each(|info| {
+        cpi_instruction
+            .accounts
+            .push(AccountMeta::new_readonly(*info.key, true));
+        cpi_account_infos.push(info.clone());
+    });
 
     // scope the borrowing to avoid a double-borrow during CPI
     {
@@ -118,7 +123,7 @@ fn invoke_transfer_internal<'a>(
     mint_info: AccountInfo<'a>,
     destination_info: AccountInfo<'a>,
     authority_info: AccountInfo<'a>,
-    additional_accounts: &[AccountInfo<'a>],
+    additional_accounts: &'a [AccountInfo<'a>],
     amount: u64,
     decimals: u8,
     fee: Option<u64>,
@@ -148,7 +153,7 @@ pub fn invoke_transfer_checked<'a>(
     mint_info: AccountInfo<'a>,
     destination_info: AccountInfo<'a>,
     authority_info: AccountInfo<'a>,
-    additional_accounts: &[AccountInfo<'a>],
+    additional_accounts: &'a [AccountInfo<'a>],
     amount: u64,
     decimals: u8,
     seeds: &[&[&[u8]]],
@@ -177,7 +182,7 @@ pub fn invoke_transfer_checked_with_fee<'a>(
     mint_info: AccountInfo<'a>,
     destination_info: AccountInfo<'a>,
     authority_info: AccountInfo<'a>,
-    additional_accounts: &[AccountInfo<'a>],
+    additional_accounts: &'a [AccountInfo<'a>],
     amount: u64,
     decimals: u8,
     fee: u64,
@@ -678,9 +683,9 @@ mod tests {
 
         let accounts = vec![];
 
-        let (result_keys, result_accounts) =
-            extract_multisig_accounts(&not_multisig, &accounts).unwrap();
-        assert!(result_keys.is_empty());
+        let result_accounts = extract_multisig_accounts(&not_multisig, &accounts)
+            .unwrap()
+            .collect::<Vec<_>>();
         assert!(result_accounts.is_empty());
     }
 
@@ -791,11 +796,9 @@ mod tests {
             signer2_info.clone(),
         ];
 
-        let (result_keys, result_accounts) =
-            extract_multisig_accounts(&multisig_account, &accounts).unwrap();
-        assert_eq!(result_keys.len(), 2);
-        assert_eq!(result_keys[0], &signer1_key);
-        assert_eq!(result_keys[1], &signer2_key);
+        let result_accounts = extract_multisig_accounts(&multisig_account, &accounts)
+            .unwrap()
+            .collect::<Vec<_>>();
 
         assert_eq!(result_accounts.len(), 2);
         assert_eq!(result_accounts[0].data_len(), signer1_info.data_len());
