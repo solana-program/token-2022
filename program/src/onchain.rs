@@ -8,15 +8,15 @@ use {
         state::Mint,
     },
     solana_program::{
-        account_info::AccountInfo, entrypoint::ProgramResult, program::invoke_signed,
-        pubkey::Pubkey,
+        account_info::AccountInfo, entrypoint::ProgramResult, instruction::Instruction,
+        program::invoke_signed, program_error::ProgramError, pubkey::Pubkey,
     },
     spl_transfer_hook_interface::onchain::add_extra_accounts_for_execute_cpi,
 };
 
-/// Internal function to reduce redundancy between the callers
+/// Internal function to gather account infos and create instruction
 #[allow(clippy::too_many_arguments)]
-fn _invoke_transfer_internal<'a>(
+fn transfer_instruction_and_account_infos<'a>(
     token_program_id: &Pubkey,
     source_info: AccountInfo<'a>,
     mint_info: AccountInfo<'a>,
@@ -26,8 +26,7 @@ fn _invoke_transfer_internal<'a>(
     amount: u64,
     decimals: u8,
     fee: Option<u64>,
-    seeds: &[&[&[u8]]],
-) -> ProgramResult {
+) -> Result<(Instruction, Vec<AccountInfo<'a>>), ProgramError> {
     let mut cpi_account_infos = vec![
         source_info.clone(),
         mint_info.clone(),
@@ -85,6 +84,34 @@ fn _invoke_transfer_internal<'a>(
             )?;
         }
     }
+    Ok((cpi_instruction, cpi_account_infos))
+}
+
+/// Internal function to reduce redundancy between the callers
+#[allow(clippy::too_many_arguments)]
+fn invoke_transfer_internal<'a>(
+    token_program_id: &Pubkey,
+    source_info: AccountInfo<'a>,
+    mint_info: AccountInfo<'a>,
+    destination_info: AccountInfo<'a>,
+    authority_info: AccountInfo<'a>,
+    additional_accounts: &[AccountInfo<'a>],
+    amount: u64,
+    decimals: u8,
+    fee: Option<u64>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let (cpi_instruction, cpi_account_infos) = transfer_instruction_and_account_infos(
+        token_program_id,
+        source_info,
+        mint_info,
+        destination_info,
+        authority_info,
+        additional_accounts,
+        amount,
+        decimals,
+        fee,
+    )?;
 
     invoke_signed(&cpi_instruction, &cpi_account_infos, seeds)
 }
@@ -103,7 +130,7 @@ pub fn invoke_transfer_checked<'a>(
     decimals: u8,
     seeds: &[&[&[u8]]],
 ) -> ProgramResult {
-    _invoke_transfer_internal(
+    invoke_transfer_internal(
         token_program_id,
         source_info,
         mint_info,
@@ -133,7 +160,7 @@ pub fn invoke_transfer_checked_with_fee<'a>(
     fee: u64,
     seeds: &[&[&[u8]]],
 ) -> ProgramResult {
-    _invoke_transfer_internal(
+    invoke_transfer_internal(
         token_program_id,
         source_info,
         mint_info,
@@ -158,63 +185,14 @@ mod tests {
             },
             pod::{PodCOption, PodMint},
         },
-        solana_program::{
-            instruction::{AccountMeta, Instruction},
-            program_option::COption,
-            program_pack::Pack,
-        },
+        solana_program::{instruction::AccountMeta, program_option::COption, program_pack::Pack},
         spl_pod::{optional_keys::OptionalNonZeroPubkey, primitives::PodBool},
         spl_tlv_account_resolution::{account::ExtraAccountMeta, state::ExtraAccountMetaList},
         spl_transfer_hook_interface::{
             get_extra_account_metas_address, instruction::ExecuteInstruction,
         },
-        std::cell::RefCell,
         test_case::test_case,
     };
-
-    thread_local! {
-        static CAPTURED_INSTRUCTION: RefCell<Option<Instruction>> = const { RefCell::new(None) };
-        static CAPTURED_ACCOUNT_KEYS: RefCell<Option<Vec<Pubkey>>> = const { RefCell::new(None) };
-    }
-
-    fn get_captured_params() -> (Instruction, Vec<Pubkey>) {
-        let instr = CAPTURED_INSTRUCTION.with(|ci| ci.borrow().clone().unwrap());
-        let keys = CAPTURED_ACCOUNT_KEYS.with(|ck| ck.borrow().clone().unwrap());
-        (instr, keys)
-    }
-
-    struct SyscallStubs {}
-    impl solana_sdk::program_stubs::SyscallStubs for SyscallStubs {
-        fn sol_invoke_signed(
-            &self,
-            instruction: &Instruction,
-            account_infos: &[AccountInfo],
-            _signers_seeds: &[&[&[u8]]],
-        ) -> ProgramResult {
-            CAPTURED_INSTRUCTION.with(|ci| {
-                *ci.borrow_mut() = Some(instruction.clone());
-            });
-            let account_keys: Vec<Pubkey> = account_infos.iter().map(|info| *info.key).collect();
-            CAPTURED_ACCOUNT_KEYS.with(|ck| {
-                *ck.borrow_mut() = Some(account_keys);
-            });
-            Ok(())
-        }
-    }
-
-    fn reset_globals() {
-        CAPTURED_INSTRUCTION.with(|ci| *ci.borrow_mut() = None);
-        CAPTURED_ACCOUNT_KEYS.with(|ck| *ck.borrow_mut() = None);
-    }
-
-    fn set_stubs() {
-        use std::sync::Once;
-        static ONCE: Once = Once::new();
-
-        ONCE.call_once(|| {
-            solana_sdk::program_stubs::set_syscall_stubs(Box::new(SyscallStubs {}));
-        });
-    }
 
     fn setup_mint() -> Vec<u8> {
         let state = Mint {
@@ -286,9 +264,6 @@ mod tests {
         with_fee: bool,
         with_transfer_hook: bool,
     ) {
-        reset_globals();
-        set_stubs();
-
         let token_program_id = crate::id();
         let source_key = Pubkey::new_unique();
         let mint_key = Pubkey::new_unique();
@@ -502,34 +477,22 @@ mod tests {
             ]);
         };
 
-        if with_fee {
-            invoke_transfer_checked_with_fee(
-                &token_program_id,
-                source_info.clone(),
-                mint_info.clone(),
-                destination_info.clone(),
-                authority_info.clone(),
-                &additional_accounts,
-                200,
-                6,
-                120,
-                &[],
-            )
-            .unwrap();
-        } else {
-            invoke_transfer_checked(
-                &token_program_id,
-                source_info.clone(),
-                mint_info.clone(),
-                destination_info.clone(),
-                authority_info.clone(),
-                &additional_accounts,
-                200,
-                6,
-                &[],
-            )
-            .unwrap();
-        }
+        let (instruction, account_infos) = transfer_instruction_and_account_infos(
+            &token_program_id,
+            source_info.clone(),
+            mint_info.clone(),
+            destination_info.clone(),
+            authority_info.clone(),
+            &additional_accounts,
+            200,
+            6,
+            with_fee.then_some(120),
+        )
+        .unwrap();
+        let account_keys = account_infos
+            .into_iter()
+            .map(|info| *info.key)
+            .collect::<Vec<_>>();
 
         // Calculate expected accounts
         let base_account_count = 4; // source, mint, destination, authority
@@ -544,8 +507,6 @@ mod tests {
         if with_transfer_hook {
             expected_account_count += transfer_hook_account_count + extra_hook_account_count;
         }
-
-        let (instruction, account_keys) = get_captured_params();
 
         // Check instruction
         assert_eq!(instruction.program_id, token_program_id);
