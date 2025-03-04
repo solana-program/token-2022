@@ -5,17 +5,14 @@ use {
         state::{ElGamalRegistry, ELGAMAL_REGISTRY_ACCOUNT_LEN},
         REGISTRY_ADDRESS_SEED,
     },
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        entrypoint::ProgramResult,
-        msg,
-        program::invoke_signed,
-        program_error::ProgramError,
-        pubkey::Pubkey,
-        rent::Rent,
-        system_instruction,
-        sysvar::Sysvar,
-    },
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_cpi::invoke_signed,
+    solana_msg::msg,
+    solana_program_error::{ProgramError, ProgramResult},
+    solana_pubkey::Pubkey,
+    solana_rent::Rent,
+    solana_system_interface::instruction::{allocate, assign},
+    solana_sysvar::Sysvar,
     solana_zk_sdk::zk_elgamal_proof_program::proof_data::pubkey_validity::{
         PubkeyValidityProofContext, PubkeyValidityProofData,
     },
@@ -161,13 +158,13 @@ pub fn create_pda_account<'a>(
     }
 
     invoke_signed(
-        &system_instruction::allocate(new_pda_account.key, space as u64),
+        &allocate(new_pda_account.key, space as u64),
         &[new_pda_account.clone(), system_program.clone()],
         &[new_pda_signer_seeds],
     )?;
 
     invoke_signed(
-        &system_instruction::assign(new_pda_account.key, owner),
+        &assign(new_pda_account.key, owner),
         &[new_pda_account.clone(), system_program.clone()],
         &[new_pda_signer_seeds],
     )

@@ -3,7 +3,7 @@ pub mod instruction;
 pub mod processor;
 pub mod state;
 
-use solana_program::pubkey::Pubkey;
+use solana_pubkey::Pubkey;
 
 /// Seed for the ElGamal registry program-derived address
 pub const REGISTRY_ADDRESS_SEED: &[u8] = b"elgamal-registry";
@@ -25,4 +25,4 @@ pub fn get_elgamal_registry_address(wallet_address: &Pubkey, program_id: &Pubkey
     get_elgamal_registry_address_and_bump_seed(wallet_address, program_id).0
 }
 
-solana_program::declare_id!("regVYJW7tcT8zipN5YiBvHsvR5jXW1uLFxaHSbugABg");
+solana_pubkey::declare_id!("regVYJW7tcT8zipN5YiBvHsvR5jXW1uLFxaHSbugABg");
