@@ -22,13 +22,10 @@ use {
         pod::{PodAccount, PodMint},
         processor::Processor,
     },
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        entrypoint::ProgramResult,
-        msg,
-        program_error::ProgramError,
-        pubkey::Pubkey,
-    },
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_msg::msg,
+    solana_program_error::{ProgramError, ProgramResult},
+    solana_pubkey::Pubkey,
     solana_zk_sdk::{
         encryption::pod::{
             auth_encryption::PodAeCiphertext,

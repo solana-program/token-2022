@@ -42,18 +42,17 @@ use {
         },
         state::{Account, AccountState, Mint, PackedSizeOf},
     },
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        clock::Clock,
-        entrypoint::ProgramResult,
-        msg,
-        program::{invoke, invoke_signed, set_return_data},
-        program_error::ProgramError,
-        program_pack::Pack,
-        pubkey::Pubkey,
-        system_instruction, system_program,
-        sysvar::{rent::Rent, Sysvar},
-    },
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_clock::Clock,
+    solana_cpi::{invoke, invoke_signed, set_return_data},
+    solana_msg::msg,
+    solana_program_error::{ProgramError, ProgramResult},
+    solana_program_pack::Pack,
+    solana_pubkey::Pubkey,
+    solana_rent::Rent,
+    solana_sdk_ids::system_program,
+    solana_system_interface::instruction as system_instruction,
+    solana_sysvar::Sysvar,
     spl_pod::{
         bytemuck::{pod_from_bytes, pod_from_bytes_mut},
         primitives::{PodBool, PodU64},
@@ -1231,7 +1230,7 @@ impl Processor {
                     authority_info_data_len,
                     account_info_iter.as_slice(),
                 )?;
-            } else if !solana_program::incinerator::check_id(destination_account_info.key) {
+            } else if !solana_sdk_ids::incinerator::check_id(destination_account_info.key) {
                 return Err(ProgramError::InvalidAccountData);
             }
 
@@ -2002,7 +2001,7 @@ fn delete_account(account_info: &AccountInfo) -> Result<(), ProgramError> {
     account_info.assign(&system_program::id());
     let mut account_data = account_info.data.borrow_mut();
     let data_len = account_data.len();
-    solana_program::program_memory::sol_memset(*account_data, 0, data_len);
+    solana_program_memory::sol_memset(*account_data, 0, data_len);
     Ok(())
 }
 
@@ -2022,17 +2021,15 @@ mod tests {
             state::Multisig,
         },
         serial_test::serial,
-        solana_program::{
-            account_info::IntoAccountInfo,
-            clock::Epoch,
-            instruction::Instruction,
-            program_error::{self, PrintProgramError},
-            program_option::COption,
-            sysvar::{clock::Clock, rent},
-        },
-        solana_sdk::account::{
+        solana_account::{
             create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
         },
+        solana_account_info::IntoAccountInfo,
+        solana_clock::{Clock, Epoch},
+        solana_instruction::Instruction,
+        solana_program_error::PrintProgramError,
+        solana_program_option::COption,
+        solana_sdk_ids::sysvar::rent,
         std::sync::{Arc, RwLock},
     };
 
@@ -2045,7 +2042,7 @@ mod tests {
     }
 
     struct SyscallStubs {}
-    impl solana_sdk::program_stubs::SyscallStubs for SyscallStubs {
+    impl solana_sysvar::program_stubs::SyscallStubs for SyscallStubs {
         fn sol_log(&self, _message: &str) {}
 
         fn sol_invoke_signed(
@@ -2061,23 +2058,23 @@ mod tests {
             unsafe {
                 *(var_addr as *mut _ as *mut Clock) = Clock::default();
             }
-            solana_program::entrypoint::SUCCESS
+            solana_program_entrypoint::SUCCESS
         }
 
         fn sol_get_epoch_schedule_sysvar(&self, _var_addr: *mut u8) -> u64 {
-            program_error::UNSUPPORTED_SYSVAR
+            solana_instruction::error::UNSUPPORTED_SYSVAR
         }
 
         #[allow(deprecated)]
         fn sol_get_fees_sysvar(&self, _var_addr: *mut u8) -> u64 {
-            program_error::UNSUPPORTED_SYSVAR
+            solana_instruction::error::UNSUPPORTED_SYSVAR
         }
 
         fn sol_get_rent_sysvar(&self, var_addr: *mut u8) -> u64 {
             unsafe {
                 *(var_addr as *mut _ as *mut Rent) = Rent::default();
             }
-            solana_program::entrypoint::SUCCESS
+            solana_program_entrypoint::SUCCESS
         }
 
         fn sol_set_return_data(&self, data: &[u8]) {
@@ -2094,7 +2091,7 @@ mod tests {
             static ONCE: Once = Once::new();
 
             ONCE.call_once(|| {
-                solana_sdk::program_stubs::set_syscall_stubs(Box::new(SyscallStubs {}));
+                solana_sysvar::program_stubs::set_syscall_stubs(Box::new(SyscallStubs {}));
             });
         }
 
@@ -8121,7 +8118,7 @@ mod tests {
             static ONCE: Once = Once::new();
 
             ONCE.call_once(|| {
-                solana_sdk::program_stubs::set_syscall_stubs(Box::new(SyscallStubs {}));
+                solana_sysvar::program_stubs::set_syscall_stubs(Box::new(SyscallStubs {}));
             });
         }
         let program_id = crate::id();

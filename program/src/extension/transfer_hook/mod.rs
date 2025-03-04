@@ -9,7 +9,9 @@ use {
         pod::PodAccount,
     },
     bytemuck::{Pod, Zeroable},
-    solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey},
+    solana_account_info::AccountInfo,
+    solana_program_error::ProgramError,
+    solana_pubkey::Pubkey,
     spl_pod::{optional_keys::OptionalNonZeroPubkey, primitives::PodBool},
 };
 

@@ -8,10 +8,10 @@ use {
         state::{AccountState, PackedSizeOf},
     },
     bytemuck::{Pod, Zeroable},
-    solana_program::{
-        program_error::ProgramError, program_option::COption, program_pack::IsInitialized,
-        pubkey::Pubkey,
-    },
+    solana_program_error::ProgramError,
+    solana_program_option::COption,
+    solana_program_pack::IsInitialized,
+    solana_pubkey::Pubkey,
     spl_pod::{
         bytemuck::pod_get_packed_len,
         optional_keys::OptionalNonZeroPubkey,
@@ -95,8 +95,8 @@ impl PodAccount {
     /// Checks if a token Account's owner is the `system_program` or the
     /// incinerator
     pub fn is_owned_by_system_program_or_incinerator(&self) -> bool {
-        solana_program::system_program::check_id(&self.owner)
-            || solana_program::incinerator::check_id(&self.owner)
+        solana_sdk_ids::system_program::check_id(&self.owner)
+            || solana_sdk_ids::incinerator::check_id(&self.owner)
     }
 }
 impl IsInitialized for PodAccount {

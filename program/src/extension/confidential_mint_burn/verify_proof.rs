@@ -1,10 +1,8 @@
 use crate::error::TokenError;
 #[cfg(feature = "zk-ops")]
 use {
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        program_error::ProgramError,
-    },
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_program_error::ProgramError,
     solana_zk_sdk::zk_elgamal_proof_program::proof_data::{
         BatchedGroupedCiphertext3HandlesValidityProofContext,
         BatchedGroupedCiphertext3HandlesValidityProofData, BatchedRangeProofContext,

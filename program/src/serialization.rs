@@ -8,7 +8,7 @@ pub mod coption_fromstr {
             de::{Error, Unexpected, Visitor},
             Deserializer, Serializer,
         },
-        solana_program::program_option::COption,
+        solana_program_option::COption,
         std::{
             fmt::{self, Display},
             marker::PhantomData,

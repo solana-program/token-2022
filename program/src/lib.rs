@@ -1,6 +1,6 @@
 #![allow(clippy::arithmetic_side_effects)]
 #![deny(missing_docs)]
-#![cfg_attr(not(test), forbid(unsafe_code))]
+#![cfg_attr(not(test), warn(unsafe_code))]
 
 //! An ERC20-like Token program for the Solana blockchain
 
@@ -23,14 +23,14 @@ mod entrypoint;
 
 // Export current sdk types for downstream users building with a different sdk
 // version
+pub use solana_zk_sdk;
 use {
     error::TokenError,
-    solana_program::{
-        entrypoint::ProgramResult, program_error::ProgramError, pubkey::Pubkey, system_program,
-    },
+    solana_program_error::{ProgramError, ProgramResult},
+    solana_pubkey::Pubkey,
+    solana_sdk_ids::system_program,
     solana_zk_sdk::encryption::pod::elgamal::PodElGamalCiphertext,
 };
-pub use {solana_program, solana_zk_sdk};
 
 /// Convert the UI representation of a token amount (using the decimals field
 /// defined in its mint) to the raw amount
@@ -101,7 +101,7 @@ pub fn try_ui_amount_into_amount(ui_amount: String, decimals: u8) -> Result<u64,
         .map_err(|_| ProgramError::InvalidArgument)
 }
 
-solana_program::declare_id!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+solana_pubkey::declare_id!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 
 /// Checks that the supplied program ID is correct for spl-token-2022
 pub fn check_program_account(spl_token_program_id: &Pubkey) -> ProgramResult {

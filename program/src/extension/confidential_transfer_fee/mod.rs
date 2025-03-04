@@ -4,7 +4,7 @@ use {
         extension::{Extension, ExtensionType},
     },
     bytemuck::{Pod, Zeroable},
-    solana_program::entrypoint::ProgramResult,
+    solana_program_error::ProgramResult,
     solana_zk_sdk::encryption::pod::elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
     spl_pod::{optional_keys::OptionalNonZeroPubkey, primitives::PodBool},
     spl_token_confidential_transfer_proof_extraction::encryption::PodFeeCiphertext,

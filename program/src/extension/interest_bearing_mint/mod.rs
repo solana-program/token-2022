@@ -6,7 +6,7 @@ use {
         trim_ui_amount_string,
     },
     bytemuck::{Pod, Zeroable},
-    solana_program::program_error::ProgramError,
+    solana_program_error::ProgramError,
     spl_pod::{
         optional_keys::OptionalNonZeroPubkey,
         primitives::{PodI16, PodI64},

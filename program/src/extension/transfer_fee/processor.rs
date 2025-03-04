@@ -13,15 +13,13 @@ use {
         pod::{PodAccount, PodMint},
         processor::{Processor, TransferInstruction},
     },
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        clock::Clock,
-        entrypoint::ProgramResult,
-        msg,
-        program_option::COption,
-        pubkey::Pubkey,
-        sysvar::Sysvar,
-    },
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_clock::Clock,
+    solana_msg::msg,
+    solana_program_error::ProgramResult,
+    solana_program_option::COption,
+    solana_pubkey::Pubkey,
+    solana_sysvar::Sysvar,
     std::convert::TryInto,
 };
 

@@ -13,12 +13,10 @@ use {
         processor::Processor,
         state::AccountState,
     },
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        entrypoint::ProgramResult,
-        msg,
-        pubkey::Pubkey,
-    },
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_msg::msg,
+    solana_program_error::ProgramResult,
+    solana_pubkey::Pubkey,
 };
 
 fn check_valid_default_state(state: AccountState) -> ProgramResult {

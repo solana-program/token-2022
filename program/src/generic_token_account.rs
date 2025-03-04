@@ -2,7 +2,7 @@
 // Remove all of this and use spl-token's version once token 3.4.0 is released
 use {
     crate::state::AccountState,
-    solana_program::pubkey::{Pubkey, PUBKEY_BYTES},
+    solana_pubkey::{Pubkey, PUBKEY_BYTES},
 };
 
 const SPL_TOKEN_ACCOUNT_MINT_OFFSET: usize = 0;

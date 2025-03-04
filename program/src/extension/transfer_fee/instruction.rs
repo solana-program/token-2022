@@ -5,12 +5,10 @@ use {
 };
 use {
     crate::{check_program_account, error::TokenError, instruction::TokenInstruction},
-    solana_program::{
-        instruction::{AccountMeta, Instruction},
-        program_error::ProgramError,
-        program_option::COption,
-        pubkey::Pubkey,
-    },
+    solana_instruction::{AccountMeta, Instruction},
+    solana_program_error::ProgramError,
+    solana_program_option::COption,
+    solana_pubkey::Pubkey,
     std::convert::TryFrom,
 };
 

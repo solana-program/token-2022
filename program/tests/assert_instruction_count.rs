@@ -2,14 +2,13 @@
 
 mod action;
 use {
+    solana_keypair::Keypair,
+    solana_program_pack::Pack,
     solana_program_test::{processor, tokio, ProgramTest},
-    solana_sdk::{
-        program_pack::Pack,
-        pubkey::Pubkey,
-        signature::{Keypair, Signer},
-        system_instruction,
-        transaction::Transaction,
-    },
+    solana_pubkey::Pubkey,
+    solana_signer::Signer,
+    solana_system_interface::instruction as system_instruction,
+    solana_transaction::Transaction,
     spl_token_2022::{
         id, instruction,
         processor::Processor,

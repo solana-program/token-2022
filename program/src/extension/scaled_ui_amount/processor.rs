@@ -16,14 +16,12 @@ use {
         pod::PodMint,
         processor::Processor,
     },
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        clock::Clock,
-        entrypoint::ProgramResult,
-        msg,
-        pubkey::Pubkey,
-        sysvar::Sysvar,
-    },
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_clock::Clock,
+    solana_msg::msg,
+    solana_program_error::ProgramResult,
+    solana_pubkey::Pubkey,
+    solana_sysvar::Sysvar,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
 };
 

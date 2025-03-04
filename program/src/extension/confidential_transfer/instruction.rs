@@ -14,12 +14,10 @@ use {
     },
     bytemuck::Zeroable,
     num_enum::{IntoPrimitive, TryFromPrimitive},
-    solana_program::{
-        instruction::{AccountMeta, Instruction},
-        program_error::ProgramError,
-        pubkey::Pubkey,
-        system_program, sysvar,
-    },
+    solana_instruction::{AccountMeta, Instruction},
+    solana_program_error::ProgramError,
+    solana_pubkey::Pubkey,
+    solana_sdk_ids::{system_program, sysvar},
     spl_token_confidential_transfer_proof_extraction::instruction::{ProofData, ProofLocation},
 };
 

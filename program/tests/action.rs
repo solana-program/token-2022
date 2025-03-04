@@ -1,14 +1,13 @@
 use {
+    solana_hash::Hash,
+    solana_keypair::Keypair,
+    solana_program_pack::Pack,
     solana_program_test::BanksClient,
-    solana_sdk::{
-        hash::Hash,
-        program_pack::Pack,
-        pubkey::Pubkey,
-        signature::{Keypair, Signer},
-        system_instruction,
-        transaction::Transaction,
-        transport::TransportError,
-    },
+    solana_pubkey::Pubkey,
+    solana_signer::Signer,
+    solana_system_interface::instruction as system_instruction,
+    solana_transaction::Transaction,
+    solana_transaction_error::TransportError,
     spl_token_2022::{
         id, instruction,
         state::{Account, Mint},

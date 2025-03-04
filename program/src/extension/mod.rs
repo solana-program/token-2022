@@ -32,11 +32,9 @@ use {
     },
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
-    solana_program::{
-        account_info::AccountInfo,
-        program_error::ProgramError,
-        program_pack::{IsInitialized, Pack},
-    },
+    solana_account_info::AccountInfo,
+    solana_program_error::ProgramError,
+    solana_program_pack::{IsInitialized, Pack},
     spl_pod::{
         bytemuck::{pod_from_bytes, pod_from_bytes_mut, pod_get_packed_len},
         primitives::PodU16,
@@ -1558,12 +1556,11 @@ mod test {
             state::test::{TEST_ACCOUNT_SLICE, TEST_MINT_SLICE},
         },
         bytemuck::Pod,
-        solana_program::{
-            account_info::{Account as GetAccount, IntoAccountInfo},
-            clock::Epoch,
-            entrypoint::MAX_PERMITTED_DATA_INCREASE,
-            pubkey::Pubkey,
+        solana_account_info::{
+            Account as GetAccount, IntoAccountInfo, MAX_PERMITTED_DATA_INCREASE,
         },
+        solana_clock::Epoch,
+        solana_pubkey::Pubkey,
         spl_pod::{
             bytemuck::pod_bytes_of,
             optional_keys::OptionalNonZeroPubkey,
