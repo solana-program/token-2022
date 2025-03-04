@@ -5,37 +5,40 @@ use {
     crate::{
         extension::{transfer_fee, transfer_hook, StateWithExtensions},
         instruction,
-        state::Mint,
+        pod::PodMultisig,
+        state::{Mint, PackedSizeOf},
     },
     solana_program::{
         account_info::AccountInfo, entrypoint::ProgramResult, instruction::Instruction,
         program::invoke_signed, program_error::ProgramError, pubkey::Pubkey,
     },
+    spl_pod::bytemuck::pod_from_bytes,
     spl_transfer_hook_interface::onchain::add_extra_accounts_for_execute_cpi,
 };
 
-/// Takes a list of accounts and returns the ones that are the signers for the
-/// multisig
+/// Takes a list of accounts and returns the multisig signers' keys and accounts
 pub fn extract_multisig_accounts<'a>(
     multisig_account: &AccountInfo,
     accounts: &[AccountInfo<'a>],
-) -> Result<Vec<AccountInfo<'a>>, ProgramError> {
+) -> Result<(Vec<&'a Pubkey>, Vec<AccountInfo<'a>>), ProgramError> {
     if multisig_account.data_len() != PodMultisig::SIZE_OF {
-        return Ok(vec![]);
+        return Ok((vec![], vec![]));
     }
-
-    let mut multisig_signer_pubkeys = Vec::new();
 
     let multisig_data = &multisig_account.data.borrow();
     let multisig = pod_from_bytes::<PodMultisig>(multisig_data)?;
 
+    let mut signer_keys = Vec::new();
+    let mut signer_accounts = Vec::new();
+
     for account in accounts {
         if multisig.signers.contains(account.key) {
-            multisig_signer_pubkeys.push(account.clone());
+            signer_keys.push(account.key);
+            signer_accounts.push(account.clone());
         }
     }
 
-    Ok(multisig_signer_pubkeys)
+    Ok((signer_keys, signer_accounts))
 }
 
 /// Internal function to gather account infos and create instruction
@@ -58,12 +61,9 @@ fn transfer_instruction_and_account_infos<'a>(
         authority_info.clone(),
     ];
 
-    let mut multisig_signer_pubkeys = Vec::new();
-    let multisig_signers = extract_multisig_accounts(&authority_info, additional_accounts)?;
-    for signer in multisig_signers {
-        multisig_signer_pubkeys.push(signer.key);
-        cpi_account_infos.push(signer.clone());
-    }
+    let (multisig_keys, multisig_accounts) =
+        extract_multisig_accounts(&authority_info, additional_accounts)?;
+    cpi_account_infos.extend(multisig_accounts);
 
     let mut cpi_instruction = match fee {
         None => instruction::transfer_checked(
@@ -72,7 +72,7 @@ fn transfer_instruction_and_account_infos<'a>(
             mint_info.key,
             destination_info.key,
             authority_info.key,
-            &multisig_signer_pubkeys,
+            &multisig_keys,
             amount,
             decimals,
         )?,
@@ -82,7 +82,7 @@ fn transfer_instruction_and_account_infos<'a>(
             mint_info.key,
             destination_info.key,
             authority_info.key,
-            &multisig_signer_pubkeys,
+            &multisig_keys,
             amount,
             decimals,
             fee,
@@ -676,8 +676,10 @@ mod tests {
 
         let accounts = vec![];
 
-        let result = extract_multisig_accounts(&not_multisig, &accounts).unwrap();
-        assert!(result.is_empty());
+        let (result_keys, result_accounts) =
+            extract_multisig_accounts(&not_multisig, &accounts).unwrap();
+        assert!(result_keys.is_empty());
+        assert!(result_accounts.is_empty());
     }
 
     #[test]
@@ -783,13 +785,33 @@ mod tests {
         let accounts = vec![
             extra_account1_info,
             extra_account2_info,
-            signer1_info,
-            signer2_info,
+            signer1_info.clone(),
+            signer2_info.clone(),
         ];
 
-        let result = extract_multisig_accounts(&multisig_account, &accounts).unwrap();
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0].key, &signer1_key);
-        assert_eq!(result[1].key, &signer2_key);
+        let (result_keys, result_accounts) =
+            extract_multisig_accounts(&multisig_account, &accounts).unwrap();
+        assert_eq!(result_keys.len(), 2);
+        assert_eq!(result_keys[0], &signer1_key);
+        assert_eq!(result_keys[1], &signer2_key);
+
+        assert_eq!(result_accounts.len(), 2);
+        assert_eq!(result_accounts[0].data_len(), signer1_info.data_len());
+        assert_eq!(result_accounts[0].owner, signer1_info.owner);
+        assert_eq!(result_accounts[0].key, signer1_info.key);
+        assert_eq!(result_accounts[0].is_writable, signer1_info.is_writable);
+        assert_eq!(result_accounts[0].is_signer, signer1_info.is_signer);
+        assert_eq!(result_accounts[0].executable, signer1_info.executable);
+        assert_eq!(result_accounts[0].lamports, signer1_info.lamports);
+        assert_eq!(result_accounts[0].rent_epoch, signer1_info.rent_epoch);
+
+        assert_eq!(result_accounts[1].data_len(), signer2_info.data_len());
+        assert_eq!(result_accounts[1].owner, signer2_info.owner);
+        assert_eq!(result_accounts[1].key, signer2_info.key);
+        assert_eq!(result_accounts[1].is_writable, signer2_info.is_writable);
+        assert_eq!(result_accounts[1].is_signer, signer2_info.is_signer);
+        assert_eq!(result_accounts[1].executable, signer2_info.executable);
+        assert_eq!(result_accounts[1].lamports, signer2_info.lamports);
+        assert_eq!(result_accounts[1].rent_epoch, signer2_info.rent_epoch);
     }
 }
