@@ -16,6 +16,8 @@ import {
   getBooleanEncoder,
   getDiscriminatedUnionDecoder,
   getDiscriminatedUnionEncoder,
+  getF64Decoder,
+  getF64Encoder,
   getI16Decoder,
   getI16Encoder,
   getMapDecoder,
@@ -159,6 +161,13 @@ export type Extension =
       preUpdateAverageRate: number;
       lastUpdateTimestamp: bigint;
       currentRate: number;
+    }
+  | {
+      __kind: 'ScaledUiAmountConfig';
+      authority: Address;
+      multiplier: number;
+      newMultiplierEffectiveTimestamp: bigint;
+      newMultiplier: number;
     }
   | {
       __kind: 'CpiGuard';
@@ -362,6 +371,13 @@ export type ExtensionArgs =
       preUpdateAverageRate: number;
       lastUpdateTimestamp: number | bigint;
       currentRate: number;
+    }
+  | {
+      __kind: 'ScaledUiAmountConfig';
+      authority: Address;
+      multiplier: number;
+      newMultiplierEffectiveTimestamp: number | bigint;
+      newMultiplier: number;
     }
   | {
       __kind: 'CpiGuard';
@@ -575,6 +591,18 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
             ['preUpdateAverageRate', getI16Encoder()],
             ['lastUpdateTimestamp', getU64Encoder()],
             ['currentRate', getI16Encoder()],
+          ]),
+          getU16Encoder()
+        ),
+      ],
+      [
+        'ScaledUiAmountConfig',
+        addEncoderSizePrefix(
+          getStructEncoder([
+            ['authority', getAddressEncoder()],
+            ['multiplier', getF64Encoder()],
+            ['newMultiplierEffectiveTimestamp', getU64Encoder()],
+            ['newMultiplier', getF64Encoder()],
           ]),
           getU16Encoder()
         ),
@@ -877,6 +905,18 @@ export function getExtensionDecoder(): Decoder<Extension> {
         ),
       ],
       [
+        'ScaledUiAmountConfig',
+        addDecoderSizePrefix(
+          getStructDecoder([
+            ['authority', getAddressDecoder()],
+            ['multiplier', getF64Decoder()],
+            ['newMultiplierEffectiveTimestamp', getU64Decoder()],
+            ['newMultiplier', getF64Decoder()],
+          ]),
+          getU16Decoder()
+        ),
+      ],
+      [
         'CpiGuard',
         addDecoderSizePrefix(
           getStructDecoder([['lockCpi', getBooleanDecoder()]]),
@@ -1161,6 +1201,18 @@ export function extension(
   ExtensionArgs,
   '__kind',
   'InterestBearingConfig'
+>;
+export function extension(
+  kind: 'ScaledUiAmountConfig',
+  data: GetDiscriminatedUnionVariantContent<
+    ExtensionArgs,
+    '__kind',
+    'ScaledUiAmountConfig'
+  >
+): GetDiscriminatedUnionVariant<
+  ExtensionArgs,
+  '__kind',
+  'ScaledUiAmountConfig'
 >;
 export function extension(
   kind: 'CpiGuard',
