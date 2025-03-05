@@ -34,7 +34,7 @@ import {
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const UPDATE_MULTIPLIER_SCALED_UI_MINT_DISCRIMINATOR = 42;
+export const UPDATE_MULTIPLIER_SCALED_UI_MINT_DISCRIMINATOR = 43;
 
 export function getUpdateMultiplierScaledUiMintDiscriminatorBytes() {
   return getU8Encoder().encode(UPDATE_MULTIPLIER_SCALED_UI_MINT_DISCRIMINATOR);

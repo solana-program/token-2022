@@ -563,13 +563,13 @@ export function identifyToken2022Instruction(
     return Token2022Instruction.UpdateGroupMemberPointer;
   }
   if (
-    containsBytes(data, getU8Encoder().encode(42), 0) &&
+    containsBytes(data, getU8Encoder().encode(43), 0) &&
     containsBytes(data, getU8Encoder().encode(0), 1)
   ) {
     return Token2022Instruction.InitializeScaledUiAmountMint;
   }
   if (
-    containsBytes(data, getU8Encoder().encode(42), 0) &&
+    containsBytes(data, getU8Encoder().encode(43), 0) &&
     containsBytes(data, getU8Encoder().encode(1), 1)
   ) {
     return Token2022Instruction.UpdateMultiplierScaledUiMint;

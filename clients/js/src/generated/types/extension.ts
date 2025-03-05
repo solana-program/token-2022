@@ -163,13 +163,6 @@ export type Extension =
       currentRate: number;
     }
   | {
-      __kind: 'ScaledUiAmountConfig';
-      authority: Address;
-      multiplier: number;
-      newMultiplierEffectiveTimestamp: bigint;
-      newMultiplier: number;
-    }
-  | {
       __kind: 'CpiGuard';
       /** Lock certain token operations from taking place within CPI for this account. */
       lockCpi: boolean;
@@ -216,6 +209,13 @@ export type Extension =
       __kind: 'ConfidentialTransferFeeAmount';
       /** Amount withheld during confidential transfers, to be harvest to the mint. */
       withheldAmount: EncryptedBalance;
+    }
+  | {
+      __kind: 'ScaledUiAmountConfig';
+      authority: Address;
+      multiplier: number;
+      newMultiplierEffectiveTimestamp: bigint;
+      newMultiplier: number;
     }
   | {
       __kind: 'MetadataPointer';
@@ -373,13 +373,6 @@ export type ExtensionArgs =
       currentRate: number;
     }
   | {
-      __kind: 'ScaledUiAmountConfig';
-      authority: Address;
-      multiplier: number;
-      newMultiplierEffectiveTimestamp: number | bigint;
-      newMultiplier: number;
-    }
-  | {
       __kind: 'CpiGuard';
       /** Lock certain token operations from taking place within CPI for this account. */
       lockCpi: boolean;
@@ -426,6 +419,13 @@ export type ExtensionArgs =
       __kind: 'ConfidentialTransferFeeAmount';
       /** Amount withheld during confidential transfers, to be harvest to the mint. */
       withheldAmount: EncryptedBalanceArgs;
+    }
+  | {
+      __kind: 'ScaledUiAmountConfig';
+      authority: Address;
+      multiplier: number;
+      newMultiplierEffectiveTimestamp: number | bigint;
+      newMultiplier: number;
     }
   | {
       __kind: 'MetadataPointer';
@@ -596,18 +596,6 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
         ),
       ],
       [
-        'ScaledUiAmountConfig',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            ['authority', getAddressEncoder()],
-            ['multiplier', getF64Encoder()],
-            ['newMultiplierEffectiveTimestamp', getU64Encoder()],
-            ['newMultiplier', getF64Encoder()],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
         'CpiGuard',
         addEncoderSizePrefix(
           getStructEncoder([['lockCpi', getBooleanEncoder()]]),
@@ -664,6 +652,18 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
         'ConfidentialTransferFeeAmount',
         addEncoderSizePrefix(
           getStructEncoder([['withheldAmount', getEncryptedBalanceEncoder()]]),
+          getU16Encoder()
+        ),
+      ],
+      [
+        'ScaledUiAmountConfig',
+        addEncoderSizePrefix(
+          getStructEncoder([
+            ['authority', getAddressEncoder()],
+            ['multiplier', getF64Encoder()],
+            ['newMultiplierEffectiveTimestamp', getU64Encoder()],
+            ['newMultiplier', getF64Encoder()],
+          ]),
           getU16Encoder()
         ),
       ],
@@ -905,18 +905,6 @@ export function getExtensionDecoder(): Decoder<Extension> {
         ),
       ],
       [
-        'ScaledUiAmountConfig',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            ['authority', getAddressDecoder()],
-            ['multiplier', getF64Decoder()],
-            ['newMultiplierEffectiveTimestamp', getU64Decoder()],
-            ['newMultiplier', getF64Decoder()],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
         'CpiGuard',
         addDecoderSizePrefix(
           getStructDecoder([['lockCpi', getBooleanDecoder()]]),
@@ -973,6 +961,18 @@ export function getExtensionDecoder(): Decoder<Extension> {
         'ConfidentialTransferFeeAmount',
         addDecoderSizePrefix(
           getStructDecoder([['withheldAmount', getEncryptedBalanceDecoder()]]),
+          getU16Decoder()
+        ),
+      ],
+      [
+        'ScaledUiAmountConfig',
+        addDecoderSizePrefix(
+          getStructDecoder([
+            ['authority', getAddressDecoder()],
+            ['multiplier', getF64Decoder()],
+            ['newMultiplierEffectiveTimestamp', getU64Decoder()],
+            ['newMultiplier', getF64Decoder()],
+          ]),
           getU16Decoder()
         ),
       ],
@@ -1203,18 +1203,6 @@ export function extension(
   'InterestBearingConfig'
 >;
 export function extension(
-  kind: 'ScaledUiAmountConfig',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'ScaledUiAmountConfig'
-  >
-): GetDiscriminatedUnionVariant<
-  ExtensionArgs,
-  '__kind',
-  'ScaledUiAmountConfig'
->;
-export function extension(
   kind: 'CpiGuard',
   data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'CpiGuard'>
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'CpiGuard'>;
@@ -1277,6 +1265,18 @@ export function extension(
   ExtensionArgs,
   '__kind',
   'ConfidentialTransferFeeAmount'
+>;
+export function extension(
+  kind: 'ScaledUiAmountConfig',
+  data: GetDiscriminatedUnionVariantContent<
+    ExtensionArgs,
+    '__kind',
+    'ScaledUiAmountConfig'
+  >
+): GetDiscriminatedUnionVariant<
+  ExtensionArgs,
+  '__kind',
+  'ScaledUiAmountConfig'
 >;
 export function extension(
   kind: 'MetadataPointer',
