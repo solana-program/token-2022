@@ -65,8 +65,10 @@ The following clients are available for your programs. You may use the following
 ## Starting and stopping the local validator
 
 The following script is available to start your local validator.
+In order to run the local validator you must also have the spl-elgamal-registry program built.
 
 ```sh
+pnpm confidential-transfer:elgamal-registry:build # you only need to run this once
 pnpm validator:start
 ```
 

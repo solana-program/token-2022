@@ -61,6 +61,7 @@ import {
   type ParsedInitializeMultisigInstruction,
   type ParsedInitializeNonTransferableMintInstruction,
   type ParsedInitializePermanentDelegateInstruction,
+  type ParsedInitializeScaledUiAmountMintInstruction,
   type ParsedInitializeTokenGroupInstruction,
   type ParsedInitializeTokenGroupMemberInstruction,
   type ParsedInitializeTokenMetadataInstruction,
@@ -84,6 +85,7 @@ import {
   type ParsedUpdateGroupMemberPointerInstruction,
   type ParsedUpdateGroupPointerInstruction,
   type ParsedUpdateMetadataPointerInstruction,
+  type ParsedUpdateMultiplierScaledUiMintInstruction,
   type ParsedUpdateRateInterestBearingMintInstruction,
   type ParsedUpdateTokenGroupMaxSizeInstruction,
   type ParsedUpdateTokenGroupUpdateAuthorityInstruction,
@@ -198,6 +200,8 @@ export enum Token2022Instruction {
   UpdateGroupPointer,
   InitializeGroupMemberPointer,
   UpdateGroupMemberPointer,
+  InitializeScaledUiAmountMint,
+  UpdateMultiplierScaledUiMint,
   InitializeTokenMetadata,
   UpdateTokenMetadataField,
   RemoveTokenMetadataKey,
@@ -559,6 +563,18 @@ export function identifyToken2022Instruction(
     return Token2022Instruction.UpdateGroupMemberPointer;
   }
   if (
+    containsBytes(data, getU8Encoder().encode(43), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
+    return Token2022Instruction.InitializeScaledUiAmountMint;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(43), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.UpdateMultiplierScaledUiMint;
+  }
+  if (
     containsBytes(
       data,
       new Uint8Array([210, 225, 30, 162, 88, 184, 77, 141]),
@@ -858,6 +874,12 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.UpdateGroupMemberPointer;
     } & ParsedUpdateGroupMemberPointerInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeScaledUiAmountMint;
+    } & ParsedInitializeScaledUiAmountMintInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.UpdateMultiplierScaledUiMint;
+    } & ParsedUpdateMultiplierScaledUiMintInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeTokenMetadata;
     } & ParsedInitializeTokenMetadataInstruction<TProgram>)
