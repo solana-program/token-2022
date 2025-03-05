@@ -17,10 +17,10 @@ use {
 };
 
 /// Takes a list of accounts and returns the multisig signers' keys and accounts
-pub fn extract_multisig_accounts<'a>(
+pub fn extract_multisig_accounts<'a, 'b>(
     multisig_account: &AccountInfo<'a>,
-    accounts: &'a [AccountInfo<'a>],
-) -> Result<Box<dyn Iterator<Item = &'a AccountInfo<'a>> + 'a>, ProgramError> {
+    accounts: &'b [AccountInfo<'a>],
+) -> Result<Box<dyn Iterator<Item = &'b AccountInfo<'a>> + 'b>, ProgramError> {
     if multisig_account.data_len() != PodMultisig::SIZE_OF {
         return Ok(Box::new(std::iter::empty()));
     }
@@ -44,7 +44,7 @@ fn transfer_instruction_and_account_infos<'a>(
     mint_info: AccountInfo<'a>,
     destination_info: AccountInfo<'a>,
     authority_info: AccountInfo<'a>,
-    additional_accounts: &'a [AccountInfo<'a>],
+    additional_accounts: &[AccountInfo<'a>],
     amount: u64,
     decimals: u8,
     fee: Option<u64>,
@@ -123,7 +123,7 @@ fn invoke_transfer_internal<'a>(
     mint_info: AccountInfo<'a>,
     destination_info: AccountInfo<'a>,
     authority_info: AccountInfo<'a>,
-    additional_accounts: &'a [AccountInfo<'a>],
+    additional_accounts: &[AccountInfo<'a>],
     amount: u64,
     decimals: u8,
     fee: Option<u64>,
@@ -153,7 +153,7 @@ pub fn invoke_transfer_checked<'a>(
     mint_info: AccountInfo<'a>,
     destination_info: AccountInfo<'a>,
     authority_info: AccountInfo<'a>,
-    additional_accounts: &'a [AccountInfo<'a>],
+    additional_accounts: &[AccountInfo<'a>],
     amount: u64,
     decimals: u8,
     seeds: &[&[&[u8]]],
@@ -182,7 +182,7 @@ pub fn invoke_transfer_checked_with_fee<'a>(
     mint_info: AccountInfo<'a>,
     destination_info: AccountInfo<'a>,
     authority_info: AccountInfo<'a>,
-    additional_accounts: &'a [AccountInfo<'a>],
+    additional_accounts: &[AccountInfo<'a>],
     amount: u64,
     decimals: u8,
     fee: u64,
