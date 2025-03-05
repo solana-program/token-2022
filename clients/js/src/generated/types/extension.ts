@@ -233,13 +233,6 @@ export type Extension =
       additionalMetadata: Map<string, string>;
     }
   | {
-      __kind: 'ScaledUiAmountConfig';
-      authority: Address;
-      multiplier: number;
-      newMultiplierEffectiveTimestamp: bigint;
-      newMultiplier: number;
-    }
-  | {
       __kind: 'GroupPointer';
       /** Optional authority that can set the group address. */
       authority: Option<Address>;
@@ -272,6 +265,14 @@ export type Extension =
       group: Address;
       /** The member number. */
       memberNumber: bigint;
+    }
+  | { __kind: 'ConfidentialMintBurn' }
+  | {
+      __kind: 'ScaledUiAmountConfig';
+      authority: Address;
+      multiplier: number;
+      newMultiplierEffectiveTimestamp: bigint;
+      newMultiplier: number;
     };
 
 export type ExtensionArgs =
@@ -443,13 +444,6 @@ export type ExtensionArgs =
       additionalMetadata: Map<string, string>;
     }
   | {
-      __kind: 'ScaledUiAmountConfig';
-      authority: Address;
-      multiplier: number;
-      newMultiplierEffectiveTimestamp: number | bigint;
-      newMultiplier: number;
-    }
-  | {
       __kind: 'GroupPointer';
       /** Optional authority that can set the group address. */
       authority: OptionOrNullable<Address>;
@@ -482,6 +476,14 @@ export type ExtensionArgs =
       group: Address;
       /** The member number. */
       memberNumber: number | bigint;
+    }
+  | { __kind: 'ConfidentialMintBurn' }
+  | {
+      __kind: 'ScaledUiAmountConfig';
+      authority: Address;
+      multiplier: number;
+      newMultiplierEffectiveTimestamp: number | bigint;
+      newMultiplier: number;
     };
 
 export function getExtensionEncoder(): Encoder<ExtensionArgs> {
@@ -704,18 +706,6 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
         ),
       ],
       [
-        'ScaledUiAmountConfig',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            ['authority', getAddressEncoder()],
-            ['multiplier', getF64Encoder()],
-            ['newMultiplierEffectiveTimestamp', getU64Encoder()],
-            ['newMultiplier', getF64Encoder()],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
         'GroupPointer',
         addEncoderSizePrefix(
           getStructEncoder([
@@ -784,6 +774,19 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
             ['mint', getAddressEncoder()],
             ['group', getAddressEncoder()],
             ['memberNumber', getU64Encoder()],
+          ]),
+          getU16Encoder()
+        ),
+      ],
+      ['ConfidentialMintBurn', getUnitEncoder()],
+      [
+        'ScaledUiAmountConfig',
+        addEncoderSizePrefix(
+          getStructEncoder([
+            ['authority', getAddressEncoder()],
+            ['multiplier', getF64Encoder()],
+            ['newMultiplierEffectiveTimestamp', getU64Encoder()],
+            ['newMultiplier', getF64Encoder()],
           ]),
           getU16Encoder()
         ),
@@ -1013,18 +1016,6 @@ export function getExtensionDecoder(): Decoder<Extension> {
         ),
       ],
       [
-        'ScaledUiAmountConfig',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            ['authority', getAddressDecoder()],
-            ['multiplier', getF64Decoder()],
-            ['newMultiplierEffectiveTimestamp', getU64Decoder()],
-            ['newMultiplier', getF64Decoder()],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
         'GroupPointer',
         addDecoderSizePrefix(
           getStructDecoder([
@@ -1093,6 +1084,19 @@ export function getExtensionDecoder(): Decoder<Extension> {
             ['mint', getAddressDecoder()],
             ['group', getAddressDecoder()],
             ['memberNumber', getU64Decoder()],
+          ]),
+          getU16Decoder()
+        ),
+      ],
+      ['ConfidentialMintBurn', getUnitDecoder()],
+      [
+        'ScaledUiAmountConfig',
+        addDecoderSizePrefix(
+          getStructDecoder([
+            ['authority', getAddressDecoder()],
+            ['multiplier', getF64Decoder()],
+            ['newMultiplierEffectiveTimestamp', getU64Decoder()],
+            ['newMultiplier', getF64Decoder()],
           ]),
           getU16Decoder()
         ),
@@ -1283,18 +1287,6 @@ export function extension(
   >
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TokenMetadata'>;
 export function extension(
-  kind: 'ScaledUiAmountConfig',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'ScaledUiAmountConfig'
-  >
-): GetDiscriminatedUnionVariant<
-  ExtensionArgs,
-  '__kind',
-  'ScaledUiAmountConfig'
->;
-export function extension(
   kind: 'GroupPointer',
   data: GetDiscriminatedUnionVariantContent<
     ExtensionArgs,
@@ -1326,6 +1318,25 @@ export function extension(
     'TokenGroupMember'
   >
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TokenGroupMember'>;
+export function extension(
+  kind: 'ConfidentialMintBurn'
+): GetDiscriminatedUnionVariant<
+  ExtensionArgs,
+  '__kind',
+  'ConfidentialMintBurn'
+>;
+export function extension(
+  kind: 'ScaledUiAmountConfig',
+  data: GetDiscriminatedUnionVariantContent<
+    ExtensionArgs,
+    '__kind',
+    'ScaledUiAmountConfig'
+  >
+): GetDiscriminatedUnionVariant<
+  ExtensionArgs,
+  '__kind',
+  'ScaledUiAmountConfig'
+>;
 export function extension<K extends ExtensionArgs['__kind'], Data>(
   kind: K,
   data?: Data

@@ -25,6 +25,7 @@ import {
   getInitializeNonTransferableMintInstruction,
   getInitializeTransferHookInstruction,
   getInitializePermanentDelegateInstruction,
+  getInitializeScaledUiAmountMintInstruction,
   getInitializeConfidentialTransferFeeInstruction,
 } from './generated';
 
@@ -78,6 +79,14 @@ export function getPreInitializeInstructionsForMintExtensions(
             mint,
             rateAuthority: extension.rateAuthority,
             rate: extension.currentRate,
+          }),
+        ];
+      case 'ScaledUiAmountConfig':
+        return [
+          getInitializeScaledUiAmountMintInstruction({
+            mint,
+            authority: extension.authority,
+            multiplier: extension.multiplier,
           }),
         ];
       case 'GroupPointer':
