@@ -5,7 +5,12 @@ import {
   getCreateMintInstructions,
   sendAndConfirmInstructions,
 } from '../../_setup';
-import { Account, address, generateKeyPairSigner, isSome } from '@solana/web3.js';
+import {
+  Account,
+  address,
+  generateKeyPairSigner,
+  isSome,
+} from '@solana/web3.js';
 import {
   extension,
   fetchMint,
@@ -26,7 +31,9 @@ test('it initialize a mint account with an interest bearing mint extension', asy
   const scaledUiAmountMintExtension = extension('ScaledUiAmountConfig', {
     authority: authority.address,
     multiplier: 1,
-    newMultiplierEffectiveTimestamp: BigInt(Math.floor(new Date().getTime() / 1000)),
+    newMultiplierEffectiveTimestamp: BigInt(
+      Math.floor(new Date().getTime() / 1000)
+    ),
     newMultiplier,
   });
 
@@ -68,7 +75,9 @@ test('it initialize a mint account with an interest bearing mint extension', asy
   ) {
     t.is(extensions.value[0].authority, authority.address);
     t.is(extensions.value[0].multiplier, 1);
-    t.true(typeof extensions.value[0].newMultiplierEffectiveTimestamp === 'bigint');
+    t.true(
+      typeof extensions.value[0].newMultiplierEffectiveTimestamp === 'bigint'
+    );
     t.is(extensions.value[0].newMultiplier, 1);
   }
 

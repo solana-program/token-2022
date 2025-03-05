@@ -66,7 +66,9 @@ test('it updates the multiplier of the scaled ui amount mint extension on a mint
   ) {
     t.is(extensions.value[0].authority, multiplierAuthority.address);
     t.true(typeof extensions.value[0].multiplier === 'number');
-    t.true(typeof extensions.value[0].newMultiplierEffectiveTimestamp === 'bigint');
+    t.true(
+      typeof extensions.value[0].newMultiplierEffectiveTimestamp === 'bigint'
+    );
     t.is(extensions.value[0].newMultiplier, newMultiplier);
   }
 
