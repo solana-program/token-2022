@@ -211,13 +211,6 @@ export type Extension =
       withheldAmount: EncryptedBalance;
     }
   | {
-      __kind: 'ScaledUiAmountConfig';
-      authority: Address;
-      multiplier: number;
-      newMultiplierEffectiveTimestamp: bigint;
-      newMultiplier: number;
-    }
-  | {
       __kind: 'MetadataPointer';
       /** Optional authority that can set the metadata address. */
       authority: Option<Address>;
@@ -238,6 +231,13 @@ export type Extension =
       uri: string;
       /** Any additional metadata about the token as key-value pairs. */
       additionalMetadata: Map<string, string>;
+    }
+  | {
+      __kind: 'ScaledUiAmountConfig';
+      authority: Address;
+      multiplier: number;
+      newMultiplierEffectiveTimestamp: bigint;
+      newMultiplier: number;
     }
   | {
       __kind: 'GroupPointer';
@@ -421,13 +421,6 @@ export type ExtensionArgs =
       withheldAmount: EncryptedBalanceArgs;
     }
   | {
-      __kind: 'ScaledUiAmountConfig';
-      authority: Address;
-      multiplier: number;
-      newMultiplierEffectiveTimestamp: number | bigint;
-      newMultiplier: number;
-    }
-  | {
       __kind: 'MetadataPointer';
       /** Optional authority that can set the metadata address. */
       authority: OptionOrNullable<Address>;
@@ -448,6 +441,13 @@ export type ExtensionArgs =
       uri: string;
       /** Any additional metadata about the token as key-value pairs. */
       additionalMetadata: Map<string, string>;
+    }
+  | {
+      __kind: 'ScaledUiAmountConfig';
+      authority: Address;
+      multiplier: number;
+      newMultiplierEffectiveTimestamp: number | bigint;
+      newMultiplier: number;
     }
   | {
       __kind: 'GroupPointer';
@@ -656,18 +656,6 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
         ),
       ],
       [
-        'ScaledUiAmountConfig',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            ['authority', getAddressEncoder()],
-            ['multiplier', getF64Encoder()],
-            ['newMultiplierEffectiveTimestamp', getU64Encoder()],
-            ['newMultiplier', getF64Encoder()],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
         'MetadataPointer',
         addEncoderSizePrefix(
           getStructEncoder([
@@ -711,6 +699,18 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
                 addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
               ),
             ],
+          ]),
+          getU16Encoder()
+        ),
+      ],
+      [
+        'ScaledUiAmountConfig',
+        addEncoderSizePrefix(
+          getStructEncoder([
+            ['authority', getAddressEncoder()],
+            ['multiplier', getF64Encoder()],
+            ['newMultiplierEffectiveTimestamp', getU64Encoder()],
+            ['newMultiplier', getF64Encoder()],
           ]),
           getU16Encoder()
         ),
@@ -965,18 +965,6 @@ export function getExtensionDecoder(): Decoder<Extension> {
         ),
       ],
       [
-        'ScaledUiAmountConfig',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            ['authority', getAddressDecoder()],
-            ['multiplier', getF64Decoder()],
-            ['newMultiplierEffectiveTimestamp', getU64Decoder()],
-            ['newMultiplier', getF64Decoder()],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
         'MetadataPointer',
         addDecoderSizePrefix(
           getStructDecoder([
@@ -1020,6 +1008,18 @@ export function getExtensionDecoder(): Decoder<Extension> {
                 addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())
               ),
             ],
+          ]),
+          getU16Decoder()
+        ),
+      ],
+      [
+        'ScaledUiAmountConfig',
+        addDecoderSizePrefix(
+          getStructDecoder([
+            ['authority', getAddressDecoder()],
+            ['multiplier', getF64Decoder()],
+            ['newMultiplierEffectiveTimestamp', getU64Decoder()],
+            ['newMultiplier', getF64Decoder()],
           ]),
           getU16Decoder()
         ),
@@ -1267,18 +1267,6 @@ export function extension(
   'ConfidentialTransferFeeAmount'
 >;
 export function extension(
-  kind: 'ScaledUiAmountConfig',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'ScaledUiAmountConfig'
-  >
-): GetDiscriminatedUnionVariant<
-  ExtensionArgs,
-  '__kind',
-  'ScaledUiAmountConfig'
->;
-export function extension(
   kind: 'MetadataPointer',
   data: GetDiscriminatedUnionVariantContent<
     ExtensionArgs,
@@ -1294,6 +1282,18 @@ export function extension(
     'TokenMetadata'
   >
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TokenMetadata'>;
+export function extension(
+  kind: 'ScaledUiAmountConfig',
+  data: GetDiscriminatedUnionVariantContent<
+    ExtensionArgs,
+    '__kind',
+    'ScaledUiAmountConfig'
+  >
+): GetDiscriminatedUnionVariant<
+  ExtensionArgs,
+  '__kind',
+  'ScaledUiAmountConfig'
+>;
 export function extension(
   kind: 'GroupPointer',
   data: GetDiscriminatedUnionVariantContent<

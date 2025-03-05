@@ -9132,61 +9132,6 @@
             },
             {
               "kind": "enumStructVariantTypeNode",
-              "name": "scaledUiAmountConfig",
-              "struct": {
-                "kind": "sizePrefixTypeNode",
-                "type": {
-                  "kind": "structTypeNode",
-                  "fields": [
-                    {
-                      "kind": "structFieldTypeNode",
-                      "name": "authority",
-                      "docs": [],
-                      "type": {
-                        "kind": "publicKeyTypeNode"
-                      }
-                    },
-                    {
-                      "kind": "structFieldTypeNode",
-                      "name": "multiplier",
-                      "docs": [],
-                      "type": {
-                        "kind": "numberTypeNode",
-                        "format": "f64",
-                        "endian": "le"
-                      }
-                    },
-                    {
-                      "kind": "structFieldTypeNode",
-                      "name": "newMultiplierEffectiveTimestamp",
-                      "docs": [],
-                      "type": {
-                        "kind": "numberTypeNode",
-                        "format": "u64",
-                        "endian": "le"
-                      }
-                    },
-                    {
-                      "kind": "structFieldTypeNode",
-                      "name": "newMultiplier",
-                      "docs": [],
-                      "type": {
-                        "kind": "numberTypeNode",
-                        "format": "f64",
-                        "endian": "le"
-                      }
-                    }
-                  ]
-                },
-                "prefix": {
-                  "kind": "numberTypeNode",
-                  "format": "u16",
-                  "endian": "le"
-                }
-              }
-            },
-            {
-              "kind": "enumStructVariantTypeNode",
               "name": "metadataPointer",
               "struct": {
                 "kind": "sizePrefixTypeNode",
@@ -9350,6 +9295,61 @@
                             "endian": "le"
                           }
                         }
+                      }
+                    }
+                  ]
+                },
+                "prefix": {
+                  "kind": "numberTypeNode",
+                  "format": "u16",
+                  "endian": "le"
+                }
+              }
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "scaledUiAmountConfig",
+              "struct": {
+                "kind": "sizePrefixTypeNode",
+                "type": {
+                  "kind": "structTypeNode",
+                  "fields": [
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "authority",
+                      "docs": [],
+                      "type": {
+                        "kind": "publicKeyTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "multiplier",
+                      "docs": [],
+                      "type": {
+                        "kind": "numberTypeNode",
+                        "format": "f64",
+                        "endian": "le"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "newMultiplierEffectiveTimestamp",
+                      "docs": [],
+                      "type": {
+                        "kind": "numberTypeNode",
+                        "format": "u64",
+                        "endian": "le"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "newMultiplier",
+                      "docs": [],
+                      "type": {
+                        "kind": "numberTypeNode",
+                        "format": "f64",
+                        "endian": "le"
                       }
                     }
                   ]
