@@ -13,11 +13,9 @@ use {
     },
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
-    solana_program::{
-        instruction::{AccountMeta, Instruction},
-        program_error::ProgramError,
-        pubkey::Pubkey,
-    },
+    solana_instruction::{AccountMeta, Instruction},
+    solana_program_error::ProgramError,
+    solana_pubkey::Pubkey,
     solana_zk_sdk::encryption::pod::{
         auth_encryption::PodAeCiphertext,
         elgamal::{PodElGamalCiphertext, PodElGamalPubkey},

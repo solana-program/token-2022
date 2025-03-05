@@ -16,13 +16,11 @@ use {
         extension::ExtensionType,
     },
     bytemuck::Pod,
-    solana_program::{
-        instruction::{AccountMeta, Instruction},
-        program_error::ProgramError,
-        program_option::COption,
-        pubkey::{Pubkey, PUBKEY_BYTES},
-        system_program, sysvar,
-    },
+    solana_instruction::{AccountMeta, Instruction},
+    solana_program_error::ProgramError,
+    solana_program_option::COption,
+    solana_pubkey::{Pubkey, PUBKEY_BYTES},
+    solana_sdk_ids::{system_program, sysvar},
     spl_pod::bytemuck::{pod_from_bytes, pod_get_packed_len},
     std::{
         convert::{TryFrom, TryInto},

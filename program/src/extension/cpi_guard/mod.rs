@@ -6,7 +6,6 @@ use {
         state::Account,
     },
     bytemuck::{Pod, Zeroable},
-    solana_program::instruction::{get_stack_height, TRANSACTION_LEVEL_STACK_HEIGHT},
     spl_pod::primitives::PodBool,
 };
 
@@ -39,5 +38,14 @@ pub fn cpi_guard_enabled(account_state: &StateWithExtensionsMut<Account>) -> boo
 
 /// Determine if we are in CPI
 pub fn in_cpi() -> bool {
-    get_stack_height() > TRANSACTION_LEVEL_STACK_HEIGHT
+    #[cfg(target_os = "solana")]
+    #[allow(unsafe_code)]
+    unsafe {
+        use solana_instruction::{syscalls::sol_get_stack_height, TRANSACTION_LEVEL_STACK_HEIGHT};
+        sol_get_stack_height() as usize > TRANSACTION_LEVEL_STACK_HEIGHT
+    }
+    #[cfg(not(target_os = "solana"))]
+    {
+        false
+    }
 }

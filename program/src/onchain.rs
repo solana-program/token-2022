@@ -7,10 +7,11 @@ use {
         instruction,
         state::Mint,
     },
-    solana_program::{
-        account_info::AccountInfo, entrypoint::ProgramResult, instruction::Instruction,
-        program::invoke_signed, program_error::ProgramError, pubkey::Pubkey,
-    },
+    solana_account_info::AccountInfo,
+    solana_cpi::invoke_signed,
+    solana_instruction::Instruction,
+    solana_program_error::{ProgramError, ProgramResult},
+    solana_pubkey::Pubkey,
     spl_transfer_hook_interface::onchain::add_extra_accounts_for_execute_cpi,
 };
 
@@ -185,7 +186,9 @@ mod tests {
             },
             pod::{PodCOption, PodMint},
         },
-        solana_program::{instruction::AccountMeta, program_option::COption, program_pack::Pack},
+        solana_instruction::AccountMeta,
+        solana_program_option::COption,
+        solana_program_pack::Pack,
         spl_pod::{optional_keys::OptionalNonZeroPubkey, primitives::PodBool},
         spl_tlv_account_resolution::{account::ExtraAccountMeta, state::ExtraAccountMetaList},
         spl_transfer_hook_interface::{
