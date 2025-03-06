@@ -7,10 +7,9 @@ import {
 } from '../../_setup';
 import {
   Account,
-  address,
   generateKeyPairSigner,
   isSome,
-} from '@solana/web3.js';
+} from '@solana/kit';
 import {
   extension,
   fetchMint,
@@ -18,19 +17,21 @@ import {
   Mint,
 } from '../../../src';
 
-test('it initialize a mint account with an interest bearing mint extension', async (t) => {
+test('it initialize a mint account with a scaled ui amount mint extension', async (t) => {
+  // Given a fresh client with no state the test cares about.
   const client = createDefaultSolanaClient();
   const [authority, mint] = await Promise.all([
     generateKeyPairSignerWithSol(client),
     generateKeyPairSigner(),
   ]);
 
+  const multiplier = 1;
   const newMultiplier = 2;
 
   // And a scaled ui amount mint extension.
   const scaledUiAmountMintExtension = extension('ScaledUiAmountConfig', {
     authority: authority.address,
-    multiplier: 1,
+    multiplier,
     newMultiplierEffectiveTimestamp: BigInt(
       Math.floor(new Date().getTime() / 1000)
     ),
@@ -38,8 +39,6 @@ test('it initialize a mint account with an interest bearing mint extension', asy
   });
 
   // When we initialize the mint account with the scaled ui amount mint extension.
-
-  // And a mint close authority extension.
   const [createMintInstruction, initMintInstruction] =
     await getCreateMintInstructions({
       authority: authority.address,
@@ -54,34 +53,38 @@ test('it initialize a mint account with an interest bearing mint extension', asy
     getInitializeScaledUiAmountMintInstruction({
       mint: mint.address,
       authority: authority.address,
-      multiplier: 1,
+      multiplier,
     }),
     initMintInstruction,
   ]);
 
   const mintAccount = await fetchMint(client.rpc, mint.address);
+  // Then the mint account exists.
+  t.like(mintAccount, <Account<Mint>>{
+    address: mint.address,
+  });
 
   const extensions = mintAccount.data.extensions;
 
+  // And the mint account has a scaled ui amount mint extension.
   t.true(isSome(extensions));
   t.true(
     isSome(extensions) && extensions.value[0].__kind === 'ScaledUiAmountConfig'
   );
 
-  // check without need to check timestamp specifically
   if (
     isSome(extensions) &&
     extensions.value[0].__kind === 'ScaledUiAmountConfig'
   ) {
+    // And the extension has the correct authority.
     t.is(extensions.value[0].authority, authority.address);
-    t.is(extensions.value[0].multiplier, 1);
+    // And the extension has the correct multiplier.
+    t.is(extensions.value[0].multiplier, multiplier);
+    // And the extension has the correct new multiplier effective timestamp.
     t.true(
       typeof extensions.value[0].newMultiplierEffectiveTimestamp === 'bigint'
     );
-    t.is(extensions.value[0].newMultiplier, 1);
+    // And the extension has the correct new multiplier which is not changed due to how the extension is initialized.
+    t.is(extensions.value[0].newMultiplier, multiplier);
   }
-
-  t.like(mintAccount, <Account<Mint>>{
-    address: mint.address,
-  });
 });

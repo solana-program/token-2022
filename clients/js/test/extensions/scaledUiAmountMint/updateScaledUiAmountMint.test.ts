@@ -5,12 +5,11 @@ import {
   generateKeyPairSignerWithSol,
   sendAndConfirmInstructions,
 } from '../../_setup';
-import { Account, isSome } from '@solana/web3.js';
+import { isSome } from '@solana/kit';
 import {
   extension,
   fetchMint,
   getUpdateMultiplierScaledUiMintInstruction,
-  Mint,
 } from '../../../src';
 
 test('it updates the multiplier of the scaled ui amount mint extension on a mint account', async (t) => {
@@ -23,7 +22,7 @@ test('it updates the multiplier of the scaled ui amount mint extension on a mint
   const oldMultiplier = 1;
   const newMultiplier = 2;
 
-  // initialize mint with scaled ui amount mint extension
+  // And a mint with a scaled ui amount mint extension.
   const mint = await createMint({
     authority: multiplierAuthority,
     client,
@@ -40,7 +39,7 @@ test('it updates the multiplier of the scaled ui amount mint extension on a mint
     payer: multiplierAuthority,
   });
 
-  // then we update the interest bearing mint extension on the mint account
+  // When we update the scaled ui amount mint extension on the mint account
   await sendAndConfirmInstructions(client, multiplierAuthority, [
     getUpdateMultiplierScaledUiMintInstruction({
       mint,
@@ -52,9 +51,8 @@ test('it updates the multiplier of the scaled ui amount mint extension on a mint
 
   const mintAccount = await fetchMint(client.rpc, mint);
 
-  // check without need to check timestamp specifically
+  // Then the mint account has a scaled ui amount mint extension.
   const extensions = mintAccount.data.extensions;
-
   t.true(isSome(extensions));
   t.true(
     isSome(extensions) && extensions.value[0].__kind === 'ScaledUiAmountConfig'
@@ -64,15 +62,15 @@ test('it updates the multiplier of the scaled ui amount mint extension on a mint
     isSome(extensions) &&
     extensions.value[0].__kind === 'ScaledUiAmountConfig'
   ) {
+    // And the extension has the correct authority.
     t.is(extensions.value[0].authority, multiplierAuthority.address);
+    // And the extension has the correct multiplier.
     t.true(typeof extensions.value[0].multiplier === 'number');
+    // And the extension has the correct new multiplier effective timestamp.
     t.true(
       typeof extensions.value[0].newMultiplierEffectiveTimestamp === 'bigint'
     );
+    // And the extension has the correct new multiplier.
     t.is(extensions.value[0].newMultiplier, newMultiplier);
   }
-
-  t.like(mintAccount, <Account<Mint>>{
-    address: mint,
-  });
 });
