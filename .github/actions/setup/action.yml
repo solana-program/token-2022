@@ -50,6 +50,7 @@ runs:
         sudo rm -rf /usr/share/az_*
         sudo rm -rf /usr/share/postgresql-common
         sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/.ghcup
         sudo rm -rf /opt/az
         sudo rm -rf /opt/pipx
         sudo rm -rf /opt/microsoft
@@ -60,6 +61,8 @@ runs:
         sudo rm -rf /imagegeneration
         sudo rm -rf "$AGENT_TOOLSDIRECTORY"
         sudo docker image prune --all --force
+        sudo swapoff -a
+        sudo rm -f /mnt/swapfile
 
     - name: Install Dependencies
       run: pnpm install --frozen-lockfile
