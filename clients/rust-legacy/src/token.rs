@@ -30,6 +30,11 @@ use {
     spl_record::state::RecordData,
     spl_token_2022::{
         extension::{
+            confidential_mint_burn::{
+                self,
+                account_info::{BurnAccountInfo, SupplyAccountInfo},
+                ConfidentialMintBurn,
+            },
             confidential_transfer::{
                 self,
                 account_info::{
@@ -52,7 +57,10 @@ use {
             encryption::{
                 auth_encryption::AeKey,
                 elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey, ElGamalSecretKey},
-                pod::elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
+                pod::{
+                    auth_encryption::PodAeCiphertext,
+                    elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
+                },
             },
             zk_elgamal_proof_program::{
                 self,
@@ -67,8 +75,8 @@ use {
         zk_proof_type_to_instruction, ProofData, ProofLocation,
     },
     spl_token_confidential_transfer_proof_generation::{
-        transfer::TransferProofData, transfer_with_fee::TransferWithFeeProofData,
-        withdraw::WithdrawProofData,
+        burn::BurnProofData, mint::MintProofData, transfer::TransferProofData,
+        transfer_with_fee::TransferWithFeeProofData, withdraw::WithdrawProofData,
     },
     spl_token_group_interface::state::{TokenGroup, TokenGroupMember},
     spl_token_metadata_interface::state::{Field, TokenMetadata},
@@ -196,6 +204,10 @@ pub enum ExtensionInitializationParams {
     PausableConfig {
         authority: Pubkey,
     },
+    ConfidentialMintBurn {
+        supply_elgamal_pubkey: PodElGamalPubkey,
+        decryptable_supply: PodAeCiphertext,
+    },
 }
 impl ExtensionInitializationParams {
     /// Get the extension type associated with the init params
@@ -217,6 +229,7 @@ impl ExtensionInitializationParams {
             Self::GroupMemberPointer { .. } => ExtensionType::GroupMemberPointer,
             Self::ScaledUiAmountConfig { .. } => ExtensionType::ScaledUiAmount,
             Self::PausableConfig { .. } => ExtensionType::Pausable,
+            Self::ConfidentialMintBurn { .. } => ExtensionType::ConfidentialMintBurn,
         }
     }
     /// Generate an appropriate initialization instruction for the given mint
@@ -338,6 +351,15 @@ impl ExtensionInitializationParams {
             Self::PausableConfig { authority } => {
                 pausable::instruction::initialize(token_program_id, mint, &authority)
             }
+            Self::ConfidentialMintBurn {
+                supply_elgamal_pubkey,
+                decryptable_supply,
+            } => confidential_mint_burn::instruction::initialize_mint(
+                token_program_id,
+                mint,
+                &supply_elgamal_pubkey,
+                &decryptable_supply,
+            ),
         }
     }
 }
@@ -2687,7 +2709,7 @@ where
             && fee_ciphertext_validity_proof_account.is_some()
             && range_proof_account.is_some()
         {
-            // is all proofs come from accounts, then skip proof generation
+            // if all proofs come from accounts, then skip proof generation
             (None, None, None, None, None)
         } else {
             let TransferWithFeeProofData {
@@ -3175,6 +3197,386 @@ where
                     &multisig_signers,
                 )?,
             ],
+            signing_keypairs,
+        )
+        .await
+    }
+
+    /// Rotate supply ElGamal public key in a confidential mint
+    #[allow(clippy::too_many_arguments)]
+    pub async fn confidential_transfer_rotate_supply_elgamal_pubkey<S: Signers>(
+        &self,
+        authority: &Pubkey,
+        current_supply_elgamal_keypair: &ElGamalKeypair,
+        new_supply_elgamal_pubkey: &ElGamalPubkey,
+        aes_key: &AeKey,
+        proof_account: Option<&ProofAccount>,
+        account_info: Option<SupplyAccountInfo>,
+        signing_keypairs: &S,
+    ) -> TokenResult<T::Output> {
+        let signing_pubkeys = signing_keypairs.pubkeys();
+        let multisig_signers = self.get_multisig_signers(authority, &signing_pubkeys);
+
+        let account_info = if let Some(account_info) = account_info {
+            account_info
+        } else {
+            let account = self.get_mint_info().await?;
+            let confidential_supply_account = account.get_extension::<ConfidentialMintBurn>()?;
+            SupplyAccountInfo::new(confidential_supply_account)
+        };
+
+        let proof_data = if proof_account.is_some() {
+            None
+        } else {
+            Some(
+                account_info
+                    .generate_rotate_supply_elgamal_pubkey_proof(
+                        current_supply_elgamal_keypair,
+                        new_supply_elgamal_pubkey,
+                        aes_key,
+                    )
+                    .map_err(|_| TokenError::ProofGeneration)?,
+            )
+        };
+
+        // cannot panic as long as either `proof_data` or `proof_account` is `Some(..)`,
+        // which is guaranteed by the previous check
+        let proof_location = Self::confidential_transfer_create_proof_location(
+            proof_data.as_ref(),
+            proof_account,
+            1,
+        )
+        .unwrap();
+
+        let new_supply_elgamal_pubkey = (*new_supply_elgamal_pubkey).into();
+        self.process_ixs(
+            &confidential_mint_burn::instruction::rotate_supply_elgamal_pubkey(
+                &self.program_id,
+                &self.pubkey,
+                authority,
+                &multisig_signers,
+                &new_supply_elgamal_pubkey,
+                proof_location,
+            )?,
+            signing_keypairs,
+        )
+        .await
+    }
+
+    /// Update decryptable supply in a confidential mint
+    pub async fn confidential_transfer_update_decrypt_supply<S: Signers>(
+        &self,
+        authority: &Pubkey,
+        new_decryptable_supply: &DecryptableBalance,
+        signing_keypairs: &S,
+    ) -> TokenResult<T::Output> {
+        let signing_pubkeys = signing_keypairs.pubkeys();
+        let multisig_signers = self.get_multisig_signers(authority, &signing_pubkeys);
+
+        self.process_ixs(
+            &[
+                confidential_mint_burn::instruction::update_decryptable_supply(
+                    &self.program_id,
+                    &self.pubkey,
+                    authority,
+                    &multisig_signers,
+                    new_decryptable_supply,
+                )?,
+            ],
+            signing_keypairs,
+        )
+        .await
+    }
+
+    /// Confidentially mint tokens
+    #[allow(clippy::too_many_arguments)]
+    pub async fn confidential_transfer_mint<S: Signers>(
+        &self,
+        authority: &Pubkey,
+        destination_account: &Pubkey,
+        equality_proof_account: Option<&ProofAccount>,
+        ciphertext_validity_proof_account_with_ciphertext: Option<&ProofAccountWithCiphertext>,
+        range_proof_account: Option<&ProofAccount>,
+        mint_amount: u64,
+        supply_elgamal_keypair: &ElGamalKeypair,
+        destination_elgamal_pubkey: &ElGamalPubkey,
+        auditor_elgamal_pubkey: Option<&ElGamalPubkey>,
+        aes_key: &AeKey,
+        account_info: Option<SupplyAccountInfo>,
+        signing_keypairs: &S,
+    ) -> TokenResult<T::Output> {
+        let signing_pubkeys = signing_keypairs.pubkeys();
+        let multisig_signers = self.get_multisig_signers(authority, &signing_pubkeys);
+
+        let account_info = if let Some(account_info) = account_info {
+            account_info
+        } else {
+            let account = self.get_mint_info().await?;
+            let confidential_supply_account = account.get_extension::<ConfidentialMintBurn>()?;
+            SupplyAccountInfo::new(confidential_supply_account)
+        };
+
+        let (equality_proof_data, ciphertext_validity_proof_data_with_ciphertext, range_proof_data) =
+            if equality_proof_account.is_some()
+                && ciphertext_validity_proof_account_with_ciphertext.is_some()
+                && range_proof_account.is_some()
+            {
+                // if all proofs come from accounts, then skip proof generation
+                (None, None, None)
+            } else {
+                let MintProofData {
+                    equality_proof_data,
+                    ciphertext_validity_proof_data_with_ciphertext,
+                    range_proof_data,
+                } = account_info
+                    .generate_split_mint_proof_data(
+                        mint_amount,
+                        supply_elgamal_keypair,
+                        aes_key,
+                        destination_elgamal_pubkey,
+                        auditor_elgamal_pubkey,
+                    )
+                    .map_err(|_| TokenError::ProofGeneration)?;
+
+                let equality_proof_data = equality_proof_account
+                    .is_none()
+                    .then_some(equality_proof_data);
+                let ciphertext_validity_proof_data_with_ciphertext =
+                    ciphertext_validity_proof_account_with_ciphertext
+                        .is_none()
+                        .then_some(ciphertext_validity_proof_data_with_ciphertext);
+                let range_proof_data = range_proof_account.is_none().then_some(range_proof_data);
+
+                (
+                    equality_proof_data,
+                    ciphertext_validity_proof_data_with_ciphertext,
+                    range_proof_data,
+                )
+            };
+
+        // cannot panic as long as either `proof_data` or `proof_account` is `Some(..)`,
+        // which is guaranteed by the previous check
+        let equality_proof_location = Self::confidential_transfer_create_proof_location(
+            equality_proof_data.as_ref(),
+            equality_proof_account,
+            1,
+        )
+        .unwrap();
+        let ciphertext_validity_proof_data =
+            ciphertext_validity_proof_data_with_ciphertext.map(|data| data.proof_data);
+        let ciphertext_validity_proof_location = Self::confidential_transfer_create_proof_location(
+            ciphertext_validity_proof_data.as_ref(),
+            ciphertext_validity_proof_account_with_ciphertext.map(|account| &account.proof_account),
+            2,
+        )
+        .unwrap();
+        let range_proof_location = Self::confidential_transfer_create_proof_location(
+            range_proof_data.as_ref(),
+            range_proof_account,
+            3,
+        )
+        .unwrap();
+
+        let (mint_amount_auditor_ciphertext_lo, mint_amount_auditor_ciphertext_hi) = if let Some(
+            proof_data_with_ciphertext,
+        ) =
+            ciphertext_validity_proof_data_with_ciphertext
+        {
+            (
+                proof_data_with_ciphertext.ciphertext_lo,
+                proof_data_with_ciphertext.ciphertext_hi,
+            )
+        } else {
+            // unwrap is safe as long as either `proof_data_with_ciphertext`,
+            // `proof_account_with_ciphertext` is `Some(..)`, which is guaranteed by the
+            // previous check
+            (
+                ciphertext_validity_proof_account_with_ciphertext
+                    .unwrap()
+                    .ciphertext_lo,
+                ciphertext_validity_proof_account_with_ciphertext
+                    .unwrap()
+                    .ciphertext_hi,
+            )
+        };
+
+        let new_decryptable_supply = account_info
+            .new_decryptable_supply(mint_amount, supply_elgamal_keypair, aes_key)
+            .map_err(|_| TokenError::AccountDecryption)?
+            .into();
+
+        self.process_ixs(
+            &confidential_mint_burn::instruction::confidential_mint_with_split_proofs(
+                &self.program_id,
+                destination_account,
+                &self.pubkey,
+                &mint_amount_auditor_ciphertext_lo,
+                &mint_amount_auditor_ciphertext_hi,
+                authority,
+                &multisig_signers,
+                equality_proof_location,
+                ciphertext_validity_proof_location,
+                range_proof_location,
+                &new_decryptable_supply,
+            )?,
+            signing_keypairs,
+        )
+        .await
+    }
+
+    /// Confidentially burn tokens
+    #[allow(clippy::too_many_arguments)]
+    pub async fn confidential_transfer_burn<S: Signers>(
+        &self,
+        authority: &Pubkey,
+        source_account: &Pubkey,
+        equality_proof_account: Option<&ProofAccount>,
+        ciphertext_validity_proof_account_with_ciphertext: Option<&ProofAccountWithCiphertext>,
+        range_proof_account: Option<&ProofAccount>,
+        burn_amount: u64,
+        source_elgamal_keypair: &ElGamalKeypair,
+        supply_elgamal_pubkey: &ElGamalPubkey,
+        auditor_elgamal_pubkey: Option<&ElGamalPubkey>,
+        aes_key: &AeKey,
+        account_info: Option<BurnAccountInfo>,
+        signing_keypairs: &S,
+    ) -> TokenResult<T::Output> {
+        let signing_pubkeys = signing_keypairs.pubkeys();
+        let multisig_signers = self.get_multisig_signers(authority, &signing_pubkeys);
+
+        let account_info = if let Some(account_info) = account_info {
+            account_info
+        } else {
+            let account = self.get_account_info(source_account).await?;
+            let confidential_supply_account =
+                account.get_extension::<ConfidentialTransferAccount>()?;
+            BurnAccountInfo::new(confidential_supply_account)
+        };
+
+        let (equality_proof_data, ciphertext_validity_proof_data_with_ciphertext, range_proof_data) =
+            if equality_proof_account.is_some()
+                && ciphertext_validity_proof_account_with_ciphertext.is_some()
+                && range_proof_account.is_some()
+            {
+                // if all proofs come from accounts, then skip proof generation
+                (None, None, None)
+            } else {
+                let BurnProofData {
+                    equality_proof_data,
+                    ciphertext_validity_proof_data_with_ciphertext,
+                    range_proof_data,
+                } = account_info
+                    .generate_split_burn_proof_data(
+                        burn_amount,
+                        source_elgamal_keypair,
+                        aes_key,
+                        supply_elgamal_pubkey,
+                        auditor_elgamal_pubkey,
+                    )
+                    .map_err(|_| TokenError::ProofGeneration)?;
+
+                let equality_proof_data = equality_proof_account
+                    .is_none()
+                    .then_some(equality_proof_data);
+                let ciphertext_validity_proof_data_with_ciphertext =
+                    ciphertext_validity_proof_account_with_ciphertext
+                        .is_none()
+                        .then_some(ciphertext_validity_proof_data_with_ciphertext);
+                let range_proof_data = range_proof_account.is_none().then_some(range_proof_data);
+
+                (
+                    equality_proof_data,
+                    ciphertext_validity_proof_data_with_ciphertext,
+                    range_proof_data,
+                )
+            };
+
+        // cannot panic as long as either `proof_data` or `proof_account` is `Some(..)`,
+        // which is guaranteed by the previous check
+        let equality_proof_location = Self::confidential_transfer_create_proof_location(
+            equality_proof_data.as_ref(),
+            equality_proof_account,
+            1,
+        )
+        .unwrap();
+        let ciphertext_validity_proof_data =
+            ciphertext_validity_proof_data_with_ciphertext.map(|data| data.proof_data);
+        let ciphertext_validity_proof_location = Self::confidential_transfer_create_proof_location(
+            ciphertext_validity_proof_data.as_ref(),
+            ciphertext_validity_proof_account_with_ciphertext.map(|account| &account.proof_account),
+            2,
+        )
+        .unwrap();
+        let range_proof_location = Self::confidential_transfer_create_proof_location(
+            range_proof_data.as_ref(),
+            range_proof_account,
+            3,
+        )
+        .unwrap();
+
+        let (burn_amount_auditor_ciphertext_lo, burn_amount_auditor_ciphertext_hi) = if let Some(
+            proof_data_with_ciphertext,
+        ) =
+            ciphertext_validity_proof_data_with_ciphertext
+        {
+            (
+                proof_data_with_ciphertext.ciphertext_lo,
+                proof_data_with_ciphertext.ciphertext_hi,
+            )
+        } else {
+            // unwrap is safe as long as either `proof_data_with_ciphertext`,
+            // `proof_account_with_ciphertext` is `Some(..)`, which is guaranteed by the
+            // previous check
+            (
+                ciphertext_validity_proof_account_with_ciphertext
+                    .unwrap()
+                    .ciphertext_lo,
+                ciphertext_validity_proof_account_with_ciphertext
+                    .unwrap()
+                    .ciphertext_hi,
+            )
+        };
+
+        let new_decryptable_balance = account_info
+            .new_decryptable_balance(burn_amount, aes_key)
+            .map_err(|_| TokenError::AccountDecryption)?
+            .into();
+
+        self.process_ixs(
+            &confidential_mint_burn::instruction::confidential_burn_with_split_proofs(
+                &self.program_id,
+                source_account,
+                &self.pubkey,
+                &new_decryptable_balance,
+                &burn_amount_auditor_ciphertext_lo,
+                &burn_amount_auditor_ciphertext_hi,
+                authority,
+                &multisig_signers,
+                equality_proof_location,
+                ciphertext_validity_proof_location,
+                range_proof_location,
+            )?,
+            signing_keypairs,
+        )
+        .await
+    }
+
+    /// Apply pending burn amount to the confidential supply amount
+    pub async fn confidential_transfer_apply_pending_burn<S: Signers>(
+        &self,
+        authority: &Pubkey,
+        signing_keypairs: &S,
+    ) -> TokenResult<T::Output> {
+        let signing_pubkeys = signing_keypairs.pubkeys();
+        let multisig_signers = self.get_multisig_signers(authority, &signing_pubkeys);
+
+        self.process_ixs(
+            &[confidential_mint_burn::instruction::apply_pending_burn(
+                &self.program_id,
+                &self.pubkey,
+                authority,
+                &multisig_signers,
+            )?],
             signing_keypairs,
         )
         .await

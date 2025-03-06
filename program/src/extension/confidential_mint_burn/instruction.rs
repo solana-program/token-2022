@@ -13,11 +13,9 @@ use {
     },
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
-    solana_program::{
-        instruction::{AccountMeta, Instruction},
-        program_error::ProgramError,
-        pubkey::Pubkey,
-    },
+    solana_instruction::{AccountMeta, Instruction},
+    solana_program_error::ProgramError,
+    solana_pubkey::Pubkey,
     solana_zk_sdk::encryption::pod::{
         auth_encryption::PodAeCiphertext,
         elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
@@ -25,14 +23,11 @@ use {
 };
 #[cfg(not(target_os = "solana"))]
 use {
-    solana_zk_sdk::{
-        encryption::elgamal::ElGamalPubkey,
-        zk_elgamal_proof_program::{
-            instruction::ProofInstruction,
-            proof_data::{
-                BatchedGroupedCiphertext3HandlesValidityProofData, BatchedRangeProofU128Data,
-                CiphertextCiphertextEqualityProofData, CiphertextCommitmentEqualityProofData,
-            },
+    solana_zk_sdk::zk_elgamal_proof_program::{
+        instruction::ProofInstruction,
+        proof_data::{
+            BatchedGroupedCiphertext3HandlesValidityProofData, BatchedRangeProofU128Data,
+            CiphertextCiphertextEqualityProofData, CiphertextCommitmentEqualityProofData,
         },
     },
     spl_token_confidential_transfer_proof_extraction::instruction::{
@@ -64,6 +59,9 @@ pub enum ConfidentialMintBurnInstruction {
     ///   `InitializeMintData`
     InitializeMint,
     /// Rotates the ElGamal pubkey used to encrypt confidential supply
+    ///
+    /// The pending burn amount must be zero in order for this instruction
+    /// to be processed successfully.
     ///
     /// Accounts expected by this instruction:
     ///
@@ -111,8 +109,7 @@ pub enum ConfidentialMintBurnInstruction {
     ///
     ///   * Single authority
     ///   0. `[writable]` The SPL Token account.
-    ///   1. `[]` The SPL Token mint. `[writable]` if the mint has a non-zero
-    ///      supply elgamal-pubkey
+    ///   1. `[writable]` The SPL Token mint.
     ///   2. `[]` (Optional) Instructions sysvar if at least one of the
     ///      `zk_elgamal_proof` instructions are included in the same
     ///      transaction.
@@ -151,8 +148,7 @@ pub enum ConfidentialMintBurnInstruction {
     ///
     ///   * Single authority
     ///   0. `[writable]` The SPL Token account.
-    ///   1. `[]` The SPL Token mint. `[writable]` if the mint has a non-zero
-    ///      supply elgamal-pubkey
+    ///   1. `[writable]` The SPL Token mint.
     ///   2. `[]` (Optional) Instructions sysvar if at least one of the
     ///      `zk_elgamal_proof` instructions are included in the same
     ///      transaction.
@@ -183,6 +179,19 @@ pub enum ConfidentialMintBurnInstruction {
     /// Data expected by this instruction:
     ///   `BurnInstructionData`
     Burn,
+
+    /// Applies the pending burn amount to the confidential supply
+    ///
+    ///   * Single authority
+    ///   0. `[writable]` The SPL token mint.
+    ///   1. `[signer]` The single mint authority.
+    ///
+    ///   * Multisignature authority
+    ///   0. `[writable]` The SPL token mint.
+    ///   1. `[]` The multisig account owner.
+    ///   2. .. `[signer]` Required M signer accounts for the SPL Token Multisig
+    ///      account.
+    ApplyPendingBurn,
 }
 
 /// Data expected by `ConfidentialMintBurnInstruction::InitializeMint`
@@ -407,7 +416,6 @@ pub fn confidential_mint_with_split_proofs(
     token_program_id: &Pubkey,
     token_account: &Pubkey,
     mint: &Pubkey,
-    supply_elgamal_pubkey: Option<ElGamalPubkey>,
     mint_amount_auditor_ciphertext_lo: &PodElGamalCiphertext,
     mint_amount_auditor_ciphertext_hi: &PodElGamalCiphertext,
     authority: &Pubkey,
@@ -420,14 +428,10 @@ pub fn confidential_mint_with_split_proofs(
     new_decryptable_supply: &DecryptableBalance,
 ) -> Result<Vec<Instruction>, ProgramError> {
     check_program_account(token_program_id)?;
-    let mut accounts = vec![AccountMeta::new(*token_account, false)];
-    // we only need write lock to adjust confidential suppy on
-    // mint if a value for supply_elgamal_pubkey has been set
-    if supply_elgamal_pubkey.is_some() {
-        accounts.push(AccountMeta::new(*mint, false));
-    } else {
-        accounts.push(AccountMeta::new_readonly(*mint, false));
-    }
+    let mut accounts = vec![
+        AccountMeta::new(*token_account, false),
+        AccountMeta::new(*mint, false),
+    ];
 
     let mut expected_instruction_offset = 1;
     let mut proof_instructions = vec![];
@@ -494,7 +498,6 @@ pub fn confidential_burn_with_split_proofs(
     token_program_id: &Pubkey,
     token_account: &Pubkey,
     mint: &Pubkey,
-    supply_elgamal_pubkey: Option<ElGamalPubkey>,
     new_decryptable_available_balance: &DecryptableBalance,
     burn_amount_auditor_ciphertext_lo: &PodElGamalCiphertext,
     burn_amount_auditor_ciphertext_hi: &PodElGamalCiphertext,
@@ -507,12 +510,10 @@ pub fn confidential_burn_with_split_proofs(
     range_proof_location: ProofLocation<BatchedRangeProofU128Data>,
 ) -> Result<Vec<Instruction>, ProgramError> {
     check_program_account(token_program_id)?;
-    let mut accounts = vec![AccountMeta::new(*token_account, false)];
-    if supply_elgamal_pubkey.is_some() {
-        accounts.push(AccountMeta::new(*mint, false));
-    } else {
-        accounts.push(AccountMeta::new_readonly(*mint, false));
-    }
+    let mut accounts = vec![
+        AccountMeta::new(*token_account, false),
+        AccountMeta::new(*mint, false),
+    ];
 
     let mut expected_instruction_offset = 1;
     let mut proof_instructions = vec![];
@@ -571,4 +572,28 @@ pub fn confidential_burn_with_split_proofs(
     instructions.extend(proof_instructions);
 
     Ok(instructions)
+}
+
+/// Create a `ApplyPendingBurn` instruction
+pub fn apply_pending_burn(
+    token_program_id: &Pubkey,
+    mint: &Pubkey,
+    authority: &Pubkey,
+    multisig_signers: &[&Pubkey],
+) -> Result<Instruction, ProgramError> {
+    check_program_account(token_program_id)?;
+    let mut accounts = vec![
+        AccountMeta::new(*mint, false),
+        AccountMeta::new_readonly(*authority, multisig_signers.is_empty()),
+    ];
+    for multisig_signer in multisig_signers.iter() {
+        accounts.push(AccountMeta::new_readonly(**multisig_signer, true));
+    }
+    Ok(encode_instruction(
+        token_program_id,
+        accounts,
+        TokenInstruction::ConfidentialMintBurnExtension,
+        ConfidentialMintBurnInstruction::ApplyPendingBurn,
+        &(),
+    ))
 }

@@ -49,25 +49,25 @@ pub fn mint_split_proof_data(
     let (mint_amount_grouped_ciphertext_lo, mint_amount_opening_lo) = MintAmountCiphertext::new(
         mint_amount_lo,
         destination_elgamal_pubkey,
-        auditor_elgamal_pubkey,
         supply_elgamal_keypair.pubkey(),
+        auditor_elgamal_pubkey,
     );
 
     let (mint_amount_grouped_ciphertext_hi, mint_amount_opening_hi) = MintAmountCiphertext::new(
         mint_amount_hi,
         destination_elgamal_pubkey,
-        auditor_elgamal_pubkey,
         supply_elgamal_keypair.pubkey(),
+        auditor_elgamal_pubkey,
     );
 
     // compute the new supply ciphertext
     let mint_amount_ciphertext_supply_lo = mint_amount_grouped_ciphertext_lo
         .0
-        .to_elgamal_ciphertext(2)
+        .to_elgamal_ciphertext(1)
         .unwrap();
     let mint_amount_ciphertext_supply_hi = mint_amount_grouped_ciphertext_hi
         .0
-        .to_elgamal_ciphertext(2)
+        .to_elgamal_ciphertext(1)
         .unwrap();
 
     #[allow(clippy::arithmetic_side_effects)]
@@ -99,8 +99,8 @@ pub fn mint_split_proof_data(
     // generate ciphertext validity proof data
     let ciphertext_validity_proof_data = BatchedGroupedCiphertext3HandlesValidityProofData::new(
         destination_elgamal_pubkey,
-        auditor_elgamal_pubkey,
         supply_elgamal_keypair.pubkey(),
+        auditor_elgamal_pubkey,
         &mint_amount_grouped_ciphertext_lo.0,
         &mint_amount_grouped_ciphertext_hi.0,
         mint_amount_lo,

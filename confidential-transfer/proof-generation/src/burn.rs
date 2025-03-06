@@ -36,8 +36,8 @@ pub fn burn_split_proof_data(
     burn_amount: u64,
     source_elgamal_keypair: &ElGamalKeypair,
     source_aes_key: &AeKey,
-    auditor_elgamal_pubkey: Option<&ElGamalPubkey>,
     supply_elgamal_pubkey: &ElGamalPubkey,
+    auditor_elgamal_pubkey: Option<&ElGamalPubkey>,
 ) -> Result<BurnProofData, TokenProofGenerationError> {
     let default_auditor_pubkey = ElGamalPubkey::default();
     let auditor_elgamal_pubkey = auditor_elgamal_pubkey.unwrap_or(&default_auditor_pubkey);
@@ -50,15 +50,15 @@ pub fn burn_split_proof_data(
     let (burn_amount_ciphertext_lo, burn_amount_opening_lo) = BurnAmountCiphertext::new(
         burn_amount_lo,
         source_elgamal_keypair.pubkey(),
-        auditor_elgamal_pubkey,
         supply_elgamal_pubkey,
+        auditor_elgamal_pubkey,
     );
 
     let (burn_amount_ciphertext_hi, burn_amount_opening_hi) = BurnAmountCiphertext::new(
         burn_amount_hi,
         source_elgamal_keypair.pubkey(),
-        auditor_elgamal_pubkey,
         supply_elgamal_pubkey,
+        auditor_elgamal_pubkey,
     );
 
     // decrypt the current available balance at the source
@@ -106,8 +106,8 @@ pub fn burn_split_proof_data(
     // generate ciphertext validity data
     let ciphertext_validity_proof_data = BatchedGroupedCiphertext3HandlesValidityProofData::new(
         source_elgamal_keypair.pubkey(),
-        auditor_elgamal_pubkey,
         supply_elgamal_pubkey,
+        auditor_elgamal_pubkey,
         &burn_amount_ciphertext_lo.0,
         &burn_amount_ciphertext_hi.0,
         burn_amount_lo,

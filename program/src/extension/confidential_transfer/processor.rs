@@ -27,17 +27,15 @@ use {
         processor::Processor,
         state::Account,
     },
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        clock::Clock,
-        entrypoint::ProgramResult,
-        msg,
-        program::invoke,
-        program_error::ProgramError,
-        pubkey::Pubkey,
-        system_instruction,
-        sysvar::{rent::Rent, Sysvar},
-    },
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_clock::Clock,
+    solana_cpi::invoke,
+    solana_msg::msg,
+    solana_program_error::{ProgramError, ProgramResult},
+    solana_pubkey::Pubkey,
+    solana_rent::Rent,
+    solana_system_interface::instruction as system_instruction,
+    solana_sysvar::Sysvar,
     spl_elgamal_registry::state::ElGamalRegistry,
     spl_pod::bytemuck::pod_from_bytes,
     spl_token_confidential_transfer_proof_extraction::{
@@ -157,6 +155,9 @@ fn reallocate_for_configure_account_with_registry<'a>(
     // `try_calculate_account_len` dedupes extension types, so always push
     // the `ConfidentialTransferAccount` type
     current_extension_types.push(ExtensionType::ConfidentialTransferAccount);
+    if current_extension_types.contains(&ExtensionType::TransferFeeAmount) {
+        current_extension_types.push(ExtensionType::ConfidentialTransferFeeAmount);
+    }
     let needed_account_len =
         ExtensionType::try_calculate_account_len::<Account>(&current_extension_types)?;
 

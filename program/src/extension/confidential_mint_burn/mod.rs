@@ -7,14 +7,6 @@ use {
     },
 };
 
-/// Maximum bit length of any mint or burn amount
-///
-/// Any mint or burn amount must be less than `2^48`
-pub const MAXIMUM_DEPOSIT_TRANSFER_AMOUNT: u64 = (u16::MAX as u64) + (1 << 16) * (u32::MAX as u64);
-
-/// Bit length of the low bits of pending balance plaintext
-pub const PENDING_BALANCE_LO_BIT_LENGTH: u32 = 16;
-
 /// Confidential Mint-Burn Extension instructions
 pub mod instruction;
 
@@ -38,6 +30,8 @@ pub struct ConfidentialMintBurn {
     pub decryptable_supply: PodAeCiphertext,
     /// The ElGamal pubkey used to encrypt the confidential supply
     pub supply_elgamal_pubkey: PodElGamalPubkey,
+    /// The amount of burn amounts not yet aggregated into the confidential supply
+    pub pending_burn: PodElGamalCiphertext,
 }
 
 impl Extension for ConfidentialMintBurn {

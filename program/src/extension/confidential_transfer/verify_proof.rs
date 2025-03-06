@@ -3,10 +3,8 @@ use {
         error::TokenError,
         extension::{confidential_transfer::instruction::*, transfer_fee::TransferFee},
     },
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        program_error::ProgramError,
-    },
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_program_error::ProgramError,
     spl_token_confidential_transfer_proof_extraction::{
         instruction::verify_and_extract_context, transfer::TransferProofContext,
         transfer_with_fee::TransferWithFeeProofContext, withdraw::WithdrawProofContext,

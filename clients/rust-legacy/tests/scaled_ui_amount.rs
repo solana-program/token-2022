@@ -322,12 +322,12 @@ fn process_instruction(
 async fn amount_conversions() {
     let authority = Keypair::new();
     let mut program_test = ProgramTest::default();
-    program_test.prefer_bpf(false);
     program_test.add_program(
         "spl_token_2022",
         spl_token_2022::id(),
         processor!(Processor::process),
     );
+    program_test.prefer_bpf(false);
     let program_id = Pubkey::new_unique();
     program_test.add_program(
         "ui_amount_to_amount",

@@ -2,14 +2,13 @@
 
 use {
     crate::{error::TokenError, processor::Processor},
-    solana_program::{
-        account_info::AccountInfo, entrypoint::ProgramResult, program_error::PrintProgramError,
-        pubkey::Pubkey,
-    },
+    solana_account_info::AccountInfo,
+    solana_program_error::{PrintProgramError, ProgramResult},
+    solana_pubkey::Pubkey,
     solana_security_txt::security_txt,
 };
 
-solana_program::entrypoint!(process_instruction);
+solana_program_entrypoint::entrypoint!(process_instruction);
 fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],

@@ -6,7 +6,7 @@ use {
         trim_ui_amount_string,
     },
     bytemuck::{Pod, Zeroable},
-    solana_program::program_error::ProgramError,
+    solana_program_error::ProgramError,
     spl_pod::{optional_keys::OptionalNonZeroPubkey, primitives::PodI64},
 };
 
@@ -57,30 +57,40 @@ pub struct ScaledUiAmountConfig {
     pub new_multiplier: PodF64,
 }
 impl ScaledUiAmountConfig {
-    fn total_multiplier(&self, decimals: u8, unix_timestamp: i64) -> f64 {
-        let multiplier = if unix_timestamp >= self.new_multiplier_effective_timestamp.into() {
-            self.new_multiplier
+    fn current_multiplier(&self, unix_timestamp: i64) -> f64 {
+        if unix_timestamp >= self.new_multiplier_effective_timestamp.into() {
+            self.new_multiplier.into()
         } else {
-            self.multiplier
-        };
-        f64::from(multiplier) / 10_f64.powi(decimals as i32)
+            self.multiplier.into()
+        }
+    }
+
+    fn total_multiplier(&self, decimals: u8, unix_timestamp: i64) -> f64 {
+        self.current_multiplier(unix_timestamp) / 10_f64.powi(decimals as i32)
     }
 
     /// Convert a raw amount to its UI representation using the given decimals
-    /// field. Excess zeroes or unneeded decimal point are trimmed.
+    /// field.
+    ///
+    /// The value is converted to a float and then truncated towards 0. Excess
+    /// zeroes or unneeded decimal point are trimmed.
     pub fn amount_to_ui_amount(
         &self,
         amount: u64,
         decimals: u8,
         unix_timestamp: i64,
     ) -> Option<String> {
-        let scaled_amount = (amount as f64) * self.total_multiplier(decimals, unix_timestamp);
-        let ui_amount = format!("{scaled_amount:.*}", decimals as usize);
+        let scaled_amount = (amount as f64) * self.current_multiplier(unix_timestamp);
+        let truncated_amount = scaled_amount.trunc() / 10_f64.powi(decimals as i32);
+        let ui_amount = format!("{truncated_amount:.*}", decimals as usize);
         Some(trim_ui_amount_string(ui_amount, decimals))
     }
 
     /// Try to convert a UI representation of a token amount to its raw amount
-    /// using the given decimals field
+    /// using the given decimals field.
+    ///
+    /// The string is parsed to a float, scaled, and then truncated towards 0
+    /// before being converted to a fixed-point number.
     pub fn try_ui_amount_into_amount(
         &self,
         ui_amount: &str,
@@ -94,9 +104,9 @@ impl ScaledUiAmountConfig {
         if amount > (u64::MAX as f64) || amount < (u64::MIN as f64) || amount.is_nan() {
             Err(ProgramError::InvalidArgument)
         } else {
-            // this is important, if you round earlier, you'll get wrong "inf"
+            // this is important, if you truncate earlier, you'll get wrong "inf"
             // answers
-            Ok(amount.round() as u64)
+            Ok(amount.trunc() as u64)
         }
     }
 }
@@ -116,12 +126,12 @@ mod tests {
         let new_multiplier = 10.0;
         let new_multiplier_effective_timestamp = 1;
         let config = ScaledUiAmountConfig {
-            authority: OptionalNonZeroPubkey::default(),
             multiplier: PodF64::from(multiplier),
             new_multiplier: PodF64::from(new_multiplier),
             new_multiplier_effective_timestamp: UnixTimestamp::from(
                 new_multiplier_effective_timestamp,
             ),
+            ..Default::default()
         };
         assert_eq!(
             config.total_multiplier(0, new_multiplier_effective_timestamp),
@@ -140,7 +150,6 @@ mod tests {
     fn specific_amount_to_ui_amount() {
         // 5x
         let config = ScaledUiAmountConfig {
-            authority: OptionalNonZeroPubkey::default(),
             multiplier: PodF64::from(5.0),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
             ..Default::default()
@@ -160,20 +169,28 @@ mod tests {
 
         // huge values
         let config = ScaledUiAmountConfig {
-            authority: OptionalNonZeroPubkey::default(),
             multiplier: PodF64::from(f64::MAX),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
             ..Default::default()
         };
         let ui_amount = config.amount_to_ui_amount(u64::MAX, 0, 0).unwrap();
         assert_eq!(ui_amount, "inf");
+
+        // truncation
+        let config = ScaledUiAmountConfig {
+            multiplier: PodF64::from(0.99),
+            new_multiplier_effective_timestamp: UnixTimestamp::from(1),
+            ..Default::default()
+        };
+        // This is really 0.99999... but it gets truncated
+        let ui_amount = config.amount_to_ui_amount(101, 2, 0).unwrap();
+        assert_eq!(ui_amount, "0.99");
     }
 
     #[test]
     fn specific_ui_amount_to_amount() {
         // constant 5x
         let config = ScaledUiAmountConfig {
-            authority: OptionalNonZeroPubkey::default(),
             multiplier: 5.0.into(),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
             ..Default::default()
@@ -199,7 +216,6 @@ mod tests {
 
         // huge values
         let config = ScaledUiAmountConfig {
-            authority: OptionalNonZeroPubkey::default(),
             multiplier: 5.0.into(),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
             ..Default::default()
@@ -209,7 +225,6 @@ mod tests {
             .unwrap();
         assert_eq!(amount, u64::MAX);
         let config = ScaledUiAmountConfig {
-            authority: OptionalNonZeroPubkey::default(),
             multiplier: f64::MAX.into(),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
             ..Default::default()
@@ -220,7 +235,6 @@ mod tests {
             .unwrap();
         assert_eq!(amount, 1);
         let config = ScaledUiAmountConfig {
-            authority: OptionalNonZeroPubkey::default(),
             multiplier: 9.745314011399998e288.into(),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
             ..Default::default()
@@ -237,7 +251,6 @@ mod tests {
 
         // this is unfortunate, but underflows can happen due to floats
         let config = ScaledUiAmountConfig {
-            authority: OptionalNonZeroPubkey::default(),
             multiplier: 1.0.into(),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
             ..Default::default()
@@ -251,7 +264,6 @@ mod tests {
 
         // overflow u64 fail
         let config = ScaledUiAmountConfig {
-            authority: OptionalNonZeroPubkey::default(),
             multiplier: 0.1.into(),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
             ..Default::default()
@@ -267,12 +279,23 @@ mod tests {
                 config.try_ui_amount_into_amount(fail_ui_amount, 0, 0)
             );
         }
+
+        // truncation
+        let config = ScaledUiAmountConfig {
+            multiplier: PodF64::from(0.99),
+            new_multiplier_effective_timestamp: UnixTimestamp::from(1),
+            ..Default::default()
+        };
+        // There are a few possibilities for what "0.99" means, it could be 101
+        // or 100 underlying tokens, but the result gives the fewest possible
+        // tokens that give that UI amount.
+        let amount = config.try_ui_amount_into_amount("0.99", 2, 0).unwrap();
+        assert_eq!(amount, 100);
     }
 
     #[test]
     fn specific_amount_to_ui_amount_no_scale() {
         let config = ScaledUiAmountConfig {
-            authority: OptionalNonZeroPubkey::default(),
             multiplier: 1.0.into(),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
             ..Default::default()
@@ -288,7 +311,6 @@ mod tests {
     #[test]
     fn specific_ui_amount_to_amount_no_scale() {
         let config = ScaledUiAmountConfig {
-            authority: OptionalNonZeroPubkey::default(),
             multiplier: 1.0.into(),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
             ..Default::default()
@@ -333,7 +355,6 @@ mod tests {
             decimals in 0u8..20u8,
         ) {
             let config = ScaledUiAmountConfig {
-                authority: OptionalNonZeroPubkey::default(),
                 multiplier: scale.into(),
                 new_multiplier_effective_timestamp: UnixTimestamp::from(1),
                 ..Default::default()

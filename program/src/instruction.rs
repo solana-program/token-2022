@@ -16,13 +16,11 @@ use {
         extension::ExtensionType,
     },
     bytemuck::Pod,
-    solana_program::{
-        instruction::{AccountMeta, Instruction},
-        program_error::ProgramError,
-        program_option::COption,
-        pubkey::{Pubkey, PUBKEY_BYTES},
-        system_program, sysvar,
-    },
+    solana_instruction::{AccountMeta, Instruction},
+    solana_program_error::ProgramError,
+    solana_program_option::COption,
+    solana_pubkey::{Pubkey, PUBKEY_BYTES},
+    solana_sdk_ids::{system_program, sysvar},
     spl_pod::bytemuck::{pod_from_bytes, pod_get_packed_len},
     std::{
         convert::{TryFrom, TryInto},
@@ -519,6 +517,14 @@ pub enum TokenInstruction<'a> {
     /// Return data can be fetched using `sol_get_return_data` and deserialized
     /// with `String::from_utf8`.
     ///
+    /// WARNING: For mints using the interest-bearing or scaled-ui-amount
+    /// extensions, this instruction uses standard floating-point arithmetic to
+    /// convert values, which is not guaranteed to give consistent behavior.
+    ///
+    /// In particular, conversions will not always work in reverse. For example,
+    /// if you pass amount `A` to `AmountToUiAmount` and receive `B`, and pass
+    /// the result `B` to `UiAmountToAmount`, you will not always get back `A`.
+    ///
     /// Accounts expected by this instruction:
     ///
     ///   0. `[]` The mint to calculate for
@@ -531,6 +537,14 @@ pub enum TokenInstruction<'a> {
     ///
     /// Return data can be fetched using `sol_get_return_data` and deserializing
     /// the return data as a little-endian `u64`.
+    ///
+    /// WARNING: For mints using the interest-bearing or scaled-ui-amount
+    /// extensions, this instruction uses standard floating-point arithmetic to
+    /// convert values, which is not guaranteed to give consistent behavior.
+    ///
+    /// In particular, conversions will not always work in reverse. For example,
+    /// if you pass amount `A` to `UiAmountToAmount` and receive `B`, and pass
+    /// the result `B` to `AmountToUiAmount`, you will not always get back `A`.
     ///
     /// Accounts expected by this instruction:
     ///

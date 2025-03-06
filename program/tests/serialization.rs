@@ -2,8 +2,8 @@
 
 use {
     base64::{engine::general_purpose::STANDARD, Engine},
-    solana_program::program_option::COption,
-    solana_sdk::pubkey::Pubkey,
+    solana_program_option::COption,
+    solana_pubkey::Pubkey,
     spl_pod::optional_keys::{OptionalNonZeroElGamalPubkey, OptionalNonZeroPubkey},
     spl_token_2022::{extension::confidential_transfer, instruction},
     std::str::FromStr,

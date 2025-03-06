@@ -4,7 +4,7 @@
 pub const DECIMALS: u8 = 9;
 
 // The Mint for native SOL Token accounts
-solana_program::declare_id!("9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP");
+solana_pubkey::declare_id!("9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP");
 
 /// Seed for the native mint's program-derived address
 pub const PROGRAM_ADDRESS_SEEDS: &[&[u8]] = &["native-mint".as_bytes(), &[255]];
@@ -13,7 +13,8 @@ pub const PROGRAM_ADDRESS_SEEDS: &[&[u8]] = &["native-mint".as_bytes(), &[255]];
 mod tests {
     use {
         super::*,
-        solana_program::{native_token::*, pubkey::Pubkey},
+        solana_native_token::{lamports_to_sol, sol_to_lamports},
+        solana_pubkey::Pubkey,
     };
 
     #[test]

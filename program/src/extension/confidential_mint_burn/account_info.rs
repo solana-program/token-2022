@@ -87,20 +87,19 @@ impl SupplyAccountInfo {
     pub fn generate_rotate_supply_elgamal_pubkey_proof(
         &self,
         current_supply_elgamal_keypair: &ElGamalKeypair,
-        new_supply_elgamal_keypair: &ElGamalKeypair,
+        new_supply_elgamal_pubkey: &ElGamalPubkey,
         aes_key: &AeKey,
     ) -> Result<CiphertextCiphertextEqualityProofData, TokenError> {
         let current_supply =
             self.decrypted_current_supply(aes_key, current_supply_elgamal_keypair)?;
 
         let new_supply_opening = PedersenOpening::new_rand();
-        let new_supply_ciphertext = new_supply_elgamal_keypair
-            .pubkey()
-            .encrypt_with(current_supply, &new_supply_opening);
+        let new_supply_ciphertext =
+            new_supply_elgamal_pubkey.encrypt_with(current_supply, &new_supply_opening);
 
         CiphertextCiphertextEqualityProofData::new(
             current_supply_elgamal_keypair,
-            new_supply_elgamal_keypair.pubkey(),
+            new_supply_elgamal_pubkey,
             &self
                 .current_supply
                 .try_into()
@@ -117,8 +116,8 @@ impl SupplyAccountInfo {
     pub fn generate_split_mint_proof_data(
         &self,
         mint_amount: u64,
-        current_supply: u64,
         supply_elgamal_keypair: &ElGamalKeypair,
+        aes_key: &AeKey,
         destination_elgamal_pubkey: &ElGamalPubkey,
         auditor_elgamal_pubkey: Option<&ElGamalPubkey>,
     ) -> Result<MintProofData, TokenError> {
@@ -126,6 +125,8 @@ impl SupplyAccountInfo {
             .current_supply
             .try_into()
             .map_err(|_| TokenError::MalformedCiphertext)?;
+
+        let current_supply = self.decrypted_current_supply(aes_key, supply_elgamal_keypair)?;
 
         mint_split_proof_data(
             &current_supply_ciphertext,
@@ -200,9 +201,26 @@ impl BurnAccountInfo {
             burn_amount,
             source_elgamal_keypair,
             aes_key,
-            auditor_elgamal_pubkey,
             supply_elgamal_pubkey,
+            auditor_elgamal_pubkey,
         )
         .map_err(|e| -> TokenError { e.into() })
+    }
+
+    /// Compute the new decryptable supply.
+    pub fn new_decryptable_balance(
+        &self,
+        burn_amount: u64,
+        aes_key: &AeKey,
+    ) -> Result<AeCiphertext, TokenError> {
+        let current_available_balance = AeCiphertext::try_from(self.decryptable_available_balance)
+            .map_err(|_| TokenError::MalformedCiphertext)?
+            .decrypt(aes_key)
+            .ok_or(TokenError::MalformedCiphertext)?;
+        let new_decryptable_balance = current_available_balance
+            .checked_sub(burn_amount)
+            .ok_or(TokenError::Overflow)?;
+
+        Ok(aes_key.encrypt(new_decryptable_balance))
     }
 }

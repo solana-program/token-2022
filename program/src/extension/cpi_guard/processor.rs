@@ -10,12 +10,10 @@ use {
         pod::PodAccount,
         processor::Processor,
     },
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        entrypoint::ProgramResult,
-        msg,
-        pubkey::Pubkey,
-    },
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_msg::msg,
+    solana_program_error::ProgramResult,
+    solana_pubkey::Pubkey,
 };
 
 /// Toggle the `CpiGuard` extension, initializing the extension if not already

@@ -1,11 +1,8 @@
 use {
     crate::{get_elgamal_registry_address, id},
-    solana_program::{
-        instruction::{AccountMeta, Instruction},
-        program_error::ProgramError,
-        pubkey::Pubkey,
-        system_program, sysvar,
-    },
+    solana_instruction::{AccountMeta, Instruction},
+    solana_program_error::ProgramError,
+    solana_pubkey::Pubkey,
     solana_zk_sdk::zk_elgamal_proof_program::{
         instruction::ProofInstruction, proof_data::PubkeyValidityProofData,
     },
@@ -108,7 +105,7 @@ pub fn create_registry(
     let mut accounts = vec![
         AccountMeta::new(elgamal_registry_address, false),
         AccountMeta::new_readonly(*owner_address, true),
-        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(solana_sdk_ids::system_program::id(), false),
     ];
     let proof_instruction_offset = proof_instruction_offset(&mut accounts, proof_location);
 
@@ -155,7 +152,10 @@ fn proof_instruction_offset(
 ) -> i8 {
     match proof_location {
         ProofLocation::InstructionOffset(proof_instruction_offset, proof_data) => {
-            accounts.push(AccountMeta::new_readonly(sysvar::instructions::id(), false));
+            accounts.push(AccountMeta::new_readonly(
+                solana_sdk_ids::sysvar::instructions::id(),
+                false,
+            ));
             if let ProofData::RecordAccount(record_address, _) = proof_data {
                 accounts.push(AccountMeta::new_readonly(*record_address, false));
             }

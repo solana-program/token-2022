@@ -42,18 +42,17 @@ use {
         },
         state::{Account, AccountState, Mint, PackedSizeOf},
     },
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        clock::Clock,
-        entrypoint::ProgramResult,
-        msg,
-        program::{invoke, invoke_signed, set_return_data},
-        program_error::ProgramError,
-        program_pack::Pack,
-        pubkey::Pubkey,
-        system_instruction, system_program,
-        sysvar::{rent::Rent, Sysvar},
-    },
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_clock::Clock,
+    solana_cpi::{invoke, invoke_signed, set_return_data},
+    solana_msg::msg,
+    solana_program_error::{ProgramError, ProgramResult},
+    solana_program_pack::Pack,
+    solana_pubkey::Pubkey,
+    solana_rent::Rent,
+    solana_sdk_ids::system_program,
+    solana_system_interface::instruction as system_instruction,
+    solana_sysvar::Sysvar,
     spl_pod::{
         bytemuck::{pod_from_bytes, pod_from_bytes_mut},
         primitives::{PodBool, PodU64},
@@ -62,6 +61,17 @@ use {
     spl_token_metadata_interface::instruction::TokenMetadataInstruction,
     std::convert::{TryFrom, TryInto},
 };
+
+pub(crate) enum TransferInstruction {
+    Unchecked,
+    Checked { decimals: u8 },
+    CheckedWithFee { decimals: u8, fee: u64 },
+}
+
+pub(crate) enum InstructionVariant {
+    Unchecked,
+    Checked { decimals: u8 },
+}
 
 /// Program state handler.
 pub struct Processor {}
@@ -287,24 +297,22 @@ impl Processor {
     }
 
     /// Processes a [`Transfer`](enum.TokenInstruction.html) instruction.
-    pub fn process_transfer(
+    pub(crate) fn process_transfer(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
-        expected_decimals: Option<u8>,
-        expected_fee: Option<u64>,
+        transfer_instruction: TransferInstruction,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
         let source_account_info = next_account_info(account_info_iter)?;
 
-        let expected_mint_info = if let Some(expected_decimals) = expected_decimals {
-            Some((next_account_info(account_info_iter)?, expected_decimals))
-        } else {
-            // Transfer must not be called with an expected fee but no mint,
-            // otherwise it's a programmer error.
-            assert!(expected_fee.is_none());
-            None
+        let expected_mint_info = match transfer_instruction {
+            TransferInstruction::Unchecked => None,
+            TransferInstruction::Checked { decimals }
+            | TransferInstruction::CheckedWithFee { decimals, .. } => {
+                Some((next_account_info(account_info_iter)?, decimals))
+            }
         };
 
         let destination_account_info = next_account_info(account_info_iter)?;
@@ -328,7 +336,7 @@ impl Processor {
             return Err(TokenError::NonTransferable.into());
         }
 
-        let (fee, maybe_permanent_delegate, maybe_transfer_hook_program_id) =
+        let (calculated_fee, maybe_permanent_delegate, maybe_transfer_hook_program_id) =
             if let Some((mint_info, expected_decimals)) = expected_mint_info {
                 if &source_account.base.mint != mint_info.key {
                     return Err(TokenError::MintMismatch.into());
@@ -391,9 +399,9 @@ impl Processor {
 
                 (0, None, None)
             };
-        if let Some(expected_fee) = expected_fee {
-            if expected_fee != fee {
-                msg!("Calculated fee {}, received {}", fee, expected_fee);
+        if let TransferInstruction::CheckedWithFee { fee, .. } = transfer_instruction {
+            if calculated_fee != fee {
+                msg!("Calculated fee {calculated_fee}, received {fee}");
                 return Err(TokenError::FeeMismatch.into());
             }
         }
@@ -499,15 +507,17 @@ impl Processor {
             .checked_sub(amount)
             .ok_or(TokenError::Overflow)?
             .into();
-        let credited_amount = amount.checked_sub(fee).ok_or(TokenError::Overflow)?;
+        let credited_amount = amount
+            .checked_sub(calculated_fee)
+            .ok_or(TokenError::Overflow)?;
         destination_account.base.amount = u64::from(destination_account.base.amount)
             .checked_add(credited_amount)
             .ok_or(TokenError::Overflow)?
             .into();
-        if fee > 0 {
+        if calculated_fee > 0 {
             if let Ok(extension) = destination_account.get_extension_mut::<TransferFeeAmount>() {
                 let new_withheld_amount = u64::from(extension.withheld_amount)
-                    .checked_add(fee)
+                    .checked_add(calculated_fee)
                     .ok_or(TokenError::Overflow)?;
                 extension.withheld_amount = new_withheld_amount.into();
             } else {
@@ -561,21 +571,22 @@ impl Processor {
     }
 
     /// Processes an [`Approve`](enum.TokenInstruction.html) instruction.
-    pub fn process_approve(
+    pub(crate) fn process_approve(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
-        expected_decimals: Option<u8>,
+        instruction_variant: InstructionVariant,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
         let source_account_info = next_account_info(account_info_iter)?;
 
-        let expected_mint_info = if let Some(expected_decimals) = expected_decimals {
-            Some((next_account_info(account_info_iter)?, expected_decimals))
-        } else {
-            None
-        };
+        let expected_mint_info =
+            if let InstructionVariant::Checked { decimals } = instruction_variant {
+                Some((next_account_info(account_info_iter)?, decimals))
+            } else {
+                None
+            };
         let delegate_info = next_account_info(account_info_iter)?;
         let owner_info = next_account_info(account_info_iter)?;
         let owner_info_data_len = owner_info.data_len();
@@ -959,11 +970,11 @@ impl Processor {
     }
 
     /// Processes a [`MintTo`](enum.TokenInstruction.html) instruction.
-    pub fn process_mint_to(
+    pub(crate) fn process_mint_to(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
-        expected_decimals: Option<u8>,
+        instruction_variant: InstructionVariant,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let mint_info = next_account_info(account_info_iter)?;
@@ -1008,8 +1019,8 @@ impl Processor {
             return Err(TokenError::IllegalMintBurnConversion.into());
         }
 
-        if let Some(expected_decimals) = expected_decimals {
-            if expected_decimals != mint.base.decimals {
+        if let InstructionVariant::Checked { decimals } = instruction_variant {
+            if decimals != mint.base.decimals {
                 return Err(TokenError::MintDecimalsMismatch.into());
             }
         }
@@ -1048,11 +1059,11 @@ impl Processor {
     }
 
     /// Processes a [`Burn`](enum.TokenInstruction.html) instruction.
-    pub fn process_burn(
+    pub(crate) fn process_burn(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
-        expected_decimals: Option<u8>,
+        instruction_variant: InstructionVariant,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1080,8 +1091,8 @@ impl Processor {
             return Err(TokenError::MintMismatch.into());
         }
 
-        if let Some(expected_decimals) = expected_decimals {
-            if expected_decimals != mint.base.decimals {
+        if let InstructionVariant::Checked { decimals } = instruction_variant {
+            if decimals != mint.base.decimals {
                 return Err(TokenError::MintDecimalsMismatch.into());
             }
         }
@@ -1219,7 +1230,7 @@ impl Processor {
                     authority_info_data_len,
                     account_info_iter.as_slice(),
                 )?;
-            } else if !solana_program::incinerator::check_id(destination_account_info.key) {
+            } else if !solana_sdk_ids::incinerator::check_id(destination_account_info.key) {
                 return Err(ProgramError::InvalidAccountData);
             }
 
@@ -1665,12 +1676,22 @@ impl Processor {
                 PodTokenInstruction::Transfer => {
                     msg!("Instruction: Transfer");
                     let data = decode_instruction_data::<AmountData>(input)?;
-                    Self::process_transfer(program_id, accounts, data.amount.into(), None, None)
+                    Self::process_transfer(
+                        program_id,
+                        accounts,
+                        data.amount.into(),
+                        TransferInstruction::Unchecked,
+                    )
                 }
                 PodTokenInstruction::Approve => {
                     msg!("Instruction: Approve");
                     let data = decode_instruction_data::<AmountData>(input)?;
-                    Self::process_approve(program_id, accounts, data.amount.into(), None)
+                    Self::process_approve(
+                        program_id,
+                        accounts,
+                        data.amount.into(),
+                        InstructionVariant::Unchecked,
+                    )
                 }
                 PodTokenInstruction::Revoke => {
                     msg!("Instruction: Revoke");
@@ -1690,12 +1711,22 @@ impl Processor {
                 PodTokenInstruction::MintTo => {
                     msg!("Instruction: MintTo");
                     let data = decode_instruction_data::<AmountData>(input)?;
-                    Self::process_mint_to(program_id, accounts, data.amount.into(), None)
+                    Self::process_mint_to(
+                        program_id,
+                        accounts,
+                        data.amount.into(),
+                        InstructionVariant::Unchecked,
+                    )
                 }
                 PodTokenInstruction::Burn => {
                     msg!("Instruction: Burn");
                     let data = decode_instruction_data::<AmountData>(input)?;
-                    Self::process_burn(program_id, accounts, data.amount.into(), None)
+                    Self::process_burn(
+                        program_id,
+                        accounts,
+                        data.amount.into(),
+                        InstructionVariant::Unchecked,
+                    )
                 }
                 PodTokenInstruction::CloseAccount => {
                     msg!("Instruction: CloseAccount");
@@ -1716,8 +1747,9 @@ impl Processor {
                         program_id,
                         accounts,
                         data.amount.into(),
-                        Some(data.decimals),
-                        None,
+                        TransferInstruction::Checked {
+                            decimals: data.decimals,
+                        },
                     )
                 }
                 PodTokenInstruction::ApproveChecked => {
@@ -1727,7 +1759,9 @@ impl Processor {
                         program_id,
                         accounts,
                         data.amount.into(),
-                        Some(data.decimals),
+                        InstructionVariant::Checked {
+                            decimals: data.decimals,
+                        },
                     )
                 }
                 PodTokenInstruction::MintToChecked => {
@@ -1737,7 +1771,9 @@ impl Processor {
                         program_id,
                         accounts,
                         data.amount.into(),
-                        Some(data.decimals),
+                        InstructionVariant::Checked {
+                            decimals: data.decimals,
+                        },
                     )
                 }
                 PodTokenInstruction::BurnChecked => {
@@ -1747,7 +1783,9 @@ impl Processor {
                         program_id,
                         accounts,
                         data.amount.into(),
-                        Some(data.decimals),
+                        InstructionVariant::Checked {
+                            decimals: data.decimals,
+                        },
                     )
                 }
                 PodTokenInstruction::SyncNative => {
@@ -1963,7 +2001,7 @@ fn delete_account(account_info: &AccountInfo) -> Result<(), ProgramError> {
     account_info.assign(&system_program::id());
     let mut account_data = account_info.data.borrow_mut();
     let data_len = account_data.len();
-    solana_program::program_memory::sol_memset(*account_data, 0, data_len);
+    solana_program_memory::sol_memset(*account_data, 0, data_len);
     Ok(())
 }
 
@@ -1983,17 +2021,15 @@ mod tests {
             state::Multisig,
         },
         serial_test::serial,
-        solana_program::{
-            account_info::IntoAccountInfo,
-            clock::Epoch,
-            instruction::Instruction,
-            program_error::{self, PrintProgramError},
-            program_option::COption,
-            sysvar::{clock::Clock, rent},
-        },
-        solana_sdk::account::{
+        solana_account::{
             create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
         },
+        solana_account_info::IntoAccountInfo,
+        solana_clock::{Clock, Epoch},
+        solana_instruction::Instruction,
+        solana_program_error::PrintProgramError,
+        solana_program_option::COption,
+        solana_sdk_ids::sysvar::rent,
         std::sync::{Arc, RwLock},
     };
 
@@ -2006,7 +2042,7 @@ mod tests {
     }
 
     struct SyscallStubs {}
-    impl solana_sdk::program_stubs::SyscallStubs for SyscallStubs {
+    impl solana_sysvar::program_stubs::SyscallStubs for SyscallStubs {
         fn sol_log(&self, _message: &str) {}
 
         fn sol_invoke_signed(
@@ -2022,23 +2058,23 @@ mod tests {
             unsafe {
                 *(var_addr as *mut _ as *mut Clock) = Clock::default();
             }
-            solana_program::entrypoint::SUCCESS
+            solana_program_entrypoint::SUCCESS
         }
 
         fn sol_get_epoch_schedule_sysvar(&self, _var_addr: *mut u8) -> u64 {
-            program_error::UNSUPPORTED_SYSVAR
+            solana_instruction::error::UNSUPPORTED_SYSVAR
         }
 
         #[allow(deprecated)]
         fn sol_get_fees_sysvar(&self, _var_addr: *mut u8) -> u64 {
-            program_error::UNSUPPORTED_SYSVAR
+            solana_instruction::error::UNSUPPORTED_SYSVAR
         }
 
         fn sol_get_rent_sysvar(&self, var_addr: *mut u8) -> u64 {
             unsafe {
                 *(var_addr as *mut _ as *mut Rent) = Rent::default();
             }
-            solana_program::entrypoint::SUCCESS
+            solana_program_entrypoint::SUCCESS
         }
 
         fn sol_set_return_data(&self, data: &[u8]) {
@@ -2055,7 +2091,7 @@ mod tests {
             static ONCE: Once = Once::new();
 
             ONCE.call_once(|| {
-                solana_sdk::program_stubs::set_syscall_stubs(Box::new(SyscallStubs {}));
+                solana_sysvar::program_stubs::set_syscall_stubs(Box::new(SyscallStubs {}));
             });
         }
 
@@ -8082,7 +8118,7 @@ mod tests {
             static ONCE: Once = Once::new();
 
             ONCE.call_once(|| {
-                solana_sdk::program_stubs::set_syscall_stubs(Box::new(SyscallStubs {}));
+                solana_sysvar::program_stubs::set_syscall_stubs(Box::new(SyscallStubs {}));
             });
         }
         let program_id = crate::id();

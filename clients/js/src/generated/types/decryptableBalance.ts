@@ -16,7 +16,7 @@ import {
   type Decoder,
   type Encoder,
   type ReadonlyUint8Array,
-} from '@solana/web3.js';
+} from '@solana/kit';
 
 /** Authenticated encryption containing an account balance. */
 export type DecryptableBalance = ReadonlyUint8Array;

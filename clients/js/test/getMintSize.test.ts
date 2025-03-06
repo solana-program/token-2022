@@ -1,7 +1,7 @@
 import test from 'ava';
 
 import { extension, getMintSize } from '../src';
-import { address } from '@solana/web3.js';
+import { address } from '@solana/kit';
 
 test('it returns the base size when no extensions are provided', (t) => {
   t.is(getMintSize(), 82 /* base size */);

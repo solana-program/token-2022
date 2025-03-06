@@ -12,8 +12,8 @@ use {
     futures::try_join,
     serde::Serialize,
     solana_account_decoder::{
-        parse_account_data::SplTokenAdditionalData,
-        parse_token::{get_token_account_mint, parse_token_v2, TokenAccountType, UiAccountState},
+        parse_account_data::SplTokenAdditionalDataV2,
+        parse_token::{get_token_account_mint, parse_token_v3, TokenAccountType, UiAccountState},
         UiAccountData,
     },
     solana_clap_v3_utils::{
@@ -2407,14 +2407,14 @@ async fn command_display(config: &Config<'_>, address: Pubkey) -> CommandResult 
                 } else {
                     false
                 };
-            let additional_data = SplTokenAdditionalData::with_decimals(mint_state.base.decimals);
+            let additional_data = SplTokenAdditionalDataV2::with_decimals(mint_state.base.decimals);
 
             (Some(additional_data), has_permanent_delegate)
         } else {
             (None, false)
         };
 
-    let token_data = parse_token_v2(&account_data.data, additional_data.as_ref());
+    let token_data = parse_token_v3(&account_data.data, additional_data.as_ref());
 
     match token_data {
         Ok(TokenAccountType::Account(account)) => {
@@ -3710,10 +3710,10 @@ struct ConfidentialTransferArgs {
     auditor_elgamal_pubkey: Option<PodElGamalPubkey>,
 }
 
-pub async fn process_command<'a>(
+pub async fn process_command(
     sub_command: &CommandName,
     sub_matches: &ArgMatches,
-    config: &Config<'a>,
+    config: &Config<'_>,
     mut wallet_manager: Option<Rc<RemoteWalletManager>>,
     mut bulk_signers: Vec<Arc<dyn Signer>>,
 ) -> CommandResult {
@@ -4913,8 +4913,8 @@ enum TransactionReturnData {
     CliSignOnlyData(CliSignOnlyData),
 }
 
-async fn finish_tx<'a>(
-    config: &Config<'a>,
+async fn finish_tx(
+    config: &Config<'_>,
     rpc_response: &RpcClientResponse,
     no_wait: bool,
 ) -> Result<TransactionReturnData, Error> {

@@ -8,21 +8,23 @@ use {
         pubkey::Pubkey,
         signature::Signer,
         signer::{keypair::Keypair, signers::Signers},
-        transaction::TransactionError,
+        system_instruction,
+        transaction::{Transaction, TransactionError},
         transport::TransportError,
     },
+    spl_elgamal_registry::state::ELGAMAL_REGISTRY_ACCOUNT_LEN,
     spl_record::state::RecordData,
     spl_token_2022::{
         error::TokenError,
         extension::{
             confidential_transfer::{
-                ConfidentialTransferAccount, ConfidentialTransferMint, DecryptableBalance,
+                self, ConfidentialTransferAccount, ConfidentialTransferMint, DecryptableBalance,
             },
             confidential_transfer_fee::{
                 account_info::WithheldTokensInfo, ConfidentialTransferFeeAmount,
                 ConfidentialTransferFeeConfig,
             },
-            transfer_fee::TransferFee,
+            transfer_fee::{TransferFee, TransferFeeAmount},
             BaseStateWithExtensions, ExtensionType,
         },
         instruction,
@@ -37,6 +39,7 @@ use {
             TokenResult,
         },
     },
+    spl_token_confidential_transfer_proof_extraction::instruction::{ProofData, ProofLocation},
     std::convert::TryInto,
 };
 
@@ -1206,4 +1209,127 @@ async fn confidential_transfer_harvest_withheld_tokens_to_mint() {
     let fee = transfer_fee_parameters.calculate_fee(100).unwrap();
 
     check_withheld_amount_in_mint(&token, &withdraw_withheld_authority_elgamal_keypair, fee).await;
+}
+
+#[tokio::test]
+async fn confidential_transfer_configure_token_account_with_fee_with_registry() {
+    let transfer_fee_authority = Keypair::new();
+    let withdraw_withheld_authority = Keypair::new();
+
+    let confidential_transfer_authority = Keypair::new();
+    let auto_approve_new_accounts = true;
+    let auditor_elgamal_keypair = ElGamalKeypair::new_rand();
+    let auditor_elgamal_pubkey = (*auditor_elgamal_keypair.pubkey()).into();
+
+    let confidential_transfer_fee_authority = Keypair::new();
+    let withdraw_withheld_authority_elgamal_keypair = ElGamalKeypair::new_rand();
+    let withdraw_withheld_authority_elgamal_pubkey =
+        (*withdraw_withheld_authority_elgamal_keypair.pubkey()).into();
+
+    let mut context = TestContext::new().await;
+    context
+        .init_token_with_mint(vec![
+            ExtensionInitializationParams::TransferFeeConfig {
+                transfer_fee_config_authority: Some(transfer_fee_authority.pubkey()),
+                withdraw_withheld_authority: Some(withdraw_withheld_authority.pubkey()),
+                transfer_fee_basis_points: TEST_FEE_BASIS_POINTS,
+                maximum_fee: TEST_MAXIMUM_FEE,
+            },
+            ExtensionInitializationParams::ConfidentialTransferMint {
+                authority: Some(confidential_transfer_authority.pubkey()),
+                auto_approve_new_accounts,
+                auditor_elgamal_pubkey: Some(auditor_elgamal_pubkey),
+            },
+            ExtensionInitializationParams::ConfidentialTransferFeeConfig {
+                authority: Some(confidential_transfer_fee_authority.pubkey()),
+                withdraw_withheld_authority_elgamal_pubkey,
+            },
+        ])
+        .await
+        .unwrap();
+
+    let TokenContext { token, alice, .. } = context.token_context.unwrap();
+    let elgamal_keypair = ElGamalKeypair::new_rand();
+
+    // create ElGamal registry
+    let ctx = context.context.lock().await;
+    let proof_data =
+        confidential_transfer::instruction::PubkeyValidityProofData::new(&elgamal_keypair).unwrap();
+    let proof_location = ProofLocation::InstructionOffset(
+        1.try_into().unwrap(),
+        ProofData::InstructionData(&proof_data),
+    );
+
+    let elgamal_registry_address = spl_elgamal_registry::get_elgamal_registry_address(
+        &alice.pubkey(),
+        &spl_elgamal_registry::id(),
+    );
+
+    let rent = ctx.banks_client.get_rent().await.unwrap();
+    let space = ELGAMAL_REGISTRY_ACCOUNT_LEN;
+    let system_instruction = system_instruction::transfer(
+        &ctx.payer.pubkey(),
+        &elgamal_registry_address,
+        rent.minimum_balance(space),
+    );
+    let create_registry_instructions =
+        spl_elgamal_registry::instruction::create_registry(&alice.pubkey(), proof_location)
+            .unwrap();
+
+    let instructions = [&[system_instruction], &create_registry_instructions[..]].concat();
+    let tx = Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&ctx.payer.pubkey()),
+        &[&ctx.payer, &alice],
+        ctx.last_blockhash,
+    );
+    ctx.banks_client.process_transaction(tx).await.unwrap();
+
+    let payer_pubkey = ctx.payer.pubkey();
+    drop(ctx);
+
+    // configure account using ElGamal registry
+    let alice_account_keypair = Keypair::new();
+    let alice_token_account = alice_account_keypair.pubkey();
+    token
+        .create_auxiliary_token_account_with_extension_space(
+            &alice_account_keypair,
+            &alice.pubkey(),
+            vec![], // do not allocate space for confidential transfer fees
+        )
+        .await
+        .unwrap();
+
+    token
+        .confidential_transfer_configure_token_account_with_registry(
+            &alice_account_keypair.pubkey(),
+            &elgamal_registry_address,
+            Some(&payer_pubkey), // test account allocation
+        )
+        .await
+        .unwrap();
+
+    let state = token.get_account_info(&alice_token_account).await.unwrap();
+    let confidential_transfer_account = state
+        .get_extension::<ConfidentialTransferAccount>()
+        .unwrap();
+    assert!(bool::from(&confidential_transfer_account.approved));
+    assert!(bool::from(
+        &confidential_transfer_account.allow_confidential_credits
+    ));
+    assert_eq!(
+        confidential_transfer_account.elgamal_pubkey,
+        (*elgamal_keypair.pubkey()).into()
+    );
+
+    let transfer_fee = state.get_extension::<TransferFeeAmount>().unwrap();
+    assert_eq!(transfer_fee.withheld_amount, 0.into());
+
+    let confidential_transfer_fee = state
+        .get_extension::<ConfidentialTransferFeeAmount>()
+        .unwrap();
+    assert_eq!(
+        confidential_transfer_fee.withheld_amount,
+        PodElGamalCiphertext::default(),
+    );
 }

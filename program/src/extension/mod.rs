@@ -32,11 +32,9 @@ use {
     },
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
-    solana_program::{
-        account_info::AccountInfo,
-        program_error::ProgramError,
-        program_pack::{IsInitialized, Pack},
-    },
+    solana_account_info::AccountInfo,
+    solana_program_error::ProgramError,
+    solana_program_pack::{IsInitialized, Pack},
     spl_pod::{
         bytemuck::{pod_from_bytes, pod_from_bytes_mut, pod_get_packed_len},
         primitives::PodU16,
@@ -532,7 +530,7 @@ impl<'data, S: BaseState + Pack> StateWithExtensions<'data, S> {
         Ok(Self { base, tlv_data })
     }
 }
-impl<'a, S: BaseState + Pack> BaseStateWithExtensions<S> for StateWithExtensions<'a, S> {
+impl<S: BaseState + Pack> BaseStateWithExtensions<S> for StateWithExtensions<'_, S> {
     fn get_tlv_data(&self) -> &[u8] {
         self.tlv_data
     }
@@ -563,7 +561,7 @@ impl<'data, S: BaseState + Pod> PodStateWithExtensions<'data, S> {
         }
     }
 }
-impl<'a, S: BaseState + Pod> BaseStateWithExtensions<S> for PodStateWithExtensions<'a, S> {
+impl<S: BaseState + Pod> BaseStateWithExtensions<S> for PodStateWithExtensions<'_, S> {
     fn get_tlv_data(&self) -> &[u8] {
         self.tlv_data
     }
@@ -874,12 +872,12 @@ impl<'data, S: BaseState + Pack> StateWithExtensionsMut<'data, S> {
         S::pack_into_slice(&self.base, self.base_data);
     }
 }
-impl<'a, S: BaseState> BaseStateWithExtensions<S> for StateWithExtensionsMut<'a, S> {
+impl<S: BaseState> BaseStateWithExtensions<S> for StateWithExtensionsMut<'_, S> {
     fn get_tlv_data(&self) -> &[u8] {
         self.tlv_data
     }
 }
-impl<'a, S: BaseState> BaseStateWithExtensionsMut<S> for StateWithExtensionsMut<'a, S> {
+impl<S: BaseState> BaseStateWithExtensionsMut<S> for StateWithExtensionsMut<'_, S> {
     fn get_tlv_data_mut(&mut self) -> &mut [u8] {
         self.tlv_data
     }
@@ -941,12 +939,12 @@ impl<'data, S: BaseState + Pod> PodStateWithExtensionsMut<'data, S> {
     }
 }
 
-impl<'a, S: BaseState> BaseStateWithExtensions<S> for PodStateWithExtensionsMut<'a, S> {
+impl<S: BaseState> BaseStateWithExtensions<S> for PodStateWithExtensionsMut<'_, S> {
     fn get_tlv_data(&self) -> &[u8] {
         self.tlv_data
     }
 }
-impl<'a, S: BaseState> BaseStateWithExtensionsMut<S> for PodStateWithExtensionsMut<'a, S> {
+impl<S: BaseState> BaseStateWithExtensionsMut<S> for PodStateWithExtensionsMut<'_, S> {
     fn get_tlv_data_mut(&mut self) -> &mut [u8] {
         self.tlv_data
     }
@@ -1558,12 +1556,11 @@ mod test {
             state::test::{TEST_ACCOUNT_SLICE, TEST_MINT_SLICE},
         },
         bytemuck::Pod,
-        solana_program::{
-            account_info::{Account as GetAccount, IntoAccountInfo},
-            clock::Epoch,
-            entrypoint::MAX_PERMITTED_DATA_INCREASE,
-            pubkey::Pubkey,
+        solana_account_info::{
+            Account as GetAccount, IntoAccountInfo, MAX_PERMITTED_DATA_INCREASE,
         },
+        solana_clock::Epoch,
+        solana_pubkey::Pubkey,
         spl_pod::{
             bytemuck::pod_bytes_of,
             optional_keys::OptionalNonZeroPubkey,

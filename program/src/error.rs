@@ -4,11 +4,9 @@
 use spl_token_confidential_transfer_proof_generation::errors::TokenProofGenerationError;
 use {
     num_derive::FromPrimitive,
-    solana_program::{
-        decode_error::DecodeError,
-        msg,
-        program_error::{PrintProgramError, ProgramError},
-    },
+    solana_decode_error::DecodeError,
+    solana_msg::msg,
+    solana_program_error::{PrintProgramError, ProgramError},
     spl_token_confidential_transfer_proof_extraction::errors::TokenProofExtractionError,
     thiserror::Error,
 };
@@ -269,6 +267,9 @@ pub enum TokenError {
     /// Transferring, minting, and burning is paused on this mint
     #[error("Transferring, minting, and burning is paused on this mint")]
     MintPaused,
+    /// Pending supply is not zero
+    #[error("Key rotation attempted while pending balance is not zero")]
+    PendingBalanceNonZero,
 }
 impl From<TokenError> for ProgramError {
     fn from(e: TokenError) -> Self {
@@ -464,6 +465,9 @@ impl PrintProgramError for TokenError {
             }
             TokenError::MintPaused => {
                 msg!("Transferring, minting, and burning is paused on this mint")
+            }
+            TokenError::PendingBalanceNonZero => {
+                msg!("Key rotation attempted while pending balance is not zero")
             }
         }
     }

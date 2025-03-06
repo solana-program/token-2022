@@ -22,15 +22,15 @@ use {
         pod::{PodAccount, PodMint},
         processor::Processor,
     },
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        entrypoint::ProgramResult,
-        msg,
-        program_error::ProgramError,
-        pubkey::Pubkey,
-    },
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_msg::msg,
+    solana_program_error::{ProgramError, ProgramResult},
+    solana_pubkey::Pubkey,
     solana_zk_sdk::{
-        encryption::pod::{auth_encryption::PodAeCiphertext, elgamal::PodElGamalPubkey},
+        encryption::pod::{
+            auth_encryption::PodAeCiphertext,
+            elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
+        },
         zk_elgamal_proof_program::proof_data::{
             CiphertextCiphertextEqualityProofContext, CiphertextCiphertextEqualityProofData,
         },
@@ -91,6 +91,9 @@ fn process_rotate_supply_elgamal_pubkey(
     }
     if mint_burn_extension.confidential_supply != proof_context.first_ciphertext {
         return Err(ProgramError::InvalidInstructionData);
+    }
+    if mint_burn_extension.pending_burn != PodElGamalCiphertext::default() {
+        return Err(TokenError::PendingBalanceNonZero.into());
     }
 
     let authority_info = next_account_info(account_info_iter)?;
@@ -260,14 +263,21 @@ fn process_confidential_mint(
         &current_supply,
         &proof_context
             .mint_amount_ciphertext_lo
-            .try_extract_ciphertext(2)
+            .try_extract_ciphertext(1)
             .map_err(|_| ProgramError::InvalidAccountData)?,
         &proof_context
             .mint_amount_ciphertext_hi
-            .try_extract_ciphertext(2)
+            .try_extract_ciphertext(1)
             .map_err(|_| ProgramError::InvalidAccountData)?,
     )
     .ok_or(TokenError::CiphertextArithmeticFailed)?;
+
+    // Check that the computed supply ciphertext is consistent with what was
+    // actually used to generate the zkp on the client side.
+    if mint_burn_extension.confidential_supply != proof_context.new_supply_ciphertext {
+        return Err(TokenError::ConfidentialTransferBalanceMismatch.into());
+    }
+
     mint_burn_extension.decryptable_supply = data.new_decryptable_supply;
 
     Ok(())
@@ -390,19 +400,53 @@ fn process_confidential_burn(
     if mint_burn_extension.supply_elgamal_pubkey != proof_context.burn_pubkeys.supply {
         return Err(ProgramError::InvalidInstructionData);
     }
-    let current_supply = mint_burn_extension.confidential_supply;
-    mint_burn_extension.confidential_supply = ciphertext_arithmetic::subtract_with_lo_hi(
-        &current_supply,
+    let pending_burn = mint_burn_extension.pending_burn;
+    mint_burn_extension.pending_burn = ciphertext_arithmetic::add_with_lo_hi(
+        &pending_burn,
         &proof_context
             .burn_amount_ciphertext_lo
-            .try_extract_ciphertext(2)
+            .try_extract_ciphertext(1)
             .map_err(|_| ProgramError::InvalidAccountData)?,
         &proof_context
             .burn_amount_ciphertext_hi
-            .try_extract_ciphertext(2)
+            .try_extract_ciphertext(1)
             .map_err(|_| ProgramError::InvalidAccountData)?,
     )
     .ok_or(TokenError::CiphertextArithmeticFailed)?;
+
+    Ok(())
+}
+
+/// Processes a [`ApplyPendingBurn`] instruction.
+fn process_apply_pending_burn(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter();
+    let mint_info = next_account_info(account_info_iter)?;
+
+    check_program_account(mint_info.owner)?;
+    let mint_data = &mut mint_info.data.borrow_mut();
+    let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(mint_data)?;
+    let mint_authority = mint.base.mint_authority;
+    let mint_burn_extension = mint.get_extension_mut::<ConfidentialMintBurn>()?;
+
+    let authority_info = next_account_info(account_info_iter)?;
+    let authority_info_data_len = authority_info.data_len();
+    let authority = mint_authority.ok_or(TokenError::NoAuthorityExists)?;
+
+    Processor::validate_owner(
+        program_id,
+        &authority,
+        authority_info,
+        authority_info_data_len,
+        account_info_iter.as_slice(),
+    )?;
+
+    let current_supply = mint_burn_extension.confidential_supply;
+    let pending_burn = mint_burn_extension.pending_burn;
+    mint_burn_extension.confidential_supply =
+        ciphertext_arithmetic::subtract(&current_supply, &pending_burn)
+            .ok_or(TokenError::CiphertextArithmeticFailed)?;
+
+    mint_burn_extension.pending_burn = PodElGamalCiphertext::default();
 
     Ok(())
 }
@@ -440,6 +484,10 @@ pub(crate) fn process_instruction(
             msg!("ConfidentialMintBurnInstruction::ConfidentialBurn");
             let data = decode_instruction_data::<BurnInstructionData>(input)?;
             process_confidential_burn(program_id, accounts, data)
+        }
+        ConfidentialMintBurnInstruction::ApplyPendingBurn => {
+            msg!("ConfidentialMintBurnInstruction::ApplyPendingBurn");
+            process_apply_pending_burn(program_id, accounts)
         }
     }
 }

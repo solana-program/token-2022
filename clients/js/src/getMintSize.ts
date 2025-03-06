@@ -4,7 +4,7 @@ import {
   getHiddenPrefixEncoder,
   getU8Encoder,
   padLeftEncoder,
-} from '@solana/web3.js';
+} from '@solana/kit';
 import { ExtensionArgs, getExtensionEncoder } from './generated';
 
 const MINT_BASE_SIZE = 82;

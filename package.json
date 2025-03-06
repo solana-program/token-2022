@@ -48,12 +48,12 @@
     "js:publish": "zx ./scripts/js/publish.mjs"
   },
   "devDependencies": {
-    "@codama/renderers-js": "^1.2.0",
-    "@codama/renderers-rust": "^1.0.8",
+    "@codama/renderers-js": "^1.2.7",
+    "@codama/renderers-rust": "^1.0.16",
     "@iarna/toml": "^2.2.5",
-    "codama": "^1.2.1",
-    "typescript": "^5.5.2",
-    "zx": "^8.3.1"
+    "codama": "^1.2.8",
+    "typescript": "^5.8.2",
+    "zx": "^8.4.0"
   },
   "engines": {
     "node": ">=v20.0.0"
