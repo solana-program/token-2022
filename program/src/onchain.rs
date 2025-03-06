@@ -5,7 +5,6 @@ use {
     crate::{
         extension::{transfer_fee, transfer_hook, StateWithExtensions},
         instruction,
-        instruction::MAX_SIGNERS,
         pod::PodMultisig,
         state::{Mint, PackedSizeOf},
     },
@@ -36,9 +35,9 @@ pub fn extract_multisig_accounts<'a, 'b>(
     let multisig_data = &multisig_account.data.borrow();
     let multisig = pod_from_bytes::<PodMultisig>(multisig_data)?;
 
-    let mut multisig_accounts = Vec::with_capacity(MAX_SIGNERS);
+    let mut multisig_accounts = Vec::with_capacity(multisig.n as usize);
     for account in accounts {
-        if multisig.signers.contains(account.key) {
+        if multisig.signers[..multisig.n as usize].contains(account.key) {
             multisig_accounts.push(account);
         }
     }
@@ -732,7 +731,7 @@ mod tests {
         let mut multisig_data = vec![0; Multisig::LEN];
         let multisig_state = Multisig {
             m: 2,
-            n: 3,
+            n: 2,
             is_initialized: true,
             signers: [
                 signer1_key,
@@ -823,9 +822,24 @@ mod tests {
             0,
         );
 
+        let system_program_key = Pubkey::default(); // System program has default pubkey
+        let system_program_owner = Pubkey::new_unique();
+        let mut system_program_lamports = 100;
+        let system_program_info = AccountInfo::new(
+            &system_program_key,
+            false,
+            false,
+            &mut system_program_lamports,
+            &mut [],
+            &system_program_owner,
+            false,
+            0,
+        );
+
         let accounts = vec![
             extra_account1_info,
             extra_account2_info,
+            system_program_info,
             signer1_info.clone(),
             signer2_info.clone(),
         ];
