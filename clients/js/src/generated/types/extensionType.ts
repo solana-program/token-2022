@@ -42,6 +42,7 @@ export enum ExtensionType {
   TransferHookAccount,
   ConfidentialTransferFee,
   ConfidentialTransferFeeAmount,
+  ScaledUiAmountConfig,
   MetadataPointer,
   TokenMetadata,
   GroupPointer,
