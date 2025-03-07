@@ -82,13 +82,6 @@ fn transfer_instruction_and_account_infos<'a>(
         )?,
     };
 
-    // Given no multisig signers were sent into the above helpers, it will default
-    // to giving the transfer authority signer status. This manually corrects
-    // that if it is a multisig.
-    if is_multisig_account(&authority_info) {
-        cpi_instruction.accounts[3].is_signer = false;
-    }
-
     let mut cpi_account_infos = vec![
         source_info.clone(),
         mint_info.clone(),
@@ -96,14 +89,28 @@ fn transfer_instruction_and_account_infos<'a>(
         authority_info.clone(),
     ];
 
-    extract_multisig_accounts(&authority_info, additional_accounts)?
-        .into_iter()
-        .for_each(|info| {
-            cpi_instruction
-                .accounts
-                .push(AccountMeta::new_readonly(*info.key, true));
-            cpi_account_infos.push(info.clone());
-        });
+    // Given no multisig signers were sent into the above helpers, it will default
+    // to giving the transfer authority signer status. This manually corrects
+    // that if it is a multisig.
+    if is_multisig_account(&authority_info) {
+        cpi_instruction.accounts[3].is_signer = false;
+
+        // Redundant to extract_multisig_accounts() but in-lines the logic
+        // to prevent allocating an extra Vec
+        let multisig_data = authority_info.data.borrow();
+        let multisig = pod_from_bytes::<PodMultisig>(&multisig_data)?;
+        let signers = &multisig.signers[..multisig.n as usize];
+
+        additional_accounts
+            .iter()
+            .filter(|account| signers.contains(account.key))
+            .for_each(|info| {
+                cpi_instruction
+                    .accounts
+                    .push(AccountMeta::new_readonly(*info.key, true));
+                cpi_account_infos.push(info.clone());
+            });
+    }
 
     // scope the borrowing to avoid a double-borrow during CPI
     {
