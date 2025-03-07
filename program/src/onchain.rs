@@ -5,15 +5,45 @@ use {
     crate::{
         extension::{transfer_fee, transfer_hook, StateWithExtensions},
         instruction,
-        state::Mint,
+        pod::PodMultisig,
+        state::{Mint, PackedSizeOf},
     },
     solana_account_info::AccountInfo,
     solana_cpi::invoke_signed,
-    solana_instruction::Instruction,
+    solana_instruction::{AccountMeta, Instruction},
     solana_program_error::{ProgramError, ProgramResult},
     solana_pubkey::Pubkey,
+    spl_pod::bytemuck::pod_from_bytes,
     spl_transfer_hook_interface::onchain::add_extra_accounts_for_execute_cpi,
 };
+
+fn is_multisig_account(account: &AccountInfo) -> bool {
+    let owned_by_token_program = account.owner == &crate::id() || account.owner == &spl_token::id();
+    owned_by_token_program && account.data_len() == PodMultisig::SIZE_OF
+}
+
+/// Filters a list of accounts to find those that are valid signers for the given multisig account.
+/// Returns an empty vector if the provided account is not a valid multisig account.
+pub fn extract_multisig_accounts<'a, 'b>(
+    multisig_account: &AccountInfo<'a>,
+    accounts: &'b [AccountInfo<'a>],
+) -> Result<Vec<&'b AccountInfo<'a>>, ProgramError> {
+    if !is_multisig_account(multisig_account) {
+        return Ok(vec![]);
+    }
+
+    let multisig_data = &multisig_account.data.borrow();
+    let multisig = pod_from_bytes::<PodMultisig>(multisig_data)?;
+
+    let mut multisig_accounts = Vec::with_capacity(multisig.n as usize);
+    for account in accounts {
+        if multisig.signers[..multisig.n as usize].contains(account.key) {
+            multisig_accounts.push(account);
+        }
+    }
+
+    Ok(multisig_accounts)
+}
 
 /// Internal function to gather account infos and create instruction
 #[allow(clippy::too_many_arguments)]
@@ -28,21 +58,6 @@ fn transfer_instruction_and_account_infos<'a>(
     decimals: u8,
     fee: Option<u64>,
 ) -> Result<(Instruction, Vec<AccountInfo<'a>>), ProgramError> {
-    let mut cpi_account_infos = vec![
-        source_info.clone(),
-        mint_info.clone(),
-        destination_info.clone(),
-        authority_info.clone(),
-    ];
-
-    let mut multisig_signer_pubkeys = Vec::new();
-    for info in additional_accounts.iter() {
-        if info.is_signer {
-            multisig_signer_pubkeys.push(info.key);
-            cpi_account_infos.push(info.clone());
-        }
-    }
-
     let mut cpi_instruction = match fee {
         None => instruction::transfer_checked(
             token_program_id,
@@ -50,7 +65,7 @@ fn transfer_instruction_and_account_infos<'a>(
             mint_info.key,
             destination_info.key,
             authority_info.key,
-            &multisig_signer_pubkeys,
+            &[], // Later added
             amount,
             decimals,
         )?,
@@ -60,12 +75,42 @@ fn transfer_instruction_and_account_infos<'a>(
             mint_info.key,
             destination_info.key,
             authority_info.key,
-            &multisig_signer_pubkeys,
+            &[], // Later added
             amount,
             decimals,
             fee,
         )?,
     };
+
+    let mut cpi_account_infos = vec![
+        source_info.clone(),
+        mint_info.clone(),
+        destination_info.clone(),
+        authority_info.clone(),
+    ];
+
+    // Given no multisig signers were sent into the above helpers, it will default
+    // to giving the transfer authority signer status. This manually corrects
+    // that if it is a multisig.
+    if is_multisig_account(&authority_info) {
+        cpi_instruction.accounts[3].is_signer = false;
+
+        // Redundant to extract_multisig_accounts() but in-lines the logic
+        // to prevent allocating an extra Vec
+        let multisig_data = authority_info.data.borrow();
+        let multisig = pod_from_bytes::<PodMultisig>(&multisig_data)?;
+        let signers = &multisig.signers[..multisig.n as usize];
+
+        additional_accounts
+            .iter()
+            .filter(|account| signers.contains(account.key))
+            .for_each(|info| {
+                cpi_instruction
+                    .accounts
+                    .push(AccountMeta::new_readonly(*info.key, true));
+                cpi_account_infos.push(info.clone());
+            });
+    }
 
     // scope the borrowing to avoid a double-borrow during CPI
     {
@@ -185,6 +230,7 @@ mod tests {
                 PodStateWithExtensionsMut,
             },
             pod::{PodCOption, PodMint},
+            state::Multisig,
         },
         solana_instruction::AccountMeta,
         solana_program_option::COption,
@@ -337,25 +383,60 @@ mod tests {
         let authority_is_signer = !with_multisig; // Authority signs only if not multisig
         let mut authority_lamports = 100;
         let authority_owner = Pubkey::new_unique();
-        let authority_info = AccountInfo::new(
-            &authority_key,
-            authority_is_signer,
-            false,
-            &mut authority_lamports,
-            &mut [],
-            &authority_owner,
-            false,
-            0,
-        );
-
-        let mut additional_accounts = vec![];
-
-        // If with_multisig passed, add multisig account info
-
         let signer1_key = Pubkey::new_unique();
         let signer2_key = Pubkey::new_unique();
         let signer3_key = Pubkey::new_unique();
         let signer_keys = [signer1_key, signer2_key, signer3_key];
+        let mut multisig_data = vec![0; Multisig::LEN];
+
+        // If with_multisig passed, add multisig account info
+
+        let authority_info = if authority_is_signer {
+            AccountInfo::new(
+                &authority_key,
+                authority_is_signer,
+                false,
+                &mut authority_lamports,
+                &mut [],
+                &authority_owner,
+                false,
+                0,
+            )
+        } else {
+            // Setup multisig
+            let multisig_state = Multisig {
+                m: 2,
+                n: 3,
+                is_initialized: true,
+                signers: [
+                    signer1_key,
+                    signer2_key,
+                    signer3_key,
+                    Pubkey::default(),
+                    Pubkey::default(),
+                    Pubkey::default(),
+                    Pubkey::default(),
+                    Pubkey::default(),
+                    Pubkey::default(),
+                    Pubkey::default(),
+                    Pubkey::default(),
+                ],
+            };
+            Multisig::pack(multisig_state, &mut multisig_data).unwrap();
+
+            AccountInfo::new(
+                &authority_key,
+                false,
+                false,
+                &mut authority_lamports,
+                &mut multisig_data,
+                &token_program_id,
+                false,
+                0,
+            )
+        };
+
+        let mut additional_accounts = vec![];
 
         let signer1_owner = Pubkey::new_unique();
         let signer2_owner = Pubkey::new_unique();
@@ -451,7 +532,7 @@ mod tests {
 
             let extra_account2_info = AccountInfo::new(
                 &extra_account2_key,
-                false,
+                true,
                 false,
                 &mut extra_account2_lamports,
                 &mut [],
@@ -598,5 +679,197 @@ mod tests {
                 transfer_hook_program_id
             );
         }
+    }
+
+    #[test]
+    fn test_extract_multisig_when_account_not_owned_by_token_program() {
+        let key = Pubkey::new_unique();
+        let wrong_owner = Pubkey::new_unique();
+        let mut lamports = 100;
+        let mut data = vec![0; Multisig::LEN];
+
+        let multisig = AccountInfo::new(
+            &key,
+            false,
+            false,
+            &mut lamports,
+            &mut data,
+            &wrong_owner,
+            false,
+            0,
+        );
+
+        let accounts = vec![];
+
+        let result_accounts = extract_multisig_accounts(&multisig, &accounts).unwrap();
+        assert!(result_accounts.is_empty());
+    }
+
+    #[test]
+    fn test_extract_multisig_when_account_not_multisig() {
+        let key = Pubkey::new_unique();
+        let owner = crate::id();
+        let mut lamports = 100;
+        let mut data = vec![0; 10]; // Wrong size for a multisig account
+
+        let not_multisig = AccountInfo::new(
+            &key,
+            false,
+            false,
+            &mut lamports,
+            &mut data,
+            &owner,
+            false,
+            0,
+        );
+
+        let accounts = vec![];
+
+        let result_accounts = extract_multisig_accounts(&not_multisig, &accounts).unwrap();
+        assert!(result_accounts.is_empty());
+    }
+
+    #[test]
+    fn test_extract_multisig_success() {
+        let multisig_key = Pubkey::new_unique();
+        let owner = crate::id();
+        let signer1_key = Pubkey::new_unique();
+        let signer2_key = Pubkey::new_unique();
+        let mut multisig_data = vec![0; Multisig::LEN];
+        let multisig_state = Multisig {
+            m: 2,
+            n: 2,
+            is_initialized: true,
+            signers: [
+                signer1_key,
+                signer2_key,
+                Pubkey::default(),
+                Pubkey::default(),
+                Pubkey::default(),
+                Pubkey::default(),
+                Pubkey::default(),
+                Pubkey::default(),
+                Pubkey::default(),
+                Pubkey::default(),
+                Pubkey::default(),
+            ],
+        };
+        Multisig::pack(multisig_state, &mut multisig_data).unwrap();
+
+        let mut lamports = 100;
+        let multisig_account = AccountInfo::new(
+            &multisig_key,
+            false,
+            false,
+            &mut lamports,
+            &mut multisig_data,
+            &owner,
+            false,
+            0,
+        );
+
+        let signer1_owner = Pubkey::new_unique();
+        let signer2_owner = Pubkey::new_unique();
+
+        let mut signer1_lamports = 100;
+        let mut signer2_lamports = 100;
+
+        let signer1_info = AccountInfo::new(
+            &signer1_key,
+            true,
+            false,
+            &mut signer1_lamports,
+            &mut [],
+            &signer1_owner,
+            false,
+            0,
+        );
+
+        let signer2_info = AccountInfo::new(
+            &signer2_key,
+            true,
+            false,
+            &mut signer2_lamports,
+            &mut [],
+            &signer2_owner,
+            false,
+            0,
+        );
+
+        // Accounts that should not be included
+
+        let extra_account1_key = Pubkey::new_unique();
+        let extra_account2_key = Pubkey::new_unique();
+
+        let extra_account1_owner = Pubkey::new_unique();
+        let extra_account2_owner = Pubkey::new_unique();
+
+        let mut extra_account1_lamports = 100;
+        let mut extra_account2_lamports = 100;
+
+        let extra_account1_info = AccountInfo::new(
+            &extra_account1_key,
+            false,
+            true,
+            &mut extra_account1_lamports,
+            &mut [],
+            &extra_account1_owner,
+            false,
+            0,
+        );
+
+        let extra_account2_info = AccountInfo::new(
+            &extra_account2_key,
+            true,
+            false,
+            &mut extra_account2_lamports,
+            &mut [],
+            &extra_account2_owner,
+            false,
+            0,
+        );
+
+        let system_program_key = Pubkey::default(); // System program has default pubkey
+        let system_program_owner = Pubkey::new_unique();
+        let mut system_program_lamports = 100;
+        let system_program_info = AccountInfo::new(
+            &system_program_key,
+            false,
+            false,
+            &mut system_program_lamports,
+            &mut [],
+            &system_program_owner,
+            false,
+            0,
+        );
+
+        let accounts = vec![
+            extra_account1_info,
+            extra_account2_info,
+            system_program_info,
+            signer1_info.clone(),
+            signer2_info.clone(),
+        ];
+
+        let result_accounts = extract_multisig_accounts(&multisig_account, &accounts).unwrap();
+
+        assert_eq!(result_accounts.len(), 2);
+        assert_eq!(result_accounts[0].data_len(), signer1_info.data_len());
+        assert_eq!(result_accounts[0].owner, signer1_info.owner);
+        assert_eq!(result_accounts[0].key, signer1_info.key);
+        assert_eq!(result_accounts[0].is_writable, signer1_info.is_writable);
+        assert_eq!(result_accounts[0].is_signer, signer1_info.is_signer);
+        assert_eq!(result_accounts[0].executable, signer1_info.executable);
+        assert_eq!(result_accounts[0].lamports, signer1_info.lamports);
+        assert_eq!(result_accounts[0].rent_epoch, signer1_info.rent_epoch);
+
+        assert_eq!(result_accounts[1].data_len(), signer2_info.data_len());
+        assert_eq!(result_accounts[1].owner, signer2_info.owner);
+        assert_eq!(result_accounts[1].key, signer2_info.key);
+        assert_eq!(result_accounts[1].is_writable, signer2_info.is_writable);
+        assert_eq!(result_accounts[1].is_signer, signer2_info.is_signer);
+        assert_eq!(result_accounts[1].executable, signer2_info.executable);
+        assert_eq!(result_accounts[1].lamports, signer2_info.lamports);
+        assert_eq!(result_accounts[1].rent_epoch, signer2_info.rent_epoch);
     }
 }
