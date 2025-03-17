@@ -1,6 +1,7 @@
 {
   "private": true,
   "scripts": {
+    "wasm:build": "cargo build -p spl-token-2022 --target=\"wasm32-unknown-unknown\"",
     "programs:build": "zx ./scripts/rust/build-sbf.mjs program",
     "programs:test": "zx ./scripts/rust/test-sbf.mjs program",
     "programs:format": "zx ./scripts/rust/format.mjs program",

@@ -286,6 +286,9 @@ jobs:
       - name: Build Token-2022
         run: pnpm programs:build
 
+      - name: Build Token-2022 Wasm
+        run: pnpm wasm:build
+
       - name: Build ElGamal Registry
         run: pnpm confidential-transfer:elgamal-registry:build
 
