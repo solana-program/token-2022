@@ -1,3 +1,5 @@
+#[cfg(target_arch = "wasm32")]
+use solana_zk_sdk::encryption::grouped_elgamal::GroupedElGamalCiphertext3Handles;
 use {
     crate::{
         encryption::BurnAmountCiphertext, errors::TokenProofGenerationError,
@@ -53,6 +55,16 @@ pub fn burn_split_proof_data(
         supply_elgamal_pubkey,
         auditor_elgamal_pubkey,
     );
+    #[cfg(not(target_arch = "wasm32"))]
+    let grouped_ciphertext_lo = burn_amount_ciphertext_lo.0;
+    #[cfg(target_arch = "wasm32")]
+    let grouped_ciphertext_lo = GroupedElGamalCiphertext3Handles::encryption_with_u64(
+        source_elgamal_keypair.pubkey(),
+        supply_elgamal_pubkey,
+        auditor_elgamal_pubkey,
+        burn_amount_lo,
+        &burn_amount_opening_lo,
+    );
 
     let (burn_amount_ciphertext_hi, burn_amount_opening_hi) = BurnAmountCiphertext::new(
         burn_amount_hi,
@@ -60,7 +72,16 @@ pub fn burn_split_proof_data(
         supply_elgamal_pubkey,
         auditor_elgamal_pubkey,
     );
-
+    #[cfg(not(target_arch = "wasm32"))]
+    let grouped_ciphertext_hi = burn_amount_ciphertext_hi.0;
+    #[cfg(target_arch = "wasm32")]
+    let grouped_ciphertext_hi = GroupedElGamalCiphertext3Handles::encryption_with_u64(
+        source_elgamal_keypair.pubkey(),
+        supply_elgamal_pubkey,
+        auditor_elgamal_pubkey,
+        burn_amount_hi,
+        &burn_amount_opening_hi,
+    );
     // decrypt the current available balance at the source
     let current_decrypted_available_balance = current_decryptable_available_balance
         .decrypt(source_aes_key)
@@ -108,8 +129,8 @@ pub fn burn_split_proof_data(
         source_elgamal_keypair.pubkey(),
         supply_elgamal_pubkey,
         auditor_elgamal_pubkey,
-        &burn_amount_ciphertext_lo.0,
-        &burn_amount_ciphertext_hi.0,
+        &grouped_ciphertext_lo,
+        &grouped_ciphertext_hi,
         burn_amount_lo,
         burn_amount_hi,
         &burn_amount_opening_lo,

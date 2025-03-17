@@ -29,7 +29,6 @@ use {
         processor::Processor,
         solana_zk_sdk::encryption::pod::elgamal::PodElGamalPubkey,
     },
-    bytemuck::Zeroable,
     solana_account_info::{next_account_info, AccountInfo},
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
@@ -37,6 +36,9 @@ use {
     spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_confidential_transfer_proof_extraction::instruction::verify_and_extract_context,
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use bytemuck::Zeroable;
 
 /// Processes an [`InitializeConfidentialTransferFeeConfig`] instruction.
 fn process_initialize_confidential_transfer_fee_config(
