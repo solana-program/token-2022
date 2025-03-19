@@ -12,8 +12,8 @@ importers:
         specifier: ^1.2.7
         version: 1.2.7(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)
       '@codama/renderers-rust':
-        specifier: ^1.0.16
-        version: 1.0.16(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)
+        specifier: ^1.0.18
+        version: 1.0.18(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)
       '@iarna/toml':
         specifier: ^2.2.5
         version: 2.2.5
@@ -72,9 +72,6 @@ packages:
 
   '@codama/renderers-js@1.2.9':
     resolution: {integrity: sha512-k/4H1d9vT8NZLxGJcL7gEF3vX/Vmh+uRpbSLeglyvLcTeh6+pHnU0jJocpw/EXRLGg5MlYaQOq2c8WaUxmXMoA==}
-
-  '@codama/renderers-rust@1.0.16':
-    resolution: {integrity: sha512-pFHwHN6X4Yuk26Yfh+VT9Ps1i/QEjuK3EoT8BpsCTATOk6ntJNqyD5aQngG2lE4KWx3uQrCYYbQEAN4vG6v+EA==}
 
   '@codama/renderers-rust@1.0.18':
     resolution: {integrity: sha512-SrohRhXScNXY8+x2ehFBKXidp6VTdHXtaD4TfIVIzIrYtvMzUKHtzEleWfwsTd/9JE+XXwwIk8ztQgbehMmVEw==}
@@ -232,8 +229,8 @@ packages:
     resolution: {integrity: sha512-oKlSFMcMwpUg2ednkhQ454wfWiU/ul3CkJe/PEHcTKuiX6RpbehUiFMXu13HalGZxfUwCQzZG747YXBn1im9ww==}
     engines: {node: '>= 0.4'}
 
-  call-bound@1.0.3:
-    resolution: {integrity: sha512-YTd+6wGlNlPxSuri7Y6X8tY2dmm12UMH66RpKMhiX6rsk5wXXnYgbUcOt8kiS31/AjfoTOvCsE+w8nZQLQnzHA==}
+  call-bound@1.0.4:
+    resolution: {integrity: sha512-+ys997U96po4Kx/ABpBCqhA9EuxJaQWDQg7295H4hBphv3IZg0boBKuwYpt4YXp6MZ5AmZQnU/tyMTlRpaSejg==}
     engines: {node: '>= 0.4'}
 
   chalk@5.4.1:
@@ -491,19 +488,6 @@ snapshots:
       - fastestsmallesttextencoderdecoder
       - typescript
 
-  '@codama/renderers-rust@1.0.16(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)':
-    dependencies:
-      '@codama/errors': 1.2.8
-      '@codama/nodes': 1.2.8
-      '@codama/renderers-core': 1.0.10
-      '@codama/visitors-core': 1.2.8
-      '@solana/codecs-strings': 2.0.0-rc.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)
-      nunjucks: 3.2.4
-    transitivePeerDependencies:
-      - chokidar
-      - fastestsmallesttextencoderdecoder
-      - typescript
-
   '@codama/renderers-rust@1.0.18(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)':
     dependencies:
       '@codama/errors': 1.2.10
@@ -710,7 +694,7 @@ snapshots:
       get-intrinsic: 1.3.0
       set-function-length: 1.2.2
 
-  call-bound@1.0.3:
+  call-bound@1.0.4:
     dependencies:
       call-bind-apply-helpers: 1.0.2
       get-intrinsic: 1.3.0
@@ -794,7 +778,7 @@ snapshots:
   json-stable-stringify@1.2.1:
     dependencies:
       call-bind: 1.0.8
-      call-bound: 1.0.3
+      call-bound: 1.0.4
       isarray: 2.0.5
       jsonify: 0.0.1
       object-keys: 1.1.1
