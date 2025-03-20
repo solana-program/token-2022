@@ -82,8 +82,8 @@ function getDecimalFactor(decimals: number): number {
 }
 
 /**
- * Convert a UI amount to the atomic UI amount
- * This is the amount of the mint in the smallest unit of the mint
+ * Convert a UI amount to an atomic amount by removing decimal scaling
+ * For example, converts "1.234" with 3 decimals to 1234 (atomic units)
  *
  * @param uiAmount       UI Amount to be converted to atomic UI amount
  * @param decimals       Number of decimals for the mint
@@ -195,10 +195,22 @@ export async function amountToUiAmountForMintWithoutSimulation(
     }
 
     const mintInfo = unpackMint(mint, accountInfo, programId);
-    const timestamp = await getSysvarClockTimestamp(connection);
 
     // Check for interest bearing mint extension
     const interestBearingMintConfigState = getInterestBearingMintConfigState(mintInfo);
+    // Check for scaled UI amount extension
+    const scaledUiAmountConfig = getScaledUiAmountConfig(mintInfo);
+
+    // Standard conversion for regular mints
+    if (!interestBearingMintConfigState && !scaledUiAmountConfig) {
+        const decimalFactor = getDecimalFactor(mintInfo.decimals);
+        return (Number(amount) / decimalFactor).toString();
+    }
+
+    // Get timestamp only if needed for special mint types
+    const timestamp = await getSysvarClockTimestamp(connection);
+
+    // Handle interest bearing mint
     if (interestBearingMintConfigState) {
         return amountToUiAmountForInterestBearingMintWithoutSimulation(
             amount,
@@ -211,19 +223,12 @@ export async function amountToUiAmountForMintWithoutSimulation(
         );
     }
 
-    // Check for scaled UI amount extension
-    const scaledUiAmountConfig = getScaledUiAmountConfig(mintInfo);
-    if (scaledUiAmountConfig) {
-        let multiplier = scaledUiAmountConfig.multiplier;
-        if (timestamp >= Number(scaledUiAmountConfig.newMultiplierEffectiveTimestamp)) {
-            multiplier = scaledUiAmountConfig.newMultiplier;
-        }
-        return amountToUiAmountForScaledUiAmountMintWithoutSimulation(amount, mintInfo.decimals, multiplier);
+    // At this point, we know it must be a scaled UI amount mint
+    let multiplier = scaledUiAmountConfig!.multiplier;
+    if (timestamp >= Number(scaledUiAmountConfig!.newMultiplierEffectiveTimestamp)) {
+        multiplier = scaledUiAmountConfig!.newMultiplier;
     }
-
-    // Standard conversion for regular mints
-    const decimalFactor = getDecimalFactor(mintInfo.decimals);
-    return (Number(amount) / decimalFactor).toString();
+    return amountToUiAmountForScaledUiAmountMintWithoutSimulation(amount, mintInfo.decimals, multiplier);
 }
 
 /**
@@ -317,10 +322,19 @@ export async function uiAmountToAmountForMintWithoutSimulation(
     }
 
     const mintInfo = unpackMint(mint, accountInfo, programId);
-    const timestamp = await getSysvarClockTimestamp(connection);
 
     // Check for interest bearing mint extension
     const interestBearingMintConfigState = getInterestBearingMintConfigState(mintInfo);
+    // Check for scaled UI amount extension
+    const scaledUiAmountConfig = getScaledUiAmountConfig(mintInfo);
+
+    if (!interestBearingMintConfigState && !scaledUiAmountConfig) {
+        // Standard conversion for regular mints
+        return BigInt(Math.trunc(uiAmountToAtomicUiAmount(uiAmount, mintInfo.decimals)));
+    }
+
+    const timestamp = await getSysvarClockTimestamp(connection);
+
     if (interestBearingMintConfigState) {
         return uiAmountToAmountForInterestBearingMintWithoutSimulation(
             uiAmount,
@@ -333,16 +347,11 @@ export async function uiAmountToAmountForMintWithoutSimulation(
         );
     }
 
-    // Check for scaled UI amount extension
-    const scaledUiAmountConfig = getScaledUiAmountConfig(mintInfo);
-    if (scaledUiAmountConfig) {
-        let multiplier = scaledUiAmountConfig.multiplier;
-        if (timestamp >= Number(scaledUiAmountConfig.newMultiplierEffectiveTimestamp)) {
-            multiplier = scaledUiAmountConfig.newMultiplier;
-        }
-        return uiAmountToAmountForScaledUiAmountMintWithoutSimulation(uiAmount, mintInfo.decimals, multiplier);
+    // At this point, we know it must be a scaled UI amount mint
+    let multiplier = scaledUiAmountConfig!.multiplier;
+    if (timestamp >= Number(scaledUiAmountConfig!.newMultiplierEffectiveTimestamp)) {
+        multiplier = scaledUiAmountConfig!.newMultiplier;
     }
 
-    // Standard conversion for regular mints
-    return BigInt(Math.trunc(uiAmountToAtomicUiAmount(uiAmount, mintInfo.decimals)));
+    return uiAmountToAmountForScaledUiAmountMintWithoutSimulation(uiAmount, mintInfo.decimals, multiplier);
 }
