@@ -1,3 +1,5 @@
+#[cfg(target_arch = "wasm32")]
+use solana_zk_sdk::encryption::grouped_elgamal::GroupedElGamalCiphertext3Handles;
 use {
     crate::{
         encryption::MintAmountCiphertext, errors::TokenProofGenerationError,
@@ -52,12 +54,32 @@ pub fn mint_split_proof_data(
         supply_elgamal_keypair.pubkey(),
         auditor_elgamal_pubkey,
     );
+    #[cfg(not(target_arch = "wasm32"))]
+    let grouped_ciphertext_lo = mint_amount_grouped_ciphertext_lo.0;
+    #[cfg(target_arch = "wasm32")]
+    let grouped_ciphertext_lo = GroupedElGamalCiphertext3Handles::encryption_with_u64(
+        destination_elgamal_pubkey,
+        supply_elgamal_keypair.pubkey(),
+        auditor_elgamal_pubkey,
+        mint_amount_lo,
+        &mint_amount_opening_lo,
+    );
 
     let (mint_amount_grouped_ciphertext_hi, mint_amount_opening_hi) = MintAmountCiphertext::new(
         mint_amount_hi,
         destination_elgamal_pubkey,
         supply_elgamal_keypair.pubkey(),
         auditor_elgamal_pubkey,
+    );
+    #[cfg(not(target_arch = "wasm32"))]
+    let grouped_ciphertext_hi = mint_amount_grouped_ciphertext_hi.0;
+    #[cfg(target_arch = "wasm32")]
+    let grouped_ciphertext_hi = GroupedElGamalCiphertext3Handles::encryption_with_u64(
+        destination_elgamal_pubkey,
+        supply_elgamal_keypair.pubkey(),
+        auditor_elgamal_pubkey,
+        mint_amount_hi,
+        &mint_amount_opening_hi,
     );
 
     // compute the new supply ciphertext
@@ -101,8 +123,8 @@ pub fn mint_split_proof_data(
         destination_elgamal_pubkey,
         supply_elgamal_keypair.pubkey(),
         auditor_elgamal_pubkey,
-        &mint_amount_grouped_ciphertext_lo.0,
-        &mint_amount_grouped_ciphertext_hi.0,
+        &grouped_ciphertext_lo,
+        &grouped_ciphertext_hi,
         mint_amount_lo,
         mint_amount_hi,
         &mint_amount_opening_lo,
