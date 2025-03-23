@@ -2295,21 +2295,21 @@ pub fn app<'a>(
                 .arg(
                     Arg::with_name("account")
                         .validator(|s| is_valid_pubkey(s))
-                        .value_name("TOKEN_ACCOUNT_ADDRESS")
+                        .value_name("FEE_RECIPIENT_ADDRESS")
                         .takes_value(true)
                         .index(1)
                         .required(true)
-                        .help("The address of the token account to receive withdrawn tokens"),
+                        .help("The token account to send withdrawn fees to."),
                 )
                 .arg(
                     Arg::with_name("source")
                         .validator(|s| is_valid_pubkey(s))
-                        .value_name("ACCOUNT_ADDRESS")
+                        .value_name("SOURCE_ADDRESS")
                         .takes_value(true)
                         .multiple(true)
                         .min_values(0_usize)
                         .index(2)
-                        .help("The token accounts to withdraw from")
+                        .help("The token account(s) to withdraw fees from.")
                 )
                 .arg(
                     Arg::with_name("include_mint")
