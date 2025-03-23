@@ -2332,6 +2332,11 @@ pub fn app<'a>(
                 .arg(owner_address_arg())
                 .arg(multisig_signer_arg())
                 .group(
+                    ArgGroup::with_name("account_group")
+                        .arg("account")
+                        .required(true)
+                )
+                .group(
                     ArgGroup::with_name("source_or_mint")
                         .arg("source")
                         .arg("include_mint")
