@@ -2331,6 +2331,7 @@ pub fn app<'a>(
                 )
                 .arg(owner_address_arg())
                 .arg(multisig_signer_arg())
+                // The account_group ArgGroup ensures <FEE_RECIPIENT_ADDRESS> appears as the first argument in the --help output. Without it, <SOURCE_ADDRESS|--include-mint> would be incorrectly prioritized due to clap’s handling of ArgGroups.
                 .group(
                     ArgGroup::with_name("account_group")
                         .arg("account")
