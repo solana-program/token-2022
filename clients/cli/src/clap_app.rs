@@ -2295,21 +2295,21 @@ pub fn app<'a>(
                 .arg(
                     Arg::with_name("account")
                         .validator(|s| is_valid_pubkey(s))
-                        .value_name("TOKEN_ACCOUNT_ADDRESS")
+                        .value_name("FEE_RECIPIENT_ADDRESS")
                         .takes_value(true)
                         .index(1)
                         .required(true)
-                        .help("The address of the token account to receive withdrawn tokens"),
+                        .help("The token account to send withdrawn fees to."),
                 )
                 .arg(
                     Arg::with_name("source")
                         .validator(|s| is_valid_pubkey(s))
-                        .value_name("ACCOUNT_ADDRESS")
+                        .value_name("SOURCE_ADDRESS")
                         .takes_value(true)
                         .multiple(true)
                         .min_values(0_usize)
                         .index(2)
-                        .help("The token accounts to withdraw from")
+                        .help("The token account(s) to withdraw fees from.")
                 )
                 .arg(
                     Arg::with_name("include_mint")
@@ -2331,6 +2331,12 @@ pub fn app<'a>(
                 )
                 .arg(owner_address_arg())
                 .arg(multisig_signer_arg())
+                // The account_group ArgGroup ensures <FEE_RECIPIENT_ADDRESS> appears as the first argument in the --help output. Without it, <SOURCE_ADDRESS|--include-mint> would be incorrectly prioritized due to clap’s handling of ArgGroups.
+                .group(
+                    ArgGroup::with_name("account_group")
+                        .arg("account")
+                        .required(true)
+                )
                 .group(
                     ArgGroup::with_name("source_or_mint")
                         .arg("source")
