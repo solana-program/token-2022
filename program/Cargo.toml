@@ -45,13 +45,13 @@ solana-system-interface = "1.0.0"
 solana-zk-sdk = "2.2.0"
 spl-elgamal-registry = { version = "0.1.1", path = "../confidential-transfer/elgamal-registry", features = ["no-entrypoint"] }
 spl-memo = { version = "6.0", features = ["no-entrypoint"] }
-spl-token = { version = "7.0", features = ["no-entrypoint"] }
+spl-token = { version = "8.0", features = ["no-entrypoint"] }
 spl-token-confidential-transfer-ciphertext-arithmetic = { version = "0.2.1", path = "../confidential-transfer/ciphertext-arithmetic" }
 spl-token-confidential-transfer-proof-extraction = { version = "0.2.1", path = "../confidential-transfer/proof-extraction" }
 spl-token-group-interface = { version = "0.6.0" }
-spl-token-metadata-interface = { version = "0.6.0" }
+spl-token-metadata-interface = { version = "0.7.0" }
 spl-transfer-hook-interface = { version = "0.10.0" }
-spl-type-length-value = { version = "0.7.0" }
+spl-type-length-value = { version = "0.8.0" }
 spl-pod = { version = "0.5.1" }
 thiserror = "2.0"
 serde = { version = "1.0.219", optional = true }
