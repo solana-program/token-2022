@@ -12,8 +12,8 @@ importers:
         specifier: ^1.2.9
         version: 1.2.9(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)
       '@codama/renderers-rust':
-        specifier: ^1.0.18
-        version: 1.0.18(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)
+        specifier: ^1.0.19
+        version: 1.0.19(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)
       '@iarna/toml':
         specifier: ^2.2.5
         version: 2.2.5
@@ -72,9 +72,6 @@ packages:
 
   '@codama/renderers-js@1.2.9':
     resolution: {integrity: sha512-k/4H1d9vT8NZLxGJcL7gEF3vX/Vmh+uRpbSLeglyvLcTeh6+pHnU0jJocpw/EXRLGg5MlYaQOq2c8WaUxmXMoA==}
-
-  '@codama/renderers-rust@1.0.18':
-    resolution: {integrity: sha512-SrohRhXScNXY8+x2ehFBKXidp6VTdHXtaD4TfIVIzIrYtvMzUKHtzEleWfwsTd/9JE+XXwwIk8ztQgbehMmVEw==}
 
   '@codama/renderers-rust@1.0.19':
     resolution: {integrity: sha512-ur2oQsMZ0P/g0DXY4tcw6Hznsq8ax1n968lfUNnxMHNBYr3zdhfJRBvzsF7RtcYkEvengOafQn1N5AlsNv1GBA==}
@@ -442,19 +439,6 @@ snapshots:
       '@solana/codecs-strings': 2.0.0-rc.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)
       nunjucks: 3.2.4
       prettier: 3.5.3
-    transitivePeerDependencies:
-      - chokidar
-      - fastestsmallesttextencoderdecoder
-      - typescript
-
-  '@codama/renderers-rust@1.0.18(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)':
-    dependencies:
-      '@codama/errors': 1.2.10
-      '@codama/nodes': 1.2.10
-      '@codama/renderers-core': 1.0.12
-      '@codama/visitors-core': 1.2.10
-      '@solana/codecs-strings': 2.0.0-rc.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)
-      nunjucks: 3.2.4
     transitivePeerDependencies:
       - chokidar
       - fastestsmallesttextencoderdecoder
