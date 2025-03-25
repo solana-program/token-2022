@@ -1,7 +1,9 @@
-#[cfg(target_arch = "wasm32")]
-use solana_zk_sdk::encryption::grouped_elgamal::{GroupedElGamalCiphertext2Handles, GroupedElGamalCiphertext3Handles};
 #[cfg(not(target_arch = "wasm32"))]
 use solana_zk_sdk::encryption::grouped_elgamal::GroupedElGamal;
+#[cfg(target_arch = "wasm32")]
+use solana_zk_sdk::encryption::grouped_elgamal::{
+    GroupedElGamalCiphertext2Handles, GroupedElGamalCiphertext3Handles,
+};
 use {
     crate::{
         encryption::{FeeCiphertext, TransferAmountCiphertext},
@@ -13,7 +15,9 @@ use {
     curve25519_dalek::scalar::Scalar,
     solana_zk_sdk::{
         encryption::{
-            auth_encryption::{AeCiphertext, AeKey}, elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey}, pedersen::{Pedersen, PedersenCommitment, PedersenOpening}
+            auth_encryption::{AeCiphertext, AeKey},
+            elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey},
+            pedersen::{Pedersen, PedersenCommitment, PedersenOpening},
         },
         zk_elgamal_proof_program::proof_data::{
             BatchedGroupedCiphertext2HandlesValidityProofData,
@@ -264,15 +268,17 @@ pub fn transfer_with_fee_split_proof_data(
         &fee_opening_lo,
     );
     #[cfg(target_arch = "wasm32")]
-    let fee_destination_withdraw_withheld_authority_ciphertext_lo = GroupedElGamalCiphertext2Handles::encryption_with_u64(
-        destination_elgamal_pubkey,
-        withdraw_withheld_authority_elgamal_pubkey,
-        fee_amount_lo,
-        &fee_opening_lo
-    );
+    let fee_destination_withdraw_withheld_authority_ciphertext_lo =
+        GroupedElGamalCiphertext2Handles::encryption_with_u64(
+            destination_elgamal_pubkey,
+            withdraw_withheld_authority_elgamal_pubkey,
+            fee_amount_lo,
+            &fee_opening_lo,
+        );
 
     #[cfg(not(target_arch = "wasm32"))]
-    let fee_destination_withdraw_withheld_authority_ciphertext_hi = GroupedElGamal::encrypt_with([
+    let fee_destination_withdraw_withheld_authority_ciphertext_hi = GroupedElGamal::encrypt_with(
+        [
             destination_elgamal_pubkey,
             withdraw_withheld_authority_elgamal_pubkey,
         ],
@@ -280,12 +286,13 @@ pub fn transfer_with_fee_split_proof_data(
         &fee_opening_hi,
     );
     #[cfg(target_arch = "wasm32")]
-    let fee_destination_withdraw_withheld_authority_ciphertext_hi = GroupedElGamalCiphertext2Handles::encryption_with_u64(
-        destination_elgamal_pubkey,
-        withdraw_withheld_authority_elgamal_pubkey,
-        fee_amount_hi,
-        &fee_opening_hi,
-    );
+    let fee_destination_withdraw_withheld_authority_ciphertext_hi =
+        GroupedElGamalCiphertext2Handles::encryption_with_u64(
+            destination_elgamal_pubkey,
+            withdraw_withheld_authority_elgamal_pubkey,
+            fee_amount_hi,
+            &fee_opening_hi,
+        );
 
     // generate fee ciphertext validity data
     let fee_ciphertext_validity_proof_data =
