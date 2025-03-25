@@ -51,7 +51,7 @@ spl-token-confidential-transfer-proof-extraction = { version = "0.2.1", path = "
 spl-token-group-interface = { version = "0.6.0" }
 spl-token-metadata-interface = { version = "0.6.0" }
 spl-transfer-hook-interface = { version = "0.10.0" }
-spl-type-length-value = { version = "0.7.0" }
+spl-type-length-value = { version = "0.8.0" }
 spl-pod = { version = "0.5.1" }
 thiserror = "2.0"
 serde = { version = "1.0.219", optional = true }
