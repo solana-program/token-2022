@@ -5162,7 +5162,7 @@ dependencies = [
  "solana-sysvar",
  "spl-token",
  "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "spl-token-group-interface",
+ "spl-token-group-interface 0.5.0",
  "spl-token-metadata-interface",
  "thiserror 2.0.12",
  "zstd",
@@ -8493,7 +8493,7 @@ dependencies = [
  "spl-memo",
  "spl-token",
  "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "spl-token-group-interface",
+ "spl-token-group-interface 0.5.0",
  "spl-token-metadata-interface",
  "thiserror 2.0.12",
 ]
@@ -9133,7 +9133,7 @@ dependencies = [
  "spl-token-confidential-transfer-ciphertext-arithmetic 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "spl-token-confidential-transfer-proof-extraction 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "spl-token-confidential-transfer-proof-generation 0.2.0",
- "spl-token-group-interface",
+ "spl-token-group-interface 0.5.0",
  "spl-token-metadata-interface",
  "spl-transfer-hook-interface",
  "spl-type-length-value",
@@ -9190,7 +9190,7 @@ dependencies = [
  "spl-token-confidential-transfer-ciphertext-arithmetic 0.2.1",
  "spl-token-confidential-transfer-proof-extraction 0.2.1",
  "spl-token-confidential-transfer-proof-generation 0.3.0",
- "spl-token-group-interface",
+ "spl-token-group-interface 0.6.0",
  "spl-token-metadata-interface",
  "spl-transfer-hook-interface",
  "spl-type-length-value",
@@ -9219,7 +9219,7 @@ dependencies = [
  "spl-token-confidential-transfer-ciphertext-arithmetic 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "spl-token-confidential-transfer-proof-extraction 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "spl-token-confidential-transfer-proof-generation 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "spl-token-group-interface",
+ "spl-token-group-interface 0.5.0",
  "spl-token-metadata-interface",
  "spl-transfer-hook-interface",
  "spl-type-length-value",
@@ -9256,7 +9256,7 @@ dependencies = [
  "spl-token-2022 7.0.0",
  "spl-token-client",
  "spl-token-confidential-transfer-proof-generation 0.3.0",
- "spl-token-group-interface",
+ "spl-token-group-interface 0.6.0",
  "spl-token-metadata-interface",
  "strum 0.27.1",
  "strum_macros 0.27.1",
@@ -9294,7 +9294,7 @@ dependencies = [
  "spl-token-2022 7.0.0",
  "spl-token-confidential-transfer-proof-extraction 0.2.1",
  "spl-token-confidential-transfer-proof-generation 0.3.0",
- "spl-token-group-interface",
+ "spl-token-group-interface 0.6.0",
  "spl-token-metadata-interface",
  "spl-transfer-hook-interface",
  "test-case",
@@ -9416,6 +9416,25 @@ dependencies = [
  "spl-discriminator",
  "spl-pod",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "spl-token-group-interface"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5597b4cd76f85ce7cd206045b7dc22da8c25516573d42d267c8d1fd128db5129"
+dependencies = [
+ "bytemuck",
+ "num-derive",
+ "num-traits",
+ "solana-decode-error",
+ "solana-instruction",
+ "solana-msg",
+ "solana-program-error",
+ "solana-pubkey",
+ "spl-discriminator",
+ "spl-pod",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
