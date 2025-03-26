@@ -8948,6 +8948,19 @@ dependencies = [
 [[package]]
 name = "spl-elgamal-registry"
 version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce0f668975d2b0536e8a8fd60e56a05c467f06021dae037f1d0cfed0de2e231d"
+dependencies = [
+ "bytemuck",
+ "solana-program",
+ "solana-zk-sdk",
+ "spl-pod",
+ "spl-token-confidential-transfer-proof-extraction 0.2.1",
+]
+
+[[package]]
+name = "spl-elgamal-registry"
+version = "0.2.0"
 dependencies = [
  "bytemuck",
  "solana-account-info",
@@ -8964,19 +8977,6 @@ dependencies = [
  "solana-zk-sdk",
  "spl-pod",
  "spl-token-confidential-transfer-proof-extraction 0.3.0",
-]
-
-[[package]]
-name = "spl-elgamal-registry"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce0f668975d2b0536e8a8fd60e56a05c467f06021dae037f1d0cfed0de2e231d"
-dependencies = [
- "bytemuck",
- "solana-program",
- "solana-zk-sdk",
- "spl-pod",
- "spl-token-confidential-transfer-proof-extraction 0.2.1",
 ]
 
 [[package]]
@@ -9203,7 +9203,7 @@ dependencies = [
  "solana-program",
  "solana-security-txt",
  "solana-zk-sdk",
- "spl-elgamal-registry 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-elgamal-registry 0.1.1",
  "spl-memo",
  "spl-pod",
  "spl-token 7.0.0",
@@ -9259,7 +9259,7 @@ dependencies = [
  "solana-transaction",
  "solana-transaction-error",
  "solana-zk-sdk",
- "spl-elgamal-registry 0.1.1",
+ "spl-elgamal-registry 0.2.0",
  "spl-memo",
  "spl-pod",
  "spl-tlv-account-resolution 0.10.0",
@@ -9289,7 +9289,7 @@ dependencies = [
  "solana-program",
  "solana-security-txt",
  "solana-zk-sdk",
- "spl-elgamal-registry 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-elgamal-registry 0.1.1",
  "spl-memo",
  "spl-pod",
  "spl-token 7.0.0",
@@ -9361,7 +9361,7 @@ dependencies = [
  "solana-sdk",
  "spl-associated-token-account",
  "spl-associated-token-account-client",
- "spl-elgamal-registry 0.1.1",
+ "spl-elgamal-registry 0.2.0",
  "spl-instruction-padding",
  "spl-memo",
  "spl-pod",
