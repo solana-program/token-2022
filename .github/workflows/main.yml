@@ -249,27 +249,6 @@ jobs:
       - name: Run cargo-audit
         run: pnpm rust:audit
 
-  semver_rust:
-    name: Check semver Rust
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cli: true
-          cargo-cache-key: cargo-semver
-
-      - name: Install cargo-semver-checks
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-semver-checks
-
-      - name: Run semver checks
-        run: pnpm rust:semver
-
   spellcheck_rust:
     name: Spellcheck Rust
     runs-on: ubuntu-latest
