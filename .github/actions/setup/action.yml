@@ -69,8 +69,8 @@ runs:
         sudo apt-get remove -y '^aspnetcore-.*' azure-cli google-chrome-stable firefox powershell mono-devel libgl1-mesa-dri google-cloud-cli --fix-missing
         sudo apt-get autoremove -y
         sudo apt-get clean
-        #sudo swapoff -a
-        #sudo rm -f /mnt/swapfile
+        sudo swapoff -a
+        sudo rm -f /mnt/swapfile
 
     - name: Install Dependencies
       run: pnpm install --frozen-lockfile
