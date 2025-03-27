@@ -8961,6 +8961,7 @@ dependencies = [
  "solana-pubkey",
  "solana-rent",
  "solana-sdk-ids",
+ "solana-security-txt",
  "solana-system-interface",
  "solana-sysvar",
  "solana-zk-sdk",
