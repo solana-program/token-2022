@@ -2,6 +2,7 @@
   "private": true,
   "scripts": {
     "programs:build": "zx ./scripts/rust/build-sbf.mjs program",
+    "programs:build-wasm": "zx ./scripts/rust/build-wasm.mjs program",
     "programs:test": "zx ./scripts/rust/test-sbf.mjs program",
     "programs:format": "zx ./scripts/rust/format.mjs program",
     "programs:lint": "zx ./scripts/rust/lint.mjs program",
