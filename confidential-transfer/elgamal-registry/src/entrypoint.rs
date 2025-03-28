@@ -18,12 +18,12 @@ fn process_instruction(
 
 security_txt! {
     // Required fields
-    name: "SPL Record",
-    project_url: "https://solana-program.com/record",
-    contacts: "link:https://github.com/solana-program/record/security/advisories/new,mailto:security@anza.xyz,discord:https://solana.com/discord",
-    policy: "https://github.com/solana-program/record/blob/master/SECURITY.md",
+    name: "SPL ElGamal Registry",
+    project_url: "https://solana-program.com",
+    contacts: "link:https://github.com/solana-program/token-2022/security/advisories/new,mailto:security@anza.xyz,discord:https://solana.com/discord",
+    policy: "https://github.com/solana-program/token-2022/blob/master/SECURITY.md",
 
     // Optional Fields
     preferred_languages: "en",
-    source_code: "https://github.com/solana-program/record/tree/master/program"
+    source_code: "https://github.com/solana-program/token-2022/tree/master/confidential-transfer/elgamal-registry"
 }
