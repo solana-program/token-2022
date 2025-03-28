@@ -22,3 +22,17 @@ If you do not receive a response from <security@anza.xyz> please followup with
 the team directly. You can do this in one of the `#Dev Tooling` channels of the
 [Solana Tech discord server](https://solana.com/discord), by pinging the admins
 in the channel and referencing the fact that you submitted a security problem.
+
+## Security Bug Bounties
+
+The Solana Foundation offer bounties for critical security issues. Please
+see the [Agave Security Bug
+Bounties](https://github.com/anza-xyz/agave/security/policy#security-bug-bounties)
+for details on classes of bugs and payment amounts.
+
+## Scope
+
+Only the `spl-token-2022` program is included in the bounty scope, at [program](https://github.com/solana-program/token-2022/tree/master/program).
+
+If you discover a critical security issue in an out-of-scope component, your finding
+may still be valuable.
