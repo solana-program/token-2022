@@ -23,6 +23,7 @@ solana-program-error = "2.2.1"
 solana-pubkey = { version = "2.2.1", features = ["curve25519"] }
 solana-rent = "2.2.1"
 solana-sdk-ids = "2.2.1"
+solana-security-txt = "1.1.1"
 solana-system-interface = { version = "1.0.0", features = ["bincode"] }
 solana-sysvar = { version = "2.2.1", features = ["bincode"] }
 solana-zk-sdk = "2.2.0"
