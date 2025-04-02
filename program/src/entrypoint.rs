@@ -25,7 +25,7 @@ fn process_instruction(
 security_txt! {
     // Required fields
     name: "SPL Token-2022",
-    project_url: "https://spl.solana.com/token-2022",
+    project_url: "https://www.solana-program.com/docs/token-2022",
     contacts: "link:https://github.com/solana-program/token-2022/security/advisories/new,mailto:security@anza.xyz,discord:https://solana.com/discord",
     policy: "https://github.com/solana-program/token-2022/blob/master/SECURITY.md",
 
