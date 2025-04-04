@@ -269,6 +269,23 @@ jobs:
       - name: Run cargo-spellcheck
         run: pnpm rust:spellcheck
 
+  wasm:
+    name: Check wasm build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup
+        with:
+          cargo-cache-key: cargo-wasm
+          wasm: true
+
+      - name: Build Token-2022 Wasm
+        run: pnpm programs:build-wasm
+
+
   build_programs:
     name: Build programs
     runs-on: ubuntu-latest
@@ -285,9 +302,6 @@ jobs:
 
       - name: Build Token-2022
         run: pnpm programs:build
-
-      - name: Build Token-2022 Wasm
-        run: pnpm programs:build-wasm
 
       - name: Build ElGamal Registry
         run: pnpm confidential-transfer:elgamal-registry:build

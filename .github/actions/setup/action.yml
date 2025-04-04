@@ -25,6 +25,9 @@ inputs:
   purge:
     description: Purge unused directories if `true`. Defaults to `false`.
     required: false
+  wasm:
+    description: Install wasm target for Rust if `true`. Defaults to `false`.
+    required: false
 
 runs:
   using: 'composite'
@@ -105,6 +108,11 @@ runs:
       if: ${{ inputs.cli == 'true' }}
       shell: bash
       run: sudo apt update && sudo apt install libudev-dev protobuf-compiler -y
+
+    - name: Install wasm target
+      if: ${{ inputs.wasm == 'true' }}
+      shell: bash
+      run: rustup target add wasm32-unknown-unknown
 
     - name: Cache Cargo Dependencies
       if: ${{ inputs.cargo-cache-key && !inputs.cargo-cache-fallback-key }}
