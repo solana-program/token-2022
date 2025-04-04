@@ -9248,7 +9248,7 @@ dependencies = [
 
 [[package]]
 name = "spl-token-2022"
-version = "8.0.0"
+version = "8.0.1"
 dependencies = [
  "arrayref",
  "base64 0.22.1",
@@ -9331,7 +9331,7 @@ dependencies = [
  "spl-associated-token-account-client",
  "spl-memo",
  "spl-token 8.0.0",
- "spl-token-2022 8.0.0",
+ "spl-token-2022 8.0.1",
  "spl-token-client",
  "spl-token-confidential-transfer-proof-generation 0.4.0",
  "spl-token-group-interface 0.6.0",
@@ -9369,7 +9369,7 @@ dependencies = [
  "spl-record",
  "spl-tlv-account-resolution 0.10.0",
  "spl-token 8.0.0",
- "spl-token-2022 8.0.0",
+ "spl-token-2022 8.0.1",
  "spl-token-confidential-transfer-proof-extraction 0.3.0",
  "spl-token-confidential-transfer-proof-generation 0.4.0",
  "spl-token-group-interface 0.6.0",
