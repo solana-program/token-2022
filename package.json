@@ -53,7 +53,7 @@
     "@codama/renderers-rust": "^1.0.19",
     "@iarna/toml": "^2.2.5",
     "codama": "^1.2.11",
-    "typescript": "^5.8.2",
+    "typescript": "^5.8.3",
     "zx": "^8.5.0"
   },
   "engines": {
