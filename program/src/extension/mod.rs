@@ -312,7 +312,7 @@ fn type_and_tlv_indices<S: BaseState>(
         let account_type_index = BASE_ACCOUNT_LENGTH.saturating_sub(S::SIZE_OF);
         // check padding is all zeroes
         let tlv_start_index = account_type_index.saturating_add(size_of::<AccountType>());
-        if rest_input.len() <= tlv_start_index {
+        if rest_input.len() < tlv_start_index {
             return Err(ProgramError::InvalidAccountData);
         }
         if rest_input[..account_type_index] != vec![0; account_type_index] {
@@ -1613,6 +1613,16 @@ mod test {
         }
     }
 
+    const MINT_WITH_ACCOUNT_TYPE: &[u8] = &[
+        1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 42, 0, 0, 0, 0, 0, 0, 0, 7, 1, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, // base mint
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // padding
+        1, // account type
+    ];
+
     const MINT_WITH_EXTENSION: &[u8] = &[
         1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 42, 0, 0, 0, 0, 0, 0, 0, 7, 1, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
@@ -1649,6 +1659,8 @@ mod test {
     #[test]
     fn unpack_opaque_buffer() {
         // Mint
+        let state = PodStateWithExtensions::<PodMint>::unpack(MINT_WITH_ACCOUNT_TYPE).unwrap();
+        assert_eq!(state.base, &TEST_POD_MINT);
         let state = PodStateWithExtensions::<PodMint>::unpack(MINT_WITH_EXTENSION).unwrap();
         assert_eq!(state.base, &TEST_POD_MINT);
         let extension = state.get_extension::<MintCloseAuthority>().unwrap();
