@@ -30,16 +30,9 @@ pnpm programs:format
 pnpm programs:lint
 ```
 
-## Generating IDLs
+## IDL
 
-You may use the following command to generate the IDLs for your programs.
-
-```sh
-pnpm generate:idls
-```
-
-Depending on your program's framework, this will either use Shank or Anchor to generate the IDLs.
-Note that, to ensure IDLs are generated using the correct framework version, the specific version used by the program will be downloaded and used locally.
+You may use the following [IDL](https://github.com/solana-program/token-2022/blob/main/program/idl.json) in your programs.
 
 ## Generating clients
 
