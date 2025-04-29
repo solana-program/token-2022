@@ -13,7 +13,7 @@ no-entrypoint = []
 test-sbf = []
 
 [dependencies]
-bytemuck = { version = "1.22.0", features = ["derive"] }
+bytemuck = { version = "1.23.0", features = ["derive"] }
 solana-account-info = "2.2.1"
 solana-cpi = "2.2.1"
 solana-instruction = "2.2.1"
