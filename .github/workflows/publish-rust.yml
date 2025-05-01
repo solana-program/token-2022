@@ -90,6 +90,7 @@ jobs:
       - name: Setup Environment
         uses: ./.github/actions/setup
         with:
+          cli: true
           cargo-cache-key: cargo-publish-semver-${{ inputs.package_path }}
           cargo-cache-fallback-key: cargo-publish-semver
 
@@ -131,6 +132,7 @@ jobs:
       - name: Setup Environment
         uses: ./.github/actions/setup
         with:
+          cli: true
           cargo-cache-key: cargo-publish-${{ inputs.package_path }}
           cargo-cache-fallback-key: cargo-publish
 
