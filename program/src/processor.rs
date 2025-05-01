@@ -60,6 +60,10 @@ use {
     spl_token_group_interface::instruction::TokenGroupInstruction,
     spl_token_metadata_interface::instruction::TokenMetadataInstruction,
     std::convert::{TryFrom, TryInto},
+    token_whitelist_interface::{
+        address::get_whitelist_entry_address, state::entry::WhitelistEntryAccount,
+        state::Initializable,
+    },
 };
 
 pub(crate) enum TransferInstruction {
@@ -1969,6 +1973,32 @@ impl Processor {
         } else if !owner_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
+        Ok(())
+    }
+
+    /// Validates if the mint_authority is whitelisted
+    pub fn validate_whitelisted_authority(
+        whitelist_entry_info: &AccountInfo,
+        mint_authority: &Pubkey,
+    ) -> Result<(), ProgramError> {
+        let whitelist_entry_address = get_whitelist_entry_address(&mint_authority.to_bytes());
+
+        if whitelist_entry_info.key.to_bytes() != whitelist_entry_address {
+            return Err(ProgramError::InvalidSeeds);
+        }
+
+        let whitelist_entry_data = whitelist_entry_info.data.borrow();
+        let whitelist_entry = pod_from_bytes::<WhitelistEntryAccount>(&whitelist_entry_data)?;
+
+        if !whitelist_entry.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        // extra check, not needed because whitelist_entry is derived from mint_authority
+        if whitelist_entry.entry_address != mint_authority.to_bytes() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         Ok(())
     }
 
