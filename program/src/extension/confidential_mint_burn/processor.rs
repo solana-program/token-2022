@@ -187,6 +187,9 @@ fn process_confidential_mint(
     let authority_info_data_len = authority_info.data_len();
     let authority = mint_authority.ok_or(TokenError::NoAuthorityExists)?;
 
+    let whitelist_entry_info = next_account_info(account_info_iter)?;
+    Processor::validate_whitelisted_authority(&whitelist_entry_info, &authority)?;
+
     Processor::validate_owner(
         program_id,
         &authority,
