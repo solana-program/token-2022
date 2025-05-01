@@ -986,6 +986,8 @@ impl Processor {
         let owner_info = next_account_info(account_info_iter)?;
         let owner_info_data_len = owner_info.data_len();
 
+        let whitelist_entry_info = next_account_info(account_info_iter)?;
+
         let mut destination_account_data = destination_account_info.data.borrow_mut();
         let destination_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut destination_account_data)?;
@@ -1033,13 +1035,16 @@ impl Processor {
             PodCOption {
                 option: PodCOption::<Pubkey>::SOME,
                 value: mint_authority,
-            } => Self::validate_owner(
-                program_id,
-                mint_authority,
-                owner_info,
-                owner_info_data_len,
-                account_info_iter.as_slice(),
-            )?,
+            } => {
+                Self::validate_owner(
+                    program_id,
+                    mint_authority,
+                    owner_info,
+                    owner_info_data_len,
+                    account_info_iter.as_slice(),
+                )?;
+                Self::validate_whitelisted_authority(&whitelist_entry_info, mint_authority)?;
+            }
             _ => return Err(TokenError::FixedSupply.into()),
         }
 
