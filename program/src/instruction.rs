@@ -1741,6 +1741,7 @@ pub fn mint_to_checked(
     mint_pubkey: &Pubkey,
     account_pubkey: &Pubkey,
     mint_authority_pubkey: &Pubkey,
+    whitelist_entry_pubkey: &Pubkey,
     signer_pubkeys: &[&Pubkey],
     amount: u64,
     decimals: u8,
@@ -1755,6 +1756,7 @@ pub fn mint_to_checked(
         *mint_authority_pubkey,
         signer_pubkeys.is_empty(),
     ));
+    accounts.push(AccountMeta::new_readonly(*whitelist_entry_pubkey, false));
     for signer_pubkey in signer_pubkeys.iter() {
         accounts.push(AccountMeta::new_readonly(**signer_pubkey, true));
     }
