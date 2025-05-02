@@ -60,10 +60,7 @@ use {
     spl_token_group_interface::instruction::TokenGroupInstruction,
     spl_token_metadata_interface::instruction::TokenMetadataInstruction,
     std::convert::{TryFrom, TryInto},
-    token_whitelist_interface::{
-        address::get_whitelist_entry_address, state::entry::WhitelistEntryAccount,
-        state::Initializable,
-    },
+    token_whitelist_interface::{state::entry::WhitelistEntryAccount, state::Initializable},
 };
 
 pub(crate) enum TransferInstruction {
@@ -1986,9 +1983,15 @@ impl Processor {
         whitelist_entry_info: &AccountInfo,
         mint_authority: &Pubkey,
     ) -> Result<(), ProgramError> {
-        let whitelist_entry_address = get_whitelist_entry_address(&mint_authority.to_bytes());
+        let (whitelist_entry_address, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &mint_authority.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
 
-        if whitelist_entry_info.key.to_bytes() != whitelist_entry_address {
+        if whitelist_entry_info.key != &whitelist_entry_address {
             return Err(ProgramError::InvalidSeeds);
         }
 
