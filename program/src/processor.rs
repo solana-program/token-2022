@@ -2069,6 +2069,7 @@ mod tests {
         solana_program_option::COption,
         solana_sdk_ids::sysvar::rent,
         std::sync::{Arc, RwLock},
+        token_whitelist_interface::state::Transmutable,
     };
 
     lazy_static::lazy_static! {
@@ -2482,10 +2483,47 @@ mod tests {
         )
         .unwrap();
 
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &owner_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&owner_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
+        let whitelist_entry_info: AccountInfo =
+            (&whitelist_entry_key, true, &mut whitelist_entry_account).into();
+
         // mint to account
         do_process_instruction_dups(
-            mint_to(&program_id, &mint_key, &account1_key, &owner_key, &[], 1000).unwrap(),
-            vec![mint_info.clone(), account1_info.clone(), owner_info.clone()],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account1_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                mint_info.clone(),
+                account1_info.clone(),
+                owner_info.clone(),
+                whitelist_entry_info.clone(),
+            ],
         )
         .unwrap();
 
@@ -2592,8 +2630,22 @@ mod tests {
         )
         .unwrap();
         do_process_instruction_dups(
-            mint_to(&program_id, &mint_key, &account3_key, &owner_key, &[], 1000).unwrap(),
-            vec![mint_info.clone(), account3_info.clone(), owner_info.clone()],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account3_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                mint_info.clone(),
+                account3_info.clone(),
+                owner_info.clone(),
+                whitelist_entry_info.clone(),
+            ],
         )
         .unwrap();
 
@@ -2663,8 +2715,22 @@ mod tests {
         .unwrap();
 
         do_process_instruction_dups(
-            mint_to(&program_id, &mint_key, &account4_key, &owner_key, &[], 1000).unwrap(),
-            vec![mint_info.clone(), account4_info.clone(), owner_info.clone()],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account4_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                mint_info.clone(),
+                account4_info.clone(),
+                owner_info.clone(),
+                whitelist_entry_info.clone(),
+            ],
         )
         .unwrap();
 
@@ -2810,10 +2876,44 @@ mod tests {
         account.mint = mint2_key;
         Account::pack(account, &mut mismatch_account.data).unwrap();
 
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &owner_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&owner_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
         // mint to account
         do_process_instruction(
-            mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 1000).unwrap(),
-            vec![&mut mint_account, &mut account_account, &mut owner_account],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                &mut mint_account,
+                &mut account_account,
+                &mut owner_account,
+                &mut whitelist_entry_account,
+            ],
         )
         .unwrap();
 
@@ -3298,10 +3398,44 @@ mod tests {
         )
         .unwrap();
 
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &owner_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&owner_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
         // mint to account
         do_process_instruction(
-            mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 1000).unwrap(),
-            vec![&mut mint_account, &mut account_account, &mut owner_account],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                &mut mint_account,
+                &mut account_account,
+                &mut owner_account,
+                &mut whitelist_entry_account,
+            ],
         )
         .unwrap();
 
@@ -3807,10 +3941,44 @@ mod tests {
         )
         .unwrap();
 
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &owner_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&owner_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
         // mint to
         do_process_instruction(
-            mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 42).unwrap(),
-            vec![&mut mint_account, &mut account_account, &mut owner_account],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                42,
+            )
+            .unwrap(),
+            vec![
+                &mut mint_account,
+                &mut account_account,
+                &mut owner_account,
+                &mut whitelist_entry_account,
+            ],
         )
         .unwrap();
         let _ = Mint::unpack(&mint_account.data).unwrap();
@@ -3826,12 +3994,18 @@ mod tests {
                     &mint_key,
                     &account_key,
                     &owner_key,
+                    &whitelist_entry_key,
                     &[],
                     42,
                     decimals + 1
                 )
                 .unwrap(),
-                vec![&mut mint_account, &mut account_account, &mut owner_account],
+                vec![
+                    &mut mint_account,
+                    &mut account_account,
+                    &mut owner_account,
+                    &mut whitelist_entry_account,
+                ],
             )
         );
 
@@ -3846,12 +4020,18 @@ mod tests {
                 &mint_key,
                 &account_key,
                 &owner_key,
+                &whitelist_entry_key,
                 &[],
                 42,
                 decimals,
             )
             .unwrap(),
-            vec![&mut mint_account, &mut account_account, &mut owner_account],
+            vec![
+                &mut mint_account,
+                &mut account_account,
+                &mut owner_account,
+                &mut whitelist_entry_account,
+            ],
         )
         .unwrap();
         let _ = Mint::unpack(&mint_account.data).unwrap();
@@ -3932,10 +4112,47 @@ mod tests {
         )
         .unwrap();
 
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &owner_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&owner_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
+        let whitelist_entry_info: AccountInfo =
+            (&whitelist_entry_key, true, &mut whitelist_entry_account).into();
+
         // mint to account
         do_process_instruction_dups(
-            mint_to(&program_id, &mint_key, &account1_key, &owner_key, &[], 1000).unwrap(),
-            vec![mint_info.clone(), account1_info.clone(), owner_info.clone()],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account1_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                mint_info.clone(),
+                account1_info.clone(),
+                owner_info.clone(),
+                whitelist_entry_info.clone(),
+            ],
         )
         .unwrap();
 
@@ -4010,8 +4227,22 @@ mod tests {
         .unwrap();
 
         do_process_instruction_dups(
-            mint_to(&program_id, &mint_key, &account3_key, &owner_key, &[], 1000).unwrap(),
-            vec![mint_info.clone(), account3_info.clone(), owner_info.clone()],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account3_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                mint_info.clone(),
+                account3_info.clone(),
+                owner_info.clone(),
+                whitelist_entry_info.clone(),
+            ],
         )
         .unwrap();
 
@@ -4157,10 +4388,44 @@ mod tests {
         )
         .unwrap();
 
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &owner_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&owner_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
         // mint to account
         do_process_instruction(
-            mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 1000).unwrap(),
-            vec![&mut mint_account, &mut account_account, &mut owner_account],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                &mut mint_account,
+                &mut account_account,
+                &mut owner_account,
+                &mut whitelist_entry_account,
+            ],
         )
         .unwrap();
 
@@ -4938,17 +5203,69 @@ mod tests {
         )
         .unwrap();
 
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &mint_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&mint_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
+        let whitelist_entry_info: AccountInfo =
+            (&whitelist_entry_key, true, &mut whitelist_entry_account).into();
+
         // mint_to when mint_authority is self
         do_process_instruction_dups(
-            mint_to(&program_id, &mint_key, &account1_key, &mint_key, &[], 42).unwrap(),
-            vec![mint_info.clone(), account1_info.clone(), mint_info.clone()],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account1_key,
+                &mint_key,
+                &whitelist_entry_key,
+                &[],
+                42,
+            )
+            .unwrap(),
+            vec![
+                mint_info.clone(),
+                account1_info.clone(),
+                mint_info.clone(),
+                whitelist_entry_info.clone(),
+            ],
         )
         .unwrap();
 
         // mint_to_checked when mint_authority is self
         do_process_instruction_dups(
-            mint_to_checked(&program_id, &mint_key, &account1_key, &mint_key, &[], 42, 2).unwrap(),
-            vec![mint_info.clone(), account1_info.clone(), mint_info.clone()],
+            mint_to_checked(
+                &program_id,
+                &mint_key,
+                &account1_key,
+                &mint_key,
+                &whitelist_entry_key,
+                &[],
+                42,
+                2,
+            )
+            .unwrap(),
+            vec![
+                mint_info.clone(),
+                account1_info.clone(),
+                mint_info.clone(),
+                whitelist_entry_info.clone(),
+            ],
         )
         .unwrap();
 
@@ -4956,12 +5273,37 @@ mod tests {
         let mut mint = Mint::unpack_unchecked(&mint_info.data.borrow()).unwrap();
         mint.mint_authority = COption::Some(account1_key);
         Mint::pack(mint, &mut mint_info.data.borrow_mut()).unwrap();
+
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &account1_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&account1_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
+        let whitelist_entry_info: AccountInfo =
+            (&whitelist_entry_key, true, &mut whitelist_entry_account).into();
+
         do_process_instruction_dups(
             mint_to(
                 &program_id,
                 &mint_key,
                 &account1_key,
                 &account1_key,
+                &whitelist_entry_key,
                 &[],
                 42,
             )
@@ -4970,6 +5312,7 @@ mod tests {
                 mint_info.clone(),
                 account1_info.clone(),
                 account1_info.clone(),
+                whitelist_entry_info.clone(),
             ],
         )
         .unwrap();
@@ -4981,6 +5324,7 @@ mod tests {
                 &mint_key,
                 &account1_key,
                 &account1_key,
+                &whitelist_entry_key,
                 &[],
                 42,
             )
@@ -4989,6 +5333,7 @@ mod tests {
                 mint_info.clone(),
                 account1_info.clone(),
                 account1_info.clone(),
+                whitelist_entry_info.clone(),
             ],
         )
         .unwrap();
@@ -5095,10 +5440,44 @@ mod tests {
         account.mint = mint2_key;
         Account::pack(account, &mut mismatch_account.data).unwrap();
 
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &owner_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&owner_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
         // mint to
         do_process_instruction(
-            mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 42).unwrap(),
-            vec![&mut mint_account, &mut account_account, &mut owner_account],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                42,
+            )
+            .unwrap(),
+            vec![
+                &mut mint_account,
+                &mut account_account,
+                &mut owner_account,
+                &mut whitelist_entry_account,
+            ],
         )
         .unwrap();
 
@@ -5109,8 +5488,22 @@ mod tests {
 
         // mint to another account to test supply accumulation
         do_process_instruction(
-            mint_to(&program_id, &mint_key, &account2_key, &owner_key, &[], 42).unwrap(),
-            vec![&mut mint_account, &mut account2_account, &mut owner_account],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account2_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                42,
+            )
+            .unwrap(),
+            vec![
+                &mut mint_account,
+                &mut account2_account,
+                &mut owner_account,
+                &mut whitelist_entry_account,
+            ],
         )
         .unwrap();
 
@@ -5120,14 +5513,27 @@ mod tests {
         assert_eq!(account.amount, 42);
 
         // missing signer
-        let mut instruction =
-            mint_to(&program_id, &mint_key, &account2_key, &owner_key, &[], 42).unwrap();
+        let mut instruction = mint_to(
+            &program_id,
+            &mint_key,
+            &account2_key,
+            &owner_key,
+            &whitelist_entry_key,
+            &[],
+            42,
+        )
+        .unwrap();
         instruction.accounts[2].is_signer = false;
         assert_eq!(
             Err(ProgramError::MissingRequiredSignature),
             do_process_instruction(
                 instruction,
-                vec![&mut mint_account, &mut account2_account, &mut owner_account],
+                vec![
+                    &mut mint_account,
+                    &mut account2_account,
+                    &mut owner_account,
+                    &mut whitelist_entry_account,
+                ],
             )
         );
 
@@ -5135,8 +5541,22 @@ mod tests {
         assert_eq!(
             Err(TokenError::MintMismatch.into()),
             do_process_instruction(
-                mint_to(&program_id, &mint_key, &mismatch_key, &owner_key, &[], 42).unwrap(),
-                vec![&mut mint_account, &mut mismatch_account, &mut owner_account],
+                mint_to(
+                    &program_id,
+                    &mint_key,
+                    &mismatch_key,
+                    &owner_key,
+                    &whitelist_entry_key,
+                    &[],
+                    42
+                )
+                .unwrap(),
+                vec![
+                    &mut mint_account,
+                    &mut mismatch_account,
+                    &mut owner_account,
+                    &mut whitelist_entry_account,
+                ],
             )
         );
 
@@ -5144,11 +5564,21 @@ mod tests {
         assert_eq!(
             Err(TokenError::OwnerMismatch.into()),
             do_process_instruction(
-                mint_to(&program_id, &mint_key, &account2_key, &owner2_key, &[], 42).unwrap(),
+                mint_to(
+                    &program_id,
+                    &mint_key,
+                    &account2_key,
+                    &owner2_key,
+                    &whitelist_entry_key,
+                    &[],
+                    42,
+                )
+                .unwrap(),
                 vec![
                     &mut mint_account,
                     &mut account2_account,
                     &mut owner2_account,
+                    &mut whitelist_entry_account,
                 ],
             )
         );
@@ -5159,8 +5589,22 @@ mod tests {
         assert_eq!(
             Err(ProgramError::IncorrectProgramId),
             do_process_instruction(
-                mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 0).unwrap(),
-                vec![&mut mint_account, &mut account_account, &mut owner_account],
+                mint_to(
+                    &program_id,
+                    &mint_key,
+                    &account_key,
+                    &owner_key,
+                    &whitelist_entry_key,
+                    &[],
+                    0
+                )
+                .unwrap(),
+                vec![
+                    &mut mint_account,
+                    &mut account_account,
+                    &mut owner_account,
+                    &mut whitelist_entry_account
+                ],
             )
         );
         mint_account.owner = program_id;
@@ -5171,8 +5615,22 @@ mod tests {
         assert_eq!(
             Err(ProgramError::IncorrectProgramId),
             do_process_instruction(
-                mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 0).unwrap(),
-                vec![&mut mint_account, &mut account_account, &mut owner_account],
+                mint_to(
+                    &program_id,
+                    &mint_key,
+                    &account_key,
+                    &owner_key,
+                    &whitelist_entry_key,
+                    &[],
+                    0
+                )
+                .unwrap(),
+                vec![
+                    &mut mint_account,
+                    &mut account_account,
+                    &mut owner_account,
+                    &mut whitelist_entry_account,
+                ],
             )
         );
         account_account.owner = program_id;
@@ -5186,6 +5644,7 @@ mod tests {
                     &mint_key,
                     &uninitialized_key,
                     &owner_key,
+                    &whitelist_entry_key,
                     &[],
                     42
                 )
@@ -5194,6 +5653,7 @@ mod tests {
                     &mut mint_account,
                     &mut uninitialized_account,
                     &mut owner_account,
+                    &mut whitelist_entry_account,
                 ],
             )
         );
@@ -5215,8 +5675,22 @@ mod tests {
         assert_eq!(
             Err(TokenError::FixedSupply.into()),
             do_process_instruction(
-                mint_to(&program_id, &mint_key, &account2_key, &owner_key, &[], 42).unwrap(),
-                vec![&mut mint_account, &mut account2_account, &mut owner_account],
+                mint_to(
+                    &program_id,
+                    &mint_key,
+                    &account2_key,
+                    &owner_key,
+                    &whitelist_entry_key,
+                    &[],
+                    42
+                )
+                .unwrap(),
+                vec![
+                    &mut mint_account,
+                    &mut account2_account,
+                    &mut owner_account,
+                    &mut whitelist_entry_account
+                ],
             )
         );
     }
@@ -5261,10 +5735,47 @@ mod tests {
         )
         .unwrap();
 
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &owner_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&owner_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
+        let whitelist_entry_info: AccountInfo =
+            (&whitelist_entry_key, true, &mut whitelist_entry_account).into();
+
         // mint to account
         do_process_instruction_dups(
-            mint_to(&program_id, &mint_key, &account1_key, &owner_key, &[], 1000).unwrap(),
-            vec![mint_info.clone(), account1_info.clone(), owner_info.clone()],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account1_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                mint_info.clone(),
+                account1_info.clone(),
+                owner_info.clone(),
+                whitelist_entry_info.clone(),
+            ],
         )
         .unwrap();
 
@@ -5309,8 +5820,22 @@ mod tests {
 
         // mint-owner burn
         do_process_instruction_dups(
-            mint_to(&program_id, &mint_key, &account1_key, &owner_key, &[], 1000).unwrap(),
-            vec![mint_info.clone(), account1_info.clone(), owner_info.clone()],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account1_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                mint_info.clone(),
+                account1_info.clone(),
+                owner_info.clone(),
+                whitelist_entry_info.clone(),
+            ],
         )
         .unwrap();
         let mut account = Account::unpack_unchecked(&account1_info.data.borrow()).unwrap();
@@ -5340,8 +5865,22 @@ mod tests {
 
         // source-delegate burn
         do_process_instruction_dups(
-            mint_to(&program_id, &mint_key, &account1_key, &owner_key, &[], 1000).unwrap(),
-            vec![mint_info.clone(), account1_info.clone(), owner_info.clone()],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account1_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                mint_info.clone(),
+                account1_info.clone(),
+                owner_info.clone(),
+                whitelist_entry_info.clone(),
+            ],
         )
         .unwrap();
         let mut account = Account::unpack_unchecked(&account1_info.data.borrow()).unwrap();
@@ -5389,8 +5928,22 @@ mod tests {
 
         // mint-delegate burn
         do_process_instruction_dups(
-            mint_to(&program_id, &mint_key, &account1_key, &owner_key, &[], 1000).unwrap(),
-            vec![mint_info.clone(), account1_info.clone(), owner_info.clone()],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account1_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                mint_info.clone(),
+                account1_info.clone(),
+                owner_info.clone(),
+                whitelist_entry_info.clone(),
+            ],
         )
         .unwrap();
         let mut account = Account::unpack_unchecked(&account1_info.data.borrow()).unwrap();
@@ -5515,17 +6068,65 @@ mod tests {
         )
         .unwrap();
 
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &owner_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&owner_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
         // mint to account
         do_process_instruction(
-            mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 1000).unwrap(),
-            vec![&mut mint_account, &mut account_account, &mut owner_account],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                &mut mint_account,
+                &mut account_account,
+                &mut owner_account,
+                &mut whitelist_entry_account,
+            ],
         )
         .unwrap();
 
         // mint to mismatch account and change mint key
         do_process_instruction(
-            mint_to(&program_id, &mint_key, &mismatch_key, &owner_key, &[], 1000).unwrap(),
-            vec![&mut mint_account, &mut mismatch_account, &mut owner_account],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &mismatch_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                &mut mint_account,
+                &mut mismatch_account,
+                &mut owner_account,
+                &mut whitelist_entry_account,
+            ],
         )
         .unwrap();
         let mut account = Account::unpack_unchecked(&mismatch_account.data).unwrap();
@@ -5849,6 +6450,25 @@ mod tests {
             ],
         )
         .unwrap();
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &multisig_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&multisig_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
 
         // mint to account
         let account_info_iter = &mut signer_accounts.iter_mut();
@@ -5858,6 +6478,7 @@ mod tests {
                 &mint_key,
                 &account_key,
                 &multisig_key,
+                &whitelist_entry_key,
                 &[&signer_keys[0]],
                 1000,
             )
@@ -5866,6 +6487,7 @@ mod tests {
                 &mut mint_account,
                 &mut account,
                 &mut multisig_account,
+                &mut whitelist_entry_account,
                 account_info_iter.next().unwrap(),
             ],
         )
@@ -5954,6 +6576,7 @@ mod tests {
                 &mint_key,
                 &account2_key,
                 &multisig_key,
+                &whitelist_entry_key,
                 &[&signer_keys[0]],
                 42,
             )
@@ -5962,6 +6585,7 @@ mod tests {
                 &mut mint_account,
                 &mut account2_account,
                 &mut multisig_account,
+                &mut whitelist_entry_account,
                 account_info_iter.next().unwrap(),
             ],
         )
@@ -6058,6 +6682,7 @@ mod tests {
                 &mint2_key,
                 &account3_key,
                 &multisig_key,
+                &whitelist_entry_key,
                 &[&signer_keys[0]],
                 1000,
             )
@@ -6066,6 +6691,7 @@ mod tests {
                 &mut mint2_account,
                 &mut account3_account,
                 &mut multisig_account,
+                &mut whitelist_entry_account,
                 account_info_iter.next().unwrap(),
             ],
         )
@@ -6575,12 +7201,43 @@ mod tests {
             ],
         )
         .unwrap();
+
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &owner_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&owner_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
         do_process_instruction(
-            mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 42).unwrap(),
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                42,
+            )
+            .unwrap(),
             vec![
                 &mut mint_account,
                 &mut account_account,
                 &mut owner_account,
+                &mut whitelist_entry_account,
                 &mut rent_sysvar,
             ],
         )
@@ -6809,6 +7466,26 @@ mod tests {
         assert!(account.is_native());
         assert_eq!(account.amount, 0);
 
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &owner_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&owner_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
         // mint_to unsupported
         assert_eq!(
             Err(TokenError::NativeNotSupported.into()),
@@ -6818,11 +7495,17 @@ mod tests {
                     &crate::native_mint::id(),
                     &account_key,
                     &owner_key,
+                    &whitelist_entry_key,
                     &[],
                     42
                 )
                 .unwrap(),
-                vec![&mut mint_account, &mut account_account, &mut owner_account],
+                vec![
+                    &mut mint_account,
+                    &mut account_account,
+                    &mut owner_account,
+                    &mut whitelist_entry_account,
+                ],
             )
         );
 
@@ -7014,6 +7697,26 @@ mod tests {
         )
         .unwrap();
 
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &mint_owner_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&mint_owner_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
         // mint the max to an account
         do_process_instruction(
             mint_to(
@@ -7021,6 +7724,7 @@ mod tests {
                 &mint_key,
                 &account_key,
                 &mint_owner_key,
+                &whitelist_entry_key,
                 &[],
                 u64::MAX,
             )
@@ -7029,6 +7733,7 @@ mod tests {
                 &mut mint_account,
                 &mut account_account,
                 &mut mint_owner_account,
+                &mut whitelist_entry_account,
             ],
         )
         .unwrap();
@@ -7044,6 +7749,7 @@ mod tests {
                     &mint_key,
                     &account_key,
                     &mint_owner_key,
+                    &whitelist_entry_key,
                     &[],
                     1,
                 )
@@ -7052,6 +7758,7 @@ mod tests {
                     &mut mint_account,
                     &mut account_account,
                     &mut mint_owner_account,
+                    &mut whitelist_entry_account,
                 ],
             )
         );
@@ -7067,6 +7774,7 @@ mod tests {
                     &mint_key,
                     &account2_key,
                     &mint_owner_key,
+                    &whitelist_entry_key,
                     &[],
                     1,
                 )
@@ -7075,6 +7783,7 @@ mod tests {
                     &mut mint_account,
                     &mut account2_account,
                     &mut mint_owner_account,
+                    &mut whitelist_entry_account,
                 ],
             )
         );
@@ -7094,6 +7803,7 @@ mod tests {
                 &mint_key,
                 &account_key,
                 &mint_owner_key,
+                &whitelist_entry_key,
                 &[],
                 100,
             )
@@ -7102,6 +7812,7 @@ mod tests {
                 &mut mint_account,
                 &mut account_account,
                 &mut mint_owner_account,
+                &mut whitelist_entry_account,
             ],
         )
         .unwrap();
@@ -7188,10 +7899,44 @@ mod tests {
         )
         .unwrap();
 
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &owner_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&owner_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
         // fund first account
         do_process_instruction(
-            mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 1000).unwrap(),
-            vec![&mut mint_account, &mut account_account, &mut owner_account],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                &mut mint_account,
+                &mut account_account,
+                &mut owner_account,
+                &mut whitelist_entry_account,
+            ],
         )
         .unwrap();
 
@@ -7308,8 +8053,22 @@ mod tests {
         assert_eq!(
             Err(TokenError::AccountFrozen.into()),
             do_process_instruction(
-                mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 100).unwrap(),
-                vec![&mut mint_account, &mut account_account, &mut owner_account,],
+                mint_to(
+                    &program_id,
+                    &mint_key,
+                    &account_key,
+                    &owner_key,
+                    &whitelist_entry_key,
+                    &[],
+                    100
+                )
+                .unwrap(),
+                vec![
+                    &mut mint_account,
+                    &mut account_account,
+                    &mut owner_account,
+                    &mut whitelist_entry_account,
+                ],
             )
         );
 
@@ -7426,10 +8185,44 @@ mod tests {
         )
         .unwrap();
 
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &owner_key.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&owner_key.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
         // mint to account
         do_process_instruction(
-            mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 1000).unwrap(),
-            vec![&mut mint_account, &mut account_account, &mut owner_account],
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account_key,
+                &owner_key,
+                &whitelist_entry_key,
+                &[],
+                1000,
+            )
+            .unwrap(),
+            vec![
+                &mut mint_account,
+                &mut account_account,
+                &mut owner_account,
+                &mut whitelist_entry_account,
+            ],
         )
         .unwrap();
 
