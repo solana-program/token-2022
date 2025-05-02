@@ -82,13 +82,20 @@ pub async fn mint_to(
     mint: &Pubkey,
     account: &Pubkey,
     mint_authority: &Keypair,
+    whitelist_entry: &Pubkey,
     amount: u64,
 ) -> Result<(), TransportError> {
     let transaction = Transaction::new_signed_with_payer(
-        &[
-            instruction::mint_to(&id(), mint, account, &mint_authority.pubkey(), &[], amount)
-                .unwrap(),
-        ],
+        &[instruction::mint_to(
+            &id(),
+            mint,
+            account,
+            &mint_authority.pubkey(),
+            &whitelist_entry,
+            &[],
+            amount,
+        )
+        .unwrap()],
         Some(&payer.pubkey()),
         &[payer, mint_authority],
         recent_blockhash,
