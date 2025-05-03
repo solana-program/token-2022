@@ -9159,4 +9159,100 @@ mod tests {
 
         assert_eq!(destination_info.lamports(), excess_lamports);
     }
+
+    #[test]
+    fn test_validate_whitelisted_authority() {
+        let mint_authority = Pubkey::new_unique();
+
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &mint_authority.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        whitelist_entry_account.data[0..32].copy_from_slice(&mint_authority.to_bytes());
+        whitelist_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
+        let whitelist_entry_info: AccountInfo =
+            (&whitelist_entry_key, true, &mut whitelist_entry_account).into();
+
+        // Test the successful case
+        assert_eq!(
+            Ok(()),
+            Processor::validate_whitelisted_authority(&whitelist_entry_info, &mint_authority)
+        );
+
+        let wrong_authority = Pubkey::new_unique();
+
+        let (wrong_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &wrong_authority.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut wrong_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        wrong_entry_account.data[0..32].copy_from_slice(&wrong_authority.to_bytes());
+        wrong_entry_account.data[32] =
+            token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
+        let wrong_info: AccountInfo = (&wrong_entry_key, true, &mut wrong_entry_account).into();
+
+        assert_eq!(
+            Err(ProgramError::InvalidSeeds),
+            Processor::validate_whitelisted_authority(&wrong_info, &mint_authority)
+        );
+
+        let mint_authority = Pubkey::new_unique();
+
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &mint_authority.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let mut whitelist_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        let uninitialized_info: AccountInfo =
+            (&whitelist_entry_key, true, &mut whitelist_entry_account).into();
+
+        assert_eq!(
+            Err(ProgramError::UninitializedAccount),
+            Processor::validate_whitelisted_authority(&uninitialized_info, &mint_authority)
+        );
+
+        // Test with different mint_authority - should fail with InvalidSeeds
+        let different_authority = Pubkey::new_unique();
+        assert_eq!(
+            Err(ProgramError::InvalidSeeds),
+            Processor::validate_whitelisted_authority(&whitelist_entry_info, &different_authority)
+        );
+    }
 }
