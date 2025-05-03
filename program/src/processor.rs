@@ -5337,6 +5337,105 @@ mod tests {
             ],
         )
         .unwrap();
+
+        // Test with a non-whitelisted mint authority
+        let non_whitelisted_authority = Pubkey::new_unique();
+        let mut non_whitelisted_authority_account = SolanaAccount::default();
+        let non_whitelisted_authority_info: AccountInfo = (
+            &non_whitelisted_authority,
+            true,
+            &mut non_whitelisted_authority_account,
+        )
+            .into();
+
+        // Create a new mint with the non-whitelisted authority
+        let new_mint_key = Pubkey::new_unique();
+        let mut new_mint_account =
+            SolanaAccount::new(mint_minimum_balance(), Mint::get_packed_len(), &program_id);
+        let new_mint_info: AccountInfo = (&new_mint_key, true, &mut new_mint_account).into();
+
+        // Initialize the mint with non-whitelisted authority
+        do_process_instruction_dups(
+            initialize_mint(
+                &program_id,
+                &new_mint_key,
+                &non_whitelisted_authority,
+                None,
+                2,
+            )
+            .unwrap(),
+            vec![new_mint_info.clone(), rent_info.clone()],
+        )
+        .unwrap();
+
+        // Create a new account for the new mint
+        let new_account_key = Pubkey::new_unique();
+        let mut new_account_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let new_account_info: AccountInfo =
+            (&new_account_key, true, &mut new_account_account).into();
+
+        // Initialize the account for the new mint
+        do_process_instruction_dups(
+            initialize_account(&program_id, &new_account_key, &new_mint_key, &owner_key).unwrap(),
+            vec![
+                new_account_info.clone(),
+                new_mint_info.clone(),
+                owner_info.clone(),
+                rent_info.clone(),
+            ],
+        )
+        .unwrap();
+
+        // Generate the correct PDA for the non-whitelisted authority
+        let (non_whitelisted_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &non_whitelisted_authority.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        // Create an uninitialized whitelist entry account
+        let mut uninitialized_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+        // Leave the data empty/uninitialized
+
+        let uninitialized_entry_info: AccountInfo = (
+            &non_whitelisted_entry_key,
+            true,
+            &mut uninitialized_entry_account,
+        )
+            .into();
+
+        // Try to mint using the non-whitelisted authority with its correct but uninitialized entry
+        let error = do_process_instruction_dups(
+            mint_to(
+                &program_id,
+                &new_mint_key,
+                &new_account_key,
+                &non_whitelisted_authority,
+                &non_whitelisted_entry_key,
+                &[],
+                42,
+            )
+            .unwrap(),
+            vec![
+                new_mint_info.clone(),
+                new_account_info.clone(),
+                non_whitelisted_authority_info.clone(),
+                uninitialized_entry_info.clone(),
+            ],
+        );
+        assert_eq!(error, Err(ProgramError::UninitializedAccount));
     }
 
     #[test]
@@ -5693,6 +5792,89 @@ mod tests {
                 ],
             )
         );
+
+        // Test with a non-whitelisted mint authority
+        let non_whitelisted_authority = Pubkey::new_unique();
+        let mut non_whitelisted_authority_account = SolanaAccount::default();
+
+        // Create a new mint with the non-whitelisted authority
+        let new_mint_key = Pubkey::new_unique();
+        let mut new_mint_account =
+            SolanaAccount::new(mint_minimum_balance(), Mint::get_packed_len(), &program_id);
+
+        do_process_instruction(
+            initialize_mint(
+                &program_id,
+                &new_mint_key,
+                &non_whitelisted_authority,
+                None,
+                2,
+            )
+            .unwrap(),
+            vec![&mut new_mint_account, &mut rent_sysvar],
+        )
+        .unwrap();
+
+        // Create a new account for the new mint
+        let new_account_key = Pubkey::new_unique();
+        let mut new_account_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+
+        // Initialize the account for the new mint
+        do_process_instruction(
+            initialize_account(&program_id, &new_account_key, &new_mint_key, &owner_key).unwrap(),
+            vec![
+                &mut new_account_account,
+                &mut new_mint_account,
+                &mut owner_account,
+                &mut rent_sysvar,
+            ],
+        )
+        .unwrap();
+
+        // Generate the correct PDA for the non-whitelisted authority
+        let (non_whitelisted_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &non_whitelisted_authority.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+
+        // Create an uninitialized whitelist entry account
+        let mut uninitialized_entry_account = SolanaAccount::new(
+            Rent::default().minimum_balance(
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            ),
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
+        // Don't initialize it properly - leave the data empty
+
+        // Try to mint using the authority that is not in the whitelist
+        // This should fail because the whitelist entry is not initialized
+        let error = do_process_instruction(
+            mint_to(
+                &program_id,
+                &new_mint_key,
+                &new_account_key,
+                &non_whitelisted_authority,
+                &non_whitelisted_entry_key,
+                &[],
+                42,
+            )
+            .unwrap(),
+            vec![
+                &mut new_mint_account,
+                &mut new_account_account,
+                &mut non_whitelisted_authority_account,
+                &mut uninitialized_entry_account,
+            ],
+        );
+        assert_eq!(error, Err(ProgramError::UninitializedAccount));
     }
 
     #[test]
