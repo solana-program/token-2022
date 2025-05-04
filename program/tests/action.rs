@@ -1,9 +1,11 @@
 use {
+    solana_account::Account as SolanaAccount,
     solana_hash::Hash,
     solana_keypair::Keypair,
     solana_program_pack::Pack,
-    solana_program_test::BanksClient,
+    solana_program_test::{BanksClient, ProgramTest},
     solana_pubkey::Pubkey,
+    solana_rent::Rent,
     solana_signer::Signer,
     solana_system_interface::instruction as system_instruction,
     solana_transaction::Transaction,
@@ -12,6 +14,7 @@ use {
         id, instruction,
         state::{Account, Mint},
     },
+    token_whitelist_interface::state::SizeOf,
 };
 
 pub async fn create_mint(
@@ -176,4 +179,30 @@ pub async fn burn(
     );
     banks_client.process_transaction(transaction).await?;
     Ok(())
+}
+
+pub fn create_whitelist_entry(program_test: &mut ProgramTest, owner: &Pubkey) -> Pubkey {
+    let (whitelist_entry_key, _) = Pubkey::find_program_address(
+        &[
+            &token_whitelist_interface::whitelist::id(),
+            &owner.to_bytes(),
+        ],
+        &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+    );
+
+    let mut whitelist_entry_account = SolanaAccount::new(
+        Rent::default().minimum_balance(
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
+        ),
+        token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
+        &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+    );
+
+    whitelist_entry_account.data[0..32].copy_from_slice(&owner.to_bytes());
+    whitelist_entry_account.data[32] =
+        token_whitelist_interface::state::account_state::AccountState::Initialized as u8;
+
+    program_test.add_account(whitelist_entry_key, whitelist_entry_account);
+
+    whitelist_entry_key
 }
