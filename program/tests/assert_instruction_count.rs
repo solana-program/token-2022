@@ -112,12 +112,15 @@ async fn initialize_account() {
 async fn mint_to() {
     let mut pt = ProgramTest::new("spl_token_2022", id(), processor!(Processor::process));
     pt.set_compute_max_units(8_000); // last known 967
-    let (mut banks_client, payer, recent_blockhash) = pt.start().await;
 
     let owner = Keypair::new();
     let mint = Keypair::new();
     let account = Keypair::new();
     let decimals = 9;
+
+    let whitelist_entry_key = action::create_whitelist_entry(&mut pt, &owner.pubkey());
+
+    let (mut banks_client, payer, recent_blockhash) = pt.start().await;
 
     action::create_mint(
         &mut banks_client,
@@ -146,6 +149,7 @@ async fn mint_to() {
             &mint.pubkey(),
             &account.pubkey(),
             &owner.pubkey(),
+            &whitelist_entry_key,
             &[],
             TRANSFER_AMOUNT,
         )
@@ -161,13 +165,16 @@ async fn mint_to() {
 async fn transfer() {
     let mut pt = ProgramTest::new("spl_token_2022", id(), processor!(Processor::process));
     pt.set_compute_max_units(8_000); // last known 1222
-    let (mut banks_client, payer, recent_blockhash) = pt.start().await;
 
     let owner = Keypair::new();
     let mint = Keypair::new();
     let source = Keypair::new();
     let destination = Keypair::new();
     let decimals = 9;
+
+    let whitelist_entry_key = action::create_whitelist_entry(&mut pt, &owner.pubkey());
+
+    let (mut banks_client, payer, recent_blockhash) = pt.start().await;
 
     action::create_mint(
         &mut banks_client,
@@ -207,6 +214,7 @@ async fn transfer() {
         &mint.pubkey(),
         &source.pubkey(),
         &owner,
+        &whitelist_entry_key,
         TRANSFER_AMOUNT,
     )
     .await
@@ -229,13 +237,16 @@ async fn transfer() {
 async fn transfer_checked() {
     let mut pt = ProgramTest::new("spl_token_2022", id(), processor!(Processor::process));
     pt.set_compute_max_units(8_000); // last known 1516
-    let (mut banks_client, payer, recent_blockhash) = pt.start().await;
 
     let owner = Keypair::new();
     let mint = Keypair::new();
     let source = Keypair::new();
     let destination = Keypair::new();
     let decimals = 9;
+
+    let whitelist_entry_key = action::create_whitelist_entry(&mut pt, &owner.pubkey());
+
+    let (mut banks_client, payer, recent_blockhash) = pt.start().await;
 
     action::create_mint(
         &mut banks_client,
@@ -275,6 +286,7 @@ async fn transfer_checked() {
         &mint.pubkey(),
         &source.pubkey(),
         &owner,
+        &whitelist_entry_key,
         TRANSFER_AMOUNT,
     )
     .await
@@ -299,12 +311,15 @@ async fn transfer_checked() {
 async fn burn() {
     let mut pt = ProgramTest::new("spl_token_2022", id(), processor!(Processor::process));
     pt.set_compute_max_units(8_000); // last known 1070
-    let (mut banks_client, payer, recent_blockhash) = pt.start().await;
 
     let owner = Keypair::new();
     let mint = Keypair::new();
     let account = Keypair::new();
     let decimals = 9;
+
+    let whitelist_entry_key = action::create_whitelist_entry(&mut pt, &owner.pubkey());
+
+    let (mut banks_client, payer, recent_blockhash) = pt.start().await;
 
     action::create_mint(
         &mut banks_client,
@@ -334,6 +349,7 @@ async fn burn() {
         &mint.pubkey(),
         &account.pubkey(),
         &owner,
+        &whitelist_entry_key,
         TRANSFER_AMOUNT,
     )
     .await
