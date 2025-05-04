@@ -1021,6 +1021,13 @@ where
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
         let multisig_signers = self.get_multisig_signers(authority, &signing_pubkeys);
+        let (whitelist_entry_key, _) = Pubkey::find_program_address(
+            &[
+                &token_whitelist_interface::whitelist::id(),
+                &authority.to_bytes(),
+            ],
+            &Pubkey::new_from_array(token_whitelist_interface::program::id()),
+        );
 
         let instructions = if let Some(decimals) = self.decimals {
             [instruction::mint_to_checked(
@@ -1028,6 +1035,7 @@ where
                 &self.pubkey,
                 destination,
                 authority,
+                &whitelist_entry_key,
                 &multisig_signers,
                 amount,
                 decimals,
@@ -1038,6 +1046,7 @@ where
                 &self.pubkey,
                 destination,
                 authority,
+                &whitelist_entry_key,
                 &multisig_signers,
                 amount,
             )?]

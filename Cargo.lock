@@ -9536,6 +9536,7 @@ dependencies = [
  "spl-transfer-hook-interface 0.10.0",
  "test-case",
  "thiserror 2.0.12",
+ "token-whitelist-interface",
 ]
 
 [[package]]
