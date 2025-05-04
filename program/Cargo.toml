@@ -64,9 +64,7 @@ thiserror = "2.0"
 serde = { version = "1.0.219", optional = true }
 serde_with = { version = "3.12.0", optional = true }
 base64 = { version = "0.22.1", optional = true }
-token-whitelist-interface = { version = "0.1.0", path = "../../token-whitelist/interface", features = [
-    "non-pinocchio",
-] }
+token-whitelist-interface = { version = "0.1.0", path = "../../token-whitelist/interface" }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 spl-token-confidential-transfer-proof-generation = { version = "0.4.0", path = "../confidential-transfer/proof-generation" }

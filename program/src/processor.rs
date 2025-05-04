@@ -2069,7 +2069,7 @@ mod tests {
         solana_program_option::COption,
         solana_sdk_ids::sysvar::rent,
         std::sync::{Arc, RwLock},
-        token_whitelist_interface::state::Transmutable,
+        token_whitelist_interface::state::SizeOf,
     };
 
     lazy_static::lazy_static! {
@@ -2493,9 +2493,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -2886,9 +2886,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -3408,9 +3408,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -3951,9 +3951,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -4122,9 +4122,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -4398,9 +4398,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -5213,9 +5213,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -5284,9 +5284,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -5402,9 +5402,9 @@ mod tests {
         // Create an uninitialized whitelist entry account
         let mut uninitialized_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
         // Leave the data empty/uninitialized
@@ -5549,9 +5549,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -5847,9 +5847,9 @@ mod tests {
         // Create an uninitialized whitelist entry account
         let mut uninitialized_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
         // Don't initialize it properly - leave the data empty
@@ -5927,9 +5927,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -6260,9 +6260,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -6642,9 +6642,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -7394,9 +7394,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -7658,9 +7658,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -7889,9 +7889,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -8091,9 +8091,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -8377,9 +8377,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -9356,9 +9356,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -9387,9 +9387,9 @@ mod tests {
 
         let mut wrong_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
@@ -9416,9 +9416,9 @@ mod tests {
 
         let mut whitelist_entry_account = SolanaAccount::new(
             Rent::default().minimum_balance(
-                token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+                token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             ),
-            token_whitelist_interface::state::entry::WhitelistEntryAccount::LEN,
+            token_whitelist_interface::state::entry::WhitelistEntryAccount::SIZE_OF,
             &Pubkey::new_from_array(token_whitelist_interface::program::id()),
         );
 
