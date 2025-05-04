@@ -2614,6 +2614,83 @@ mod test {
         }
     }
 
+    // Special macro for mint_to and mint_to_checked which have different parameters
+    macro_rules! test_instruction_mint {
+        (mint_to(
+            $token_program_id:expr,
+            $mint_pubkey:expr,
+            $account_pubkey:expr,
+            $mint_authority_pubkey:expr,
+            $whitelist_entry_pubkey:expr,
+            $signer_pubkeys:expr,
+            $amount:expr $(,)?
+        )) => {
+            let instruction_v3 = spl_token::instruction::mint_to(
+                $token_program_id,
+                $mint_pubkey,
+                $account_pubkey,
+                $mint_authority_pubkey,
+                $signer_pubkeys,
+                $amount,
+            )
+            .unwrap();
+
+            let instruction_2022 = mint_to(
+                $token_program_id,
+                $mint_pubkey,
+                $account_pubkey,
+                $mint_authority_pubkey,
+                $whitelist_entry_pubkey,
+                $signer_pubkeys,
+                $amount,
+            )
+            .unwrap();
+
+            // We expect differences due to the additional whitelist account
+            assert_eq!(instruction_v3.program_id, instruction_2022.program_id);
+            assert_eq!(instruction_v3.data, instruction_2022.data);
+            // Account array will be different lengths due to whitelist account
+        };
+        (mint_to_checked(
+            $token_program_id:expr,
+            $mint_pubkey:expr,
+            $account_pubkey:expr,
+            $mint_authority_pubkey:expr,
+            $whitelist_entry_pubkey:expr,
+            $signer_pubkeys:expr,
+            $amount:expr,
+            $decimals:expr $(,)?
+        )) => {
+            let instruction_v3 = spl_token::instruction::mint_to_checked(
+                $token_program_id,
+                $mint_pubkey,
+                $account_pubkey,
+                $mint_authority_pubkey,
+                $signer_pubkeys,
+                $amount,
+                $decimals,
+            )
+            .unwrap();
+
+            let instruction_2022 = mint_to_checked(
+                $token_program_id,
+                $mint_pubkey,
+                $account_pubkey,
+                $mint_authority_pubkey,
+                $whitelist_entry_pubkey,
+                $signer_pubkeys,
+                $amount,
+                $decimals,
+            )
+            .unwrap();
+
+            // We expect differences due to the additional whitelist account
+            assert_eq!(instruction_v3.program_id, instruction_2022.program_id);
+            assert_eq!(instruction_v3.data, instruction_2022.data);
+            // Account array will be different lengths due to whitelist account
+        };
+    }
+
     #[test]
     fn test_v3_compatibility() {
         let token_program_id = spl_token::id();
@@ -2624,6 +2701,7 @@ mod test {
 
         let account_pubkey = Pubkey::new_unique();
         let owner_pubkey = Pubkey::new_unique();
+        let whitelist_entry_pubkey = Pubkey::new_unique();
 
         let multisig_pubkey = Pubkey::new_unique();
         let signer_pubkeys_vec = vec![Pubkey::new_unique(); MAX_SIGNERS];
@@ -2755,23 +2833,26 @@ mod test {
             assert_eq!(instruction_v3, instruction_2022);
         }
 
-        // test_instruction!(mint_to(
-        //     &token_program_id,
-        //     &mint_pubkey,
-        //     &account_pubkey,
-        //     &owner_pubkey,
-        //     &signer_pubkeys,
-        //     amount,
-        // ));
-        // test_instruction!(mint_to_checked(
-        //     &token_program_id,
-        //     &mint_pubkey,
-        //     &account_pubkey,
-        //     &owner_pubkey,
-        //     &signer_pubkeys,
-        //     amount,
-        //     decimals,
-        // ));
+        test_instruction_mint!(mint_to(
+            &token_program_id,
+            &mint_pubkey,
+            &account_pubkey,
+            &owner_pubkey,
+            &whitelist_entry_pubkey,
+            &signer_pubkeys,
+            amount,
+        ));
+        test_instruction_mint!(mint_to_checked(
+            &token_program_id,
+            &mint_pubkey,
+            &account_pubkey,
+            &owner_pubkey,
+            &whitelist_entry_pubkey,
+            &signer_pubkeys,
+            amount,
+            decimals,
+        ));
+
         test_instruction!(burn(
             &token_program_id,
             &account_pubkey,
