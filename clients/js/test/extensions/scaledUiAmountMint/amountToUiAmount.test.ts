@@ -80,7 +80,11 @@ function populateMockAccount(data: ReadonlyUint8Array) {
 function createMockMintAccountInfo(
   decimals = 2,
   hasScaledUiAmountConfig = false,
-  config: { multiplier?: number, newMultiplier?: number, newMultiplierEffectiveTimestamp?: number } = {}
+  config: {
+    multiplier?: number;
+    newMultiplier?: number;
+    newMultiplierEffectiveTimestamp?: number;
+  } = {}
 ) {
   const defaultAddress = address('11111111111111111111111111111111');
   const mintEncoder = getMintEncoder();
@@ -97,10 +101,11 @@ function createMockMintAccountInfo(
             __kind: 'ScaledUiAmountConfig',
             authority: defaultAddress,
             multiplier: config.multiplier || 2,
-            newMultiplierEffectiveTimestamp: config.newMultiplierEffectiveTimestamp || ONE_YEAR_IN_SECONDS * 3,
+            newMultiplierEffectiveTimestamp:
+              config.newMultiplierEffectiveTimestamp || ONE_YEAR_IN_SECONDS * 3,
             newMultiplier: config.newMultiplier || 2,
           },
-      ]
+        ]
       : [],
   });
   return populateMockAccount(data);
@@ -185,11 +190,7 @@ test('should return the correct amount with scale factor of 2', async (t) => {
     [mint]: createMockMintAccountInfo(0, true, { multiplier: 2 }),
   });
 
-  const result = await uiAmountToAmountForMintWithoutSimulation(
-    rpc,
-    mint,
-    '2'
-  );
+  const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '2');
   t.is(result, 1n);
 });
 
@@ -199,11 +200,7 @@ test('should return the correct amount with scale factor of 3', async (t) => {
     [mint]: createMockMintAccountInfo(10, true, { multiplier: 3 }),
   });
 
-  const result = await uiAmountToAmountForMintWithoutSimulation(
-    rpc,
-    mint,
-    '3'
-  );
+  const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '3');
   t.is(result, 10000000000n);
 });
 
@@ -256,11 +253,7 @@ test('should convert UI amount with decimal multiplier of 0.5', async (t) => {
     [mint]: createMockMintAccountInfo(2, true, { multiplier: 0.5 }),
   });
 
-  const result = await uiAmountToAmountForMintWithoutSimulation(
-    rpc,
-    mint,
-    '1'
-  );
+  const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '1');
   t.is(result, 200n); // 1 * 100(for 2 decimals) / 0.5
 });
 
@@ -270,11 +263,7 @@ test('should convert UI amount with decimal multiplier of 1.5', async (t) => {
     [mint]: createMockMintAccountInfo(2, true, { multiplier: 1.5 }),
   });
 
-  const result = await uiAmountToAmountForMintWithoutSimulation(
-    rpc,
-    mint,
-    '3'
-  );
+  const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '3');
   t.is(result, 200n); // 3 * 100(for 2 decimals) / 1.5
 });
 
@@ -286,11 +275,15 @@ test('should use new multiplier when timestamp is after effective timestamp', as
     [mint]: createMockMintAccountInfo(2, true, {
       multiplier: 2,
       newMultiplier: 3,
-      newMultiplierEffectiveTimestamp: ONE_YEAR_IN_SECONDS
+      newMultiplierEffectiveTimestamp: ONE_YEAR_IN_SECONDS,
     }),
   });
 
-  const result = await amountToUiAmountForMintWithoutSimulation(rpc, mint, BigInt(100));
+  const result = await amountToUiAmountForMintWithoutSimulation(
+    rpc,
+    mint,
+    BigInt(100)
+  );
   t.is(result, '3');
 });
 
@@ -301,11 +294,15 @@ test('should use current multiplier when timestamp is before effective timestamp
     [mint]: createMockMintAccountInfo(2, true, {
       multiplier: 2,
       newMultiplier: 3,
-      newMultiplierEffectiveTimestamp: ONE_YEAR_IN_SECONDS
+      newMultiplierEffectiveTimestamp: ONE_YEAR_IN_SECONDS,
     }),
   });
 
-  const result = await amountToUiAmountForMintWithoutSimulation(rpc, mint, BigInt(100));
+  const result = await amountToUiAmountForMintWithoutSimulation(
+    rpc,
+    mint,
+    BigInt(100)
+  );
   t.is(result, '2');
 });
 
@@ -316,7 +313,7 @@ test('should use new multiplier for amount to ui conversion when timestamp is af
     [mint]: createMockMintAccountInfo(2, true, {
       multiplier: 2,
       newMultiplier: 4,
-      newMultiplierEffectiveTimestamp: ONE_YEAR_IN_SECONDS
+      newMultiplierEffectiveTimestamp: ONE_YEAR_IN_SECONDS,
     }),
   });
 
@@ -331,7 +328,7 @@ test('should use current multiplier for amount to ui conversion when timestamp i
     [mint]: createMockMintAccountInfo(2, true, {
       multiplier: 2,
       newMultiplier: 4,
-      newMultiplierEffectiveTimestamp: ONE_YEAR_IN_SECONDS
+      newMultiplierEffectiveTimestamp: ONE_YEAR_IN_SECONDS,
     }),
   });
 
@@ -345,7 +342,7 @@ test('should handle multiplier changes from decimal to decimal', async (t) => {
     [mint]: createMockMintAccountInfo(2, true, {
       multiplier: 0.5,
       newMultiplier: 1.5,
-      newMultiplierEffectiveTimestamp: ONE_YEAR_IN_SECONDS
+      newMultiplierEffectiveTimestamp: ONE_YEAR_IN_SECONDS,
     }),
   });
 
@@ -363,7 +360,7 @@ test('should handle multiplier changes from decimal to decimal for UI to amount 
     [mint]: createMockMintAccountInfo(2, true, {
       multiplier: 0.5,
       newMultiplier: 1.5,
-      newMultiplierEffectiveTimestamp: ONE_YEAR_IN_SECONDS
+      newMultiplierEffectiveTimestamp: ONE_YEAR_IN_SECONDS,
     }),
   });
 

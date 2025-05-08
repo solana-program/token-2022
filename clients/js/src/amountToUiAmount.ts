@@ -143,11 +143,11 @@ export function amountToUiAmountForInterestBearingMintWithoutSimulation(
     preUpdateAverageRate,
     currentRate,
   });
-  
+
   // Scale the amount by the total interest factor
   const scaledAmount = Number(amount) * totalScale;
   const decimalFactor = getDecimalFactor(decimals);
-  
+
   return (Math.trunc(scaledAmount) / decimalFactor).toString();
 }
 
@@ -265,17 +265,17 @@ export async function amountToUiAmountForMintWithoutSimulation(
 ): Promise<string> {
   const accountInfo = await fetchMint(rpc, mint);
   const extensions = unwrapOption(accountInfo.data.extensions);
-  
+
   // Check for interest bearing mint extension
   const interestBearingMintConfigState = extensions?.find(
     (ext) => ext.__kind === 'InterestBearingConfig'
   );
-  
+
   // Check for scaled UI amount extension
   const scaledUiAmountConfig = extensions?.find(
     (ext) => ext.__kind === 'ScaledUiAmountConfig'
   );
-  
+
   // If no special extension, do standard conversion
   if (!interestBearingMintConfigState && !scaledUiAmountConfig) {
     const amountNumber = Number(amount);
@@ -307,8 +307,8 @@ export async function amountToUiAmountForMintWithoutSimulation(
       multiplier = scaledUiAmountConfig.newMultiplier;
     }
     return amountToUiAmountForScaledUiAmountMintWithoutSimulation(
-      amount, 
-      accountInfo.data.decimals, 
+      amount,
+      accountInfo.data.decimals,
       multiplier
     );
   }
@@ -333,17 +333,17 @@ export async function uiAmountToAmountForMintWithoutSimulation(
 ): Promise<bigint> {
   const accountInfo = await fetchMint(rpc, mint);
   const extensions = unwrapOption(accountInfo.data.extensions);
-  
+
   // Check for interest bearing mint extension
   const interestBearingMintConfigState = extensions?.find(
     (ext) => ext.__kind === 'InterestBearingConfig'
   );
-  
+
   // Check for scaled UI amount extension
   const scaledUiAmountConfig = extensions?.find(
     (ext) => ext.__kind === 'ScaledUiAmountConfig'
   );
-  
+
   // If no special extension, do standard conversion
   if (!interestBearingMintConfigState && !scaledUiAmountConfig) {
     const uiAmountScaled =
@@ -375,8 +375,8 @@ export async function uiAmountToAmountForMintWithoutSimulation(
       multiplier = scaledUiAmountConfig.newMultiplier;
     }
     return uiAmountToAmountForScaledUiAmountMintWithoutSimulation(
-      uiAmount, 
-      accountInfo.data.decimals, 
+      uiAmount,
+      accountInfo.data.decimals,
       multiplier
     );
   }
