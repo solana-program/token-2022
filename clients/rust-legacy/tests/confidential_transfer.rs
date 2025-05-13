@@ -16,7 +16,6 @@ use {
         transport::TransportError,
     },
     spl_elgamal_registry::state::ELGAMAL_REGISTRY_ACCOUNT_LEN,
-    spl_record::state::RecordData,
     spl_token_2022::{
         error::TokenError,
         extension::{
@@ -35,11 +34,11 @@ use {
     spl_token_client::{
         client::ProgramBanksClientProcessTransaction,
         token::{
-            ExtensionInitializationParams, ProofAccount, ProofAccountWithCiphertext, Token,
+            ExtensionInitializationParams, ProofAccountWithCiphertext, Token,
             TokenError as TokenClientError, TokenResult,
         },
     },
-    spl_token_confidential_transfer_proof_extraction::instruction::{ProofData, ProofLocation},
+    spl_token_confidential_transfer_proof_extraction::instruction::ProofLocation,
     spl_token_confidential_transfer_proof_generation::{
         transfer::TransferProofData, transfer_with_fee::TransferWithFeeProofData,
         withdraw::WithdrawProofData,
@@ -73,52 +72,6 @@ async fn configure_account_with_option<S: Signers>(
                 )
                 .await
         }
-        ConfidentialTransferOption::RecordAccount => {
-            let pubkey_validity_proof_data = PubkeyValidityProofData::new(elgamal_keypair).unwrap();
-
-            let pubkey_validity_proof_record_account = Keypair::new();
-            let record_account_authority = Keypair::new();
-
-            token
-                .confidential_transfer_create_record_account(
-                    &pubkey_validity_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &pubkey_validity_proof_data,
-                    &pubkey_validity_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let pubkey_validity_proof_account = ProofAccount::RecordAccount(
-                pubkey_validity_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            let result = token
-                .confidential_transfer_configure_token_account(
-                    account,
-                    authority,
-                    Some(&pubkey_validity_proof_account),
-                    None,
-                    elgamal_keypair,
-                    aes_key,
-                    signing_keypairs,
-                )
-                .await;
-
-            token
-                .confidential_transfer_close_record_account(
-                    &pubkey_validity_proof_record_account.pubkey(),
-                    account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            result
-        }
         ConfidentialTransferOption::ContextStateAccount => {
             let pubkey_validity_proof_data = PubkeyValidityProofData::new(elgamal_keypair).unwrap();
 
@@ -136,14 +89,11 @@ async fn configure_account_with_option<S: Signers>(
                 .await
                 .unwrap();
 
-            let pubkey_validity_proof_account =
-                ProofAccount::ContextAccount(pubkey_validity_proof_context_account.pubkey());
-
             let result = token
                 .confidential_transfer_configure_token_account(
                     account,
                     authority,
-                    Some(&pubkey_validity_proof_account),
+                    Some(&pubkey_validity_proof_context_account.pubkey()),
                     None,
                     elgamal_keypair,
                     aes_key,
@@ -170,10 +120,6 @@ async fn configure_account_with_option<S: Signers>(
 async fn confidential_transfer_configure_token_account() {
     confidential_transfer_configure_token_account_with_option(
         ConfidentialTransferOption::InstructionData,
-    )
-    .await;
-    confidential_transfer_configure_token_account_with_option(
-        ConfidentialTransferOption::RecordAccount,
     )
     .await;
     confidential_transfer_configure_token_account_with_option(
@@ -593,58 +539,6 @@ async fn empty_account_with_option<S: Signers>(
                 )
                 .await
         }
-        ConfidentialTransferOption::RecordAccount => {
-            let state = token.get_account_info(account).await.unwrap();
-            let extension = state
-                .get_extension::<ConfidentialTransferAccount>()
-                .unwrap();
-            let account_info = EmptyAccountAccountInfo::new(extension);
-
-            let zero_ciphertext_proof_data =
-                account_info.generate_proof_data(elgamal_keypair).unwrap();
-
-            let zero_ciphertext_proof_record_account = Keypair::new();
-            let record_account_authority = Keypair::new();
-
-            token
-                .confidential_transfer_create_record_account(
-                    &zero_ciphertext_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &zero_ciphertext_proof_data,
-                    &zero_ciphertext_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let zero_ciphertext_account = ProofAccount::RecordAccount(
-                zero_ciphertext_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            let result = token
-                .confidential_transfer_empty_account(
-                    account,
-                    authority,
-                    Some(&zero_ciphertext_account),
-                    None,
-                    elgamal_keypair,
-                    signing_keypairs,
-                )
-                .await;
-
-            token
-                .confidential_transfer_close_record_account(
-                    &zero_ciphertext_proof_record_account.pubkey(),
-                    account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            result
-        }
         ConfidentialTransferOption::ContextStateAccount => {
             let state = token.get_account_info(account).await.unwrap();
             let extension = state
@@ -669,14 +563,11 @@ async fn empty_account_with_option<S: Signers>(
                 .await
                 .unwrap();
 
-            let zero_ciphertext_account =
-                ProofAccount::ContextAccount(zero_ciphertext_proof_context_account.pubkey());
-
             let result = token
                 .confidential_transfer_empty_account(
                     account,
                     authority,
-                    Some(&zero_ciphertext_account),
+                    Some(&zero_ciphertext_proof_context_account.pubkey()),
                     None,
                     elgamal_keypair,
                     signing_keypairs,
@@ -701,8 +592,6 @@ async fn empty_account_with_option<S: Signers>(
 #[tokio::test]
 async fn confidential_transfer_empty_account() {
     confidential_transfer_empty_account_with_option(ConfidentialTransferOption::InstructionData)
-        .await;
-    confidential_transfer_empty_account_with_option(ConfidentialTransferOption::RecordAccount)
         .await;
     confidential_transfer_empty_account_with_option(
         ConfidentialTransferOption::ContextStateAccount,
@@ -981,93 +870,6 @@ async fn withdraw_with_option<S: Signers>(
                 )
                 .await
         }
-        ConfidentialTransferOption::RecordAccount => {
-            let state = token.get_account_info(source_account).await.unwrap();
-            let extension = state
-                .get_extension::<ConfidentialTransferAccount>()
-                .unwrap();
-            let withdraw_account_info = WithdrawAccountInfo::new(extension);
-
-            let WithdrawProofData {
-                equality_proof_data,
-                range_proof_data,
-            } = withdraw_account_info
-                .generate_proof_data(withdraw_amount, source_elgamal_keypair, source_aes_key)
-                .unwrap();
-
-            let equality_proof_record_account = Keypair::new();
-            let range_proof_record_account = Keypair::new();
-            let record_account_authority = Keypair::new();
-
-            token
-                .confidential_transfer_create_record_account(
-                    &equality_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &equality_proof_data,
-                    &equality_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let equality_proof_account = ProofAccount::RecordAccount(
-                equality_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            token
-                .confidential_transfer_create_record_account(
-                    &range_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &range_proof_data,
-                    &range_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let range_proof_account = ProofAccount::RecordAccount(
-                range_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            let result = token
-                .confidential_transfer_withdraw(
-                    source_account,
-                    source_authority,
-                    Some(&equality_proof_account),
-                    Some(&range_proof_account),
-                    withdraw_amount,
-                    decimals,
-                    None,
-                    source_elgamal_keypair,
-                    source_aes_key,
-                    signing_keypairs,
-                )
-                .await;
-
-            token
-                .confidential_transfer_close_record_account(
-                    &equality_proof_record_account.pubkey(),
-                    source_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            token
-                .confidential_transfer_close_record_account(
-                    &range_proof_record_account.pubkey(),
-                    source_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            result
-        }
         ConfidentialTransferOption::ContextStateAccount => {
             let state = token.get_account_info(source_account).await.unwrap();
             let extension = state
@@ -1097,9 +899,6 @@ async fn withdraw_with_option<S: Signers>(
                 .await
                 .unwrap();
 
-            let equality_proof_account =
-                ProofAccount::ContextAccount(equality_proof_context_account.pubkey());
-
             token
                 .confidential_transfer_create_context_state_account(
                     &range_proof_context_account.pubkey(),
@@ -1111,15 +910,12 @@ async fn withdraw_with_option<S: Signers>(
                 .await
                 .unwrap();
 
-            let range_proof_account =
-                ProofAccount::ContextAccount(range_proof_context_account.pubkey());
-
             let result = token
                 .confidential_transfer_withdraw(
                     source_account,
                     source_authority,
-                    Some(&equality_proof_account),
-                    Some(&range_proof_account),
+                    Some(&equality_proof_context_account.pubkey()),
+                    Some(&range_proof_context_account.pubkey()),
                     withdraw_amount,
                     decimals,
                     None,
@@ -1157,7 +953,6 @@ async fn withdraw_with_option<S: Signers>(
 #[tokio::test]
 async fn confidential_transfer_withdraw() {
     confidential_transfer_withdraw_with_option(ConfidentialTransferOption::InstructionData).await;
-    confidential_transfer_withdraw_with_option(ConfidentialTransferOption::RecordAccount).await;
     confidential_transfer_withdraw_with_option(ConfidentialTransferOption::ContextStateAccount)
         .await;
 }
@@ -1317,147 +1112,6 @@ async fn confidential_transfer_with_option<S: Signers>(
                 )
                 .await
         }
-        ConfidentialTransferOption::RecordAccount => {
-            let state = token.get_account_info(source_account).await.unwrap();
-            let extension = state
-                .get_extension::<ConfidentialTransferAccount>()
-                .unwrap();
-            let transfer_account_info = TransferAccountInfo::new(extension);
-
-            let TransferProofData {
-                equality_proof_data,
-                ciphertext_validity_proof_data_with_ciphertext,
-                range_proof_data,
-            } = transfer_account_info
-                .generate_split_transfer_proof_data(
-                    transfer_amount,
-                    source_elgamal_keypair,
-                    source_aes_key,
-                    destination_elgamal_pubkey,
-                    auditor_elgamal_pubkey,
-                )
-                .unwrap();
-
-            let transfer_amount_auditor_ciphertext_lo =
-                ciphertext_validity_proof_data_with_ciphertext.ciphertext_lo;
-            let transfer_amount_auditor_ciphertext_hi =
-                ciphertext_validity_proof_data_with_ciphertext.ciphertext_hi;
-
-            let equality_proof_record_account = Keypair::new();
-            let ciphertext_validity_proof_record_account = Keypair::new();
-            let range_proof_record_account = Keypair::new();
-            let record_account_authority = Keypair::new();
-
-            token
-                .confidential_transfer_create_record_account(
-                    &equality_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &equality_proof_data,
-                    &equality_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let equality_proof_account = ProofAccount::RecordAccount(
-                equality_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            token
-                .confidential_transfer_create_record_account(
-                    &ciphertext_validity_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &ciphertext_validity_proof_data_with_ciphertext.proof_data,
-                    &ciphertext_validity_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let ciphertext_validity_proof_account = ProofAccount::RecordAccount(
-                ciphertext_validity_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            token
-                .confidential_transfer_create_record_account(
-                    &range_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &range_proof_data,
-                    &range_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let range_proof_account = ProofAccount::RecordAccount(
-                range_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            let transfer_token = if let Some((memo, signing_pubkey)) = memo {
-                token.with_memo(memo, signing_pubkey)
-            } else {
-                token
-            };
-
-            let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
-                proof_account: ciphertext_validity_proof_account,
-                ciphertext_lo: transfer_amount_auditor_ciphertext_lo,
-                ciphertext_hi: transfer_amount_auditor_ciphertext_hi,
-            };
-
-            let result = transfer_token
-                .confidential_transfer_transfer(
-                    source_account,
-                    destination_account,
-                    source_authority,
-                    Some(&equality_proof_account),
-                    Some(&ciphertext_validity_proof_account_with_ciphertext),
-                    Some(&range_proof_account),
-                    transfer_amount,
-                    None,
-                    source_elgamal_keypair,
-                    source_aes_key,
-                    destination_elgamal_pubkey,
-                    auditor_elgamal_pubkey,
-                    signing_keypairs,
-                )
-                .await;
-
-            token
-                .confidential_transfer_close_record_account(
-                    &equality_proof_record_account.pubkey(),
-                    source_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            token
-                .confidential_transfer_close_record_account(
-                    &ciphertext_validity_proof_record_account.pubkey(),
-                    source_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            token
-                .confidential_transfer_close_record_account(
-                    &range_proof_record_account.pubkey(),
-                    source_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            result
-        }
         ConfidentialTransferOption::ContextStateAccount => {
             let state = token.get_account_info(source_account).await.unwrap();
             let extension = state
@@ -1500,9 +1154,6 @@ async fn confidential_transfer_with_option<S: Signers>(
                 .await
                 .unwrap();
 
-            let equality_proof_context_proof_account =
-                ProofAccount::ContextAccount(equality_proof_context_account.pubkey());
-
             token
                 .confidential_transfer_create_context_state_account(
                     &ciphertext_validity_proof_context_account.pubkey(),
@@ -1513,9 +1164,6 @@ async fn confidential_transfer_with_option<S: Signers>(
                 )
                 .await
                 .unwrap();
-
-            let ciphertext_validity_proof_context_proof_account =
-                ProofAccount::ContextAccount(ciphertext_validity_proof_context_account.pubkey());
 
             token
                 .confidential_transfer_create_context_state_account(
@@ -1528,9 +1176,6 @@ async fn confidential_transfer_with_option<S: Signers>(
                 .await
                 .unwrap();
 
-            let range_proof_context_proof_account =
-                ProofAccount::ContextAccount(range_proof_context_account.pubkey());
-
             let transfer_token = if let Some((memo, signing_pubkey)) = memo {
                 token.with_memo(memo, signing_pubkey)
             } else {
@@ -1538,7 +1183,7 @@ async fn confidential_transfer_with_option<S: Signers>(
             };
 
             let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
-                proof_account: ciphertext_validity_proof_context_proof_account,
+                context_state_account: ciphertext_validity_proof_context_account.pubkey(),
                 ciphertext_lo: transfer_amount_auditor_ciphertext_lo,
                 ciphertext_hi: transfer_amount_auditor_ciphertext_hi,
             };
@@ -1548,9 +1193,9 @@ async fn confidential_transfer_with_option<S: Signers>(
                     source_account,
                     destination_account,
                     source_authority,
-                    Some(&equality_proof_context_proof_account),
+                    Some(&equality_proof_context_account.pubkey()),
                     Some(&ciphertext_validity_proof_account_with_ciphertext),
-                    Some(&range_proof_context_proof_account),
+                    Some(&range_proof_context_account.pubkey()),
                     transfer_amount,
                     None,
                     source_elgamal_keypair,
@@ -1599,7 +1244,6 @@ async fn confidential_transfer_with_option<S: Signers>(
 #[tokio::test]
 async fn confidential_transfer_transfer() {
     confidential_transfer_transfer_with_option(ConfidentialTransferOption::InstructionData).await;
-    confidential_transfer_transfer_with_option(ConfidentialTransferOption::RecordAccount).await;
     confidential_transfer_transfer_with_option(ConfidentialTransferOption::ContextStateAccount)
         .await;
 }
@@ -2132,212 +1776,6 @@ async fn confidential_transfer_with_fee_with_option<S: Signers>(
                 )
                 .await
         }
-        ConfidentialTransferOption::RecordAccount => {
-            let state = token.get_account_info(source_account).await.unwrap();
-            let extension = state
-                .get_extension::<ConfidentialTransferAccount>()
-                .unwrap();
-            let transfer_account_info = TransferAccountInfo::new(extension);
-
-            let TransferWithFeeProofData {
-                equality_proof_data,
-                transfer_amount_ciphertext_validity_proof_data_with_ciphertext,
-                percentage_with_cap_proof_data,
-                fee_ciphertext_validity_proof_data,
-                range_proof_data,
-            } = transfer_account_info
-                .generate_split_transfer_with_fee_proof_data(
-                    transfer_amount,
-                    source_elgamal_keypair,
-                    source_aes_key,
-                    destination_elgamal_pubkey,
-                    auditor_elgamal_pubkey,
-                    withdraw_withheld_authority_elgamal_pubkey,
-                    fee_rate_basis_points,
-                    maximum_fee,
-                )
-                .unwrap();
-
-            let transfer_amount_auditor_ciphertext_lo =
-                transfer_amount_ciphertext_validity_proof_data_with_ciphertext.ciphertext_lo;
-            let transfer_amount_auditor_ciphertext_hi =
-                transfer_amount_ciphertext_validity_proof_data_with_ciphertext.ciphertext_hi;
-
-            let equality_proof_record_account = Keypair::new();
-            let transfer_amount_ciphertext_validity_proof_record_account = Keypair::new();
-            let fee_sigma_proof_record_account = Keypair::new();
-            let fee_ciphertext_validity_proof_record_account = Keypair::new();
-            let range_proof_record_account = Keypair::new();
-            let record_account_authority = Keypair::new();
-
-            token
-                .confidential_transfer_create_record_account(
-                    &equality_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &equality_proof_data,
-                    &equality_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let equality_proof_account = ProofAccount::RecordAccount(
-                equality_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            token
-                .confidential_transfer_create_record_account(
-                    &transfer_amount_ciphertext_validity_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &transfer_amount_ciphertext_validity_proof_data_with_ciphertext.proof_data,
-                    &transfer_amount_ciphertext_validity_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let transfer_amount_ciphertext_validity_proof_account = ProofAccount::RecordAccount(
-                transfer_amount_ciphertext_validity_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            token
-                .confidential_transfer_create_record_account(
-                    &fee_sigma_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &percentage_with_cap_proof_data,
-                    &fee_sigma_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let fee_sigma_proof_account = ProofAccount::RecordAccount(
-                fee_sigma_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            token
-                .confidential_transfer_create_record_account(
-                    &fee_ciphertext_validity_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &fee_ciphertext_validity_proof_data,
-                    &fee_ciphertext_validity_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let fee_ciphertext_validity_proof_account = ProofAccount::RecordAccount(
-                fee_ciphertext_validity_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            token
-                .confidential_transfer_create_record_account(
-                    &range_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &range_proof_data,
-                    &range_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let range_proof_account = ProofAccount::RecordAccount(
-                range_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            let transfer_token = if let Some((memo, signing_pubkey)) = memo {
-                token.with_memo(memo, signing_pubkey)
-            } else {
-                token
-            };
-
-            let transfer_amount_ciphertext_validity_proof_account_with_ciphertext =
-                ProofAccountWithCiphertext {
-                    proof_account: transfer_amount_ciphertext_validity_proof_account,
-                    ciphertext_lo: transfer_amount_auditor_ciphertext_lo,
-                    ciphertext_hi: transfer_amount_auditor_ciphertext_hi,
-                };
-
-            let result = transfer_token
-                .confidential_transfer_transfer_with_fee(
-                    source_account,
-                    destination_account,
-                    source_authority,
-                    Some(&equality_proof_account),
-                    Some(&transfer_amount_ciphertext_validity_proof_account_with_ciphertext),
-                    Some(&fee_sigma_proof_account),
-                    Some(&fee_ciphertext_validity_proof_account),
-                    Some(&range_proof_account),
-                    transfer_amount,
-                    None,
-                    source_elgamal_keypair,
-                    source_aes_key,
-                    destination_elgamal_pubkey,
-                    auditor_elgamal_pubkey,
-                    withdraw_withheld_authority_elgamal_pubkey,
-                    fee_rate_basis_points,
-                    maximum_fee,
-                    signing_keypairs,
-                )
-                .await;
-
-            token
-                .confidential_transfer_close_record_account(
-                    &equality_proof_record_account.pubkey(),
-                    source_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            token
-                .confidential_transfer_close_record_account(
-                    &transfer_amount_ciphertext_validity_proof_record_account.pubkey(),
-                    source_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            token
-                .confidential_transfer_close_record_account(
-                    &fee_sigma_proof_record_account.pubkey(),
-                    source_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            token
-                .confidential_transfer_close_record_account(
-                    &fee_ciphertext_validity_proof_record_account.pubkey(),
-                    source_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            token
-                .confidential_transfer_close_record_account(
-                    &range_proof_record_account.pubkey(),
-                    source_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            result
-        }
         ConfidentialTransferOption::ContextStateAccount => {
             let state = token.get_account_info(source_account).await.unwrap();
             let extension = state
@@ -2387,9 +1825,6 @@ async fn confidential_transfer_with_fee_with_option<S: Signers>(
                 .await
                 .unwrap();
 
-            let equality_proof_context_proof_account =
-                ProofAccount::ContextAccount(equality_proof_context_account.pubkey());
-
             token
                 .confidential_transfer_create_context_state_account(
                     &transfer_amount_ciphertext_validity_proof_context_account.pubkey(),
@@ -2400,11 +1835,6 @@ async fn confidential_transfer_with_fee_with_option<S: Signers>(
                 )
                 .await
                 .unwrap();
-
-            let transfer_amount_ciphertext_validity_proof_context_proof_account =
-                ProofAccount::ContextAccount(
-                    transfer_amount_ciphertext_validity_proof_context_account.pubkey(),
-                );
 
             token
                 .confidential_transfer_create_context_state_account(
@@ -2417,9 +1847,6 @@ async fn confidential_transfer_with_fee_with_option<S: Signers>(
                 .await
                 .unwrap();
 
-            let fee_sigma_proof_context_proof_account =
-                ProofAccount::ContextAccount(percentage_with_cap_proof_context_account.pubkey());
-
             token
                 .confidential_transfer_create_context_state_account(
                     &fee_ciphertext_validity_proof_context_account.pubkey(),
@@ -2430,10 +1857,6 @@ async fn confidential_transfer_with_fee_with_option<S: Signers>(
                 )
                 .await
                 .unwrap();
-
-            let fee_ciphertext_validity_proof_context_proof_account = ProofAccount::ContextAccount(
-                fee_ciphertext_validity_proof_context_account.pubkey(),
-            );
 
             token
                 .confidential_transfer_create_context_state_account(
@@ -2446,9 +1869,6 @@ async fn confidential_transfer_with_fee_with_option<S: Signers>(
                 .await
                 .unwrap();
 
-            let range_proof_context_proof_account =
-                ProofAccount::ContextAccount(range_proof_context_account.pubkey());
-
             let transfer_token = if let Some((memo, signing_pubkey)) = memo {
                 token.with_memo(memo, signing_pubkey)
             } else {
@@ -2457,7 +1877,8 @@ async fn confidential_transfer_with_fee_with_option<S: Signers>(
 
             let transfer_amount_ciphertext_validity_proof_account_with_ciphertext =
                 ProofAccountWithCiphertext {
-                    proof_account: transfer_amount_ciphertext_validity_proof_context_proof_account,
+                    context_state_account:
+                        transfer_amount_ciphertext_validity_proof_context_account.pubkey(),
                     ciphertext_lo: transfer_amount_auditor_ciphertext_lo,
                     ciphertext_hi: transfer_amount_auditor_ciphertext_hi,
                 };
@@ -2467,11 +1888,11 @@ async fn confidential_transfer_with_fee_with_option<S: Signers>(
                     source_account,
                     destination_account,
                     source_authority,
-                    Some(&equality_proof_context_proof_account),
+                    Some(&equality_proof_context_account.pubkey()),
                     Some(&transfer_amount_ciphertext_validity_proof_account_with_ciphertext),
-                    Some(&fee_sigma_proof_context_proof_account),
-                    Some(&fee_ciphertext_validity_proof_context_proof_account),
-                    Some(&range_proof_context_proof_account),
+                    Some(&percentage_with_cap_proof_context_account.pubkey()),
+                    Some(&fee_ciphertext_validity_proof_context_account.pubkey()),
+                    Some(&range_proof_context_account.pubkey()),
                     transfer_amount,
                     None,
                     source_elgamal_keypair,
@@ -2546,8 +1967,6 @@ async fn confidential_transfer_transfer_with_fee() {
         ConfidentialTransferOption::InstructionData,
     )
     .await;
-    confidential_transfer_transfer_with_fee_with_option(ConfidentialTransferOption::RecordAccount)
-        .await;
     confidential_transfer_transfer_with_fee_with_option(
         ConfidentialTransferOption::ContextStateAccount,
     )
@@ -2910,8 +2329,6 @@ async fn confidential_transfer_transfer_with_fee_with_option(option: Confidentia
 async fn confidential_transfer_transfer_memo() {
     confidential_transfer_transfer_memo_with_option(ConfidentialTransferOption::InstructionData)
         .await;
-    confidential_transfer_transfer_memo_with_option(ConfidentialTransferOption::RecordAccount)
-        .await;
     confidential_transfer_transfer_memo_with_option(
         ConfidentialTransferOption::ContextStateAccount,
     )
@@ -3034,10 +2451,6 @@ async fn confidential_transfer_transfer_memo_with_option(option: ConfidentialTra
 async fn confidential_transfer_transfer_with_fee_and_memo() {
     confidential_transfer_transfer_with_fee_and_memo_option(
         ConfidentialTransferOption::InstructionData,
-    )
-    .await;
-    confidential_transfer_transfer_with_fee_and_memo_option(
-        ConfidentialTransferOption::RecordAccount,
     )
     .await;
     confidential_transfer_transfer_with_fee_and_memo_option(
@@ -3209,10 +2622,7 @@ async fn confidential_transfer_configure_token_account_with_registry() {
     let ctx = context.context.lock().await;
     let proof_data =
         confidential_transfer::instruction::PubkeyValidityProofData::new(&elgamal_keypair).unwrap();
-    let proof_location = ProofLocation::InstructionOffset(
-        1.try_into().unwrap(),
-        ProofData::InstructionData(&proof_data),
-    );
+    let proof_location = ProofLocation::InstructionOffset(1.try_into().unwrap(), &proof_data);
 
     let elgamal_registry_address = spl_elgamal_registry::get_elgamal_registry_address(
         &alice.pubkey(),
@@ -3246,10 +2656,7 @@ async fn confidential_transfer_configure_token_account_with_registry() {
     let proof_data =
         confidential_transfer::instruction::PubkeyValidityProofData::new(&new_elgamal_keypair)
             .unwrap();
-    let proof_location = ProofLocation::InstructionOffset(
-        1.try_into().unwrap(),
-        ProofData::InstructionData(&proof_data),
-    );
+    let proof_location = ProofLocation::InstructionOffset(1.try_into().unwrap(), &proof_data);
 
     let payer_pubkey = ctx.payer.pubkey();
     let instructions =

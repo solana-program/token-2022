@@ -72,7 +72,7 @@ use {
         state::{Account, AccountState, Mint, Multisig},
     },
     spl_token_confidential_transfer_proof_extraction::instruction::{
-        zk_proof_type_to_instruction, ProofData, ProofLocation,
+        zk_proof_type_to_instruction, ProofLocation,
     },
     spl_token_confidential_transfer_proof_generation::{
         burn::BurnProofData, mint::MintProofData, transfer::TransferProofData,
@@ -387,13 +387,8 @@ pub enum ComputeUnitLimit {
     Static(u32),
 }
 
-pub enum ProofAccount {
-    ContextAccount(Pubkey),
-    RecordAccount(Pubkey, u32),
-}
-
 pub struct ProofAccountWithCiphertext {
-    pub proof_account: ProofAccount,
+    pub context_state_account: Pubkey,
     pub ciphertext_lo: PodElGamalCiphertext,
     pub ciphertext_hi: PodElGamalCiphertext,
 }
@@ -2041,7 +2036,7 @@ where
         &self,
         account: &Pubkey,
         authority: &Pubkey,
-        proof_account: Option<&ProofAccount>,
+        context_state_account: Option<&Pubkey>,
         maximum_pending_balance_credit_counter: Option<u64>,
         elgamal_keypair: &ElGamalKeypair,
         aes_key: &AeKey,
@@ -2055,7 +2050,7 @@ where
         let maximum_pending_balance_credit_counter = maximum_pending_balance_credit_counter
             .unwrap_or(DEFAULT_MAXIMUM_PENDING_BALANCE_CREDIT_COUNTER);
 
-        let proof_data = if proof_account.is_some() {
+        let proof_data = if context_state_account.is_some() {
             None
         } else {
             Some(
@@ -2064,11 +2059,11 @@ where
             )
         };
 
-        // cannot panic as long as either `proof_data` or `proof_account` is `Some(..)`,
+        // cannot panic as long as either `proof_data` or `context_state_account` is `Some(..)`,
         // which is guaranteed by the previous check
         let proof_location = Self::confidential_transfer_create_proof_location(
             proof_data.as_ref(),
-            proof_account,
+            context_state_account,
             1,
         )
         .unwrap();
@@ -2143,7 +2138,7 @@ where
         &self,
         account: &Pubkey,
         authority: &Pubkey,
-        proof_account: Option<&ProofAccount>,
+        context_state_account: Option<&Pubkey>,
         account_info: Option<EmptyAccountAccountInfo>,
         elgamal_keypair: &ElGamalKeypair,
         signing_keypairs: &S,
@@ -2160,7 +2155,7 @@ where
             EmptyAccountAccountInfo::new(confidential_transfer_account)
         };
 
-        let proof_data = if proof_account.is_some() {
+        let proof_data = if context_state_account.is_some() {
             None
         } else {
             Some(
@@ -2170,11 +2165,11 @@ where
             )
         };
 
-        // cannot panic as long as either `proof_data` or `proof_account` is `Some(..)`,
+        // cannot panic as long as either `proof_data` or `context_state_account` is `Some(..)`,
         // which is guaranteed by the previous check
         let proof_location = Self::confidential_transfer_create_proof_location(
             proof_data.as_ref(),
-            proof_account,
+            context_state_account,
             1,
         )
         .unwrap();
@@ -2227,8 +2222,8 @@ where
         &self,
         account: &Pubkey,
         authority: &Pubkey,
-        equality_proof_account: Option<&ProofAccount>,
-        range_proof_account: Option<&ProofAccount>,
+        equality_proof_account: Option<&Pubkey>,
+        range_proof_account: Option<&Pubkey>,
         withdraw_amount: u64,
         decimals: u8,
         account_info: Option<WithdrawAccountInfo>,
@@ -2315,9 +2310,9 @@ where
         source_account: &Pubkey,
         destination_account: &Pubkey,
         source_authority: &Pubkey,
-        equality_proof_account: Option<&ProofAccount>,
+        equality_proof_account: Option<&Pubkey>,
         ciphertext_validity_proof_account_with_ciphertext: Option<&ProofAccountWithCiphertext>,
-        range_proof_account: Option<&ProofAccount>,
+        range_proof_account: Option<&Pubkey>,
         transfer_amount: u64,
         account_info: Option<TransferAccountInfo>,
         source_elgamal_keypair: &ElGamalKeypair,
@@ -2410,7 +2405,8 @@ where
             ciphertext_validity_proof_data_with_ciphertext.map(|data| data.proof_data);
         let ciphertext_validity_proof_location = Self::confidential_transfer_create_proof_location(
             ciphertext_validity_proof_data.as_ref(),
-            ciphertext_validity_proof_account_with_ciphertext.map(|account| &account.proof_account),
+            ciphertext_validity_proof_account_with_ciphertext
+                .map(|account| &account.context_state_account),
             2,
         )
         .unwrap();
@@ -2637,6 +2633,56 @@ where
         }
     }
 
+    /// Create a context state account from another account containing
+    /// zero-knowledge proof needed for a confidential transfer instruction.
+    pub async fn confidential_transfer_create_context_state_account_from_record<
+        S: Signers,
+        ZK: Pod + ZkProofData<U>,
+        U: Pod,
+    >(
+        &self,
+        context_state_account: &Pubkey,
+        context_state_authority: &Pubkey,
+        record_account: &Pubkey,
+        signing_keypairs: &S,
+    ) -> TokenResult<T::Output> {
+        const RECORD_ACCOUNT_PROOF_OFFSET: u32 = 33;
+
+        let instruction_type = zk_proof_type_to_instruction(ZK::PROOF_TYPE)?;
+        let space = size_of::<ProofContextState<U>>();
+        let rent = self
+            .client
+            .get_minimum_balance_for_rent_exemption(space)
+            .await
+            .map_err(TokenError::Client)?;
+
+        let context_state_info = ContextStateInfo {
+            context_state_account,
+            context_state_authority,
+        };
+
+        // Some proof instructions are right at the transaction size limit, but in the
+        // future it might be able to support the transfer too
+        self.process_ixs(
+            &[
+                system_instruction::create_account(
+                    &self.payer.pubkey(),
+                    context_state_account,
+                    rent,
+                    space as u64,
+                    &zk_elgamal_proof_program::id(),
+                ),
+                instruction_type.encode_verify_proof_from_account(
+                    Some(context_state_info),
+                    record_account,
+                    RECORD_ACCOUNT_PROOF_OFFSET,
+                ),
+            ],
+            signing_keypairs,
+        )
+        .await
+    }
+
     /// Close a ZK Token proof program context state
     pub async fn confidential_transfer_close_context_state_account<S: Signers>(
         &self,
@@ -2667,13 +2713,13 @@ where
         source_account: &Pubkey,
         destination_account: &Pubkey,
         source_authority: &Pubkey,
-        equality_proof_account: Option<&ProofAccount>,
+        equality_proof_account: Option<&Pubkey>,
         transfer_amount_ciphertext_validity_proof_account_with_ciphertext: Option<
             &ProofAccountWithCiphertext,
         >,
-        percentage_with_cap_proof_account: Option<&ProofAccount>,
-        fee_ciphertext_validity_proof_account: Option<&ProofAccount>,
-        range_proof_account: Option<&ProofAccount>,
+        percentage_with_cap_proof_account: Option<&Pubkey>,
+        fee_ciphertext_validity_proof_account: Option<&Pubkey>,
+        range_proof_account: Option<&Pubkey>,
         transfer_amount: u64,
         account_info: Option<TransferAccountInfo>,
         source_elgamal_keypair: &ElGamalKeypair,
@@ -2792,7 +2838,7 @@ where
             Self::confidential_transfer_create_proof_location(
                 transfer_amount_ciphertext_validity_proof_data.as_ref(),
                 transfer_amount_ciphertext_validity_proof_account_with_ciphertext
-                    .map(|account| &account.proof_account),
+                    .map(|account| &account.context_state_account),
                 2,
             )
             .unwrap();
@@ -3004,7 +3050,7 @@ where
         &self,
         destination_account: &Pubkey,
         withdraw_withheld_authority: &Pubkey,
-        proof_account: Option<&ProofAccount>,
+        context_state_account: Option<&Pubkey>,
         withheld_tokens_info: Option<WithheldTokensInfo>,
         withdraw_withheld_authority_elgamal_keypair: &ElGamalKeypair,
         destination_elgamal_pubkey: &ElGamalPubkey,
@@ -3024,7 +3070,7 @@ where
             WithheldTokensInfo::new(&confidential_transfer_fee_config.withheld_amount)
         };
 
-        let proof_data = if proof_account.is_some() {
+        let proof_data = if context_state_account.is_some() {
             None
         } else {
             Some(
@@ -3037,11 +3083,11 @@ where
             )
         };
 
-        // cannot panic as long as either `proof_data` or `proof_account` is `Some(..)`,
+        // cannot panic as long as either `proof_data` or `context_state_account` is `Some(..)`,
         // which is guaranteed by the previous check
         let proof_location = Self::confidential_transfer_create_proof_location(
             proof_data.as_ref(),
-            proof_account,
+            context_state_account,
             1,
         )
         .unwrap();
@@ -3067,7 +3113,7 @@ where
         &self,
         destination_account: &Pubkey,
         withdraw_withheld_authority: &Pubkey,
-        proof_account: Option<&ProofAccount>,
+        context_state_account: Option<&Pubkey>,
         withheld_tokens_info: Option<WithheldTokensInfo>,
         withdraw_withheld_authority_elgamal_keypair: &ElGamalKeypair,
         destination_elgamal_pubkey: &ElGamalPubkey,
@@ -3098,7 +3144,7 @@ where
             WithheldTokensInfo::new(&aggregate_withheld_amount.into())
         };
 
-        let proof_data = if proof_account.is_some() {
+        let proof_data = if context_state_account.is_some() {
             None
         } else {
             Some(
@@ -3115,7 +3161,7 @@ where
         // which is guaranteed by the previous check
         let proof_location = Self::confidential_transfer_create_proof_location(
             proof_data.as_ref(),
-            proof_account,
+            context_state_account,
             1,
         )
         .unwrap();
@@ -3210,7 +3256,7 @@ where
         current_supply_elgamal_keypair: &ElGamalKeypair,
         new_supply_elgamal_pubkey: &ElGamalPubkey,
         aes_key: &AeKey,
-        proof_account: Option<&ProofAccount>,
+        context_state_account: Option<&Pubkey>,
         account_info: Option<SupplyAccountInfo>,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -3225,7 +3271,7 @@ where
             SupplyAccountInfo::new(confidential_supply_account)
         };
 
-        let proof_data = if proof_account.is_some() {
+        let proof_data = if context_state_account.is_some() {
             None
         } else {
             Some(
@@ -3243,7 +3289,7 @@ where
         // which is guaranteed by the previous check
         let proof_location = Self::confidential_transfer_create_proof_location(
             proof_data.as_ref(),
-            proof_account,
+            context_state_account,
             1,
         )
         .unwrap();
@@ -3294,9 +3340,9 @@ where
         &self,
         authority: &Pubkey,
         destination_account: &Pubkey,
-        equality_proof_account: Option<&ProofAccount>,
+        equality_proof_account: Option<&Pubkey>,
         ciphertext_validity_proof_account_with_ciphertext: Option<&ProofAccountWithCiphertext>,
-        range_proof_account: Option<&ProofAccount>,
+        range_proof_account: Option<&Pubkey>,
         mint_amount: u64,
         supply_elgamal_keypair: &ElGamalKeypair,
         destination_elgamal_pubkey: &ElGamalPubkey,
@@ -3366,7 +3412,8 @@ where
             ciphertext_validity_proof_data_with_ciphertext.map(|data| data.proof_data);
         let ciphertext_validity_proof_location = Self::confidential_transfer_create_proof_location(
             ciphertext_validity_proof_data.as_ref(),
-            ciphertext_validity_proof_account_with_ciphertext.map(|account| &account.proof_account),
+            ciphertext_validity_proof_account_with_ciphertext
+                .map(|account| &account.context_state_account),
             2,
         )
         .unwrap();
@@ -3430,9 +3477,9 @@ where
         &self,
         authority: &Pubkey,
         source_account: &Pubkey,
-        equality_proof_account: Option<&ProofAccount>,
+        equality_proof_account: Option<&Pubkey>,
         ciphertext_validity_proof_account_with_ciphertext: Option<&ProofAccountWithCiphertext>,
-        range_proof_account: Option<&ProofAccount>,
+        range_proof_account: Option<&Pubkey>,
         burn_amount: u64,
         source_elgamal_keypair: &ElGamalKeypair,
         supply_elgamal_pubkey: &ElGamalPubkey,
@@ -3503,7 +3550,8 @@ where
             ciphertext_validity_proof_data_with_ciphertext.map(|data| data.proof_data);
         let ciphertext_validity_proof_location = Self::confidential_transfer_create_proof_location(
             ciphertext_validity_proof_data.as_ref(),
-            ciphertext_validity_proof_account_with_ciphertext.map(|account| &account.proof_account),
+            ciphertext_validity_proof_account_with_ciphertext
+                .map(|account| &account.context_state_account),
             2,
         )
         .unwrap();
@@ -3582,32 +3630,20 @@ where
         .await
     }
 
-    // Creates `ProofLocation` from proof data and `ProofAccount`. If both
-    // `proof_data` and `proof_account` are `None`, then the result is `None`.
+    // Creates `ProofLocation` from proof data and context account. If both
+    // `proof_data` and `context_account` are `None`, then the result is `None`.
     fn confidential_transfer_create_proof_location<'a, ZK: ZkProofData<U>, U: Pod>(
         proof_data: Option<&'a ZK>,
-        proof_account: Option<&'a ProofAccount>,
+        context_account: Option<&'a Pubkey>,
         instruction_offset: i8,
     ) -> Option<ProofLocation<'a, ZK>> {
         if let Some(proof_data) = proof_data {
             Some(ProofLocation::InstructionOffset(
                 instruction_offset.try_into().unwrap(),
-                ProofData::InstructionData(proof_data),
+                proof_data,
             ))
-        } else if let Some(proof_account) = proof_account {
-            match proof_account {
-                ProofAccount::ContextAccount(context_state_account) => {
-                    Some(ProofLocation::ContextStateAccount(context_state_account))
-                }
-                ProofAccount::RecordAccount(record_account, data_offset) => {
-                    Some(ProofLocation::InstructionOffset(
-                        instruction_offset.try_into().unwrap(),
-                        ProofData::RecordAccount(record_account, *data_offset),
-                    ))
-                }
-            }
         } else {
-            None
+            context_account.map(ProofLocation::ContextStateAccount)
         }
     }
 

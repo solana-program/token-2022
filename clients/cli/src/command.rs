@@ -69,8 +69,7 @@ use {
     spl_token_client::{
         client::{ProgramRpcClientSendTransaction, RpcClientResponse},
         token::{
-            ComputeUnitLimit, ExtensionInitializationParams, ProofAccount,
-            ProofAccountWithCiphertext, Token,
+            ComputeUnitLimit, ExtensionInitializationParams, ProofAccountWithCiphertext, Token,
         },
     },
     spl_token_confidential_transfer_proof_generation::{
@@ -1704,15 +1703,8 @@ async fn command_transfer(
             )?;
 
             // do the transfer
-            let equality_proof_context_proof_account =
-                ProofAccount::ContextAccount(equality_proof_pubkey);
-            let ciphertext_validity_proof_context_proof_account =
-                ProofAccount::ContextAccount(ciphertext_validity_proof_pubkey);
-            let range_proof_context_proof_account =
-                ProofAccount::ContextAccount(range_proof_pubkey);
-
             let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
-                proof_account: ciphertext_validity_proof_context_proof_account,
+                context_state_account: ciphertext_validity_proof_pubkey,
                 ciphertext_lo: transfer_amount_auditor_ciphertext_lo,
                 ciphertext_hi: transfer_amount_auditor_ciphertext_hi,
             };
@@ -1722,9 +1714,9 @@ async fn command_transfer(
                     &sender,
                     &recipient_token_account,
                     &sender_owner,
-                    Some(&equality_proof_context_proof_account),
+                    Some(&equality_proof_pubkey),
                     Some(&ciphertext_validity_proof_account_with_ciphertext),
-                    Some(&range_proof_context_proof_account),
+                    Some(&range_proof_pubkey),
                     transfer_balance,
                     Some(transfer_account_info),
                     &args.sender_elgamal_keypair,
@@ -3477,12 +3469,8 @@ async fn command_deposit_withdraw_confidential_tokens(
                 .confidential_transfer_withdraw(
                     &token_account_address,
                     &owner,
-                    Some(&ProofAccount::ContextAccount(
-                        equality_proof_context_state_pubkey,
-                    )),
-                    Some(&ProofAccount::ContextAccount(
-                        range_proof_context_state_pubkey,
-                    )),
+                    Some(&equality_proof_context_state_pubkey),
+                    Some(&range_proof_context_state_pubkey),
                     amount,
                     decimals,
                     Some(withdraw_account_info),

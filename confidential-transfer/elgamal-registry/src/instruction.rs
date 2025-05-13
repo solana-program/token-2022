@@ -6,7 +6,7 @@ use {
     solana_zk_sdk::zk_elgamal_proof_program::{
         instruction::ProofInstruction, proof_data::PubkeyValidityProofData,
     },
-    spl_token_confidential_transfer_proof_extraction::instruction::{ProofData, ProofLocation},
+    spl_token_confidential_transfer_proof_extraction::instruction::ProofLocation,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -21,8 +21,6 @@ pub enum RegistryInstruction {
     /// 3. `[]` Instructions sysvar if `VerifyPubkeyValidity` is included in the
     ///    same transaction or context state account if `VerifyPubkeyValidity`
     ///    is pre-verified into a context state account.
-    /// 4. `[]` (Optional) Record account if the accompanying proof is to be
-    ///    read from a record account.
     CreateRegistry {
         /// Relative location of the `ProofInstruction::PubkeyValidityProof`
         /// instruction to the `CreateElGamalRegistry` instruction in the
@@ -36,9 +34,7 @@ pub enum RegistryInstruction {
     /// 1. `[]` Instructions sysvar if `VerifyPubkeyValidity` is included in the
     ///    same transaction or context state account if `VerifyPubkeyValidity`
     ///    is pre-verified into a context state account.
-    /// 2. `[]` (Optional) Record account if the accompanying proof is to be
-    ///    read from a record account.
-    /// 3. `[signer]` The owner of the ElGamal public key registry
+    /// 2. `[signer]` The owner of the ElGamal public key registry
     UpdateRegistry {
         /// Relative location of the `ProofInstruction::PubkeyValidityProof`
         /// instruction to the `UpdateElGamalRegistry` instruction in the
@@ -151,14 +147,11 @@ fn proof_instruction_offset(
     proof_location: ProofLocation<PubkeyValidityProofData>,
 ) -> i8 {
     match proof_location {
-        ProofLocation::InstructionOffset(proof_instruction_offset, proof_data) => {
+        ProofLocation::InstructionOffset(proof_instruction_offset, _) => {
             accounts.push(AccountMeta::new_readonly(
                 solana_sdk_ids::sysvar::instructions::id(),
                 false,
             ));
-            if let ProofData::RecordAccount(record_address, _) = proof_data {
-                accounts.push(AccountMeta::new_readonly(*record_address, false));
-            }
             proof_instruction_offset.into()
         }
         ProofLocation::ContextStateAccount(context_state_account) => {
@@ -181,14 +174,8 @@ fn append_zk_elgamal_proof(
         if proof_instruction_offset != 1 {
             return Err(ProgramError::InvalidArgument);
         }
-        match proof_data {
-            ProofData::InstructionData(data) => instructions
-                .push(ProofInstruction::VerifyPubkeyValidity.encode_verify_proof(None, data)),
-            ProofData::RecordAccount(address, offset) => instructions.push(
-                ProofInstruction::VerifyPubkeyValidity
-                    .encode_verify_proof_from_account(None, address, offset),
-            ),
-        }
+        instructions
+            .push(ProofInstruction::VerifyPubkeyValidity.encode_verify_proof(None, proof_data));
     }
     Ok(())
 }

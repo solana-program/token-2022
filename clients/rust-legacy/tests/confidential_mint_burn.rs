@@ -10,7 +10,6 @@ use {
         transaction::TransactionError,
         transport::TransportError,
     },
-    spl_record::state::RecordData,
     spl_token_2022::{
         error::TokenError,
         extension::{
@@ -28,7 +27,7 @@ use {
     spl_token_client::{
         client::{ProgramBanksClientProcessTransaction, SendTransaction, SimulateTransaction},
         token::{
-            ExtensionInitializationParams, ProofAccount, ProofAccountWithCiphertext, Token,
+            ExtensionInitializationParams, ProofAccountWithCiphertext, Token,
             TokenError as TokenClientError, TokenResult,
         },
     },
@@ -174,63 +173,6 @@ async fn rotate_supply_elgamal_pubkey<S: Signers>(
                 )
                 .await
         }
-        ConfidentialTransferOption::RecordAccount => {
-            let state = token.get_mint_info().await.unwrap();
-            let extension = state.get_extension::<ConfidentialMintBurn>().unwrap();
-            let account_info = SupplyAccountInfo::new(extension);
-
-            let proof_data = account_info
-                .generate_rotate_supply_elgamal_pubkey_proof(
-                    current_supply_elgamal_keypair,
-                    new_supply_elgamal_pubkey,
-                    aes_key,
-                )
-                .unwrap();
-
-            let record_account = Keypair::new();
-            let record_account_authority = Keypair::new();
-
-            token
-                .confidential_transfer_create_record_account(
-                    &record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &proof_data,
-                    &record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let proof_account = ProofAccount::RecordAccount(
-                record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            let result = token
-                .confidential_transfer_rotate_supply_elgamal_pubkey(
-                    authority,
-                    current_supply_elgamal_keypair,
-                    new_supply_elgamal_pubkey,
-                    aes_key,
-                    Some(&proof_account),
-                    None,
-                    signing_keypairs,
-                )
-                .await;
-
-            let lamport_destination = Keypair::new().pubkey();
-            token
-                .confidential_transfer_close_record_account(
-                    &record_account.pubkey(),
-                    &lamport_destination,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            result
-        }
         ConfidentialTransferOption::ContextStateAccount => {
             let state = token.get_mint_info().await.unwrap();
             let extension = state.get_extension::<ConfidentialMintBurn>().unwrap();
@@ -258,15 +200,13 @@ async fn rotate_supply_elgamal_pubkey<S: Signers>(
                 .await
                 .unwrap();
 
-            let proof_account = ProofAccount::ContextAccount(context_account.pubkey());
-
             let result = token
                 .confidential_transfer_rotate_supply_elgamal_pubkey(
                     authority,
                     current_supply_elgamal_keypair,
                     new_supply_elgamal_pubkey,
                     aes_key,
-                    Some(&proof_account),
+                    Some(&context_account.pubkey()),
                     None,
                     signing_keypairs,
                 )
@@ -292,10 +232,6 @@ async fn rotate_supply_elgamal_pubkey<S: Signers>(
 async fn confidential_mint_burn_rotate_supply_elgamal_pubkey() {
     confidential_mint_burn_rotate_supply_elgamal_pubkey_with_option(
         ConfidentialTransferOption::InstructionData,
-    )
-    .await;
-    confidential_mint_burn_rotate_supply_elgamal_pubkey_with_option(
-        ConfidentialTransferOption::RecordAccount,
     )
     .await;
     confidential_mint_burn_rotate_supply_elgamal_pubkey_with_option(
@@ -526,139 +462,6 @@ async fn mint_with_option<S: Signers>(
                 )
                 .await
         }
-        ConfidentialTransferOption::RecordAccount => {
-            let state = token.get_mint_info().await.unwrap();
-            let extension = state.get_extension::<ConfidentialMintBurn>().unwrap();
-            let account_info = SupplyAccountInfo::new(extension);
-
-            let MintProofData {
-                equality_proof_data,
-                ciphertext_validity_proof_data_with_ciphertext,
-                range_proof_data,
-            } = account_info
-                .generate_split_mint_proof_data(
-                    mint_amount,
-                    supply_elgamal_keypair,
-                    aes_key,
-                    destination_elgamal_pubkey,
-                    auditor_elgamal_pubkey,
-                )
-                .unwrap();
-
-            let mint_amount_auditor_ciphertext_lo =
-                ciphertext_validity_proof_data_with_ciphertext.ciphertext_lo;
-            let mint_amount_auditor_ciphertext_hi =
-                ciphertext_validity_proof_data_with_ciphertext.ciphertext_hi;
-
-            let equality_proof_record_account = Keypair::new();
-            let ciphertext_validity_proof_record_account = Keypair::new();
-            let range_proof_record_account = Keypair::new();
-            let record_account_authority = Keypair::new();
-
-            token
-                .confidential_transfer_create_record_account(
-                    &equality_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &equality_proof_data,
-                    &equality_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let equality_proof_account = ProofAccount::RecordAccount(
-                equality_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            token
-                .confidential_transfer_create_record_account(
-                    &ciphertext_validity_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &ciphertext_validity_proof_data_with_ciphertext.proof_data,
-                    &ciphertext_validity_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let ciphertext_validity_proof_account = ProofAccount::RecordAccount(
-                ciphertext_validity_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            token
-                .confidential_transfer_create_record_account(
-                    &range_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &range_proof_data,
-                    &range_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let range_proof_account = ProofAccount::RecordAccount(
-                range_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
-                proof_account: ciphertext_validity_proof_account,
-                ciphertext_lo: mint_amount_auditor_ciphertext_lo,
-                ciphertext_hi: mint_amount_auditor_ciphertext_hi,
-            };
-
-            let result = token
-                .confidential_transfer_mint(
-                    authority,
-                    destination_account,
-                    Some(&equality_proof_account),
-                    Some(&ciphertext_validity_proof_account_with_ciphertext),
-                    Some(&range_proof_account),
-                    mint_amount,
-                    supply_elgamal_keypair,
-                    destination_elgamal_pubkey,
-                    auditor_elgamal_pubkey,
-                    aes_key,
-                    None,
-                    signing_keypairs,
-                )
-                .await;
-
-            let lamport_destination_account = Keypair::new().pubkey();
-            token
-                .confidential_transfer_close_record_account(
-                    &equality_proof_record_account.pubkey(),
-                    &lamport_destination_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            token
-                .confidential_transfer_close_record_account(
-                    &ciphertext_validity_proof_record_account.pubkey(),
-                    &lamport_destination_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            token
-                .confidential_transfer_close_record_account(
-                    &range_proof_record_account.pubkey(),
-                    &lamport_destination_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            result
-        }
         ConfidentialTransferOption::ContextStateAccount => {
             let state = token.get_mint_info().await.unwrap();
             let extension = state.get_extension::<ConfidentialMintBurn>().unwrap();
@@ -699,9 +502,6 @@ async fn mint_with_option<S: Signers>(
                 .await
                 .unwrap();
 
-            let equality_proof_context_proof_account =
-                ProofAccount::ContextAccount(equality_proof_context_account.pubkey());
-
             token
                 .confidential_transfer_create_context_state_account(
                     &ciphertext_validity_proof_context_account.pubkey(),
@@ -712,9 +512,6 @@ async fn mint_with_option<S: Signers>(
                 )
                 .await
                 .unwrap();
-
-            let ciphertext_validity_proof_context_proof_account =
-                ProofAccount::ContextAccount(ciphertext_validity_proof_context_account.pubkey());
 
             token
                 .confidential_transfer_create_context_state_account(
@@ -727,11 +524,8 @@ async fn mint_with_option<S: Signers>(
                 .await
                 .unwrap();
 
-            let range_proof_context_proof_account =
-                ProofAccount::ContextAccount(range_proof_context_account.pubkey());
-
             let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
-                proof_account: ciphertext_validity_proof_context_proof_account,
+                context_state_account: ciphertext_validity_proof_context_account.pubkey(),
                 ciphertext_lo: mint_amount_auditor_ciphertext_lo,
                 ciphertext_hi: mint_amount_auditor_ciphertext_hi,
             };
@@ -740,9 +534,9 @@ async fn mint_with_option<S: Signers>(
                 .confidential_transfer_mint(
                     authority,
                     destination_account,
-                    Some(&equality_proof_context_proof_account),
+                    Some(&equality_proof_context_account.pubkey()),
                     Some(&ciphertext_validity_proof_account_with_ciphertext),
-                    Some(&range_proof_context_proof_account),
+                    Some(&range_proof_context_account.pubkey()),
                     mint_amount,
                     supply_elgamal_keypair,
                     destination_elgamal_pubkey,
@@ -821,141 +615,6 @@ async fn burn_with_option<S: Signers>(
                 )
                 .await
         }
-        ConfidentialTransferOption::RecordAccount => {
-            let state = token.get_account_info(source_account).await.unwrap();
-            let extension = state
-                .get_extension::<ConfidentialTransferAccount>()
-                .unwrap();
-            let account_info = BurnAccountInfo::new(extension);
-
-            let BurnProofData {
-                equality_proof_data,
-                ciphertext_validity_proof_data_with_ciphertext,
-                range_proof_data,
-            } = account_info
-                .generate_split_burn_proof_data(
-                    burn_amount,
-                    source_elgamal_keypair,
-                    aes_key,
-                    supply_elgamal_pubkey,
-                    auditor_elgamal_pubkey,
-                )
-                .unwrap();
-
-            let burn_amount_auditor_ciphertext_lo =
-                ciphertext_validity_proof_data_with_ciphertext.ciphertext_lo;
-            let burn_amount_auditor_ciphertext_hi =
-                ciphertext_validity_proof_data_with_ciphertext.ciphertext_hi;
-
-            let equality_proof_record_account = Keypair::new();
-            let ciphertext_validity_proof_record_account = Keypair::new();
-            let range_proof_record_account = Keypair::new();
-            let record_account_authority = Keypair::new();
-
-            token
-                .confidential_transfer_create_record_account(
-                    &equality_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &equality_proof_data,
-                    &equality_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let equality_proof_account = ProofAccount::RecordAccount(
-                equality_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            token
-                .confidential_transfer_create_record_account(
-                    &ciphertext_validity_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &ciphertext_validity_proof_data_with_ciphertext.proof_data,
-                    &ciphertext_validity_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let ciphertext_validity_proof_account = ProofAccount::RecordAccount(
-                ciphertext_validity_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            token
-                .confidential_transfer_create_record_account(
-                    &range_proof_record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &range_proof_data,
-                    &range_proof_record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let range_proof_account = ProofAccount::RecordAccount(
-                range_proof_record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
-                proof_account: ciphertext_validity_proof_account,
-                ciphertext_lo: burn_amount_auditor_ciphertext_lo,
-                ciphertext_hi: burn_amount_auditor_ciphertext_hi,
-            };
-
-            let result = token
-                .confidential_transfer_burn(
-                    authority,
-                    source_account,
-                    Some(&equality_proof_account),
-                    Some(&ciphertext_validity_proof_account_with_ciphertext),
-                    Some(&range_proof_account),
-                    burn_amount,
-                    source_elgamal_keypair,
-                    supply_elgamal_pubkey,
-                    auditor_elgamal_pubkey,
-                    aes_key,
-                    None,
-                    signing_keypairs,
-                )
-                .await;
-
-            let lamport_destination_account = Keypair::new().pubkey();
-            token
-                .confidential_transfer_close_record_account(
-                    &equality_proof_record_account.pubkey(),
-                    &lamport_destination_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            token
-                .confidential_transfer_close_record_account(
-                    &ciphertext_validity_proof_record_account.pubkey(),
-                    &lamport_destination_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            token
-                .confidential_transfer_close_record_account(
-                    &range_proof_record_account.pubkey(),
-                    &lamport_destination_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            result
-        }
         ConfidentialTransferOption::ContextStateAccount => {
             let state = token.get_account_info(source_account).await.unwrap();
             let extension = state
@@ -998,9 +657,6 @@ async fn burn_with_option<S: Signers>(
                 .await
                 .unwrap();
 
-            let equality_proof_context_proof_account =
-                ProofAccount::ContextAccount(equality_proof_context_account.pubkey());
-
             token
                 .confidential_transfer_create_context_state_account(
                     &ciphertext_validity_proof_context_account.pubkey(),
@@ -1011,9 +667,6 @@ async fn burn_with_option<S: Signers>(
                 )
                 .await
                 .unwrap();
-
-            let ciphertext_validity_proof_context_proof_account =
-                ProofAccount::ContextAccount(ciphertext_validity_proof_context_account.pubkey());
 
             token
                 .confidential_transfer_create_context_state_account(
@@ -1026,11 +679,8 @@ async fn burn_with_option<S: Signers>(
                 .await
                 .unwrap();
 
-            let range_proof_context_proof_account =
-                ProofAccount::ContextAccount(range_proof_context_account.pubkey());
-
             let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
-                proof_account: ciphertext_validity_proof_context_proof_account,
+                context_state_account: ciphertext_validity_proof_context_account.pubkey(),
                 ciphertext_lo: burn_amount_auditor_ciphertext_lo,
                 ciphertext_hi: burn_amount_auditor_ciphertext_hi,
             };
@@ -1039,9 +689,9 @@ async fn burn_with_option<S: Signers>(
                 .confidential_transfer_burn(
                     authority,
                     source_account,
-                    Some(&equality_proof_context_proof_account),
+                    Some(&equality_proof_context_account.pubkey()),
                     Some(&ciphertext_validity_proof_account_with_ciphertext),
-                    Some(&range_proof_context_proof_account),
+                    Some(&range_proof_context_account.pubkey()),
                     burn_amount,
                     source_elgamal_keypair,
                     supply_elgamal_pubkey,
@@ -1091,7 +741,6 @@ async fn burn_with_option<S: Signers>(
 #[tokio::test]
 async fn confidential_mint_burn() {
     confidential_mint_burn_with_option(ConfidentialTransferOption::InstructionData).await;
-    confidential_mint_burn_with_option(ConfidentialTransferOption::RecordAccount).await;
     confidential_mint_burn_with_option(ConfidentialTransferOption::ContextStateAccount).await;
 }
 

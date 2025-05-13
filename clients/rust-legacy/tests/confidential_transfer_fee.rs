@@ -13,7 +13,6 @@ use {
         transport::TransportError,
     },
     spl_elgamal_registry::state::ELGAMAL_REGISTRY_ACCOUNT_LEN,
-    spl_record::state::RecordData,
     spl_token_2022::{
         error::TokenError,
         extension::{
@@ -35,11 +34,10 @@ use {
     spl_token_client::{
         client::{ProgramBanksClientProcessTransaction, SendTransaction, SimulateTransaction},
         token::{
-            ExtensionInitializationParams, ProofAccount, Token, TokenError as TokenClientError,
-            TokenResult,
+            ExtensionInitializationParams, Token, TokenError as TokenClientError, TokenResult,
         },
     },
-    spl_token_confidential_transfer_proof_extraction::instruction::{ProofData, ProofLocation},
+    spl_token_confidential_transfer_proof_extraction::instruction::ProofLocation,
     std::convert::TryInto,
 };
 
@@ -479,64 +477,6 @@ async fn withdraw_withheld_tokens_from_mint_with_option<S: Signers>(
                 )
                 .await
         }
-        ConfidentialTransferOption::RecordAccount => {
-            let state = token.get_mint_info().await.unwrap();
-            let extension = state
-                .get_extension::<ConfidentialTransferFeeConfig>()
-                .unwrap();
-            let account_info = WithheldTokensInfo::new(&extension.withheld_amount);
-
-            let equality_proof = account_info
-                .generate_proof_data(
-                    withdraw_withheld_authority_elgamal_keypair,
-                    destination_elgamal_pubkey,
-                )
-                .unwrap();
-
-            let record_account = Keypair::new();
-            let record_account_authority = Keypair::new();
-
-            token
-                .confidential_transfer_create_record_account(
-                    &record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &equality_proof,
-                    &record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let proof_account = ProofAccount::RecordAccount(
-                record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            let result = token
-                .confidential_transfer_withdraw_withheld_tokens_from_mint(
-                    destination_account,
-                    withdraw_withheld_authority,
-                    Some(&proof_account),
-                    None,
-                    withdraw_withheld_authority_elgamal_keypair,
-                    destination_elgamal_pubkey,
-                    new_decryptable_available_balance,
-                    signing_keypairs,
-                )
-                .await;
-
-            token
-                .confidential_transfer_close_record_account(
-                    &record_account.pubkey(),
-                    destination_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            result
-        }
         ConfidentialTransferOption::ContextStateAccount => {
             let state = token.get_mint_info().await.unwrap();
             let extension = state
@@ -565,13 +505,11 @@ async fn withdraw_withheld_tokens_from_mint_with_option<S: Signers>(
                 .await
                 .unwrap();
 
-            let proof_account = ProofAccount::ContextAccount(context_account.pubkey());
-
             let result = token
                 .confidential_transfer_withdraw_withheld_tokens_from_mint(
                     destination_account,
                     withdraw_withheld_authority,
-                    Some(&proof_account),
+                    Some(&context_account.pubkey()),
                     None,
                     withdraw_withheld_authority_elgamal_keypair,
                     destination_elgamal_pubkey,
@@ -599,10 +537,6 @@ async fn withdraw_withheld_tokens_from_mint_with_option<S: Signers>(
 async fn confidential_transfer_withdraw_withheld_tokens_from_mint() {
     confidential_transfer_withdraw_withheld_tokens_from_mint_with_option(
         ConfidentialTransferOption::InstructionData,
-    )
-    .await;
-    confidential_transfer_withdraw_withheld_tokens_from_mint_with_option(
-        ConfidentialTransferOption::RecordAccount,
     )
     .await;
     confidential_transfer_withdraw_withheld_tokens_from_mint_with_option(
@@ -800,65 +734,6 @@ async fn withdraw_withheld_tokens_from_accounts_with_option<S: Signers>(
                 )
                 .await
         }
-        ConfidentialTransferOption::RecordAccount => {
-            let state = token.get_account_info(source).await.unwrap();
-            let extension = state
-                .get_extension::<ConfidentialTransferFeeAmount>()
-                .unwrap();
-            let account_info = WithheldTokensInfo::new(&extension.withheld_amount);
-
-            let equality_proof = account_info
-                .generate_proof_data(
-                    withdraw_withheld_authority_elgamal_keypair,
-                    destination_elgamal_pubkey,
-                )
-                .unwrap();
-
-            let record_account = Keypair::new();
-            let record_account_authority = Keypair::new();
-
-            token
-                .confidential_transfer_create_record_account(
-                    &record_account.pubkey(),
-                    &record_account_authority.pubkey(),
-                    &equality_proof,
-                    &record_account,
-                    &record_account_authority,
-                )
-                .await
-                .unwrap();
-
-            let proof_account = ProofAccount::RecordAccount(
-                record_account.pubkey(),
-                RecordData::WRITABLE_START_INDEX as u32,
-            );
-
-            let result = token
-                .confidential_transfer_withdraw_withheld_tokens_from_accounts(
-                    destination_account,
-                    withdraw_withheld_authority,
-                    Some(&proof_account),
-                    None,
-                    withdraw_withheld_authority_elgamal_keypair,
-                    destination_elgamal_pubkey,
-                    new_decryptable_available_balance,
-                    &[source],
-                    signing_keypairs,
-                )
-                .await;
-
-            token
-                .confidential_transfer_close_record_account(
-                    &record_account.pubkey(),
-                    destination_account,
-                    &record_account_authority.pubkey(),
-                    &[&record_account_authority],
-                )
-                .await
-                .unwrap();
-
-            result
-        }
         ConfidentialTransferOption::ContextStateAccount => {
             let state = token.get_account_info(source).await.unwrap();
             let extension = state
@@ -887,13 +762,11 @@ async fn withdraw_withheld_tokens_from_accounts_with_option<S: Signers>(
                 .await
                 .unwrap();
 
-            let proof_account = ProofAccount::ContextAccount(context_account.pubkey());
-
             let result = token
                 .confidential_transfer_withdraw_withheld_tokens_from_accounts(
                     destination_account,
                     withdraw_withheld_authority,
-                    Some(&proof_account),
+                    Some(&context_account.pubkey()),
                     None,
                     withdraw_withheld_authority_elgamal_keypair,
                     destination_elgamal_pubkey,
@@ -922,10 +795,6 @@ async fn withdraw_withheld_tokens_from_accounts_with_option<S: Signers>(
 async fn confidential_transfer_withdraw_withheld_tokens_from_accounts() {
     confidential_transfer_withdraw_withheld_tokens_from_accounts_with_option(
         ConfidentialTransferOption::InstructionData,
-    )
-    .await;
-    confidential_transfer_withdraw_withheld_tokens_from_accounts_with_option(
-        ConfidentialTransferOption::RecordAccount,
     )
     .await;
     confidential_transfer_withdraw_withheld_tokens_from_accounts_with_option(
@@ -1255,10 +1124,7 @@ async fn confidential_transfer_configure_token_account_with_fee_with_registry() 
     let ctx = context.context.lock().await;
     let proof_data =
         confidential_transfer::instruction::PubkeyValidityProofData::new(&elgamal_keypair).unwrap();
-    let proof_location = ProofLocation::InstructionOffset(
-        1.try_into().unwrap(),
-        ProofData::InstructionData(&proof_data),
-    );
+    let proof_location = ProofLocation::InstructionOffset(1.try_into().unwrap(), &proof_data);
 
     let elgamal_registry_address = spl_elgamal_registry::get_elgamal_registry_address(
         &alice.pubkey(),
