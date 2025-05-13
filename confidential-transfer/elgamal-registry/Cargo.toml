@@ -28,7 +28,7 @@ solana-system-interface = { version = "1.0.0", features = ["bincode"] }
 solana-sysvar = { version = "2.2.1", features = ["bincode"] }
 solana-zk-sdk = "2.2.0"
 spl-pod = "0.5.1"
-spl-token-confidential-transfer-proof-extraction = { version = "0.3.0", path = "../proof-extraction" }
+spl-token-confidential-transfer-proof-extraction = { version = "0.4.0", path = "../proof-extraction" }
 
 [lib]
 crate-type = ["cdylib", "lib"]

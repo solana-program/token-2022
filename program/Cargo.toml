@@ -47,7 +47,7 @@ spl-elgamal-registry = { version = "0.2.0", path = "../confidential-transfer/elg
 spl-memo = { version = "6.0", features = ["no-entrypoint"] }
 spl-token = { version = "8.0", features = ["no-entrypoint"] }
 spl-token-confidential-transfer-ciphertext-arithmetic = { version = "0.3.0", path = "../confidential-transfer/ciphertext-arithmetic" }
-spl-token-confidential-transfer-proof-extraction = { version = "0.3.0", path = "../confidential-transfer/proof-extraction" }
+spl-token-confidential-transfer-proof-extraction = { version = "0.4.0", path = "../confidential-transfer/proof-extraction" }
 spl-token-group-interface = { version = "0.6.0" }
 spl-token-metadata-interface = { version = "0.7.0" }
 spl-transfer-hook-interface = { version = "0.10.0" }
