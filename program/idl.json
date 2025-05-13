@@ -8286,6 +8286,58 @@
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "closeAccount"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "transferFeeConfig"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "withheldWithdraw"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "closeMint"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "interestRate"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "permanentDelegate"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "confidentialTransferMint"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "transferHookProgramId"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "confidentialTransferFeeConfig"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "metadataPointer"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "groupPointer"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "groupMemberPointer"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "scaledUiAmount"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "pause"
             }
           ],
           "size": {

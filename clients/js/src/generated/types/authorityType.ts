@@ -20,6 +20,19 @@ export enum AuthorityType {
   FreezeAccount,
   AccountOwner,
   CloseAccount,
+  TransferFeeConfig,
+  WithheldWithdraw,
+  CloseMint,
+  InterestRate,
+  PermanentDelegate,
+  ConfidentialTransferMint,
+  TransferHookProgramId,
+  ConfidentialTransferFeeConfig,
+  MetadataPointer,
+  GroupPointer,
+  GroupMemberPointer,
+  ScaledUiAmount,
+  Pause,
 }
 
 export type AuthorityTypeArgs = AuthorityType;
