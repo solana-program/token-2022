@@ -8977,28 +8977,6 @@ dependencies = [
 [[package]]
 name = "spl-elgamal-registry"
 version = "0.2.0"
-dependencies = [
- "bytemuck",
- "solana-account-info",
- "solana-cpi",
- "solana-instruction",
- "solana-msg",
- "solana-program-entrypoint",
- "solana-program-error",
- "solana-pubkey",
- "solana-rent",
- "solana-sdk-ids",
- "solana-security-txt",
- "solana-system-interface",
- "solana-sysvar",
- "solana-zk-sdk",
- "spl-pod",
- "spl-token-confidential-transfer-proof-extraction 0.4.0",
-]
-
-[[package]]
-name = "spl-elgamal-registry"
-version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "65edfeed09cd4231e595616aa96022214f9c9d2be02dea62c2b30d5695a6833a"
 dependencies = [
@@ -9017,6 +8995,28 @@ dependencies = [
  "solana-zk-sdk",
  "spl-pod",
  "spl-token-confidential-transfer-proof-extraction 0.3.0",
+]
+
+[[package]]
+name = "spl-elgamal-registry"
+version = "0.3.0"
+dependencies = [
+ "bytemuck",
+ "solana-account-info",
+ "solana-cpi",
+ "solana-instruction",
+ "solana-msg",
+ "solana-program-entrypoint",
+ "solana-program-error",
+ "solana-pubkey",
+ "solana-rent",
+ "solana-sdk-ids",
+ "solana-security-txt",
+ "solana-system-interface",
+ "solana-sysvar",
+ "solana-zk-sdk",
+ "spl-pod",
+ "spl-token-confidential-transfer-proof-extraction 0.4.0",
 ]
 
 [[package]]
@@ -9327,7 +9327,7 @@ dependencies = [
  "solana-transaction",
  "solana-transaction-error",
  "solana-zk-sdk",
- "spl-elgamal-registry 0.2.0",
+ "spl-elgamal-registry 0.3.0",
  "spl-memo",
  "spl-pod",
  "spl-tlv-account-resolution 0.10.0",
@@ -9373,7 +9373,7 @@ dependencies = [
  "solana-system-interface",
  "solana-sysvar",
  "solana-zk-sdk",
- "spl-elgamal-registry 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-elgamal-registry 0.2.0",
  "spl-memo",
  "spl-pod",
  "spl-token 8.0.0",
@@ -9445,7 +9445,7 @@ dependencies = [
  "solana-sdk",
  "spl-associated-token-account 7.0.0",
  "spl-associated-token-account-client",
- "spl-elgamal-registry 0.2.0",
+ "spl-elgamal-registry 0.3.0",
  "spl-instruction-padding",
  "spl-memo",
  "spl-pod",
