@@ -50,7 +50,7 @@
   },
   "devDependencies": {
     "@codama/renderers-js": "^1.2.12",
-    "@codama/renderers-rust": "^1.0.21",
+    "@codama/renderers-rust": "^1.0.22",
     "@iarna/toml": "^2.2.5",
     "codama": "^1.2.13",
     "typescript": "^5.8.3",
