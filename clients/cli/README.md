@@ -23,9 +23,9 @@ This method uses the local `build.rs` file, which can be error-prone, so alterna
 you can build the programs by running the following commands from this directory:
 
 ```sh
-cargo build-sbf --manifest-path ../program/Cargo.toml
+cargo build-sbf --manifest-path ../../program/Cargo.toml
 cargo build-sbf --manifest-path ../program-2022/Cargo.toml
-cargo build-sbf --manifest-path ../../associated-token-account/program/Cargo.toml
+cargo build-sbf --manifest-path ../../../associated-token-account/program/Cargo.toml
 ```
 
 After that, you can run the tests as any other Rust project:
