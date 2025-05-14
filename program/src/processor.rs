@@ -1588,6 +1588,17 @@ impl Processor {
                         account_info_iter.as_slice(),
                     )?;
                 }
+                PodCOption {
+                    option: PodCOption::<Pubkey>::NONE,
+                    value: _,
+                } if source_info.key == authority_info.key => {
+                    // This is a special case where there is no mint authority set but the mint
+                    // account is the same as the authority account and, therefore, needs to be
+                    // a signer.
+                    if !authority_info.is_signer {
+                        return Err(ProgramError::MissingRequiredSignature);
+                    }
+                }
                 _ => return Err(TokenError::AuthorityTypeNotSupported.into()),
             }
         } else if source_data.len() == PodMultisig::SIZE_OF {
@@ -8314,6 +8325,119 @@ mod tests {
         .unwrap();
 
         let mint_info: AccountInfo = (&mint_key, true, &mut mint_account).into();
+
+        do_process_instruction_dups(
+            withdraw_excess_lamports(&program_id, &mint_key, &destination_key, &mint_key, &[])
+                .unwrap(),
+            vec![
+                mint_info.clone(),
+                destination_info.clone(),
+                mint_info.clone(),
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(destination_info.lamports(), excess_lamports);
+    }
+
+    #[test]
+    #[serial]
+    fn test_withdraw_excess_lamports_from_mint_with_no_mint_authority() {
+        let excess_lamports = 4_000_000_000_000;
+
+        let program_id = crate::id();
+        let system_program_id = system_program::id();
+
+        let mut destination_lamports = 0;
+        let mut destination_data = vec![];
+        let destination_key = Pubkey::new_unique();
+        let destination_info = AccountInfo::new(
+            &destination_key,
+            true,
+            false,
+            &mut destination_lamports,
+            &mut destination_data,
+            &system_program_id,
+            false,
+            Epoch::default(),
+        );
+        let mint_key = Pubkey::new_unique();
+        let mut mint_account = SolanaAccount::new(
+            excess_lamports + mint_minimum_balance(),
+            Mint::get_packed_len(),
+            &program_id,
+        );
+        let mut mint_authority_lamports = 0;
+        let mut mint_authority_data = vec![];
+        let mint_authority_key = Pubkey::new_unique();
+        let mint_authority_info = AccountInfo::new(
+            &mint_authority_key,
+            true,
+            false,
+            &mut mint_authority_lamports,
+            &mut mint_authority_data,
+            &system_program_id,
+            false,
+            Epoch::default(),
+        );
+        let mut rent_sysvar = rent_sysvar();
+
+        do_process_instruction(
+            initialize_mint(&program_id, &mint_key, &mint_authority_key, None, 2).unwrap(),
+            vec![&mut mint_account, &mut rent_sysvar],
+        )
+        .unwrap();
+
+        let mint_info: AccountInfo = (&mint_key, true, &mut mint_account).into();
+
+        // fail when withdrawing with the mint as authority when there is
+        // a mint authority set
+        assert_eq!(
+            Err(TokenError::OwnerMismatch.into()),
+            do_process_instruction_dups(
+                withdraw_excess_lamports(&program_id, &mint_key, &destination_key, &mint_key, &[])
+                    .unwrap(),
+                vec![
+                    mint_info.clone(),
+                    destination_info.clone(),
+                    mint_info.clone(),
+                ],
+            )
+        );
+
+        do_process_instruction_dups(
+            set_authority(
+                &program_id,
+                &mint_key,
+                None,
+                AuthorityType::MintTokens,
+                &mint_authority_key,
+                &[],
+            )
+            .unwrap(),
+            vec![mint_info.clone(), mint_authority_info.clone()],
+        )
+        .unwrap();
+
+        // fail when withdrawing with the previous mint authority
+        assert_eq!(
+            Err(TokenError::AuthorityTypeNotSupported.into()),
+            do_process_instruction_dups(
+                withdraw_excess_lamports(
+                    &program_id,
+                    &mint_key,
+                    &destination_key,
+                    &mint_authority_key,
+                    &[]
+                )
+                .unwrap(),
+                vec![
+                    mint_info.clone(),
+                    destination_info.clone(),
+                    mint_authority_info.clone(),
+                ],
+            )
+        );
 
         do_process_instruction_dups(
             withdraw_excess_lamports(&program_id, &mint_key, &destination_key, &mint_key, &[])
