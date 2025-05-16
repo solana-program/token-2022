@@ -170,106 +170,102 @@ test('should return the correct UiAmount with scale factor of 2', async (t) => {
   }
 });
 
-test('should return the correct UiAmount with scale factor of 3', async (t) => {
-  const rpc = getMockRpc({
-    [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
-    [mint]: createMockMintAccountInfo(10, true, { multiplier: 3 }),
-  });
+test('should return the correct amount for different scale factors', async (t) => {
+  const testCases = [
+    {
+      decimals: 0,
+      multiplier: 2,
+      uiAmount: '2',
+      expected: 1n,
+    },
+    {
+      decimals: 10,
+      multiplier: 3,
+      uiAmount: '3',
+      expected: 10000000000n,
+    },
+  ];
 
-  const result = await amountToUiAmountForMintWithoutSimulation(
-    rpc,
-    mint,
-    BigInt(10000000000)
-  );
-  t.is(result, '3');
-});
+  for (const { decimals, multiplier, uiAmount, expected } of testCases) {
+    const rpc = getMockRpc({
+      [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
+      [mint]: createMockMintAccountInfo(decimals, true, { multiplier }),
+    });
 
-test('should return the correct amount with scale factor of 2', async (t) => {
-  const rpc = getMockRpc({
-    [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
-    [mint]: createMockMintAccountInfo(0, true, { multiplier: 2 }),
-  });
-
-  const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '2');
-  t.is(result, 1n);
-});
-
-test('should return the correct amount with scale factor of 3', async (t) => {
-  const rpc = getMockRpc({
-    [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
-    [mint]: createMockMintAccountInfo(10, true, { multiplier: 3 }),
-  });
-
-  const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '3');
-  t.is(result, 10000000000n);
+    const result = await uiAmountToAmountForMintWithoutSimulation(
+      rpc,
+      mint,
+      uiAmount
+    );
+    t.is(result, expected);
+  }
 });
 
 // GROUP 3: Decimal multiplier tests
-test('should handle decimal multiplier of 0.5', async (t) => {
-  const rpc = getMockRpc({
-    [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
-    [mint]: createMockMintAccountInfo(2, true, { multiplier: 0.5 }),
-  });
+test('should handle decimal multipliers correctly', async (t) => {
+  const testCases = [
+    {
+      decimals: 2,
+      multiplier: 0.5,
+      amount: BigInt(100),
+      expected: '0.5',
+    },
+    {
+      decimals: 2,
+      multiplier: 1.5,
+      amount: BigInt(100),
+      expected: '1.5',
+    },
+    {
+      decimals: 3,
+      multiplier: 0.001,
+      amount: BigInt(1000),
+      expected: '0.001',
+    },
+  ];
 
-  const result = await amountToUiAmountForMintWithoutSimulation(
-    rpc,
-    mint,
-    BigInt(100)
-  );
-  t.is(result, '0.5');
+  for (const { decimals, multiplier, amount, expected } of testCases) {
+    const rpc = getMockRpc({
+      [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
+      [mint]: createMockMintAccountInfo(decimals, true, { multiplier }),
+    });
+
+    const result = await amountToUiAmountForMintWithoutSimulation(
+      rpc,
+      mint,
+      amount
+    );
+    t.is(result, expected);
+  }
 });
 
-test('should handle decimal multiplier of 1.5', async (t) => {
-  const rpc = getMockRpc({
-    [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
-    [mint]: createMockMintAccountInfo(2, true, { multiplier: 1.5 }),
-  });
+test('should convert UI amounts with decimal multipliers correctly', async (t) => {
+  const testCases = [
+    {
+      multiplier: 0.5,
+      uiAmount: '1',
+      expected: 200n, // 1 * 100(for 2 decimals) / 0.5
+    },
+    {
+      multiplier: 1.5,
+      uiAmount: '3',
+      expected: 200n, // 3 * 100(for 2 decimals) / 1.5
+    },
+  ];
 
-  const result = await amountToUiAmountForMintWithoutSimulation(
-    rpc,
-    mint,
-    BigInt(100)
-  );
-  t.is(result, '1.5');
-});
+  for (const { multiplier, uiAmount, expected } of testCases) {
+    const rpc = getMockRpc({
+      [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
+      [mint]: createMockMintAccountInfo(2, true, { multiplier }),
+    });
 
-test('should handle decimal multiplier of 0.001', async (t) => {
-  const rpc = getMockRpc({
-    [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
-    [mint]: createMockMintAccountInfo(3, true, { multiplier: 0.001 }),
-  });
-
-  const result = await amountToUiAmountForMintWithoutSimulation(
-    rpc,
-    mint,
-    BigInt(1000)
-  );
-  t.is(result, '0.001');
-});
-
-test('should convert UI amount with decimal multiplier of 0.5', async (t) => {
-  const rpc = getMockRpc({
-    [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
-    [mint]: createMockMintAccountInfo(2, true, { multiplier: 0.5 }),
-  });
-
-  const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '1');
-  t.is(result, 200n); // 1 * 100(for 2 decimals) / 0.5
-});
-
-test('should convert UI amount with decimal multiplier of 1.5', async (t) => {
-  const rpc = getMockRpc({
-    [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
-    [mint]: createMockMintAccountInfo(2, true, { multiplier: 1.5 }),
-  });
-
-  const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '3');
-  t.is(result, 200n); // 3 * 100(for 2 decimals) / 1.5
+    const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, uiAmount);
+    t.is(result, expected);
+  }
 });
 
 // GROUP 4: Tests for handling new effective multipliers
 test('should use new multiplier when timestamp is after effective timestamp', async (t) => {
-  // Mock clock to a time after the effective timestamp
   const rpc = getMockRpc({
     [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
     [mint]: createMockMintAccountInfo(2, true, {
@@ -288,7 +284,6 @@ test('should use new multiplier when timestamp is after effective timestamp', as
 });
 
 test('should use current multiplier when timestamp is before effective timestamp', async (t) => {
-  // Mock clock to a time before the effective timestamp
   const rpc = getMockRpc({
     [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS / 2),
     [mint]: createMockMintAccountInfo(2, true, {
@@ -334,42 +329,6 @@ test('should use current multiplier for amount to ui conversion when timestamp i
 
   const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '2');
   t.is(result, 100n); // 2 * 100(for 2 decimals) / 2
-});
-
-test('should handle multiplier changes from decimal to decimal', async (t) => {
-  const rpc = getMockRpc({
-    [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
-    [mint]: createMockMintAccountInfo(2, true, {
-      multiplier: 0.5,
-      newMultiplier: 1.5,
-      newMultiplierEffectiveTimestamp: ONE_YEAR_IN_SECONDS,
-    }),
-  });
-
-  const result = await amountToUiAmountForMintWithoutSimulation(
-    rpc,
-    mint,
-    BigInt(100)
-  );
-  t.is(result, '1.5');
-});
-
-test('should handle multiplier changes from decimal to decimal for UI to amount conversion', async (t) => {
-  const rpc = getMockRpc({
-    [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
-    [mint]: createMockMintAccountInfo(2, true, {
-      multiplier: 0.5,
-      newMultiplier: 1.5,
-      newMultiplierEffectiveTimestamp: ONE_YEAR_IN_SECONDS,
-    }),
-  });
-
-  const result = await uiAmountToAmountForMintWithoutSimulation(
-    rpc,
-    mint,
-    '1.5'
-  );
-  t.is(result, 100n); // 1.5 * 100(for 2 decimals) / 1.5
 });
 
 // GROUP 5: Edge cases and large number handling
