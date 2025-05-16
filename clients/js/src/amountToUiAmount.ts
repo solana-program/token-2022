@@ -8,6 +8,10 @@ import {
 import { fetchSysvarClock } from '@solana/sysvars';
 import { fetchMint } from './generated';
 
+// Constants
+const ONE_IN_BASIS_POINTS = 10000;
+const SECONDS_PER_YEAR = 60 * 60 * 24 * 365.24;
+
 /**
  * Calculates the exponent for the interest rate formula.
  * @param t1 - The start time in seconds.
@@ -17,8 +21,6 @@ import { fetchMint } from './generated';
  * @returns The calculated exponent.
  */
 function calculateExponentForTimesAndRate(t1: number, t2: number, r: number) {
-  const ONE_IN_BASIS_POINTS = 10000;
-  const SECONDS_PER_YEAR = 60 * 60 * 24 * 365.24;
   const timespan = t2 - t1;
   if (timespan < 0) {
     throw new Error('Invalid timespan: end time before start time');
@@ -56,7 +58,6 @@ function calculateTotalScale({
   currentRate: number;
 }): number {
   // Calculate pre-update exponent
-  // e^(preUpdateAverageRate * (lastUpdateTimestamp - initializationTimestamp) / (SECONDS_PER_YEAR * ONE_IN_BASIS_POINTS))
   const preUpdateExp = calculateExponentForTimesAndRate(
     initializationTimestamp,
     lastUpdateTimestamp,
@@ -64,7 +65,6 @@ function calculateTotalScale({
   );
 
   // Calculate post-update exponent
-  // e^(currentRate * (currentTimestamp - lastUpdateTimestamp) / (SECONDS_PER_YEAR * ONE_IN_BASIS_POINTS))
   const postUpdateExp = calculateExponentForTimesAndRate(
     lastUpdateTimestamp,
     currentTimestamp,
@@ -72,6 +72,15 @@ function calculateTotalScale({
   );
 
   return preUpdateExp * postUpdateExp;
+}
+
+/**
+ * Calculates the decimal factor for a given number of decimals
+ * @param decimals - Number of decimals
+ * @returns The decimal factor (e.g., 100 for 2 decimals)
+ */
+function getDecimalFactor(decimals: number): number {
+  return Math.pow(10, decimals);
 }
 
 /**
@@ -89,6 +98,8 @@ async function getSysvarClockTimestamp(
   }
   return info.unixTimestamp;
 }
+
+// ========== INTEREST BEARING MINT FUNCTIONS ==========
 
 /**
  * Convert amount to UiAmount for a mint with interest bearing extension without simulating a transaction
@@ -119,7 +130,7 @@ async function getSysvarClockTimestamp(
 export function amountToUiAmountForInterestBearingMintWithoutSimulation(
   amount: bigint,
   decimals: number,
-  currentTimestamp: number, // in seconds
+  currentTimestamp: number,
   lastUpdateTimestamp: number,
   initializationTimestamp: number,
   preUpdateAverageRate: number,
@@ -132,58 +143,12 @@ export function amountToUiAmountForInterestBearingMintWithoutSimulation(
     preUpdateAverageRate,
     currentRate,
   });
+
   // Scale the amount by the total interest factor
   const scaledAmount = Number(amount) * totalScale;
+  const decimalFactor = getDecimalFactor(decimals);
 
-  // Calculate the decimal factor (e.g. 100 for 2 decimals)
-  const decimalFactor = Math.pow(10, decimals);
-
-  // Convert to UI amount by:
-  // 1. Truncating to remove any remaining decimals
-  // 2. Dividing by decimal factor to get final UI amount
-  // 3. Converting to string
   return (Math.trunc(scaledAmount) / decimalFactor).toString();
-}
-
-/**
- * Convert amount to UiAmount for a mint without simulating a transaction
- * This implements the same logic as `process_amount_to_ui_amount` in
- * solana-labs/solana-program-library/token/program-2022/src/processor.rs
- * and `process_amount_to_ui_amount` in solana-labs/solana-program-library/token/program/src/processor.rs
- *
- * @param rpc     Rpc to use
- * @param mint    Mint to use for calculations
- * @param amount  Amount of tokens to be converted to Ui Amount
- *
- * @return Ui Amount generated
- */
-export async function amountToUiAmountForMintWithoutSimulation(
-  rpc: Rpc<GetAccountInfoApi>,
-  mint: Address,
-  amount: bigint
-): Promise<string> {
-  const accountInfo = await fetchMint(rpc, mint);
-  const extensions = unwrapOption(accountInfo.data.extensions);
-  const interestBearingMintConfigState = extensions?.find(
-    (ext) => ext.__kind === 'InterestBearingConfig'
-  );
-  if (!interestBearingMintConfigState) {
-    const amountNumber = Number(amount);
-    const decimalsFactor = Math.pow(10, accountInfo.data.decimals);
-    return (amountNumber / decimalsFactor).toString();
-  }
-
-  const timestamp = await getSysvarClockTimestamp(rpc);
-
-  return amountToUiAmountForInterestBearingMintWithoutSimulation(
-    amount,
-    accountInfo.data.decimals,
-    Number(timestamp),
-    Number(interestBearingMintConfigState.lastUpdateTimestamp),
-    Number(interestBearingMintConfigState.initializationTimestamp),
-    interestBearingMintConfigState.preUpdateAverageRate,
-    interestBearingMintConfigState.currentRate
-  );
 }
 
 /**
@@ -217,14 +182,14 @@ export async function amountToUiAmountForMintWithoutSimulation(
 export function uiAmountToAmountForInterestBearingMintWithoutSimulation(
   uiAmount: string,
   decimals: number,
-  currentTimestamp: number, // in seconds
+  currentTimestamp: number,
   lastUpdateTimestamp: number,
   initializationTimestamp: number,
   preUpdateAverageRate: number,
   currentRate: number
 ): bigint {
   const uiAmountNumber = parseFloat(uiAmount);
-  const decimalsFactor = Math.pow(10, decimals);
+  const decimalsFactor = getDecimalFactor(decimals);
   const uiAmountScaled = uiAmountNumber * decimalsFactor;
 
   const totalScale = calculateTotalScale({
@@ -235,9 +200,121 @@ export function uiAmountToAmountForInterestBearingMintWithoutSimulation(
     currentRate,
   });
 
-  // Calculate original principal by dividing the UI amount (principal + interest) by the total scale
+  // Calculate original principal by dividing the UI amount by the total scale
   const originalPrincipal = uiAmountScaled / totalScale;
   return BigInt(Math.trunc(originalPrincipal));
+}
+
+// ========== SCALED UI AMOUNT MINT FUNCTIONS ==========
+
+/**
+ * Convert amount to UiAmount for a mint with scaled UI amount extension
+ * @param amount     Amount of tokens to be converted
+ * @param decimals   Number of decimals of the mint
+ * @param multiplier Multiplier to scale the amount
+ * @return Scaled UI amount as a string
+ */
+export function amountToUiAmountForScaledUiAmountMintWithoutSimulation(
+  amount: bigint,
+  decimals: number,
+  multiplier: number
+): string {
+  const scaledAmount = Number(amount) * multiplier;
+  const decimalFactor = getDecimalFactor(decimals);
+  return (Math.trunc(scaledAmount) / decimalFactor).toString();
+}
+
+/**
+ * Convert a UI amount back to the raw amount for a mint with a scaled UI amount extension
+ * @param uiAmount       UI Amount to be converted back to raw amount
+ * @param decimals       Number of decimals for the mint
+ * @param multiplier     Multiplier for the scaled UI amount
+ *
+ * @return Raw amount
+ */
+export function uiAmountToAmountForScaledUiAmountMintWithoutSimulation(
+  uiAmount: string,
+  decimals: number,
+  multiplier: number
+): bigint {
+  const uiAmountNumber = parseFloat(uiAmount);
+  const decimalsFactor = getDecimalFactor(decimals);
+  const uiAmountScaled = uiAmountNumber * decimalsFactor;
+  const rawAmount = uiAmountScaled / multiplier;
+  return BigInt(Math.trunc(rawAmount));
+}
+
+// ========== MAIN ENTRY POINT FUNCTIONS ==========
+
+/**
+ * Convert amount to UiAmount for a mint without simulating a transaction
+ * This implements the same logic as `process_amount_to_ui_amount` in
+ * solana-labs/solana-program-library/token/program-2022/src/processor.rs
+ * and `process_amount_to_ui_amount` in solana-labs/solana-program-library/token/program/src/processor.rs
+ *
+ * @param rpc     Rpc to use
+ * @param mint    Mint to use for calculations
+ * @param amount  Amount of tokens to be converted to Ui Amount
+ *
+ * @return Ui Amount generated
+ */
+export async function amountToUiAmountForMintWithoutSimulation(
+  rpc: Rpc<GetAccountInfoApi>,
+  mint: Address,
+  amount: bigint
+): Promise<string> {
+  const accountInfo = await fetchMint(rpc, mint);
+  const extensions = unwrapOption(accountInfo.data.extensions);
+
+  // Check for interest bearing mint extension
+  const interestBearingMintConfigState = extensions?.find(
+    (ext) => ext.__kind === 'InterestBearingConfig'
+  );
+
+  // Check for scaled UI amount extension
+  const scaledUiAmountConfig = extensions?.find(
+    (ext) => ext.__kind === 'ScaledUiAmountConfig'
+  );
+
+  // If no special extension, do standard conversion
+  if (!interestBearingMintConfigState && !scaledUiAmountConfig) {
+    const amountNumber = Number(amount);
+    const decimalsFactor = getDecimalFactor(accountInfo.data.decimals);
+    return (amountNumber / decimalsFactor).toString();
+  }
+
+  // Get timestamp if needed for special mint types
+  const timestamp = await getSysvarClockTimestamp(rpc);
+
+  // Handle interest bearing mint
+  if (interestBearingMintConfigState) {
+    return amountToUiAmountForInterestBearingMintWithoutSimulation(
+      amount,
+      accountInfo.data.decimals,
+      Number(timestamp),
+      Number(interestBearingMintConfigState.lastUpdateTimestamp),
+      Number(interestBearingMintConfigState.initializationTimestamp),
+      interestBearingMintConfigState.preUpdateAverageRate,
+      interestBearingMintConfigState.currentRate
+    );
+  }
+
+  // At this point, we know it must be a scaled UI amount mint
+  if (scaledUiAmountConfig) {
+    let multiplier = scaledUiAmountConfig.multiplier;
+    // Use new multiplier if it's effective
+    if (timestamp >= scaledUiAmountConfig.newMultiplierEffectiveTimestamp) {
+      multiplier = scaledUiAmountConfig.newMultiplier;
+    }
+    return amountToUiAmountForScaledUiAmountMintWithoutSimulation(
+      amount,
+      accountInfo.data.decimals,
+      multiplier
+    );
+  }
+
+  // This should never happen due to the conditions above
+  throw new Error('Unknown mint extension type');
 }
 
 /**
@@ -256,24 +333,54 @@ export async function uiAmountToAmountForMintWithoutSimulation(
 ): Promise<bigint> {
   const accountInfo = await fetchMint(rpc, mint);
   const extensions = unwrapOption(accountInfo.data.extensions);
+
+  // Check for interest bearing mint extension
   const interestBearingMintConfigState = extensions?.find(
     (ext) => ext.__kind === 'InterestBearingConfig'
   );
-  if (!interestBearingMintConfigState) {
+
+  // Check for scaled UI amount extension
+  const scaledUiAmountConfig = extensions?.find(
+    (ext) => ext.__kind === 'ScaledUiAmountConfig'
+  );
+
+  // If no special extension, do standard conversion
+  if (!interestBearingMintConfigState && !scaledUiAmountConfig) {
     const uiAmountScaled =
-      parseFloat(uiAmount) * Math.pow(10, accountInfo.data.decimals);
+      parseFloat(uiAmount) * getDecimalFactor(accountInfo.data.decimals);
     return BigInt(Math.trunc(uiAmountScaled));
   }
 
+  // Get timestamp if needed for special mint types
   const timestamp = await getSysvarClockTimestamp(rpc);
 
-  return uiAmountToAmountForInterestBearingMintWithoutSimulation(
-    uiAmount,
-    accountInfo.data.decimals,
-    Number(timestamp),
-    Number(interestBearingMintConfigState.lastUpdateTimestamp),
-    Number(interestBearingMintConfigState.initializationTimestamp),
-    interestBearingMintConfigState.preUpdateAverageRate,
-    interestBearingMintConfigState.currentRate
-  );
+  // Handle interest bearing mint
+  if (interestBearingMintConfigState) {
+    return uiAmountToAmountForInterestBearingMintWithoutSimulation(
+      uiAmount,
+      accountInfo.data.decimals,
+      Number(timestamp),
+      Number(interestBearingMintConfigState.lastUpdateTimestamp),
+      Number(interestBearingMintConfigState.initializationTimestamp),
+      interestBearingMintConfigState.preUpdateAverageRate,
+      interestBearingMintConfigState.currentRate
+    );
+  }
+
+  // At this point, we know it must be a scaled UI amount mint
+  if (scaledUiAmountConfig) {
+    let multiplier = scaledUiAmountConfig.multiplier;
+    // Use new multiplier if it's effective
+    if (timestamp >= scaledUiAmountConfig.newMultiplierEffectiveTimestamp) {
+      multiplier = scaledUiAmountConfig.newMultiplier;
+    }
+    return uiAmountToAmountForScaledUiAmountMintWithoutSimulation(
+      uiAmount,
+      accountInfo.data.decimals,
+      multiplier
+    );
+  }
+
+  // This should never happen due to the conditions above
+  throw new Error('Unknown mint extension type');
 }
