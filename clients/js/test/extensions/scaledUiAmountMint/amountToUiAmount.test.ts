@@ -259,7 +259,11 @@ test('should convert UI amounts with decimal multipliers correctly', async (t) =
       [mint]: createMockMintAccountInfo(2, true, { multiplier }),
     });
 
-    const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, uiAmount);
+    const result = await uiAmountToAmountForMintWithoutSimulation(
+      rpc,
+      mint,
+      uiAmount
+    );
     t.is(result, expected);
   }
 });
