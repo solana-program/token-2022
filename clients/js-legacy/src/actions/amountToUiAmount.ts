@@ -190,7 +190,7 @@ export async function amountToUiAmountForMintWithoutSimulation(
     const accountInfo = await connection.getAccountInfo(mint);
     const programId = accountInfo?.owner;
 
-    if (programId !== TOKEN_PROGRAM_ID && programId !== TOKEN_2022_PROGRAM_ID) {
+    if (!programId?.equals(TOKEN_PROGRAM_ID) && !programId?.equals(TOKEN_2022_PROGRAM_ID)) {
         throw new Error('Invalid program ID');
     }
 
@@ -317,7 +317,7 @@ export async function uiAmountToAmountForMintWithoutSimulation(
     const accountInfo = await connection.getAccountInfo(mint);
     const programId = accountInfo?.owner;
 
-    if (programId !== TOKEN_PROGRAM_ID && programId !== TOKEN_2022_PROGRAM_ID) {
+    if (!programId?.equals(TOKEN_PROGRAM_ID) && !programId?.equals(TOKEN_2022_PROGRAM_ID)) {
         throw new Error('Invalid program ID');
     }
 
