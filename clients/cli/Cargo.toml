@@ -33,7 +33,7 @@ solana-transaction-status = "2.2.0"
 spl-associated-token-account-client = { version = "2.0.0" }
 spl-token = { version = "8.0", features = ["no-entrypoint"] }
 spl-token-2022 = { version = "9.0.0", path = "../../program", features = ["no-entrypoint"] }
-spl-token-client = { version = "0.16.0", path = "../rust-legacy" }
+spl-token-client = { version = "0.16.1", path = "../rust-legacy" }
 spl-token-confidential-transfer-proof-generation = { version = "0.4.0", path = "../../confidential-transfer/proof-generation" }
 spl-token-metadata-interface = { version = "0.7.0" }
 spl-token-group-interface = { version = "0.6.0" }

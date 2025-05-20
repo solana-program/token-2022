@@ -1,6 +1,6 @@
 [package]
 name = "spl-token-client"
-version = "0.16.0"
+version = "0.16.1"
 description = "SPL-Token Rust Client"
 documentation = "https://docs.rs/spl-token-client"
 readme = "README.md"
