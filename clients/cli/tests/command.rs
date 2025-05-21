@@ -55,6 +55,8 @@ use {
         path::PathBuf,
         str::FromStr,
         sync::Arc,
+        thread::sleep,
+        time::Duration,
     },
     tempfile::NamedTempFile,
 };
@@ -272,10 +274,26 @@ async fn do_create_native_mint(rpc_client: &RpcClient, payer: &Keypair) {
             &[payer],
             rpc_client.get_latest_blockhash().await.unwrap(),
         );
-        rpc_client
-            .send_and_confirm_transaction(&transaction)
-            .await
-            .unwrap();
+
+        // Actively check and wait till program is usable by the runtime (i.e.,
+        // no more "Program is not deployed" error)
+        const MAX_ATTEMPTS: u64 = 10;
+        let mut attempt = 0;
+        loop {
+            match rpc_client.send_and_confirm_transaction(&transaction).await {
+                Ok(_) => break,
+                Err(e) => {
+                    if !format!("{:?}", e).contains("Program is not deployed") {
+                        panic!("Unexpected error: {:?}", e);
+                    }
+                    attempt += 1;
+                    if attempt > MAX_ATTEMPTS {
+                        panic!("Timeout waiting for program to become deployable");
+                    }
+                    sleep(Duration::from_millis(100));
+                }
+            }
+        }
     }
 }
 
