@@ -5,6 +5,15 @@
 <a href="https://www.npmjs.com/package/@solana-program/token-2022"><img src="https://img.shields.io/npm/v/%40solana-program%2Ftoken-2022?logo=npm&color=377CC0" /></a>
 <a href="https://crates.io/crates/spl-token-2022-client"><img src="https://img.shields.io/crates/v/spl-token-2022-client?logo=rust" /></a>
 
+<a  href="https://www.readme-i18n.com/solana-program/token-2022?lang=zh">中文</a> | 
+<a  href="https://www.readme-i18n.com/solana-program/token-2022?lang=ru">Русский</a> | 
+<a  href="https://www.readme-i18n.com/solana-program/token-2022?lang=es">Español</a> | 
+<a  href="https://www.readme-i18n.com/solana-program/token-2022?lang=ja">日本語</a> | 
+<a  href="https://www.readme-i18n.com/solana-program/token-2022?lang=fr">français</a> | 
+<a  href="https://www.readme-i18n.com/solana-program/token-2022?lang=pt">Português</a> | 
+<a  href="https://www.readme-i18n.com/solana-program/token-2022?lang=de">Deutsch</a> | 
+<a  href="https://www.readme-i18n.com/solana-program/token-2022?lang=ko">한국어</a>
+
 This template should help get you started developing Solana programs. Let's walk through this generated program repository and see what's included.
 
 ## Project setup
