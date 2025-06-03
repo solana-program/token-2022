@@ -2020,7 +2020,7 @@ fn delete_account(account_info: &AccountInfo) -> Result<(), ProgramError> {
 #[cfg(target_os = "solana")]
 fn delete_account(account_info: &AccountInfo) -> Result<(), ProgramError> {
     account_info.assign(&system_program::id());
-    account_info.realloc(0, false)
+    account_info.realloc(0, true)
 }
 
 #[cfg(test)]

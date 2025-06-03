@@ -70,7 +70,7 @@ pub fn process_reallocate(
         "account needs realloc, +{:?} bytes",
         needed_account_len - token_account_info.data_len()
     );
-    token_account_info.realloc(needed_account_len, false)?;
+    token_account_info.realloc(needed_account_len, true)?;
 
     // if additional lamports needed to remain rent-exempt, transfer them
     let rent = Rent::get()?;
