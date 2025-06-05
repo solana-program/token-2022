@@ -1612,7 +1612,7 @@ pub fn freeze_account(
     token_program_id: &Pubkey,
     account_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
-    owner_pubkey: &Pubkey,
+    freeze_authority_pubkey: &Pubkey,
     signer_pubkeys: &[&Pubkey],
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
@@ -1622,7 +1622,7 @@ pub fn freeze_account(
     accounts.push(AccountMeta::new(*account_pubkey, false));
     accounts.push(AccountMeta::new_readonly(*mint_pubkey, false));
     accounts.push(AccountMeta::new_readonly(
-        *owner_pubkey,
+        *freeze_authority_pubkey,
         signer_pubkeys.is_empty(),
     ));
     for signer_pubkey in signer_pubkeys.iter() {
@@ -1641,7 +1641,7 @@ pub fn thaw_account(
     token_program_id: &Pubkey,
     account_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
-    owner_pubkey: &Pubkey,
+    freeze_authority_pubkey: &Pubkey,
     signer_pubkeys: &[&Pubkey],
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
@@ -1651,7 +1651,7 @@ pub fn thaw_account(
     accounts.push(AccountMeta::new(*account_pubkey, false));
     accounts.push(AccountMeta::new_readonly(*mint_pubkey, false));
     accounts.push(AccountMeta::new_readonly(
-        *owner_pubkey,
+        *freeze_authority_pubkey,
         signer_pubkeys.is_empty(),
     ));
     for signer_pubkey in signer_pubkeys.iter() {
@@ -2795,14 +2795,14 @@ mod test {
             &token_program_id,
             &account_pubkey,
             &mint_pubkey,
-            &owner_pubkey,
+            &freeze_authority_pubkey,
             &signer_pubkeys,
         ));
         test_instruction!(thaw_account(
             &token_program_id,
             &account_pubkey,
             &mint_pubkey,
-            &owner_pubkey,
+            &freeze_authority_pubkey,
             &signer_pubkeys,
         ));
         test_instruction!(sync_native(&token_program_id, &account_pubkey,));
