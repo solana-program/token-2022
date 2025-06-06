@@ -1,7 +1,17 @@
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
 import test from 'ava';
-import { getInitializePausableConfigInstruction, extension, fetchMint, Mint } from '../../../src';
-import { createDefaultSolanaClient, generateKeyPairSignerWithSol, getCreateMintInstructions, sendAndConfirmInstructions } from '../../_setup';
+import {
+  getInitializePausableConfigInstruction,
+  extension,
+  fetchMint,
+  Mint,
+} from '../../../src';
+import {
+  createDefaultSolanaClient,
+  generateKeyPairSignerWithSol,
+  getCreateMintInstructions,
+  sendAndConfirmInstructions,
+} from '../../_setup';
 
 test('it initializes a mint with a pausable config', async (t) => {
   // Given a fresh client with no state the test cares about.
