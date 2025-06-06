@@ -68,7 +68,7 @@ test('it resumes a mint', async (t) => {
   t.true(isSome(extensions) && extensions.value[0].__kind === 'PausableConfig');
 
   if (isSome(extensions) && extensions.value[0].__kind === 'PausableConfig') {
-    // And the extension has the correct paused state.
+    // And the extension has the correct resumed state.
     t.is(extensions.value[0].paused, false);
   }
 });

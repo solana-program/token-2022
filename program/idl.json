@@ -7668,7 +7668,7 @@
         "docs": [
           "Resume the mint.",
           "",
-          "Fails if the mint is not pausable or not paused."
+          "Fails if the mint is not pausable."
         ],
         "optionalAccountStrategy": "programId",
         "accounts": [

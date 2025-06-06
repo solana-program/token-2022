@@ -1,4 +1,4 @@
-import { Account, generateKeyPairSigner, some } from '@solana/kit';
+import { Account, generateKeyPairSigner, isSome, some } from '@solana/kit';
 import test from 'ava';
 import {
   getInitializePausableConfigInstruction,
