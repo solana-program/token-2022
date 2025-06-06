@@ -60,6 +60,7 @@ import {
   type ParsedInitializeMultisig2Instruction,
   type ParsedInitializeMultisigInstruction,
   type ParsedInitializeNonTransferableMintInstruction,
+  type ParsedInitializePausableConfigInstruction,
   type ParsedInitializePermanentDelegateInstruction,
   type ParsedInitializeScaledUiAmountMintInstruction,
   type ParsedInitializeTokenGroupInstruction,
@@ -69,8 +70,10 @@ import {
   type ParsedInitializeTransferHookInstruction,
   type ParsedMintToCheckedInstruction,
   type ParsedMintToInstruction,
+  type ParsedPauseInstruction,
   type ParsedReallocateInstruction,
   type ParsedRemoveTokenMetadataKeyInstruction,
+  type ParsedResumeInstruction,
   type ParsedRevokeInstruction,
   type ParsedSetAuthorityInstruction,
   type ParsedSetTransferFeeInstruction,
@@ -202,6 +205,9 @@ export enum Token2022Instruction {
   UpdateGroupMemberPointer,
   InitializeScaledUiAmountMint,
   UpdateMultiplierScaledUiMint,
+  InitializePausableConfig,
+  Pause,
+  Resume,
   InitializeTokenMetadata,
   UpdateTokenMetadataField,
   RemoveTokenMetadataKey,
@@ -575,6 +581,24 @@ export function identifyToken2022Instruction(
     return Token2022Instruction.UpdateMultiplierScaledUiMint;
   }
   if (
+    containsBytes(data, getU8Encoder().encode(44), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
+    return Token2022Instruction.InitializePausableConfig;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(44), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.Pause;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(44), 0) &&
+    containsBytes(data, getU8Encoder().encode(2), 1)
+  ) {
+    return Token2022Instruction.Resume;
+  }
+  if (
     containsBytes(
       data,
       new Uint8Array([210, 225, 30, 162, 88, 184, 77, 141]),
@@ -880,6 +904,15 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.UpdateMultiplierScaledUiMint;
     } & ParsedUpdateMultiplierScaledUiMintInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializePausableConfig;
+    } & ParsedInitializePausableConfigInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.Pause;
+    } & ParsedPauseInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.Resume;
+    } & ParsedResumeInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeTokenMetadata;
     } & ParsedInitializeTokenMetadataInstruction<TProgram>)

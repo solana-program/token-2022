@@ -27,6 +27,7 @@ import {
   getInitializePermanentDelegateInstruction,
   getInitializeScaledUiAmountMintInstruction,
   getInitializeConfidentialTransferFeeInstruction,
+  getInitializePausableConfigInstruction,
 } from './generated';
 
 /**
@@ -87,6 +88,13 @@ export function getPreInitializeInstructionsForMintExtensions(
             mint,
             authority: extension.authority,
             multiplier: extension.multiplier,
+          }),
+        ];
+      case 'PausableConfig':
+        return [
+          getInitializePausableConfigInstruction({
+            mint,
+            authority: extension.authority,
           }),
         ];
       case 'GroupPointer':

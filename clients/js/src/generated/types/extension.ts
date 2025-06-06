@@ -273,7 +273,9 @@ export type Extension =
       multiplier: number;
       newMultiplierEffectiveTimestamp: bigint;
       newMultiplier: number;
-    };
+    }
+  | { __kind: 'PausableConfig'; authority: Option<Address>; paused: boolean }
+  | { __kind: 'PausableAccount' };
 
 export type ExtensionArgs =
   | { __kind: 'Uninitialized' }
@@ -484,7 +486,13 @@ export type ExtensionArgs =
       multiplier: number;
       newMultiplierEffectiveTimestamp: number | bigint;
       newMultiplier: number;
-    };
+    }
+  | {
+      __kind: 'PausableConfig';
+      authority: OptionOrNullable<Address>;
+      paused: boolean;
+    }
+  | { __kind: 'PausableAccount' };
 
 export function getExtensionEncoder(): Encoder<ExtensionArgs> {
   return getDiscriminatedUnionEncoder(
@@ -791,6 +799,23 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
           getU16Encoder()
         ),
       ],
+      [
+        'PausableConfig',
+        addEncoderSizePrefix(
+          getStructEncoder([
+            [
+              'authority',
+              getOptionEncoder(getAddressEncoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
+            ['paused', getBooleanEncoder()],
+          ]),
+          getU16Encoder()
+        ),
+      ],
+      ['PausableAccount', getUnitEncoder()],
     ],
     { size: getU16Encoder() }
   );
@@ -1101,6 +1126,23 @@ export function getExtensionDecoder(): Decoder<Extension> {
           getU16Decoder()
         ),
       ],
+      [
+        'PausableConfig',
+        addDecoderSizePrefix(
+          getStructDecoder([
+            [
+              'authority',
+              getOptionDecoder(getAddressDecoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
+            ['paused', getBooleanDecoder()],
+          ]),
+          getU16Decoder()
+        ),
+      ],
+      ['PausableAccount', getUnitDecoder()],
     ],
     { size: getU16Decoder() }
   );
@@ -1337,6 +1379,17 @@ export function extension(
   '__kind',
   'ScaledUiAmountConfig'
 >;
+export function extension(
+  kind: 'PausableConfig',
+  data: GetDiscriminatedUnionVariantContent<
+    ExtensionArgs,
+    '__kind',
+    'PausableConfig'
+  >
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'PausableConfig'>;
+export function extension(
+  kind: 'PausableAccount'
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'PausableAccount'>;
 export function extension<K extends ExtensionArgs['__kind'], Data>(
   kind: K,
   data?: Data
