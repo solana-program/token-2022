@@ -9,7 +9,7 @@ license = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-bytemuck = "1.23.0"
+bytemuck = "1.23.1"
 solana-account-info = "2.2.1"
 solana-curve25519 = "2.2.0"
 solana-instruction = "2.2.1"
