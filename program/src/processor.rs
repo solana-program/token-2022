@@ -1448,7 +1448,7 @@ impl Processor {
         Ok(())
     }
 
-    /// Processes an [`AmountToUiAmount`](enum.TokenInstruction.html)
+    /// Processes an [`UiAmountToAmount`](enum.TokenInstruction.html)
     /// instruction
     pub fn process_ui_amount_to_amount(accounts: &[AccountInfo], ui_amount: &str) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
