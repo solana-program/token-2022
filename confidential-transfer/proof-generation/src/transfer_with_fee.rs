@@ -186,12 +186,16 @@ pub fn transfer_with_fee_split_proof_data(
     // calculate fee
     let transfer_fee_basis_points = fee_rate_basis_points;
     let transfer_fee_maximum_fee = maximum_fee;
-    let (raw_fee_amount, delta_fee) = calculate_fee(transfer_amount, transfer_fee_basis_points)
+    let (raw_fee_amount, raw_delta_fee) = calculate_fee(transfer_amount, transfer_fee_basis_points)
         .ok_or(TokenProofGenerationError::FeeCalculation)?;
 
     // if raw fee is greater than the maximum fee, then use the maximum fee for the
-    // fee amount
-    let fee_amount = std::cmp::min(transfer_fee_maximum_fee, raw_fee_amount);
+    // fee amount and set the claimed delta fee to be 0 for simplicity
+    let (fee_amount, claimed_delta_fee) = if transfer_fee_maximum_fee < raw_fee_amount {
+        (transfer_fee_maximum_fee, 0)
+    } else {
+        (raw_fee_amount, raw_delta_fee)
+    };
 
     // split and encrypt fee
     let (fee_amount_lo, fee_amount_hi) = try_split_u64(fee_amount, FEE_AMOUNT_LO_BITS)
@@ -232,7 +236,7 @@ pub fn transfer_with_fee_split_proof_data(
             .ok_or(TokenProofGenerationError::IllegalAmountBitLength)?;
 
     // compute claimed and real delta commitment
-    let (claimed_commitment, claimed_opening) = Pedersen::new(delta_fee);
+    let (claimed_commitment, claimed_opening) = Pedersen::new(claimed_delta_fee);
     let (delta_commitment, delta_opening) = compute_delta_commitment_and_opening(
         (
             &combined_transfer_amount_commitment,
@@ -249,7 +253,7 @@ pub fn transfer_with_fee_split_proof_data(
         fee_amount,
         &delta_commitment,
         &delta_opening,
-        delta_fee,
+        claimed_delta_fee,
         &claimed_commitment,
         &claimed_opening,
         transfer_fee_maximum_fee,
@@ -310,7 +314,7 @@ pub fn transfer_with_fee_split_proof_data(
 
     // generate range proof data
     let delta_fee_complement = MAX_FEE_BASIS_POINTS
-        .checked_sub(delta_fee)
+        .checked_sub(claimed_delta_fee)
         .ok_or(TokenProofGenerationError::FeeCalculation)?;
 
     let max_fee_basis_points_commitment =
@@ -334,7 +338,7 @@ pub fn transfer_with_fee_split_proof_data(
             new_decrypted_available_balance,
             transfer_amount_lo,
             transfer_amount_hi,
-            delta_fee,
+            claimed_delta_fee,
             delta_fee_complement,
             fee_amount_lo,
             fee_amount_hi,
