@@ -21,6 +21,7 @@ use {
     },
 };
 
+const MAX_FEE_BASIS_POINTS_SUB_ONE: u64 = 9_999;
 const MAX_FEE_BASIS_POINTS: u64 = 10_000;
 const REMAINING_BALANCE_BIT_LENGTH: u8 = 64;
 const TRANSFER_AMOUNT_LO_BIT_LENGTH: u8 = 16;
@@ -156,12 +157,12 @@ impl TransferWithFeeProofContext {
         let fee_commitment_lo = fee_ciphertext_lo.extract_commitment();
         let fee_commitment_hi = fee_ciphertext_hi.extract_commitment();
 
-        let max_fee_basis_points_scalar = u64_to_scalar(MAX_FEE_BASIS_POINTS);
-        let max_fee_basis_points_commitment =
-            ristretto::multiply_ristretto(&max_fee_basis_points_scalar, &G)
+        let max_fee_basis_points_sub_one_scalar = u64_to_scalar(MAX_FEE_BASIS_POINTS_SUB_ONE);
+        let max_fee_basis_points_sub_one_commitment =
+            ristretto::multiply_ristretto(&max_fee_basis_points_sub_one_scalar, &G)
                 .ok_or(TokenProofExtractionError::CurveArithmetic)?;
         let claimed_complement_commitment = ristretto::subtract_ristretto(
-            &max_fee_basis_points_commitment,
+            &max_fee_basis_points_sub_one_commitment,
             &commitment_to_ristretto(claimed_commitment),
         )
         .ok_or(TokenProofExtractionError::CurveArithmetic)?;

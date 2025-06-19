@@ -27,6 +27,7 @@ use {
     },
 };
 
+const MAX_FEE_BASIS_POINTS_SUB_ONE: u64 = 9_999;
 const MAX_FEE_BASIS_POINTS: u64 = 10_000;
 const ONE_IN_BASIS_POINTS: u128 = MAX_FEE_BASIS_POINTS as u128;
 
@@ -309,14 +310,15 @@ pub fn transfer_with_fee_split_proof_data(
         .map_err(TokenProofGenerationError::from)?;
 
     // generate range proof data
-    let delta_fee_complement = MAX_FEE_BASIS_POINTS
+    let delta_fee_complement = MAX_FEE_BASIS_POINTS_SUB_ONE
         .checked_sub(delta_fee)
         .ok_or(TokenProofGenerationError::FeeCalculation)?;
 
-    let max_fee_basis_points_commitment =
-        Pedersen::with(MAX_FEE_BASIS_POINTS, &PedersenOpening::default());
+    let max_fee_basis_points_sub_one_commitment =
+        Pedersen::with(MAX_FEE_BASIS_POINTS_SUB_ONE, &PedersenOpening::default());
     #[allow(clippy::arithmetic_side_effects)]
-    let claimed_complement_commitment = max_fee_basis_points_commitment - claimed_commitment;
+    let claimed_complement_commitment =
+        max_fee_basis_points_sub_one_commitment - claimed_commitment;
     #[allow(clippy::arithmetic_side_effects)]
     let claimed_complement_opening = PedersenOpening::default() - &claimed_opening;
 
