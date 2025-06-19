@@ -26,9 +26,10 @@ const MAX_FEE_BASIS_POINTS: u64 = 10_000;
 const REMAINING_BALANCE_BIT_LENGTH: u8 = 64;
 const TRANSFER_AMOUNT_LO_BIT_LENGTH: u8 = 16;
 const TRANSFER_AMOUNT_HI_BIT_LENGTH: u8 = 32;
-const DELTA_BIT_LENGTH: u8 = 48;
+const DELTA_BIT_LENGTH: u8 = 16;
 const FEE_AMOUNT_LO_BIT_LENGTH: u8 = 16;
 const FEE_AMOUNT_HI_BIT_LENGTH: u8 = 32;
+const NET_TRANSFER_AMOUNT_BIT_LENGTH: u8 = 64;
 
 /// The transfer public keys associated with a transfer with fee.
 pub struct TransferWithFeePubkeys {
@@ -167,6 +168,17 @@ impl TransferWithFeeProofContext {
         )
         .ok_or(TokenProofExtractionError::CurveArithmetic)?;
 
+        let transfer_amount_point = combine_lo_hi_pedersen_points(
+            &commitment_to_ristretto(&transfer_amount_commitment_lo),
+            &commitment_to_ristretto(&transfer_amount_commitment_hi),
+        )
+        .ok_or(TokenProofExtractionError::CurveArithmetic)?;
+        let fee_commitment_point = commitment_to_ristretto(fee_commitment);
+
+        let net_transfer_commitment_point =
+            ristretto::subtract_ristretto(&transfer_amount_point, &fee_commitment_point)
+                .ok_or(TokenProofExtractionError::CurveArithmetic)?;
+
         let expected_commitments = [
             bytes_of(new_source_commitment),
             bytes_of(&transfer_amount_commitment_lo),
@@ -175,6 +187,7 @@ impl TransferWithFeeProofContext {
             bytes_of(&claimed_complement_commitment),
             bytes_of(&fee_commitment_lo),
             bytes_of(&fee_commitment_hi),
+            bytes_of(&net_transfer_commitment_point),
         ];
 
         // range proof context always contains 8 commitments and therefore,
@@ -199,6 +212,7 @@ impl TransferWithFeeProofContext {
             DELTA_BIT_LENGTH,
             FEE_AMOUNT_LO_BIT_LENGTH,
             FEE_AMOUNT_HI_BIT_LENGTH,
+            NET_TRANSFER_AMOUNT_BIT_LENGTH,
         ]
         .iter();
 
