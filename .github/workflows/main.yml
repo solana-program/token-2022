@@ -285,7 +285,6 @@ jobs:
       - name: Build Token-2022 Wasm
         run: pnpm programs:build-wasm
 
-
   build_programs:
     name: Build programs
     runs-on: ubuntu-latest
@@ -318,6 +317,26 @@ jobs:
         with:
           path: ./target/deploy/*.so
           key: ${{ runner.os }}-builds-${{ github.sha }}
+
+  build_programs_no_default_features:
+    name: Build programs without default features
+    runs-on: ubuntu-latest
+    needs: format_and_lint_programs
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup
+        with:
+          cargo-cache-key: cargo-programs-no-default-features
+          solana: true
+
+      - name: Build Token-2022
+        run: pnpm programs:build --no-default-features
+
+      - name: Build ElGamal Registry
+        run: pnpm confidential-transfer:elgamal-registry:build --no-default-features
 
   test_programs:
     name: Test Programs
