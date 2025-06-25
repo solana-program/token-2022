@@ -1,8 +1,14 @@
 #[cfg(feature = "zk-ops")]
-use spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic;
 use {
     crate::{
-        check_auditor_ciphertext, check_program_account,
+        check_auditor_ciphertext,
+        extension::confidential_mint_burn::verify_proof::{verify_burn_proof, verify_mint_proof},
+    },
+    spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic,
+};
+use {
+    crate::{
+        check_program_account,
         error::TokenError,
         extension::{
             confidential_mint_burn::{
@@ -11,7 +17,6 @@ use {
                     MintInstructionData, RotateSupplyElGamalPubkeyData,
                     UpdateDecryptableSupplyData,
                 },
-                verify_proof::{verify_burn_proof, verify_mint_proof},
                 ConfidentialMintBurn,
             },
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
@@ -418,6 +423,7 @@ fn process_confidential_burn(
 }
 
 /// Processes a [`ApplyPendingBurn`] instruction.
+#[cfg(feature = "zk-ops")]
 fn process_apply_pending_burn(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_info = next_account_info(account_info_iter)?;
@@ -467,8 +473,13 @@ pub(crate) fn process_instruction(
         }
         ConfidentialMintBurnInstruction::RotateSupplyElGamalPubkey => {
             msg!("ConfidentialMintBurnInstruction::RotateSupplyElGamal");
-            let data = decode_instruction_data::<RotateSupplyElGamalPubkeyData>(input)?;
-            process_rotate_supply_elgamal_pubkey(program_id, accounts, data)
+            #[cfg(feature = "zk-ops")]
+            {
+                let data = decode_instruction_data::<RotateSupplyElGamalPubkeyData>(input)?;
+                process_rotate_supply_elgamal_pubkey(program_id, accounts, data)
+            }
+            #[cfg(not(feature = "zk-ops"))]
+            Err(ProgramError::InvalidInstructionData)
         }
         ConfidentialMintBurnInstruction::UpdateDecryptableSupply => {
             msg!("ConfidentialMintBurnInstruction::UpdateDecryptableSupply");
@@ -477,17 +488,32 @@ pub(crate) fn process_instruction(
         }
         ConfidentialMintBurnInstruction::Mint => {
             msg!("ConfidentialMintBurnInstruction::ConfidentialMint");
-            let data = decode_instruction_data::<MintInstructionData>(input)?;
-            process_confidential_mint(program_id, accounts, data)
+            #[cfg(feature = "zk-ops")]
+            {
+                let data = decode_instruction_data::<MintInstructionData>(input)?;
+                process_confidential_mint(program_id, accounts, data)
+            }
+            #[cfg(not(feature = "zk-ops"))]
+            Err(ProgramError::InvalidInstructionData)
         }
         ConfidentialMintBurnInstruction::Burn => {
             msg!("ConfidentialMintBurnInstruction::ConfidentialBurn");
-            let data = decode_instruction_data::<BurnInstructionData>(input)?;
-            process_confidential_burn(program_id, accounts, data)
+            #[cfg(feature = "zk-ops")]
+            {
+                let data = decode_instruction_data::<BurnInstructionData>(input)?;
+                process_confidential_burn(program_id, accounts, data)
+            }
+            #[cfg(not(feature = "zk-ops"))]
+            Err(ProgramError::InvalidInstructionData)
         }
         ConfidentialMintBurnInstruction::ApplyPendingBurn => {
             msg!("ConfidentialMintBurnInstruction::ApplyPendingBurn");
-            process_apply_pending_burn(program_id, accounts)
+            #[cfg(feature = "zk-ops")]
+            {
+                process_apply_pending_burn(program_id, accounts)
+            }
+            #[cfg(not(feature = "zk-ops"))]
+            Err(ProgramError::InvalidInstructionData)
         }
     }
 }
