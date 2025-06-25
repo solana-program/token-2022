@@ -35,7 +35,8 @@ const FEE_AMOUNT_LO_BITS: usize = 16;
 const FEE_AMOUNT_HI_BITS: usize = 32;
 
 const REMAINING_BALANCE_BIT_LENGTH: usize = 64;
-const DELTA_BIT_LENGTH: usize = 48;
+const DELTA_BIT_LENGTH: usize = 16;
+const NET_TRANSFER_AMOUNT_BIT_LENGTH: usize = 64;
 
 /// The proof data required for a confidential transfer instruction when the
 /// mint is extended for fees
@@ -193,6 +194,9 @@ pub fn transfer_with_fee_split_proof_data(
     // if raw fee is greater than the maximum fee, then use the maximum fee for the
     // fee amount
     let fee_amount = std::cmp::min(transfer_fee_maximum_fee, raw_fee_amount);
+    let net_transfer_amount = transfer_amount
+        .checked_sub(fee_amount)
+        .ok_or(TokenProofGenerationError::FeeCalculation)?;
 
     // split and encrypt fee
     let (fee_amount_lo, fee_amount_hi) = try_split_u64(fee_amount, FEE_AMOUNT_LO_BITS)
@@ -231,6 +235,13 @@ pub fn transfer_with_fee_split_proof_data(
     let combined_fee_opening =
         try_combine_lo_hi_openings(&fee_opening_lo, &fee_opening_hi, FEE_AMOUNT_LO_BITS)
             .ok_or(TokenProofGenerationError::IllegalAmountBitLength)?;
+
+    // compute net transfer amount = transfer_amount - fee
+    #[allow(clippy::arithmetic_side_effects)]
+    let net_transfer_amount_commitment =
+        combined_transfer_amount_commitment - combined_fee_commitment;
+    #[allow(clippy::arithmetic_side_effects)]
+    let net_transfer_amount_opening = &combined_transfer_amount_opening - &combined_fee_opening;
 
     // compute claimed and real delta commitment
     let (claimed_commitment, claimed_opening) = Pedersen::new(delta_fee);
@@ -331,6 +342,7 @@ pub fn transfer_with_fee_split_proof_data(
             &claimed_complement_commitment,
             fee_ciphertext_lo.get_commitment(),
             fee_ciphertext_hi.get_commitment(),
+            &net_transfer_amount_commitment,
         ],
         vec![
             new_decrypted_available_balance,
@@ -340,6 +352,7 @@ pub fn transfer_with_fee_split_proof_data(
             delta_fee_complement,
             fee_amount_lo,
             fee_amount_hi,
+            net_transfer_amount,
         ],
         vec![
             REMAINING_BALANCE_BIT_LENGTH,
@@ -349,6 +362,7 @@ pub fn transfer_with_fee_split_proof_data(
             DELTA_BIT_LENGTH,
             FEE_AMOUNT_LO_BITS,
             FEE_AMOUNT_HI_BITS,
+            NET_TRANSFER_AMOUNT_BIT_LENGTH,
         ],
         vec![
             &new_source_opening,
@@ -358,6 +372,7 @@ pub fn transfer_with_fee_split_proof_data(
             &claimed_complement_opening,
             &fee_opening_lo,
             &fee_opening_hi,
+            &net_transfer_amount_opening,
         ],
     )
     .map_err(TokenProofGenerationError::from)?;
