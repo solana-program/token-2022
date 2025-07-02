@@ -152,28 +152,27 @@ fn get_extension_indices<V: Extension>(
     init: bool,
 ) -> Result<TlvIndices, ProgramError> {
     let mut start_index = 0;
-    let v_account_type = V::TYPE.get_account_type();
     while start_index < tlv_data.len() {
         let tlv_indices = get_tlv_indices(start_index);
         if tlv_data.len() < tlv_indices.value_start {
             return Err(ProgramError::InvalidAccountData);
         }
-        let extension_type =
-            ExtensionType::try_from(&tlv_data[tlv_indices.type_start..tlv_indices.length_start])?;
-        let account_type = extension_type.get_account_type();
-        if extension_type == V::TYPE {
+        let extension_type = u16::from_le_bytes(
+            tlv_data[tlv_indices.type_start..tlv_indices.length_start]
+                .try_into()
+                .map_err(|_| ProgramError::InvalidAccountData)?,
+        );
+        if extension_type == u16::from(V::TYPE) {
             // found an instance of the extension that we're initializing, return!
             return Ok(tlv_indices);
         // got to an empty spot, init here, or error if we're searching, since
         // nothing is written after an Uninitialized spot
-        } else if extension_type == ExtensionType::Uninitialized {
+        } else if extension_type == u16::from(ExtensionType::Uninitialized) {
             if init {
                 return Ok(tlv_indices);
             } else {
                 return Err(TokenError::ExtensionNotFound.into());
             }
-        } else if v_account_type != account_type {
-            return Err(TokenError::ExtensionTypeMismatch.into());
         } else {
             let length = pod_from_bytes::<Length>(
                 &tlv_data[tlv_indices.length_start..tlv_indices.value_start],
@@ -1749,9 +1748,7 @@ mod test {
         let state = PodStateWithExtensions::<PodMint>::unpack(&buffer).unwrap();
         assert_eq!(
             state.get_extension::<TransferFeeConfig>(),
-            Err(ProgramError::Custom(
-                TokenError::ExtensionTypeMismatch as u32
-            ))
+            Err(ProgramError::InvalidAccountData)
         );
 
         // tweak the length, too big
@@ -1832,9 +1829,7 @@ mod test {
         let state = PodStateWithExtensions::<PodAccount>::unpack(&buffer).unwrap();
         assert_eq!(
             state.get_extension::<TransferHookAccount>(),
-            Err(ProgramError::Custom(
-                TokenError::ExtensionTypeMismatch as u32
-            ))
+            Err(ProgramError::InvalidAccountData),
         );
 
         // tweak the length, too big
