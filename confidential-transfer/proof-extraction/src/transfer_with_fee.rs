@@ -48,7 +48,7 @@ pub struct TransferWithFeePubkeys {
 pub struct TransferWithFeeProofContext {
     /// Group encryption of the low 16 bits of the transfer amount
     pub ciphertext_lo: PodTransferAmountCiphertext,
-    /// Group encryption of the high 48 bits of the transfer amount
+    /// Group encryption of the high 32 bits of the transfer amount
     pub ciphertext_hi: PodTransferAmountCiphertext,
     /// The public encryption keys associated with the transfer: source,
     /// destination, auditor, and withdraw withheld authority

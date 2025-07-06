@@ -58,7 +58,7 @@ impl SupplyAccountInfo {
         elgamal_keypair: &ElGamalKeypair,
     ) -> Result<u64, TokenError> {
         // decrypt the decryptable supply
-        let current_decyptable_supply = AeCiphertext::try_from(self.decryptable_supply)
+        let current_decryptable_supply = AeCiphertext::try_from(self.decryptable_supply)
             .map_err(|_| TokenError::MalformedCiphertext)?
             .decrypt(aes_key)
             .ok_or(TokenError::MalformedCiphertext)?;
@@ -66,7 +66,7 @@ impl SupplyAccountInfo {
         // get the difference between the supply ciphertext and the decryptable supply
         // explanation see https://github.com/solana-labs/solana-program-library/pull/6881#issuecomment-2385579058
         let decryptable_supply_ciphertext =
-            elgamal_keypair.pubkey().encrypt(current_decyptable_supply);
+            elgamal_keypair.pubkey().encrypt(current_decryptable_supply);
         #[allow(clippy::arithmetic_side_effects)]
         let supply_delta_ciphertext = decryptable_supply_ciphertext
             - ElGamalCiphertext::try_from(self.current_supply)
@@ -77,7 +77,7 @@ impl SupplyAccountInfo {
             .ok_or(TokenError::MalformedCiphertext)?;
 
         // compute the current supply
-        current_decyptable_supply
+        current_decryptable_supply
             .checked_sub(decryptable_to_current_diff)
             .ok_or(TokenError::Overflow)
     }
