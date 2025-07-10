@@ -9421,7 +9421,7 @@ dependencies = [
  "spl-token 8.0.0",
  "spl-token-confidential-transfer-ciphertext-arithmetic 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "spl-token-confidential-transfer-proof-extraction 0.3.0",
- "spl-token-confidential-transfer-proof-generation 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-token-confidential-transfer-proof-generation 0.4.0",
  "spl-token-group-interface 0.6.0",
  "spl-token-metadata-interface 0.7.0",
  "spl-transfer-hook-interface 0.10.0",
@@ -9478,7 +9478,7 @@ dependencies = [
  "spl-token 8.0.0",
  "spl-token-confidential-transfer-ciphertext-arithmetic 0.3.0",
  "spl-token-confidential-transfer-proof-extraction 0.4.0",
- "spl-token-confidential-transfer-proof-generation 0.4.0",
+ "spl-token-confidential-transfer-proof-generation 0.4.1",
  "spl-token-group-interface 0.6.0",
  "spl-token-metadata-interface 0.7.0",
  "spl-transfer-hook-interface 0.10.0",
@@ -9516,7 +9516,7 @@ dependencies = [
  "spl-token 8.0.0",
  "spl-token-2022 9.0.0",
  "spl-token-client",
- "spl-token-confidential-transfer-proof-generation 0.4.0",
+ "spl-token-confidential-transfer-proof-generation 0.4.1",
  "spl-token-group-interface 0.6.0",
  "spl-token-metadata-interface 0.7.0",
  "strum 0.27.1",
@@ -9554,7 +9554,7 @@ dependencies = [
  "spl-token 8.0.0",
  "spl-token-2022 9.0.0",
  "spl-token-confidential-transfer-proof-extraction 0.4.0",
- "spl-token-confidential-transfer-proof-generation 0.4.0",
+ "spl-token-confidential-transfer-proof-generation 0.4.1",
  "spl-token-group-interface 0.6.0",
  "spl-token-metadata-interface 0.7.0",
  "spl-transfer-hook-interface 0.10.0",
@@ -9583,7 +9583,7 @@ dependencies = [
  "curve25519-dalek 4.1.3",
  "solana-curve25519",
  "solana-zk-sdk",
- "spl-token-confidential-transfer-proof-generation 0.4.0",
+ "spl-token-confidential-transfer-proof-generation 0.4.1",
 ]
 
 [[package]]
@@ -9675,6 +9675,8 @@ dependencies = [
 [[package]]
 name = "spl-token-confidential-transfer-proof-generation"
 version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae5b124840d4aed474cef101d946a798b806b46a509ee4df91021e1ab1cef3ef"
 dependencies = [
  "curve25519-dalek 4.1.3",
  "solana-zk-sdk",
@@ -9683,9 +9685,7 @@ dependencies = [
 
 [[package]]
 name = "spl-token-confidential-transfer-proof-generation"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae5b124840d4aed474cef101d946a798b806b46a509ee4df91021e1ab1cef3ef"
+version = "0.4.1"
 dependencies = [
  "curve25519-dalek 4.1.3",
  "solana-zk-sdk",
@@ -9699,7 +9699,7 @@ dependencies = [
  "curve25519-dalek 4.1.3",
  "solana-zk-sdk",
  "spl-token-confidential-transfer-proof-extraction 0.4.0",
- "spl-token-confidential-transfer-proof-generation 0.4.0",
+ "spl-token-confidential-transfer-proof-generation 0.4.1",
  "thiserror 2.0.12",
 ]
 
