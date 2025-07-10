@@ -8889,7 +8889,7 @@
                       "kind": "structFieldTypeNode",
                       "name": "pendingBalanceHigh",
                       "docs": [
-                        "The high 48 bits of the pending balance (encrypted by `elgamal_pubkey`)."
+                        "The high 32 bits of the pending balance (encrypted by `elgamal_pubkey`)."
                       ],
                       "type": {
                         "kind": "definedTypeLinkNode",

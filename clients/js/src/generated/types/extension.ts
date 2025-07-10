@@ -117,7 +117,7 @@ export type Extension =
       elgamalPubkey: Address;
       /** The low 16 bits of the pending balance (encrypted by `elgamal_pubkey`). */
       pendingBalanceLow: EncryptedBalance;
-      /** The high 48 bits of the pending balance (encrypted by `elgamal_pubkey`). */
+      /** The high 32 bits of the pending balance (encrypted by `elgamal_pubkey`). */
       pendingBalanceHigh: EncryptedBalance;
       /** The available balance (encrypted by `encrypiton_pubkey`). */
       availableBalance: EncryptedBalance;
@@ -330,7 +330,7 @@ export type ExtensionArgs =
       elgamalPubkey: Address;
       /** The low 16 bits of the pending balance (encrypted by `elgamal_pubkey`). */
       pendingBalanceLow: EncryptedBalanceArgs;
-      /** The high 48 bits of the pending balance (encrypted by `elgamal_pubkey`). */
+      /** The high 32 bits of the pending balance (encrypted by `elgamal_pubkey`). */
       pendingBalanceHigh: EncryptedBalanceArgs;
       /** The available balance (encrypted by `encrypiton_pubkey`). */
       availableBalance: EncryptedBalanceArgs;

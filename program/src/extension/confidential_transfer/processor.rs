@@ -700,7 +700,7 @@ fn process_transfer(
         let transfer_fee_config = mint.get_extension::<TransferFeeConfig>()?;
         let fee_parameters = transfer_fee_config.get_epoch_fee(Clock::get()?.epoch);
 
-        let fee_sigma_proof_insruction_offset =
+        let fee_sigma_proof_instruction_offset =
             fee_sigma_proof_instruction_offset.ok_or(ProgramError::InvalidInstructionData)?;
         let fee_ciphertext_validity_proof_insruction_offset =
             fee_ciphertext_validity_proof_instruction_offset
@@ -716,7 +716,7 @@ fn process_transfer(
             account_info_iter,
             equality_proof_instruction_offset,
             transfer_amount_ciphertext_validity_proof_instruction_offset,
-            fee_sigma_proof_insruction_offset,
+            fee_sigma_proof_instruction_offset,
             fee_ciphertext_validity_proof_insruction_offset,
             range_proof_instruction_offset,
             fee_parameters,

@@ -119,7 +119,7 @@ fn process_rotate_supply_elgamal_pubkey(
     Ok(())
 }
 
-/// Processes an [`UpdateAuthority`] instruction.
+/// Processes an [`UpdateDecryptableSupply`] instruction.
 fn process_update_decryptable_supply(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
