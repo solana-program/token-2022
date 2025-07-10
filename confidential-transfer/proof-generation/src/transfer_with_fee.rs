@@ -40,6 +40,11 @@ const NET_TRANSFER_AMOUNT_BIT_LENGTH: usize = 64;
 
 /// The proof data required for a confidential transfer instruction when the
 /// mint is extended for fees
+///
+/// NOTE: The proofs certify that the transfer fee is a valid percentage of the
+/// transfer amount, as determined by the fee basis points, or that the fee is
+/// exactly the maximum fee. While the sender is expected to choose the lower of
+/// these two options, the proof does not enforce this choice.
 pub struct TransferWithFeeProofData {
     pub equality_proof_data: CiphertextCommitmentEqualityProofData,
     pub transfer_amount_ciphertext_validity_proof_data_with_ciphertext:
