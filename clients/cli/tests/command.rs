@@ -4,15 +4,15 @@ use {
     solana_cli_output::OutputFormat,
     solana_client::{nonblocking::rpc_client::RpcClient, rpc_request::TokenAccountsFilter},
     solana_sdk::{
-        bpf_loader_upgradeable,
         hash::Hash,
         program_option::COption,
         program_pack::Pack,
         pubkey::Pubkey,
         signature::{write_keypair_file, Keypair, Signer},
-        system_instruction, system_program,
         transaction::Transaction,
     },
+    solana_sdk_ids::bpf_loader_upgradeable,
+    solana_system_interface::{instruction as system_instruction, program as system_program},
     solana_test_validator::{TestValidator, TestValidatorGenesis, UpgradeableProgramInfo},
     spl_associated_token_account_client::address::get_associated_token_address_with_program_id,
     spl_token_2022::{
