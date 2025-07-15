@@ -28,9 +28,9 @@ mod tests {
             pubkey::Pubkey,
             signature::{Signature, Signer, SIGNATURE_BYTES},
             signer::keypair::Keypair,
-            system_instruction,
             transaction::Transaction,
         },
+        solana_system_interface::instruction as system_instruction,
     };
 
     #[test]

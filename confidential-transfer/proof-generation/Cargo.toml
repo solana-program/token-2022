@@ -10,7 +10,7 @@ edition = { workspace = true }
 
 [dependencies]
 curve25519-dalek = "4.2.0"
-solana-zk-sdk = "2.2.0"
+solana-zk-sdk = "2.3.4"
 thiserror = "2.0.12"
 
 [lints]

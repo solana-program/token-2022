@@ -9,9 +9,9 @@ use {
         pubkey::Pubkey,
         signature::Signer,
         signer::keypair::Keypair,
-        system_instruction,
         transaction::{Transaction, TransactionError},
     },
+    solana_system_interface::instruction as system_instruction,
     spl_token_2022::{
         error::TokenError,
         extension::{

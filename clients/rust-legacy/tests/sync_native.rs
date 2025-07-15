@@ -6,9 +6,9 @@ use {
         ProgramTestContext,
     },
     solana_sdk::{
-        pubkey::Pubkey, signature::Signer, signer::keypair::Keypair, system_instruction,
-        transaction::Transaction,
+        pubkey::Pubkey, signature::Signer, signer::keypair::Keypair, transaction::Transaction,
     },
+    solana_system_interface::instruction as system_instruction,
     spl_token_2022::extension::ExtensionType,
     spl_token_client::{client::ProgramBanksClientProcessTransaction, token::Token},
     std::sync::Arc,

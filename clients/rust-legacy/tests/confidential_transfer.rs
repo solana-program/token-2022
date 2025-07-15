@@ -11,10 +11,10 @@ use {
         pubkey::Pubkey,
         signature::Signer,
         signer::{keypair::Keypair, signers::Signers},
-        system_instruction,
         transaction::{Transaction, TransactionError},
         transport::TransportError,
     },
+    solana_system_interface::instruction as system_instruction,
     spl_elgamal_registry::state::ELGAMAL_REGISTRY_ACCOUNT_LEN,
     spl_token_2022::{
         error::TokenError,

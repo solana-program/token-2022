@@ -4,9 +4,9 @@ use {
     solana_program_test::tokio,
     solana_sdk::{
         instruction::InstructionError, program_pack::Pack, pubkey::Pubkey, signature::Signer,
-        signer::keypair::Keypair, system_instruction, transaction::TransactionError,
-        transport::TransportError,
+        signer::keypair::Keypair, transaction::TransactionError, transport::TransportError,
     },
+    solana_system_interface::instruction as system_instruction,
     spl_token_2022::{instruction, state::Account},
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
 };

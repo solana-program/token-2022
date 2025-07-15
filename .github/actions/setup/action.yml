@@ -107,7 +107,7 @@ runs:
     - name: Install CLI dependencies
       if: ${{ inputs.cli == 'true' }}
       shell: bash
-      run: sudo apt update && sudo apt install libudev-dev protobuf-compiler -y
+      run: sudo apt update && sudo apt install libudev-dev protobuf-compiler libclang-dev -y
 
     - name: Install wasm target
       if: ${{ inputs.wasm == 'true' }}

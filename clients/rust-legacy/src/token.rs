@@ -18,9 +18,9 @@ use {
         pubkey::Pubkey,
         signature::Signature,
         signer::{signers::Signers, Signer, SignerError},
-        system_instruction,
         transaction::Transaction,
     },
+    solana_system_interface::instruction as system_instruction,
     spl_associated_token_account_client::{
         address::get_associated_token_address_with_program_id,
         instruction::{
