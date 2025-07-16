@@ -16,17 +16,18 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
+  type AccountSignerMeta,
   type Address,
   type Codec,
   type Decoder,
   type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type ReadonlyAccount,
   type ReadonlySignerAccount,
+  type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
@@ -48,23 +49,23 @@ export function getReallocateDiscriminatorBytes() {
 
 export type ReallocateInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountToken extends string | IAccountMeta<string> = string,
-  TAccountPayer extends string | IAccountMeta<string> = string,
+  TAccountToken extends string | AccountMeta<string> = string,
+  TAccountPayer extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends
     | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+    | AccountMeta<string> = '11111111111111111111111111111111',
+  TAccountOwner extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountToken extends string
         ? WritableAccount<TAccountToken>
         : TAccountToken,
       TAccountPayer extends string
         ? WritableSignerAccount<TAccountPayer> &
-            IAccountSignerMeta<TAccountPayer>
+            AccountSignerMeta<TAccountPayer>
         : TAccountPayer,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
@@ -158,7 +159,7 @@ export function getReallocateInstruction<
   TAccountPayer,
   TAccountSystemProgram,
   (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-    ? ReadonlySignerAccount<TAccountOwner> & IAccountSignerMeta<TAccountOwner>
+    ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
     : TAccountOwner
 > {
   // Program address.
@@ -186,7 +187,7 @@ export function getReallocateInstruction<
   }
 
   // Remaining accounts.
-  const remainingAccounts: IAccountMeta[] = (args.multiSigners ?? []).map(
+  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
     (signer) => ({
       address: signer.address,
       role: AccountRole.READONLY_SIGNER,
@@ -213,7 +214,7 @@ export function getReallocateInstruction<
     TAccountPayer,
     TAccountSystemProgram,
     (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-      ? ReadonlySignerAccount<TAccountOwner> & IAccountSignerMeta<TAccountOwner>
+      ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
       : TAccountOwner
   >;
 
@@ -222,7 +223,7 @@ export function getReallocateInstruction<
 
 export type ParsedReallocateInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -240,11 +241,11 @@ export type ParsedReallocateInstruction<
 
 export function parseReallocateInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedReallocateInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 4) {
     // TODO: Coded error.

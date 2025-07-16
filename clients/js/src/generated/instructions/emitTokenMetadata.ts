@@ -18,14 +18,14 @@ import {
   getU64Encoder,
   none,
   transformEncoder,
+  type AccountMeta,
   type Address,
   type Codec,
   type Decoder,
   type Encoder,
-  type IAccountMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type Option,
   type OptionOrNullable,
   type ReadonlyAccount,
@@ -44,11 +44,11 @@ export function getEmitTokenMetadataDiscriminatorBytes() {
 
 export type EmitTokenMetadataInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetadata extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+  TAccountMetadata extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountMetadata extends string
         ? ReadonlyAccount<TAccountMetadata>
@@ -148,7 +148,7 @@ export function getEmitTokenMetadataInstruction<
 
 export type ParsedEmitTokenMetadataInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -159,11 +159,11 @@ export type ParsedEmitTokenMetadataInstruction<
 
 export function parseEmitTokenMetadataInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedEmitTokenMetadataInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 1) {
     // TODO: Coded error.

@@ -13,17 +13,18 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
+  type AccountSignerMeta,
   type Address,
   type Codec,
   type Decoder,
   type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type ReadonlyAccount,
   type ReadonlySignerAccount,
+  type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
 } from '@solana/kit';
@@ -48,13 +49,13 @@ export function getApproveConfidentialTransferAccountConfidentialTransferDiscrim
 
 export type ApproveConfidentialTransferAccountInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountToken extends string | IAccountMeta<string> = string,
-  TAccountMint extends string | IAccountMeta<string> = string,
-  TAccountAuthority extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+  TAccountToken extends string | AccountMeta<string> = string,
+  TAccountMint extends string | AccountMeta<string> = string,
+  TAccountAuthority extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountToken extends string
         ? WritableAccount<TAccountToken>
@@ -64,7 +65,7 @@ export type ApproveConfidentialTransferAccountInstruction<
         : TAccountMint,
       TAccountAuthority extends string
         ? ReadonlySignerAccount<TAccountAuthority> &
-            IAccountSignerMeta<TAccountAuthority>
+            AccountSignerMeta<TAccountAuthority>
         : TAccountAuthority,
       ...TRemainingAccounts,
     ]
@@ -177,7 +178,7 @@ export function getApproveConfidentialTransferAccountInstruction<
 
 export type ParsedApproveConfidentialTransferAccountInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -193,11 +194,11 @@ export type ParsedApproveConfidentialTransferAccountInstruction<
 
 export function parseApproveConfidentialTransferAccountInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedApproveConfidentialTransferAccountInstruction<
   TProgram,
   TAccountMetas

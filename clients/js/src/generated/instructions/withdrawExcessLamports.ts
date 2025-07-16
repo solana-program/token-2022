@@ -14,17 +14,18 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
+  type AccountSignerMeta,
   type Address,
   type Codec,
   type Decoder,
   type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type ReadonlyAccount,
   type ReadonlySignerAccount,
+  type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
 } from '@solana/kit';
@@ -39,13 +40,13 @@ export function getWithdrawExcessLamportsDiscriminatorBytes() {
 
 export type WithdrawExcessLamportsInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountSourceAccount extends string | IAccountMeta<string> = string,
-  TAccountDestinationAccount extends string | IAccountMeta<string> = string,
-  TAccountAuthority extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+  TAccountSourceAccount extends string | AccountMeta<string> = string,
+  TAccountDestinationAccount extends string | AccountMeta<string> = string,
+  TAccountAuthority extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountSourceAccount extends string
         ? WritableAccount<TAccountSourceAccount>
@@ -120,7 +121,7 @@ export function getWithdrawExcessLamportsInstruction<
   TAccountDestinationAccount,
   (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
     ? ReadonlySignerAccount<TAccountAuthority> &
-        IAccountSignerMeta<TAccountAuthority>
+        AccountSignerMeta<TAccountAuthority>
     : TAccountAuthority
 > {
   // Program address.
@@ -144,7 +145,7 @@ export function getWithdrawExcessLamportsInstruction<
   const args = { ...input };
 
   // Remaining accounts.
-  const remainingAccounts: IAccountMeta[] = (args.multiSigners ?? []).map(
+  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
     (signer) => ({
       address: signer.address,
       role: AccountRole.READONLY_SIGNER,
@@ -168,7 +169,7 @@ export function getWithdrawExcessLamportsInstruction<
     TAccountDestinationAccount,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
       ? ReadonlySignerAccount<TAccountAuthority> &
-          IAccountSignerMeta<TAccountAuthority>
+          AccountSignerMeta<TAccountAuthority>
       : TAccountAuthority
   >;
 
@@ -177,7 +178,7 @@ export function getWithdrawExcessLamportsInstruction<
 
 export type ParsedWithdrawExcessLamportsInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -193,11 +194,11 @@ export type ParsedWithdrawExcessLamportsInstruction<
 
 export function parseWithdrawExcessLamportsInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedWithdrawExcessLamportsInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 3) {
     // TODO: Coded error.
