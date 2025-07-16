@@ -16,15 +16,16 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
+  type AccountSignerMeta,
   type Address,
   type Codec,
   type Decoder,
   type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
+  type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
@@ -48,12 +49,12 @@ export function getUpdateRateInterestBearingMintInterestBearingMintDiscriminator
 
 export type UpdateRateInterestBearingMintInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | IAccountMeta<string> = string,
-  TAccountRateAuthority extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+  TAccountMint extends string | AccountMeta<string> = string,
+  TAccountRateAuthority extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountMint extends string
         ? WritableAccount<TAccountMint>
@@ -140,7 +141,7 @@ export function getUpdateRateInterestBearingMintInstruction<
   TAccountMint,
   (typeof input)['rateAuthority'] extends TransactionSigner<TAccountRateAuthority>
     ? WritableSignerAccount<TAccountRateAuthority> &
-        IAccountSignerMeta<TAccountRateAuthority>
+        AccountSignerMeta<TAccountRateAuthority>
     : TAccountRateAuthority
 > {
   // Program address.
@@ -160,7 +161,7 @@ export function getUpdateRateInterestBearingMintInstruction<
   const args = { ...input };
 
   // Remaining accounts.
-  const remainingAccounts: IAccountMeta[] = (args.multiSigners ?? []).map(
+  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
     (signer) => ({
       address: signer.address,
       role: AccountRole.READONLY_SIGNER,
@@ -184,7 +185,7 @@ export function getUpdateRateInterestBearingMintInstruction<
     TAccountMint,
     (typeof input)['rateAuthority'] extends TransactionSigner<TAccountRateAuthority>
       ? WritableSignerAccount<TAccountRateAuthority> &
-          IAccountSignerMeta<TAccountRateAuthority>
+          AccountSignerMeta<TAccountRateAuthority>
       : TAccountRateAuthority
   >;
 
@@ -193,7 +194,7 @@ export function getUpdateRateInterestBearingMintInstruction<
 
 export type ParsedUpdateRateInterestBearingMintInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -207,11 +208,11 @@ export type ParsedUpdateRateInterestBearingMintInstruction<
 
 export function parseUpdateRateInterestBearingMintInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedUpdateRateInterestBearingMintInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 2) {
     // TODO: Coded error.
