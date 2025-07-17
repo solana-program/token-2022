@@ -10,7 +10,7 @@ edition = { workspace = true }
 
 [dependencies]
 bytemuck = "1.23.1"
-solana-account-info = "2.2.1"
+solana-account-info = "2.3.0"
 solana-curve25519 = "2.3.4"
 solana-instruction = "2.2.1"
 solana-instructions-sysvar = "2.2.1"

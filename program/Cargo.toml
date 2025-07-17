@@ -24,7 +24,7 @@ bytemuck = { version = "1.23.1", features = ["derive"] }
 num-derive = "0.4"
 num-traits = "0.2"
 num_enum = "0.7.4"
-solana-account-info = "2.2.1"
+solana-account-info = "2.3.0"
 solana-clock = "2.2.1"
 solana-cpi = "2.2.1"
 solana-decode-error = "2.2.1"
