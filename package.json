@@ -49,7 +49,7 @@
     "js:publish": "zx ./scripts/js/publish.mjs"
   },
   "devDependencies": {
-    "@codama/renderers-js": "^1.3.0",
+    "@codama/renderers-js": "^1.3.1",
     "@codama/renderers-rust": "^1.1.1",
     "@iarna/toml": "^2.2.5",
     "codama": "^1.3.0",
