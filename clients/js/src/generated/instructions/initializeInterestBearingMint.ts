@@ -21,9 +21,9 @@ import {
   transformEncoder,
   type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -80,7 +80,7 @@ export type InitializeInterestBearingMintInstructionDataArgs = {
   rate: number;
 };
 
-export function getInitializeInterestBearingMintInstructionDataEncoder(): Encoder<InitializeInterestBearingMintInstructionDataArgs> {
+export function getInitializeInterestBearingMintInstructionDataEncoder(): FixedSizeEncoder<InitializeInterestBearingMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -103,7 +103,7 @@ export function getInitializeInterestBearingMintInstructionDataEncoder(): Encode
   );
 }
 
-export function getInitializeInterestBearingMintInstructionDataDecoder(): Decoder<InitializeInterestBearingMintInstructionData> {
+export function getInitializeInterestBearingMintInstructionDataDecoder(): FixedSizeDecoder<InitializeInterestBearingMintInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['interestBearingMintDiscriminator', getU8Decoder()],
@@ -118,7 +118,7 @@ export function getInitializeInterestBearingMintInstructionDataDecoder(): Decode
   ]);
 }
 
-export function getInitializeInterestBearingMintInstructionDataCodec(): Codec<
+export function getInitializeInterestBearingMintInstructionDataCodec(): FixedSizeCodec<
   InitializeInterestBearingMintInstructionDataArgs,
   InitializeInterestBearingMintInstructionData
 > {

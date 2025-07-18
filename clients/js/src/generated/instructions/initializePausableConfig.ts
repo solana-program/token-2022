@@ -19,9 +19,9 @@ import {
   transformEncoder,
   type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -74,7 +74,7 @@ export type InitializePausableConfigInstructionDataArgs = {
   authority: OptionOrNullable<Address>;
 };
 
-export function getInitializePausableConfigInstructionDataEncoder(): Encoder<InitializePausableConfigInstructionDataArgs> {
+export function getInitializePausableConfigInstructionDataEncoder(): FixedSizeEncoder<InitializePausableConfigInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -95,7 +95,7 @@ export function getInitializePausableConfigInstructionDataEncoder(): Encoder<Ini
   );
 }
 
-export function getInitializePausableConfigInstructionDataDecoder(): Decoder<InitializePausableConfigInstructionData> {
+export function getInitializePausableConfigInstructionDataDecoder(): FixedSizeDecoder<InitializePausableConfigInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['pausableDiscriminator', getU8Decoder()],
@@ -109,7 +109,7 @@ export function getInitializePausableConfigInstructionDataDecoder(): Decoder<Ini
   ]);
 }
 
-export function getInitializePausableConfigInstructionDataCodec(): Codec<
+export function getInitializePausableConfigInstructionDataCodec(): FixedSizeCodec<
   InitializePausableConfigInstructionDataArgs,
   InitializePausableConfigInstructionData
 > {

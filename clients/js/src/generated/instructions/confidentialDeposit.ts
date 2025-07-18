@@ -19,9 +19,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -87,7 +87,7 @@ export type ConfidentialDepositInstructionDataArgs = {
   decimals: number;
 };
 
-export function getConfidentialDepositInstructionDataEncoder(): Encoder<ConfidentialDepositInstructionDataArgs> {
+export function getConfidentialDepositInstructionDataEncoder(): FixedSizeEncoder<ConfidentialDepositInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -104,7 +104,7 @@ export function getConfidentialDepositInstructionDataEncoder(): Encoder<Confiden
   );
 }
 
-export function getConfidentialDepositInstructionDataDecoder(): Decoder<ConfidentialDepositInstructionData> {
+export function getConfidentialDepositInstructionDataDecoder(): FixedSizeDecoder<ConfidentialDepositInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferDiscriminator', getU8Decoder()],
@@ -113,7 +113,7 @@ export function getConfidentialDepositInstructionDataDecoder(): Decoder<Confiden
   ]);
 }
 
-export function getConfidentialDepositInstructionDataCodec(): Codec<
+export function getConfidentialDepositInstructionDataCodec(): FixedSizeCodec<
   ConfidentialDepositInstructionDataArgs,
   ConfidentialDepositInstructionData
 > {

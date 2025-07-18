@@ -19,9 +19,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -78,7 +78,7 @@ export type UpdateRateInterestBearingMintInstructionDataArgs = {
   rate: number;
 };
 
-export function getUpdateRateInterestBearingMintInstructionDataEncoder(): Encoder<UpdateRateInterestBearingMintInstructionDataArgs> {
+export function getUpdateRateInterestBearingMintInstructionDataEncoder(): FixedSizeEncoder<UpdateRateInterestBearingMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -94,7 +94,7 @@ export function getUpdateRateInterestBearingMintInstructionDataEncoder(): Encode
   );
 }
 
-export function getUpdateRateInterestBearingMintInstructionDataDecoder(): Decoder<UpdateRateInterestBearingMintInstructionData> {
+export function getUpdateRateInterestBearingMintInstructionDataDecoder(): FixedSizeDecoder<UpdateRateInterestBearingMintInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['interestBearingMintDiscriminator', getU8Decoder()],
@@ -102,7 +102,7 @@ export function getUpdateRateInterestBearingMintInstructionDataDecoder(): Decode
   ]);
 }
 
-export function getUpdateRateInterestBearingMintInstructionDataCodec(): Codec<
+export function getUpdateRateInterestBearingMintInstructionDataCodec(): FixedSizeCodec<
   UpdateRateInterestBearingMintInstructionDataArgs,
   UpdateRateInterestBearingMintInstructionData
 > {

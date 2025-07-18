@@ -12,9 +12,9 @@ import {
   getEnumEncoder,
   getU16Decoder,
   getU16Encoder,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
 } from '@solana/kit';
 
 /**
@@ -55,15 +55,15 @@ export enum ExtensionType {
 
 export type ExtensionTypeArgs = ExtensionType;
 
-export function getExtensionTypeEncoder(): Encoder<ExtensionTypeArgs> {
+export function getExtensionTypeEncoder(): FixedSizeEncoder<ExtensionTypeArgs> {
   return getEnumEncoder(ExtensionType, { size: getU16Encoder() });
 }
 
-export function getExtensionTypeDecoder(): Decoder<ExtensionType> {
+export function getExtensionTypeDecoder(): FixedSizeDecoder<ExtensionType> {
   return getEnumDecoder(ExtensionType, { size: getU16Decoder() });
 }
 
-export function getExtensionTypeCodec(): Codec<
+export function getExtensionTypeCodec(): FixedSizeCodec<
   ExtensionTypeArgs,
   ExtensionType
 > {

@@ -19,9 +19,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -103,7 +103,7 @@ export type ApplyConfidentialPendingBalanceInstructionDataArgs = {
   newDecryptableAvailableBalance: DecryptableBalanceArgs;
 };
 
-export function getApplyConfidentialPendingBalanceInstructionDataEncoder(): Encoder<ApplyConfidentialPendingBalanceInstructionDataArgs> {
+export function getApplyConfidentialPendingBalanceInstructionDataEncoder(): FixedSizeEncoder<ApplyConfidentialPendingBalanceInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -120,7 +120,7 @@ export function getApplyConfidentialPendingBalanceInstructionDataEncoder(): Enco
   );
 }
 
-export function getApplyConfidentialPendingBalanceInstructionDataDecoder(): Decoder<ApplyConfidentialPendingBalanceInstructionData> {
+export function getApplyConfidentialPendingBalanceInstructionDataDecoder(): FixedSizeDecoder<ApplyConfidentialPendingBalanceInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferDiscriminator', getU8Decoder()],
@@ -129,7 +129,7 @@ export function getApplyConfidentialPendingBalanceInstructionDataDecoder(): Deco
   ]);
 }
 
-export function getApplyConfidentialPendingBalanceInstructionDataCodec(): Codec<
+export function getApplyConfidentialPendingBalanceInstructionDataCodec(): FixedSizeCodec<
   ApplyConfidentialPendingBalanceInstructionDataArgs,
   ApplyConfidentialPendingBalanceInstructionData
 > {

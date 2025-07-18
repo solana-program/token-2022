@@ -19,9 +19,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -111,7 +111,7 @@ export type WithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruct
     newDecryptableAvailableBalance: DecryptableBalanceArgs;
   };
 
-export function getWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstructionDataEncoder(): Encoder<WithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstructionDataArgs> {
+export function getWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstructionDataEncoder(): FixedSizeEncoder<WithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -130,7 +130,7 @@ export function getWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeI
   );
 }
 
-export function getWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstructionDataDecoder(): Decoder<WithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstructionData> {
+export function getWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstructionDataDecoder(): FixedSizeDecoder<WithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferFeeDiscriminator', getU8Decoder()],
@@ -140,7 +140,7 @@ export function getWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeI
   ]);
 }
 
-export function getWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstructionDataCodec(): Codec<
+export function getWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstructionDataCodec(): FixedSizeCodec<
   WithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstructionDataArgs,
   WithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstructionData
 > {

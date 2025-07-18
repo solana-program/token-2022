@@ -16,9 +16,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -78,7 +78,7 @@ export type ApproveConfidentialTransferAccountInstructionData = {
 
 export type ApproveConfidentialTransferAccountInstructionDataArgs = {};
 
-export function getApproveConfidentialTransferAccountInstructionDataEncoder(): Encoder<ApproveConfidentialTransferAccountInstructionDataArgs> {
+export function getApproveConfidentialTransferAccountInstructionDataEncoder(): FixedSizeEncoder<ApproveConfidentialTransferAccountInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -93,14 +93,14 @@ export function getApproveConfidentialTransferAccountInstructionDataEncoder(): E
   );
 }
 
-export function getApproveConfidentialTransferAccountInstructionDataDecoder(): Decoder<ApproveConfidentialTransferAccountInstructionData> {
+export function getApproveConfidentialTransferAccountInstructionDataDecoder(): FixedSizeDecoder<ApproveConfidentialTransferAccountInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferDiscriminator', getU8Decoder()],
   ]);
 }
 
-export function getApproveConfidentialTransferAccountInstructionDataCodec(): Codec<
+export function getApproveConfidentialTransferAccountInstructionDataCodec(): FixedSizeCodec<
   ApproveConfidentialTransferAccountInstructionDataArgs,
   ApproveConfidentialTransferAccountInstructionData
 > {

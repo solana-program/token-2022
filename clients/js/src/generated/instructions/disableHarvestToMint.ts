@@ -17,9 +17,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -72,7 +72,7 @@ export type DisableHarvestToMintInstructionData = {
 
 export type DisableHarvestToMintInstructionDataArgs = {};
 
-export function getDisableHarvestToMintInstructionDataEncoder(): Encoder<DisableHarvestToMintInstructionDataArgs> {
+export function getDisableHarvestToMintInstructionDataEncoder(): FixedSizeEncoder<DisableHarvestToMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -87,14 +87,14 @@ export function getDisableHarvestToMintInstructionDataEncoder(): Encoder<Disable
   );
 }
 
-export function getDisableHarvestToMintInstructionDataDecoder(): Decoder<DisableHarvestToMintInstructionData> {
+export function getDisableHarvestToMintInstructionDataDecoder(): FixedSizeDecoder<DisableHarvestToMintInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferFeeDiscriminator', getU8Decoder()],
   ]);
 }
 
-export function getDisableHarvestToMintInstructionDataCodec(): Codec<
+export function getDisableHarvestToMintInstructionDataCodec(): FixedSizeCodec<
   DisableHarvestToMintInstructionDataArgs,
   DisableHarvestToMintInstructionData
 > {

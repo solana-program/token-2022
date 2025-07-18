@@ -21,9 +21,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -127,7 +127,7 @@ export type ConfigureConfidentialTransferAccountInstructionDataArgs = {
   proofInstructionOffset: number;
 };
 
-export function getConfigureConfidentialTransferAccountInstructionDataEncoder(): Encoder<ConfigureConfidentialTransferAccountInstructionDataArgs> {
+export function getConfigureConfidentialTransferAccountInstructionDataEncoder(): FixedSizeEncoder<ConfigureConfidentialTransferAccountInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -145,7 +145,7 @@ export function getConfigureConfidentialTransferAccountInstructionDataEncoder():
   );
 }
 
-export function getConfigureConfidentialTransferAccountInstructionDataDecoder(): Decoder<ConfigureConfidentialTransferAccountInstructionData> {
+export function getConfigureConfidentialTransferAccountInstructionDataDecoder(): FixedSizeDecoder<ConfigureConfidentialTransferAccountInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferDiscriminator', getU8Decoder()],
@@ -155,7 +155,7 @@ export function getConfigureConfidentialTransferAccountInstructionDataDecoder():
   ]);
 }
 
-export function getConfigureConfidentialTransferAccountInstructionDataCodec(): Codec<
+export function getConfigureConfidentialTransferAccountInstructionDataCodec(): FixedSizeCodec<
   ConfigureConfidentialTransferAccountInstructionDataArgs,
   ConfigureConfidentialTransferAccountInstructionData
 > {

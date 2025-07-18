@@ -19,9 +19,9 @@ import {
   transformEncoder,
   type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -80,7 +80,7 @@ export type InitializeConfidentialTransferFeeInstructionDataArgs = {
   withdrawWithheldAuthorityElGamalPubkey: OptionOrNullable<Address>;
 };
 
-export function getInitializeConfidentialTransferFeeInstructionDataEncoder(): Encoder<InitializeConfidentialTransferFeeInstructionDataArgs> {
+export function getInitializeConfidentialTransferFeeInstructionDataEncoder(): FixedSizeEncoder<InitializeConfidentialTransferFeeInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -109,7 +109,7 @@ export function getInitializeConfidentialTransferFeeInstructionDataEncoder(): En
   );
 }
 
-export function getInitializeConfidentialTransferFeeInstructionDataDecoder(): Decoder<InitializeConfidentialTransferFeeInstructionData> {
+export function getInitializeConfidentialTransferFeeInstructionDataDecoder(): FixedSizeDecoder<InitializeConfidentialTransferFeeInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferFeeDiscriminator', getU8Decoder()],
@@ -130,7 +130,7 @@ export function getInitializeConfidentialTransferFeeInstructionDataDecoder(): De
   ]);
 }
 
-export function getInitializeConfidentialTransferFeeInstructionDataCodec(): Codec<
+export function getInitializeConfidentialTransferFeeInstructionDataCodec(): FixedSizeCodec<
   InitializeConfidentialTransferFeeInstructionDataArgs,
   InitializeConfidentialTransferFeeInstructionData
 > {

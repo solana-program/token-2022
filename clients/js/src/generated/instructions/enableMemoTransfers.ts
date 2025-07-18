@@ -17,9 +17,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -72,7 +72,7 @@ export type EnableMemoTransfersInstructionData = {
 
 export type EnableMemoTransfersInstructionDataArgs = {};
 
-export function getEnableMemoTransfersInstructionDataEncoder(): Encoder<EnableMemoTransfersInstructionDataArgs> {
+export function getEnableMemoTransfersInstructionDataEncoder(): FixedSizeEncoder<EnableMemoTransfersInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -87,14 +87,14 @@ export function getEnableMemoTransfersInstructionDataEncoder(): Encoder<EnableMe
   );
 }
 
-export function getEnableMemoTransfersInstructionDataDecoder(): Decoder<EnableMemoTransfersInstructionData> {
+export function getEnableMemoTransfersInstructionDataDecoder(): FixedSizeDecoder<EnableMemoTransfersInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['memoTransfersDiscriminator', getU8Decoder()],
   ]);
 }
 
-export function getEnableMemoTransfersInstructionDataCodec(): Codec<
+export function getEnableMemoTransfersInstructionDataCodec(): FixedSizeCodec<
   EnableMemoTransfersInstructionDataArgs,
   EnableMemoTransfersInstructionData
 > {

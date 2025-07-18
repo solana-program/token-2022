@@ -17,9 +17,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -65,7 +65,7 @@ export type WithdrawExcessLamportsInstructionData = { discriminator: number };
 
 export type WithdrawExcessLamportsInstructionDataArgs = {};
 
-export function getWithdrawExcessLamportsInstructionDataEncoder(): Encoder<WithdrawExcessLamportsInstructionDataArgs> {
+export function getWithdrawExcessLamportsInstructionDataEncoder(): FixedSizeEncoder<WithdrawExcessLamportsInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
     (value) => ({
@@ -75,11 +75,11 @@ export function getWithdrawExcessLamportsInstructionDataEncoder(): Encoder<Withd
   );
 }
 
-export function getWithdrawExcessLamportsInstructionDataDecoder(): Decoder<WithdrawExcessLamportsInstructionData> {
+export function getWithdrawExcessLamportsInstructionDataDecoder(): FixedSizeDecoder<WithdrawExcessLamportsInstructionData> {
   return getStructDecoder([['discriminator', getU8Decoder()]]);
 }
 
-export function getWithdrawExcessLamportsInstructionDataCodec(): Codec<
+export function getWithdrawExcessLamportsInstructionDataCodec(): FixedSizeCodec<
   WithdrawExcessLamportsInstructionDataArgs,
   WithdrawExcessLamportsInstructionData
 > {

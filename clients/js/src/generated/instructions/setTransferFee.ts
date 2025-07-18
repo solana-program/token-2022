@@ -21,9 +21,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -85,7 +85,7 @@ export type SetTransferFeeInstructionDataArgs = {
   maximumFee: number | bigint;
 };
 
-export function getSetTransferFeeInstructionDataEncoder(): Encoder<SetTransferFeeInstructionDataArgs> {
+export function getSetTransferFeeInstructionDataEncoder(): FixedSizeEncoder<SetTransferFeeInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -101,7 +101,7 @@ export function getSetTransferFeeInstructionDataEncoder(): Encoder<SetTransferFe
   );
 }
 
-export function getSetTransferFeeInstructionDataDecoder(): Decoder<SetTransferFeeInstructionData> {
+export function getSetTransferFeeInstructionDataDecoder(): FixedSizeDecoder<SetTransferFeeInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['transferFeeDiscriminator', getU8Decoder()],
@@ -110,7 +110,7 @@ export function getSetTransferFeeInstructionDataDecoder(): Decoder<SetTransferFe
   ]);
 }
 
-export function getSetTransferFeeInstructionDataCodec(): Codec<
+export function getSetTransferFeeInstructionDataCodec(): FixedSizeCodec<
   SetTransferFeeInstructionDataArgs,
   SetTransferFeeInstructionData
 > {

@@ -17,9 +17,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -70,7 +70,7 @@ export type EnableCpiGuardInstructionData = {
 
 export type EnableCpiGuardInstructionDataArgs = {};
 
-export function getEnableCpiGuardInstructionDataEncoder(): Encoder<EnableCpiGuardInstructionDataArgs> {
+export function getEnableCpiGuardInstructionDataEncoder(): FixedSizeEncoder<EnableCpiGuardInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -84,14 +84,14 @@ export function getEnableCpiGuardInstructionDataEncoder(): Encoder<EnableCpiGuar
   );
 }
 
-export function getEnableCpiGuardInstructionDataDecoder(): Decoder<EnableCpiGuardInstructionData> {
+export function getEnableCpiGuardInstructionDataDecoder(): FixedSizeDecoder<EnableCpiGuardInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['cpiGuardDiscriminator', getU8Decoder()],
   ]);
 }
 
-export function getEnableCpiGuardInstructionDataCodec(): Codec<
+export function getEnableCpiGuardInstructionDataCodec(): FixedSizeCodec<
   EnableCpiGuardInstructionDataArgs,
   EnableCpiGuardInstructionData
 > {

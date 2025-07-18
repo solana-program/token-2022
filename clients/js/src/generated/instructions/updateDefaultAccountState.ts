@@ -17,9 +17,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -83,7 +83,7 @@ export type UpdateDefaultAccountStateInstructionDataArgs = {
   state: AccountStateArgs;
 };
 
-export function getUpdateDefaultAccountStateInstructionDataEncoder(): Encoder<UpdateDefaultAccountStateInstructionDataArgs> {
+export function getUpdateDefaultAccountStateInstructionDataEncoder(): FixedSizeEncoder<UpdateDefaultAccountStateInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -99,7 +99,7 @@ export function getUpdateDefaultAccountStateInstructionDataEncoder(): Encoder<Up
   );
 }
 
-export function getUpdateDefaultAccountStateInstructionDataDecoder(): Decoder<UpdateDefaultAccountStateInstructionData> {
+export function getUpdateDefaultAccountStateInstructionDataDecoder(): FixedSizeDecoder<UpdateDefaultAccountStateInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['defaultAccountStateDiscriminator', getU8Decoder()],
@@ -107,7 +107,7 @@ export function getUpdateDefaultAccountStateInstructionDataDecoder(): Decoder<Up
   ]);
 }
 
-export function getUpdateDefaultAccountStateInstructionDataCodec(): Codec<
+export function getUpdateDefaultAccountStateInstructionDataCodec(): FixedSizeCodec<
   UpdateDefaultAccountStateInstructionDataArgs,
   UpdateDefaultAccountStateInstructionData
 > {

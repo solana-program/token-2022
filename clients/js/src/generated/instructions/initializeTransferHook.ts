@@ -19,9 +19,9 @@ import {
   transformEncoder,
   type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -78,7 +78,7 @@ export type InitializeTransferHookInstructionDataArgs = {
   programId: OptionOrNullable<Address>;
 };
 
-export function getInitializeTransferHookInstructionDataEncoder(): Encoder<InitializeTransferHookInstructionDataArgs> {
+export function getInitializeTransferHookInstructionDataEncoder(): FixedSizeEncoder<InitializeTransferHookInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -107,7 +107,7 @@ export function getInitializeTransferHookInstructionDataEncoder(): Encoder<Initi
   );
 }
 
-export function getInitializeTransferHookInstructionDataDecoder(): Decoder<InitializeTransferHookInstructionData> {
+export function getInitializeTransferHookInstructionDataDecoder(): FixedSizeDecoder<InitializeTransferHookInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['transferHookDiscriminator', getU8Decoder()],
@@ -128,7 +128,7 @@ export function getInitializeTransferHookInstructionDataDecoder(): Decoder<Initi
   ]);
 }
 
-export function getInitializeTransferHookInstructionDataCodec(): Codec<
+export function getInitializeTransferHookInstructionDataCodec(): FixedSizeCodec<
   InitializeTransferHookInstructionDataArgs,
   InitializeTransferHookInstructionData
 > {

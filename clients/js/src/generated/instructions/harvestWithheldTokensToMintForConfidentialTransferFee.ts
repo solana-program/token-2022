@@ -16,9 +16,9 @@ import {
   transformEncoder,
   type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -65,7 +65,7 @@ export type HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionData
 export type HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataArgs =
   {};
 
-export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataEncoder(): Encoder<HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataArgs> {
+export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataEncoder(): FixedSizeEncoder<HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -81,14 +81,14 @@ export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruct
   );
 }
 
-export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataDecoder(): Decoder<HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionData> {
+export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataDecoder(): FixedSizeDecoder<HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferFeeDiscriminator', getU8Decoder()],
   ]);
 }
 
-export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataCodec(): Codec<
+export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataCodec(): FixedSizeCodec<
   HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataArgs,
   HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionData
 > {

@@ -17,9 +17,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -72,7 +72,7 @@ export type DisableConfidentialCreditsInstructionData = {
 
 export type DisableConfidentialCreditsInstructionDataArgs = {};
 
-export function getDisableConfidentialCreditsInstructionDataEncoder(): Encoder<DisableConfidentialCreditsInstructionDataArgs> {
+export function getDisableConfidentialCreditsInstructionDataEncoder(): FixedSizeEncoder<DisableConfidentialCreditsInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -87,14 +87,14 @@ export function getDisableConfidentialCreditsInstructionDataEncoder(): Encoder<D
   );
 }
 
-export function getDisableConfidentialCreditsInstructionDataDecoder(): Decoder<DisableConfidentialCreditsInstructionData> {
+export function getDisableConfidentialCreditsInstructionDataDecoder(): FixedSizeDecoder<DisableConfidentialCreditsInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferDiscriminator', getU8Decoder()],
   ]);
 }
 
-export function getDisableConfidentialCreditsInstructionDataCodec(): Codec<
+export function getDisableConfidentialCreditsInstructionDataCodec(): FixedSizeCodec<
   DisableConfidentialCreditsInstructionDataArgs,
   DisableConfidentialCreditsInstructionData
 > {
