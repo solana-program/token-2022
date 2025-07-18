@@ -67,10 +67,10 @@ pub fn process_reallocate(
 
     // reallocate
     msg!(
-        "account needs realloc, +{:?} bytes",
+        "account needs resize, +{:?} bytes",
         needed_account_len - token_account_info.data_len()
     );
-    token_account_info.realloc(needed_account_len, true)?;
+    token_account_info.resize(needed_account_len)?;
 
     // if additional lamports needed to remain rent-exempt, transfer them
     let rent = Rent::get()?;
