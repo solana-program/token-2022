@@ -21,9 +21,9 @@ import {
   transformEncoder,
   type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -98,7 +98,7 @@ export type InitializeConfidentialTransferMintInstructionDataArgs = {
   auditorElgamalPubkey: OptionOrNullable<Address>;
 };
 
-export function getInitializeConfidentialTransferMintInstructionDataEncoder(): Encoder<InitializeConfidentialTransferMintInstructionDataArgs> {
+export function getInitializeConfidentialTransferMintInstructionDataEncoder(): FixedSizeEncoder<InitializeConfidentialTransferMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -128,7 +128,7 @@ export function getInitializeConfidentialTransferMintInstructionDataEncoder(): E
   );
 }
 
-export function getInitializeConfidentialTransferMintInstructionDataDecoder(): Decoder<InitializeConfidentialTransferMintInstructionData> {
+export function getInitializeConfidentialTransferMintInstructionDataDecoder(): FixedSizeDecoder<InitializeConfidentialTransferMintInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferDiscriminator', getU8Decoder()],
@@ -150,7 +150,7 @@ export function getInitializeConfidentialTransferMintInstructionDataDecoder(): D
   ]);
 }
 
-export function getInitializeConfidentialTransferMintInstructionDataCodec(): Codec<
+export function getInitializeConfidentialTransferMintInstructionDataCodec(): FixedSizeCodec<
   InitializeConfidentialTransferMintInstructionDataArgs,
   InitializeConfidentialTransferMintInstructionData
 > {

@@ -19,9 +19,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -151,7 +151,7 @@ export type ConfidentialTransferInstructionDataArgs = {
   rangeProofInstructionOffset: number;
 };
 
-export function getConfidentialTransferInstructionDataEncoder(): Encoder<ConfidentialTransferInstructionDataArgs> {
+export function getConfidentialTransferInstructionDataEncoder(): FixedSizeEncoder<ConfidentialTransferInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -170,7 +170,7 @@ export function getConfidentialTransferInstructionDataEncoder(): Encoder<Confide
   );
 }
 
-export function getConfidentialTransferInstructionDataDecoder(): Decoder<ConfidentialTransferInstructionData> {
+export function getConfidentialTransferInstructionDataDecoder(): FixedSizeDecoder<ConfidentialTransferInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferDiscriminator', getU8Decoder()],
@@ -181,7 +181,7 @@ export function getConfidentialTransferInstructionDataDecoder(): Decoder<Confide
   ]);
 }
 
-export function getConfidentialTransferInstructionDataCodec(): Codec<
+export function getConfidentialTransferInstructionDataCodec(): FixedSizeCodec<
   ConfidentialTransferInstructionDataArgs,
   ConfidentialTransferInstructionData
 > {

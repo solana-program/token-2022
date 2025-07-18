@@ -16,9 +16,9 @@ import {
   transformEncoder,
   type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -64,7 +64,7 @@ export type HarvestWithheldTokensToMintInstructionData = {
 
 export type HarvestWithheldTokensToMintInstructionDataArgs = {};
 
-export function getHarvestWithheldTokensToMintInstructionDataEncoder(): Encoder<HarvestWithheldTokensToMintInstructionDataArgs> {
+export function getHarvestWithheldTokensToMintInstructionDataEncoder(): FixedSizeEncoder<HarvestWithheldTokensToMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -79,14 +79,14 @@ export function getHarvestWithheldTokensToMintInstructionDataEncoder(): Encoder<
   );
 }
 
-export function getHarvestWithheldTokensToMintInstructionDataDecoder(): Decoder<HarvestWithheldTokensToMintInstructionData> {
+export function getHarvestWithheldTokensToMintInstructionDataDecoder(): FixedSizeDecoder<HarvestWithheldTokensToMintInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['transferFeeDiscriminator', getU8Decoder()],
   ]);
 }
 
-export function getHarvestWithheldTokensToMintInstructionDataCodec(): Codec<
+export function getHarvestWithheldTokensToMintInstructionDataCodec(): FixedSizeCodec<
   HarvestWithheldTokensToMintInstructionDataArgs,
   HarvestWithheldTokensToMintInstructionData
 > {

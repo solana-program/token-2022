@@ -17,9 +17,9 @@ import {
   transformEncoder,
   type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -61,7 +61,7 @@ export type InitializePermanentDelegateInstructionDataArgs = {
   delegate: Address;
 };
 
-export function getInitializePermanentDelegateInstructionDataEncoder(): Encoder<InitializePermanentDelegateInstructionDataArgs> {
+export function getInitializePermanentDelegateInstructionDataEncoder(): FixedSizeEncoder<InitializePermanentDelegateInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -74,14 +74,14 @@ export function getInitializePermanentDelegateInstructionDataEncoder(): Encoder<
   );
 }
 
-export function getInitializePermanentDelegateInstructionDataDecoder(): Decoder<InitializePermanentDelegateInstructionData> {
+export function getInitializePermanentDelegateInstructionDataDecoder(): FixedSizeDecoder<InitializePermanentDelegateInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['delegate', getAddressDecoder()],
   ]);
 }
 
-export function getInitializePermanentDelegateInstructionDataCodec(): Codec<
+export function getInitializePermanentDelegateInstructionDataCodec(): FixedSizeCodec<
   InitializePermanentDelegateInstructionDataArgs,
   InitializePermanentDelegateInstructionData
 > {

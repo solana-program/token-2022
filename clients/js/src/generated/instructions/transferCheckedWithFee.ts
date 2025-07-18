@@ -19,9 +19,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -103,7 +103,7 @@ export type TransferCheckedWithFeeInstructionDataArgs = {
   fee: number | bigint;
 };
 
-export function getTransferCheckedWithFeeInstructionDataEncoder(): Encoder<TransferCheckedWithFeeInstructionDataArgs> {
+export function getTransferCheckedWithFeeInstructionDataEncoder(): FixedSizeEncoder<TransferCheckedWithFeeInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -121,7 +121,7 @@ export function getTransferCheckedWithFeeInstructionDataEncoder(): Encoder<Trans
   );
 }
 
-export function getTransferCheckedWithFeeInstructionDataDecoder(): Decoder<TransferCheckedWithFeeInstructionData> {
+export function getTransferCheckedWithFeeInstructionDataDecoder(): FixedSizeDecoder<TransferCheckedWithFeeInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['transferFeeDiscriminator', getU8Decoder()],
@@ -131,7 +131,7 @@ export function getTransferCheckedWithFeeInstructionDataDecoder(): Decoder<Trans
   ]);
 }
 
-export function getTransferCheckedWithFeeInstructionDataCodec(): Codec<
+export function getTransferCheckedWithFeeInstructionDataCodec(): FixedSizeCodec<
   TransferCheckedWithFeeInstructionDataArgs,
   TransferCheckedWithFeeInstructionData
 > {

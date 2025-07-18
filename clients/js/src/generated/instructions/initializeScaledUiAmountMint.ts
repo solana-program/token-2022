@@ -21,9 +21,9 @@ import {
   transformEncoder,
   type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -80,7 +80,7 @@ export type InitializeScaledUiAmountMintInstructionDataArgs = {
   multiplier: number;
 };
 
-export function getInitializeScaledUiAmountMintInstructionDataEncoder(): Encoder<InitializeScaledUiAmountMintInstructionDataArgs> {
+export function getInitializeScaledUiAmountMintInstructionDataEncoder(): FixedSizeEncoder<InitializeScaledUiAmountMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -103,7 +103,7 @@ export function getInitializeScaledUiAmountMintInstructionDataEncoder(): Encoder
   );
 }
 
-export function getInitializeScaledUiAmountMintInstructionDataDecoder(): Decoder<InitializeScaledUiAmountMintInstructionData> {
+export function getInitializeScaledUiAmountMintInstructionDataDecoder(): FixedSizeDecoder<InitializeScaledUiAmountMintInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['scaledUiAmountMintDiscriminator', getU8Decoder()],
@@ -118,7 +118,7 @@ export function getInitializeScaledUiAmountMintInstructionDataDecoder(): Decoder
   ]);
 }
 
-export function getInitializeScaledUiAmountMintInstructionDataCodec(): Codec<
+export function getInitializeScaledUiAmountMintInstructionDataCodec(): FixedSizeCodec<
   InitializeScaledUiAmountMintInstructionDataArgs,
   InitializeScaledUiAmountMintInstructionData
 > {

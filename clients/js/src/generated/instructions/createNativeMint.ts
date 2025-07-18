@@ -16,9 +16,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -67,18 +67,18 @@ export type CreateNativeMintInstructionData = { discriminator: number };
 
 export type CreateNativeMintInstructionDataArgs = {};
 
-export function getCreateNativeMintInstructionDataEncoder(): Encoder<CreateNativeMintInstructionDataArgs> {
+export function getCreateNativeMintInstructionDataEncoder(): FixedSizeEncoder<CreateNativeMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
     (value) => ({ ...value, discriminator: CREATE_NATIVE_MINT_DISCRIMINATOR })
   );
 }
 
-export function getCreateNativeMintInstructionDataDecoder(): Decoder<CreateNativeMintInstructionData> {
+export function getCreateNativeMintInstructionDataDecoder(): FixedSizeDecoder<CreateNativeMintInstructionData> {
   return getStructDecoder([['discriminator', getU8Decoder()]]);
 }
 
-export function getCreateNativeMintInstructionDataCodec(): Codec<
+export function getCreateNativeMintInstructionDataCodec(): FixedSizeCodec<
   CreateNativeMintInstructionDataArgs,
   CreateNativeMintInstructionData
 > {

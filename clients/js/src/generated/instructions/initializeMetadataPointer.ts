@@ -19,9 +19,9 @@ import {
   transformEncoder,
   type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -78,7 +78,7 @@ export type InitializeMetadataPointerInstructionDataArgs = {
   metadataAddress: OptionOrNullable<Address>;
 };
 
-export function getInitializeMetadataPointerInstructionDataEncoder(): Encoder<InitializeMetadataPointerInstructionDataArgs> {
+export function getInitializeMetadataPointerInstructionDataEncoder(): FixedSizeEncoder<InitializeMetadataPointerInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -107,7 +107,7 @@ export function getInitializeMetadataPointerInstructionDataEncoder(): Encoder<In
   );
 }
 
-export function getInitializeMetadataPointerInstructionDataDecoder(): Decoder<InitializeMetadataPointerInstructionData> {
+export function getInitializeMetadataPointerInstructionDataDecoder(): FixedSizeDecoder<InitializeMetadataPointerInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['metadataPointerDiscriminator', getU8Decoder()],
@@ -128,7 +128,7 @@ export function getInitializeMetadataPointerInstructionDataDecoder(): Decoder<In
   ]);
 }
 
-export function getInitializeMetadataPointerInstructionDataCodec(): Codec<
+export function getInitializeMetadataPointerInstructionDataCodec(): FixedSizeCodec<
   InitializeMetadataPointerInstructionDataArgs,
   InitializeMetadataPointerInstructionData
 > {

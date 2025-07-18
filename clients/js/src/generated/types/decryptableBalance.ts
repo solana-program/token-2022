@@ -12,9 +12,9 @@ import {
   fixEncoderSize,
   getBytesDecoder,
   getBytesEncoder,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type ReadonlyUint8Array,
 } from '@solana/kit';
 
@@ -23,15 +23,15 @@ export type DecryptableBalance = ReadonlyUint8Array;
 
 export type DecryptableBalanceArgs = DecryptableBalance;
 
-export function getDecryptableBalanceEncoder(): Encoder<DecryptableBalanceArgs> {
+export function getDecryptableBalanceEncoder(): FixedSizeEncoder<DecryptableBalanceArgs> {
   return fixEncoderSize(getBytesEncoder(), 36);
 }
 
-export function getDecryptableBalanceDecoder(): Decoder<DecryptableBalance> {
+export function getDecryptableBalanceDecoder(): FixedSizeDecoder<DecryptableBalance> {
   return fixDecoderSize(getBytesDecoder(), 36);
 }
 
-export function getDecryptableBalanceCodec(): Codec<
+export function getDecryptableBalanceCodec(): FixedSizeCodec<
   DecryptableBalanceArgs,
   DecryptableBalance
 > {

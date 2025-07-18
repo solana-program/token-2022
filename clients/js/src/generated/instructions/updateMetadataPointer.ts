@@ -21,9 +21,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -85,7 +85,7 @@ export type UpdateMetadataPointerInstructionDataArgs = {
   metadataAddress: OptionOrNullable<Address>;
 };
 
-export function getUpdateMetadataPointerInstructionDataEncoder(): Encoder<UpdateMetadataPointerInstructionDataArgs> {
+export function getUpdateMetadataPointerInstructionDataEncoder(): FixedSizeEncoder<UpdateMetadataPointerInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -107,7 +107,7 @@ export function getUpdateMetadataPointerInstructionDataEncoder(): Encoder<Update
   );
 }
 
-export function getUpdateMetadataPointerInstructionDataDecoder(): Decoder<UpdateMetadataPointerInstructionData> {
+export function getUpdateMetadataPointerInstructionDataDecoder(): FixedSizeDecoder<UpdateMetadataPointerInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['metadataPointerDiscriminator', getU8Decoder()],
@@ -121,7 +121,7 @@ export function getUpdateMetadataPointerInstructionDataDecoder(): Decoder<Update
   ]);
 }
 
-export function getUpdateMetadataPointerInstructionDataCodec(): Codec<
+export function getUpdateMetadataPointerInstructionDataCodec(): FixedSizeCodec<
   UpdateMetadataPointerInstructionDataArgs,
   UpdateMetadataPointerInstructionData
 > {

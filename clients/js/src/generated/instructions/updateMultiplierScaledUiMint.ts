@@ -21,9 +21,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -84,7 +84,7 @@ export type UpdateMultiplierScaledUiMintInstructionDataArgs = {
   effectiveTimestamp: number | bigint;
 };
 
-export function getUpdateMultiplierScaledUiMintInstructionDataEncoder(): Encoder<UpdateMultiplierScaledUiMintInstructionDataArgs> {
+export function getUpdateMultiplierScaledUiMintInstructionDataEncoder(): FixedSizeEncoder<UpdateMultiplierScaledUiMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -101,7 +101,7 @@ export function getUpdateMultiplierScaledUiMintInstructionDataEncoder(): Encoder
   );
 }
 
-export function getUpdateMultiplierScaledUiMintInstructionDataDecoder(): Decoder<UpdateMultiplierScaledUiMintInstructionData> {
+export function getUpdateMultiplierScaledUiMintInstructionDataDecoder(): FixedSizeDecoder<UpdateMultiplierScaledUiMintInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['scaledUiAmountMintDiscriminator', getU8Decoder()],
@@ -110,7 +110,7 @@ export function getUpdateMultiplierScaledUiMintInstructionDataDecoder(): Decoder
   ]);
 }
 
-export function getUpdateMultiplierScaledUiMintInstructionDataCodec(): Codec<
+export function getUpdateMultiplierScaledUiMintInstructionDataCodec(): FixedSizeCodec<
   UpdateMultiplierScaledUiMintInstructionDataArgs,
   UpdateMultiplierScaledUiMintInstructionData
 > {

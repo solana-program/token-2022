@@ -19,9 +19,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -107,7 +107,7 @@ export type WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionD
     newDecryptableAvailableBalance: DecryptableBalanceArgs;
   };
 
-export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataEncoder(): Encoder<WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataArgs> {
+export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataEncoder(): FixedSizeEncoder<WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -125,7 +125,7 @@ export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstr
   );
 }
 
-export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataDecoder(): Decoder<WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionData> {
+export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataDecoder(): FixedSizeDecoder<WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferFeeDiscriminator', getU8Decoder()],
@@ -134,7 +134,7 @@ export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstr
   ]);
 }
 
-export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataCodec(): Codec<
+export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataCodec(): FixedSizeCodec<
   WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataArgs,
   WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionData
 > {

@@ -21,9 +21,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -83,7 +83,7 @@ export type UpdateGroupPointerInstructionDataArgs = {
   groupAddress: OptionOrNullable<Address>;
 };
 
-export function getUpdateGroupPointerInstructionDataEncoder(): Encoder<UpdateGroupPointerInstructionDataArgs> {
+export function getUpdateGroupPointerInstructionDataEncoder(): FixedSizeEncoder<UpdateGroupPointerInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -105,7 +105,7 @@ export function getUpdateGroupPointerInstructionDataEncoder(): Encoder<UpdateGro
   );
 }
 
-export function getUpdateGroupPointerInstructionDataDecoder(): Decoder<UpdateGroupPointerInstructionData> {
+export function getUpdateGroupPointerInstructionDataDecoder(): FixedSizeDecoder<UpdateGroupPointerInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['groupPointerDiscriminator', getU8Decoder()],
@@ -119,7 +119,7 @@ export function getUpdateGroupPointerInstructionDataDecoder(): Decoder<UpdateGro
   ]);
 }
 
-export function getUpdateGroupPointerInstructionDataCodec(): Codec<
+export function getUpdateGroupPointerInstructionDataCodec(): FixedSizeCodec<
   UpdateGroupPointerInstructionDataArgs,
   UpdateGroupPointerInstructionData
 > {

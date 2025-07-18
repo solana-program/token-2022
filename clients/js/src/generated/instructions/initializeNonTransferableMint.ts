@@ -15,9 +15,9 @@ import {
   transformEncoder,
   type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -54,7 +54,7 @@ export type InitializeNonTransferableMintInstructionData = {
 
 export type InitializeNonTransferableMintInstructionDataArgs = {};
 
-export function getInitializeNonTransferableMintInstructionDataEncoder(): Encoder<InitializeNonTransferableMintInstructionDataArgs> {
+export function getInitializeNonTransferableMintInstructionDataEncoder(): FixedSizeEncoder<InitializeNonTransferableMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
     (value) => ({
@@ -64,11 +64,11 @@ export function getInitializeNonTransferableMintInstructionDataEncoder(): Encode
   );
 }
 
-export function getInitializeNonTransferableMintInstructionDataDecoder(): Decoder<InitializeNonTransferableMintInstructionData> {
+export function getInitializeNonTransferableMintInstructionDataDecoder(): FixedSizeDecoder<InitializeNonTransferableMintInstructionData> {
   return getStructDecoder([['discriminator', getU8Decoder()]]);
 }
 
-export function getInitializeNonTransferableMintInstructionDataCodec(): Codec<
+export function getInitializeNonTransferableMintInstructionDataCodec(): FixedSizeCodec<
   InitializeNonTransferableMintInstructionDataArgs,
   InitializeNonTransferableMintInstructionData
 > {

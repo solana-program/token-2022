@@ -17,9 +17,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -85,7 +85,7 @@ export type WithdrawWithheldTokensFromAccountsInstructionDataArgs = {
   numTokenAccounts: number;
 };
 
-export function getWithdrawWithheldTokensFromAccountsInstructionDataEncoder(): Encoder<WithdrawWithheldTokensFromAccountsInstructionDataArgs> {
+export function getWithdrawWithheldTokensFromAccountsInstructionDataEncoder(): FixedSizeEncoder<WithdrawWithheldTokensFromAccountsInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -101,7 +101,7 @@ export function getWithdrawWithheldTokensFromAccountsInstructionDataEncoder(): E
   );
 }
 
-export function getWithdrawWithheldTokensFromAccountsInstructionDataDecoder(): Decoder<WithdrawWithheldTokensFromAccountsInstructionData> {
+export function getWithdrawWithheldTokensFromAccountsInstructionDataDecoder(): FixedSizeDecoder<WithdrawWithheldTokensFromAccountsInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['transferFeeDiscriminator', getU8Decoder()],
@@ -109,7 +109,7 @@ export function getWithdrawWithheldTokensFromAccountsInstructionDataDecoder(): D
   ]);
 }
 
-export function getWithdrawWithheldTokensFromAccountsInstructionDataCodec(): Codec<
+export function getWithdrawWithheldTokensFromAccountsInstructionDataCodec(): FixedSizeCodec<
   WithdrawWithheldTokensFromAccountsInstructionDataArgs,
   WithdrawWithheldTokensFromAccountsInstructionData
 > {
