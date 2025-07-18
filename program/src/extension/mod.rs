@@ -1462,7 +1462,7 @@ pub(crate) fn alloc_and_serialize<S: BaseState + Pod, V: Default + Extension + P
 
     // Realloc the account first, if needed
     if new_account_len > previous_account_len {
-        account_info.realloc(new_account_len, true)?;
+        account_info.resize(new_account_len)?;
     }
     let mut buffer = account_info.try_borrow_mut_data()?;
     if previous_account_len <= BASE_ACCOUNT_LENGTH {
@@ -1510,7 +1510,7 @@ pub(crate) fn alloc_and_serialize_variable_len_extension<
     if previous_account_len < new_account_len {
         // account size increased, so realloc the account, then the TLV entry, then
         // write data
-        account_info.realloc(new_account_len, true)?;
+        account_info.resize(new_account_len)?;
         let mut buffer = account_info.try_borrow_mut_data()?;
         if extension_already_exists {
             let mut state = PodStateWithExtensionsMut::<S>::unpack(&mut buffer)?;
@@ -1540,7 +1540,7 @@ pub(crate) fn alloc_and_serialize_variable_len_extension<
         if removed_bytes > 0 {
             // this is probably fine, but be safe and avoid invalidating references
             drop(buffer);
-            account_info.realloc(new_account_len, true)?;
+            account_info.resize(new_account_len)?;
         }
     }
     Ok(())
