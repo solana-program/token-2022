@@ -9,7 +9,7 @@ license = { workspace = true }
 edition = { workspace = true }
 
 [dev-dependencies]
-curve25519-dalek = "4.2.0"
+curve25519-dalek = "4.1.3"
 solana-zk-sdk = "2.3.4"
 thiserror = "2.0.12"
 spl-token-confidential-transfer-proof-extraction = { version = "0.4.0", path = "../proof-extraction" }
