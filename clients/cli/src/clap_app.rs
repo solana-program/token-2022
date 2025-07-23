@@ -875,7 +875,14 @@ pub fn app<'a>(
                         .value_name("TRANSFER_HOOK_PROGRAM_ID")
                         .validator(|s| is_valid_pubkey(s))
                         .takes_value(true)
-                        .help("Enable the mint authority to set the transfer hook program for this mint"),
+                        .help("Set a transfer hook program for this mint. The mint authority can set the program id."),
+                )
+                .arg(
+                    Arg::with_name("enable_transfer_hook")
+                        .long("enable-transfer-hook")
+                        .conflicts_with("transfer_hook")
+                        .takes_value(false)
+                        .help("Enables the transfer hook in the mint. The mint authority can set the program id."),
                 )
                 .arg(
                     Arg::with_name("enable_metadata")
