@@ -35,6 +35,7 @@ use {
     },
     solana_system_interface::program as system_program,
     spl_associated_token_account_client::address::get_associated_token_address_with_program_id,
+    spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022::{
         extension::{
             confidential_transfer::{
@@ -350,9 +351,14 @@ async fn command_create_token(
     }
 
     if transfer_hook_program_id.is_some() || enable_transfer_hook {
+        let program_id: OptionalNonZeroPubkey = if let Some(program_id) = transfer_hook_program_id {
+            OptionalNonZeroPubkey(program_id)
+        } else {
+            OptionalNonZeroPubkey::default()
+        };
         extensions.push(ExtensionInitializationParams::TransferHook {
             authority: Some(authority),
-            program_id: transfer_hook_program_id,
+            program_id: program_id.into(),
         });
     }
 
