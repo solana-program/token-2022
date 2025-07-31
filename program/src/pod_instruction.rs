@@ -153,8 +153,9 @@ mod tests {
         super::*,
         crate::{
             extension::ExtensionType,
-            instruction::{decode_instruction_data, decode_instruction_type},
+            instruction::{AuthorityType, TokenInstruction, decode_instruction_data, decode_instruction_type},
         },
+        solana_program_option::COption,
         proptest::prelude::*,
     };
 
@@ -221,5 +222,403 @@ mod tests {
         ) {
             let _no_panic = check_pod_instruction(&data);
         }
+    }
+
+    #[test]
+    fn test_initialize_mint_packing() {
+        let decimals = 2;
+        let mint_authority = Pubkey::new_from_array([1u8; 32]);
+        let freeze_authority = COption::None;
+        let check = TokenInstruction::InitializeMint {
+            decimals,
+            mint_authority,
+            freeze_authority,
+        };
+        let packed = check.pack();
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::InitializeMint);
+        let (pod, pod_freeze_authority) =
+            decode_instruction_data_with_coption_pubkey::<InitializeMintData>(&packed).unwrap();
+        assert_eq!(pod.decimals, decimals);
+        assert_eq!(pod.mint_authority, mint_authority);
+        assert_eq!(pod_freeze_authority, freeze_authority.into());
+
+        let mint_authority = Pubkey::new_from_array([2u8; 32]);
+        let freeze_authority = COption::Some(Pubkey::new_from_array([3u8; 32]));
+        let check = TokenInstruction::InitializeMint {
+            decimals,
+            mint_authority,
+            freeze_authority,
+        };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::InitializeMint);
+        let (pod, pod_freeze_authority) =
+            decode_instruction_data_with_coption_pubkey::<InitializeMintData>(&packed).unwrap();
+        assert_eq!(pod.decimals, decimals);
+        assert_eq!(pod.mint_authority, mint_authority);
+        assert_eq!(pod_freeze_authority, freeze_authority.into());
+    }
+
+    #[test]
+    fn test_initialize_account_packing() {
+        let check = TokenInstruction::InitializeAccount;
+        let packed = check.pack();
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::InitializeAccount);
+    }
+
+    #[test]
+    fn test_initialize_multisig_packing() {
+        let m = 1;
+        let check = TokenInstruction::InitializeMultisig { m };
+        let packed = check.pack();
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::InitializeMultisig);
+        let pod = decode_instruction_data::<InitializeMultisigData>(&packed).unwrap();
+        assert_eq!(pod.m, m);
+    }
+
+    #[test]
+    fn test_transfer_packing() {
+        let amount = 1;
+        #[allow(deprecated)]
+        let check = TokenInstruction::Transfer { amount };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::Transfer);
+        let pod = decode_instruction_data::<AmountData>(&packed).unwrap();
+        assert_eq!(pod.amount, amount.into());
+    }
+
+    #[test]
+    fn test_approve_packing() {
+        let amount = 1;
+        let check = TokenInstruction::Approve { amount };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::Approve);
+        let pod = decode_instruction_data::<AmountData>(&packed).unwrap();
+        assert_eq!(pod.amount, amount.into());
+    }
+
+    #[test]
+    fn test_revoke_packing() {
+        let check = TokenInstruction::Revoke;
+        let packed = check.pack();
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::Revoke);
+    }
+
+    #[test]
+    fn test_set_authority_packing() {
+        let authority_type = AuthorityType::FreezeAccount;
+        let new_authority = COption::Some(Pubkey::new_from_array([4u8; 32]));
+        let check = TokenInstruction::SetAuthority {
+            authority_type: authority_type.clone(),
+            new_authority,
+        };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::SetAuthority);
+        let (pod, pod_new_authority) =
+            decode_instruction_data_with_coption_pubkey::<SetAuthorityData>(&packed).unwrap();
+        assert_eq!(
+            AuthorityType::from(pod.authority_type).unwrap(),
+            authority_type
+        );
+        assert_eq!(pod_new_authority, new_authority.into());
+    }
+
+    #[test]
+    fn test_mint_to_packing() {
+        let amount = 1;
+        let check = TokenInstruction::MintTo { amount };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::MintTo);
+        let pod = decode_instruction_data::<AmountData>(&packed).unwrap();
+        assert_eq!(pod.amount, amount.into());
+    }
+
+    #[test]
+    fn test_burn_packing() {
+        let amount = 1;
+        let check = TokenInstruction::Burn { amount };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::Burn);
+        let pod = decode_instruction_data::<AmountData>(&packed).unwrap();
+        assert_eq!(pod.amount, amount.into());
+    }
+
+    #[test]
+    fn test_close_account_packing() {
+        let check = TokenInstruction::CloseAccount;
+        let packed = check.pack();
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::CloseAccount);
+    }
+
+    #[test]
+    fn test_freeze_account_packing() {
+        let check = TokenInstruction::FreezeAccount;
+        let packed = check.pack();
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::FreezeAccount);
+    }
+
+    #[test]
+    fn test_thaw_account_packing() {
+        let check = TokenInstruction::ThawAccount;
+        let packed = check.pack();
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::ThawAccount);
+    }
+
+    #[test]
+    fn test_transfer_checked_packing() {
+        let amount = 1;
+        let decimals = 2;
+        let check = TokenInstruction::TransferChecked { amount, decimals };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::TransferChecked);
+        let pod = decode_instruction_data::<AmountCheckedData>(&packed).unwrap();
+        assert_eq!(pod.amount, amount.into());
+        assert_eq!(pod.decimals, decimals);
+    }
+
+    #[test]
+    fn test_approve_checked_packing() {
+        let amount = 1;
+        let decimals = 2;
+
+        let check = TokenInstruction::ApproveChecked { amount, decimals };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::ApproveChecked);
+        let pod = decode_instruction_data::<AmountCheckedData>(&packed).unwrap();
+        assert_eq!(pod.amount, amount.into());
+        assert_eq!(pod.decimals, decimals);
+    }
+
+    #[test]
+    fn test_mint_to_checked_packing() {
+        let amount = 1;
+        let decimals = 2;
+        let check = TokenInstruction::MintToChecked { amount, decimals };
+        let packed = check.pack();
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::MintToChecked);
+        let pod = decode_instruction_data::<AmountCheckedData>(&packed).unwrap();
+        assert_eq!(pod.amount, amount.into());
+        assert_eq!(pod.decimals, decimals);
+    }
+
+    #[test]
+    fn test_burn_checked_packing() {
+        let amount = 1;
+        let decimals = 2;
+        let check = TokenInstruction::BurnChecked { amount, decimals };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::BurnChecked);
+        let pod = decode_instruction_data::<AmountCheckedData>(&packed).unwrap();
+        assert_eq!(pod.amount, amount.into());
+        assert_eq!(pod.decimals, decimals);
+    }
+
+    #[test]
+    fn test_initialize_account2_packing() {
+        let owner = Pubkey::new_from_array([2u8; 32]);
+        let check = TokenInstruction::InitializeAccount2 { owner };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::InitializeAccount2);
+        let pod_owner = decode_instruction_data::<Pubkey>(&packed).unwrap();
+        assert_eq!(*pod_owner, owner);
+    }
+
+    #[test]
+    fn test_sync_native_packing() {
+        let check = TokenInstruction::SyncNative;
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::SyncNative);
+    }
+
+    #[test]
+    fn test_initialize_account3_packing() {
+        let owner = Pubkey::new_from_array([2u8; 32]);
+        let check = TokenInstruction::InitializeAccount3 { owner };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::InitializeAccount3);
+        let pod_owner = decode_instruction_data::<Pubkey>(&packed).unwrap();
+        assert_eq!(*pod_owner, owner);
+    }
+
+    #[test]
+    fn test_initialize_multisig2_packing() {
+        let m = 1;
+        let check = TokenInstruction::InitializeMultisig2 { m };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::InitializeMultisig2);
+        let pod = decode_instruction_data::<InitializeMultisigData>(&packed).unwrap();
+        assert_eq!(pod.m, m);
+    }
+
+    #[test]
+    fn test_initialize_mint2_packing() {
+        let decimals = 2;
+        let mint_authority = Pubkey::new_from_array([1u8; 32]);
+        let freeze_authority = COption::None;
+        let check = TokenInstruction::InitializeMint2 {
+            decimals,
+            mint_authority,
+            freeze_authority,
+        };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::InitializeMint2);
+        let (pod, pod_freeze_authority) =
+            decode_instruction_data_with_coption_pubkey::<InitializeMintData>(&packed).unwrap();
+        assert_eq!(pod.decimals, decimals);
+        assert_eq!(pod.mint_authority, mint_authority);
+        assert_eq!(pod_freeze_authority, freeze_authority.into());
+
+        let decimals = 2;
+        let mint_authority = Pubkey::new_from_array([2u8; 32]);
+        let freeze_authority = COption::Some(Pubkey::new_from_array([3u8; 32]));
+        let check = TokenInstruction::InitializeMint2 {
+            decimals,
+            mint_authority,
+            freeze_authority,
+        };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::InitializeMint2);
+        let (pod, pod_freeze_authority) =
+            decode_instruction_data_with_coption_pubkey::<InitializeMintData>(&packed).unwrap();
+        assert_eq!(pod.decimals, decimals);
+        assert_eq!(pod.mint_authority, mint_authority);
+        assert_eq!(pod_freeze_authority, freeze_authority.into());
+    }
+
+    #[test]
+    fn test_get_account_data_size_packing() {
+        let extension_types = vec![];
+        let check = TokenInstruction::GetAccountDataSize {
+            extension_types: extension_types.clone(),
+        };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::GetAccountDataSize);
+        let pod_extension_types = packed[1..]
+            .chunks(std::mem::size_of::<ExtensionType>())
+            .map(ExtensionType::try_from)
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(pod_extension_types, extension_types);
+
+        let extension_types = vec![
+            ExtensionType::TransferFeeConfig,
+            ExtensionType::TransferFeeAmount,
+        ];
+        let check = TokenInstruction::GetAccountDataSize {
+            extension_types: extension_types.clone(),
+        };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::GetAccountDataSize);
+        let pod_extension_types = packed[1..]
+            .chunks(std::mem::size_of::<ExtensionType>())
+            .map(ExtensionType::try_from)
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(pod_extension_types, extension_types);
+    }
+
+    #[test]
+    fn test_amount_to_ui_amount_packing() {
+        let amount = 42;
+        let check = TokenInstruction::AmountToUiAmount { amount };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::AmountToUiAmount);
+        let data = decode_instruction_data::<AmountData>(&packed).unwrap();
+        assert_eq!(data.amount, amount.into());
+    }
+
+    #[test]
+    fn test_ui_amount_to_amount_packing() {
+        let ui_amount = "0.42";
+        let check = TokenInstruction::UiAmountToAmount { ui_amount };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::UiAmountToAmount);
+        let pod_ui_amount = std::str::from_utf8(&packed[1..]).unwrap();
+        assert_eq!(pod_ui_amount, ui_amount);
+    }
+
+    #[test]
+    fn test_initialize_mint_close_authority_packing() {
+        let close_authority = COption::Some(Pubkey::new_from_array([10u8; 32]));
+        let check = TokenInstruction::InitializeMintCloseAuthority { close_authority };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(
+            instruction_type,
+            PodTokenInstruction::InitializeMintCloseAuthority
+        );
+        let (_, pod_close_authority) =
+            decode_instruction_data_with_coption_pubkey::<()>(&packed).unwrap();
+        assert_eq!(pod_close_authority, close_authority.into());
+    }
+
+    #[test]
+    fn test_create_native_mint_packing() {
+        let check = TokenInstruction::CreateNativeMint;
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::CreateNativeMint);
+    }
+
+    #[test]
+    fn test_initialize_permanent_delegate_packing() {
+        let delegate = Pubkey::new_from_array([11u8; 32]);
+        let check = TokenInstruction::InitializePermanentDelegate { delegate };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(
+            instruction_type,
+            PodTokenInstruction::InitializePermanentDelegate
+        );
+        let pod_delegate = decode_instruction_data::<Pubkey>(&packed).unwrap();
+        assert_eq!(*pod_delegate, delegate);
     }
 }

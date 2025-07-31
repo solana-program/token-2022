@@ -14,8 +14,6 @@ pub mod onchain;
 pub mod pod;
 pub mod pod_instruction;
 pub mod processor;
-#[cfg(feature = "serde-traits")]
-pub mod serialization;
 pub mod state;
 
 #[cfg(not(feature = "no-entrypoint"))]

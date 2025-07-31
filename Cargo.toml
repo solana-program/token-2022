@@ -19,6 +19,7 @@ members = [
   "confidential-transfer/proof-extraction",
   "confidential-transfer/proof-generation",
   "confidential-transfer/proof-tests",
+  "interface",
   "program",
 ]
 
