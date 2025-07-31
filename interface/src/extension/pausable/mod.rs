@@ -1,4 +1,4 @@
-#[cfg(feature = "serde-traits")]
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use {
     crate::extension::{Extension, ExtensionType},
@@ -10,8 +10,8 @@ use {
 pub mod instruction;
 
 /// Indicates that the tokens from this mint can be paused
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct PausableConfig {
@@ -22,8 +22,8 @@ pub struct PausableConfig {
 }
 
 /// Indicates that the tokens from this account belong to a pausable mint
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 #[repr(transparent)]
 pub struct PausableAccount;

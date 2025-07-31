@@ -1,4 +1,4 @@
-#[cfg(feature = "serde-traits")]
+#[cfg(feature = "serde")]
 use {
     crate::serialization::{aeciphertext_fromstr, elgamalpubkey_fromstr},
     serde::{Deserialize, Serialize},
@@ -28,8 +28,8 @@ use {
 };
 
 /// Confidential Transfer extension instructions
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum ConfidentialTransferFeeInstruction {
@@ -211,8 +211,8 @@ pub enum ConfidentialTransferFeeInstruction {
 }
 
 /// Data expected by `InitializeConfidentialTransferFeeConfig`
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct InitializeConfidentialTransferFeeConfigData {
@@ -220,14 +220,14 @@ pub struct InitializeConfidentialTransferFeeConfigData {
     pub authority: OptionalNonZeroPubkey,
 
     /// ElGamal public key used to encrypt withheld fees.
-    #[cfg_attr(feature = "serde-traits", serde(with = "elgamalpubkey_fromstr"))]
+    #[cfg_attr(feature = "serde", serde(with = "elgamalpubkey_fromstr"))]
     pub withdraw_withheld_authority_elgamal_pubkey: PodElGamalPubkey,
 }
 
 /// Data expected by
 /// `ConfidentialTransferFeeInstruction::WithdrawWithheldTokensFromMint`
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct WithdrawWithheldTokensFromMintData {
@@ -237,14 +237,14 @@ pub struct WithdrawWithheldTokensFromMintData {
     /// account for the proof.
     pub proof_instruction_offset: i8,
     /// The new decryptable balance in the destination token account.
-    #[cfg_attr(feature = "serde-traits", serde(with = "aeciphertext_fromstr"))]
+    #[cfg_attr(feature = "serde", serde(with = "aeciphertext_fromstr"))]
     pub new_decryptable_available_balance: DecryptableBalance,
 }
 
 /// Data expected by
 /// `ConfidentialTransferFeeInstruction::WithdrawWithheldTokensFromAccounts`
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct WithdrawWithheldTokensFromAccountsData {
@@ -256,7 +256,7 @@ pub struct WithdrawWithheldTokensFromAccountsData {
     /// context state account for the proof.
     pub proof_instruction_offset: i8,
     /// The new decryptable balance in the destination token account.
-    #[cfg_attr(feature = "serde-traits", serde(with = "aeciphertext_fromstr"))]
+    #[cfg_attr(feature = "serde", serde(with = "aeciphertext_fromstr"))]
     pub new_decryptable_available_balance: DecryptableBalance,
 }
 

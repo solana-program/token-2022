@@ -1,4 +1,4 @@
-#[cfg(feature = "serde-traits")]
+#[cfg(feature = "serde")]
 use {
     crate::serialization::{
         aeciphertext_fromstr, elgamalciphertext_fromstr, elgamalpubkey_fromstr,
@@ -36,8 +36,8 @@ use {
 };
 
 /// Confidential Transfer extension instructions
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum ConfidentialMintBurnInstruction {
@@ -195,27 +195,27 @@ pub enum ConfidentialMintBurnInstruction {
 }
 
 /// Data expected by `ConfidentialMintBurnInstruction::InitializeMint`
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct InitializeMintData {
     /// The ElGamal pubkey used to encrypt the confidential supply
-    #[cfg_attr(feature = "serde-traits", serde(with = "elgamalpubkey_fromstr"))]
+    #[cfg_attr(feature = "serde", serde(with = "elgamalpubkey_fromstr"))]
     pub supply_elgamal_pubkey: PodElGamalPubkey,
     /// The initial 0 supply encrypted with the supply aes key
-    #[cfg_attr(feature = "serde-traits", serde(with = "aeciphertext_fromstr"))]
+    #[cfg_attr(feature = "serde", serde(with = "aeciphertext_fromstr"))]
     pub decryptable_supply: PodAeCiphertext,
 }
 
 /// Data expected by `ConfidentialMintBurnInstruction::RotateSupplyElGamal`
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct RotateSupplyElGamalPubkeyData {
     /// The new ElGamal pubkey for supply encryption
-    #[cfg_attr(feature = "serde-traits", serde(with = "elgamalpubkey_fromstr"))]
+    #[cfg_attr(feature = "serde", serde(with = "elgamalpubkey_fromstr"))]
     pub new_supply_elgamal_pubkey: PodElGamalPubkey,
     /// The location of the
     /// `ProofInstruction::VerifyCiphertextCiphertextEquality` instruction
@@ -224,30 +224,30 @@ pub struct RotateSupplyElGamalPubkeyData {
 }
 
 /// Data expected by `ConfidentialMintBurnInstruction::UpdateDecryptableSupply`
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct UpdateDecryptableSupplyData {
     /// The new decryptable supply
-    #[cfg_attr(feature = "serde-traits", serde(with = "aeciphertext_fromstr"))]
+    #[cfg_attr(feature = "serde", serde(with = "aeciphertext_fromstr"))]
     pub new_decryptable_supply: PodAeCiphertext,
 }
 
 /// Data expected by `ConfidentialMintBurnInstruction::ConfidentialMint`
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct MintInstructionData {
     /// The new decryptable supply if the mint succeeds
-    #[cfg_attr(feature = "serde-traits", serde(with = "aeciphertext_fromstr"))]
+    #[cfg_attr(feature = "serde", serde(with = "aeciphertext_fromstr"))]
     pub new_decryptable_supply: PodAeCiphertext,
     /// The transfer amount encrypted under the auditor ElGamal public key
-    #[cfg_attr(feature = "serde-traits", serde(with = "elgamalciphertext_fromstr"))]
+    #[cfg_attr(feature = "serde", serde(with = "elgamalciphertext_fromstr"))]
     pub mint_amount_auditor_ciphertext_lo: PodElGamalCiphertext,
     /// The transfer amount encrypted under the auditor ElGamal public key
-    #[cfg_attr(feature = "serde-traits", serde(with = "elgamalciphertext_fromstr"))]
+    #[cfg_attr(feature = "serde", serde(with = "elgamalciphertext_fromstr"))]
     pub mint_amount_auditor_ciphertext_hi: PodElGamalCiphertext,
     /// Relative location of the
     /// `ProofInstruction::VerifyCiphertextCommitmentEquality` instruction
@@ -266,19 +266,19 @@ pub struct MintInstructionData {
 }
 
 /// Data expected by `ConfidentialMintBurnInstruction::ConfidentialBurn`
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct BurnInstructionData {
     /// The new decryptable balance of the burner if the burn succeeds
-    #[cfg_attr(feature = "serde-traits", serde(with = "aeciphertext_fromstr"))]
+    #[cfg_attr(feature = "serde", serde(with = "aeciphertext_fromstr"))]
     pub new_decryptable_available_balance: DecryptableBalance,
     /// The transfer amount encrypted under the auditor ElGamal public key
-    #[cfg_attr(feature = "serde-traits", serde(with = "elgamalciphertext_fromstr"))]
+    #[cfg_attr(feature = "serde", serde(with = "elgamalciphertext_fromstr"))]
     pub burn_amount_auditor_ciphertext_lo: PodElGamalCiphertext,
     /// The transfer amount encrypted under the auditor ElGamal public key
-    #[cfg_attr(feature = "serde-traits", serde(with = "elgamalciphertext_fromstr"))]
+    #[cfg_attr(feature = "serde", serde(with = "elgamalciphertext_fromstr"))]
     pub burn_amount_auditor_ciphertext_hi: PodElGamalCiphertext,
     /// Relative location of the
     /// `ProofInstruction::VerifyCiphertextCommitmentEquality` instruction

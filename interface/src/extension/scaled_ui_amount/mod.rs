@@ -1,4 +1,4 @@
-#[cfg(feature = "serde-traits")]
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use {
     crate::{
@@ -17,8 +17,8 @@ pub mod instruction;
 pub type UnixTimestamp = PodI64;
 
 /// `f64` type that can be used in `Pod`s
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(from = "f64", into = "f64"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(from = "f64", into = "f64"))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 #[repr(transparent)]
 pub struct PodF64(pub [u8; 8]);
@@ -40,8 +40,8 @@ impl From<PodF64> for f64 {
 
 /// Scaled UI amount extension data for mints
 #[repr(C)]
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct ScaledUiAmountConfig {
     /// Authority that can set the scaling amount and authority

@@ -1,6 +1,6 @@
 //! Extensions available to token mints and accounts
 
-#[cfg(feature = "serde-traits")]
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use {
     crate::{
@@ -1050,8 +1050,8 @@ impl Default for AccountType {
 /// only be applied to mint accounts, and account extensions must only be
 /// applied to token holding accounts.
 #[repr(u16)]
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, PartialEq, TryFromPrimitive, IntoPrimitive)]
 pub enum ExtensionType {
     /// Used as padding if the account size would otherwise be 355, same as a
@@ -1556,7 +1556,6 @@ mod test {
         solana_account_info::{
             Account as GetAccount, IntoAccountInfo, MAX_PERMITTED_DATA_INCREASE,
         },
-        solana_clock::Epoch,
         solana_pubkey::Pubkey,
         spl_pod::{
             bytemuck::pod_bytes_of,
@@ -2816,7 +2815,7 @@ mod test {
         }
     }
     impl GetAccount for SolanaAccountData {
-        fn get(&mut self) -> (&mut u64, &mut [u8], &Pubkey, bool, Epoch) {
+        fn get(&mut self) -> (&mut u64, &mut [u8], &Pubkey, bool, u64) {
             // need to pull out the data here to avoid a double-mutable borrow
             let start = size_of::<u64>();
             let len = self.len();
@@ -2825,7 +2824,7 @@ mod test {
                 &mut self.data[start..start + len],
                 &self.owner,
                 false,
-                Epoch::default(),
+                u64::default(),
             )
         }
     }

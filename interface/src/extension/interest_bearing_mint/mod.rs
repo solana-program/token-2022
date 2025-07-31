@@ -1,4 +1,4 @@
-#[cfg(feature = "serde-traits")]
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use {
     crate::{
@@ -34,8 +34,8 @@ pub type UnixTimestamp = PodI64;
 /// To support changing the rate, the config also maintains state for the
 /// previous rate.
 #[repr(C)]
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct InterestBearingConfig {
     /// Authority that can set the interest rate and authority

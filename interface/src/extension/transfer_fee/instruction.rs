@@ -1,4 +1,4 @@
-#[cfg(feature = "serde-traits")]
+#[cfg(feature = "serde")]
 use {
     crate::serialization::coption_fromstr,
     serde::{Deserialize, Serialize},
@@ -13,9 +13,9 @@ use {
 };
 
 /// Transfer Fee extension instructions
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(
-    feature = "serde-traits",
+    feature = "serde",
     serde(rename_all = "camelCase", rename_all_fields = "camelCase")
 )]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -35,10 +35,10 @@ pub enum TransferFeeInstruction {
     ///   0. `[writable]` The mint to initialize.
     InitializeTransferFeeConfig {
         /// Pubkey that may update the fees
-        #[cfg_attr(feature = "serde-traits", serde(with = "coption_fromstr"))]
+        #[cfg_attr(feature = "serde", serde(with = "coption_fromstr"))]
         transfer_fee_config_authority: COption<Pubkey>,
         /// Withdraw instructions must be signed by this key
-        #[cfg_attr(feature = "serde-traits", serde(with = "coption_fromstr"))]
+        #[cfg_attr(feature = "serde", serde(with = "coption_fromstr"))]
         withdraw_withheld_authority: COption<Pubkey>,
         /// Amount of transfer collected as fees, expressed as basis points of
         /// the transfer amount

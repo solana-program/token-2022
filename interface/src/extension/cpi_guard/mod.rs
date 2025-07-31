@@ -1,4 +1,4 @@
-#[cfg(feature = "serde-traits")]
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use {
     crate::{
@@ -14,8 +14,8 @@ pub mod instruction;
 
 /// CPI Guard extension for Accounts
 #[repr(C)]
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct CpiGuard {
     /// Lock privileged token operations from happening via CPI

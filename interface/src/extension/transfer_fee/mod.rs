@@ -1,4 +1,4 @@
-#[cfg(feature = "serde-traits")]
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use {
     crate::{
@@ -6,7 +6,6 @@ use {
         extension::{Extension, ExtensionType},
     },
     bytemuck::{Pod, Zeroable},
-    solana_clock::Epoch,
     solana_program_error::ProgramResult,
     spl_pod::{
         optional_keys::OptionalNonZeroPubkey,
@@ -27,8 +26,8 @@ const ONE_IN_BASIS_POINTS: u128 = MAX_FEE_BASIS_POINTS as u128;
 
 /// Transfer fee information
 #[repr(C)]
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct TransferFee {
     /// First epoch where the transfer fee takes effect
@@ -128,8 +127,8 @@ impl TransferFee {
 
 /// Transfer fee extension data for mints.
 #[repr(C)]
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct TransferFeeConfig {
     /// Optional authority to set the fee
@@ -146,7 +145,7 @@ pub struct TransferFeeConfig {
 }
 impl TransferFeeConfig {
     /// Get the fee for the given epoch
-    pub fn get_epoch_fee(&self, epoch: Epoch) -> &TransferFee {
+    pub fn get_epoch_fee(&self, epoch: u64) -> &TransferFee {
         if epoch >= self.newer_transfer_fee.epoch.into() {
             &self.newer_transfer_fee
         } else {
@@ -154,11 +153,11 @@ impl TransferFeeConfig {
         }
     }
     /// Calculate the fee for the given epoch and input amount
-    pub fn calculate_epoch_fee(&self, epoch: Epoch, pre_fee_amount: u64) -> Option<u64> {
+    pub fn calculate_epoch_fee(&self, epoch: u64, pre_fee_amount: u64) -> Option<u64> {
         self.get_epoch_fee(epoch).calculate_fee(pre_fee_amount)
     }
     /// Calculate the fee for the given epoch and output amount
-    pub fn calculate_inverse_epoch_fee(&self, epoch: Epoch, post_fee_amount: u64) -> Option<u64> {
+    pub fn calculate_inverse_epoch_fee(&self, epoch: u64, post_fee_amount: u64) -> Option<u64> {
         self.get_epoch_fee(epoch)
             .calculate_inverse_fee(post_fee_amount)
     }
@@ -169,8 +168,8 @@ impl Extension for TransferFeeConfig {
 
 /// Transfer fee extension data for accounts.
 #[repr(C)]
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct TransferFeeAmount {
     /// Amount withheld during transfers, to be harvested to the mint

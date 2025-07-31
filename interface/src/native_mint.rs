@@ -11,22 +11,7 @@ pub const PROGRAM_ADDRESS_SEEDS: &[&[u8]] = &["native-mint".as_bytes(), &[255]];
 
 #[cfg(test)]
 mod tests {
-    use {
-        super::*,
-        solana_native_token::{lamports_to_sol, sol_to_lamports},
-        solana_pubkey::Pubkey,
-    };
-
-    #[test]
-    fn test_decimals() {
-        assert!(
-            (lamports_to_sol(42) - crate::amount_to_ui_amount(42, DECIMALS)).abs() < f64::EPSILON
-        );
-        assert_eq!(
-            sol_to_lamports(42.),
-            crate::ui_amount_to_amount(42., DECIMALS)
-        );
-    }
+    use {super::*, solana_pubkey::Pubkey};
 
     #[test]
     fn expected_native_mint_id() {

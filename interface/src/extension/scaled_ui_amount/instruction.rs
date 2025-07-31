@@ -1,4 +1,4 @@
-#[cfg(feature = "serde-traits")]
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use {
     crate::{
@@ -16,8 +16,8 @@ use {
 };
 
 /// Interesting-bearing mint extension instructions
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum ScaledUiAmountMintInstruction {
@@ -67,8 +67,8 @@ pub enum ScaledUiAmountMintInstruction {
 }
 
 /// Data expected by `ScaledUiAmountMint::Initialize`
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct InitializeInstructionData {
@@ -79,8 +79,8 @@ pub struct InitializeInstructionData {
 }
 
 /// Data expected by `ScaledUiAmountMint::UpdateMultiplier`
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct UpdateMultiplierInstructionData {

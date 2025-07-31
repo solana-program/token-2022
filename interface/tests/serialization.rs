@@ -1,11 +1,11 @@
-#![cfg(feature = "serde-traits")]
+#![cfg(feature = "serde")]
 
 use {
     base64::{engine::general_purpose::STANDARD, Engine},
     solana_program_option::COption,
     solana_pubkey::Pubkey,
     spl_pod::optional_keys::{OptionalNonZeroElGamalPubkey, OptionalNonZeroPubkey},
-    spl_token_2022::{extension::confidential_transfer, instruction},
+    spl_token_2022_interface::{extension::confidential_transfer, instruction},
     std::str::FromStr,
 };
 
@@ -128,7 +128,7 @@ fn serde_instruction_decryptable_balance_podu64() {
 
 #[test]
 fn serde_instruction_elgamal_pubkey() {
-    use spl_token_2022::extension::confidential_transfer_fee::instruction::InitializeConfidentialTransferFeeConfigData;
+    use spl_token_2022_interface::extension::confidential_transfer_fee::instruction::InitializeConfidentialTransferFeeConfigData;
 
     let pubkey_string = STANDARD.encode([
         162, 23, 108, 36, 130, 143, 18, 219, 196, 134, 242, 145, 179, 49, 229, 193, 74, 64, 3, 158,
@@ -153,7 +153,7 @@ fn serde_instruction_elgamal_pubkey() {
 
 #[test]
 fn serde_instruction_basis_points() {
-    use spl_token_2022::extension::interest_bearing_mint::instruction::InitializeInstructionData;
+    use spl_token_2022_interface::extension::interest_bearing_mint::instruction::InitializeInstructionData;
 
     let inst = InitializeInstructionData {
         rate_authority: OptionalNonZeroPubkey::default(),
