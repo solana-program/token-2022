@@ -1179,7 +1179,7 @@ impl AuthorityType {
         }
     }
 
-    /// Try to convert from a u8 into the enum
+    /// Try to convert from a `u8` into the enum
     pub fn from(index: u8) -> Result<Self, ProgramError> {
         match index {
             0 => Ok(AuthorityType::MintTokens),

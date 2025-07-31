@@ -32,7 +32,7 @@ pub fn check_program_account(spl_token_program_id: &Pubkey) -> ProgramResult {
     Ok(())
 }
 
-/// Inlined spl token program id to avoid a dependency
+/// In-lined spl token program id to avoid a dependency
 pub mod inline_spl_token {
     solana_pubkey::declare_id!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 }
