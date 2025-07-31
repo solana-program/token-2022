@@ -2,9 +2,9 @@
 ///
 /// Any deposit or transfer amount must be less than `2^48`
 pub use spl_token_2022_interface::extension::confidential_transfer::{
-    MAXIMUM_DEPOSIT_TRANSFER_AMOUNT, PENDING_BALANCE_LO_BIT_LENGTH,
-    DEFAULT_MAXIMUM_PENDING_BALANCE_CREDIT_COUNTER, EncryptedBalance,
-    DecryptableBalance, ConfidentialTransferAccount, ConfidentialTransferMint
+    ConfidentialTransferAccount, ConfidentialTransferMint, DecryptableBalance, EncryptedBalance,
+    DEFAULT_MAXIMUM_PENDING_BALANCE_CREDIT_COUNTER, MAXIMUM_DEPOSIT_TRANSFER_AMOUNT,
+    PENDING_BALANCE_LO_BIT_LENGTH,
 };
 
 /// Confidential Transfer Extension instructions

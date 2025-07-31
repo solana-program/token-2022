@@ -5,5 +5,5 @@ pub mod instruction;
 pub mod processor;
 
 pub use spl_token_2022_interface::extension::interest_bearing_mint::{
-    InterestBearingConfig, BasisPoints, UnixTimestamp
+    BasisPoints, InterestBearingConfig, UnixTimestamp,
 };

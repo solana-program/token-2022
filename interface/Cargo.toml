@@ -11,7 +11,7 @@ license = { workspace = true }
 edition = { workspace = true }
 
 [features]
-serde-traits = ["dep:serde", "dep:serde_with", "dep:base64", "spl-pod/serde-traits"]
+serde = ["dep:serde", "dep:serde_with", "dep:base64", "spl-pod/serde-traits"]
 
 [dependencies]
 arrayref = "0.3.9"
@@ -20,29 +20,18 @@ num-derive = "0.4"
 num-traits = "0.2"
 num_enum = "0.7.4"
 solana-account-info = "2.3.0"
-solana-clock = "2.2.1"
-solana-cpi = "2.2.1"
 solana-decode-error = "2.2.1"
 solana-instruction = "2.2.1"
 solana-msg = "2.2.1"
-solana-program-entrypoint = "2.3.0"
 solana-program-error = "2.2.1"
-solana-program-memory = "2.3.1"
 solana-program-option = "2.2.1"
 solana-program-pack = "2.2.1"
 solana-pubkey = "2.2.1"
-solana-rent = "2.2.1"
 solana-sdk-ids = "2.2.1"
-solana-sysvar = "2.2.1"
-solana-system-interface = "1.0.0"
 solana-zk-sdk = "2.3.4"
-spl-elgamal-registry = { version = "0.3.0", path = "../confidential-transfer/elgamal-registry", features = ["no-entrypoint"] }
-spl-memo = { version = "6.0", features = ["no-entrypoint"] }
-spl-token = { version = "8.0", features = ["no-entrypoint"] }
 spl-token-confidential-transfer-proof-extraction = { version = "0.4.0", path = "../confidential-transfer/proof-extraction" }
 spl-token-group-interface = { version = "0.6.0" }
 spl-token-metadata-interface = { version = "0.7.0" }
-spl-transfer-hook-interface = { version = "0.10.0" }
 spl-type-length-value = { version = "0.8.0" }
 spl-pod = { version = "0.5.1" }
 thiserror = "2.0"
@@ -54,15 +43,11 @@ base64 = { version = "0.22.1", optional = true }
 spl-token-confidential-transfer-proof-generation = { version = "0.4.0", path = "../confidential-transfer/proof-generation" }
 
 [dev-dependencies]
-lazy_static = "1.5.0"
 proptest = "1.7"
-serial_test = "3.2.0"
-solana-hash = "2.2.1"
-solana-native-token = "2.2.1"
-spl-tlv-account-resolution = { version = "0.10.0" }
+solana-pubkey = { version = "2.2.1", features = ["curve25519"] }
+spl-token = { version = "8.0", features = ["no-entrypoint"] }
+spl-token-2022-interface = { path = ".", features = ["serde"] }
 serde_json = "1.0.141"
-test-case = "3.3.1"
-tokio = { version = "1", features = ["rt", "macros"] }
 
 [lib]
 crate-type = ["lib"]

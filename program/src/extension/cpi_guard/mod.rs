@@ -4,9 +4,7 @@ pub mod instruction;
 /// CPI Guard extension processor
 pub mod processor;
 
-pub use spl_token_2022_interface::extension::cpi_guard::{
-    CpiGuard, cpi_guard_enabled,
-};
+pub use spl_token_2022_interface::extension::cpi_guard::{cpi_guard_enabled, CpiGuard};
 
 /// Determine if we are in CPI
 pub fn in_cpi() -> bool {

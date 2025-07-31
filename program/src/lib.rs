@@ -22,6 +22,7 @@ mod entrypoint;
 // Export current sdk types for downstream users building with a different sdk
 // version
 pub use solana_zk_sdk;
+pub use spl_token_2022_interface::{check_id, check_program_account, id, ID};
 use {
     error::TokenError,
     solana_program_error::{ProgramError, ProgramResult},
@@ -97,25 +98,6 @@ pub fn try_ui_amount_into_amount(ui_amount: String, decimals: u8) -> Result<u64,
     amount_str
         .parse::<u64>()
         .map_err(|_| ProgramError::InvalidArgument)
-}
-
-solana_pubkey::declare_id!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
-
-/// Checks that the supplied program ID is correct for spl-token-2022
-pub fn check_program_account(spl_token_program_id: &Pubkey) -> ProgramResult {
-    if spl_token_program_id != &id() {
-        return Err(ProgramError::IncorrectProgramId);
-    }
-    Ok(())
-}
-
-/// Checks that the supplied program ID is correct for spl-token or
-/// spl-token-2022
-pub fn check_spl_token_program_account(spl_token_program_id: &Pubkey) -> ProgramResult {
-    if spl_token_program_id != &id() && spl_token_program_id != &spl_token::id() {
-        return Err(ProgramError::IncorrectProgramId);
-    }
-    Ok(())
 }
 
 /// Checks that the supplied program ID is correct for the ZK ElGamal proof

@@ -20,9 +20,8 @@ use {
             pausable::PausableConfig,
             set_account_type,
             transfer_fee::TransferFeeConfig,
-            transfer_hook, BaseStateWithExtensions, BaseStateWithExtensionsMut,
+            transfer_hook, BaseStateWithExtensions, BaseStateWithExtensionsMut, ExtensionType,
             PodStateWithExtensions, PodStateWithExtensionsMut,
-            ExtensionType,
         },
         instruction::{decode_instruction_data, decode_instruction_type},
         pod::{PodAccount, PodMint},
@@ -39,9 +38,15 @@ use {
     solana_rent::Rent,
     solana_system_interface::instruction as system_instruction,
     solana_sysvar::Sysvar,
-    solana_zk_sdk::encryption::pod::{auth_encryption::PodAeCiphertext, elgamal::PodElGamalCiphertext},
+    solana_zk_sdk::encryption::pod::{
+        auth_encryption::PodAeCiphertext, elgamal::PodElGamalCiphertext,
+    },
     spl_elgamal_registry::state::ElGamalRegistry,
-    spl_pod::{bytemuck::pod_from_bytes, optional_keys::{OptionalNonZeroElGamalPubkey, OptionalNonZeroPubkey}, primitives::{PodBool, PodU64}},
+    spl_pod::{
+        bytemuck::pod_from_bytes,
+        optional_keys::{OptionalNonZeroElGamalPubkey, OptionalNonZeroPubkey},
+        primitives::{PodBool, PodU64},
+    },
     spl_token_confidential_transfer_proof_extraction::{
         instruction::verify_and_extract_context, transfer::TransferProofContext,
         transfer_with_fee::TransferWithFeeProofContext,

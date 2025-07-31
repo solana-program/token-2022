@@ -5,5 +5,5 @@ pub mod instruction;
 pub mod processor;
 
 pub use spl_token_2022_interface::extension::transfer_hook::{
-    TransferHook, TransferHookAccount, get_program_id, set_transferring, unset_transferring,
+    get_program_id, set_transferring, unset_transferring, TransferHook, TransferHookAccount,
 };

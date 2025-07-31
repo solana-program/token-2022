@@ -153,10 +153,12 @@ mod tests {
         super::*,
         crate::{
             extension::ExtensionType,
-            instruction::{AuthorityType, TokenInstruction, decode_instruction_data, decode_instruction_type},
+            instruction::{
+                decode_instruction_data, decode_instruction_type, AuthorityType, TokenInstruction,
+            },
         },
-        solana_program_option::COption,
         proptest::prelude::*,
+        solana_program_option::COption,
     };
 
     // Test function that mimics the "unpacking" in `Processor::process` by

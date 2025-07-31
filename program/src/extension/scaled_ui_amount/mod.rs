@@ -5,5 +5,5 @@ pub mod instruction;
 pub mod processor;
 
 pub use spl_token_2022_interface::extension::scaled_ui_amount::{
-    UnixTimestamp, PodF64, ScaledUiAmountConfig,
+    PodF64, ScaledUiAmountConfig, UnixTimestamp,
 };

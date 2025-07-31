@@ -10,5 +10,6 @@ pub mod processor;
 pub mod account_info;
 
 pub use spl_token_2022_interface::extension::confidential_transfer_fee::{
-    ConfidentialTransferFeeAmount, ConfidentialTransferFeeConfig, EncryptedFee, EncryptedWithheldAmount,
+    ConfidentialTransferFeeAmount, ConfidentialTransferFeeConfig, EncryptedFee,
+    EncryptedWithheldAmount,
 };

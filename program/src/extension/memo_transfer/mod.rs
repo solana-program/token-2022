@@ -1,7 +1,5 @@
 use {
-    crate::error::TokenError,
-    solana_instruction::Instruction,
-    solana_program_error::ProgramError,
+    crate::error::TokenError, solana_instruction::Instruction, solana_program_error::ProgramError,
     solana_pubkey::Pubkey,
 };
 
@@ -11,9 +9,7 @@ pub mod instruction;
 /// Memo Transfer extension processor
 pub mod processor;
 
-pub use spl_token_2022_interface::extension::memo_transfer::{
-    MemoTransfer, memo_required,
-};
+pub use spl_token_2022_interface::extension::memo_transfer::{memo_required, MemoTransfer};
 
 /// Check if the previous sibling instruction is a memo
 pub fn check_previous_sibling_instruction_is_memo() -> Result<(), ProgramError> {

@@ -45,8 +45,8 @@ pub mod transfer_hook;
 pub mod confidential_mint_burn;
 
 pub use spl_token_2022_interface::extension::{
-    Length, BaseStateWithExtensions, StateWithExtensionsOwned, StateWithExtensions,
-    PodStateWithExtensions, BaseStateWithExtensionsMut, StateWithExtensionsMut,
-    PodStateWithExtensionsMut, set_account_type, AccountType, ExtensionType,
-    BaseState, Extension, alloc_and_serialize_variable_len_extension, alloc_and_serialize
+    alloc_and_serialize, alloc_and_serialize_variable_len_extension, set_account_type, AccountType,
+    BaseState, BaseStateWithExtensions, BaseStateWithExtensionsMut, Extension, ExtensionType,
+    Length, PodStateWithExtensions, PodStateWithExtensionsMut, StateWithExtensions,
+    StateWithExtensionsMut, StateWithExtensionsOwned,
 };
