@@ -14,11 +14,13 @@ use {
     solana_program_error::{ProgramError, ProgramResult},
     solana_pubkey::Pubkey,
     spl_pod::bytemuck::pod_from_bytes,
+    spl_token_2022_interface::inline_spl_token,
     spl_transfer_hook_interface::onchain::add_extra_accounts_for_execute_cpi,
 };
 
 fn is_multisig_account(account: &AccountInfo) -> bool {
-    let owned_by_token_program = account.owner == &crate::id() || account.owner == &spl_token::id();
+    let owned_by_token_program =
+        account.owner == &crate::id() || account.owner == &inline_spl_token::id();
     owned_by_token_program && account.data_len() == PodMultisig::SIZE_OF
 }
 

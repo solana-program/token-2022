@@ -109,6 +109,27 @@ jobs:
       - name: Lint Client Rust
         run: pnpm clients:rust:lint
 
+  format_and_lint_interface:
+    name: Format & Lint Interface
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup
+        with:
+          clippy: true
+          rustfmt: true
+          cargo-cache-key: cargo-interface-lint
+          cargo-cache-fallback-key: cargo-interface
+
+      - name: Format
+        run: pnpm interface:format
+
+      - name: Lint
+        run: pnpm interface:lint
+
   format_and_lint_client_rust_legacy:
     name: Format & Lint Client Rust Legacy
     runs-on: ubuntu-latest
@@ -170,6 +191,22 @@ jobs:
 
       - name: Lint Proof Tests
         run: pnpm confidential-transfer:proof-tests:lint
+
+  test_interface:
+    name: Test Interface
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup
+        with:
+          cargo-cache-key: cargo-interface-test
+          cargo-cache-fallback-key: cargo-interface
+
+      - name: Test
+        run: pnpm interface:test
 
   test_confidential_transfer_proofs:
     name: Test Confidential Transfer Proofs

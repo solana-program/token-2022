@@ -13,7 +13,7 @@ edition = { workspace = true }
 [features]
 no-entrypoint = []
 test-sbf = []
-serde-traits = ["dep:serde", "dep:serde_with", "dep:base64", "spl-pod/serde-traits"]
+serde-traits = ["dep:serde", "dep:serde_with", "dep:base64", "spl-pod/serde-traits", "spl-token-2022-interface/serde"]
 default = ["zk-ops"]
 # Remove this feature once the underlying syscalls are released on all networks
 zk-ops = []
@@ -27,10 +27,8 @@ num_enum = "0.7.4"
 solana-account-info = "2.3.0"
 solana-clock = "2.2.1"
 solana-cpi = "2.2.1"
-solana-decode-error = "2.2.1"
 solana-instruction = "2.2.1"
 solana-msg = "2.2.1"
-solana-native-token = "2.2.1"
 solana-program-entrypoint = "2.3.0"
 solana-program-error = "2.2.1"
 solana-program-memory = "2.3.1"
@@ -45,13 +43,12 @@ solana-system-interface = "1.0.0"
 solana-zk-sdk = "2.3.4"
 spl-elgamal-registry = { version = "0.3.0", path = "../confidential-transfer/elgamal-registry", features = ["no-entrypoint"] }
 spl-memo = { version = "6.0", features = ["no-entrypoint"] }
-spl-token = { version = "8.0", features = ["no-entrypoint"] }
+spl-token-2022-interface = { version = "1.0", path = "../interface" }
 spl-token-confidential-transfer-ciphertext-arithmetic = { version = "0.3.0", path = "../confidential-transfer/ciphertext-arithmetic" }
 spl-token-confidential-transfer-proof-extraction = { version = "0.4.0", path = "../confidential-transfer/proof-extraction" }
 spl-token-group-interface = { version = "0.6.0" }
 spl-token-metadata-interface = { version = "0.7.0" }
 spl-transfer-hook-interface = { version = "0.10.0" }
-spl-type-length-value = { version = "0.8.0" }
 spl-pod = { version = "0.5.1" }
 thiserror = "2.0"
 serde = { version = "1.0.219", optional = true }
