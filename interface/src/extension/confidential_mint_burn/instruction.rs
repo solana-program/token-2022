@@ -208,7 +208,7 @@ pub struct InitializeMintData {
     pub decryptable_supply: PodAeCiphertext,
 }
 
-/// Data expected by `ConfidentialMintBurnInstruction::RotateSupplyElGamal`
+/// Data expected by `ConfidentialMintBurnInstruction::RotateSupplyElGamalPubkey`
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
@@ -219,7 +219,7 @@ pub struct RotateSupplyElGamalPubkeyData {
     pub new_supply_elgamal_pubkey: PodElGamalPubkey,
     /// The location of the
     /// `ProofInstruction::VerifyCiphertextCiphertextEquality` instruction
-    /// relative to the `RotateSupplyElGamal` instruction in the transaction
+    /// relative to the `RotateSupplyElGamalPubkey` instruction in the transaction
     pub proof_instruction_offset: i8,
 }
 
@@ -318,7 +318,7 @@ pub fn initialize_mint(
     ))
 }
 
-/// Create a `RotateSupplyElGamal` instruction
+/// Create a `RotateSupplyElGamalPubkey` instruction
 #[allow(clippy::too_many_arguments)]
 #[cfg(not(target_os = "solana"))]
 pub fn rotate_supply_elgamal_pubkey(
@@ -368,7 +368,7 @@ pub fn rotate_supply_elgamal_pubkey(
     Ok(instructions)
 }
 
-/// Create a `UpdateMint` instruction
+/// Create a `UpdateDecryptableSupply` instruction
 #[cfg(not(target_os = "solana"))]
 pub fn update_decryptable_supply(
     token_program_id: &Pubkey,

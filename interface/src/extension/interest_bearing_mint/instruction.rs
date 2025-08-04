@@ -15,7 +15,7 @@ use {
     std::convert::TryInto,
 };
 
-/// Interesting-bearing mint extension instructions
+/// Interest-bearing mint extension instructions
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
@@ -35,7 +35,7 @@ pub enum InterestBearingMintInstruction {
     ///   0. `[writable]` The mint to initialize.
     ///
     /// Data expected by this instruction:
-    ///   `crate::extension::interest_bearing::instruction::InitializeInstructionData`
+    ///   `crate::extension::interest_bearing_mint::instruction::InitializeInstructionData`
     Initialize,
     /// Update the interest rate. Only supported for mints that include the
     /// `InterestBearingConfig` extension.
@@ -52,7 +52,7 @@ pub enum InterestBearingMintInstruction {
     ///   2. `..2+M` `[signer]` M signer accounts.
     ///
     /// Data expected by this instruction:
-    ///   `crate::extension::interest_bearing::BasisPoints`
+    ///   `crate::extension::interest_bearing_mint::BasisPoints`
     UpdateRate,
 }
 
