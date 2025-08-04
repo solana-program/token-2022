@@ -1,6 +1,10 @@
 {
   "private": true,
   "scripts": {
+    "interface:build-wasm": "zx ./scripts/rust/build-wasm.mjs interface",
+    "interface:test": "zx ./scripts/rust/test.mjs interface",
+    "interface:format": "zx ./scripts/rust/format.mjs interface",
+    "interface:lint": "zx ./scripts/rust/lint.mjs interface",
     "programs:build": "zx ./scripts/rust/build-sbf.mjs program",
     "programs:build-wasm": "zx ./scripts/rust/build-wasm.mjs program",
     "programs:test": "zx ./scripts/rust/test-sbf.mjs program",

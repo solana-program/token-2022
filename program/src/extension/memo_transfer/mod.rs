@@ -1,15 +1,6 @@
-#[cfg(feature = "serde-traits")]
-use serde::{Deserialize, Serialize};
 use {
-    crate::{
-        error::TokenError,
-        extension::{BaseState, BaseStateWithExtensions, Extension, ExtensionType},
-    },
-    bytemuck::{Pod, Zeroable},
-    solana_instruction::Instruction,
-    solana_program_error::ProgramError,
+    crate::error::TokenError, solana_instruction::Instruction, solana_program_error::ProgramError,
     solana_pubkey::Pubkey,
-    spl_pod::primitives::PodBool,
 };
 
 /// Memo Transfer extension instructions
@@ -18,26 +9,7 @@ pub mod instruction;
 /// Memo Transfer extension processor
 pub mod processor;
 
-/// Memo Transfer extension for Accounts
-#[repr(C)]
-#[cfg_attr(feature = "serde-traits", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-traits", serde(rename_all = "camelCase"))]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
-pub struct MemoTransfer {
-    /// Require transfers into this account to be accompanied by a memo
-    pub require_incoming_transfer_memos: PodBool,
-}
-impl Extension for MemoTransfer {
-    const TYPE: ExtensionType = ExtensionType::MemoTransfer;
-}
-
-/// Determine if a memo is required for transfers into this account
-pub fn memo_required<BSE: BaseStateWithExtensions<S>, S: BaseState>(account_state: &BSE) -> bool {
-    if let Ok(extension) = account_state.get_extension::<MemoTransfer>() {
-        return extension.require_incoming_transfer_memos.into();
-    }
-    false
-}
+pub use spl_token_2022_interface::extension::memo_transfer::{memo_required, MemoTransfer};
 
 /// Check if the previous sibling instruction is a memo
 pub fn check_previous_sibling_instruction_is_memo() -> Result<(), ProgramError> {
