@@ -38,7 +38,7 @@ solana-pubkey = "2.2.1"
 solana-rent = "2.2.1"
 solana-sdk-ids = "2.2.1"
 solana-security-txt = "1.1.1"
-solana-sysvar = "2.2.1"
+solana-sysvar = "2.3.0"
 solana-system-interface = "1.0.0"
 solana-zk-sdk = "2.3.4"
 spl-elgamal-registry = { version = "0.3.0", path = "../confidential-transfer/elgamal-registry", features = ["no-entrypoint"] }

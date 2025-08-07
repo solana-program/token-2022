@@ -25,7 +25,7 @@ solana-rent = "2.2.1"
 solana-sdk-ids = "2.2.1"
 solana-security-txt = "1.1.1"
 solana-system-interface = { version = "1.0.0", features = ["bincode"] }
-solana-sysvar = { version = "2.2.1", features = ["bincode"] }
+solana-sysvar = { version = "2.3.0", features = ["bincode"] }
 solana-zk-sdk = "2.3.4"
 spl-pod = "0.5.1"
 spl-token-confidential-transfer-proof-extraction = { version = "0.4.0", path = "../proof-extraction" }
