@@ -168,7 +168,7 @@ export async function getAssociatedTokenAddress(
 ): Promise<PublicKey> {
     if (!allowOwnerOffCurve && !PublicKey.isOnCurve(owner.toBuffer())) throw new TokenOwnerOffCurveError();
 
-    const [address] = await PublicKey.findProgramAddress(
+    const [address] = PublicKey.findProgramAddressSync(
         [owner.toBuffer(), programId.toBuffer(), mint.toBuffer()],
         associatedTokenProgramId,
     );
