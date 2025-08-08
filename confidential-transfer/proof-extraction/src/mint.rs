@@ -83,6 +83,7 @@ impl MintProofContext {
             *new_supply_commitment,
             mint_amount_commitment_lo,
             mint_amount_commitment_hi,
+            // we don't care about the padding commitment, so ignore it
         ];
 
         // range proof context always contains 8 commitments and therefore,

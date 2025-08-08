@@ -1,3 +1,51 @@
+//! Generates the zero-knowledge proofs required for a confidential transfer with a fee.
+//!
+//! A confidential transfer with a fee is more complex than a simple transfer. It requires five
+//! distinct zero-knowledge proofs to ensure the validity of the transfer, the solvency of the
+//! sender, and the correctness of the fee amount according to the on-chain mint configuration.
+//!
+//! ## Protocol Flow and Proof Components
+//!
+//! 1.  **Fee Calculation**: The client first calculates the required fee based on the transfer
+//!     amount and the on-chain fee parameters (rate and maximum cap).
+//!
+//! 2.  **Encrypt Amounts**: The gross transfer amount and the fee amount are each split into low
+//!     and high bit components. These components are then encrypted into separate grouped (twisted)
+//!     ElGamal ciphertexts with the appropriate decryption handles for the involved parties (source,
+//!     destination, auditor, and withdraw authority).
+//!
+//! 3.  **Generate Proofs**: The sender generates five proofs that work in concert:
+//!
+//!     -   **Transfer Amount Ciphertext Validity Proof
+//!         (`BatchedGroupedCiphertext3HandlesValidityProofData`)**: Certifies that the grouped
+//!         ElGamal ciphertext for the gross transfer amount is well-formed.
+//!
+//!     -   **Fee Ciphertext Validity Proof
+//!         (`BatchedGroupedCiphertext2HandlesValidityProofData`)**: Certifies that the grouped
+//!         ElGamal ciphertext for the transfer fee is well-formed.
+//!
+//!     -   **Fee Calculation Proof (`PercentageWithCapProofData`)**:
+//!         It's a "one-of-two" proof that certifies **either**:
+//!           1. The `fee_amount` is exactly equal to the on-chain `maximum_fee`.
+//!           2. The `fee_amount` was correctly calculated as a percentage of the
+//!              `transfer_amount`, according to the on-chain `fee_rate_basis_points`.
+//!
+//!         **Note**: The proof certifies that the transfer fee is a valid percentage of the
+//!         transfer amount or that the fee is exactly the maximum fee. While the sender is
+//!         expected to choose the lower of these two options, the proof does not enforce this
+//!         choice.
+//!
+//!     -   **Range Proof (`BatchedRangeProofU256Data`)**:
+//!         This expanded range proof ensures the solvency of the entire transaction by certifying
+//!         that all critical monetary values are non-negative. This includes the sender's remaining
+//!         balance, the gross transfer amount, the fee amount, and the net transfer amount that the
+//!         destination receives.
+//!
+//!     -   **Ciphertext-Commitment Equality Proof (`CiphertextCommitmentEqualityProofData`)**:
+//!         Identical in purpose to the simple transfer, this proof links the sender's remaining
+//!         balance (as a homomorphically computed ElGamal ciphertext) to a new Pedersen commitment.
+//!         This commitment is then used in the Range Proof to prove the sender's solvency.
+
 #[cfg(not(target_arch = "wasm32"))]
 use solana_zk_sdk::encryption::grouped_elgamal::GroupedElGamal;
 #[cfg(target_arch = "wasm32")]
@@ -40,11 +88,6 @@ const NET_TRANSFER_AMOUNT_BIT_LENGTH: usize = 64;
 
 /// The proof data required for a confidential transfer instruction when the
 /// mint is extended for fees
-///
-/// NOTE: The proofs certify that the transfer fee is a valid percentage of the
-/// transfer amount, as determined by the fee basis points, or that the fee is
-/// exactly the maximum fee. While the sender is expected to choose the lower of
-/// these two options, the proof does not enforce this choice.
 pub struct TransferWithFeeProofData {
     pub equality_proof_data: CiphertextCommitmentEqualityProofData,
     pub transfer_amount_ciphertext_validity_proof_data_with_ciphertext:
@@ -193,12 +236,16 @@ pub fn transfer_with_fee_split_proof_data(
     // calculate fee
     let transfer_fee_basis_points = fee_rate_basis_points;
     let transfer_fee_maximum_fee = maximum_fee;
-    let (raw_fee_amount, delta_fee) = calculate_fee(transfer_amount, transfer_fee_basis_points)
+    let (raw_fee_amount, raw_delta_fee) = calculate_fee(transfer_amount, transfer_fee_basis_points)
         .ok_or(TokenProofGenerationError::FeeCalculation)?;
 
     // if raw fee is greater than the maximum fee, then use the maximum fee for the
-    // fee amount
-    let fee_amount = std::cmp::min(transfer_fee_maximum_fee, raw_fee_amount);
+    // fee amount and set the claimed delta fee to be 0 for simplicity
+    let (fee_amount, claimed_delta_fee) = if transfer_fee_maximum_fee < raw_fee_amount {
+        (transfer_fee_maximum_fee, 0)
+    } else {
+        (raw_fee_amount, raw_delta_fee)
+    };
     let net_transfer_amount = transfer_amount
         .checked_sub(fee_amount)
         .ok_or(TokenProofGenerationError::FeeCalculation)?;
@@ -249,7 +296,7 @@ pub fn transfer_with_fee_split_proof_data(
     let net_transfer_amount_opening = &combined_transfer_amount_opening - &combined_fee_opening;
 
     // compute claimed and real delta commitment
-    let (claimed_commitment, claimed_opening) = Pedersen::new(delta_fee);
+    let (claimed_commitment, claimed_opening) = Pedersen::new(claimed_delta_fee);
     let (delta_commitment, delta_opening) = compute_delta_commitment_and_opening(
         (
             &combined_transfer_amount_commitment,
@@ -266,7 +313,7 @@ pub fn transfer_with_fee_split_proof_data(
         fee_amount,
         &delta_commitment,
         &delta_opening,
-        delta_fee,
+        claimed_delta_fee,
         &claimed_commitment,
         &claimed_opening,
         transfer_fee_maximum_fee,
@@ -327,7 +374,7 @@ pub fn transfer_with_fee_split_proof_data(
 
     // generate range proof data
     let delta_fee_complement = MAX_FEE_BASIS_POINTS_SUB_ONE
-        .checked_sub(delta_fee)
+        .checked_sub(claimed_delta_fee)
         .ok_or(TokenProofGenerationError::FeeCalculation)?;
 
     let max_fee_basis_points_sub_one_commitment =
@@ -353,7 +400,7 @@ pub fn transfer_with_fee_split_proof_data(
             new_decrypted_available_balance,
             transfer_amount_lo,
             transfer_amount_hi,
-            delta_fee,
+            claimed_delta_fee,
             delta_fee_complement,
             fee_amount_lo,
             fee_amount_hi,

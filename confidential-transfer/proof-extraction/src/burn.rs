@@ -83,6 +83,7 @@ impl BurnProofContext {
             *remaining_balance_commitment,
             burn_amount_commitment_lo,
             burn_amount_commitment_hi,
+            // we don't care about the padding commitment, so ignore it
         ];
 
         // range proof context always contains 8 commitments and therefore,
