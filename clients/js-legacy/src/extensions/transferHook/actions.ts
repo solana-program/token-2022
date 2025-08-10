@@ -75,17 +75,18 @@ export async function updateTransferHook(
 /**
  * Transfer tokens from one account to another, asserting the token mint, and decimals
  *
- * @param connection     Connection to use
- * @param payer          Payer of the transaction fees
- * @param source         Source account
- * @param mint           Mint for the account
- * @param destination    Destination account
- * @param authority      Authority of the source account
- * @param amount         Number of tokens to transfer
- * @param decimals       Number of decimals in transfer amount
- * @param multiSigners   Signing accounts if `owner` is a multisig
- * @param confirmOptions Options for confirming the transaction
- * @param programId      SPL Token program account
+ * @param connection                    Connection to use
+ * @param payer                         Payer of the transaction fees
+ * @param source                        Source account
+ * @param mint                          Mint for the account
+ * @param destination                   Destination account
+ * @param authority                     Authority of the source account
+ * @param amount                        Number of tokens to transfer
+ * @param decimals                      Number of decimals in transfer amount
+ * @param multiSigners                  Signing accounts if `owner` is a multisig
+ * @param confirmOptions                Options for confirming the transaction
+ * @param programId                     SPL Token program account
+ * @param allowAccountDataFallback      Fallback to zeroed pubkey when resolveExtraAccountMeta fails with TokenTransferHookAccountDataNotFound
  *
  * @return Signature of the confirmed transaction
  */
@@ -101,6 +102,7 @@ export async function transferCheckedWithTransferHook(
     multiSigners: Signer[] = [],
     confirmOptions?: ConfirmOptions,
     programId = TOKEN_PROGRAM_ID,
+    allowAccountDataFallback = false,
 ): Promise<TransactionSignature> {
     const [authorityPublicKey, signers] = getSigners(authority, multiSigners);
 
@@ -116,6 +118,7 @@ export async function transferCheckedWithTransferHook(
             signers,
             confirmOptions?.commitment,
             programId,
+            allowAccountDataFallback,
         ),
     );
 
@@ -125,18 +128,19 @@ export async function transferCheckedWithTransferHook(
 /**
  * Transfer tokens from one account to another, asserting the transfer fee, token mint, and decimals
  *
- * @param connection     Connection to use
- * @param payer          Payer of the transaction fees
- * @param source         Source account
- * @param mint           Mint for the account
- * @param destination    Destination account
- * @param authority      Authority of the source account
- * @param amount         Number of tokens to transfer
- * @param decimals       Number of decimals in transfer amount
- * @param fee            The calculated fee for the transfer fee extension
- * @param multiSigners   Signing accounts if `owner` is a multisig
- * @param confirmOptions Options for confirming the transaction
- * @param programId      SPL Token program account
+ * @param connection                    Connection to use
+ * @param payer                         Payer of the transaction fees
+ * @param source                        Source account
+ * @param mint                          Mint for the account
+ * @param destination                   Destination account
+ * @param authority                     Authority of the source account
+ * @param amount                        Number of tokens to transfer
+ * @param decimals                      Number of decimals in transfer amount
+ * @param fee                           The calculated fee for the transfer fee extension
+ * @param multiSigners                  Signing accounts if `owner` is a multisig
+ * @param confirmOptions                Options for confirming the transaction
+ * @param programId                     SPL Token program account
+ * @param allowAccountDataFallback      Fallback to zeroed pubkey when resolveExtraAccountMeta fails with TokenTransferHookAccountDataNotFound
  *
  * @return Signature of the confirmed transaction
  */
@@ -153,6 +157,7 @@ export async function transferCheckedWithFeeAndTransferHook(
     multiSigners: Signer[] = [],
     confirmOptions?: ConfirmOptions,
     programId = TOKEN_PROGRAM_ID,
+    allowAccountDataFallback = false,
 ): Promise<TransactionSignature> {
     const [authorityPublicKey, signers] = getSigners(authority, multiSigners);
 
@@ -169,6 +174,7 @@ export async function transferCheckedWithFeeAndTransferHook(
             signers,
             confirmOptions?.commitment,
             programId,
+            allowAccountDataFallback,
         ),
     );
 
