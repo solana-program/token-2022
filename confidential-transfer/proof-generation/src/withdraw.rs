@@ -16,13 +16,6 @@
 //! 3.  **Generate Proofs**: The user generates two proofs to certify the validity of the operation:
 //!
 //!     -   **Ciphertext-Commitment Equality Proof (`CiphertextCommitmentEqualityProofData`)**:
-//!         This proof is the cryptographic link between the on-chain state and the solvency check. It
-//!         certifies that the newly computed `remaining_balance_ciphertext` (which will be the new
-//!         on-chain state) and a new Pedersen commitment both hide the exact same numerical value.
-//!         This is essential because the range proof operates on Pedersen commitments, not directly on
-//!         ElGamal ciphertexts.
-//!
-//!     -   **Ciphertext-Commitment Equality Proof (`CiphertextCommitmentEqualityProofData`)**:
 //!         This proof provides a cryptographic link that enables the solvency check. When the
 //!         `remaining_balance_ciphertext` is computed homomorphically, the prover may not know the
 //!         corresponding Pedersen opening (randomness) for the resulting ciphertext. Performing a
