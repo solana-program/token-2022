@@ -61,6 +61,6 @@ mod tests {
 
     #[test]
     fn test_inline_spl_token_program_id() {
-        assert_eq!(inline_spl_token::id(), spl_token::id());
+        assert_eq!(inline_spl_token::id(), spl_token_interface::id());
     }
 }

@@ -12,7 +12,7 @@ edition = { workspace = true }
 base64 = "0.22.1"
 bytemuck = "1.23.1"
 solana-curve25519 = "2.3.4"
-solana-zk-sdk = "2.3.4"
+solana-zk-sdk = "4.0.0"
 
 [dev-dependencies]
 spl-token-confidential-transfer-proof-generation = { version = "0.4.1", path = "../proof-generation" }

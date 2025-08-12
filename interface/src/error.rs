@@ -4,9 +4,7 @@
 use spl_token_confidential_transfer_proof_generation::errors::TokenProofGenerationError;
 use {
     num_derive::FromPrimitive,
-    solana_decode_error::DecodeError,
-    solana_msg::msg,
-    solana_program_error::{PrintProgramError, ProgramError},
+    solana_program_error::{ProgramError, ToStr},
     spl_token_confidential_transfer_proof_extraction::errors::TokenProofExtractionError,
     thiserror::Error,
 };
@@ -276,198 +274,190 @@ impl From<TokenError> for ProgramError {
         ProgramError::Custom(e as u32)
     }
 }
-impl<T> DecodeError<T> for TokenError {
-    fn type_of() -> &'static str {
-        "TokenError"
-    }
-}
 
-impl PrintProgramError for TokenError {
-    fn print<E>(&self)
-    where
-        E: 'static + std::error::Error + DecodeError<E> + num_traits::FromPrimitive,
-    {
+impl ToStr for TokenError {
+    fn to_str(&self) -> &'static str {
         match self {
-            TokenError::NotRentExempt => msg!("Error: Lamport balance below rent-exempt threshold"),
-            TokenError::InsufficientFunds => msg!("Error: insufficient funds"),
-            TokenError::InvalidMint => msg!("Error: Invalid Mint"),
-            TokenError::MintMismatch => msg!("Error: Account not associated with this Mint"),
-            TokenError::OwnerMismatch => msg!("Error: owner does not match"),
-            TokenError::FixedSupply => msg!("Error: the total supply of this token is fixed"),
-            TokenError::AlreadyInUse => msg!("Error: account or token already in use"),
+            TokenError::NotRentExempt => "Error: Lamport balance below rent-exempt threshold",
+            TokenError::InsufficientFunds => "Error: insufficient funds",
+            TokenError::InvalidMint => "Error: Invalid Mint",
+            TokenError::MintMismatch => "Error: Account not associated with this Mint",
+            TokenError::OwnerMismatch => "Error: owner does not match",
+            TokenError::FixedSupply => "Error: the total supply of this token is fixed",
+            TokenError::AlreadyInUse => "Error: account or token already in use",
             TokenError::InvalidNumberOfProvidedSigners => {
-                msg!("Error: Invalid number of provided signers")
+                "Error: Invalid number of provided signers"
             }
             TokenError::InvalidNumberOfRequiredSigners => {
-                msg!("Error: Invalid number of required signers")
+                "Error: Invalid number of required signers"
             }
-            TokenError::UninitializedState => msg!("Error: State is uninitialized"),
+            TokenError::UninitializedState => "Error: State is uninitialized",
             TokenError::NativeNotSupported => {
-                msg!("Error: Instruction does not support native tokens")
+                "Error: Instruction does not support native tokens"
             }
             TokenError::NonNativeHasBalance => {
-                msg!("Error: Non-native account can only be closed if its balance is zero")
+                "Error: Non-native account can only be closed if its balance is zero"
             }
-            TokenError::InvalidInstruction => msg!("Error: Invalid instruction"),
-            TokenError::InvalidState => msg!("Error: Invalid account state for operation"),
-            TokenError::Overflow => msg!("Error: Operation overflowed"),
+            TokenError::InvalidInstruction => "Error: Invalid instruction",
+            TokenError::InvalidState => "Error: Invalid account state for operation",
+            TokenError::Overflow => "Error: Operation overflowed",
             TokenError::AuthorityTypeNotSupported => {
-                msg!("Error: Account does not support specified authority type")
+                "Error: Account does not support specified authority type"
             }
-            TokenError::MintCannotFreeze => msg!("Error: This token mint cannot freeze accounts"),
-            TokenError::AccountFrozen => msg!("Error: Account is frozen"),
+            TokenError::MintCannotFreeze => "Error: This token mint cannot freeze accounts",
+            TokenError::AccountFrozen => "Error: Account is frozen",
             TokenError::MintDecimalsMismatch => {
-                msg!("Error: decimals different from the Mint decimals")
+                "Error: decimals different from the Mint decimals"
             }
             TokenError::NonNativeNotSupported => {
-                msg!("Error: Instruction does not support non-native tokens")
+                "Error: Instruction does not support non-native tokens"
             }
             TokenError::ExtensionTypeMismatch => {
-                msg!("Error: New extension type does not match already existing extensions")
+                "Error: New extension type does not match already existing extensions"
             }
             TokenError::ExtensionBaseMismatch => {
-                msg!("Error: Extension does not match the base type provided")
+                "Error: Extension does not match the base type provided"
             }
             TokenError::ExtensionAlreadyInitialized => {
-                msg!("Error: Extension already initialized on this account")
+                "Error: Extension already initialized on this account"
             }
             TokenError::ConfidentialTransferAccountHasBalance => {
-                msg!("Error: An account can only be closed if its confidential balance is zero")
+                "Error: An account can only be closed if its confidential balance is zero"
             }
             TokenError::ConfidentialTransferAccountNotApproved => {
-                msg!("Error: Account not approved for confidential transfers")
+                "Error: Account not approved for confidential transfers"
             }
             TokenError::ConfidentialTransferDepositsAndTransfersDisabled => {
-                msg!("Error: Account not accepting deposits or transfers")
+                "Error: Account not accepting deposits or transfers"
             }
             TokenError::ConfidentialTransferElGamalPubkeyMismatch => {
-                msg!("Error: ElGamal public key mismatch")
+                "Error: ElGamal public key mismatch"
             }
             TokenError::ConfidentialTransferBalanceMismatch => {
-                msg!("Error: Balance mismatch")
+                "Error: Balance mismatch"
             }
             TokenError::MintHasSupply => {
-                msg!("Error: Mint has non-zero supply. Burn all tokens before closing the mint")
+                "Error: Mint has non-zero supply. Burn all tokens before closing the mint"
             }
             TokenError::NoAuthorityExists => {
-                msg!("Error: No authority exists to perform the desired operation");
+                "Error: No authority exists to perform the desired operation"
             }
             TokenError::TransferFeeExceedsMaximum => {
-                msg!("Error: Transfer fee exceeds maximum of 10,000 basis points");
+                "Error: Transfer fee exceeds maximum of 10,000 basis points"
             }
             TokenError::MintRequiredForTransfer => {
-                msg!("Mint required for this account to transfer tokens, use `transfer_checked` or `transfer_checked_with_fee`");
+                "Mint required for this account to transfer tokens, use `transfer_checked` or `transfer_checked_with_fee`"
             }
             TokenError::FeeMismatch => {
-                msg!("Calculated fee does not match expected fee");
+                "Calculated fee does not match expected fee"
             }
             TokenError::FeeParametersMismatch => {
-                msg!("Fee parameters associated with zero-knowledge proofs do not match fee parameters in mint")
+                "Fee parameters associated with zero-knowledge proofs do not match fee parameters in mint"
             }
             TokenError::ImmutableOwner => {
-                msg!("The owner authority cannot be changed");
+                "The owner authority cannot be changed"
             }
             TokenError::AccountHasWithheldTransferFees => {
-                msg!("Error: An account can only be closed if its withheld fee balance is zero, harvest fees to the mint and try again");
+                "Error: An account can only be closed if its withheld fee balance is zero, harvest fees to the mint and try again"
             }
             TokenError::NoMemo => {
-                msg!("Error: No memo in previous instruction; required for recipient to receive a transfer");
+                "Error: No memo in previous instruction required for recipient to receive a transfer"
             }
             TokenError::NonTransferable => {
-                msg!("Transfer is disabled for this mint");
+                "Transfer is disabled for this mint"
             }
             TokenError::NonTransferableNeedsImmutableOwnership => {
-                msg!("Non-transferable tokens can't be minted to an account without immutable ownership");
+                "Non-transferable tokens can't be minted to an account without immutable ownership"
             }
             TokenError::MaximumPendingBalanceCreditCounterExceeded => {
-                msg!("The total number of `Deposit` and `Transfer` instructions to an account cannot exceed the associated `maximum_pending_balance_credit_counter`");
+                "The total number of `Deposit` and `Transfer` instructions to an account cannot exceed the associated `maximum_pending_balance_credit_counter`"
             }
             TokenError::MaximumDepositAmountExceeded => {
-                msg!("Deposit amount exceeds maximum limit")
+                "Deposit amount exceeds maximum limit"
             }
             TokenError::CpiGuardSettingsLocked => {
-                msg!("CPI Guard status cannot be changed in CPI")
+                "CPI Guard status cannot be changed in CPI"
             }
             TokenError::CpiGuardTransferBlocked => {
-                msg!("CPI Guard is enabled, and a program attempted to transfer user funds without using a delegate")
+                "CPI Guard is enabled, and a program attempted to transfer user funds without using a delegate"
             }
             TokenError::CpiGuardBurnBlocked => {
-                msg!("CPI Guard is enabled, and a program attempted to burn user funds without using a delegate")
+                "CPI Guard is enabled, and a program attempted to burn user funds without using a delegate"
             }
             TokenError::CpiGuardCloseAccountBlocked => {
-                msg!("CPI Guard is enabled, and a program attempted to close an account without returning lamports to owner")
+                "CPI Guard is enabled, and a program attempted to close an account without returning lamports to owner"
             }
             TokenError::CpiGuardApproveBlocked => {
-                msg!("CPI Guard is enabled, and a program attempted to approve a delegate")
+                "CPI Guard is enabled, and a program attempted to approve a delegate"
             }
             TokenError::CpiGuardSetAuthorityBlocked => {
-                msg!("CPI Guard is enabled, and a program attempted to add or change an authority")
+                "CPI Guard is enabled, and a program attempted to add or change an authority"
             }
             TokenError::CpiGuardOwnerChangeBlocked => {
-                msg!("Account ownership cannot be changed while CPI Guard is enabled")
+                "Account ownership cannot be changed while CPI Guard is enabled"
             }
             TokenError::ExtensionNotFound => {
-                msg!("Extension not found in account data")
+                "Extension not found in account data"
             }
             TokenError::NonConfidentialTransfersDisabled => {
-                msg!("Non-confidential transfers disabled")
+                "Non-confidential transfers disabled"
             }
             TokenError::ConfidentialTransferFeeAccountHasWithheldFee => {
-                msg!("Account has non-zero confidential withheld fee")
+                "Account has non-zero confidential withheld fee"
             }
             TokenError::InvalidExtensionCombination => {
-                msg!("Mint or account is initialized to an invalid combination of extensions")
+                "Mint or account is initialized to an invalid combination of extensions"
             }
             TokenError::InvalidLengthForAlloc => {
-                msg!("Extension allocation with overwrite must use the same length")
+                "Extension allocation with overwrite must use the same length"
             }
             TokenError::AccountDecryption => {
-                msg!("Failed to decrypt a confidential transfer account")
+                "Failed to decrypt a confidential transfer account"
             }
             TokenError::ProofGeneration => {
-                msg!("Failed to generate proof")
+                "Failed to generate proof"
             }
             TokenError::InvalidProofInstructionOffset => {
-                msg!("An invalid proof instruction offset was provided")
+                "An invalid proof instruction offset was provided"
             }
             TokenError::HarvestToMintDisabled => {
-                msg!("Harvest of withheld tokens to mint is disabled")
+                "Harvest of withheld tokens to mint is disabled"
             }
             TokenError::SplitProofContextStateAccountsNotSupported => {
-                msg!("Split proof context state accounts not supported for instruction")
+                "Split proof context state accounts not supported for instruction"
             }
             TokenError::NotEnoughProofContextStateAccounts => {
-                msg!("Not enough proof context state accounts provided")
+                "Not enough proof context state accounts provided"
             }
             TokenError::MalformedCiphertext => {
-                msg!("Ciphertext is malformed")
+                "Ciphertext is malformed"
             }
             TokenError::CiphertextArithmeticFailed => {
-                msg!("Ciphertext arithmetic failed")
+                "Ciphertext arithmetic failed"
             }
             TokenError::PedersenCommitmentMismatch => {
-                msg!("Pedersen commitments did not match")
+                "Pedersen commitments did not match"
             }
             TokenError::RangeProofLengthMismatch => {
-                msg!("Range proof lengths did not match")
+                "Range proof lengths did not match"
             }
             TokenError::IllegalBitLength => {
-                msg!("Illegal transfer amount bit length")
+                "Illegal transfer amount bit length"
             }
             TokenError::FeeCalculation => {
-                msg!("Transfer fee calculation failed")
+                "Transfer fee calculation failed"
             }
             TokenError::IllegalMintBurnConversion => {
-                msg!("Conversions from normal to confidential token balance and vice versa are illegal if the confidential-mint-burn extension is enabled")
+                "Conversions from normal to confidential token balance and vice versa are illegal if the confidential-mint-burn extension is enabled"
             }
             TokenError::InvalidScale => {
-                msg!("Invalid scale for scaled ui amount")
+                "Invalid scale for scaled ui amount"
             }
             TokenError::MintPaused => {
-                msg!("Transferring, minting, and burning is paused on this mint")
+                "Transferring, minting, and burning is paused on this mint"
             }
             TokenError::PendingBalanceNonZero => {
-                msg!("Key rotation attempted while pending balance is not zero")
+                "Key rotation attempted while pending balance is not zero"
             }
         }
     }

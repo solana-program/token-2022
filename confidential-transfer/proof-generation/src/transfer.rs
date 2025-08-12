@@ -101,7 +101,7 @@ pub fn transfer_split_proof_data(
     #[cfg(not(target_arch = "wasm32"))]
     let grouped_ciphertext_lo = transfer_amount_grouped_ciphertext_lo.0;
     #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_lo = GroupedElGamalCiphertext3Handles::encryption_with_u64(
+    let grouped_ciphertext_lo = GroupedElGamalCiphertext3Handles::encrypt_with_u64(
         source_elgamal_keypair.pubkey(),
         destination_elgamal_pubkey,
         auditor_elgamal_pubkey,
@@ -119,7 +119,7 @@ pub fn transfer_split_proof_data(
     #[cfg(not(target_arch = "wasm32"))]
     let grouped_ciphertext_hi = transfer_amount_grouped_ciphertext_hi.0;
     #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_hi = GroupedElGamalCiphertext3Handles::encryption_with_u64(
+    let grouped_ciphertext_hi = GroupedElGamalCiphertext3Handles::encrypt_with_u64(
         source_elgamal_keypair.pubkey(),
         destination_elgamal_pubkey,
         auditor_elgamal_pubkey,
