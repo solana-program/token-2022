@@ -15,5 +15,5 @@ solana-curve25519 = "2.3.4"
 solana-zk-sdk = "2.3.4"
 
 [dev-dependencies]
-spl-token-confidential-transfer-proof-generation = { version = "0.4.0", path = "../proof-generation" }
+spl-token-confidential-transfer-proof-generation = { version = "0.4.1", path = "../proof-generation" }
 curve25519-dalek = "4.1.3"
