@@ -28,7 +28,7 @@ solana-pubkey = "3.0.0"
 solana-sdk-ids = "3.0.0"
 solana-zk-sdk = "4.0.0"
 spl-token-confidential-transfer-proof-extraction = { version = "0.4.1", path = "../confidential-transfer/proof-extraction" }
-spl-token-group-interface = { version = "0.7.0" }
+spl-token-group-interface = { version = "0.7.1" }
 spl-token-metadata-interface = { version = "0.8.0" }
 spl-type-length-value = { version = "0.9.0" }
 spl-pod = { version = "0.7.0" }

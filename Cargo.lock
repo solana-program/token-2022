@@ -10414,7 +10414,7 @@ dependencies = [
  "spl-token",
  "spl-token-2022 9.0.0",
  "spl-token-client",
- "spl-token-confidential-transfer-proof-generation 0.4.1",
+ "spl-token-confidential-transfer-proof-generation 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "spl-token-group-interface 0.6.0",
  "spl-token-metadata-interface 0.7.0",
  "strum 0.27.2",
