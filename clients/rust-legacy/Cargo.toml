@@ -32,7 +32,7 @@ spl-elgamal-registry = { version = "0.3.0",features = ["no-entrypoint"], path = 
 spl-memo = { version = "6.0", features = ["no-entrypoint"] }
 spl-record = { version = "0.3.0", features = ["no-entrypoint"] }
 spl-token = { version = "8.0", features = ["no-entrypoint"] }
-spl-token-confidential-transfer-proof-extraction = { version = "0.4.0", path = "../../confidential-transfer/proof-extraction" }
+spl-token-confidential-transfer-proof-extraction = { version = "0.4.1", path = "../../confidential-transfer/proof-extraction" }
 spl-token-confidential-transfer-proof-generation = { version = "0.4.1", path = "../../confidential-transfer/proof-generation" }
 spl-token-2022 = { version = "9.0.0", features = ["no-entrypoint"], path = "../../program" }
 spl-token-group-interface = { version = "0.6.0" }

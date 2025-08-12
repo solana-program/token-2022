@@ -1,6 +1,6 @@
 [package]
 name = "spl-token-confidential-transfer-proof-extraction"
-version = "0.4.0"
+version = "0.4.1"
 description = "Solana Program Library Confidential Transfer Proof Extraction"
 authors = { workspace = true }
 repository = { workspace = true }

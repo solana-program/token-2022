@@ -9722,7 +9722,7 @@ dependencies = [
  "solana-sysvar",
  "solana-zk-sdk",
  "spl-pod",
- "spl-token-confidential-transfer-proof-extraction 0.4.0",
+ "spl-token-confidential-transfer-proof-extraction 0.4.1",
 ]
 
 [[package]]
@@ -9973,7 +9973,7 @@ dependencies = [
  "spl-tlv-account-resolution",
  "spl-token-2022-interface",
  "spl-token-confidential-transfer-ciphertext-arithmetic 0.3.0",
- "spl-token-confidential-transfer-proof-extraction 0.4.0",
+ "spl-token-confidential-transfer-proof-extraction 0.4.1",
  "spl-token-confidential-transfer-proof-generation 0.4.1",
  "spl-token-group-interface",
  "spl-token-metadata-interface",
@@ -10009,7 +10009,7 @@ dependencies = [
  "spl-pod",
  "spl-token",
  "spl-token-2022-interface",
- "spl-token-confidential-transfer-proof-extraction 0.4.0",
+ "spl-token-confidential-transfer-proof-extraction 0.4.1",
  "spl-token-confidential-transfer-proof-generation 0.4.1",
  "spl-token-group-interface",
  "spl-token-metadata-interface",
@@ -10086,7 +10086,7 @@ dependencies = [
  "spl-tlv-account-resolution",
  "spl-token",
  "spl-token-2022 9.0.0",
- "spl-token-confidential-transfer-proof-extraction 0.4.0",
+ "spl-token-confidential-transfer-proof-extraction 0.4.1",
  "spl-token-confidential-transfer-proof-generation 0.4.1",
  "spl-token-group-interface",
  "spl-token-metadata-interface",
@@ -10141,7 +10141,7 @@ dependencies = [
 
 [[package]]
 name = "spl-token-confidential-transfer-proof-extraction"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "bytemuck",
  "solana-account-info",
@@ -10183,7 +10183,7 @@ version = "0.0.1"
 dependencies = [
  "curve25519-dalek 4.1.3",
  "solana-zk-sdk",
- "spl-token-confidential-transfer-proof-extraction 0.4.0",
+ "spl-token-confidential-transfer-proof-extraction 0.4.1",
  "spl-token-confidential-transfer-proof-generation 0.4.1",
  "thiserror 2.0.12",
 ]
