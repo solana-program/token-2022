@@ -10469,7 +10469,7 @@ dependencies = [
  "bytemuck",
  "curve25519-dalek 4.1.3",
  "solana-curve25519",
- "solana-zk-sdk 2.3.4",
+ "solana-zk-sdk 4.0.0",
  "spl-token-confidential-transfer-proof-generation 0.4.1",
 ]
 

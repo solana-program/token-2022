@@ -93,7 +93,7 @@ pub fn mint_split_proof_data(
     #[cfg(not(target_arch = "wasm32"))]
     let grouped_ciphertext_lo = mint_amount_grouped_ciphertext_lo.0;
     #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_lo = GroupedElGamalCiphertext3Handles::encryption_with_u64(
+    let grouped_ciphertext_lo = GroupedElGamalCiphertext3Handles::encrypt_with_u64(
         destination_elgamal_pubkey,
         supply_elgamal_keypair.pubkey(),
         auditor_elgamal_pubkey,
@@ -110,7 +110,7 @@ pub fn mint_split_proof_data(
     #[cfg(not(target_arch = "wasm32"))]
     let grouped_ciphertext_hi = mint_amount_grouped_ciphertext_hi.0;
     #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_hi = GroupedElGamalCiphertext3Handles::encryption_with_u64(
+    let grouped_ciphertext_hi = GroupedElGamalCiphertext3Handles::encrypt_with_u64(
         destination_elgamal_pubkey,
         supply_elgamal_keypair.pubkey(),
         auditor_elgamal_pubkey,
