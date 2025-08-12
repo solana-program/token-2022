@@ -1,6 +1,6 @@
 [package]
 name = "spl-token-confidential-transfer-ciphertext-arithmetic"
-version = "0.3.0"
+version = "0.3.1"
 description = "Solana Program Library Confidential Transfer Ciphertext Arithmetic"
 authors = { workspace = true }
 repository = { workspace = true }
