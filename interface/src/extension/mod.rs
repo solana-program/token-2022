@@ -2815,7 +2815,7 @@ mod test {
         }
     }
     impl GetAccount for SolanaAccountData {
-        fn get(&mut self) -> (&mut u64, &mut [u8], &Pubkey, bool, u64) {
+        fn get(&mut self) -> (&mut u64, &mut [u8], &Pubkey, bool) {
             // need to pull out the data here to avoid a double-mutable borrow
             let start = size_of::<u64>();
             let len = self.len();
@@ -2824,7 +2824,6 @@ mod test {
                 &mut self.data[start..start + len],
                 &self.owner,
                 false,
-                u64::default(),
             )
         }
     }

@@ -2439,7 +2439,7 @@ mod test {
 
     macro_rules! test_instruction {
         ($a:ident($($b:tt)*)) => {
-            let instruction_v3 = spl_token::instruction::$a($($b)*).unwrap();
+            let instruction_v3 = spl_token_interface::instruction::$a($($b)*).unwrap();
             let instruction_2022 = $a($($b)*).unwrap();
             assert_eq!(instruction_v3, instruction_2022);
         }
@@ -2447,7 +2447,7 @@ mod test {
 
     #[test]
     fn test_v3_compatibility() {
-        let token_program_id = spl_token::id();
+        let token_program_id = spl_token_interface::id();
         let mint_pubkey = Pubkey::new_unique();
         let mint_authority_pubkey = Pubkey::new_unique();
         let freeze_authority_pubkey = Pubkey::new_unique();
@@ -2565,11 +2565,11 @@ mod test {
 
         // set_authority
         {
-            let instruction_v3 = spl_token::instruction::set_authority(
+            let instruction_v3 = spl_token_interface::instruction::set_authority(
                 &token_program_id,
                 &owned_pubkey,
                 Some(&new_authority_pubkey),
-                spl_token::instruction::AuthorityType::AccountOwner,
+                spl_token_interface::instruction::AuthorityType::AccountOwner,
                 &owner_pubkey,
                 &signer_pubkeys,
             )
@@ -2645,9 +2645,11 @@ mod test {
 
         // get_account_data_size
         {
-            let instruction_v3 =
-                spl_token::instruction::get_account_data_size(&token_program_id, &mint_pubkey)
-                    .unwrap();
+            let instruction_v3 = spl_token_interface::instruction::get_account_data_size(
+                &token_program_id,
+                &mint_pubkey,
+            )
+            .unwrap();
             let instruction_2022 =
                 get_account_data_size(&token_program_id, &mint_pubkey, &[]).unwrap();
             assert_eq!(instruction_v3, instruction_2022);
