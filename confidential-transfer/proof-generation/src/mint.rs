@@ -1,3 +1,39 @@
+//! Generates the zero-knowledge proofs required for a confidential mint.
+//!
+//! A confidential mint operation increases the total supply of a token and deposits the newly
+//! created tokens into a user's confidential account. This process requires three distinct
+//! zero-knowledge proofs:
+//!
+//! ## Protocol Flow and Proof Components
+//!
+//! 1.  **Encrypt Mint Amount**: The mint amount is encrypted in a grouped (twisted) ElGamal
+//!     ciphertext. This single cryptographic operation prepares the mint amount to be simultaneously
+//!     added to the destination account's balance and the mint's total supply. It also includes an
+//!     encryption for an optional auditor.
+//!
+//! 2.  **Homomorphic Calculation**: The client homomorphically computes the new encrypted total supply
+//!     by adding the supply-encrypted component of the mint amount to the mint's current
+//!     `confidential_supply` ciphertext.
+//!
+//! 3.  **Generate Proofs**: The user with mint authority generates three proofs:
+//!
+//!     -   **Batched Grouped Ciphertext Validity Proof**:
+//!         This proof certifies that the grouped ElGamal ciphertext for the `mint_amount` is well-formed
+//!         and was correctly encrypted for the destination, supply, and auditor public keys.
+//!
+//!     -   **Ciphertext-Commitment Equality Proof**:
+//!         This proof provides a cryptographic link that enables the total supply to be range-checked.
+//!         When the `new_supply_ciphertext` is computed homomorphically, the prover no longer knows
+//!         the associated Pedersen opening (randomness). To perform a range proof, the prover creates a
+//!         *new* Pedersen commitment for the `new_supply` value (for which they know the opening) and
+//!         uses this proof to certify that the ciphertext and the new commitment hide the same value.
+//!
+//!     -   **Range Proof (`BatchedRangeProofU128`)**:
+//!         This proof ensures supply integrity. It certifies that the `mint_amount` is a valid
+//!         48-bit number and, crucially, that the `new_supply` does not exceed the 64-bit limit.
+//!         This makes it cryptographically impossible to mint tokens in a way that would cause the
+//!         total supply to overflow.
+
 #[cfg(target_arch = "wasm32")]
 use solana_zk_sdk::encryption::grouped_elgamal::GroupedElGamalCiphertext3Handles;
 use {
@@ -152,6 +188,10 @@ pub fn mint_split_proof_data(
         };
 
     // generate range proof data
+
+    // the total bit lengths for the range proof must be a power-of-2
+    // therefore, create a Pedersen commitment to 0 and use it as a dummy commitment to a 16-bit
+    // value
     let (padding_commitment, padding_opening) = Pedersen::new(0_u64);
     let range_proof_data = BatchedRangeProofU128Data::new(
         vec![

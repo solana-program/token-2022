@@ -1,3 +1,37 @@
+//! Generates the zero-knowledge proofs required for a confidential withdraw.
+//!
+//! A confidential withdraw operation converts a user's encrypted, confidential token balance back into a
+//! standard, publicly-visible SPL token balance. To ensure this operation is valid and that a user
+//! cannot create tokens out of thin air, it requires two distinct zero-knowledge proofs.
+//!
+//! ## Protocol Flow and Proof Components
+//!
+//! 1.  **Calculate Remaining Balance**: The client first calculates the remaining confidential balance
+//!     by subtracting the desired `withdraw_amount` from their current known balance.
+//!
+//! 2.  **Homomorphic Calculation**: The client homomorphically computes the new encrypted balance
+//!     ciphertext. This is done by taking the current `available_balance` ciphertext and subtracting
+//!     a newly-encoded ciphertext of the `withdraw_amount`.
+//!
+//! 3.  **Generate Proofs**: The user generates two proofs to certify the validity of the operation:
+//!
+//!     -   **Ciphertext-Commitment Equality Proof (`CiphertextCommitmentEqualityProofData`)**:
+//!         This proof provides a cryptographic link that enables the solvency check. When the
+//!         `remaining_balance_ciphertext` is computed homomorphically, the prover may not know the
+//!         corresponding Pedersen opening (randomness) for the resulting ciphertext. Performing a
+//!         range proof requires knowledge of this opening.
+//!
+//!         To solve this, the prover creates a *new* Pedersen commitment for the remaining balance,
+//!         for which it knows the opening. The equality proof then certifies that the
+//!         homomorphically-derived ciphertext and this new commitment hide the exact same numerical
+//!         value. This allows the range proof to be performed on the new commitment.
+//!
+//!     -   **Range Proof (`BatchedRangeProofU64Data`)**:
+//!         This proof certifies the user's **solvency**. By proving that the value inside the
+//!         Pedersen commitment for the *remaining balance* is non-negative (i.e., it is in the range
+//!         `[0, 2^64)`), it implicitly proves that the user's original balance was greater than or
+//!         equal to the `withdraw_amount`.
+
 use {
     crate::errors::TokenProofGenerationError,
     solana_zk_sdk::{
