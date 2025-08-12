@@ -10306,7 +10306,7 @@ dependencies = [
  "spl-memo",
  "spl-pod 0.5.1",
  "spl-tlv-account-resolution",
- "spl-token-2022-interface 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-token-2022-interface 1.0.0",
  "spl-token-confidential-transfer-ciphertext-arithmetic 0.3.1",
  "spl-token-confidential-transfer-proof-extraction 0.4.1",
  "spl-token-confidential-transfer-proof-generation 0.4.1",
@@ -10314,39 +10314,6 @@ dependencies = [
  "spl-token-metadata-interface 0.7.0",
  "spl-transfer-hook-interface",
  "test-case",
- "thiserror 2.0.12",
-]
-
-[[package]]
-name = "spl-token-2022-interface"
-version = "1.0.0"
-dependencies = [
- "arrayref",
- "base64 0.22.1",
- "bytemuck",
- "num-derive",
- "num-traits",
- "num_enum",
- "proptest",
- "serde",
- "serde_json",
- "serde_with",
- "solana-account-info 3.0.0",
- "solana-instruction 3.0.0",
- "solana-program-error 3.0.0",
- "solana-program-option 3.0.0",
- "solana-program-pack 3.0.0",
- "solana-pubkey 3.0.0",
- "solana-sdk-ids 3.0.0",
- "solana-zk-sdk 4.0.0",
- "spl-pod 0.7.1",
- "spl-token-2022-interface 1.0.0",
- "spl-token-confidential-transfer-proof-extraction 0.5.0",
- "spl-token-confidential-transfer-proof-generation 0.5.0",
- "spl-token-group-interface 0.7.1",
- "spl-token-interface",
- "spl-token-metadata-interface 0.8.0",
- "spl-type-length-value 0.9.0",
  "thiserror 2.0.12",
 ]
 
@@ -10380,6 +10347,39 @@ dependencies = [
  "spl-token-group-interface 0.6.0",
  "spl-token-metadata-interface 0.7.0",
  "spl-type-length-value 0.8.0",
+ "thiserror 2.0.12",
+]
+
+[[package]]
+name = "spl-token-2022-interface"
+version = "2.0.0"
+dependencies = [
+ "arrayref",
+ "base64 0.22.1",
+ "bytemuck",
+ "num-derive",
+ "num-traits",
+ "num_enum",
+ "proptest",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "solana-account-info 3.0.0",
+ "solana-instruction 3.0.0",
+ "solana-program-error 3.0.0",
+ "solana-program-option 3.0.0",
+ "solana-program-pack 3.0.0",
+ "solana-pubkey 3.0.0",
+ "solana-sdk-ids 3.0.0",
+ "solana-zk-sdk 4.0.0",
+ "spl-pod 0.7.1",
+ "spl-token-2022-interface 2.0.0",
+ "spl-token-confidential-transfer-proof-extraction 0.5.0",
+ "spl-token-confidential-transfer-proof-generation 0.5.0",
+ "spl-token-group-interface 0.7.1",
+ "spl-token-interface",
+ "spl-token-metadata-interface 0.8.0",
+ "spl-type-length-value 0.9.0",
  "thiserror 2.0.12",
 ]
 

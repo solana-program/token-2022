@@ -1,6 +1,6 @@
 [package]
 name = "spl-token-2022-interface"
-version = "1.0.0"
+version = "2.0.0"
 description = "Solana Program Library Token 2022 Interface"
 documentation = "https://docs.rs/spl-token-2022-interface"
 readme = "README.md"
