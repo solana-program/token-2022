@@ -59,10 +59,10 @@ importers:
         version: 8.39.1(eslint@8.57.1)(typescript@5.9.2)
       chai:
         specifier: ^5.1.2
-        version: 5.2.1
+        version: 5.3.1
       chai-as-promised:
         specifier: ^8.0.1
-        version: 8.0.1(chai@5.2.1)
+        version: 8.0.1(chai@5.3.1)
       eslint:
         specifier: ^8.57.0
         version: 8.57.1
@@ -542,8 +542,8 @@ packages:
     peerDependencies:
       chai: '>= 2.1.2 < 6'
 
-  chai@5.2.1:
-    resolution: {integrity: sha512-5nFxhUrX0PqtyogoYOA8IPswy5sZFTOsBFl/9bNsmDLgsxYTzSZQJDPppDnZPTQbzSEm0hqGjWPzRemQCYbD6A==}
+  chai@5.3.1:
+    resolution: {integrity: sha512-48af6xm9gQK8rhIcOxWwdGzIervm8BVTin+yRp9HEvU20BtVZ2lBywlIJBzwaDtvo0FvjeL7QdCADoUoqIbV3A==}
     engines: {node: '>=18'}
 
   chalk@4.1.2:
@@ -1083,8 +1083,8 @@ packages:
     resolution: {integrity: sha512-8XPvpAA8uyhfteu8pIvQxpJZ7SYYdpUivZpGy6sFsBuKRY/7rQGavedeB8aK+Zkyq6upMFVL/9AW6vOYzfRyLg==}
     engines: {node: '>=10'}
 
-  loupe@3.1.4:
-    resolution: {integrity: sha512-wJzkKwJrheKtknCOKNEtDK4iqg/MxmZheEMtSTYvnzRdEYaZzmgH976nenp8WdJRdx5Vc1X/9MO0Oszl6ezeXg==}
+  loupe@3.2.0:
+    resolution: {integrity: sha512-2NCfZcT5VGVNX9mSZIxLRkEAegDGBpuQZBy13desuHeVORmBDyAET4TkJr4SjqQy3A8JDofMN6LpkK8Xcm/dlw==}
 
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
@@ -2118,17 +2118,17 @@ snapshots:
 
   camelcase@6.3.0: {}
 
-  chai-as-promised@8.0.1(chai@5.2.1):
+  chai-as-promised@8.0.1(chai@5.3.1):
     dependencies:
-      chai: 5.2.1
+      chai: 5.3.1
       check-error: 2.1.1
 
-  chai@5.2.1:
+  chai@5.3.1:
     dependencies:
       assertion-error: 2.0.1
       check-error: 2.1.1
       deep-eql: 5.0.2
-      loupe: 3.1.4
+      loupe: 3.2.0
       pathval: 2.0.1
 
   chalk@4.1.2:
@@ -2676,7 +2676,7 @@ snapshots:
       chalk: 4.1.2
       is-unicode-supported: 0.1.0
 
-  loupe@3.1.4: {}
+  loupe@3.2.0: {}
 
   lru-cache@10.4.3: {}
 
