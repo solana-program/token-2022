@@ -4041,7 +4041,7 @@ where
     }
 
     /// Get the pending balance for a confidential transfer account.
-    /// 
+    ///
     /// This decrypts and combines the low 16 bits and high 48 bits of the pending balance
     /// into a single u64 value.
     pub async fn confidential_transfer_get_pending_balance(
@@ -4050,14 +4050,17 @@ where
         elgamal_secret_key: &ElGamalSecretKey,
     ) -> TokenResult<u64> {
         let account_info = self.get_account_info(account).await?;
-        let confidential_transfer_account = account_info.get_extension::<ConfidentialTransferAccount>()?;
+        let confidential_transfer_account =
+            account_info.get_extension::<ConfidentialTransferAccount>()?;
         let account_info = ApplyPendingBalanceAccountInfo::new(confidential_transfer_account);
-        
-        account_info.get_pending_balance(elgamal_secret_key).map_err(|_| TokenError::AccountDecryption)
+
+        account_info
+            .get_pending_balance(elgamal_secret_key)
+            .map_err(|_| TokenError::AccountDecryption)
     }
 
     /// Get the available balance for a confidential transfer account.
-    /// 
+    ///
     /// This decrypts the decryptable available balance using the provided AES key.
     pub async fn confidential_transfer_get_available_balance(
         &self,
@@ -4065,14 +4068,17 @@ where
         aes_key: &AeKey,
     ) -> TokenResult<u64> {
         let account_info = self.get_account_info(account).await?;
-        let confidential_transfer_account = account_info.get_extension::<ConfidentialTransferAccount>()?;
+        let confidential_transfer_account =
+            account_info.get_extension::<ConfidentialTransferAccount>()?;
         let account_info = ApplyPendingBalanceAccountInfo::new(confidential_transfer_account);
-        
-        account_info.get_available_balance(aes_key).map_err(|_| TokenError::AccountDecryption)
+
+        account_info
+            .get_available_balance(aes_key)
+            .map_err(|_| TokenError::AccountDecryption)
     }
 
     /// Get the total balance (pending + available) for a confidential transfer account.
-    /// 
+    ///
     /// This combines both pending and available balances with overflow protection.
     pub async fn confidential_transfer_get_total_balance(
         &self,
@@ -4081,26 +4087,30 @@ where
         aes_key: &AeKey,
     ) -> TokenResult<u64> {
         let account_info = self.get_account_info(account).await?;
-        let confidential_transfer_account = account_info.get_extension::<ConfidentialTransferAccount>()?;
+        let confidential_transfer_account =
+            account_info.get_extension::<ConfidentialTransferAccount>()?;
         let account_info = ApplyPendingBalanceAccountInfo::new(confidential_transfer_account);
-        
-        account_info.get_total_balance(elgamal_secret_key, aes_key).map_err(|e| match e {
-            spl_token_2022::error::TokenError::Overflow => TokenError::AccountDecryption,
-            _ => TokenError::AccountDecryption,
-        })
+
+        account_info
+            .get_total_balance(elgamal_secret_key, aes_key)
+            .map_err(|e| match e {
+                spl_token_2022::error::TokenError::Overflow => TokenError::AccountDecryption,
+                _ => TokenError::AccountDecryption,
+            })
     }
 
     /// Check if a confidential transfer account has any pending balance.
-    /// 
+    ///
     /// This checks if pending_balance_credit_counter > 0.
     pub async fn confidential_transfer_has_pending_balance(
         &self,
         account: &Pubkey,
     ) -> TokenResult<bool> {
         let account_info = self.get_account_info(account).await?;
-        let confidential_transfer_account = account_info.get_extension::<ConfidentialTransferAccount>()?;
+        let confidential_transfer_account =
+            account_info.get_extension::<ConfidentialTransferAccount>()?;
         let account_info = ApplyPendingBalanceAccountInfo::new(confidential_transfer_account);
-        
+
         Ok(account_info.has_pending_balance())
     }
 }

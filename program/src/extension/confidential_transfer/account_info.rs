@@ -142,7 +142,7 @@ impl ApplyPendingBalanceAccountInfo {
     }
 
     /// Decrypt and return the pending balance for this account.
-    /// 
+    ///
     /// This combines the low 16 bits and high 48 bits of the pending balance
     /// into a single u64 value.
     pub fn get_pending_balance(
@@ -151,9 +151,8 @@ impl ApplyPendingBalanceAccountInfo {
     ) -> Result<u64, TokenError> {
         let decrypted_lo = self.decrypted_pending_balance_lo(elgamal_secret_key)?;
         let decrypted_hi = self.decrypted_pending_balance_hi(elgamal_secret_key)?;
-        
-        combine_balances(decrypted_lo, decrypted_hi)
-            .ok_or(TokenError::AccountDecryption)
+
+        combine_balances(decrypted_lo, decrypted_hi).ok_or(TokenError::AccountDecryption)
     }
 
     /// Check if this account has any pending balance.
@@ -162,10 +161,7 @@ impl ApplyPendingBalanceAccountInfo {
     }
 
     /// Get the available balance for this account.
-    pub fn get_available_balance(
-        &self,
-        aes_key: &AeKey,
-    ) -> Result<u64, TokenError> {
+    pub fn get_available_balance(&self, aes_key: &AeKey) -> Result<u64, TokenError> {
         self.decrypted_available_balance(aes_key)
     }
 
@@ -177,9 +173,8 @@ impl ApplyPendingBalanceAccountInfo {
     ) -> Result<u64, TokenError> {
         let pending = self.get_pending_balance(elgamal_secret_key)?;
         let available = self.get_available_balance(aes_key)?;
-        
-        pending.checked_add(available)
-            .ok_or(TokenError::Overflow)
+
+        pending.checked_add(available).ok_or(TokenError::Overflow)
     }
 }
 
@@ -371,5 +366,3 @@ pub fn combine_balances(balance_lo: u64, balance_hi: u64) -> Option<u64> {
         .checked_shl(PENDING_BALANCE_LO_BIT_LENGTH)?
         .checked_add(balance_lo)
 }
-
-
