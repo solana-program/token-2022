@@ -1,14 +1,19 @@
 use {
     async_trait::async_trait,
-    solana_banks_interface::BanksTransactionResultWithSimulation,
-    solana_program_test::{tokio::sync::Mutex, BanksClient, ProgramTestContext},
+    solana_account::Account,
+    solana_hash::Hash,
+    solana_pubkey::Pubkey,
     solana_rpc_client::nonblocking::rpc_client::RpcClient,
     solana_rpc_client_api::response::RpcSimulateTransactionResult,
-    solana_sdk::{
-        account::Account, hash::Hash, pubkey::Pubkey, signature::Signature,
-        transaction::Transaction,
-    },
+    solana_signature::Signature,
+    solana_transaction::Transaction,
     std::{fmt, future::Future, pin::Pin, sync::Arc},
+};
+
+#[cfg(feature = "dev-context-only-utils")]
+use {
+    solana_banks_client::BanksClient, solana_banks_interface::BanksTransactionResultWithSimulation,
+    solana_program_test::ProgramTestContext, tokio::sync::Mutex,
 };
 
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
@@ -30,6 +35,7 @@ pub trait SimulationResult {
 
 /// Extends basic `SendTransaction` trait with function `send` where client is
 /// `&mut BanksClient`. Required for `ProgramBanksClient`.
+#[cfg(feature = "dev-context-only-utils")]
 pub trait SendTransactionBanksClient: SendTransaction {
     fn send<'a>(
         &self,
@@ -40,6 +46,7 @@ pub trait SendTransactionBanksClient: SendTransaction {
 
 /// Extends basic `SimulateTransaction` trait with function `simulation` where
 /// client is `&mut BanksClient`. Required for `ProgramBanksClient`.
+#[cfg(feature = "dev-context-only-utils")]
 pub trait SimulateTransactionBanksClient: SimulateTransaction {
     fn simulate<'a>(
         &self,
@@ -50,12 +57,15 @@ pub trait SimulateTransactionBanksClient: SimulateTransaction {
 
 /// Send transaction to validator using `BanksClient::process_transaction`.
 #[derive(Debug, Clone, Copy, Default)]
+#[cfg(feature = "dev-context-only-utils")]
 pub struct ProgramBanksClientProcessTransaction;
 
+#[cfg(feature = "dev-context-only-utils")]
 impl SendTransaction for ProgramBanksClientProcessTransaction {
     type Output = ();
 }
 
+#[cfg(feature = "dev-context-only-utils")]
 impl SendTransactionBanksClient for ProgramBanksClientProcessTransaction {
     fn send<'a>(
         &self,
@@ -71,6 +81,7 @@ impl SendTransactionBanksClient for ProgramBanksClientProcessTransaction {
     }
 }
 
+#[cfg(feature = "dev-context-only-utils")]
 impl SimulationResult for BanksTransactionResultWithSimulation {
     fn get_compute_units_consumed(&self) -> ProgramClientResult<u64> {
         self.simulation_details
@@ -80,10 +91,12 @@ impl SimulationResult for BanksTransactionResultWithSimulation {
     }
 }
 
+#[cfg(feature = "dev-context-only-utils")]
 impl SimulateTransaction for ProgramBanksClientProcessTransaction {
     type SimulationOutput = BanksTransactionResultWithSimulation;
 }
 
+#[cfg(feature = "dev-context-only-utils")]
 impl SimulateTransactionBanksClient for ProgramBanksClientProcessTransaction {
     fn simulate<'a>(
         &self,
@@ -213,23 +226,27 @@ where
     ) -> ProgramClientResult<ST::SimulationOutput>;
 }
 
+#[cfg(feature = "dev-context-only-utils")]
 enum ProgramBanksClientContext {
     Client(Arc<Mutex<BanksClient>>),
     Context(Arc<Mutex<ProgramTestContext>>),
 }
 
 /// Program client for `BanksClient` from crate `solana-program-test`.
+#[cfg(feature = "dev-context-only-utils")]
 pub struct ProgramBanksClient<ST> {
     context: ProgramBanksClientContext,
     send: ST,
 }
 
+#[cfg(feature = "dev-context-only-utils")]
 impl<ST> fmt::Debug for ProgramBanksClient<ST> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ProgramBanksClient").finish()
     }
 }
 
+#[cfg(feature = "dev-context-only-utils")]
 impl<ST> ProgramBanksClient<ST> {
     fn new(context: ProgramBanksClientContext, send: ST) -> Self {
         Self { context, send }
@@ -260,6 +277,7 @@ impl<ST> ProgramBanksClient<ST> {
     }
 }
 
+#[cfg(feature = "dev-context-only-utils")]
 #[async_trait]
 impl<ST> ProgramClient<ST> for ProgramBanksClient<ST>
 where

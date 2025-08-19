@@ -5,22 +5,19 @@ use {
     bytemuck::{bytes_of, Pod},
     futures::future::join_all,
     futures_util::TryFutureExt,
-    solana_program_test::tokio::time,
-    solana_sdk::{
-        account::Account as BaseAccount,
-        compute_budget::ComputeBudgetInstruction,
-        hash::Hash,
-        instruction::{AccountMeta, Instruction},
-        message::Message,
-        packet::PACKET_DATA_SIZE,
-        program_error::ProgramError,
-        program_pack::Pack,
-        pubkey::Pubkey,
-        signature::Signature,
-        signer::{signers::Signers, Signer, SignerError},
-        transaction::Transaction,
-    },
+    solana_account::Account as BaseAccount,
+    solana_compute_budget_interface::ComputeBudgetInstruction,
+    solana_hash::Hash,
+    solana_instruction::{AccountMeta, Instruction},
+    solana_message::Message,
+    solana_packet::PACKET_DATA_SIZE,
+    solana_program_error::ProgramError,
+    solana_program_pack::Pack,
+    solana_pubkey::Pubkey,
+    solana_signature::Signature,
+    solana_signer::{signers::Signers, Signer, SignerError},
     solana_system_interface::instruction as system_instruction,
+    solana_transaction::Transaction,
     spl_associated_token_account_client::{
         address::get_associated_token_address_with_program_id,
         instruction::{
@@ -87,6 +84,7 @@ use {
         time::{Duration, Instant},
     },
     thiserror::Error,
+    tokio::time,
 };
 
 #[derive(Error, Debug)]
