@@ -4077,7 +4077,7 @@ where
             .map_err(|_| TokenError::AccountDecryption)
     }
 
-    /// Get the total balance (pending + available) for a confidential transfer account.
+    /// Get the total balance (pending and available) for a confidential transfer account.
     ///
     /// This combines both pending and available balances with overflow protection.
     pub async fn confidential_transfer_get_total_balance(
@@ -4101,7 +4101,7 @@ where
 
     /// Check if a confidential transfer account has any pending balance.
     ///
-    /// This checks if pending_balance_credit_counter > 0.
+    /// This checks whether the pending_balance_credit_counter is greater than zero.
     pub async fn confidential_transfer_has_pending_balance(
         &self,
         account: &Pubkey,

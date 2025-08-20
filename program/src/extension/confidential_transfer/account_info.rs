@@ -165,7 +165,7 @@ impl ApplyPendingBalanceAccountInfo {
         self.decrypted_available_balance(aes_key)
     }
 
-    /// Get the total balance (pending + available) for this account.
+    /// Get the total balance (pending and available) for this account.
     pub fn get_total_balance(
         &self,
         elgamal_secret_key: &ElGamalSecretKey,

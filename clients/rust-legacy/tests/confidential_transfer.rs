@@ -2533,7 +2533,7 @@ async fn confidential_transfer_transfer_with_fee_and_memo_option(
         withdraw_withheld_authority_elgamal_keypair.pubkey(),
         TEST_FEE_BASIS_POINTS,
         TEST_MAXIMUM_FEE,
-        Some(("🦖", vec![alice.pubkey()])),
+        None,
         &[&alice],
         option,
     )
