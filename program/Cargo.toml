@@ -62,7 +62,7 @@ spl-token-confidential-transfer-proof-generation = { version = "0.4.1" }
 lazy_static = "1.5.0"
 proptest = "1.7"
 serial_test = "3.2.0"
-solana-account = "2.2.1"
+solana-account = "3.0.0"
 solana-hash = "2.2.1"
 solana-keypair = "2.2.1"
 solana-program-test = "2.3.4"
