@@ -17,16 +17,17 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type Option,
   type OptionOrNullable,
+  type ReadonlyUint8Array,
   type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
@@ -48,11 +49,11 @@ export function getInitializeTransferHookTransferHookDiscriminatorBytes() {
 
 export type InitializeTransferHookInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+  TAccountMint extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountMint extends string
         ? WritableAccount<TAccountMint>
@@ -77,7 +78,7 @@ export type InitializeTransferHookInstructionDataArgs = {
   programId: OptionOrNullable<Address>;
 };
 
-export function getInitializeTransferHookInstructionDataEncoder(): Encoder<InitializeTransferHookInstructionDataArgs> {
+export function getInitializeTransferHookInstructionDataEncoder(): FixedSizeEncoder<InitializeTransferHookInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -106,7 +107,7 @@ export function getInitializeTransferHookInstructionDataEncoder(): Encoder<Initi
   );
 }
 
-export function getInitializeTransferHookInstructionDataDecoder(): Decoder<InitializeTransferHookInstructionData> {
+export function getInitializeTransferHookInstructionDataDecoder(): FixedSizeDecoder<InitializeTransferHookInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['transferHookDiscriminator', getU8Decoder()],
@@ -127,7 +128,7 @@ export function getInitializeTransferHookInstructionDataDecoder(): Decoder<Initi
   ]);
 }
 
-export function getInitializeTransferHookInstructionDataCodec(): Codec<
+export function getInitializeTransferHookInstructionDataCodec(): FixedSizeCodec<
   InitializeTransferHookInstructionDataArgs,
   InitializeTransferHookInstructionData
 > {
@@ -181,7 +182,7 @@ export function getInitializeTransferHookInstruction<
 
 export type ParsedInitializeTransferHookInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -193,11 +194,11 @@ export type ParsedInitializeTransferHookInstruction<
 
 export function parseInitializeTransferHookInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedInitializeTransferHookInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 1) {
     // TODO: Coded error.

@@ -13,15 +13,15 @@ import {
   getStructDecoder,
   getStructEncoder,
   transformEncoder,
+  type AccountMeta,
+  type AccountSignerMeta,
   type Address,
   type Codec,
   type Decoder,
   type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type ReadonlyAccount,
   type ReadonlySignerAccount,
   type ReadonlyUint8Array,
@@ -41,15 +41,15 @@ export function getInitializeTokenGroupMemberDiscriminatorBytes() {
 
 export type InitializeTokenGroupMemberInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMember extends string | IAccountMeta<string> = string,
-  TAccountMemberMint extends string | IAccountMeta<string> = string,
-  TAccountMemberMintAuthority extends string | IAccountMeta<string> = string,
-  TAccountGroup extends string | IAccountMeta<string> = string,
-  TAccountGroupUpdateAuthority extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+  TAccountMember extends string | AccountMeta<string> = string,
+  TAccountMemberMint extends string | AccountMeta<string> = string,
+  TAccountMemberMintAuthority extends string | AccountMeta<string> = string,
+  TAccountGroup extends string | AccountMeta<string> = string,
+  TAccountGroupUpdateAuthority extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountMember extends string
         ? WritableAccount<TAccountMember>
@@ -59,14 +59,14 @@ export type InitializeTokenGroupMemberInstruction<
         : TAccountMemberMint,
       TAccountMemberMintAuthority extends string
         ? ReadonlySignerAccount<TAccountMemberMintAuthority> &
-            IAccountSignerMeta<TAccountMemberMintAuthority>
+            AccountSignerMeta<TAccountMemberMintAuthority>
         : TAccountMemberMintAuthority,
       TAccountGroup extends string
         ? WritableAccount<TAccountGroup>
         : TAccountGroup,
       TAccountGroupUpdateAuthority extends string
         ? ReadonlySignerAccount<TAccountGroupUpdateAuthority> &
-            IAccountSignerMeta<TAccountGroupUpdateAuthority>
+            AccountSignerMeta<TAccountGroupUpdateAuthority>
         : TAccountGroupUpdateAuthority,
       ...TRemainingAccounts,
     ]
@@ -187,7 +187,7 @@ export function getInitializeTokenGroupMemberInstruction<
 
 export type ParsedInitializeTokenGroupMemberInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -202,11 +202,11 @@ export type ParsedInitializeTokenGroupMemberInstruction<
 
 export function parseInitializeTokenGroupMemberInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedInitializeTokenGroupMemberInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 5) {
     // TODO: Coded error.

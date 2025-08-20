@@ -9,10 +9,10 @@ use {
         instruction::InstructionError,
         pubkey::Pubkey,
         signature::Signer,
-        system_instruction,
         transaction::{Transaction, TransactionError},
         transport::TransportError,
     },
+    solana_system_interface::instruction as system_instruction,
     spl_token_2022::{
         error::TokenError,
         extension::{memo_transfer::MemoTransfer, BaseStateWithExtensions, ExtensionType},

@@ -14,17 +14,18 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
+  type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type ReadonlyAccount,
   type ReadonlySignerAccount,
+  type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
 } from '@solana/kit';
@@ -47,12 +48,12 @@ export function getDisableConfidentialCreditsConfidentialTransferDiscriminatorBy
 
 export type DisableConfidentialCreditsInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountToken extends string | IAccountMeta<string> = string,
-  TAccountAuthority extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+  TAccountToken extends string | AccountMeta<string> = string,
+  TAccountAuthority extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountToken extends string
         ? WritableAccount<TAccountToken>
@@ -71,7 +72,7 @@ export type DisableConfidentialCreditsInstructionData = {
 
 export type DisableConfidentialCreditsInstructionDataArgs = {};
 
-export function getDisableConfidentialCreditsInstructionDataEncoder(): Encoder<DisableConfidentialCreditsInstructionDataArgs> {
+export function getDisableConfidentialCreditsInstructionDataEncoder(): FixedSizeEncoder<DisableConfidentialCreditsInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -86,14 +87,14 @@ export function getDisableConfidentialCreditsInstructionDataEncoder(): Encoder<D
   );
 }
 
-export function getDisableConfidentialCreditsInstructionDataDecoder(): Decoder<DisableConfidentialCreditsInstructionData> {
+export function getDisableConfidentialCreditsInstructionDataDecoder(): FixedSizeDecoder<DisableConfidentialCreditsInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferDiscriminator', getU8Decoder()],
   ]);
 }
 
-export function getDisableConfidentialCreditsInstructionDataCodec(): Codec<
+export function getDisableConfidentialCreditsInstructionDataCodec(): FixedSizeCodec<
   DisableConfidentialCreditsInstructionDataArgs,
   DisableConfidentialCreditsInstructionData
 > {
@@ -126,7 +127,7 @@ export function getDisableConfidentialCreditsInstruction<
   TAccountToken,
   (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
     ? ReadonlySignerAccount<TAccountAuthority> &
-        IAccountSignerMeta<TAccountAuthority>
+        AccountSignerMeta<TAccountAuthority>
     : TAccountAuthority
 > {
   // Program address.
@@ -146,7 +147,7 @@ export function getDisableConfidentialCreditsInstruction<
   const args = { ...input };
 
   // Remaining accounts.
-  const remainingAccounts: IAccountMeta[] = (args.multiSigners ?? []).map(
+  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
     (signer) => ({
       address: signer.address,
       role: AccountRole.READONLY_SIGNER,
@@ -168,7 +169,7 @@ export function getDisableConfidentialCreditsInstruction<
     TAccountToken,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
       ? ReadonlySignerAccount<TAccountAuthority> &
-          IAccountSignerMeta<TAccountAuthority>
+          AccountSignerMeta<TAccountAuthority>
       : TAccountAuthority
   >;
 
@@ -177,7 +178,7 @@ export function getDisableConfidentialCreditsInstruction<
 
 export type ParsedDisableConfidentialCreditsInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -191,11 +192,11 @@ export type ParsedDisableConfidentialCreditsInstruction<
 
 export function parseDisableConfidentialCreditsInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedDisableConfidentialCreditsInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 2) {
     // TODO: Coded error.

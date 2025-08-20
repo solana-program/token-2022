@@ -13,16 +13,17 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
+  type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type ReadonlyAccount,
+  type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
@@ -38,19 +39,19 @@ export function getCreateNativeMintDiscriminatorBytes() {
 
 export type CreateNativeMintInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountPayer extends string | IAccountMeta<string> = string,
-  TAccountNativeMint extends string | IAccountMeta<string> = string,
+  TAccountPayer extends string | AccountMeta<string> = string,
+  TAccountNativeMint extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends
     | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+    | AccountMeta<string> = '11111111111111111111111111111111',
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountPayer extends string
         ? WritableSignerAccount<TAccountPayer> &
-            IAccountSignerMeta<TAccountPayer>
+            AccountSignerMeta<TAccountPayer>
         : TAccountPayer,
       TAccountNativeMint extends string
         ? WritableAccount<TAccountNativeMint>
@@ -66,18 +67,18 @@ export type CreateNativeMintInstructionData = { discriminator: number };
 
 export type CreateNativeMintInstructionDataArgs = {};
 
-export function getCreateNativeMintInstructionDataEncoder(): Encoder<CreateNativeMintInstructionDataArgs> {
+export function getCreateNativeMintInstructionDataEncoder(): FixedSizeEncoder<CreateNativeMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
     (value) => ({ ...value, discriminator: CREATE_NATIVE_MINT_DISCRIMINATOR })
   );
 }
 
-export function getCreateNativeMintInstructionDataDecoder(): Decoder<CreateNativeMintInstructionData> {
+export function getCreateNativeMintInstructionDataDecoder(): FixedSizeDecoder<CreateNativeMintInstructionData> {
   return getStructDecoder([['discriminator', getU8Decoder()]]);
 }
 
-export function getCreateNativeMintInstructionDataCodec(): Codec<
+export function getCreateNativeMintInstructionDataCodec(): FixedSizeCodec<
   CreateNativeMintInstructionDataArgs,
   CreateNativeMintInstructionData
 > {
@@ -159,7 +160,7 @@ export function getCreateNativeMintInstruction<
 
 export type ParsedCreateNativeMintInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -175,11 +176,11 @@ export type ParsedCreateNativeMintInstruction<
 
 export function parseCreateNativeMintInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedCreateNativeMintInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 3) {
     // TODO: Coded error.

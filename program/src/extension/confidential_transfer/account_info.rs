@@ -64,7 +64,7 @@ pub struct ApplyPendingBalanceAccountInfo {
     pub(crate) pending_balance_credit_counter: PodU64,
     /// The low 16 bits of the pending balance (encrypted by `elgamal_pubkey`)
     pub(crate) pending_balance_lo: EncryptedBalance,
-    /// The high 48 bits of the pending balance (encrypted by `elgamal_pubkey`)
+    /// The high 32 bits of the pending balance (encrypted by `elgamal_pubkey`)
     pub(crate) pending_balance_hi: EncryptedBalance,
     /// The decryptable available balance
     pub(crate) decryptable_available_balance: DecryptableBalance,

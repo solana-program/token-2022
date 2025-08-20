@@ -14,17 +14,18 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
+  type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type ReadonlyAccount,
   type ReadonlySignerAccount,
+  type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
 } from '@solana/kit';
@@ -49,15 +50,15 @@ export function getWithdrawWithheldTokensFromMintTransferFeeDiscriminatorBytes()
 
 export type WithdrawWithheldTokensFromMintInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | IAccountMeta<string> = string,
-  TAccountFeeReceiver extends string | IAccountMeta<string> = string,
+  TAccountMint extends string | AccountMeta<string> = string,
+  TAccountFeeReceiver extends string | AccountMeta<string> = string,
   TAccountWithdrawWithheldAuthority extends
     | string
-    | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+    | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountMint extends string
         ? WritableAccount<TAccountMint>
@@ -79,7 +80,7 @@ export type WithdrawWithheldTokensFromMintInstructionData = {
 
 export type WithdrawWithheldTokensFromMintInstructionDataArgs = {};
 
-export function getWithdrawWithheldTokensFromMintInstructionDataEncoder(): Encoder<WithdrawWithheldTokensFromMintInstructionDataArgs> {
+export function getWithdrawWithheldTokensFromMintInstructionDataEncoder(): FixedSizeEncoder<WithdrawWithheldTokensFromMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -94,14 +95,14 @@ export function getWithdrawWithheldTokensFromMintInstructionDataEncoder(): Encod
   );
 }
 
-export function getWithdrawWithheldTokensFromMintInstructionDataDecoder(): Decoder<WithdrawWithheldTokensFromMintInstructionData> {
+export function getWithdrawWithheldTokensFromMintInstructionDataDecoder(): FixedSizeDecoder<WithdrawWithheldTokensFromMintInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['transferFeeDiscriminator', getU8Decoder()],
   ]);
 }
 
-export function getWithdrawWithheldTokensFromMintInstructionDataCodec(): Codec<
+export function getWithdrawWithheldTokensFromMintInstructionDataCodec(): FixedSizeCodec<
   WithdrawWithheldTokensFromMintInstructionDataArgs,
   WithdrawWithheldTokensFromMintInstructionData
 > {
@@ -148,7 +149,7 @@ export function getWithdrawWithheldTokensFromMintInstruction<
   TAccountFeeReceiver,
   (typeof input)['withdrawWithheldAuthority'] extends TransactionSigner<TAccountWithdrawWithheldAuthority>
     ? ReadonlySignerAccount<TAccountWithdrawWithheldAuthority> &
-        IAccountSignerMeta<TAccountWithdrawWithheldAuthority>
+        AccountSignerMeta<TAccountWithdrawWithheldAuthority>
     : TAccountWithdrawWithheldAuthority
 > {
   // Program address.
@@ -172,7 +173,7 @@ export function getWithdrawWithheldTokensFromMintInstruction<
   const args = { ...input };
 
   // Remaining accounts.
-  const remainingAccounts: IAccountMeta[] = (args.multiSigners ?? []).map(
+  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
     (signer) => ({
       address: signer.address,
       role: AccountRole.READONLY_SIGNER,
@@ -196,7 +197,7 @@ export function getWithdrawWithheldTokensFromMintInstruction<
     TAccountFeeReceiver,
     (typeof input)['withdrawWithheldAuthority'] extends TransactionSigner<TAccountWithdrawWithheldAuthority>
       ? ReadonlySignerAccount<TAccountWithdrawWithheldAuthority> &
-          IAccountSignerMeta<TAccountWithdrawWithheldAuthority>
+          AccountSignerMeta<TAccountWithdrawWithheldAuthority>
       : TAccountWithdrawWithheldAuthority
   >;
 
@@ -205,7 +206,7 @@ export function getWithdrawWithheldTokensFromMintInstruction<
 
 export type ParsedWithdrawWithheldTokensFromMintInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -225,11 +226,11 @@ export type ParsedWithdrawWithheldTokensFromMintInstruction<
 
 export function parseWithdrawWithheldTokensFromMintInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedWithdrawWithheldTokensFromMintInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 3) {
     // TODO: Coded error.

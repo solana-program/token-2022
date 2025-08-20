@@ -8,6 +8,7 @@ use {
     },
     solana_sdk::{
         account_info::{next_account_info, AccountInfo},
+        clock::Clock,
         entrypoint::ProgramResult,
         instruction::{AccountMeta, Instruction, InstructionError},
         msg,
@@ -183,6 +184,63 @@ async fn update_multiplier() {
                 InstructionError::Custom(TokenError::OwnerMismatch as u32)
             )
         )))
+    );
+}
+
+#[tokio::test]
+async fn update_old_multiplier_after_time_passed() {
+    let authority = Keypair::new();
+    let initial_multiplier = 5.0;
+    let mut context = TestContext::new().await;
+    context
+        .init_token_with_mint(vec![ExtensionInitializationParams::ScaledUiAmountConfig {
+            authority: Some(authority.pubkey()),
+            multiplier: initial_multiplier,
+        }])
+        .await
+        .unwrap();
+    let TokenContext { token, .. } = context.token_context.take().unwrap();
+    let context = context.context;
+    let new_multiplier_timestamp = 1_000_000_000_000;
+
+    let new_multiplier = 100.0;
+    token
+        .update_multiplier(
+            &authority.pubkey(),
+            new_multiplier,
+            new_multiplier_timestamp,
+            &[&authority],
+        )
+        .await
+        .unwrap();
+
+    {
+        let context = context.lock().await;
+        context.set_sysvar(&Clock {
+            unix_timestamp: new_multiplier_timestamp,
+            ..Default::default()
+        });
+    }
+
+    let newest_multiplier = 101.0;
+    let newest_multiplier_timestamp = new_multiplier_timestamp + 1;
+    token
+        .update_multiplier(
+            &authority.pubkey(),
+            newest_multiplier,
+            newest_multiplier_timestamp,
+            &[&authority],
+        )
+        .await
+        .unwrap();
+
+    let state = token.get_mint_info().await.unwrap();
+    let extension = state.get_extension::<ScaledUiAmountConfig>().unwrap();
+    assert_eq!(f64::from(extension.multiplier), new_multiplier);
+    assert_eq!(f64::from(extension.new_multiplier), newest_multiplier);
+    assert_eq!(
+        i64::from(extension.new_multiplier_effective_timestamp),
+        newest_multiplier_timestamp
     );
 }
 

@@ -63,3 +63,5 @@ plaintext
 pausable
 u64
 pending_balance_credit_counter
+homomorphic
+homomorphically

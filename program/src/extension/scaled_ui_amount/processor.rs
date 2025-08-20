@@ -81,6 +81,12 @@ fn process_update_multiplier(
 
     try_validate_multiplier(new_multiplier)?;
     let clock = Clock::get()?;
+
+    // if the current new multiplier's timestamp has passed, set it as the old
+    if clock.unix_timestamp >= i64::from(extension.new_multiplier_effective_timestamp) {
+        extension.multiplier = extension.new_multiplier;
+    }
+
     extension.new_multiplier = *new_multiplier;
     let int_effective_timestamp = i64::from(*effective_timestamp);
     // just floor it to 0
@@ -94,6 +100,7 @@ fn process_update_multiplier(
     if clock.unix_timestamp >= int_effective_timestamp {
         extension.multiplier = *new_multiplier;
     }
+
     Ok(())
 }
 

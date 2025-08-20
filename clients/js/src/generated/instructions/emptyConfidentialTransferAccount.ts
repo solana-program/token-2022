@@ -16,17 +16,18 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
+  type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type ReadonlyAccount,
   type ReadonlySignerAccount,
+  type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
 } from '@solana/kit';
@@ -51,16 +52,16 @@ export function getEmptyConfidentialTransferAccountConfidentialTransferDiscrimin
 
 export type EmptyConfidentialTransferAccountInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountToken extends string | IAccountMeta<string> = string,
+  TAccountToken extends string | AccountMeta<string> = string,
   TAccountInstructionsSysvarOrContextState extends
     | string
-    | IAccountMeta<string> = 'Sysvar1nstructions1111111111111111111111111',
-  TAccountRecord extends string | IAccountMeta<string> = string,
-  TAccountAuthority extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+    | AccountMeta<string> = 'Sysvar1nstructions1111111111111111111111111',
+  TAccountRecord extends string | AccountMeta<string> = string,
+  TAccountAuthority extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountToken extends string
         ? WritableAccount<TAccountToken>
@@ -98,7 +99,7 @@ export type EmptyConfidentialTransferAccountInstructionDataArgs = {
   proofInstructionOffset: number;
 };
 
-export function getEmptyConfidentialTransferAccountInstructionDataEncoder(): Encoder<EmptyConfidentialTransferAccountInstructionDataArgs> {
+export function getEmptyConfidentialTransferAccountInstructionDataEncoder(): FixedSizeEncoder<EmptyConfidentialTransferAccountInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -114,7 +115,7 @@ export function getEmptyConfidentialTransferAccountInstructionDataEncoder(): Enc
   );
 }
 
-export function getEmptyConfidentialTransferAccountInstructionDataDecoder(): Decoder<EmptyConfidentialTransferAccountInstructionData> {
+export function getEmptyConfidentialTransferAccountInstructionDataDecoder(): FixedSizeDecoder<EmptyConfidentialTransferAccountInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferDiscriminator', getU8Decoder()],
@@ -122,7 +123,7 @@ export function getEmptyConfidentialTransferAccountInstructionDataDecoder(): Dec
   ]);
 }
 
-export function getEmptyConfidentialTransferAccountInstructionDataCodec(): Codec<
+export function getEmptyConfidentialTransferAccountInstructionDataCodec(): FixedSizeCodec<
   EmptyConfidentialTransferAccountInstructionDataArgs,
   EmptyConfidentialTransferAccountInstructionData
 > {
@@ -176,7 +177,7 @@ export function getEmptyConfidentialTransferAccountInstruction<
   TAccountRecord,
   (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
     ? ReadonlySignerAccount<TAccountAuthority> &
-        IAccountSignerMeta<TAccountAuthority>
+        AccountSignerMeta<TAccountAuthority>
     : TAccountAuthority
 > {
   // Program address.
@@ -207,7 +208,7 @@ export function getEmptyConfidentialTransferAccountInstruction<
   }
 
   // Remaining accounts.
-  const remainingAccounts: IAccountMeta[] = (args.multiSigners ?? []).map(
+  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
     (signer) => ({
       address: signer.address,
       role: AccountRole.READONLY_SIGNER,
@@ -235,7 +236,7 @@ export function getEmptyConfidentialTransferAccountInstruction<
     TAccountRecord,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
       ? ReadonlySignerAccount<TAccountAuthority> &
-          IAccountSignerMeta<TAccountAuthority>
+          AccountSignerMeta<TAccountAuthority>
       : TAccountAuthority
   >;
 
@@ -244,7 +245,7 @@ export function getEmptyConfidentialTransferAccountInstruction<
 
 export type ParsedEmptyConfidentialTransferAccountInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -268,11 +269,11 @@ export type ParsedEmptyConfidentialTransferAccountInstruction<
 
 export function parseEmptyConfidentialTransferAccountInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedEmptyConfidentialTransferAccountInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 4) {
     // TODO: Coded error.

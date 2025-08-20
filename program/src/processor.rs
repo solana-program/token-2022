@@ -1448,7 +1448,7 @@ impl Processor {
         Ok(())
     }
 
-    /// Processes an [`AmountToUiAmount`](enum.TokenInstruction.html)
+    /// Processes an [`UiAmountToAmount`](enum.TokenInstruction.html)
     /// instruction
     pub fn process_ui_amount_to_amount(accounts: &[AccountInfo], ui_amount: &str) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -2020,7 +2020,7 @@ fn delete_account(account_info: &AccountInfo) -> Result<(), ProgramError> {
 #[cfg(target_os = "solana")]
 fn delete_account(account_info: &AccountInfo) -> Result<(), ProgramError> {
     account_info.assign(&system_program::id());
-    account_info.realloc(0, false)
+    account_info.resize(0)
 }
 
 #[cfg(test)]

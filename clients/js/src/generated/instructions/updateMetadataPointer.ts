@@ -18,19 +18,20 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
+  type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type Option,
   type OptionOrNullable,
   type ReadonlyAccount,
   type ReadonlySignerAccount,
+  type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
 } from '@solana/kit';
@@ -53,14 +54,14 @@ export function getUpdateMetadataPointerMetadataPointerDiscriminatorBytes() {
 
 export type UpdateMetadataPointerInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | IAccountMeta<string> = string,
+  TAccountMint extends string | AccountMeta<string> = string,
   TAccountMetadataPointerAuthority extends
     | string
-    | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+    | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountMint extends string
         ? WritableAccount<TAccountMint>
@@ -84,7 +85,7 @@ export type UpdateMetadataPointerInstructionDataArgs = {
   metadataAddress: OptionOrNullable<Address>;
 };
 
-export function getUpdateMetadataPointerInstructionDataEncoder(): Encoder<UpdateMetadataPointerInstructionDataArgs> {
+export function getUpdateMetadataPointerInstructionDataEncoder(): FixedSizeEncoder<UpdateMetadataPointerInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -106,7 +107,7 @@ export function getUpdateMetadataPointerInstructionDataEncoder(): Encoder<Update
   );
 }
 
-export function getUpdateMetadataPointerInstructionDataDecoder(): Decoder<UpdateMetadataPointerInstructionData> {
+export function getUpdateMetadataPointerInstructionDataDecoder(): FixedSizeDecoder<UpdateMetadataPointerInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['metadataPointerDiscriminator', getU8Decoder()],
@@ -120,7 +121,7 @@ export function getUpdateMetadataPointerInstructionDataDecoder(): Decoder<Update
   ]);
 }
 
-export function getUpdateMetadataPointerInstructionDataCodec(): Codec<
+export function getUpdateMetadataPointerInstructionDataCodec(): FixedSizeCodec<
   UpdateMetadataPointerInstructionDataArgs,
   UpdateMetadataPointerInstructionData
 > {
@@ -159,7 +160,7 @@ export function getUpdateMetadataPointerInstruction<
   TAccountMint,
   (typeof input)['metadataPointerAuthority'] extends TransactionSigner<TAccountMetadataPointerAuthority>
     ? ReadonlySignerAccount<TAccountMetadataPointerAuthority> &
-        IAccountSignerMeta<TAccountMetadataPointerAuthority>
+        AccountSignerMeta<TAccountMetadataPointerAuthority>
     : TAccountMetadataPointerAuthority
 > {
   // Program address.
@@ -182,7 +183,7 @@ export function getUpdateMetadataPointerInstruction<
   const args = { ...input };
 
   // Remaining accounts.
-  const remainingAccounts: IAccountMeta[] = (args.multiSigners ?? []).map(
+  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
     (signer) => ({
       address: signer.address,
       role: AccountRole.READONLY_SIGNER,
@@ -206,7 +207,7 @@ export function getUpdateMetadataPointerInstruction<
     TAccountMint,
     (typeof input)['metadataPointerAuthority'] extends TransactionSigner<TAccountMetadataPointerAuthority>
       ? ReadonlySignerAccount<TAccountMetadataPointerAuthority> &
-          IAccountSignerMeta<TAccountMetadataPointerAuthority>
+          AccountSignerMeta<TAccountMetadataPointerAuthority>
       : TAccountMetadataPointerAuthority
   >;
 
@@ -215,7 +216,7 @@ export function getUpdateMetadataPointerInstruction<
 
 export type ParsedUpdateMetadataPointerInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -229,11 +230,11 @@ export type ParsedUpdateMetadataPointerInstruction<
 
 export function parseUpdateMetadataPointerInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedUpdateMetadataPointerInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 2) {
     // TODO: Coded error.

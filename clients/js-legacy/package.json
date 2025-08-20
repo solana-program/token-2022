@@ -60,14 +60,14 @@
         "buffer": "^6.0.3"
     },
     "devDependencies": {
-        "@solana/codecs-strings": "2.1.1",
+        "@solana/codecs-strings": "2.3.0",
         "@solana/prettier-config-solana": "0.0.5",
         "@solana/spl-memo": "0.2.5",
         "@solana/web3.js": "^1.95.5",
         "@types/chai-as-promised": "^8.0.1",
         "@types/chai": "^5.0.1",
         "@types/mocha": "^10.0.10",
-        "@types/node": "^22.10.5",
+        "@types/node": "^24.0.0",
         "@types/node-fetch": "^2.6.12",
         "@typescript-eslint/eslint-plugin": "^8.4.0",
         "@typescript-eslint/parser": "^8.4.0",

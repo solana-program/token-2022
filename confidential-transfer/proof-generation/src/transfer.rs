@@ -1,3 +1,44 @@
+//! Generates the zero-knowledge proofs required for a confidential transfer.
+//!
+//! A confidential transfer requires a composition of three distinct zero-knowledge proofs to ensure
+//! correctness and security. This function orchestrates their generation.
+//!
+//! ## Protocol Flow and Proof Components
+//!
+//! 1.  **Encrypt Transfer Amount**: The transfer amount is split into low (16-bit) and high (32-bit)
+//!     components. This is done to facilitate efficient decryption, which would otherwise require
+//!     solving the discrete logarithm problem over the entire 64-bit range. Each component is
+//!     encrypted as a grouped (twisted) ElGamal ciphertext with decryption handles for the source,
+//!     destination, and an optional auditor.
+//!
+//! 2.  **Generate Proofs**: The sender then generates the following proofs in a specific logical order:
+//!
+//!     -   **Ciphertext Validity Proof (`BatchedGroupedCiphertext3HandlesValidityProofData`)**:
+//!         This proof certifies that the grouped ElGamal ciphertexts for the transfer amount are
+//!         well-formed (i.e., they are valid encryptions of the low and high bit components under
+//!         the source, destination, and auditor keys).
+//!
+//!     -   **Range Proof (`BatchedRangeProofU128Data`)**:
+//!         This proof ensures solvency and prevents the creation of tokens. It certifies that:
+//!         1.  The sender's remaining balance is a non-negative 64-bit integer. This is ensures
+//!             that `current_balance >= transfer_amount`.
+//!         2.  The low and high components of the transfer amount are valid 16-bit and 32-bit
+//!             integers, respectively.
+//!
+//!         A range proof can only be generated from a Pedersen commitment for which the prover
+//!         knows the opening. However, a sender does not necessarily know the Pedersen opening
+//!         for the ciphertext associated with the sender's remaining balance ciphertext. This
+//!         this necessitates the ciphertext-commitment equality proof below.
+//!
+//!     -   **Ciphertext-Commitment Equality Proof (`CiphertextCommitmentEqualityProofData`)**:
+//!         We require that the sender create a *new* Pedersen commitment to their known plaintext
+//!         remaining balance. This equality proof then certifies that the homomorphically computed
+//!         `new_balance_ciphertext` and the new Pedersen commitment encrypt/commit to the exact same
+//!         value.
+//!
+//! These three proofs, when verified together, allow the on-chain program to securely process the
+//! confidential transfer.
+
 #[cfg(target_arch = "wasm32")]
 use solana_zk_sdk::encryption::grouped_elgamal::GroupedElGamalCiphertext3Handles;
 use {
@@ -60,7 +101,7 @@ pub fn transfer_split_proof_data(
     #[cfg(not(target_arch = "wasm32"))]
     let grouped_ciphertext_lo = transfer_amount_grouped_ciphertext_lo.0;
     #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_lo = GroupedElGamalCiphertext3Handles::encryption_with_u64(
+    let grouped_ciphertext_lo = GroupedElGamalCiphertext3Handles::encrypt_with_u64(
         source_elgamal_keypair.pubkey(),
         destination_elgamal_pubkey,
         auditor_elgamal_pubkey,
@@ -78,7 +119,7 @@ pub fn transfer_split_proof_data(
     #[cfg(not(target_arch = "wasm32"))]
     let grouped_ciphertext_hi = transfer_amount_grouped_ciphertext_hi.0;
     #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_hi = GroupedElGamalCiphertext3Handles::encryption_with_u64(
+    let grouped_ciphertext_hi = GroupedElGamalCiphertext3Handles::encrypt_with_u64(
         source_elgamal_keypair.pubkey(),
         destination_elgamal_pubkey,
         auditor_elgamal_pubkey,
@@ -163,6 +204,10 @@ pub fn transfer_split_proof_data(
         };
 
     // generate range proof data
+
+    // the total bit lengths for the range proof must be a power-of-2
+    // therefore, create a Pedersen commitment to 0 and use it as a dummy commitment to a 16-bit
+    // value
     let (padding_commitment, padding_opening) = Pedersen::new(0_u64);
     let range_proof_data = BatchedRangeProofU128Data::new(
         vec![

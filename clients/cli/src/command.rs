@@ -32,8 +32,8 @@ use {
         program_option::COption,
         pubkey::Pubkey,
         signature::{Keypair, Signer},
-        system_program,
     },
+    solana_system_interface::program as system_program,
     spl_associated_token_account_client::address::get_associated_token_address_with_program_id,
     spl_token_2022::{
         extension::{
@@ -267,6 +267,7 @@ async fn command_create_token(
     enable_metadata: bool,
     enable_group: bool,
     enable_member: bool,
+    enable_transfer_hook: bool,
     ui_multiplier: Option<f64>,
     pausable: bool,
     bulk_signers: Vec<Arc<dyn Signer>>,
@@ -348,10 +349,10 @@ async fn command_create_token(
         }
     }
 
-    if let Some(program_id) = transfer_hook_program_id {
+    if transfer_hook_program_id.is_some() || enable_transfer_hook {
         extensions.push(ExtensionInitializationParams::TransferHook {
             authority: Some(authority),
-            program_id: Some(program_id),
+            program_id: transfer_hook_program_id,
         });
     }
 
@@ -3788,6 +3789,7 @@ pub async fn process_command(
                 arg_matches.is_present("enable_metadata"),
                 arg_matches.is_present("enable_group"),
                 arg_matches.is_present("enable_member"),
+                arg_matches.is_present("enable_transfer_hook"),
                 ui_multiplier,
                 arg_matches.is_present("enable_pause"),
                 bulk_signers,

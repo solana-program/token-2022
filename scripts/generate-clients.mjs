@@ -7,7 +7,7 @@ import { workingDirectory } from './utils.mjs';
 
 // Instanciate Codama.
 const codama = createFromRoot(
-  require(path.join(workingDirectory, 'program', 'idl.json'))
+  require(path.join(workingDirectory, 'interface', 'idl.json'))
 );
 
 // Render JavaScript.

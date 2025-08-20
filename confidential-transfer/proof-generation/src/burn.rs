@@ -1,3 +1,39 @@
+//! Generates the zero-knowledge proofs required for a confidential burn.
+//!
+//! A confidential burn operation removes tokens from a user's confidential balance and decreases the
+//! token's total supply. This process requires three distinct zero-knowledge proofs to ensure the
+//! operation is valid, the user is solvent, and the token supply is updated correctly.
+//!
+//! ## Protocol Flow and Proof Components
+//!
+//! 1.  **Encrypt Burn Amount**: The burn amount is encrypted in a grouped (twisted) ElGamal
+//!     ciphertext. This single operation prepares the `burn_amount` to be simultaneously
+//!     subtracted from the user's account and recorded in the mint's `pending_burn` accumulator,
+//!     which will later be subtracted from the total supply.
+//!
+//! 2.  **Homomorphic Calculation**: The client homomorphically computes their new encrypted balance
+//!     by subtracting the source-encrypted component of the `burn_amount` from their current
+//!     `available_balance` ciphertext.
+//!
+//! 3.  **Generate Proofs**: The user generates three proofs:
+//!
+//!     -   **Batched Grouped Ciphertext Validity Proof**:
+//!         This proof certifies that the grouped ElGamal ciphertext for the `burn_amount` is well-formed
+//!         and was correctly encrypted for the source, supply, and auditor public keys.
+//!
+//!     -   **Ciphertext-Commitment Equality Proof**:
+//!         This proof provides the cryptographic link needed for the solvency check. After the user's
+//!         new balance is computed homomorphically, the prover no longer knows the associated
+//!         Pedersen opening. To perform a range proof, the prover creates a *new* Pedersen commitment
+//!         for their `remaining_balance` (for which they know the opening) and uses this proof to
+//!         certify that the ciphertext and the new commitment hide the same value.
+//!
+//!     -   **Range Proof (`BatchedRangeProofU128`)**:
+//!         This proof is the core solvency check. It certifies that the user's `remaining_balance`
+//!         is non-negative (i.e., in the range `[0, 2^64)`), which makes it cryptographically
+//!         impossible to burn more tokens than one possesses. It also proves the `burn_amount` itself
+//!         is a valid 48-bit number.
+
 #[cfg(target_arch = "wasm32")]
 use solana_zk_sdk::encryption::grouped_elgamal::GroupedElGamalCiphertext3Handles;
 use {
@@ -58,7 +94,7 @@ pub fn burn_split_proof_data(
     #[cfg(not(target_arch = "wasm32"))]
     let grouped_ciphertext_lo = burn_amount_ciphertext_lo.0;
     #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_lo = GroupedElGamalCiphertext3Handles::encryption_with_u64(
+    let grouped_ciphertext_lo = GroupedElGamalCiphertext3Handles::encrypt_with_u64(
         source_elgamal_keypair.pubkey(),
         supply_elgamal_pubkey,
         auditor_elgamal_pubkey,
@@ -75,7 +111,7 @@ pub fn burn_split_proof_data(
     #[cfg(not(target_arch = "wasm32"))]
     let grouped_ciphertext_hi = burn_amount_ciphertext_hi.0;
     #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_hi = GroupedElGamalCiphertext3Handles::encryption_with_u64(
+    let grouped_ciphertext_hi = GroupedElGamalCiphertext3Handles::encrypt_with_u64(
         source_elgamal_keypair.pubkey(),
         supply_elgamal_pubkey,
         auditor_elgamal_pubkey,
@@ -158,6 +194,10 @@ pub fn burn_split_proof_data(
         };
 
     // generate range proof data
+
+    // the total bit lengths for the range proof must be a power-of-2
+    // therefore, create a Pedersen commitment to 0 and use it as a dummy commitment to a 16-bit
+    // value
     let (padding_commitment, padding_opening) = Pedersen::new(0_u64);
     let range_proof_data = BatchedRangeProofU128Data::new(
         vec![

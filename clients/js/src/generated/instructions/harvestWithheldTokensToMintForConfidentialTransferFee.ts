@@ -14,14 +14,15 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
+  type ReadonlyUint8Array,
   type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
@@ -45,11 +46,11 @@ export function getHarvestWithheldTokensToMintForConfidentialTransferFeeConfiden
 
 export type HarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+  TAccountMint extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountMint extends string
         ? WritableAccount<TAccountMint>
@@ -64,7 +65,7 @@ export type HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionData
 export type HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataArgs =
   {};
 
-export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataEncoder(): Encoder<HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataArgs> {
+export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataEncoder(): FixedSizeEncoder<HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -80,14 +81,14 @@ export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruct
   );
 }
 
-export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataDecoder(): Decoder<HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionData> {
+export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataDecoder(): FixedSizeDecoder<HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferFeeDiscriminator', getU8Decoder()],
   ]);
 }
 
-export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataCodec(): Codec<
+export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataCodec(): FixedSizeCodec<
   HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataArgs,
   HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionData
 > {
@@ -131,7 +132,7 @@ export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruct
   const args = { ...input };
 
   // Remaining accounts.
-  const remainingAccounts: IAccountMeta[] = (args.sources ?? []).map(
+  const remainingAccounts: AccountMeta[] = (args.sources ?? []).map(
     (address) => ({ address, role: AccountRole.WRITABLE })
   );
 
@@ -152,7 +153,7 @@ export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruct
 
 export type ParsedHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -164,11 +165,11 @@ export type ParsedHarvestWithheldTokensToMintForConfidentialTransferFeeInstructi
 
 export function parseHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<
   TProgram,
   TAccountMetas

@@ -32,7 +32,7 @@ pnpm programs:lint
 
 ## IDL
 
-You may use the following [IDL](https://github.com/solana-program/token-2022/blob/main/program/idl.json) in your programs.
+You may use the following [IDL](https://github.com/solana-program/token-2022/blob/main/interface/idl.json) in your programs.
 
 ## Generating clients
 

@@ -13,14 +13,15 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
+  type ReadonlyUint8Array,
   type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
@@ -34,11 +35,11 @@ export function getInitializeNonTransferableMintDiscriminatorBytes() {
 
 export type InitializeNonTransferableMintInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+  TAccountMint extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountMint extends string
         ? WritableAccount<TAccountMint>
@@ -53,7 +54,7 @@ export type InitializeNonTransferableMintInstructionData = {
 
 export type InitializeNonTransferableMintInstructionDataArgs = {};
 
-export function getInitializeNonTransferableMintInstructionDataEncoder(): Encoder<InitializeNonTransferableMintInstructionDataArgs> {
+export function getInitializeNonTransferableMintInstructionDataEncoder(): FixedSizeEncoder<InitializeNonTransferableMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
     (value) => ({
@@ -63,11 +64,11 @@ export function getInitializeNonTransferableMintInstructionDataEncoder(): Encode
   );
 }
 
-export function getInitializeNonTransferableMintInstructionDataDecoder(): Decoder<InitializeNonTransferableMintInstructionData> {
+export function getInitializeNonTransferableMintInstructionDataDecoder(): FixedSizeDecoder<InitializeNonTransferableMintInstructionData> {
   return getStructDecoder([['discriminator', getU8Decoder()]]);
 }
 
-export function getInitializeNonTransferableMintInstructionDataCodec(): Codec<
+export function getInitializeNonTransferableMintInstructionDataCodec(): FixedSizeCodec<
   InitializeNonTransferableMintInstructionDataArgs,
   InitializeNonTransferableMintInstructionData
 > {
@@ -115,7 +116,7 @@ export function getInitializeNonTransferableMintInstruction<
 
 export type ParsedInitializeNonTransferableMintInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -127,11 +128,11 @@ export type ParsedInitializeNonTransferableMintInstruction<
 
 export function parseInitializeNonTransferableMintInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedInitializeNonTransferableMintInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 1) {
     // TODO: Coded error.

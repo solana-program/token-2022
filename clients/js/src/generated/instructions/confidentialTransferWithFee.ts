@@ -16,17 +16,18 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
+  type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type ReadonlyAccount,
   type ReadonlySignerAccount,
+  type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
 } from '@solana/kit';
@@ -55,24 +56,24 @@ export function getConfidentialTransferWithFeeConfidentialTransferDiscriminatorB
 
 export type ConfidentialTransferWithFeeInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountSourceToken extends string | IAccountMeta<string> = string,
-  TAccountMint extends string | IAccountMeta<string> = string,
-  TAccountDestinationToken extends string | IAccountMeta<string> = string,
-  TAccountInstructionsSysvar extends string | IAccountMeta<string> = string,
-  TAccountEqualityRecord extends string | IAccountMeta<string> = string,
+  TAccountSourceToken extends string | AccountMeta<string> = string,
+  TAccountMint extends string | AccountMeta<string> = string,
+  TAccountDestinationToken extends string | AccountMeta<string> = string,
+  TAccountInstructionsSysvar extends string | AccountMeta<string> = string,
+  TAccountEqualityRecord extends string | AccountMeta<string> = string,
   TAccountTransferAmountCiphertextValidityRecord extends
     | string
-    | IAccountMeta<string> = string,
-  TAccountFeeSigmaRecord extends string | IAccountMeta<string> = string,
+    | AccountMeta<string> = string,
+  TAccountFeeSigmaRecord extends string | AccountMeta<string> = string,
   TAccountFeeCiphertextValidityRecord extends
     | string
-    | IAccountMeta<string> = string,
-  TAccountRangeRecord extends string | IAccountMeta<string> = string,
-  TAccountAuthority extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+    | AccountMeta<string> = string,
+  TAccountRangeRecord extends string | AccountMeta<string> = string,
+  TAccountAuthority extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountSourceToken extends string
         ? WritableAccount<TAccountSourceToken>
@@ -194,7 +195,7 @@ export type ConfidentialTransferWithFeeInstructionDataArgs = {
   rangeProofInstructionOffset: number;
 };
 
-export function getConfidentialTransferWithFeeInstructionDataEncoder(): Encoder<ConfidentialTransferWithFeeInstructionDataArgs> {
+export function getConfidentialTransferWithFeeInstructionDataEncoder(): FixedSizeEncoder<ConfidentialTransferWithFeeInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -218,7 +219,7 @@ export function getConfidentialTransferWithFeeInstructionDataEncoder(): Encoder<
   );
 }
 
-export function getConfidentialTransferWithFeeInstructionDataDecoder(): Decoder<ConfidentialTransferWithFeeInstructionData> {
+export function getConfidentialTransferWithFeeInstructionDataDecoder(): FixedSizeDecoder<ConfidentialTransferWithFeeInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['confidentialTransferDiscriminator', getU8Decoder()],
@@ -231,7 +232,7 @@ export function getConfidentialTransferWithFeeInstructionDataDecoder(): Decoder<
   ]);
 }
 
-export function getConfidentialTransferWithFeeInstructionDataCodec(): Codec<
+export function getConfidentialTransferWithFeeInstructionDataCodec(): FixedSizeCodec<
   ConfidentialTransferWithFeeInstructionDataArgs,
   ConfidentialTransferWithFeeInstructionData
 > {
@@ -328,7 +329,7 @@ export function getConfidentialTransferWithFeeInstruction<
   TAccountRangeRecord,
   (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
     ? ReadonlySignerAccount<TAccountAuthority> &
-        IAccountSignerMeta<TAccountAuthority>
+        AccountSignerMeta<TAccountAuthority>
     : TAccountAuthority
 > {
   // Program address.
@@ -368,7 +369,7 @@ export function getConfidentialTransferWithFeeInstruction<
   const args = { ...input };
 
   // Remaining accounts.
-  const remainingAccounts: IAccountMeta[] = (args.multiSigners ?? []).map(
+  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
     (signer) => ({
       address: signer.address,
       role: AccountRole.READONLY_SIGNER,
@@ -408,7 +409,7 @@ export function getConfidentialTransferWithFeeInstruction<
     TAccountRangeRecord,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
       ? ReadonlySignerAccount<TAccountAuthority> &
-          IAccountSignerMeta<TAccountAuthority>
+          AccountSignerMeta<TAccountAuthority>
       : TAccountAuthority
   >;
 
@@ -417,7 +418,7 @@ export function getConfidentialTransferWithFeeInstruction<
 
 export type ParsedConfidentialTransferWithFeeInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -456,11 +457,11 @@ export type ParsedConfidentialTransferWithFeeInstruction<
 
 export function parseConfidentialTransferWithFeeInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedConfidentialTransferWithFeeInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 10) {
     // TODO: Coded error.

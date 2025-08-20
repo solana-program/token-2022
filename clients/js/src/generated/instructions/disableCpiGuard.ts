@@ -14,17 +14,18 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
+  type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type ReadonlyAccount,
   type ReadonlySignerAccount,
+  type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
 } from '@solana/kit';
@@ -45,12 +46,12 @@ export function getDisableCpiGuardCpiGuardDiscriminatorBytes() {
 
 export type DisableCpiGuardInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountToken extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+  TAccountToken extends string | AccountMeta<string> = string,
+  TAccountOwner extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountToken extends string
         ? WritableAccount<TAccountToken>
@@ -69,7 +70,7 @@ export type DisableCpiGuardInstructionData = {
 
 export type DisableCpiGuardInstructionDataArgs = {};
 
-export function getDisableCpiGuardInstructionDataEncoder(): Encoder<DisableCpiGuardInstructionDataArgs> {
+export function getDisableCpiGuardInstructionDataEncoder(): FixedSizeEncoder<DisableCpiGuardInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -83,14 +84,14 @@ export function getDisableCpiGuardInstructionDataEncoder(): Encoder<DisableCpiGu
   );
 }
 
-export function getDisableCpiGuardInstructionDataDecoder(): Decoder<DisableCpiGuardInstructionData> {
+export function getDisableCpiGuardInstructionDataDecoder(): FixedSizeDecoder<DisableCpiGuardInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['cpiGuardDiscriminator', getU8Decoder()],
   ]);
 }
 
-export function getDisableCpiGuardInstructionDataCodec(): Codec<
+export function getDisableCpiGuardInstructionDataCodec(): FixedSizeCodec<
   DisableCpiGuardInstructionDataArgs,
   DisableCpiGuardInstructionData
 > {
@@ -122,7 +123,7 @@ export function getDisableCpiGuardInstruction<
   TProgramAddress,
   TAccountToken,
   (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-    ? ReadonlySignerAccount<TAccountOwner> & IAccountSignerMeta<TAccountOwner>
+    ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
     : TAccountOwner
 > {
   // Program address.
@@ -142,7 +143,7 @@ export function getDisableCpiGuardInstruction<
   const args = { ...input };
 
   // Remaining accounts.
-  const remainingAccounts: IAccountMeta[] = (args.multiSigners ?? []).map(
+  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
     (signer) => ({
       address: signer.address,
       role: AccountRole.READONLY_SIGNER,
@@ -163,7 +164,7 @@ export function getDisableCpiGuardInstruction<
     TProgramAddress,
     TAccountToken,
     (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-      ? ReadonlySignerAccount<TAccountOwner> & IAccountSignerMeta<TAccountOwner>
+      ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
       : TAccountOwner
   >;
 
@@ -172,7 +173,7 @@ export function getDisableCpiGuardInstruction<
 
 export type ParsedDisableCpiGuardInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -186,11 +187,11 @@ export type ParsedDisableCpiGuardInstruction<
 
 export function parseDisableCpiGuardInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedDisableCpiGuardInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 2) {
     // TODO: Coded error.

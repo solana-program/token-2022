@@ -16,6 +16,7 @@ on:
           - confidential-transfer/proof-extraction
           - confidential-transfer/proof-generation
           - confidential-transfer/proof-tests
+          - interface
           - program
       level:
         description: Level
@@ -97,7 +98,7 @@ jobs:
       - name: Install cargo-semver-checks
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-semver-checks,cargo-release
+          tool: cargo-semver-checks@0.42.0,cargo-release@0.25.18
 
       - name: Set Git Author (required for cargo-release)
         run: |
@@ -139,7 +140,7 @@ jobs:
       - name: Install cargo-release
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-release
+          tool: cargo-release@0.25.18
 
       - name: Ensure CARGO_REGISTRY_TOKEN variable is set
         env:
@@ -176,13 +177,10 @@ jobs:
 
       - name: Generate a changelog
         if: github.event.inputs.create_release == 'true'
-        uses: orhun/git-cliff-action@v3
+        uses: orhun/git-cliff-action@v4
         with:
           config: "scripts/cliff.toml"
-          args: |
-            "${{ steps.publish.outputs.old_git_tag }}"..main
-            --include-path "${{ inputs.package_path }}/**"
-            --github-repo "${{ github.repository }}"
+          args: ${{ steps.publish.outputs.old_git_tag }}..HEAD --include-path "${{ inputs.package_path }}/**" --github-repo ${{ github.repository }}
         env:
           OUTPUT: TEMP_CHANGELOG.md
           GITHUB_REPO: ${{ github.repository }}

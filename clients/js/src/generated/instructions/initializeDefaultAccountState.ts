@@ -13,14 +13,15 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
+  type ReadonlyUint8Array,
   type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
@@ -48,11 +49,11 @@ export function getInitializeDefaultAccountStateDefaultAccountStateDiscriminator
 
 export type InitializeDefaultAccountStateInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+  TAccountMint extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountMint extends string
         ? WritableAccount<TAccountMint>
@@ -73,7 +74,7 @@ export type InitializeDefaultAccountStateInstructionDataArgs = {
   state: AccountStateArgs;
 };
 
-export function getInitializeDefaultAccountStateInstructionDataEncoder(): Encoder<InitializeDefaultAccountStateInstructionDataArgs> {
+export function getInitializeDefaultAccountStateInstructionDataEncoder(): FixedSizeEncoder<InitializeDefaultAccountStateInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -89,7 +90,7 @@ export function getInitializeDefaultAccountStateInstructionDataEncoder(): Encode
   );
 }
 
-export function getInitializeDefaultAccountStateInstructionDataDecoder(): Decoder<InitializeDefaultAccountStateInstructionData> {
+export function getInitializeDefaultAccountStateInstructionDataDecoder(): FixedSizeDecoder<InitializeDefaultAccountStateInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['defaultAccountStateDiscriminator', getU8Decoder()],
@@ -97,7 +98,7 @@ export function getInitializeDefaultAccountStateInstructionDataDecoder(): Decode
   ]);
 }
 
-export function getInitializeDefaultAccountStateInstructionDataCodec(): Codec<
+export function getInitializeDefaultAccountStateInstructionDataCodec(): FixedSizeCodec<
   InitializeDefaultAccountStateInstructionDataArgs,
   InitializeDefaultAccountStateInstructionData
 > {
@@ -151,7 +152,7 @@ export function getInitializeDefaultAccountStateInstruction<
 
 export type ParsedInitializeDefaultAccountStateInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -163,11 +164,11 @@ export type ParsedInitializeDefaultAccountStateInstruction<
 
 export function parseInitializeDefaultAccountStateInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedInitializeDefaultAccountStateInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 1) {
     // TODO: Coded error.

@@ -14,14 +14,15 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type AccountMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
+  type ReadonlyUint8Array,
   type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
@@ -43,11 +44,11 @@ export function getHarvestWithheldTokensToMintTransferFeeDiscriminatorBytes() {
 
 export type HarvestWithheldTokensToMintInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+  TAccountMint extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<ReadonlyUint8Array> &
+  InstructionWithAccounts<
     [
       TAccountMint extends string
         ? WritableAccount<TAccountMint>
@@ -63,7 +64,7 @@ export type HarvestWithheldTokensToMintInstructionData = {
 
 export type HarvestWithheldTokensToMintInstructionDataArgs = {};
 
-export function getHarvestWithheldTokensToMintInstructionDataEncoder(): Encoder<HarvestWithheldTokensToMintInstructionDataArgs> {
+export function getHarvestWithheldTokensToMintInstructionDataEncoder(): FixedSizeEncoder<HarvestWithheldTokensToMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -78,14 +79,14 @@ export function getHarvestWithheldTokensToMintInstructionDataEncoder(): Encoder<
   );
 }
 
-export function getHarvestWithheldTokensToMintInstructionDataDecoder(): Decoder<HarvestWithheldTokensToMintInstructionData> {
+export function getHarvestWithheldTokensToMintInstructionDataDecoder(): FixedSizeDecoder<HarvestWithheldTokensToMintInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['transferFeeDiscriminator', getU8Decoder()],
   ]);
 }
 
-export function getHarvestWithheldTokensToMintInstructionDataCodec(): Codec<
+export function getHarvestWithheldTokensToMintInstructionDataCodec(): FixedSizeCodec<
   HarvestWithheldTokensToMintInstructionDataArgs,
   HarvestWithheldTokensToMintInstructionData
 > {
@@ -126,7 +127,7 @@ export function getHarvestWithheldTokensToMintInstruction<
   const args = { ...input };
 
   // Remaining accounts.
-  const remainingAccounts: IAccountMeta[] = args.sources.map((address) => ({
+  const remainingAccounts: AccountMeta[] = args.sources.map((address) => ({
     address,
     role: AccountRole.WRITABLE,
   }));
@@ -143,7 +144,7 @@ export function getHarvestWithheldTokensToMintInstruction<
 
 export type ParsedHarvestWithheldTokensToMintInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -155,11 +156,11 @@ export type ParsedHarvestWithheldTokensToMintInstruction<
 
 export function parseHarvestWithheldTokensToMintInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedHarvestWithheldTokensToMintInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 1) {
     // TODO: Coded error.

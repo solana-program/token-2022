@@ -14,9 +14,9 @@ import {
   getU16Encoder,
   getU64Decoder,
   getU64Encoder,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
 } from '@solana/kit';
 
 export type TransferFee = {
@@ -43,7 +43,7 @@ export type TransferFeeArgs = {
   transferFeeBasisPoints: number;
 };
 
-export function getTransferFeeEncoder(): Encoder<TransferFeeArgs> {
+export function getTransferFeeEncoder(): FixedSizeEncoder<TransferFeeArgs> {
   return getStructEncoder([
     ['epoch', getU64Encoder()],
     ['maximumFee', getU64Encoder()],
@@ -51,7 +51,7 @@ export function getTransferFeeEncoder(): Encoder<TransferFeeArgs> {
   ]);
 }
 
-export function getTransferFeeDecoder(): Decoder<TransferFee> {
+export function getTransferFeeDecoder(): FixedSizeDecoder<TransferFee> {
   return getStructDecoder([
     ['epoch', getU64Decoder()],
     ['maximumFee', getU64Decoder()],
@@ -59,6 +59,9 @@ export function getTransferFeeDecoder(): Decoder<TransferFee> {
   ]);
 }
 
-export function getTransferFeeCodec(): Codec<TransferFeeArgs, TransferFee> {
+export function getTransferFeeCodec(): FixedSizeCodec<
+  TransferFeeArgs,
+  TransferFee
+> {
   return combineCodec(getTransferFeeEncoder(), getTransferFeeDecoder());
 }

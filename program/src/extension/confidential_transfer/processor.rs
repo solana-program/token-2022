@@ -1,13 +1,14 @@
 // Remove feature once zk ops syscalls are enabled on all networks
 #[cfg(feature = "zk-ops")]
 use {
+    crate::check_auditor_ciphertext,
     crate::extension::confidential_mint_burn::ConfidentialMintBurn,
     crate::extension::non_transferable::NonTransferableAccount,
     spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic,
 };
 use {
     crate::{
-        check_auditor_ciphertext, check_elgamal_registry_program_account, check_program_account,
+        check_elgamal_registry_program_account, check_program_account,
         error::TokenError,
         extension::{
             confidential_transfer::{instruction::*, verify_proof::*, *},
@@ -19,7 +20,7 @@ use {
             pausable::PausableConfig,
             set_account_type,
             transfer_fee::TransferFeeConfig,
-            transfer_hook, BaseStateWithExtensions, BaseStateWithExtensionsMut,
+            transfer_hook, BaseStateWithExtensions, BaseStateWithExtensionsMut, ExtensionType,
             PodStateWithExtensions, PodStateWithExtensionsMut,
         },
         instruction::{decode_instruction_data, decode_instruction_type},
@@ -27,6 +28,7 @@ use {
         processor::Processor,
         state::Account,
     },
+    bytemuck::Zeroable,
     solana_account_info::{next_account_info, AccountInfo},
     solana_clock::Clock,
     solana_cpi::invoke,
@@ -36,8 +38,15 @@ use {
     solana_rent::Rent,
     solana_system_interface::instruction as system_instruction,
     solana_sysvar::Sysvar,
+    solana_zk_sdk::encryption::pod::{
+        auth_encryption::PodAeCiphertext, elgamal::PodElGamalCiphertext,
+    },
     spl_elgamal_registry::state::ElGamalRegistry,
-    spl_pod::bytemuck::pod_from_bytes,
+    spl_pod::{
+        bytemuck::pod_from_bytes,
+        optional_keys::{OptionalNonZeroElGamalPubkey, OptionalNonZeroPubkey},
+        primitives::{PodBool, PodU64},
+    },
     spl_token_confidential_transfer_proof_extraction::{
         instruction::verify_and_extract_context, transfer::TransferProofContext,
         transfer_with_fee::TransferWithFeeProofContext,
@@ -168,10 +177,10 @@ fn reallocate_for_configure_account_with_registry<'a>(
 
     // reallocate
     msg!(
-        "account needs realloc, +{:?} bytes",
+        "account needs resize, +{:?} bytes",
         needed_account_len - token_account_info.data_len()
     );
-    token_account_info.realloc(needed_account_len, false)?;
+    token_account_info.resize(needed_account_len)?;
 
     // if additional lamports needed to remain rent-exempt, transfer them
     let rent = Rent::get()?;
@@ -699,7 +708,7 @@ fn process_transfer(
         let transfer_fee_config = mint.get_extension::<TransferFeeConfig>()?;
         let fee_parameters = transfer_fee_config.get_epoch_fee(Clock::get()?.epoch);
 
-        let fee_sigma_proof_insruction_offset =
+        let fee_sigma_proof_instruction_offset =
             fee_sigma_proof_instruction_offset.ok_or(ProgramError::InvalidInstructionData)?;
         let fee_ciphertext_validity_proof_insruction_offset =
             fee_ciphertext_validity_proof_instruction_offset
@@ -715,7 +724,7 @@ fn process_transfer(
             account_info_iter,
             equality_proof_instruction_offset,
             transfer_amount_ciphertext_validity_proof_instruction_offset,
-            fee_sigma_proof_insruction_offset,
+            fee_sigma_proof_instruction_offset,
             fee_ciphertext_validity_proof_insruction_offset,
             range_proof_instruction_offset,
             fee_parameters,

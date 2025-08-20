@@ -1,6 +1,10 @@
 {
   "private": true,
   "scripts": {
+    "interface:build-wasm": "zx ./scripts/rust/build-wasm.mjs interface",
+    "interface:test": "zx ./scripts/rust/test.mjs interface",
+    "interface:format": "zx ./scripts/rust/format.mjs interface",
+    "interface:lint": "zx ./scripts/rust/lint.mjs interface",
     "programs:build": "zx ./scripts/rust/build-sbf.mjs program",
     "programs:build-wasm": "zx ./scripts/rust/build-wasm.mjs program",
     "programs:test": "zx ./scripts/rust/test-sbf.mjs program",
@@ -49,12 +53,12 @@
     "js:publish": "zx ./scripts/js/publish.mjs"
   },
   "devDependencies": {
-    "@codama/renderers-js": "^1.2.14",
-    "@codama/renderers-rust": "^1.0.22",
+    "@codama/renderers-js": "^1.3.2",
+    "@codama/renderers-rust": "^1.2.2",
     "@iarna/toml": "^2.2.5",
-    "codama": "^1.3.0",
-    "typescript": "^5.8.3",
-    "zx": "^8.5.4"
+    "codama": "^1.3.3",
+    "typescript": "^5.9.2",
+    "zx": "^8.8.0"
   },
   "engines": {
     "node": ">=v20.0.0"
