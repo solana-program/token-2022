@@ -28,6 +28,48 @@ jobs:
       - name: Lint
         run: make lint-${{ matrix.package }}
 
+  audit:
+    name: Audit rust crates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup
+        with:
+          stable-toolchain: true
+          cargo-cache-key: cargo-audit
+
+     - name: Install cargo-audit
+       uses: taiki-e/cache-cargo-install-action@v2
+       with:
+         tool: cargo-audit
+
+     - name: Run audit
+       run: make audit
+
+  spellcheck:
+    name: Spellcheck Rust code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup
+        with:
+          stable-toolchain: true
+          cargo-cache-key: cargo-spellcheck
+
+     - name: Install cargo-spellcheck
+       uses: taiki-e/cache-cargo-install-action@v2
+       with:
+         tool: cargo-spellcheck
+
+     - name: Run spellcheck
+       run: make spellcheck
+
   format_and_lint_rust:
     name: Format & Lint Rust
     runs-on: ubuntu-latest
@@ -53,6 +95,11 @@ jobs:
           clippy: true
           rustfmt: true
           cargo-cache-key: cargo-lint-${{ matrix.package }}
+
+     - name: Install cargo-hack
+       uses: taiki-e/cache-cargo-install-action@v2
+       with:
+         tool: cargo-hack
 
       - name: Format
         run: make format-check-${{ matrix.package }}
