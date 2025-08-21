@@ -27,10 +27,10 @@ clippy-%:
 		--deny=clippy::used_underscore_binding
 
 format-check-%:
-	cargo $(nightly) fmt --check --manifest-path $(call make-path $*)/Cargo.toml
+	cargo $(nightly) fmt --check --manifest-path $(call make-path,$*)/Cargo.toml
 
 powerset-%:
-	cargo $(nightly) hack check --feature-powerset --all-targets --manifest-path $(call make-path $*)/Cargo.toml
+	cargo $(nightly) hack check --feature-powerset --all-targets --manifest-path $(call make-path,$*)/Cargo.toml
 
 semver-check-%:
 	cargo semver-checks --manifest-path $(call make-path,$*)/Cargo.toml
@@ -54,7 +54,7 @@ build-sbf-%:
 	cargo build-sbf --manifest-path $(call make-path,$*)/Cargo.toml
 
 build-wasm-%:
-	cargo build --target wasm32-unknown-unknown --manifest-path $(call make-path,$*) --all-features
+	cargo build --target wasm32-unknown-unknown --manifest-path $(call make-path,$*)/Cargo.toml --all-features
 
 build-doc-%:
 	RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo $(nightly) doc --all-features --no-deps --manifest-path $(call make-path,$*)/Cargo.toml
