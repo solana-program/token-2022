@@ -10,8 +10,9 @@ jobs:
   format_and_lint_js:
     name: Format & Lint JS
     runs-on: ubuntu-latest
-    matrix:
-      package: [js, js-legacy]
+    strategy:
+      matrix:
+        package: [js, js-legacy]
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
@@ -30,17 +31,18 @@ jobs:
   format_and_lint_rust:
     name: Format & Lint Rust
     runs-on: ubuntu-latest
-    matrix:
-      package:
-        - clients-cli
-        - clients-rust-legacy
-        - interface
-        - program
-        - confidential-ciphertext-arithmetic
-        - confidential-elgamal-registry
-        - confidential-proof-extraction
-        - confidential-proof-generation
-        - confidential-proof-tests
+    strategy:
+      matrix:
+        package:
+          - clients-cli
+          - clients-rust-legacy
+          - interface
+          - program
+          - confidential-ciphertext-arithmetic
+          - confidential-elgamal-registry
+          - confidential-proof-extraction
+          - confidential-proof-generation
+          - confidential-proof-tests
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
@@ -51,7 +53,6 @@ jobs:
           clippy: true
           rustfmt: true
           cargo-cache-key: cargo-lint-${{ matrix.package }}
-          cargo-cache-key: cargo-${{ matrix.package }}
 
       - name: Format
         run: make format-check-${{ matrix.package }}
@@ -68,8 +69,9 @@ jobs:
   wasm:
     name: Build WASM
     runs-on: ubuntu-latest
-    matrix:
-      package: [interface, program]
+    strategy:
+      matrix:
+        package: [interface, program]
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
@@ -89,8 +91,9 @@ jobs:
   build_sbf:
     name: Build Program
     runs-on: ubuntu-latest
-    matrix:
-      package: [program, confidential-elgamal-registry]
+    strategy:
+      matrix:
+        package: [program, confidential-elgamal-registry]
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
@@ -122,17 +125,18 @@ jobs:
     name: Test Rust
     runs-on: ubuntu-latest
     needs: build_sbf
-    matrix:
-      package:
-        - clients-cli
-        - clients-rust-legacy
-        - interface
-        - program
-        - confidential-ciphertext-arithmetic
-        - confidential-elgamal-registry
-        - confidential-proof-extraction
-        - confidential-proof-generation
-        - confidential-proof-tests
+    strategy:
+      matrix:
+        package:
+          - clients-cli
+          - clients-rust-legacy
+          - interface
+          - program
+          - confidential-ciphertext-arithmetic
+          - confidential-elgamal-registry
+          - confidential-proof-extraction
+          - confidential-proof-generation
+          - confidential-proof-tests
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
@@ -183,8 +187,9 @@ jobs:
     name: Test JS
     runs-on: ubuntu-latest
     needs: build_sbf
-    matrix:
-      package: [js, js-legacy]
+    strategy:
+      matrix:
+        package: [js, js-legacy]
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
