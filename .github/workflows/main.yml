@@ -7,9 +7,11 @@ on:
     branches: [main]
 
 jobs:
-  format_and_lint_programs:
-    name: Format & Lint Programs
+  format_and_lint_js:
+    name: Format & Lint JS
     runs-on: ubuntu-latest
+    matrix:
+      package: [js, js-legacy]
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
@@ -17,145 +19,28 @@ jobs:
       - name: Setup Environment
         uses: ./.github/actions/setup
         with:
-          clippy: true
-          rustfmt: true
-          cargo-cache-key: cargo-programs-lint
-          cargo-cache-fallback-key: cargo-programs
-
-      - name: Format Token-2022
-        run: pnpm programs:format
-
-      - name: Lint Token-2022
-        run: pnpm programs:lint
-
-      - name: Format ElGamal Registry
-        run: pnpm confidential-transfer:elgamal-registry:format
-
-      - name: Lint ElGamal Registry
-        run: pnpm confidential-transfer:elgamal-registry:lint
-
-  format_and_lint_client_js:
-    name: Format & Lint Client JS
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-
-      - name: Format Client JS
-        run: pnpm clients:js:format
-
-      - name: Lint Client JS
-        run: pnpm clients:js:lint
-
-  format_and_lint_client_js_legacy:
-    name: Format & Lint Client JS Legacy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-
-      - name: Format Client JS Legacy
-        run: pnpm clients:js-legacy:format
-
-      - name: Lint Client JS Legacy
-        run: pnpm clients:js-legacy:lint
-
-  format_and_lint_cli:
-    name: Format & Lint CLI
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          clippy: true
-          rustfmt: true
-          cli: true
-          purge: true
-          cargo-cache-key: cargo-cli-lint
-          cargo-cache-fallback-key: cargo-cli
-
-      - name: Format CLI
-        run: pnpm clients:cli:format
-
-      - name: Lint CLI
-        run: pnpm clients:cli:lint
-
-  format_and_lint_client_rust:
-    if: false # Disabled until we have a Rust client
-    name: Format & Lint Client Rust
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          clippy: true
-          rustfmt: true
-
-      - name: Format Client Rust
-        run: pnpm clients:rust:format
-
-      - name: Lint Client Rust
-        run: pnpm clients:rust:lint
-
-  format_and_lint_interface:
-    name: Format & Lint Interface
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          clippy: true
-          rustfmt: true
-          cargo-cache-key: cargo-interface-lint
-          cargo-cache-fallback-key: cargo-interface
+          pnpm: true
 
       - name: Format
-        run: pnpm interface:format
+        run: make format-${{ matrix.package }}
 
       - name: Lint
-        run: pnpm interface:lint
+        run: make lint-${{ matrix.package }}
 
-  format_and_lint_client_rust_legacy:
-    name: Format & Lint Client Rust Legacy
+  format_and_lint_rust:
+    name: Format & Lint Rust
     runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          clippy: true
-          cli: true
-          rustfmt: true
-          purge: true
-          cargo-cache-key: cargo-client-rust-legacy-lint
-          cargo-cache-fallback-key: cargo-client-rust-legacy
-
-      - name: Format Client Rust Legacy
-        run: pnpm clients:rust-legacy:format
-
-      - name: Lint Client Rust Legacy
-        run: pnpm clients:rust-legacy:lint
-
-  format_and_lint_confidential_transfer:
-    name: Format & Lint Confidential Transfer
-    runs-on: ubuntu-latest
+    matrix:
+      package:
+        - clients-cli
+        - clients-rust-legacy
+        - interface
+        - program
+        - confidential-ciphertext-arithmetic
+        - confidential-elgamal-registry
+        - confidential-proof-extraction
+        - confidential-proof-generation
+        - confidential-proof-tests
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
@@ -165,36 +50,26 @@ jobs:
         with:
           clippy: true
           rustfmt: true
-          cargo-cache-key: cargo-confidential-transfer-lint
-          cargo-cache-fallback-key: cargo-confidential-transfer
+          cargo-cache-key: cargo-lint-${{ matrix.package }}
+          cargo-cache-key: cargo-${{ matrix.package }}
 
-      - name: Format Ciphertext Arithmetic
-        run: pnpm confidential-transfer:ciphertext-arithmetic:format
+      - name: Format
+        run: make format-check-${{ matrix.package }}
 
-      - name: Lint Ciphertext Arithmetic
-        run: pnpm confidential-transfer:ciphertext-arithmetic:lint
+      - name: Clippy
+        run: make clippy-${{ matrix.package }}
 
-      - name: Format Proof Extraction
-        run: pnpm confidential-transfer:proof-extraction:format
+      - name: Lint / Docs
+        run: make build-docs-clients-rust
 
-      - name: Lint Proof Extraction
-        run: pnpm confidential-transfer:proof-extraction:lint
+      - name: Check powerset
+        run: make powerset-${{ matrix.package }}
 
-      - name: Format Proof Generation
-        run: pnpm confidential-transfer:proof-generation:format
-
-      - name: Lint Proof Generation
-        run: pnpm confidential-transfer:proof-generation:lint
-
-      - name: Format Proof Tests
-        run: pnpm confidential-transfer:proof-tests:format
-
-      - name: Lint Proof Tests
-        run: pnpm confidential-transfer:proof-tests:lint
-
-  test_interface:
-    name: Test Interface
+  wasm:
+    name: Build WASM
     runs-on: ubuntu-latest
+    matrix:
+      package: [interface, program]
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
@@ -202,27 +77,86 @@ jobs:
       - name: Setup Environment
         uses: ./.github/actions/setup
         with:
-          cargo-cache-key: cargo-interface-test
-          cargo-cache-fallback-key: cargo-interface
+          stable-toolchain: true
+          cargo-cache-key: cargo-wasm-${{ matrix.package }}
+
+      - name: Install wasm target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Build with wasm target
+        run: make build-wasm-${{ matrix.package }}
+
+  build_sbf:
+    name: Build Program
+    runs-on: ubuntu-latest
+    matrix:
+      package: [program, confidential-elgamal-registry]
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup
+        with:
+          stable-toolchain: true
+          cargo-cache-key: cargo-build-sbf-${{ matrix.package }}
+          solana: true
+
+      - name: Build
+        run: make build-sbf-${{ matrix.package }}
+
+      - name: Upload Program Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-sbf-${{ matrix.package }}
+          path: ./target/deploy/*.so
+          if-no-files-found: error
+
+      - name: Save Program Builds For Client Jobs
+        uses: actions/cache/save@v4
+        with:
+          path: ./target/deploy/*.so
+          key: ${{ runner.os }}-builds-${{ github.sha }}-${{ matrix.package }}
+
+  test_rust:
+    name: Test Rust
+    runs-on: ubuntu-latest
+    needs: build_sbf
+    matrix:
+      package:
+        - clients-cli
+        - clients-rust-legacy
+        - interface
+        - program
+        - confidential-ciphertext-arithmetic
+        - confidential-elgamal-registry
+        - confidential-proof-extraction
+        - confidential-proof-generation
+        - confidential-proof-tests
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup
+        with:
+          stable-toolchain: true
+          cargo-cache-key: cargo-test-${{ matrix.package }}
+
+      - name: Restore Program Builds
+        uses: actions/cache/restore@v4
+        with:
+          path: ./target/deploy/*.so
+          key: ${{ runner.os }}-builds-${{ github.sha }}-program
+
+      - name: Restore Program Builds
+        uses: actions/cache/restore@v4
+        with:
+          path: ./target/deploy/*.so
+          key: ${{ runner.os }}-builds-${{ github.sha }}-confidential-elgamal-registry
 
       - name: Test
-        run: pnpm interface:test
-
-  test_confidential_transfer_proofs:
-    name: Test Confidential Transfer Proofs
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-confidential-transfer-test
-          cargo-cache-fallback-key: cargo-confidential-transfer
-
-      - name: Test Confidential Transfer Proofs
-        run: pnpm confidential-transfer:proof-tests:test
+        run: make test-${{ matrix.package }}
 
   generate_clients:
     name: Check Client Generation
@@ -234,6 +168,7 @@ jobs:
       - name: Setup Environment
         uses: ./.github/actions/setup
         with:
+          pnpm: true
           rustfmt: true
 
       - name: Generate Clients
@@ -244,10 +179,12 @@ jobs:
           git status --porcelain
           test -z "$(git status --porcelain)"
 
-  test_client_js:
-    name: Test Client JS
+  test_js:
+    name: Test JS
     runs-on: ubuntu-latest
-    needs: [format_and_lint_client_js, build_programs]
+    needs: build_sbf
+    matrix:
+      package: [js, js-legacy]
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
@@ -255,230 +192,19 @@ jobs:
       - name: Setup Environment
         uses: ./.github/actions/setup
         with:
-          solana: true
+          pnpm: true
 
       - name: Restore Program Builds
         uses: actions/cache/restore@v4
         with:
           path: ./target/deploy/*.so
-          key: ${{ runner.os }}-builds-${{ github.sha }}
+          key: ${{ runner.os }}-builds-${{ github.sha }}-program
+
+      - name: Restore Program Builds
+        uses: actions/cache/restore@v4
+        with:
+          path: ./target/deploy/*.so
+          key: ${{ runner.os }}-builds-${{ github.sha }}-confidential-elgamal-registry
 
       - name: Test Client JS
-        run: pnpm clients:js:test
-
-  audit_rust:
-    name: Audit Rust
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-audit
-
-      - name: Install cargo-audit
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-audit
-
-      - name: Run cargo-audit
-        run: pnpm rust:audit
-
-  spellcheck_rust:
-    name: Spellcheck Rust
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-spellcheck
-
-      - name: Install cargo-spellcheck
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-spellcheck
-
-      - name: Run cargo-spellcheck
-        run: pnpm rust:spellcheck
-
-  wasm:
-    name: Check wasm build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-wasm
-          wasm: true
-
-      - name: Build Token-2022 Wasm
-        run: pnpm programs:build-wasm
-
-  build_programs:
-    name: Build programs
-    runs-on: ubuntu-latest
-    needs: format_and_lint_programs
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-programs
-          solana: true
-
-      - name: Build Token-2022
-        run: pnpm programs:build
-
-      - name: Build ElGamal Registry
-        run: pnpm confidential-transfer:elgamal-registry:build
-
-      - name: Upload Program Builds
-        uses: actions/upload-artifact@v4
-        with:
-          name: program-builds
-          path: ./target/deploy/*.so
-          if-no-files-found: error
-
-      - name: Save Program Builds For Client Jobs
-        uses: actions/cache/save@v4
-        with:
-          path: ./target/deploy/*.so
-          key: ${{ runner.os }}-builds-${{ github.sha }}
-
-  build_programs_no_default_features:
-    name: Build programs without default features
-    runs-on: ubuntu-latest
-    needs: format_and_lint_programs
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-programs-no-default-features
-          solana: true
-
-      - name: Build Token-2022
-        run: pnpm programs:build --no-default-features
-
-      - name: Build ElGamal Registry
-        run: pnpm confidential-transfer:elgamal-registry:build --no-default-features
-
-  test_programs:
-    name: Test Programs
-    runs-on: ubuntu-latest
-    needs: format_and_lint_programs
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-program-tests
-          cargo-cache-fallback-key: cargo-programs
-          solana: true
-
-      - name: Test Programs
-        run: pnpm programs:test
-
-  test_cli:
-    name: Test CLI
-    runs-on: ubuntu-latest
-    needs: [format_and_lint_cli, build_programs]
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-cli-tests
-          cargo-cache-fallback-key: cargo-cli
-          cli: true
-          purge: true
-
-      - name: Restore Program Builds
-        uses: actions/cache/restore@v4
-        with:
-          path: ./target/deploy/*.so
-          key: ${{ runner.os }}-builds-${{ github.sha }}
-
-      - name: Test CLI
-        run: pnpm clients:cli:test
-
-  test_client_js_legacy:
-    name: Test Client JS Legacy
-    runs-on: ubuntu-latest
-    needs: [format_and_lint_client_js_legacy, build_programs]
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          solana: true
-
-      - name: Restore Program Builds
-        uses: actions/cache/restore@v4
-        with:
-          path: ./target/deploy/*.so
-          key: ${{ runner.os }}-builds-${{ github.sha }}
-
-      - name: Test Client JS Legacy
-        run: pnpm clients:js-legacy:test
-
-  test_client_rust_legacy:
-    name: Test Client Rust Legacy
-    runs-on: ubuntu-latest
-    needs: [format_and_lint_client_rust_legacy, build_programs]
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-client-rust-legacy-test
-          cargo-cache-fallback-key: cargo-client-rust-legacy
-          cli: true
-          purge: true
-
-      - name: Restore Program Builds
-        uses: actions/cache/restore@v4
-        with:
-          path: ./target/deploy/*.so
-          key: ${{ runner.os }}-builds-${{ github.sha }}
-
-      - name: Test Client Rust Legacy
-        run: pnpm clients:rust-legacy:test
-
-  test_client_rust:
-    if: false # Disabled until we have a Rust client
-    name: Test Client Rust
-    runs-on: ubuntu-latest
-    needs: format_and_lint_client_rust
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-rust-client
-          solana: true
-
-      - name: Test Client Rust
-        run: pnpm clients:rust:test
+        run: make test-${{ matrix.package }}

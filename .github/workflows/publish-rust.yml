@@ -66,20 +66,27 @@ jobs:
           cargo-cache-key: cargo-test-publish-${{ inputs.package_path }}
           cargo-cache-fallback-key: cargo-test-publish
 
+      - name: Get makefile target
+        id: makefiletarget
+        shell: bash
+        run: |
+          target=$(echo ${{ inputs.package_path }} | sed 's#/#-#')
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
       - name: Format
-        run: pnpm zx ./scripts/rust/format.mjs "${{ inputs.package_path }}"
+        run: make format-${{ steps.makefiletarget.outputs.target }}
 
       - name: Lint
-        run: pnpm zx ./scripts/rust/lint.mjs "${{ inputs.package_path }}"
+        run: make lint-${{ steps.makefiletarget.outputs.target }}
 
       - name: Build Token-2022
-        run: pnpm programs:build
+        run: make build-sbf-program
 
       - name: Build ElGamal Registry
-        run: pnpm confidential-transfer:elgamal-registry:build
+        run: make build-sbf-confidential-elgamal-registry
 
       - name: Test
-        run: pnpm zx ./scripts/rust/test.mjs "${{ inputs.package_path }}"
+        run: make test-${{ steps.makefiletarget.outputs.target }}
 
   semver:
     name: Check Semver
@@ -115,7 +122,7 @@ jobs:
           cargo release $LEVEL --manifest-path "${{ inputs.package_path }}/Cargo.toml" --no-tag --no-publish --no-push --no-confirm --execute
 
       - name: Check semver
-        run: pnpm rust:semver --manifest-path "${{ inputs.package_path }}/Cargo.toml"
+        run: cargo semver-checks --manifest-path "${{ inputs.package_path }}/Cargo.toml"
 
   publish:
     name: Publish Rust Crate
@@ -173,7 +180,7 @@ jobs:
             OPTIONS=""
           fi
 
-          pnpm rust:publish "${{ inputs.package_path }}" $LEVEL $OPTIONS
+          ./scripts/publish-rust.sh "${{ inputs.package_path }}" $LEVEL $OPTIONS
 
       - name: Generate a changelog
         if: github.event.inputs.create_release == 'true'
