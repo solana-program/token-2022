@@ -61,7 +61,7 @@ jobs:
         run: make clippy-${{ matrix.package }}
 
       - name: Lint / Docs
-        run: make build-docs-clients-rust
+        run: make build-doc-${{ matrix.package }}
 
       - name: Check powerset
         run: make powerset-${{ matrix.package }}
