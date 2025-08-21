@@ -192,6 +192,7 @@ jobs:
         uses: ./.github/actions/setup
         with:
           stable-toolchain: true
+          cli: true
           cargo-cache-key: cargo-test-${{ matrix.package }}
 
       - name: Restore Program Builds
