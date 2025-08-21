@@ -96,10 +96,10 @@ jobs:
           rustfmt: true
           cargo-cache-key: cargo-lint-${{ matrix.package }}
 
-     - name: Install cargo-hack
-       uses: taiki-e/cache-cargo-install-action@v2
-       with:
-         tool: cargo-hack
+      - name: Install cargo-hack
+        uses: taiki-e/cache-cargo-install-action@v2
+        with:
+          tool: cargo-hack
 
       - name: Format
         run: make format-check-${{ matrix.package }}
