@@ -29,7 +29,7 @@ jobs:
         run: make lint-${{ matrix.package }}
 
   audit:
-    name: Audit rust crates
+    name: Audit
     runs-on: ubuntu-latest
     steps:
       - name: Git Checkout
@@ -41,13 +41,13 @@ jobs:
           stable-toolchain: true
           cargo-cache-key: cargo-audit
 
-     - name: Install cargo-audit
-       uses: taiki-e/cache-cargo-install-action@v2
-       with:
-         tool: cargo-audit
+      - name: Install cargo-audit
+        uses: taiki-e/cache-cargo-install-action@v2
+        with:
+          tool: cargo-audit
 
-     - name: Run audit
-       run: make audit
+      - name: Run cargo-audit
+        run: make audit
 
   spellcheck:
     name: Spellcheck Rust code
