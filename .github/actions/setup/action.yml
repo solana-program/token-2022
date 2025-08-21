@@ -10,6 +10,15 @@ inputs:
   cargo-cache-local-key:
     description: The key to cache local cargo dependencies. Skips local cargo caching if not provided.
     required: false
+  pnpm:
+    description: Install pnpm if `true`. Defaults to `false`.
+    required: false
+  stable-toolchain:
+    description: Install stable toolchain if `true`. Defaults to `false`.
+    required: false
+  nightly-toolchain:
+    description: Install nightly toolchain if `true`. Defaults to `false`.
+    required: false
   clippy:
     description: Install Clippy if `true`. Defaults to `false`.
     required: false
@@ -25,21 +34,34 @@ inputs:
   purge:
     description: Purge unused directories if `true`. Defaults to `false`.
     required: false
-  wasm:
-    description: Install wasm target for Rust if `true`. Defaults to `false`.
-    required: false
 
 runs:
   using: 'composite'
   steps:
+    - name: Set Environment Variables
+      shell: bash
+      run: |
+        source ./vars.env
+        echo "RUST_TOOLCHAIN_NIGHTLY=$RUST_TOOLCHAIN_NIGHTLY" >> "$GITHUB_ENV"
+        echo "SOLANA_CLI_VERSION=$SOLANA_CLI_VERSION" >> "$GITHUB_ENV"
+        RUST_TOOLCHAIN_STABLE=$(tail -n1 ./rust-toolchain.toml | sed "s/channel = \"\(.*\)\"/\1/")
+        echo "RUST_TOOLCHAIN_STABLE=$RUST_TOOLCHAIN_STABLE" >> "$GITHUB_ENV"
+
     - name: Setup pnpm
+      if: ${{ inputs.pnpm == 'true' }}
       uses: pnpm/action-setup@v4
 
     - name: Setup Node.js
+      if: ${{ inputs.pnpm == 'true' }}
       uses: actions/setup-node@v4
       with:
         node-version: 20
         cache: 'pnpm'
+
+    - name: Install Dependencies
+      if: ${{ inputs.pnpm == 'true' }}
+      run: pnpm install --frozen-lockfile
+      shell: bash
 
     - name: Purge unused ubuntu runner directories
       if: ${{ inputs.purge == 'true' }}
@@ -75,44 +97,43 @@ runs:
         #sudo swapoff -a
         #sudo rm -f /mnt/swapfile
 
-    - name: Install Dependencies
-      run: pnpm install --frozen-lockfile
-      shell: bash
+    - name: Install stable toolchain
+      if: ${{ inputs.stable-toolchain == 'true' }}
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ env.RUST_TOOLCHAIN_STABLE }}
 
-    - name: Set Environment Variables
-      shell: bash
-      run: pnpm zx ./scripts/ci/set-env.mjs
+    - name: Install nightly toolchain
+      if: ${{ inputs.nightly-toolchain == 'true' }}
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ env.RUST_TOOLCHAIN_NIGHTLY }}
 
     - name: Install Rustfmt
       if: ${{ inputs.rustfmt == 'true' }}
       uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: ${{ env.TOOLCHAIN_FORMAT }}
+        toolchain: ${{ env.RUST_TOOLCHAIN_NIGHTLY }}
         components: rustfmt
 
     - name: Install Clippy
       if: ${{ inputs.clippy == 'true' }}
       uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: ${{ env.TOOLCHAIN_LINT }}
+        toolchain: ${{ env.RUST_TOOLCHAIN_NIGHTLY }}
         components: clippy
 
     - name: Install Solana
       if: ${{ inputs.solana == 'true' }}
       uses: solana-program/actions/install-solana@v1
       with:
-        version: ${{ env.SOLANA_VERSION }}
+        version: ${{ env.SOLANA_CLI_VERSION }}
         cache: true
 
     - name: Install CLI dependencies
       if: ${{ inputs.cli == 'true' }}
       shell: bash
       run: sudo apt update && sudo apt install libudev-dev protobuf-compiler libclang-dev -y
-
-    - name: Install wasm target
-      if: ${{ inputs.wasm == 'true' }}
-      shell: bash
-      run: rustup target add wasm32-unknown-unknown
 
     - name: Cache Cargo Dependencies
       if: ${{ inputs.cargo-cache-key && !inputs.cargo-cache-fallback-key }}
