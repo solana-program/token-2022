@@ -43,7 +43,7 @@ pub struct TransferWithFeePubkeys {
     pub withdraw_withheld_authority: PodElGamalPubkey,
 }
 
-/// The proof context information needed to process a [Transfer] instruction
+/// The proof context information needed to process a `Transfer` instruction
 /// with fee.
 pub struct TransferWithFeeProofContext {
     /// Group encryption of the low 16 bits of the transfer amount
