@@ -140,6 +140,42 @@ impl ApplyPendingBalanceAccountInfo {
 
         Ok(aes_key.encrypt(new_decrypted_available_balance))
     }
+
+    /// Decrypt and return the pending balance for this account.
+    ///
+    /// This combines the low 16 bits and high 48 bits of the pending balance
+    /// into a single u64 value.
+    pub fn get_pending_balance(
+        &self,
+        elgamal_secret_key: &ElGamalSecretKey,
+    ) -> Result<u64, TokenError> {
+        let decrypted_lo = self.decrypted_pending_balance_lo(elgamal_secret_key)?;
+        let decrypted_hi = self.decrypted_pending_balance_hi(elgamal_secret_key)?;
+
+        combine_balances(decrypted_lo, decrypted_hi).ok_or(TokenError::AccountDecryption)
+    }
+
+    /// Check if this account has any pending balance.
+    pub fn has_pending_balance(&self) -> bool {
+        u64::from(self.pending_balance_credit_counter) > 0
+    }
+
+    /// Get the available balance for this account.
+    pub fn get_available_balance(&self, aes_key: &AeKey) -> Result<u64, TokenError> {
+        self.decrypted_available_balance(aes_key)
+    }
+
+    /// Get the total balance (pending and available) for this account.
+    pub fn get_total_balance(
+        &self,
+        elgamal_secret_key: &ElGamalSecretKey,
+        aes_key: &AeKey,
+    ) -> Result<u64, TokenError> {
+        let pending = self.get_pending_balance(elgamal_secret_key)?;
+        let available = self.get_available_balance(aes_key)?;
+
+        pending.checked_add(available).ok_or(TokenError::Overflow)
+    }
 }
 
 /// Confidential Transfer extension information needed to construct a `Withdraw`

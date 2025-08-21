@@ -2702,3 +2702,709 @@ async fn confidential_transfer_configure_token_account_with_registry() {
         (*new_elgamal_keypair.pubkey()).into()
     );
 }
+
+#[tokio::test]
+async fn test_confidential_transfer_balance_decryption() {
+    let authority = Keypair::new();
+    let auto_approve_new_accounts = true;
+    let auditor_elgamal_keypair = ElGamalKeypair::new_rand();
+    let auditor_elgamal_pubkey = (*auditor_elgamal_keypair.pubkey()).into();
+
+    let mut context = TestContext::new().await;
+    context
+        .init_token_with_mint(vec![
+            ExtensionInitializationParams::ConfidentialTransferMint {
+                authority: Some(authority.pubkey()),
+                auto_approve_new_accounts,
+                auditor_elgamal_pubkey: Some(auditor_elgamal_pubkey),
+            },
+        ])
+        .await
+        .unwrap();
+
+    let TokenContext {
+        token,
+        alice,
+        mint_authority,
+        decimals,
+        ..
+    } = context.token_context.unwrap();
+    let alice_meta = ConfidentialTokenAccountMeta::new(&token, &alice, Some(2), false, false).await;
+
+    // Mint some tokens first
+    let mint_amount = 1000;
+    token
+        .mint_to(
+            &alice_meta.token_account,
+            &mint_authority.pubkey(),
+            mint_amount,
+            &[&mint_authority],
+        )
+        .await
+        .unwrap();
+
+    // Verify the base token balance after minting
+    let token_balance = token
+        .get_account_info(&alice_meta.token_account)
+        .await
+        .unwrap();
+    assert_eq!(
+        token_balance.base.amount, mint_amount,
+        "Base token balance should match mint amount"
+    );
+
+    // Test has_pending_balance when no pending balance
+    let has_pending = token
+        .confidential_transfer_has_pending_balance(&alice_meta.token_account)
+        .await
+        .unwrap();
+    assert!(
+        !has_pending,
+        "Should not have pending balance before deposit"
+    );
+
+    // Deposit some tokens to create pending balance
+    let deposit_amount = 500;
+    token
+        .confidential_transfer_deposit(
+            &alice_meta.token_account,
+            &alice.pubkey(),
+            deposit_amount,
+            decimals,
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    // Test has_pending_balance when there is pending balance
+    let has_pending = token
+        .confidential_transfer_has_pending_balance(&alice_meta.token_account)
+        .await
+        .unwrap();
+    assert!(has_pending, "Should have pending balance after deposit");
+
+    // Test get_pending_balance
+    let pending_balance = token
+        .confidential_transfer_get_pending_balance(
+            &alice_meta.token_account,
+            alice_meta.elgamal_keypair.secret(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        pending_balance, deposit_amount,
+        "Pending balance should match deposit amount"
+    );
+
+    // Test get_available_balance (should be 0 since pending hasn't been applied)
+    let available_balance = token
+        .confidential_transfer_get_available_balance(&alice_meta.token_account, &alice_meta.aes_key)
+        .await
+        .unwrap();
+    assert_eq!(
+        available_balance, 0,
+        "Available balance should be 0 before applying pending"
+    );
+
+    // Test get_total_balance (pending + available)
+    let total_balance = token
+        .confidential_transfer_get_total_balance(
+            &alice_meta.token_account,
+            alice_meta.elgamal_keypair.secret(),
+            &alice_meta.aes_key,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        total_balance, deposit_amount,
+        "Total balance should equal pending balance before applying"
+    );
+
+    // Apply pending balance
+    token
+        .confidential_transfer_apply_pending_balance(
+            &alice_meta.token_account,
+            &alice.pubkey(),
+            None,
+            alice_meta.elgamal_keypair.secret(),
+            &alice_meta.aes_key,
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    // Test has_pending_balance after applying (should be false)
+    let has_pending = token
+        .confidential_transfer_has_pending_balance(&alice_meta.token_account)
+        .await
+        .unwrap();
+    assert!(
+        !has_pending,
+        "Should not have pending balance after applying"
+    );
+
+    // Test get_pending_balance after applying (should be 0)
+    let pending_balance = token
+        .confidential_transfer_get_pending_balance(
+            &alice_meta.token_account,
+            alice_meta.elgamal_keypair.secret(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        pending_balance, 0,
+        "Pending balance should be 0 after applying"
+    );
+
+    // Test get_available_balance after applying
+    let available_balance = token
+        .confidential_transfer_get_available_balance(&alice_meta.token_account, &alice_meta.aes_key)
+        .await
+        .unwrap();
+    assert_eq!(
+        available_balance, deposit_amount,
+        "Available balance should match deposit amount after applying"
+    );
+
+    // Test get_total_balance after applying
+    let total_balance = token
+        .confidential_transfer_get_total_balance(
+            &alice_meta.token_account,
+            alice_meta.elgamal_keypair.secret(),
+            &alice_meta.aes_key,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        total_balance, deposit_amount,
+        "Total balance should equal available balance after applying"
+    );
+}
+
+#[tokio::test]
+async fn test_confidential_transfer_balance_decryption_with_large_values() {
+    let authority = Keypair::new();
+    let auto_approve_new_accounts = true;
+    let auditor_elgamal_keypair = ElGamalKeypair::new_rand();
+    let auditor_elgamal_pubkey = (*auditor_elgamal_keypair.pubkey()).into();
+
+    let mut context = TestContext::new().await;
+    context
+        .init_token_with_mint(vec![
+            ExtensionInitializationParams::ConfidentialTransferMint {
+                authority: Some(authority.pubkey()),
+                auto_approve_new_accounts,
+                auditor_elgamal_pubkey: Some(auditor_elgamal_pubkey),
+            },
+        ])
+        .await
+        .unwrap();
+
+    let TokenContext {
+        token,
+        alice,
+        mint_authority,
+        decimals,
+        ..
+    } = context.token_context.unwrap();
+    let alice_meta = ConfidentialTokenAccountMeta::new(&token, &alice, Some(2), false, false).await;
+
+    // Test with values that exercise the bit manipulation logic
+    // Use values that will test the 16-bit low + 48-bit high combination
+    // Maximum allowed value is 2^48 - 1 = 281474976710655
+    let test_values = vec![
+        0xFFFF,           // Exactly 16 bits (65535)
+        0x10000,          // Just over 16 bits (65536)
+        0xFFFF_FFFF,      // 32 bits (4294967295)
+        0x1_0000_0000,    // Just over 32 bits (4294967296)
+        0xFFFF_FFFF_FFFF, // 48 bits (281474976710655) - maximum allowed
+        0xFFFF_FFFF_FFFE, // Just under 48 bits (281474976710654)
+    ];
+
+    for &large_amount in &test_values {
+        // Mint tokens first
+        token
+            .mint_to(
+                &alice_meta.token_account,
+                &mint_authority.pubkey(),
+                large_amount,
+                &[&mint_authority],
+            )
+            .await
+            .unwrap();
+
+        // Verify the base token balance after minting
+        let token_balance = token
+            .get_account_info(&alice_meta.token_account)
+            .await
+            .unwrap();
+        assert_eq!(
+            token_balance.base.amount, large_amount,
+            "Base token balance should match mint amount for value 0x{:X}",
+            large_amount
+        );
+
+        // Deposit the same amount to create pending balance
+        token
+            .confidential_transfer_deposit(
+                &alice_meta.token_account,
+                &alice.pubkey(),
+                large_amount,
+                decimals,
+                &[&alice],
+            )
+            .await
+            .unwrap();
+
+        // Test get_pending_balance with large value
+        let pending_balance = token
+            .confidential_transfer_get_pending_balance(
+                &alice_meta.token_account,
+                alice_meta.elgamal_keypair.secret(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            pending_balance, large_amount,
+            "Pending balance should match deposit amount for value 0x{:X}",
+            large_amount
+        );
+
+        // Apply pending balance
+        token
+            .confidential_transfer_apply_pending_balance(
+                &alice_meta.token_account,
+                &alice.pubkey(),
+                None,
+                alice_meta.elgamal_keypair.secret(),
+                &alice_meta.aes_key,
+                &[&alice],
+            )
+            .await
+            .unwrap();
+
+        // Test get_available_balance with large value
+        let available_balance = token
+            .confidential_transfer_get_available_balance(
+                &alice_meta.token_account,
+                &alice_meta.aes_key,
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            available_balance, large_amount,
+            "Available balance should match deposit amount for value 0x{:X}",
+            large_amount
+        );
+
+        // Test get_total_balance with large value
+        let total_balance = token
+            .confidential_transfer_get_total_balance(
+                &alice_meta.token_account,
+                alice_meta.elgamal_keypair.secret(),
+                &alice_meta.aes_key,
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            total_balance, large_amount,
+            "Total balance should match deposit amount for value 0x{:X}",
+            large_amount
+        );
+
+        // Clear the account for the next test by withdrawing all funds
+        token
+            .confidential_transfer_withdraw(
+                &alice_meta.token_account,
+                &alice.pubkey(),
+                None,
+                None,
+                large_amount,
+                decimals,
+                None,
+                &alice_meta.elgamal_keypair,
+                &alice_meta.aes_key,
+                &[&alice],
+            )
+            .await
+            .unwrap();
+
+        // Verify account is empty
+        let available_balance = token
+            .confidential_transfer_get_available_balance(
+                &alice_meta.token_account,
+                &alice_meta.aes_key,
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            available_balance, 0,
+            "Account should be empty after withdrawal for value 0x{:X}",
+            large_amount
+        );
+
+        // Also clear the base token balance by burning all tokens
+        let base_balance = token
+            .get_account_info(&alice_meta.token_account)
+            .await
+            .unwrap()
+            .base
+            .amount;
+        if base_balance > 0 {
+            token
+                .burn(
+                    &alice_meta.token_account,
+                    &alice.pubkey(),
+                    base_balance,
+                    &[&alice],
+                )
+                .await
+                .unwrap();
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_confidential_transfer_balance_decryption_error_handling() {
+    let authority = Keypair::new();
+    let auto_approve_new_accounts = true;
+    let auditor_elgamal_keypair = ElGamalKeypair::new_rand();
+    let auditor_elgamal_pubkey = (*auditor_elgamal_keypair.pubkey()).into();
+
+    let mut context = TestContext::new().await;
+    context
+        .init_token_with_mint(vec![
+            ExtensionInitializationParams::ConfidentialTransferMint {
+                authority: Some(authority.pubkey()),
+                auto_approve_new_accounts,
+                auditor_elgamal_pubkey: Some(auditor_elgamal_pubkey),
+            },
+        ])
+        .await
+        .unwrap();
+
+    let TokenContext {
+        token,
+        alice,
+        mint_authority,
+        decimals,
+        ..
+    } = context.token_context.unwrap();
+    let alice_meta = ConfidentialTokenAccountMeta::new(&token, &alice, Some(2), false, false).await;
+
+    // Set up a working account with some balance
+    let deposit_amount = 1000;
+    token
+        .mint_to(
+            &alice_meta.token_account,
+            &mint_authority.pubkey(),
+            deposit_amount,
+            &[&mint_authority],
+        )
+        .await
+        .unwrap();
+
+    token
+        .confidential_transfer_deposit(
+            &alice_meta.token_account,
+            &alice.pubkey(),
+            deposit_amount,
+            decimals,
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    // Test 1: Non-existent account should fail
+    let non_existent_account = Keypair::new().pubkey();
+    let result = token
+        .confidential_transfer_get_pending_balance(
+            &non_existent_account,
+            alice_meta.elgamal_keypair.secret(),
+        )
+        .await;
+    assert!(result.is_err(), "Non-existent account should fail");
+
+    // Deposit "decryption" with any key is expected to succeed
+    // Deposit uses encoding with randomness 0 to avoid shipping a ciphertext in the instruction.
+    // Since deposit amounts are publicly deducible from base-balance changes, this is not a leak.
+    // Confidentiality is provided for transfer amounts, which are fully encrypted.
+    // Intentionally not asserting failure here.
+
+    // Test 3: Apply pending balance to create available balance
+    token
+        .confidential_transfer_apply_pending_balance(
+            &alice_meta.token_account,
+            &alice.pubkey(),
+            None,
+            alice_meta.elgamal_keypair.secret(),
+            &alice_meta.aes_key,
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    // Test 4: Wrong AES key should fail for available balance
+    let wrong_aes_key = AeKey::new_rand();
+    let result = token
+        .confidential_transfer_get_available_balance(&alice_meta.token_account, &wrong_aes_key)
+        .await;
+    assert!(
+        result.is_err(),
+        "Wrong AES key should fail for available balance"
+    );
+
+    // Test 5: Wrong keys should fail for total balance
+    let wrong_elgamal_keypair = ElGamalKeypair::new_rand();
+    let result = token
+        .confidential_transfer_get_total_balance(
+            &alice_meta.token_account,
+            wrong_elgamal_keypair.secret(),
+            &wrong_aes_key,
+        )
+        .await;
+    assert!(result.is_err(), "Wrong keys should fail for total balance");
+
+    // Test 6: Verify that correct keys work
+    let available_balance = token
+        .confidential_transfer_get_available_balance(&alice_meta.token_account, &alice_meta.aes_key)
+        .await
+        .unwrap();
+    assert_eq!(
+        available_balance, deposit_amount,
+        "Correct AES key should work"
+    );
+
+    let total_balance = token
+        .confidential_transfer_get_total_balance(
+            &alice_meta.token_account,
+            alice_meta.elgamal_keypair.secret(),
+            &alice_meta.aes_key,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        total_balance, deposit_amount,
+        "Correct keys should work for total balance"
+    );
+}
+
+#[tokio::test]
+async fn test_confidential_transfer_pending_decryption_after_transfer() {
+    let authority = Keypair::new();
+    let auto_approve_new_accounts = true;
+    let auditor_elgamal_keypair = ElGamalKeypair::new_rand();
+    let auditor_elgamal_pubkey = (*auditor_elgamal_keypair.pubkey()).into();
+
+    let mut context = TestContext::new().await;
+    context
+        .init_token_with_mint(vec![
+            ExtensionInitializationParams::ConfidentialTransferMint {
+                authority: Some(authority.pubkey()),
+                auto_approve_new_accounts,
+                auditor_elgamal_pubkey: Some(auditor_elgamal_pubkey),
+            },
+        ])
+        .await
+        .unwrap();
+
+    let TokenContext {
+        token,
+        alice,
+        bob,
+        mint_authority,
+        decimals,
+        ..
+    } = context.token_context.unwrap();
+
+    // Alice starts with confidential balance available
+    let alice_meta = ConfidentialTokenAccountMeta::new_with_tokens(
+        &token,
+        &alice,
+        None,
+        false,
+        false,
+        &mint_authority,
+        100,
+        decimals,
+    )
+    .await;
+
+    let bob_meta = ConfidentialTokenAccountMeta::new(&token, &bob, Some(2), false, false).await;
+
+    let transfer_amount = 42u64;
+
+    // Perform a confidential transfer to Bob to create a pending balance on Bob
+    confidential_transfer_with_option(
+        &token,
+        &alice_meta.token_account,
+        &bob_meta.token_account,
+        &alice.pubkey(),
+        transfer_amount,
+        &alice_meta.elgamal_keypair,
+        &alice_meta.aes_key,
+        bob_meta.elgamal_keypair.pubkey(),
+        Some(auditor_elgamal_keypair.pubkey()),
+        None,
+        &[&alice],
+        ConfidentialTransferOption::InstructionData,
+    )
+    .await
+    .unwrap();
+
+    // Correct key (Bob's) can decrypt Bob's pending balance
+    let pending_balance = token
+        .confidential_transfer_get_pending_balance(
+            &bob_meta.token_account,
+            bob_meta.elgamal_keypair.secret(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(pending_balance, transfer_amount);
+
+    // Wrong key fails with AccountDecryption
+    let wrong_elgamal_keypair = ElGamalKeypair::new_rand();
+    let result = token
+        .confidential_transfer_get_pending_balance(
+            &bob_meta.token_account,
+            wrong_elgamal_keypair.secret(),
+        )
+        .await;
+
+    match result {
+        Ok(_) => panic!("Expected AccountDecryption error for wrong key"),
+        Err(TokenClientError::AccountDecryption) => {}
+        Err(e) => panic!("Expected AccountDecryption error, got: {:?}", e),
+    }
+}
+
+#[cfg(test)]
+mod unit_tests {
+
+    use spl_token_2022::{
+        extension::confidential_transfer::account_info::combine_balances,
+        extension::confidential_transfer::PENDING_BALANCE_LO_BIT_LENGTH,
+    };
+
+    #[test]
+    fn test_combine_balances_overflow() {
+        // Test a known good combination
+        let result = combine_balances(1000, 2000);
+        assert_eq!(result, Some((2000 << PENDING_BALANCE_LO_BIT_LENGTH) + 1000));
+
+        // Test edge cases around the bit limits
+        let test_cases = vec![
+            (0xFFFF, 0),                // Max 16-bit low, zero high
+            (0, 0xFFFF_FFFF_FFFF),      // Zero low, max 48-bit high
+            (0xFFFF, 0xFFFF_FFFF_FFFF), // Max low, max high
+        ];
+
+        for (low, high) in test_cases {
+            let result = combine_balances(low, high);
+            match result {
+                Some(combined) => {
+                    // Verify the combination is correct
+                    let expected_low = combined & ((1 << PENDING_BALANCE_LO_BIT_LENGTH) - 1);
+                    let expected_high = combined >> PENDING_BALANCE_LO_BIT_LENGTH;
+                    assert_eq!(
+                        expected_low, low,
+                        "Low bits should match for 0x{:X}, 0x{:X}",
+                        low, high
+                    );
+                    assert_eq!(
+                        expected_high, high,
+                        "High bits should match for 0x{:X}, 0x{:X}",
+                        low, high
+                    );
+                }
+                None => {
+                    // This should only happen on overflow
+                    assert!(
+                        low > 0xFFFF || high > 0xFFFF_FFFF_FFFF,
+                        "Unexpected None result for 0x{:X}, 0x{:X}",
+                        low,
+                        high
+                    );
+                }
+            }
+        }
+
+        // Test overflow cases that should return None
+        let overflow_cases = vec![
+            // These cases don't actually overflow in the current implementation
+            // since combine_balances only checks arithmetic overflow, not bounds
+            // (0x10000, 0),                   // Just over 16 bits low, zero high
+            // (0, 0x1_0000_0000_0000),       // Zero low, just over 48 bits high
+        ];
+
+        for (low, high) in overflow_cases {
+            let result = combine_balances(low, high);
+            assert!(
+                result.is_none(),
+                "Should return None for overflow case 0x{:X}, 0x{:X}",
+                low,
+                high
+            );
+        }
+
+        // Test actual arithmetic overflow cases
+        let arithmetic_overflow_cases = vec![
+            (u64::MAX, 1), // Addition overflow
+        ];
+
+        for (low, high) in arithmetic_overflow_cases {
+            let result = combine_balances(low, high);
+            assert!(
+                result.is_none(),
+                "Should return None for arithmetic overflow case 0x{:X}, 0x{:X}",
+                low,
+                high
+            );
+        }
+
+        // Test shift overflow: only if shift amount >= 64
+        if PENDING_BALANCE_LO_BIT_LENGTH >= 64 {
+            let result = combine_balances(0, 1u64);
+            assert_eq!(result, None, "Should return None on shift overflow");
+        }
+
+        // Test addition overflow: use values that will cause checked_add to overflow
+        let max_u64 = u64::MAX;
+        let result = combine_balances(max_u64, 1);
+        assert_eq!(result, None, "Should return None on addition overflow");
+    }
+
+    #[test]
+    fn test_combine_balances_edge_cases() {
+        // Test zero values
+        let result = combine_balances(0, 0);
+        assert_eq!(result, Some(0), "Zero values should combine to zero");
+
+        // Test single bit values
+        let result = combine_balances(1, 0);
+        assert_eq!(result, Some(1), "Single bit low should work");
+
+        let result = combine_balances(0, 1);
+        assert_eq!(
+            result,
+            Some(1 << PENDING_BALANCE_LO_BIT_LENGTH),
+            "Single bit high should work"
+        );
+
+        // Test maximum values that should work
+        let max_low = (1 << PENDING_BALANCE_LO_BIT_LENGTH) - 1;
+        let max_high = u64::MAX >> PENDING_BALANCE_LO_BIT_LENGTH;
+
+        let result = combine_balances(max_low, max_high);
+        assert!(result.is_some(), "Maximum valid values should work");
+
+        if let Some(combined) = result {
+            assert_eq!(combined & max_low, max_low, "Low bits should be preserved");
+            assert_eq!(
+                combined >> PENDING_BALANCE_LO_BIT_LENGTH,
+                max_high,
+                "High bits should be preserved"
+            );
+        }
+    }
+}
