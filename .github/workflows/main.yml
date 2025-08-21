@@ -60,6 +60,7 @@ jobs:
         uses: ./.github/actions/setup
         with:
           stable-toolchain: true
+          cli: true # needed for llvm-config
           cargo-cache-key: cargo-spellcheck
 
       - name: Install cargo-spellcheck
@@ -94,6 +95,7 @@ jobs:
         with:
           clippy: true
           rustfmt: true
+          cli: true
           cargo-cache-key: cargo-lint-${{ matrix.package }}
 
       - name: Install cargo-hack
@@ -245,6 +247,7 @@ jobs:
       - name: Setup Environment
         uses: ./.github/actions/setup
         with:
+          solana: true
           pnpm: true
 
       - name: Restore Program Builds
