@@ -76,7 +76,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: joncinque/actions/setup-ubuntu@setup
         with:
           clippy: true
           rustfmt: true
@@ -109,7 +109,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: joncinque/actions/setup-ubuntu@setup
         with:
           cli: true
           cargo-cache-key: cargo-publish-semver-${{ inputs.package_path }}
@@ -151,7 +151,7 @@ jobs:
           fetch-depth: 0 # get the whole history for git-cliff
 
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: joncinque/actions/setup-ubuntu@setup
         with:
           cli: true
           cargo-cache-key: cargo-publish-${{ inputs.package_path }}

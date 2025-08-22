@@ -101,7 +101,9 @@ jobs:
           fetch-depth: 0 # get the whole history for git-cliff
 
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: joncinque/actions/setup-ubuntu@setup
+        with:
+          pnpm: true
 
       - name: Ensure SOLANA_NPM_TOKEN variable is set
         env:
