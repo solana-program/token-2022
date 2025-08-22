@@ -351,11 +351,9 @@ async fn command_create_token(
     }
 
     if transfer_hook_program_id.is_some() || enable_transfer_hook {
-        let program_id: OptionalNonZeroPubkey = if let Some(program_id) = transfer_hook_program_id {
-            OptionalNonZeroPubkey(program_id)
-        } else {
-            OptionalNonZeroPubkey::default()
-        };
+        let program_id = transfer_hook_program_id
+            .map(OptionalNonZeroPubkey)
+            .unwrap_or_default();
         extensions.push(ExtensionInitializationParams::TransferHook {
             authority: Some(authority),
             program_id: program_id.into(),
