@@ -243,12 +243,6 @@ jobs:
       - name: Git Checkout
         uses: actions/checkout@v4
 
-      - name: Set Environment Variables
-        shell: bash
-        run: |
-          source ./vars.env
-          echo "RUST_TOOLCHAIN_NIGHTLY=$RUST_TOOLCHAIN_NIGHTLY" >> "$GITHUB_ENV"
-
       - name: Setup Environment
         uses: joncinque/actions/setup-ubuntu@setup
         with:
