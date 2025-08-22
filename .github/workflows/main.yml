@@ -24,6 +24,9 @@ jobs:
       RUST_TOOLCHAIN_NIGHTLY: ${{ steps.compute.outputs.RUST_TOOLCHAIN_NIGHTLY }}
       SOLANA_CLI_VERSION: ${{ steps.compute.outputs.SOLANA_CLI_VERSION }}
     steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
       - name: Compute variables
         id: compute
         run: |
