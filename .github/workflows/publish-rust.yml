@@ -48,9 +48,29 @@ on:
         default: true
 
 jobs:
+  set_env:
+    name: Set variables to be used in strategy definitions
+    runs-on: ubuntu-latest
+    outputs:
+      SOLANA_CLI_VERSION: ${{ steps.compute.outputs.SOLANA_CLI_VERSION }}
+      TARGET: ${{ steps.compute.outputs.TARGET }}
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute variables
+        id: compute
+        shell: bash
+        run: |
+          source ./vars.env
+          echo "SOLANA_CLI_VERSION=$SOLANA_CLI_VERSION" >> "$GITHUB_OUTPUT"
+          TARGET=$(echo ${{ inputs.package_path }} | sed 's#/#-#')
+          echo "TARGET=$TARGET" >> "$GITHUB_OUTPUT"
+
   test:
     name: Test Rust Crate
     runs-on: ubuntu-latest
+    needs: set_env
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
@@ -60,24 +80,17 @@ jobs:
         with:
           clippy: true
           rustfmt: true
-          solana: true
+          solana: ${{ needs.set_env.outputs.SOLANA_CLI_VERSION }}
           cli: true
           purge: true
           cargo-cache-key: cargo-test-publish-${{ inputs.package_path }}
           cargo-cache-fallback-key: cargo-test-publish
 
-      - name: Get makefile target
-        id: makefiletarget
-        shell: bash
-        run: |
-          target=$(echo ${{ inputs.package_path }} | sed 's#/#-#')
-          echo "target=$target" >> "$GITHUB_OUTPUT"
-
       - name: Format
-        run: make format-${{ steps.makefiletarget.outputs.target }}
+        run: make format-${{ needs.set_env.outputs.TARGET }}
 
       - name: Lint
-        run: make lint-${{ steps.makefiletarget.outputs.target }}
+        run: make lint-${{ needs.set_env.outputs.TARGET }}
 
       - name: Build Token-2022
         run: make build-sbf-program
@@ -86,7 +99,7 @@ jobs:
         run: make build-sbf-confidential-elgamal-registry
 
       - name: Test
-        run: make test-${{ steps.makefiletarget.outputs.target }}
+        run: make test-${{ needs.set_env.outputs.TARGET }}
 
   semver:
     name: Check Semver
