@@ -7,10 +7,10 @@ on:
     branches: [main]
 
 env:
-  JS_PACKAGES: ["js", "js-legacy"]
-  SBPF_PROGRAM_PACKAGES: ["confidential-elgamal-registry", "program"]
-  RUST_PACKAGES: ["clients-cli", "clients-rust-legacy", "interface", "program", "confidential-ciphertext-arithmetic", "confidential-elgamal-registry", "confidential-proof-extraction", "confidential-proof-generation", "confidential-proof-tests"]
-  WASM_PACKAGES: ["interface", "program"]
+  JS_PACKAGES: "['js', 'js-legacy']"
+  SBPF_PROGRAM_PACKAGES: "['confidential-elgamal-registry', 'program']"
+  RUST_PACKAGES: "['clients-cli', 'clients-rust-legacy', 'interface', 'program', 'confidential-ciphertext-arithmetic', 'confidential-elgamal-registry', 'confidential-proof-extraction', 'confidential-proof-generation', 'confidential-proof-tests']"
+  WASM_PACKAGES: "['interface', 'program']"
 
 jobs:
   format_and_lint_js:
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: ${{ fromJson(env.JS_PACKAGES) }}
+        package: ${{ fromJson(vars.JS_PACKAGES) }}
       fail-fast: false
     steps:
       - name: Git Checkout
@@ -83,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: ${{ fromJson(env.RUST_PACKAGES) }}
+        package: ${{ fromJson(vars.RUST_PACKAGES) }}
       fail-fast: false
     steps:
       - name: Git Checkout
@@ -126,7 +126,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: ${{ fromJson(env.WASM_PACKAGES) }}
+        package: ${{ fromJson(vars.WASM_PACKAGES) }}
       fail-fast: false
     steps:
       - name: Git Checkout
@@ -149,7 +149,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: ${{ fromJson(env.SBPF_PROGRAM_PACKAGES) }}
+        package: ${{ fromJson(vars.SBPF_PROGRAM_PACKAGES) }}
       fail-fast: false
     steps:
       - name: Git Checkout
@@ -190,7 +190,7 @@ jobs:
     needs: build_sbf
     strategy:
       matrix:
-        package: ${{ fromJson(env.RUST_PACKAGES) }}
+        package: ${{ fromJson(vars.RUST_PACKAGES) }}
       fail-fast: false
     steps:
       - name: Git Checkout
@@ -252,7 +252,7 @@ jobs:
     needs: build_sbf
     strategy:
       matrix:
-        package: ${{ fromJson(env.JS_PACKAGES) }}
+        package: ${{ fromJson(vars.JS_PACKAGES) }}
       fail-fast: false
     steps:
       - name: Git Checkout
