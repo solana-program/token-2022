@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: joncinque/actions/setup-ubuntu@master
+        uses: joncinque/actions/setup-ubuntu@setup
         with:
           pnpm: true
 
@@ -58,7 +58,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: joncinque/actions/setup-ubuntu@master
+        uses: joncinque/actions/setup-ubuntu@setup
         with:
           stable-toolchain: true
           cargo-cache-key: cargo-audit
@@ -79,7 +79,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: joncinque/actions/setup-ubuntu@master
+        uses: joncinque/actions/setup-ubuntu@setup
         with:
           stable-toolchain: true
           cli: true # needed for llvm-config
@@ -111,7 +111,7 @@ jobs:
           echo "RUST_TOOLCHAIN_NIGHTLY=$RUST_TOOLCHAIN_NIGHTLY" >> "$GITHUB_ENV"
 
       - name: Setup Environment
-        uses: joncinque/actions/setup-ubuntu@master
+        uses: joncinque/actions/setup-ubuntu@setup
         with:
           nightly-toolchain: ${{ env.RUST_TOOLCHAIN_NIGHTLY }}
           clippy: true
@@ -148,7 +148,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: joncinque/actions/setup-ubuntu@master
+        uses: joncinque/actions/setup-ubuntu@setup
         with:
           stable-toolchain: true
           cargo-cache-key: cargo-wasm-${{ matrix.package }}
@@ -177,7 +177,7 @@ jobs:
           echo "SOLANA_CLI_VERSION=$SOLANA_CLI_VERSION" >> "$GITHUB_ENV"
 
       - name: Setup Environment
-        uses: joncinque/actions/setup-ubuntu@master
+        uses: joncinque/actions/setup-ubuntu@setup
         with:
           stable-toolchain: true
           cargo-cache-key: cargo-build-sbf-${{ matrix.package }}
@@ -212,7 +212,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: joncinque/actions/setup-ubuntu@master
+        uses: joncinque/actions/setup-ubuntu@setup
         with:
           stable-toolchain: true
           cli: true
@@ -247,7 +247,7 @@ jobs:
           echo "RUST_TOOLCHAIN_NIGHTLY=$RUST_TOOLCHAIN_NIGHTLY" >> "$GITHUB_ENV"
 
       - name: Setup Environment
-        uses: joncinque/actions/setup-ubuntu@master
+        uses: joncinque/actions/setup-ubuntu@setup
         with:
           pnpm: true
           rustfmt: true
@@ -280,7 +280,7 @@ jobs:
           echo "SOLANA_CLI_VERSION=$SOLANA_CLI_VERSION" >> "$GITHUB_ENV"
 
       - name: Setup Environment
-        uses: joncinque/actions/setup-ubuntu@master
+        uses: joncinque/actions/setup-ubuntu@setup
         with:
           solana: ${{ env.SOLANA_CLI_VERSION }}
           pnpm: true
