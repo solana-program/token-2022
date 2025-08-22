@@ -40,7 +40,6 @@ jobs:
     name: Set variables to be used in strategy definitions
     runs-on: ubuntu-latest
     outputs:
-      RUST_TOOLCHAIN_NIGHTLY: ${{ steps.compute.outputs.RUST_TOOLCHAIN_NIGHTLY }}
       SOLANA_CLI_VERSION: ${{ steps.compute.outputs.SOLANA_CLI_VERSION }}
       TARGET: ${{ steps.compute.outputs.TARGET }}
     steps:
@@ -52,7 +51,6 @@ jobs:
         shell: bash
         run: |
           source ./vars.env
-          echo "RUST_TOOLCHAIN_NIGHTLY=$RUST_TOOLCHAIN_NIGHTLY" >> "$GITHUB_OUTPUT"
           echo "SOLANA_CLI_VERSION=$SOLANA_CLI_VERSION" >> "$GITHUB_OUTPUT"
           TARGET=$(echo ${{ inputs.package_path }} | sed 's#/#-#')
           echo "TARGET=$TARGET" >> "$GITHUB_OUTPUT"

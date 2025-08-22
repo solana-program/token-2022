@@ -71,7 +71,7 @@ jobs:
       - name: Setup Environment
         uses: joncinque/actions/setup-ubuntu@setup
         with:
-          stable-toolchain: true
+          default-toolchain: true
           cargo-cache-key: cargo-audit
 
       - name: Install cargo-audit
@@ -92,7 +92,7 @@ jobs:
       - name: Setup Environment
         uses: joncinque/actions/setup-ubuntu@setup
         with:
-          stable-toolchain: true
+          default-toolchain: true
           cli: true # needed for llvm-config
           cargo-cache-key: cargo-spellcheck
 
@@ -119,9 +119,8 @@ jobs:
       - name: Setup Environment
         uses: joncinque/actions/setup-ubuntu@setup
         with:
-          nightly-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
-          clippy: true
-          rustfmt: true
+          clippy-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
+          rustfmt-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
           cli: true
           cargo-cache-key: cargo-lint-${{ matrix.package }}
 
@@ -157,7 +156,7 @@ jobs:
       - name: Setup Environment
         uses: joncinque/actions/setup-ubuntu@setup
         with:
-          stable-toolchain: true
+          default-toolchain: true
           cargo-cache-key: cargo-wasm-${{ matrix.package }}
 
       - name: Install wasm target
@@ -181,7 +180,7 @@ jobs:
       - name: Setup Environment
         uses: joncinque/actions/setup-ubuntu@setup
         with:
-          stable-toolchain: true
+          default-toolchain: true
           cargo-cache-key: cargo-build-sbf-${{ matrix.package }}
           solana: ${{ needs.set_env.outputs.SOLANA_CLI_VERSION }}
 
@@ -216,7 +215,7 @@ jobs:
       - name: Setup Environment
         uses: joncinque/actions/setup-ubuntu@setup
         with:
-          stable-toolchain: true
+          default-toolchain: true
           cli: true
           cargo-cache-key: cargo-test-${{ matrix.package }}
 
@@ -247,8 +246,7 @@ jobs:
         uses: joncinque/actions/setup-ubuntu@setup
         with:
           pnpm: true
-          rustfmt: true
-          nightly-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
+          rustfmt-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
 
       - name: Generate Clients
         run: pnpm generate:clients

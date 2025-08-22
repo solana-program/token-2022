@@ -52,6 +52,7 @@ jobs:
     name: Set variables to be used in strategy definitions
     runs-on: ubuntu-latest
     outputs:
+      RUST_TOOLCHAIN_NIGHTLY: ${{ steps.compute.outputs.RUST_TOOLCHAIN_NIGHTLY }}
       SOLANA_CLI_VERSION: ${{ steps.compute.outputs.SOLANA_CLI_VERSION }}
       TARGET: ${{ steps.compute.outputs.TARGET }}
     steps:
@@ -64,6 +65,7 @@ jobs:
         run: |
           source ./vars.env
           echo "SOLANA_CLI_VERSION=$SOLANA_CLI_VERSION" >> "$GITHUB_OUTPUT"
+          echo "RUST_TOOLCHAIN_NIGHTLY=$RUST_TOOLCHAIN_NIGHTLY" >> "$GITHUB_OUTPUT"
           TARGET=$(echo ${{ inputs.package_path }} | sed 's#/#-#')
           echo "TARGET=$TARGET" >> "$GITHUB_OUTPUT"
 
@@ -78,8 +80,8 @@ jobs:
       - name: Setup Environment
         uses: joncinque/actions/setup-ubuntu@setup
         with:
-          clippy: true
-          rustfmt: true
+          clippy-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
+          rustfmt-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
           solana: ${{ needs.set_env.outputs.SOLANA_CLI_VERSION }}
           cli: true
           purge: true
