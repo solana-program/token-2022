@@ -63,7 +63,7 @@ test-doc-%:
 	cargo $(nightly) test --doc --all-features --manifest-path $(call make-path,$*)/Cargo.toml
 
 test-%:
-	SBF_OUT_DIR=./target/deploy cargo $(nightly) test --manifest-path $(call make-path,$*)/Cargo.toml
+	SBF_OUT_DIR=$(PWD)/target/deploy cargo $(nightly) test --manifest-path $(call make-path,$*)/Cargo.toml
 
 # Make defaults % to .o if nothing is provided there, and then tries to build it
 # as a C project, so we do something a bit hacky, and assume that any target
