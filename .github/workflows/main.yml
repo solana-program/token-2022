@@ -13,12 +13,35 @@ env:
   WASM_PACKAGES: "['interface', 'program']"
 
 jobs:
+  set_env:
+    name: Set variables to be used in strategy definitions
+    runs-on: ubuntu-latest
+    outputs:
+      JS_PACKAGES: ${{ steps.compute.outputs.JS_PACKAGES }}
+      SBPF_PROGRAM_PACKAGES: ${{ steps.compute.outputs.SBPF_PROGRAM_PACKAGES }}
+      RUST_PACKAGES: ${{ steps.compute.outputs.RUST_PACKAGES }}
+      WASM_PACKAGES: ${{ steps.compute.outputs.WASM_PACKAGES }}
+      RUST_TOOLCHAIN_NIGHTLY: ${{ steps.compute.outputs.RUST_TOOLCHAIN_NIGHTLY }}
+      SOLANA_CLI_VERSION: ${{ steps.compute.outputs.SOLANA_CLI_VERSION }}
+    steps:
+      - name: Compute variables
+        id: compute
+        run: |
+          echo "JS_PACKAGES=${{ env.JS_PACKAGES }}" >> $GITHUB_OUTPUT
+          echo "SBPF_PROGRAM_PACKAGES=${{ env.SBPF_PROGRAM_PACKAGES }}" >> $GITHUB_OUTPUT
+          echo "RUST_PACKAGES=${{ env.RUST_PACKAGES }}" >> $GITHUB_OUTPUT
+          echo "WASM_PACKAGES=${{ env.WASM_PACKAGES }}" >> $GITHUB_OUTPUT
+          source ./vars.env
+          echo "RUST_TOOLCHAIN_NIGHTLY=$RUST_TOOLCHAIN_NIGHTLY" >> "$GITHUB_OUTPUT"
+          echo "SOLANA_CLI_VERSION=$SOLANA_CLI_VERSION" >> "$GITHUB_OUTPUT"
+
   format_and_lint_js:
     name: Format & Lint JS
     runs-on: ubuntu-latest
+    needs: set_env
     strategy:
       matrix:
-        package: ${{ fromJson(vars.JS_PACKAGES) }}
+        package: ${{ fromJson(needs.set_env.outputs.JS_PACKAGES) }}
       fail-fast: false
     steps:
       - name: Git Checkout
@@ -81,24 +104,19 @@ jobs:
   format_and_lint_rust:
     name: Format & Lint Rust
     runs-on: ubuntu-latest
+    needs: set_env
     strategy:
       matrix:
-        package: ${{ fromJson(vars.RUST_PACKAGES) }}
+        package: ${{ fromJson(needs.set_env.outputs.RUST_PACKAGES) }}
       fail-fast: false
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
 
-      - name: Set Environment Variables
-        shell: bash
-        run: |
-          source ./vars.env
-          echo "RUST_TOOLCHAIN_NIGHTLY=$RUST_TOOLCHAIN_NIGHTLY" >> "$GITHUB_ENV"
-
       - name: Setup Environment
         uses: joncinque/actions/setup-ubuntu@setup
         with:
-          nightly-toolchain: ${{ env.RUST_TOOLCHAIN_NIGHTLY }}
+          nightly-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
           clippy: true
           rustfmt: true
           cli: true
@@ -124,9 +142,10 @@ jobs:
   wasm:
     name: Build WASM
     runs-on: ubuntu-latest
+    needs: set_env
     strategy:
       matrix:
-        package: ${{ fromJson(vars.WASM_PACKAGES) }}
+        package: ${{ fromJson(needs.set_env.outputs.WASM_PACKAGES) }}
       fail-fast: false
     steps:
       - name: Git Checkout
@@ -147,26 +166,21 @@ jobs:
   build_sbpf:
     name: Build Program
     runs-on: ubuntu-latest
+    needs: set_env
     strategy:
       matrix:
-        package: ${{ fromJson(vars.SBPF_PROGRAM_PACKAGES) }}
+        package: ${{ fromJson(needs.set_env.outputs.SBPF_PROGRAM_PACKAGES) }}
       fail-fast: false
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
-
-      - name: Set Environment Variables
-        shell: bash
-        run: |
-          source ./vars.env
-          echo "SOLANA_CLI_VERSION=$SOLANA_CLI_VERSION" >> "$GITHUB_ENV"
 
       - name: Setup Environment
         uses: joncinque/actions/setup-ubuntu@setup
         with:
           stable-toolchain: true
           cargo-cache-key: cargo-build-sbf-${{ matrix.package }}
-          solana: ${{ env.SOLANA_CLI_VERSION }}
+          solana: ${{ needs.set_env.outputs.SOLANA_CLI_VERSION }}
 
       - name: Build
         run: make build-sbf-${{ matrix.package }}
@@ -187,10 +201,10 @@ jobs:
   test_rust:
     name: Test Rust
     runs-on: ubuntu-latest
-    needs: build_sbpf
+    needs: [build_sbpf, set_env]
     strategy:
       matrix:
-        package: ${{ fromJson(vars.RUST_PACKAGES) }}
+        package: ${{ fromJson(needs.set_env.outputs.RUST_PACKAGES) }}
       fail-fast: false
     steps:
       - name: Git Checkout
@@ -221,6 +235,7 @@ jobs:
   generate_clients:
     name: Check Client Generation
     runs-on: ubuntu-latest
+    needs: set_env
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
@@ -236,7 +251,7 @@ jobs:
         with:
           pnpm: true
           rustfmt: true
-          nightly-toolchain: ${{ env.RUST_TOOLCHAIN_NIGHTLY }}
+          nightly-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
 
       - name: Generate Clients
         run: pnpm generate:clients
@@ -249,25 +264,19 @@ jobs:
   test_js:
     name: Test JS
     runs-on: ubuntu-latest
-    needs: build_sbpf
+    needs: [build_sbpf, set_env]
     strategy:
       matrix:
-        package: ${{ fromJson(vars.JS_PACKAGES) }}
+        package: ${{ fromJson(needs.set_env.outputs.JS_PACKAGES) }}
       fail-fast: false
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
 
-      - name: Set Environment Variables
-        shell: bash
-        run: |
-          source ./vars.env
-          echo "SOLANA_CLI_VERSION=$SOLANA_CLI_VERSION" >> "$GITHUB_ENV"
-
       - name: Setup Environment
         uses: joncinque/actions/setup-ubuntu@setup
         with:
-          solana: ${{ env.SOLANA_CLI_VERSION }}
+          solana: ${{ needs.set_env.outputs.SOLANA_CLI_VERSION }}
           pnpm: true
 
       - name: Restore Program Builds
