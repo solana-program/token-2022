@@ -6,19 +6,41 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  JS_PACKAGES:
+    - js
+    - js-legacy
+  SBPF_PROGRAM_PACKAGES:
+    - confidential-elgamal-registry
+    - program
+  RUST_PACKAGES:
+    - clients-cli
+    - clients-rust-legacy
+    - interface
+    - program
+    - confidential-ciphertext-arithmetic
+    - confidential-elgamal-registry
+    - confidential-proof-extraction
+    - confidential-proof-generation
+    - confidential-proof-tests
+  WASM_PACKAGES:
+    - interface
+    - program
+
 jobs:
   format_and_lint_js:
     name: Format & Lint JS
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [js, js-legacy]
+        package: ${{ fromJson(env.JS_PACKAGES) }}
+      fail-fast: false
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: joncinque/actions/setup-ubuntu@master
         with:
           pnpm: true
 
@@ -36,7 +58,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: joncinque/actions/setup-ubuntu@master
         with:
           stable-toolchain: true
           cargo-cache-key: cargo-audit
@@ -57,7 +79,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: joncinque/actions/setup-ubuntu@master
         with:
           stable-toolchain: true
           cli: true # needed for llvm-config
@@ -76,23 +98,22 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package:
-          - clients-cli
-          - clients-rust-legacy
-          - interface
-          - program
-          - confidential-ciphertext-arithmetic
-          - confidential-elgamal-registry
-          - confidential-proof-extraction
-          - confidential-proof-generation
-          - confidential-proof-tests
+        package: ${{ fromJson(env.RUST_PACKAGES) }}
+      fail-fast: false
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
 
+      - name: Set Environment Variables
+        shell: bash
+        run: |
+          source ./vars.env
+          echo "RUST_TOOLCHAIN_NIGHTLY=$RUST_TOOLCHAIN_NIGHTLY" >> "$GITHUB_ENV"
+
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: joncinque/actions/setup-ubuntu@master
         with:
+          nightly-toolchain: ${{ env.RUST_TOOLCHAIN_NIGHTLY }}
           clippy: true
           rustfmt: true
           cli: true
@@ -120,13 +141,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [interface, program]
+        package: ${{ fromJson(env.WASM_PACKAGES) }}
+      fail-fast: false
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: joncinque/actions/setup-ubuntu@master
         with:
           stable-toolchain: true
           cargo-cache-key: cargo-wasm-${{ matrix.package }}
@@ -137,22 +159,29 @@ jobs:
       - name: Build with wasm target
         run: make build-wasm-${{ matrix.package }}
 
-  build_sbf:
+  build_sbpf:
     name: Build Program
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [program, confidential-elgamal-registry]
+        package: ${{ fromJson(env.SBPF_PROGRAM_PACKAGES) }}
+      fail-fast: false
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
 
+      - name: Set Environment Variables
+        shell: bash
+        run: |
+          source ./vars.env
+          echo "SOLANA_CLI_VERSION=$SOLANA_CLI_VERSION" >> "$GITHUB_ENV"
+
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: joncinque/actions/setup-ubuntu@master
         with:
           stable-toolchain: true
           cargo-cache-key: cargo-build-sbf-${{ matrix.package }}
-          solana: true
+          solana: ${{ env.SOLANA_CLI_VERSION }}
 
       - name: Build
         run: make build-sbf-${{ matrix.package }}
@@ -176,22 +205,14 @@ jobs:
     needs: build_sbf
     strategy:
       matrix:
-        package:
-          - clients-cli
-          - clients-rust-legacy
-          - interface
-          - program
-          - confidential-ciphertext-arithmetic
-          - confidential-elgamal-registry
-          - confidential-proof-extraction
-          - confidential-proof-generation
-          - confidential-proof-tests
+        package: ${{ fromJson(env.RUST_PACKAGES) }}
+      fail-fast: false
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: joncinque/actions/setup-ubuntu@master
         with:
           stable-toolchain: true
           cli: true
@@ -219,11 +240,18 @@ jobs:
       - name: Git Checkout
         uses: actions/checkout@v4
 
+      - name: Set Environment Variables
+        shell: bash
+        run: |
+          source ./vars.env
+          echo "RUST_TOOLCHAIN_NIGHTLY=$RUST_TOOLCHAIN_NIGHTLY" >> "$GITHUB_ENV"
+
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: joncinque/actions/setup-ubuntu@master
         with:
           pnpm: true
           rustfmt: true
+          nightly-toolchain: ${{ env.RUST_TOOLCHAIN_NIGHTLY }}
 
       - name: Generate Clients
         run: pnpm generate:clients
@@ -239,15 +267,22 @@ jobs:
     needs: build_sbf
     strategy:
       matrix:
-        package: [js, js-legacy]
+        package: ${{ fromJson(env.JS_PACKAGES) }}
+      fail-fast: false
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
 
+      - name: Set Environment Variables
+        shell: bash
+        run: |
+          source ./vars.env
+          echo "SOLANA_CLI_VERSION=$SOLANA_CLI_VERSION" >> "$GITHUB_ENV"
+
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: joncinque/actions/setup-ubuntu@master
         with:
-          solana: true
+          solana: ${{ env.SOLANA_CLI_VERSION }}
           pnpm: true
 
       - name: Restore Program Builds
