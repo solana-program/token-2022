@@ -42,14 +42,14 @@ jobs:
           cargo-cache-key: cargo-audit
 
       - name: Install cargo-audit
-        uses: taiki-e/cache-cargo-install-action@v2
+        uses: taiki-e/install-action@v2
         with:
           tool: cargo-audit
 
       - name: Run cargo-audit
         run: make audit
 
-  spellchec:
+  spellcheck:
     name: Spellcheck
     runs-on: ubuntu-latest
     steps:
@@ -64,7 +64,7 @@ jobs:
           cargo-cache-key: cargo-spellcheck
 
       - name: Install cargo-spellcheck
-        uses: taiki-e/cache-cargo-install-action@v2
+        uses: taiki-e/install-action@v2
         with:
           tool: cargo-spellcheck
 
@@ -99,7 +99,7 @@ jobs:
           cargo-cache-key: cargo-lint-${{ matrix.package }}
 
       - name: Install cargo-hack
-        uses: taiki-e/cache-cargo-install-action@v2
+        uses: taiki-e/install-action@v2
         with:
           tool: cargo-hack
 
