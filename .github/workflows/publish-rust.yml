@@ -63,9 +63,8 @@ jobs:
         id: compute
         shell: bash
         run: |
-          source ./vars.env
-          echo "SOLANA_CLI_VERSION=$SOLANA_CLI_VERSION" >> "$GITHUB_OUTPUT"
-          echo "RUST_TOOLCHAIN_NIGHTLY=$RUST_TOOLCHAIN_NIGHTLY" >> "$GITHUB_OUTPUT"
+          echo "RUST_TOOLCHAIN_NIGHTLY=$(make rust-toolchain-nightly)" >> "$GITHUB_OUTPUT"
+          echo "SOLANA_CLI_VERSION=$(make solana-cli-version)" >> "$GITHUB_OUTPUT"
           TARGET=$(echo ${{ inputs.package_path }} | sed 's#/#-#')
           echo "TARGET=$TARGET" >> "$GITHUB_OUTPUT"
 

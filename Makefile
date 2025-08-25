@@ -1,7 +1,14 @@
-include vars.env
+RUST_TOOLCHAIN_NIGHTLY = nightly-2025-02-16
+SOLANA_CLI_VERSION = 2.3.4
 
-nightly = +$(subst ",,${RUST_TOOLCHAIN_NIGHTLY})
+nightly = +${RUST_TOOLCHAIN_NIGHTLY}
 make-path = $(shell echo $1 | sed 's#-#/#')
+
+rust-toolchain-nightly:
+	@echo ${RUST_TOOLCHAIN_NIGHTLY}
+
+solana-cli-version:
+	@echo ${SOLANA_CLI_VERSION}
 
 cargo-nightly-%:
 	cargo $(nightly) $*
