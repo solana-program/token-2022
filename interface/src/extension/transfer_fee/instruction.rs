@@ -94,7 +94,7 @@ pub enum TransferFeeInstruction {
     ///   0. `[writable]` The token mint.
     ///   1. `[writable]` The destination account.
     ///   2. `[]` The mint's multisig `withdraw_withheld_authority`.
-    ///   3. `..3+M `[signer]` M signer accounts.
+    ///   3. `..3+M` `[signer]` M signer accounts.
     WithdrawWithheldTokensFromMint,
     /// Transfer all withheld tokens to an account. Signed by the mint's
     /// withdraw withheld tokens authority.

@@ -1,5 +1,3 @@
-#![cfg(feature = "test-sbf")]
-
 mod action;
 use {
     solana_keypair::Keypair,

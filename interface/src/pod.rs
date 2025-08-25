@@ -19,7 +19,7 @@ use {
     },
 };
 
-/// [Mint] data stored as a Pod type
+/// [crate::state::Mint] data stored as a Pod type
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct PodMint {
@@ -58,7 +58,7 @@ impl From<Mint> for PodMint {
     }
 }
 
-/// [Account] data stored as a Pod type
+/// [crate::state::Account] data stored as a Pod type
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct PodAccount {
@@ -123,7 +123,7 @@ impl From<Account> for PodAccount {
     }
 }
 
-/// [Multisig] data stored as a Pod type
+/// [crate::state::Multisig] data stored as a Pod type
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct PodMultisig {

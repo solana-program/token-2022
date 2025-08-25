@@ -19,7 +19,7 @@ pub struct TransferPubkeys {
     pub auditor: PodElGamalPubkey,
 }
 
-/// The proof context information needed to process a [Transfer] instruction.
+/// The proof context information needed to process a `Transfer` instruction.
 pub struct TransferProofContext {
     /// Ciphertext containing the low 16 bits of the transfer amount
     pub ciphertext_lo: PodTransferAmountCiphertext,

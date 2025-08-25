@@ -12,7 +12,7 @@ use {
     std::slice::Iter,
 };
 
-/// Verify zero-knowledge proofs needed for a [Withdraw] instruction and return
+/// Verify zero-knowledge proofs needed for a `Withdraw` instruction and return
 /// the corresponding proof context.
 #[cfg(feature = "zk-ops")]
 pub fn verify_withdraw_proof(
@@ -53,7 +53,7 @@ pub fn verify_withdraw_proof(
     Ok(transfer_proof_context)
 }
 
-/// Verify zero-knowledge proof needed for a [Transfer] instruction without fee
+/// Verify zero-knowledge proof needed for a `Transfer` instruction without fee
 /// and return the corresponding proof context.
 #[cfg(feature = "zk-ops")]
 pub fn verify_transfer_proof(
@@ -109,7 +109,7 @@ pub fn verify_transfer_proof(
     Ok(transfer_proof_context)
 }
 
-/// Verify zero-knowledge proof needed for a [Transfer] instruction with fee and
+/// Verify zero-knowledge proof needed for a `Transfer` instruction with fee and
 /// return the corresponding proof context.
 #[cfg(feature = "zk-ops")]
 #[allow(clippy::too_many_arguments)]

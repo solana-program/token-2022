@@ -45,7 +45,7 @@ solana-signer = "2.2.1"
 solana-system-interface = "1"
 solana-transaction = "2.2.1"
 spl-associated-token-account-client = { version = "2.0.0" }
-spl-elgamal-registry = { version = "0.3.0",features = ["no-entrypoint"], path = "../../confidential-transfer/elgamal-registry"}
+spl-elgamal-registry = { version = "0.3.0",features = ["no-entrypoint"], path = "../../confidential/elgamal-registry"}
 spl-memo = { version = "6.0", features = ["no-entrypoint"] }
 spl-record = { version = "0.3.0", features = ["no-entrypoint"] }
 spl-token = { version = "8.0", features = ["no-entrypoint"] }
