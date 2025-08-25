@@ -64,7 +64,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: joncinque/actions/setup-ubuntu@setup
+        uses: solana-program/actions/setup-ubuntu@master
         with:
           solana: ${{ needs.set_env.outputs.SOLANA_CLI_VERSION }}
           cargo-cache-key: cargo-publish-js-test-${{ inputs.package_path }}
@@ -99,7 +99,7 @@ jobs:
           fetch-depth: 0 # get the whole history for git-cliff
 
       - name: Setup Environment
-        uses: joncinque/actions/setup-ubuntu@setup
+        uses: solana-program/actions/setup-ubuntu@master
         with:
           pnpm: true
 
