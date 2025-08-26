@@ -858,7 +858,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "115e54d64eb62cdebad391c19efc9dce4981c690c85a33a12199d99bb9546fee"
 dependencies = [
  "borsh-derive 0.10.4",
- "hashbrown 0.13.2",
+ "hashbrown 0.12.3",
 ]
 
 [[package]]
@@ -5637,7 +5637,7 @@ checksum = "c8f5152a288ef1912300fc6efa6c2d1f9bb55d9398eb6c72326360b8063987da"
 dependencies = [
  "bincode",
  "serde",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-program-memory 2.3.1",
  "solana-pubkey 2.4.0",
 ]
@@ -6521,7 +6521,7 @@ dependencies = [
  "solana-account-info 2.3.0",
  "solana-define-syscall 2.3.0",
  "solana-instruction 2.3.0",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "solana-stable-layout",
 ]
@@ -6738,7 +6738,7 @@ dependencies = [
  "solana-account",
  "solana-account-info 2.3.0",
  "solana-instruction 2.3.0",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "solana-rent",
  "solana-sdk-ids 2.2.1",
@@ -7018,7 +7018,7 @@ dependencies = [
  "bitflags 2.9.1",
  "solana-account-info 2.3.0",
  "solana-instruction 2.3.0",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "solana-sanitize 2.2.1",
  "solana-sdk-ids 2.2.1",
@@ -7634,7 +7634,7 @@ dependencies = [
  "solana-native-token",
  "solana-nonce",
  "solana-program-entrypoint",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-program-memory 2.3.1",
  "solana-program-option 2.2.1",
  "solana-program-pack 2.2.1",
@@ -7668,15 +7668,15 @@ checksum = "32ce041b1a0ed275290a5008ee1a4a6c48f5054c8a3d78d313c08958a06aedbd"
 dependencies = [
  "solana-account-info 2.3.0",
  "solana-msg 2.2.1",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
 ]
 
 [[package]]
 name = "solana-program-error"
-version = "2.2.1"
+version = "2.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8ae2c1a8d0d4ae865882d5770a7ebca92bab9c685e43f0461682c6c05a35bfa"
+checksum = "9ee2e0217d642e2ea4bee237f37bd61bb02aec60da3647c48ff88f6556ade775"
 dependencies = [
  "borsh 1.5.7",
  "num-traits",
@@ -7733,7 +7733,7 @@ version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "319f0ef15e6e12dc37c597faccb7d62525a509fec5f6975ecb9419efddeb277b"
 dependencies = [
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
 ]
 
 [[package]]
@@ -7827,7 +7827,7 @@ dependencies = [
  "solana-native-token",
  "solana-poh-config",
  "solana-program-entrypoint",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-program-runtime",
  "solana-pubkey 2.4.0",
  "solana-rent",
@@ -8825,7 +8825,7 @@ dependencies = [
  "solana-cpi",
  "solana-decode-error",
  "solana-instruction 2.3.0",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "solana-system-interface",
  "solana-sysvar-id 2.2.1",
@@ -9152,7 +9152,7 @@ dependencies = [
  "solana-instructions-sysvar 2.2.2",
  "solana-last-restart-slot",
  "solana-program-entrypoint",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-program-memory 2.3.1",
  "solana-pubkey 2.4.0",
  "solana-rent",
@@ -9954,7 +9954,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7398da23554a31660f17718164e31d31900956054f54f52d5ec1be51cb4f4b3"
 dependencies = [
  "bytemuck",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-sha256-hasher 2.2.1",
  "spl-discriminator-derive",
 ]
@@ -10007,7 +10007,7 @@ dependencies = [
  "solana-instruction 2.3.0",
  "solana-msg 2.2.1",
  "solana-program-entrypoint",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "solana-rent",
  "solana-sdk-ids 2.2.1",
@@ -10028,7 +10028,7 @@ dependencies = [
  "solana-instruction 2.3.0",
  "solana-msg 2.2.1",
  "solana-program-entrypoint",
- "solana-program-error 2.2.1",
+ "solana-program-error 3.0.0",
  "solana-pubkey 2.4.0",
  "solana-rent",
  "solana-sdk-ids 2.2.1",
@@ -10061,7 +10061,7 @@ dependencies = [
  "solana-cpi",
  "solana-instruction 2.3.0",
  "solana-program-entrypoint",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
 ]
 
@@ -10075,7 +10075,7 @@ dependencies = [
  "solana-instruction 2.3.0",
  "solana-msg 2.2.1",
  "solana-program-entrypoint",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
 ]
 
@@ -10093,7 +10093,7 @@ dependencies = [
  "serde",
  "solana-decode-error",
  "solana-msg 2.2.1",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-program-option 2.2.1",
  "solana-pubkey 2.4.0",
  "solana-zk-sdk 2.3.4",
@@ -10130,7 +10130,7 @@ dependencies = [
  "num-traits",
  "solana-decode-error",
  "solana-msg 2.2.1",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "spl-program-error-derive",
  "thiserror 2.0.12",
 ]
@@ -10161,7 +10161,7 @@ dependencies = [
  "solana-instruction 2.3.0",
  "solana-msg 2.2.1",
  "solana-program-entrypoint",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-program-pack 2.2.1",
  "solana-pubkey 2.4.0",
  "solana-rent",
@@ -10181,7 +10181,7 @@ dependencies = [
  "solana-decode-error",
  "solana-instruction 2.3.0",
  "solana-msg 2.2.1",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "spl-discriminator 0.4.1",
  "spl-pod 0.5.1",
@@ -10207,7 +10207,7 @@ dependencies = [
  "solana-instruction 2.3.0",
  "solana-msg 2.2.1",
  "solana-program-entrypoint",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-program-memory 2.3.1",
  "solana-program-option 2.2.1",
  "solana-program-pack 2.2.1",
@@ -10237,7 +10237,7 @@ dependencies = [
  "solana-msg 2.2.1",
  "solana-native-token",
  "solana-program-entrypoint",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-program-memory 2.3.1",
  "solana-program-option 2.2.1",
  "solana-program-pack 2.2.1",
@@ -10287,7 +10287,7 @@ dependencies = [
  "solana-keypair",
  "solana-msg 2.2.1",
  "solana-program-entrypoint",
- "solana-program-error 2.2.1",
+ "solana-program-error 3.0.0",
  "solana-program-memory 2.3.1",
  "solana-program-option 2.2.1",
  "solana-program-pack 2.2.1",
@@ -10335,7 +10335,7 @@ dependencies = [
  "solana-decode-error",
  "solana-instruction 2.3.0",
  "solana-msg 2.2.1",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-program-option 2.2.1",
  "solana-program-pack 2.2.1",
  "solana-pubkey 2.4.0",
@@ -10411,7 +10411,7 @@ dependencies = [
  "solana-transaction-status",
  "spl-associated-token-account-client",
  "spl-memo",
- "spl-pod",
+ "spl-pod 0.5.1",
  "spl-token",
  "spl-token-2022 9.0.0",
  "spl-token-client",
@@ -10445,7 +10445,7 @@ dependencies = [
  "solana-message",
  "solana-packet",
  "solana-program",
- "solana-program-error 2.2.1",
+ "solana-program-error 3.0.0",
  "solana-program-pack 2.2.1",
  "solana-program-test",
  "solana-pubkey 2.4.0",
@@ -10513,7 +10513,7 @@ dependencies = [
  "solana-instruction 2.3.0",
  "solana-instructions-sysvar 2.2.2",
  "solana-msg 2.2.1",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "solana-sdk-ids 2.2.1",
  "solana-zk-sdk 2.3.4",
@@ -10533,7 +10533,7 @@ dependencies = [
  "solana-instruction 2.3.0",
  "solana-instructions-sysvar 2.2.2",
  "solana-msg 2.2.1",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "solana-sdk-ids 2.2.1",
  "solana-zk-sdk 2.3.4",
@@ -10602,7 +10602,7 @@ dependencies = [
  "solana-decode-error",
  "solana-instruction 2.3.0",
  "solana-msg 2.2.1",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "spl-discriminator 0.4.1",
  "spl-pod 0.5.1",
@@ -10660,7 +10660,7 @@ dependencies = [
  "solana-decode-error",
  "solana-instruction 2.3.0",
  "solana-msg 2.2.1",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "spl-discriminator 0.4.1",
  "spl-pod 0.5.1",
@@ -10702,7 +10702,7 @@ dependencies = [
  "solana-decode-error",
  "solana-instruction 2.3.0",
  "solana-msg 2.2.1",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "spl-discriminator 0.4.1",
  "spl-pod 0.5.1",
@@ -10724,7 +10724,7 @@ dependencies = [
  "solana-account-info 2.3.0",
  "solana-decode-error",
  "solana-msg 2.2.1",
- "solana-program-error 2.2.1",
+ "solana-program-error 2.2.2",
  "spl-discriminator 0.4.1",
  "spl-pod 0.5.1",
  "thiserror 2.0.12",
