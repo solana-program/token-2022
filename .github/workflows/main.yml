@@ -39,7 +39,7 @@ jobs:
           echo "SOLANA_CLI_VERSION=$(make solana-cli-version)" >> "$GITHUB_OUTPUT"
 
   main:
-    uses: joncinque/actions/workflows/main.yml@reuse-main
+    uses: joncinque/actions/.github/workflows/main.yml@reuse-main
     with:
       js-packages: ${{ fromJson(needs.set_env.outputs.JS_PACKAGES) }}
       sbpf-program-packages: ${{ fromJson(needs.set_env.outputs.SBPF_PROGRAM_PACKAGES) }}
