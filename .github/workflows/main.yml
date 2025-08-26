@@ -39,11 +39,12 @@ jobs:
           echo "SOLANA_CLI_VERSION=$(make solana-cli-version)" >> "$GITHUB_OUTPUT"
 
   main:
+    needs: set_env
     uses: joncinque/actions/.github/workflows/main.yml@reuse-main
     with:
-      js-packages: ${{ fromJson(needs.set_env.outputs.JS_PACKAGES) }}
-      sbpf-program-packages: ${{ fromJson(needs.set_env.outputs.SBPF_PROGRAM_PACKAGES) }}
-      rust-packages: ${{ fromJson(needs.set_env.outputs.RUST_PACKAGES) }}
-      wasm-packages: ${{ fromJson(needs.set_env.outputs.WASM_PACKAGES) }}
+      js-packages: ${{ needs.set_env.outputs.JS_PACKAGES }}
+      sbpf-program-packages: ${{ needs.set_env.outputs.SBPF_PROGRAM_PACKAGES }}
+      rust-packages: ${{ needs.set_env.outputs.RUST_PACKAGES }}
+      wasm-packages: ${{ needs.set_env.outputs.WASM_PACKAGES }}
       rust-toolchain-nightly: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
       solana-cli-version: ${{ needs.set_env.outputs.SOLANA_CLI_VERSION }}
