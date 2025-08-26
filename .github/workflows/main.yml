@@ -14,7 +14,7 @@ env:
 
 jobs:
   set_env:
-    name: Set variables to be used in strategy definitions
+    name: Set variables to be used in strategy definitions in reusable workflow
     runs-on: ubuntu-latest
     outputs:
       JS_PACKAGES: ${{ steps.compute.outputs.JS_PACKAGES }}
