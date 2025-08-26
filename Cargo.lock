@@ -769,7 +769,7 @@ dependencies = [
  "bitflags 2.9.1",
  "cexpr",
  "clang-sys",
- "itertools 0.12.1",
+ "itertools 0.10.5",
  "lazy_static",
  "lazycell",
  "proc-macro2",
@@ -858,7 +858,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "115e54d64eb62cdebad391c19efc9dce4981c690c85a33a12199d99bb9546fee"
 dependencies = [
  "borsh-derive 0.10.4",
- "hashbrown 0.13.2",
+ "hashbrown 0.12.3",
 ]
 
 [[package]]
@@ -10035,7 +10035,7 @@ dependencies = [
  "solana-security-txt",
  "solana-system-interface",
  "solana-sysvar",
- "solana-zk-sdk 2.3.4",
+ "solana-zk-sdk 4.0.0",
  "spl-pod 0.5.1",
  "spl-token-confidential-transfer-proof-extraction 0.4.1",
 ]
@@ -10301,7 +10301,7 @@ dependencies = [
  "solana-sysvar",
  "solana-transaction",
  "solana-transaction-error 2.2.1",
- "solana-zk-sdk 2.3.4",
+ "solana-zk-sdk 4.0.0",
  "spl-elgamal-registry 0.3.0",
  "spl-memo",
  "spl-pod 0.5.1",
@@ -10411,7 +10411,7 @@ dependencies = [
  "solana-transaction-status",
  "spl-associated-token-account-client",
  "spl-memo",
- "spl-pod",
+ "spl-pod 0.5.1",
  "spl-token",
  "spl-token-2022 9.0.0",
  "spl-token-client",
