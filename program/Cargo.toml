@@ -41,7 +41,7 @@ solana-security-txt = "1.1.1"
 solana-sysvar = "2.3.0"
 solana-system-interface = "1.0.0"
 solana-zk-sdk = "2.3.4"
-spl-elgamal-registry = { version = "0.3.0", path = "../confidential-transfer/elgamal-registry", features = ["no-entrypoint"] }
+spl-elgamal-registry = { version = "0.3.0", path = "../confidential/elgamal-registry", features = ["no-entrypoint"] }
 spl-memo = { version = "6.0", features = ["no-entrypoint"] }
 spl-token-2022-interface = { version = "1.0" }
 spl-token-confidential-transfer-ciphertext-arithmetic = { version = "0.3.1" }

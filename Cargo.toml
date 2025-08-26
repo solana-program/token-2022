@@ -14,11 +14,11 @@ members = [
   "clients/cli",
   #"clients/rust", omitted from workspace until a real client is generated
   "clients/rust-legacy",
-  "confidential-transfer/ciphertext-arithmetic",
-  "confidential-transfer/elgamal-registry",
-  "confidential-transfer/proof-extraction",
-  "confidential-transfer/proof-generation",
-  "confidential-transfer/proof-tests",
+  "confidential/ciphertext-arithmetic",
+  "confidential/elgamal-registry",
+  "confidential/proof-extraction",
+  "confidential/proof-generation",
+  "confidential/proof-tests",
   "interface",
   "program",
 ]

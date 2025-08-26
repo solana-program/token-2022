@@ -27,7 +27,7 @@ solana-program-pack = "3.0.0"
 solana-pubkey = "3.0.0"
 solana-sdk-ids = "3.0.0"
 solana-zk-sdk = "4.0.0"
-spl-token-confidential-transfer-proof-extraction = { version = "0.5.0", path = "../confidential-transfer/proof-extraction" }
+spl-token-confidential-transfer-proof-extraction = { version = "0.5.0", path = "../confidential/proof-extraction" }
 spl-token-group-interface = { version = "0.7.1" }
 spl-token-metadata-interface = { version = "0.8.0" }
 spl-type-length-value = { version = "0.9.0" }
@@ -38,7 +38,7 @@ serde_with = { version = "3.14.0", optional = true }
 base64 = { version = "0.22.1", optional = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
-spl-token-confidential-transfer-proof-generation = { version = "0.5.0", path = "../confidential-transfer/proof-generation" }
+spl-token-confidential-transfer-proof-generation = { version = "0.5.0", path = "../confidential/proof-generation" }
 
 [dev-dependencies]
 proptest = "1.7"

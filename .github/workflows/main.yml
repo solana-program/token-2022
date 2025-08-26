@@ -6,235 +6,247 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  JS_PACKAGES: "['js', 'js-legacy']"
+  SBPF_PROGRAM_PACKAGES: "['confidential-elgamal-registry', 'program']"
+  RUST_PACKAGES: "['clients-cli', 'clients-rust-legacy', 'interface', 'program', 'confidential-ciphertext-arithmetic', 'confidential-elgamal-registry', 'confidential-proof-extraction', 'confidential-proof-generation', 'confidential-proof-tests']"
+  WASM_PACKAGES: "['interface', 'program']"
+
 jobs:
-  format_and_lint_programs:
-    name: Format & Lint Programs
+  set_env:
+    name: Set variables to be used in strategy definitions
     runs-on: ubuntu-latest
+    outputs:
+      JS_PACKAGES: ${{ steps.compute.outputs.JS_PACKAGES }}
+      SBPF_PROGRAM_PACKAGES: ${{ steps.compute.outputs.SBPF_PROGRAM_PACKAGES }}
+      RUST_PACKAGES: ${{ steps.compute.outputs.RUST_PACKAGES }}
+      WASM_PACKAGES: ${{ steps.compute.outputs.WASM_PACKAGES }}
+      RUST_TOOLCHAIN_NIGHTLY: ${{ steps.compute.outputs.RUST_TOOLCHAIN_NIGHTLY }}
+      SOLANA_CLI_VERSION: ${{ steps.compute.outputs.SOLANA_CLI_VERSION }}
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute variables
+        id: compute
+        shell: bash
+        run: |
+          echo "JS_PACKAGES=${{ env.JS_PACKAGES }}" >> $GITHUB_OUTPUT
+          echo "SBPF_PROGRAM_PACKAGES=${{ env.SBPF_PROGRAM_PACKAGES }}" >> $GITHUB_OUTPUT
+          echo "RUST_PACKAGES=${{ env.RUST_PACKAGES }}" >> $GITHUB_OUTPUT
+          echo "WASM_PACKAGES=${{ env.WASM_PACKAGES }}" >> $GITHUB_OUTPUT
+          echo "RUST_TOOLCHAIN_NIGHTLY=$(make rust-toolchain-nightly)" >> "$GITHUB_OUTPUT"
+          echo "SOLANA_CLI_VERSION=$(make solana-cli-version)" >> "$GITHUB_OUTPUT"
+
+  format_and_lint_js:
+    name: Format & Lint JS
+    runs-on: ubuntu-latest
+    needs: set_env
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.set_env.outputs.JS_PACKAGES) }}
+      fail-fast: false
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: solana-program/actions/setup-ubuntu@main
         with:
-          clippy: true
-          rustfmt: true
-          cargo-cache-key: cargo-programs-lint
-          cargo-cache-fallback-key: cargo-programs
-
-      - name: Format Token-2022
-        run: pnpm programs:format
-
-      - name: Lint Token-2022
-        run: pnpm programs:lint
-
-      - name: Format ElGamal Registry
-        run: pnpm confidential-transfer:elgamal-registry:format
-
-      - name: Lint ElGamal Registry
-        run: pnpm confidential-transfer:elgamal-registry:lint
-
-  format_and_lint_client_js:
-    name: Format & Lint Client JS
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-
-      - name: Format Client JS
-        run: pnpm clients:js:format
-
-      - name: Lint Client JS
-        run: pnpm clients:js:lint
-
-  format_and_lint_client_js_legacy:
-    name: Format & Lint Client JS Legacy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-
-      - name: Format Client JS Legacy
-        run: pnpm clients:js-legacy:format
-
-      - name: Lint Client JS Legacy
-        run: pnpm clients:js-legacy:lint
-
-  format_and_lint_cli:
-    name: Format & Lint CLI
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          clippy: true
-          rustfmt: true
-          cli: true
-          purge: true
-          cargo-cache-key: cargo-cli-lint
-          cargo-cache-fallback-key: cargo-cli
-
-      - name: Format CLI
-        run: pnpm clients:cli:format
-
-      - name: Lint CLI
-        run: pnpm clients:cli:lint
-
-  format_and_lint_client_rust:
-    if: false # Disabled until we have a Rust client
-    name: Format & Lint Client Rust
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          clippy: true
-          rustfmt: true
-
-      - name: Format Client Rust
-        run: pnpm clients:rust:format
-
-      - name: Lint Client Rust
-        run: pnpm clients:rust:lint
-
-  format_and_lint_interface:
-    name: Format & Lint Interface
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          clippy: true
-          rustfmt: true
-          cargo-cache-key: cargo-interface-lint
-          cargo-cache-fallback-key: cargo-interface
+          pnpm: true
 
       - name: Format
-        run: pnpm interface:format
+        run: make format-${{ matrix.package }}
 
       - name: Lint
-        run: pnpm interface:lint
+        run: make lint-${{ matrix.package }}
 
-  format_and_lint_client_rust_legacy:
-    name: Format & Lint Client Rust Legacy
+  audit:
+    name: Audit
     runs-on: ubuntu-latest
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: solana-program/actions/setup-ubuntu@main
         with:
-          clippy: true
+          default-toolchain: true
+          cargo-cache-key: cargo-audit
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Run cargo-audit
+        run: make audit
+
+  spellcheck:
+    name: Spellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: solana-program/actions/setup-ubuntu@main
+        with:
+          default-toolchain: true
+          cli: true # needed for llvm-config
+          cargo-cache-key: cargo-spellcheck
+
+      - name: Install cargo-spellcheck
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-spellcheck
+
+      - name: Run cargo-spellcheck
+        run: make spellcheck
+
+  format_and_lint_rust:
+    name: Format & Lint Rust
+    runs-on: ubuntu-latest
+    needs: set_env
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.set_env.outputs.RUST_PACKAGES) }}
+      fail-fast: false
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: solana-program/actions/setup-ubuntu@main
+        with:
+          clippy-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
+          rustfmt-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
           cli: true
-          rustfmt: true
-          purge: true
-          cargo-cache-key: cargo-client-rust-legacy-lint
-          cargo-cache-fallback-key: cargo-client-rust-legacy
+          cargo-cache-key: cargo-lint-${{ matrix.package }}
 
-      - name: Format Client Rust Legacy
-        run: pnpm clients:rust-legacy:format
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hack
 
-      - name: Lint Client Rust Legacy
-        run: pnpm clients:rust-legacy:lint
+      - name: Format
+        run: make format-check-${{ matrix.package }}
 
-  format_and_lint_confidential_transfer:
-    name: Format & Lint Confidential Transfer
+      - name: Clippy
+        run: make clippy-${{ matrix.package }}
+
+      - name: Lint / Docs
+        run: make build-doc-${{ matrix.package }}
+
+      - name: Check powerset
+        run: make powerset-${{ matrix.package }}
+
+  wasm:
+    name: Build WASM
     runs-on: ubuntu-latest
+    needs: set_env
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.set_env.outputs.WASM_PACKAGES) }}
+      fail-fast: false
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: solana-program/actions/setup-ubuntu@main
         with:
-          clippy: true
-          rustfmt: true
-          cargo-cache-key: cargo-confidential-transfer-lint
-          cargo-cache-fallback-key: cargo-confidential-transfer
+          default-toolchain: true
+          cargo-cache-key: cargo-wasm-${{ matrix.package }}
 
-      - name: Format Ciphertext Arithmetic
-        run: pnpm confidential-transfer:ciphertext-arithmetic:format
+      - name: Install wasm target
+        run: rustup target add wasm32-unknown-unknown
 
-      - name: Lint Ciphertext Arithmetic
-        run: pnpm confidential-transfer:ciphertext-arithmetic:lint
+      - name: Build with wasm target
+        run: make build-wasm-${{ matrix.package }}
 
-      - name: Format Proof Extraction
-        run: pnpm confidential-transfer:proof-extraction:format
-
-      - name: Lint Proof Extraction
-        run: pnpm confidential-transfer:proof-extraction:lint
-
-      - name: Format Proof Generation
-        run: pnpm confidential-transfer:proof-generation:format
-
-      - name: Lint Proof Generation
-        run: pnpm confidential-transfer:proof-generation:lint
-
-      - name: Format Proof Tests
-        run: pnpm confidential-transfer:proof-tests:format
-
-      - name: Lint Proof Tests
-        run: pnpm confidential-transfer:proof-tests:lint
-
-  test_interface:
-    name: Test Interface
+  build_sbpf:
+    name: Build Program
     runs-on: ubuntu-latest
+    needs: set_env
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.set_env.outputs.SBPF_PROGRAM_PACKAGES) }}
+      fail-fast: false
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: solana-program/actions/setup-ubuntu@main
         with:
-          cargo-cache-key: cargo-interface-test
-          cargo-cache-fallback-key: cargo-interface
+          default-toolchain: true
+          cargo-cache-key: cargo-build-sbf-${{ matrix.package }}
+          solana: ${{ needs.set_env.outputs.SOLANA_CLI_VERSION }}
+
+      - name: Build
+        run: make build-sbf-${{ matrix.package }}
+
+      - name: Upload Program Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-sbf-${{ matrix.package }}
+          path: ./target/deploy/*.so
+          if-no-files-found: error
+
+      - name: Save Program Builds For Client Jobs
+        uses: actions/cache/save@v4
+        with:
+          path: ./target/deploy/*.so
+          key: ${{ runner.os }}-builds-${{ github.sha }}-${{ matrix.package }}
+
+  test_rust:
+    name: Test Rust
+    runs-on: ubuntu-latest
+    needs: [build_sbpf, set_env]
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.set_env.outputs.RUST_PACKAGES) }}
+      fail-fast: false
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: solana-program/actions/setup-ubuntu@main
+        with:
+          default-toolchain: true
+          cli: true
+          cargo-cache-key: cargo-test-${{ matrix.package }}
+
+      - name: Restore Program Builds
+        uses: actions/cache/restore@v4
+        with:
+          path: ./target/deploy/*.so
+          key: ${{ runner.os }}-builds-${{ github.sha }}-program
+
+      - name: Restore Program Builds
+        uses: actions/cache/restore@v4
+        with:
+          path: ./target/deploy/*.so
+          key: ${{ runner.os }}-builds-${{ github.sha }}-confidential-elgamal-registry
 
       - name: Test
-        run: pnpm interface:test
-
-  test_confidential_transfer_proofs:
-    name: Test Confidential Transfer Proofs
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-confidential-transfer-test
-          cargo-cache-fallback-key: cargo-confidential-transfer
-
-      - name: Test Confidential Transfer Proofs
-        run: pnpm confidential-transfer:proof-tests:test
+        run: make test-${{ matrix.package }}
 
   generate_clients:
     name: Check Client Generation
     runs-on: ubuntu-latest
+    needs: set_env
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: solana-program/actions/setup-ubuntu@main
         with:
-          rustfmt: true
+          pnpm: true
+          rustfmt-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
 
       - name: Generate Clients
         run: pnpm generate:clients
@@ -244,241 +256,35 @@ jobs:
           git status --porcelain
           test -z "$(git status --porcelain)"
 
-  test_client_js:
-    name: Test Client JS
+  test_js:
+    name: Test JS
     runs-on: ubuntu-latest
-    needs: [format_and_lint_client_js, build_programs]
+    needs: [build_sbpf, set_env]
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.set_env.outputs.JS_PACKAGES) }}
+      fail-fast: false
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        uses: ./.github/actions/setup
+        uses: solana-program/actions/setup-ubuntu@main
         with:
-          solana: true
+          solana: ${{ needs.set_env.outputs.SOLANA_CLI_VERSION }}
+          pnpm: true
 
       - name: Restore Program Builds
         uses: actions/cache/restore@v4
         with:
           path: ./target/deploy/*.so
-          key: ${{ runner.os }}-builds-${{ github.sha }}
+          key: ${{ runner.os }}-builds-${{ github.sha }}-program
+
+      - name: Restore Program Builds
+        uses: actions/cache/restore@v4
+        with:
+          path: ./target/deploy/*.so
+          key: ${{ runner.os }}-builds-${{ github.sha }}-confidential-elgamal-registry
 
       - name: Test Client JS
-        run: pnpm clients:js:test
-
-  audit_rust:
-    name: Audit Rust
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-audit
-
-      - name: Install cargo-audit
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-audit
-
-      - name: Run cargo-audit
-        run: pnpm rust:audit
-
-  spellcheck_rust:
-    name: Spellcheck Rust
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-spellcheck
-
-      - name: Install cargo-spellcheck
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-spellcheck
-
-      - name: Run cargo-spellcheck
-        run: pnpm rust:spellcheck
-
-  wasm:
-    name: Check wasm build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-wasm
-          wasm: true
-
-      - name: Build Token-2022 Wasm
-        run: pnpm programs:build-wasm
-
-  build_programs:
-    name: Build programs
-    runs-on: ubuntu-latest
-    needs: format_and_lint_programs
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-programs
-          solana: true
-
-      - name: Build Token-2022
-        run: pnpm programs:build
-
-      - name: Build ElGamal Registry
-        run: pnpm confidential-transfer:elgamal-registry:build
-
-      - name: Upload Program Builds
-        uses: actions/upload-artifact@v4
-        with:
-          name: program-builds
-          path: ./target/deploy/*.so
-          if-no-files-found: error
-
-      - name: Save Program Builds For Client Jobs
-        uses: actions/cache/save@v4
-        with:
-          path: ./target/deploy/*.so
-          key: ${{ runner.os }}-builds-${{ github.sha }}
-
-  build_programs_no_default_features:
-    name: Build programs without default features
-    runs-on: ubuntu-latest
-    needs: format_and_lint_programs
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-programs-no-default-features
-          solana: true
-
-      - name: Build Token-2022
-        run: pnpm programs:build --no-default-features
-
-      - name: Build ElGamal Registry
-        run: pnpm confidential-transfer:elgamal-registry:build --no-default-features
-
-  test_programs:
-    name: Test Programs
-    runs-on: ubuntu-latest
-    needs: format_and_lint_programs
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-program-tests
-          cargo-cache-fallback-key: cargo-programs
-          solana: true
-
-      - name: Test Programs
-        run: pnpm programs:test
-
-  test_cli:
-    name: Test CLI
-    runs-on: ubuntu-latest
-    needs: [format_and_lint_cli, build_programs]
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-cli-tests
-          cargo-cache-fallback-key: cargo-cli
-          cli: true
-          purge: true
-
-      - name: Restore Program Builds
-        uses: actions/cache/restore@v4
-        with:
-          path: ./target/deploy/*.so
-          key: ${{ runner.os }}-builds-${{ github.sha }}
-
-      - name: Test CLI
-        run: pnpm clients:cli:test
-
-  test_client_js_legacy:
-    name: Test Client JS Legacy
-    runs-on: ubuntu-latest
-    needs: [format_and_lint_client_js_legacy, build_programs]
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          solana: true
-
-      - name: Restore Program Builds
-        uses: actions/cache/restore@v4
-        with:
-          path: ./target/deploy/*.so
-          key: ${{ runner.os }}-builds-${{ github.sha }}
-
-      - name: Test Client JS Legacy
-        run: pnpm clients:js-legacy:test
-
-  test_client_rust_legacy:
-    name: Test Client Rust Legacy
-    runs-on: ubuntu-latest
-    needs: [format_and_lint_client_rust_legacy, build_programs]
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-client-rust-legacy-test
-          cargo-cache-fallback-key: cargo-client-rust-legacy
-          cli: true
-          purge: true
-
-      - name: Restore Program Builds
-        uses: actions/cache/restore@v4
-        with:
-          path: ./target/deploy/*.so
-          key: ${{ runner.os }}-builds-${{ github.sha }}
-
-      - name: Test Client Rust Legacy
-        run: pnpm clients:rust-legacy:test
-
-  test_client_rust:
-    if: false # Disabled until we have a Rust client
-    name: Test Client Rust
-    runs-on: ubuntu-latest
-    needs: format_and_lint_client_rust
-    steps:
-      - name: Git Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup
-        with:
-          cargo-cache-key: cargo-rust-client
-          solana: true
-
-      - name: Test Client Rust
-        run: pnpm clients:rust:test
+        run: make test-${{ matrix.package }}
