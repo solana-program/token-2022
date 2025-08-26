@@ -17,10 +17,6 @@ jobs:
     name: Set variables to be used in strategy definitions in reusable workflow
     runs-on: ubuntu-latest
     outputs:
-      JS_PACKAGES: ${{ steps.compute.outputs.JS_PACKAGES }}
-      SBPF_PROGRAM_PACKAGES: ${{ steps.compute.outputs.SBPF_PROGRAM_PACKAGES }}
-      RUST_PACKAGES: ${{ steps.compute.outputs.RUST_PACKAGES }}
-      WASM_PACKAGES: ${{ steps.compute.outputs.WASM_PACKAGES }}
       RUST_TOOLCHAIN_NIGHTLY: ${{ steps.compute.outputs.RUST_TOOLCHAIN_NIGHTLY }}
       SOLANA_CLI_VERSION: ${{ steps.compute.outputs.SOLANA_CLI_VERSION }}
     steps:
@@ -31,19 +27,15 @@ jobs:
         id: compute
         shell: bash
         run: |
-          echo "JS_PACKAGES=${{ env.JS_PACKAGES }}" >> $GITHUB_OUTPUT
-          echo "SBPF_PROGRAM_PACKAGES=${{ env.SBPF_PROGRAM_PACKAGES }}" >> $GITHUB_OUTPUT
-          echo "RUST_PACKAGES=${{ env.RUST_PACKAGES }}" >> $GITHUB_OUTPUT
-          echo "WASM_PACKAGES=${{ env.WASM_PACKAGES }}" >> $GITHUB_OUTPUT
           echo "RUST_TOOLCHAIN_NIGHTLY=$(make rust-toolchain-nightly)" >> "$GITHUB_OUTPUT"
           echo "SOLANA_CLI_VERSION=$(make solana-cli-version)" >> "$GITHUB_OUTPUT"
 
   main:
     uses: joncinque/actions/.github/workflows/main.yml@reuse-main
     with:
-      js-packages: ${{ fromJson(needs.set_env.outputs.JS_PACKAGES) }}
-      sbpf-program-packages: ${{ fromJson(needs.set_env.outputs.SBPF_PROGRAM_PACKAGES) }}
-      rust-packages: ${{ fromJson(needs.set_env.outputs.RUST_PACKAGES) }}
-      wasm-packages: ${{ fromJson(needs.set_env.outputs.WASM_PACKAGES) }}
+      js-packages: ${{ env.JS_PACKAGES }}
+      sbpf-program-packages: ${{ env.SBPF_PROGRAM_PACKAGES }}
+      rust-packages: ${{ env.RUST_PACKAGES }}
+      wasm-packages: ${{ env.WASM_PACKAGES }}
       rust-toolchain-nightly: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
       solana-cli-version: ${{ needs.set_env.outputs.SOLANA_CLI_VERSION }}
