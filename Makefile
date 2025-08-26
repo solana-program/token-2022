@@ -75,7 +75,7 @@ test-%:
 # Make defaults % to .o if nothing is provided there, and then tries to build it
 # as a C project, so we do something a bit hacky, and assume that any target
 # starting with "j" is actually for "js".
-format-j%:
+format-check-j%:
 	cd ./clients/j$* && pnpm install && pnpm format
 
 lint-j%:

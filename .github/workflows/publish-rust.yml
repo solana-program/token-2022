@@ -88,7 +88,7 @@ jobs:
           cargo-cache-fallback-key: cargo-test-publish
 
       - name: Format
-        run: make format-${{ needs.set_env.outputs.TARGET }}
+        run: make format-check-${{ needs.set_env.outputs.TARGET }}
 
       - name: Lint
         run: make lint-${{ needs.set_env.outputs.TARGET }}

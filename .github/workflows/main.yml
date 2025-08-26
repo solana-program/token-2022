@@ -56,7 +56,7 @@ jobs:
           pnpm: true
 
       - name: Format
-        run: make format-${{ matrix.package }}
+        run: make format-check-${{ matrix.package }}
 
       - name: Lint
         run: make lint-${{ matrix.package }}
