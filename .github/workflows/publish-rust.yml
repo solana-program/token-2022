@@ -74,7 +74,8 @@ jobs:
     with:
       sbpf-program-packages: "program confidential-elgamal-registry"
       solana-cli-version: ${{ needs.set_env.outputs.SOLANA_CLI_VERSION }}
-      rust-toolchain-nightly: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
+      clippy-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
+      rustfmt-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
       target: ${{ needs.set_env.outputs.TARGET }}
       package-path: ${{ inputs.package-path }}
       level: ${{ inputs.level }}
