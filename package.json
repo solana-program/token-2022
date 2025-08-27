@@ -1,7 +1,6 @@
 {
   "private": true,
   "scripts": {
-    "generate": "pnpm generate:clients",
     "generate:clients": "zx ./scripts/generate-clients.mjs"
   },
   "devDependencies": {
