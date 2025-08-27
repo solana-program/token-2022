@@ -46,5 +46,6 @@ jobs:
       sbpf-program-packages: ${{ needs.set_env.outputs.SBPF_PROGRAM_PACKAGES }}
       rust-packages: ${{ needs.set_env.outputs.RUST_PACKAGES }}
       wasm-packages: ${{ needs.set_env.outputs.WASM_PACKAGES }}
-      rust-toolchain-nightly: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
+      rustfmt-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
+      clippy-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
       solana-cli-version: ${{ needs.set_env.outputs.SOLANA_CLI_VERSION }}
