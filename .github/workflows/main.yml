@@ -42,7 +42,7 @@ jobs:
     needs: set_env
     uses: joncinque/actions/.github/workflows/main.yml@reuse-main
     with:
-      js-packages: ${{ needs.set_env.outputs.JS_PACKAGES }}
+      #js-packages: ${{ needs.set_env.outputs.JS_PACKAGES }}
       sbpf-program-packages: ${{ needs.set_env.outputs.SBPF_PROGRAM_PACKAGES }}
       rust-packages: ${{ needs.set_env.outputs.RUST_PACKAGES }}
       wasm-packages: ${{ needs.set_env.outputs.WASM_PACKAGES }}
