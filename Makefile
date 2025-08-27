@@ -88,3 +88,6 @@ test-j%:
 	./scripts/restart-test-validator.sh
 	cd ./clients/j$* && pnpm install && pnpm build && pnpm test
 	./scripts/stop-test-validator.sh
+
+generate-clients:
+	pnpm generate:clients
