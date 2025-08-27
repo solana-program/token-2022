@@ -106,7 +106,7 @@ tag-name-trim-level = $(lastword $(subst /, ,$(call make-path-trim-level,$1)))
 tag-name = $(lastword $(subst /, ,$(call make-path,$1)))
 crate-version = $(subst ",,$(shell toml get $(call make-path,$1)/Cargo.toml package.version))
 
-git-tag-%:
+git-tag-rust-%:
 	@echo "$(call tag-name,$*)@v$(call crate-version,$*)"
 
 publish-rust-%:
