@@ -40,7 +40,7 @@ jobs:
 
   main:
     needs: set_env
-    uses: solana-program/actions/.github/workflows/main.yml@main
+    uses: joncinque/actions/.github/workflows/main.yml@fix-sbpf
     with:
       js-packages: ${{ needs.set_env.outputs.JS_PACKAGES }}
       sbpf-program-packages: ${{ needs.set_env.outputs.SBPF_PROGRAM_PACKAGES }}
