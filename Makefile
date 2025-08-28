@@ -72,21 +72,15 @@ test-doc-%:
 test-%:
 	SBF_OUT_DIR=$(PWD)/target/deploy cargo $(nightly) test --manifest-path $(call make-path,$*)/Cargo.toml
 
-# Make defaults % to .o if nothing is provided there, and then tries to build it
-# as a C project, so we do something a bit hacky, and assume that any target
-# starting with "j" is actually for "js".
-format-check-j%:
-	cd ./clients/j$* && pnpm install && pnpm format
+format-check-js-%:
+	cd $(call make-path,$*) && pnpm install && pnpm format
 
-lint-j%:
-	cd ./clients/j$* && pnpm install && pnpm lint
+lint-js-%:
+	cd $(call make-path,$*) && pnpm install && pnpm lint
 
-publish-j%:
-	./scripts/publish-js.sh clients/j$*
-
-test-j%:
+test-js-%:
 	./scripts/restart-test-validator.sh
-	cd ./clients/j$* && pnpm install && pnpm build && pnpm test
+	cd $(call make-path,$*) && pnpm install && pnpm build && pnpm test
 	./scripts/stop-test-validator.sh
 
 generate-clients:
