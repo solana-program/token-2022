@@ -72,7 +72,6 @@ test-doc-%:
 test-%:
 	SBF_OUT_DIR=$(PWD)/target/deploy cargo $(nightly) test --manifest-path $(call make-path,$*)/Cargo.toml
 
-# JS jobs
 format-check-js-%:
 	cd $(call make-path,$*) && pnpm install && pnpm format
 
