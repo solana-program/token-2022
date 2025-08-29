@@ -87,12 +87,6 @@ generate-clients:
 	pnpm generate:clients
 
 # Helpers for publishing
-level = $(firstword $(subst -, ,$1))
-trim-level = $(subst $(firstword $(subst -, ,$1))-,,$1)
-
-make-path-trim-level = $(call make-path,$(call trim-level,$1))
-tag-name-trim-level = $(lastword $(subst /, ,$(call make-path-trim-level,$1)))
-
 tag-name = $(lastword $(subst /, ,$(call make-path,$1)))
 crate-version = $(subst ",,$(shell toml get $(call make-path,$1)/Cargo.toml package.version))
 
@@ -100,7 +94,7 @@ git-tag-rust-%:
 	@echo "$(call tag-name,$*)@v$(call crate-version,$*)"
 
 publish-rust-%:
-	cd "$(call make-path-trim-level,$*)" && cargo release "$(call level,$*)" --tag-name "$(call tag-name-trim-level,$*)@v{{version}}" --execute --no-confirm --dependent-version fix
+	cd "$(call make-path,$*)" && cargo release $(LEVEL) --tag-name "$(call tag-name,$*)@v{{version}}" --execute --no-confirm --dependent-version fix
 
 publish-rust-dry-run-%:
-	cd "$(call make-path-trim-level,$*)" && cargo release "$(call level,$*)" --tag-name "$(call tag-name-trim-level,$*)@v{{version}}"
+	cd "$(call make-path,$*)" && cargo release $(LEVEL) --tag-name "$(call tag-name,$*)@v{{version}}"
