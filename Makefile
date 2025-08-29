@@ -94,8 +94,5 @@ preid-arg = $(subst pre,--preid $2,$(findstring pre,$1))
 git-tag-js-%:
 	@echo "$(call tag-name,$*)@v$(call package-version,$*)"
 
-publish-js-dry-run-%:
-	cd "$(call make-path,$*)" && pnpm install && pnpm version $(LEVEL) --no-git-tag-version
-
 publish-js-%:
 	cd "$(call make-path,$*)" && pnpm install && pnpm version $(LEVEL) --no-git-tag-version  $(call preid-arg,$(LEVEL),$(TAG)) && pnpm publish --no-git-checks --tag $(TAG)
