@@ -85,3 +85,16 @@ test-js-%:
 
 generate-clients:
 	pnpm generate:clients
+
+# Helpers for publishing
+tag-name = $(lastword $(subst /, ,$(call make-path,$1)))
+crate-version = $(subst ",,$(shell toml get $(call make-path,$1)/Cargo.toml package.version))
+
+git-tag-rust-%:
+	@echo "$(call tag-name,$*)@v$(call crate-version,$*)"
+
+publish-rust-%:
+	cd "$(call make-path,$*)" && cargo release $(LEVEL) --tag-name "$(call tag-name,$*)@v{{version}}" --execute --no-confirm --dependent-version fix
+
+publish-rust-dry-run-%:
+	cd "$(call make-path,$*)" && cargo release $(LEVEL) --tag-name "$(call tag-name,$*)@v{{version}}"
