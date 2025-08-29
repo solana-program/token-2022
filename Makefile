@@ -90,6 +90,7 @@ generate-clients:
 tag-name = $(lastword $(subst /, ,$(call make-path,$1)))
 package-version = $(subst ",,$(shell jq -r '.version' $(call make-path,$1)/package.json))
 preid-arg = $(subst pre,--preid $2,$(findstring pre,$1))
+crate-version = $(subst ",,$(shell toml get $(call make-path,$1)/Cargo.toml package.version))
 
 git-tag-js-%:
 	@echo "$(call tag-name,$*)@v$(call package-version,$*)"
@@ -97,20 +98,11 @@ git-tag-js-%:
 publish-js-%:
 	cd "$(call make-path,$*)" && pnpm install && pnpm version $(LEVEL) --no-git-tag-version  $(call preid-arg,$(LEVEL),$(TAG)) && pnpm publish --no-git-checks --tag $(TAG)
 
-level = $(firstword $(subst -, ,$1))
-trim-level = $(subst $(firstword $(subst -, ,$1))-,,$1)
-
-make-path-trim-level = $(call make-path,$(call trim-level,$1))
-tag-name-trim-level = $(lastword $(subst /, ,$(call make-path-trim-level,$1)))
-
-tag-name = $(lastword $(subst /, ,$(call make-path,$1)))
-crate-version = $(subst ",,$(shell toml get $(call make-path,$1)/Cargo.toml package.version))
-
 git-tag-rust-%:
 	@echo "$(call tag-name,$*)@v$(call crate-version,$*)"
 
 publish-rust-%:
-	cd "$(call make-path-trim-level,$*)" && cargo release "$(call level,$*)" --tag-name "$(call tag-name-trim-level,$*)@v{{version}}" --execute --no-confirm --dependent-version fix
+	cd "$(call make-path,$*)" && cargo release $(LEVEL) --tag-name "$(call tag-name,$*)@v{{version}}" --execute --no-confirm --dependent-version fix
 
 publish-rust-dry-run-%:
-	cd "$(call make-path-trim-level,$*)" && cargo release "$(call level,$*)" --tag-name "$(call tag-name-trim-level,$*)@v{{version}}"
+	cd "$(call make-path,$*)" && cargo release $(LEVEL) --tag-name "$(call tag-name,$*)@v{{version}}"
