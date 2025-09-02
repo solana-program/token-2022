@@ -88,8 +88,8 @@ generate-clients:
 
 # Helpers for publishing
 tag-name = $(lastword $(subst /, ,$(call make-path,$1)))
-package-version = $(subst ",,$(shell jq -r '.version' $(call make-path,$1)/package.json))
 preid-arg = $(subst pre,--preid $2,$(findstring pre,$1))
+package-version = $(subst ",,$(shell jq -r '.version' $(call make-path,$1)/package.json))
 crate-version = $(subst ",,$(shell toml get $(call make-path,$1)/Cargo.toml package.version))
 
 git-tag-js-%:
