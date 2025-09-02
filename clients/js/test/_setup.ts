@@ -1,17 +1,19 @@
 import { getCreateAccountInstruction } from '@solana-program/system';
 import {
   Address,
+  BaseTransactionMessage,
   Commitment,
-  CompilableTransactionMessage,
-  IInstruction,
+  Instruction,
   Rpc,
   RpcSubscriptions,
   SolanaRpcApi,
   SolanaRpcSubscriptionsApi,
   TransactionMessageWithBlockhashLifetime,
+  TransactionMessageWithFeePayer,
   TransactionSigner,
   airdropFactory,
   appendTransactionMessageInstructions,
+  assertIsSendableTransaction,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
   createTransactionMessage,
@@ -25,17 +27,17 @@ import {
   signTransactionMessageWithSigners,
 } from '@solana/kit';
 import {
+  Extension,
   ExtensionArgs,
   TOKEN_2022_PROGRAM_ADDRESS,
   getInitializeAccountInstruction,
-  getPreInitializeInstructionsForMintExtensions,
   getInitializeMintInstruction,
   getMintSize,
   getMintToInstruction,
-  getTokenSize,
   getPostInitializeInstructionsForMintExtensions,
   getPostInitializeInstructionsForTokenExtensions,
-  Extension,
+  getPreInitializeInstructionsForMintExtensions,
+  getTokenSize,
 } from '../src';
 
 type Client = {
@@ -78,13 +80,15 @@ export const createDefaultTransaction = async (
 
 export const signAndSendTransaction = async (
   client: Client,
-  transactionMessage: CompilableTransactionMessage &
+  transactionMessage: BaseTransactionMessage &
+    TransactionMessageWithFeePayer &
     TransactionMessageWithBlockhashLifetime,
   commitment: Commitment = 'confirmed'
 ) => {
   const signedTransaction =
     await signTransactionMessageWithSigners(transactionMessage);
   const signature = getSignatureFromTransaction(signedTransaction);
+  assertIsSendableTransaction(signedTransaction);
   await sendAndConfirmTransactionFactory(client)(signedTransaction, {
     commitment,
   });
@@ -94,7 +98,7 @@ export const signAndSendTransaction = async (
 export const sendAndConfirmInstructions = async (
   client: Client,
   payer: TransactionSigner,
-  instructions: IInstruction[]
+  instructions: Instruction[]
 ) => {
   const signature = await pipe(
     await createDefaultTransaction(client, payer),

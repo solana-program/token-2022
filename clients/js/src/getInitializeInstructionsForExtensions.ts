@@ -1,6 +1,6 @@
 import {
   Address,
-  IInstruction,
+  Instruction,
   isNone,
   isOption,
   TransactionSigner,
@@ -38,7 +38,7 @@ import {
 export function getPreInitializeInstructionsForMintExtensions(
   mint: Address,
   extensions: ExtensionArgs[]
-): IInstruction[] {
+): Instruction[] {
   return extensions.flatMap((extension) => {
     switch (extension.__kind) {
       case 'ConfidentialTransferMint':
@@ -156,8 +156,8 @@ export function getPostInitializeInstructionsForMintExtensions(
   mint: Address,
   authority: TransactionSigner,
   extensions: ExtensionArgs[]
-): IInstruction[] {
-  return extensions.flatMap((extension): IInstruction[] => {
+): Instruction[] {
+  return extensions.flatMap((extension): Instruction[] => {
     switch (extension.__kind) {
       case 'TokenMetadata':
         // eslint-disable-next-line no-case-declarations
@@ -206,7 +206,7 @@ export function getPostInitializeInstructionsForTokenExtensions(
   owner: TransactionSigner | Address,
   extensions: ExtensionArgs[],
   multiSigners?: TransactionSigner[]
-): IInstruction[] {
+): Instruction[] {
   return extensions.flatMap((extension) => {
     switch (extension.__kind) {
       case 'MemoTransfer':
