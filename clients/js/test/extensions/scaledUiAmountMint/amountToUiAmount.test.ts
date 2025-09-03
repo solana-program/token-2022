@@ -47,21 +47,22 @@ function getMockRpc(
       );
     }
     return {
-      send: async () => ({
-        context: { slot: 0n },
-        value: account
-          ? {
-              executable: account.executable,
-              lamports: account.lamports,
-              owner: account.owner,
-              rentEpoch: account.rentEpoch,
-              data: [getBase64Decoder().decode(account.data), 'base64'] as [
-                Base64EncodedBytes,
-                'base64',
-              ],
-            }
-          : null,
-      }),
+      send: () =>
+        Promise.resolve({
+          context: { slot: 0n },
+          value: account
+            ? {
+                executable: account.executable,
+                lamports: account.lamports,
+                owner: account.owner,
+                rentEpoch: account.rentEpoch,
+                data: [getBase64Decoder().decode(account.data), 'base64'] as [
+                  Base64EncodedBytes,
+                  'base64',
+                ],
+              }
+            : null,
+        }),
     };
   };
   return { getAccountInfo } as unknown as Rpc<GetAccountInfoApi>;

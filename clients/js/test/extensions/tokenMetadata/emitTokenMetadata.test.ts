@@ -51,7 +51,10 @@ test('it emits the token metadata extension as return data', async (t) => {
 
   // Then we expect the token metadata extension to be emitted as return data.
   const transaction = await client.rpc
-    .getTransaction(signature, { maxSupportedTransactionVersion: 0 })
+    .getTransaction(signature, {
+      encoding: 'json',
+      maxSupportedTransactionVersion: 0,
+    })
     .send();
   const returnData = getBase64Encoder().encode(
     transaction?.meta?.returnData?.data?.[0] ?? ''
