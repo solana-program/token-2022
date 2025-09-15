@@ -141,10 +141,11 @@ impl TransferWithFeeProofContext {
         // - the new source available balance (64 bits)
         // - the low bits of the transfer amount (16 bits)
         // - the high bits of the transfer amount (32 bits)
-        // - the delta amount for the fee (48 bits)
-        // - the complement of the delta amount for the fee (48 bits)
+        // - the delta amount for the fee (16 bits)
+        // - the complement of the delta amount for the fee (16 bits)
         // - the low bits of the fee amount (16 bits)
         // - the high bits of the fee amount (32 bits)
+        // - the net transfer amount bit length (64 bits)
         let BatchedRangeProofContext {
             commitments: range_proof_commitments,
             bit_lengths: range_proof_bit_lengths,
