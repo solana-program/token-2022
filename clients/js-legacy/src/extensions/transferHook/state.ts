@@ -5,7 +5,7 @@ import type { AccountInfo, AccountMeta, Connection } from '@solana/web3.js';
 import { PublicKey } from '@solana/web3.js';
 import { bool, publicKey, u64 } from '@solana/buffer-layout-utils';
 import type { Account } from '../../state/account.js';
-import { TokenTransferHookAccountNotFound } from '../../errors.js';
+import { TokenTransferHookAccountDataNotFound, TokenTransferHookAccountNotFound } from '../../errors.js';
 import { unpackSeeds } from './seeds.js';
 import { unpackPubkeyData } from './pubkeyData.js';
 
@@ -113,6 +113,7 @@ export async function resolveExtraAccountMeta(
     previousMetas: AccountMeta[],
     instructionData: Buffer,
     transferHookProgramId: PublicKey,
+    allowAccountDataFallback = false,
 ): Promise<AccountMeta> {
     if (extraMeta.discriminator === 0) {
         return {
@@ -141,8 +142,15 @@ export async function resolveExtraAccountMeta(
         programId = previousMetas[accountIndex].pubkey;
     }
 
-    const seeds = await unpackSeeds(extraMeta.addressConfig, previousMetas, instructionData, connection);
-    const pubkey = PublicKey.findProgramAddressSync(seeds, programId)[0];
+    try {
+        const seeds = await unpackSeeds(extraMeta.addressConfig, previousMetas, instructionData, connection);
+        const pubkey = PublicKey.findProgramAddressSync(seeds, programId)[0];
 
-    return { pubkey, isSigner: extraMeta.isSigner, isWritable: extraMeta.isWritable };
+        return { pubkey, isSigner: extraMeta.isSigner, isWritable: extraMeta.isWritable };
+    } catch (error) {
+        if (allowAccountDataFallback && error instanceof TokenTransferHookAccountDataNotFound) {
+            return { pubkey: PublicKey.default, isSigner: false, isWritable: false };
+        }
+        throw error;
+    }
 }
