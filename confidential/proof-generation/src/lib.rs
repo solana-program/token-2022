@@ -48,6 +48,10 @@ pub fn try_split_u64(amount: u64, bit_length: usize) -> Option<(u64, u64)> {
 /// Combine two numbers that are interpreted as the low and high bits of a
 /// target number. The `bit_length` parameter specifies the number of bits that
 /// `amount_hi` is to be shifted by.
+#[deprecated(
+    since = "0.6.0",
+    note = "This function is deprecated as it contains logical errors and is unused in the crate"
+)]
 pub fn try_combine_lo_hi_u64(amount_lo: u64, amount_hi: u64, bit_length: usize) -> Option<u64> {
     match bit_length {
         0 => Some(amount_hi),
