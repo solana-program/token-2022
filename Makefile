@@ -10,18 +10,18 @@ rust-toolchain-nightly:
 solana-cli-version:
 	@echo ${SOLANA_CLI_VERSION}
 
-cargo-nightly-%:
-	cargo $(nightly) $*
+cargo-nightly:
+	cargo $(nightly) $(ARGS)
 
 audit:
 	cargo audit \
 			--ignore RUSTSEC-2022-0093 \
 			--ignore RUSTSEC-2024-0421 \
 			--ignore RUSTSEC-2024-0344 \
-			--ignore RUSTSEC-2024-0376
+			--ignore RUSTSEC-2024-0376 $(ARGS)
 
 spellcheck:
-	cargo spellcheck --code 1
+	cargo spellcheck --code 1 $(ARGS)
 
 clippy-%:
 	cargo $(nightly) clippy --manifest-path $(call make-path,$*)/Cargo.toml \
@@ -31,60 +31,63 @@ clippy-%:
 		--deny=clippy::default_trait_access \
 		--deny=clippy::arithmetic_side_effects \
 		--deny=clippy::manual_let_else \
-		--deny=clippy::used_underscore_binding
+		--deny=clippy::used_underscore_binding $(ARGS)
 
 format-check-%:
-	cargo $(nightly) fmt --check --manifest-path $(call make-path,$*)/Cargo.toml
+	cargo $(nightly) fmt --check --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
 powerset-%:
-	cargo $(nightly) hack check --feature-powerset --all-targets --manifest-path $(call make-path,$*)/Cargo.toml
+	cargo $(nightly) hack check --feature-powerset --all-targets --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
 semver-check-%:
-	cargo semver-checks --manifest-path $(call make-path,$*)/Cargo.toml
+	cargo semver-checks --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
 shellcheck:
-	git ls-files -- '*.sh' | xargs shellcheck --color=always --external-sources --shell=bash
+	git ls-files -- '*.sh' | xargs shellcheck --color=always --external-sources --shell=bash $(ARGS)
 
 sort-check:
-	cargo $(nightly) sort --workspace --check
+	cargo $(nightly) sort --workspace --check $(ARGS)
 
 bench-%:
-	cargo $(nightly) bench --manifest-path $(call make-path,$*)/Cargo.toml
+	cargo $(nightly) bench --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
 format-rust:
-	cargo $(nightly) fmt --all
-
-publish-%:
-	./scripts/publish-rust.sh $(call make-path,$*)
+	cargo $(nightly) fmt --all $(ARGS)
 
 build-sbf-%:
-	cargo build-sbf --manifest-path $(call make-path,$*)/Cargo.toml
+	cargo build-sbf --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
 build-wasm-%:
-	cargo build --target wasm32-unknown-unknown --manifest-path $(call make-path,$*)/Cargo.toml --all-features
+	cargo build --target wasm32-unknown-unknown --manifest-path $(call make-path,$*)/Cargo.toml --all-features $(ARGS)
 
 build-doc-%:
-	RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo $(nightly) doc --all-features --no-deps --manifest-path $(call make-path,$*)/Cargo.toml
+	RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo $(nightly) doc --all-features --no-deps --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
 test-doc-%:
-	cargo $(nightly) test --doc --all-features --manifest-path $(call make-path,$*)/Cargo.toml
+	cargo $(nightly) test --doc --all-features --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
 test-%:
-	SBF_OUT_DIR=$(PWD)/target/deploy cargo $(nightly) test --manifest-path $(call make-path,$*)/Cargo.toml
+	SBF_OUT_DIR=$(PWD)/target/deploy cargo $(nightly) test --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
 format-check-js-%:
-	cd $(call make-path,$*) && pnpm install && pnpm format
+	cd $(call make-path,$*) && pnpm install && pnpm format $(ARGS)
 
 lint-js-%:
-	cd $(call make-path,$*) && pnpm install && pnpm lint
+	cd $(call make-path,$*) && pnpm install && pnpm lint $(ARGS)
 
 test-js-%:
+	make restart-test-validator
+	cd $(call make-path,$*) && pnpm install && pnpm build && pnpm test $(ARGS)
+	make stop-test-validator
+
+restart-test-validator:
 	./scripts/restart-test-validator.sh
-	cd $(call make-path,$*) && pnpm install && pnpm build && pnpm test
-	./scripts/stop-test-validator.sh
+
+stop-test-validator:
+	pkill -f solana-test-validator
 
 generate-clients:
-	pnpm generate:clients
+	pnpm generate:clients $(ARGS)
 
 # Helpers for publishing
 tag-name = $(lastword $(subst /, ,$(call make-path,$1)))
