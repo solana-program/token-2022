@@ -2,7 +2,14 @@ RUST_TOOLCHAIN_NIGHTLY = nightly-2025-02-16
 SOLANA_CLI_VERSION = 2.3.4
 
 nightly = +${RUST_TOOLCHAIN_NIGHTLY}
-make-path = $(shell echo $1 | sed 's#-#/#')
+
+# This is a bit tricky -- findstring returns the found string, so we're looking
+# for "directory-", returning that, and replacing "-" with "/" to change the
+# first "-" to a "/". But if it isn't found, we replace "" with "", which works
+# in the case where there is no subdirectory.
+pattern-dir = $(firstword $(subst -, ,$1))
+find-pattern-dir = $(findstring $(call pattern-dir,$1)-,$1)
+make-path = $(subst $(call find-pattern-dir,$1),$(subst -,/,$(call find-pattern-dir,$1)),$1)
 
 rust-toolchain-nightly:
 	@echo ${RUST_TOOLCHAIN_NIGHTLY}
