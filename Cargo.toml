@@ -53,3 +53,6 @@ config = "scripts/spellcheck.toml"
 pre-release-commit-message = "Publish {{crate_name}} v{{version}}"
 tag-message = "Publish {{crate_name}} v{{version}}"
 consolidate-commits = false
+
+[patch.crates-io]
+spl-transfer-hook-interface = { version = "2.0.0", git = "https://github.com/rustopian/transfer-hook.git", branch = "use-3.0-crates" }

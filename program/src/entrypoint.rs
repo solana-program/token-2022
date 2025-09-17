@@ -3,7 +3,7 @@
 use {
     crate::{error::TokenError, processor::Processor},
     solana_account_info::AccountInfo,
-    solana_program_error::{PrintProgramError, ProgramResult},
+    solana_program_error::ProgramResult,
     solana_pubkey::Pubkey,
     solana_security_txt::security_txt,
 };
@@ -16,8 +16,7 @@ fn process_instruction(
 ) -> ProgramResult {
     if let Err(error) = Processor::process(program_id, accounts, instruction_data) {
         // catch the error so we can print it
-        error.print::<TokenError>();
-        return Err(error);
+        return Err(error.into());
     }
     Ok(())
 }

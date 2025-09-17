@@ -14,7 +14,7 @@ pub use spl_token_2022_interface::extension::memo_transfer::{memo_required, Memo
 /// Check if the previous sibling instruction is a memo
 pub fn check_previous_sibling_instruction_is_memo() -> Result<(), ProgramError> {
     let is_memo_program = |program_id: &Pubkey| -> bool {
-        program_id == &spl_memo::id() || program_id == &spl_memo::v1::id()
+        program_id == &spl_memo_interface::v3::id() || program_id == &spl_memo_interface::v1::id()
     };
     let previous_instruction = get_processed_sibling_instruction();
     match previous_instruction {

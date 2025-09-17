@@ -371,7 +371,7 @@ struct TokenMemo {
 }
 impl TokenMemo {
     pub fn to_instruction(&self) -> Instruction {
-        spl_memo::build_memo(
+        spl_memo_interface::build_memo(
             self.text.as_bytes(),
             &self.signers.iter().collect::<Vec<_>>(),
         )

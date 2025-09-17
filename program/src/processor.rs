@@ -52,7 +52,7 @@ use {
     solana_rent::Rent,
     solana_sdk_ids::system_program,
     solana_system_interface::instruction as system_instruction,
-    solana_sysvar::Sysvar,
+    solana_sysvar::{Sysvar, SysvarSerialize},
     spl_pod::{
         bytemuck::{pod_from_bytes, pod_from_bytes_mut},
         primitives::{PodBool, PodU64},
