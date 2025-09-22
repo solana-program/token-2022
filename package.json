@@ -9,7 +9,7 @@
     "@iarna/toml": "^2.2.5",
     "codama": "^1.3.7",
     "typescript": "^5.9.2",
-    "zx": "^8.8.1"
+    "zx": "^8.8.3"
   },
   "engines": {
     "node": ">=v20.0.0"
