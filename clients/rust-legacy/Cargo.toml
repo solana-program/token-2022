@@ -30,7 +30,7 @@ solana-banks-client = { version = "2.3.4", optional = true }
 solana-banks-interface = { version = "2.3.4", optional = true }
 solana-compute-budget-interface = "2.2.1"
 solana-cli-output = { version = "2.2.0", optional = true }
-solana-hash = "2.2.1"
+solana-hash = "3.0.0"
 solana-instruction = "2.2.1"
 solana-message = "2.2.1"
 solana-packet = "2.2.1"
