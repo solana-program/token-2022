@@ -5,94 +5,67 @@
 <a href="https://www.npmjs.com/package/@solana-program/token-2022"><img src="https://img.shields.io/npm/v/%40solana-program%2Ftoken-2022?logo=npm&color=377CC0" /></a>
 <a href="https://crates.io/crates/spl-token-2022-client"><img src="https://img.shields.io/crates/v/spl-token-2022-client?logo=rust" /></a>
 
-This template should help get you started developing Solana programs. Let's walk through this generated program repository and see what's included.
+## Programs
 
-## Project setup
-
-The first thing you'll want to do is install NPM dependencies which will allow you to access all the scripts and tools provided by this template.
+The token-2022 repo contains two on-chain programs, the token-2022 program in
+`program`, which you can build / test / format using the following commands:
 
 ```sh
-pnpm install
+make build-sbf-program
+make test-program
+make format-check-program
+make clippy-program
 ```
 
-## Managing programs
-
-You'll notice a `program` folder in the root of this repository. This is where your generated Solana program is located.
-
-Whilst only one program gets generated, note that you can have as many programs as you like in this repository.
-Whenever you add a new program folder to this repository, remember to add it to the `members` array of your root `Cargo.toml` file.
-That way, your programs will be recognized by the following scripts that allow you to build, test, format and lint your programs respectively.
+There's also the ElGamal pubkey registry program in `confidential/elgamal-registry`,
+which you can build and test with the following commands:
 
 ```sh
-pnpm programs:build
-pnpm programs:test
-pnpm programs:format
-pnpm programs:lint
+make build-sbf-confidential-elgamal-registry
+make test-confidential-elgamal-registry
+make format-check-confidential-elgamal-registry
+make clippy-confidential-elgamal-registry
 ```
 
 ## IDL
 
-You may use the following [IDL](https://github.com/solana-program/token-2022/blob/main/interface/idl.json) in your programs.
+The token-2022 program has the following
+[IDL](https://github.com/solana-program/token-2022/blob/main/interface/idl.json).
 
 ## Generating clients
 
-Once your programs' IDLs have been generated, you can generate clients for them using the following command.
+Once your program's IDL has been generated, you can generate clients for them
+using the following commands.
 
 ```sh
+pnpm install # only need to run this once
 pnpm generate:clients
-```
-
-Alternatively, you can use the `generate` script to generate both the IDLs and the clients at once.
-
-```sh
-pnpm generate
 ```
 
 ## Managing clients
 
-The following clients are available for your programs. You may use the following links to learn more about each client.
+The following clients are available. You may use the following links to learn
+more about each client:
 
-- [JS client](./clients/js)
-- [Rust client](./clients/rust)
+- [JS client (auto-generated with Kit)](./clients/js)
+- [JS-legacy client (using `@solana/web3.js`](./clients/js-legacy)
+- [Rust client (auto-generated)](./clients/rust)
+- [Rust legacy client](./clients/rust-legacy)
 
 ## Starting and stopping the local validator
 
-The following script is available to start your local validator.
-In order to run the local validator you must also have the spl-elgamal-registry program built.
+The following script is available to start your local validator. In order to run
+the local validator you must also have the token-2022 and elgamal registry
+programs built.
 
 ```sh
-pnpm confidential-transfer:elgamal-registry:build # you only need to run this once
-pnpm validator:start
-```
-
-By default, if a local validator is already running, the script will be skipped. You may use the `validator:restart` script instead to force the validator to restart.
-
-```sh
-pnpm validator:restart
+make build-sbf-program # you only need to run this once
+make build-sbf-confidential-elgamal-registry # you only need to run this once
+make restart-test-validator
 ```
 
 Finally, you may stop the local validator using the following command.
 
 ```sh
-pnpm validator:stop
-```
-
-## Using external programs in your validator
-
-If your program requires any external programs to be running, you'll want to in your local validator.
-
-You can do this by adding their program addresses to the `program-dependencies` array in the `Cargo.toml` of your program.
-
-```toml
-program-dependencies = [
-  "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s",
-  "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV",
-]
-```
-
-Next time you build your program and run your validator, these external programs will automatically be fetched from mainnet and used in your local validator.
-
-```sh
-pnpm programs:build
-pnpm validator:restart
+make stop-test-validator
 ```
