@@ -24,8 +24,8 @@ importers:
         specifier: ^5.9.2
         version: 5.9.2
       zx:
-        specifier: ^8.8.3
-        version: 8.8.3
+        specifier: ^8.8.4
+        version: 8.8.4
 
 packages:
 
@@ -280,8 +280,8 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  zx@8.8.3:
-    resolution: {integrity: sha512-8GWaBTVU6wzTdqO0v5qwGMUFLCYduW7UUxaliRD+FXGRfYM8KLDGL93idbdGFLomHDi18ZxCfhAJqYZB8rJNvw==}
+  zx@8.8.4:
+    resolution: {integrity: sha512-44GcD+ZlM/v1OQtbwnSxLPcoE1ZEUICmR+RSbJZLAqfIixNLuMjLyh0DcS75OyfJ/sWYAwCWDmDvJ4hdnANAPQ==}
     engines: {node: '>= 12.17.0'}
     hasBin: true
 
@@ -576,4 +576,4 @@ snapshots:
 
   typescript@5.9.2: {}
 
-  zx@8.8.3: {}
+  zx@8.8.4: {}
