@@ -380,7 +380,7 @@ fn process_empty_account(
     }
     if confidential_transfer_account.available_balance != proof_context.ciphertext {
         msg!("Available balance mismatch");
-        return Err(ProgramError::InvalidInstructionData);
+        return Err(TokenError::ConfidentialTransferBalanceMismatch.into());
     }
     confidential_transfer_account.available_balance = EncryptedBalance::zeroed();
 
