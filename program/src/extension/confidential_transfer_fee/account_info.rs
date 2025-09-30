@@ -36,7 +36,7 @@ impl WithheldTokensInfo {
         let withheld_amount_in_mint: ElGamalCiphertext = self
             .withheld_amount
             .try_into()
-            .map_err(|_| TokenError::AccountDecryption)?;
+            .map_err(|_| TokenError::MalformedCiphertext)?;
 
         let decrypted_withheld_amount_in_mint = withheld_amount_in_mint
             .decrypt_u32(withdraw_withheld_authority_elgamal_keypair.secret())
