@@ -61,7 +61,7 @@ impl SupplyAccountInfo {
         let current_decryptable_supply = AeCiphertext::try_from(self.decryptable_supply)
             .map_err(|_| TokenError::MalformedCiphertext)?
             .decrypt(aes_key)
-            .ok_or(TokenError::MalformedCiphertext)?;
+            .ok_or(TokenError::AccountDecryption)?;
 
         // get the difference between the supply ciphertext and the decryptable supply
         // explanation see https://github.com/solana-labs/solana-program-library/pull/6881#issuecomment-2385579058
@@ -74,7 +74,7 @@ impl SupplyAccountInfo {
         let decryptable_to_current_diff = elgamal_keypair
             .secret()
             .decrypt_u32(&supply_delta_ciphertext)
-            .ok_or(TokenError::MalformedCiphertext)?;
+            .ok_or(TokenError::AccountDecryption)?;
 
         // compute the current supply
         current_decryptable_supply
@@ -216,7 +216,7 @@ impl BurnAccountInfo {
         let current_available_balance = AeCiphertext::try_from(self.decryptable_available_balance)
             .map_err(|_| TokenError::MalformedCiphertext)?
             .decrypt(aes_key)
-            .ok_or(TokenError::MalformedCiphertext)?;
+            .ok_or(TokenError::AccountDecryption)?;
         let new_decryptable_balance = current_available_balance
             .checked_sub(burn_amount)
             .ok_or(TokenError::Overflow)?;
