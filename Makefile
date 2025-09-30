@@ -33,6 +33,7 @@ spellcheck:
 clippy-%:
 	cargo $(nightly) clippy --manifest-path $(call make-path,$*)/Cargo.toml \
 	  --all-targets \
+	  --all-features \
 		-- \
 		--deny=warnings \
 		--deny=clippy::default_trait_access \
