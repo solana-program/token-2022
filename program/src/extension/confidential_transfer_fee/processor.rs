@@ -196,7 +196,7 @@ fn process_withdraw_withheld_tokens_from_accounts(
     // unnecessary check, but helps for clarity
     check_program_account(mint_account_info.owner)?;
     let mut mint_data = mint_account_info.data.borrow_mut();
-    let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
+    let mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
 
     // mint must be extended for fees
     let transfer_fee_config = mint.get_extension::<TransferFeeConfig>()?;
@@ -235,7 +235,7 @@ fn process_withdraw_withheld_tokens_from_accounts(
         // Checks that the withdraw authority ElGamal public key associated with the
         // mint is consistent with what was actually used to generate the zkp.
         let confidential_transfer_fee_config =
-            mint.get_extension_mut::<ConfidentialTransferFeeConfig>()?;
+            mint.get_extension::<ConfidentialTransferFeeConfig>()?;
         if proof_context.first_pubkey
             != confidential_transfer_fee_config.withdraw_withheld_authority_elgamal_pubkey
         {
