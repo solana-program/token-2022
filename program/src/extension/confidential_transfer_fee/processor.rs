@@ -155,7 +155,7 @@ fn process_withdraw_withheld_tokens_from_mint(
         &destination_confidential_transfer_account.available_balance,
         &proof_context.second_ciphertext,
     )
-    .ok_or(ProgramError::InvalidInstructionData)?;
+    .ok_or(TokenError::CiphertextArithmeticFailed)?;
 
     destination_confidential_transfer_account.decryptable_available_balance =
         *new_decryptable_available_balance;
@@ -234,7 +234,7 @@ fn process_withdraw_withheld_tokens_from_accounts(
                 &aggregate_withheld_amount,
                 &destination_confidential_transfer_fee_amount.withheld_amount,
             )
-            .ok_or(ProgramError::InvalidInstructionData)?;
+            .ok_or(TokenError::CiphertextArithmeticFailed)?;
 
             destination_confidential_transfer_fee_amount.withheld_amount =
                 EncryptedWithheldAmount::zeroed();
@@ -245,7 +245,7 @@ fn process_withdraw_withheld_tokens_from_accounts(
                         &aggregate_withheld_amount,
                         &encrypted_withheld_amount,
                     )
-                    .ok_or(ProgramError::InvalidInstructionData)?;
+                    .ok_or(TokenError::CiphertextArithmeticFailed)?;
                 }
                 Err(e) => {
                     msg!("Error harvesting from {}: {}", account_info.key, e);
@@ -348,7 +348,7 @@ fn process_harvest_withheld_tokens_to_mint(accounts: &[AccountInfo]) -> ProgramR
                     &confidential_transfer_fee_mint.withheld_amount,
                     &withheld_amount,
                 )
-                .ok_or(ProgramError::InvalidInstructionData)?;
+                .ok_or(TokenError::CiphertextArithmeticFailed)?;
 
                 confidential_transfer_fee_mint.withheld_amount = new_mint_withheld_amount;
             }
