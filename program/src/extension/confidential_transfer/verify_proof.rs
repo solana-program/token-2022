@@ -46,11 +46,11 @@ pub fn verify_withdraw_proof(
     // The `WithdrawProofContext` constructor verifies the consistency of the
     // individual proof context and generates a `WithdrawProofContext` struct
     // that is used to process the rest of the token-2022 logic.
-    let transfer_proof_context =
+    let withdraw_proof_context =
         WithdrawProofContext::verify_and_extract(&equality_proof_context, &range_proof_context)
             .map_err(|e| -> TokenError { e.into() })?;
 
-    Ok(transfer_proof_context)
+    Ok(withdraw_proof_context)
 }
 
 /// Verify zero-knowledge proof needed for a `Transfer` instruction without fee

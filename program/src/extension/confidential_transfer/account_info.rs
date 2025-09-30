@@ -189,7 +189,7 @@ pub struct WithdrawAccountInfo {
     pub decryptable_available_balance: DecryptableBalance,
 }
 impl WithdrawAccountInfo {
-    /// Create the `ApplyPendingBalance` instruction account information from
+    /// Create the `Withdraw` instruction account information from
     /// `ConfidentialTransferAccount`.
     pub fn new(account: &ConfidentialTransferAccount) -> Self {
         Self {
