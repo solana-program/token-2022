@@ -75,13 +75,13 @@ impl FeeCiphertext {
     }
 
     pub fn get_destination_handle(&self) -> &DecryptHandle {
-        // `FeeEncryption` is a wrapper for `GroupedElGamalCiphertext<2>`, which holds
+        // `FeeCiphertext` is a wrapper for `GroupedElGamalCiphertext<2>`, which holds
         // exactly two decryption handles.
         self.0.handles.first().unwrap()
     }
 
     pub fn get_withdraw_withheld_authority_handle(&self) -> &DecryptHandle {
-        // `FeeEncryption` is a wrapper for `GroupedElGamalCiphertext<2>`, which holds
+        // `FeeCiphertext` is a wrapper for `GroupedElGamalCiphertext<2>`, which holds
         // exactly two decryption handles.
         self.0.handles.get(1).unwrap()
     }
@@ -120,13 +120,13 @@ pub struct MintAmountCiphertext(pub(crate) GroupedElGamalCiphertext<3>);
 impl MintAmountCiphertext {
     pub fn new(
         amount: u64,
-        source_pubkey: &ElGamalPubkey,
+        destination_pubkey: &ElGamalPubkey,
         supply_pubkey: &ElGamalPubkey,
         auditor_pubkey: &ElGamalPubkey,
     ) -> (Self, PedersenOpening) {
         let opening = PedersenOpening::new_rand();
         let grouped_ciphertext = GroupedElGamal::<3>::encrypt_with(
-            [source_pubkey, supply_pubkey, auditor_pubkey],
+            [destination_pubkey, supply_pubkey, auditor_pubkey],
             amount,
             &opening,
         );
