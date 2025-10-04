@@ -120,13 +120,13 @@ pub struct MintAmountCiphertext(pub(crate) GroupedElGamalCiphertext<3>);
 impl MintAmountCiphertext {
     pub fn new(
         amount: u64,
-        source_pubkey: &ElGamalPubkey,
+        destination_pubkey: &ElGamalPubkey,
         supply_pubkey: &ElGamalPubkey,
         auditor_pubkey: &ElGamalPubkey,
     ) -> (Self, PedersenOpening) {
         let opening = PedersenOpening::new_rand();
         let grouped_ciphertext = GroupedElGamal::<3>::encrypt_with(
-            [source_pubkey, supply_pubkey, auditor_pubkey],
+            [destination_pubkey, supply_pubkey, auditor_pubkey],
             amount,
             &opening,
         );
