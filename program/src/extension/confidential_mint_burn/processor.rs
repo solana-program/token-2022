@@ -208,6 +208,10 @@ fn process_confidential_mint(
         return Err(TokenError::MintMismatch.into());
     }
 
+    if token_account.base.is_native() {
+        return Err(TokenError::NativeNotSupported.into());
+    }
+
     assert!(!token_account.base.is_native());
 
     let confidential_transfer_account =
