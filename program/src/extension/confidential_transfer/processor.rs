@@ -449,7 +449,9 @@ fn process_deposit(
     }
 
     // Wrapped SOL deposits are not supported because lamports cannot be vanished.
-    assert!(!token_account.base.is_native());
+    if token_account.base.is_native() {
+        return Err(TokenError::NativeNotSupported.into());
+    }
 
     token_account.base.amount = u64::from(token_account.base.amount)
         .checked_sub(amount)
@@ -569,7 +571,9 @@ fn process_withdraw(
 
     // Wrapped SOL withdrawals are not supported because lamports cannot be
     // apparated.
-    assert!(!token_account.base.is_native());
+    if token_account.base.is_native() {
+        return Err(TokenError::NativeNotSupported.into());
+    }
 
     let confidential_transfer_account =
         token_account.get_extension_mut::<ConfidentialTransferAccount>()?;
