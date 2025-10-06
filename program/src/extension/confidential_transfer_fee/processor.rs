@@ -113,6 +113,7 @@ fn process_withdraw_withheld_tokens_from_mint(
 
     // basic checks for the destination account - must be extended for confidential
     // transfers
+    check_program_account(destination_account_info.owner)?;
     let mut destination_account_data = destination_account_info.data.borrow_mut();
     let mut destination_account =
         PodStateWithExtensionsMut::<PodAccount>::unpack(&mut destination_account_data)?;
@@ -211,6 +212,7 @@ fn process_withdraw_withheld_tokens_from_accounts(
         &account_infos[..num_signers],
     )?;
 
+    check_program_account(destination_account_info.owner)?;
     let mut destination_account_data = destination_account_info.data.borrow_mut();
     let mut destination_account =
         PodStateWithExtensionsMut::<PodAccount>::unpack(&mut destination_account_data)?;
@@ -335,6 +337,7 @@ fn process_harvest_withheld_tokens_to_mint(accounts: &[AccountInfo]) -> ProgramR
     let mint_account_info = next_account_info(account_info_iter)?;
     let token_account_infos = account_info_iter.as_slice();
 
+    check_program_account(mint_account_info.owner)?;
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
     mint.get_extension::<TransferFeeConfig>()?;
