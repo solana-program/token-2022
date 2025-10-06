@@ -113,6 +113,7 @@ fn process_withdraw_withheld_tokens_from_mint(
 
     // basic checks for the destination account - must be extended for confidential
     // transfers
+    check_program_account(destination_account_info.owner)?;
     let mut destination_account_data = destination_account_info.data.borrow_mut();
     let mut destination_account =
         PodStateWithExtensionsMut::<PodAccount>::unpack(&mut destination_account_data)?;
