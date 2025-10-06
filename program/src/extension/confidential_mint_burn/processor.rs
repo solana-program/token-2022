@@ -212,8 +212,6 @@ fn process_confidential_mint(
         return Err(TokenError::NativeNotSupported.into());
     }
 
-    assert!(!token_account.base.is_native());
-
     let confidential_transfer_account =
         token_account.get_extension_mut::<ConfidentialTransferAccount>()?;
     confidential_transfer_account.valid_as_destination()?;
