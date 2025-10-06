@@ -528,7 +528,7 @@ pub struct ConfigureAccountInstructionData {
     /// The decryptable balance (always 0) once the configure account succeeds
     #[cfg_attr(feature = "serde", serde(with = "aeciphertext_fromstr"))]
     pub decryptable_zero_balance: DecryptableBalance,
-    /// The maximum number of despots and transfers that an account can receiver
+    /// The maximum number of deposits and transfers that an account can receive
     /// before the `ApplyPendingBalance` is executed
     pub maximum_pending_balance_credit_counter: PodU64,
     /// Relative location of the `ProofInstruction::ZeroCiphertextProof`
