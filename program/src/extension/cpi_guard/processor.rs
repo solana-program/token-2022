@@ -1,19 +1,19 @@
 use {
-    crate::{
-        check_program_account,
-        error::TokenError,
-        extension::{
-            cpi_guard::{in_cpi, instruction::CpiGuardInstruction, CpiGuard},
-            BaseStateWithExtensionsMut, PodStateWithExtensionsMut,
-        },
-        instruction::decode_instruction_type,
-        pod::PodAccount,
-        processor::Processor,
-    },
+    crate::{extension::cpi_guard::in_cpi, processor::Processor},
     solana_account_info::{next_account_info, AccountInfo},
     solana_msg::msg,
     solana_program_error::ProgramResult,
     solana_pubkey::Pubkey,
+    spl_token_2022_interface::{
+        check_program_account,
+        error::TokenError,
+        extension::{
+            cpi_guard::{instruction::CpiGuardInstruction, CpiGuard},
+            BaseStateWithExtensionsMut, PodStateWithExtensionsMut,
+        },
+        instruction::decode_instruction_type,
+        pod::PodAccount,
+    },
 };
 
 /// Toggle the `CpiGuard` extension, initializing the extension if not already

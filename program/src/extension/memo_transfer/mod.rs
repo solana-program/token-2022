@@ -1,6 +1,6 @@
 use {
-    crate::error::TokenError, solana_instruction::Instruction, solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
+    solana_instruction::Instruction, solana_program_error::ProgramError, solana_pubkey::Pubkey,
+    spl_token_2022_interface::error::TokenError,
 };
 
 /// Memo Transfer extension instructions
@@ -9,6 +9,10 @@ pub mod instruction;
 /// Memo Transfer extension processor
 pub mod processor;
 
+#[deprecated(
+    since = "9.1.0",
+    note = "Use spl_token_2022_interface instead and remove spl_token_2022 as a dependency"
+)]
 pub use spl_token_2022_interface::extension::memo_transfer::{memo_required, MemoTransfer};
 
 /// Check if the previous sibling instruction is a memo

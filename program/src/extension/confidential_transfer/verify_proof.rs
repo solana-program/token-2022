@@ -1,10 +1,10 @@
 use {
-    crate::{
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_program_error::ProgramError,
+    spl_token_2022_interface::{
         error::TokenError,
         extension::{confidential_transfer::instruction::*, transfer_fee::TransferFee},
     },
-    solana_account_info::{next_account_info, AccountInfo},
-    solana_program_error::ProgramError,
     spl_token_confidential_transfer_proof_extraction::{
         instruction::verify_and_extract_context, transfer::TransferProofContext,
         transfer_with_fee::TransferWithFeeProofContext, withdraw::WithdrawProofContext,

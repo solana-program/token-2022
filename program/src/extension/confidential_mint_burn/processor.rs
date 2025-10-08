@@ -1,13 +1,19 @@
-#[cfg(feature = "zk-ops")]
 use {
-    crate::{
-        check_auditor_ciphertext,
-        extension::confidential_mint_burn::verify_proof::{verify_burn_proof, verify_mint_proof},
+    crate::processor::Processor,
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_msg::msg,
+    solana_program_error::{ProgramError, ProgramResult},
+    solana_pubkey::Pubkey,
+    solana_zk_sdk::{
+        encryption::pod::{
+            auth_encryption::PodAeCiphertext,
+            elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
+        },
+        zk_elgamal_proof_program::proof_data::{
+            CiphertextCiphertextEqualityProofContext, CiphertextCiphertextEqualityProofData,
+        },
     },
-    spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic,
-};
-use {
-    crate::{
+    spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
         extension::{
@@ -25,22 +31,16 @@ use {
         },
         instruction::{decode_instruction_data, decode_instruction_type},
         pod::{PodAccount, PodMint},
-        processor::Processor,
-    },
-    solana_account_info::{next_account_info, AccountInfo},
-    solana_msg::msg,
-    solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
-    solana_zk_sdk::{
-        encryption::pod::{
-            auth_encryption::PodAeCiphertext,
-            elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
-        },
-        zk_elgamal_proof_program::proof_data::{
-            CiphertextCiphertextEqualityProofContext, CiphertextCiphertextEqualityProofData,
-        },
     },
     spl_token_confidential_transfer_proof_extraction::instruction::verify_and_extract_context,
+};
+#[cfg(feature = "zk-ops")]
+use {
+    crate::{
+        check_auditor_ciphertext,
+        extension::confidential_mint_burn::verify_proof::{verify_burn_proof, verify_mint_proof},
+    },
+    spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic,
 };
 
 /// Processes an [`InitializeMint`] instruction.

@@ -2,31 +2,19 @@
 #[cfg(feature = "zk-ops")]
 use {
     crate::check_auditor_ciphertext,
-    crate::extension::confidential_mint_burn::ConfidentialMintBurn,
-    crate::extension::non_transferable::NonTransferableAccount,
+    spl_token_2022_interface::extension::{
+        confidential_mint_burn::ConfidentialMintBurn, non_transferable::NonTransferableAccount,
+    },
     spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic,
 };
 use {
     crate::{
-        check_elgamal_registry_program_account, check_program_account,
-        error::TokenError,
+        check_elgamal_registry_program_account,
         extension::{
-            confidential_transfer::{instruction::*, verify_proof::*, *},
-            confidential_transfer_fee::{
-                ConfidentialTransferFeeAmount, ConfidentialTransferFeeConfig,
-                EncryptedWithheldAmount,
-            },
-            memo_transfer::{check_previous_sibling_instruction_is_memo, memo_required},
-            pausable::PausableConfig,
-            set_account_type,
-            transfer_fee::TransferFeeConfig,
-            transfer_hook, BaseStateWithExtensions, BaseStateWithExtensionsMut, ExtensionType,
-            PodStateWithExtensions, PodStateWithExtensionsMut,
+            confidential_transfer::verify_proof::*,
+            memo_transfer::check_previous_sibling_instruction_is_memo,
         },
-        instruction::{decode_instruction_data, decode_instruction_type},
-        pod::{PodAccount, PodMint},
         processor::Processor,
-        state::Account,
     },
     bytemuck::Zeroable,
     solana_account_info::{next_account_info, AccountInfo},
@@ -46,6 +34,26 @@ use {
         bytemuck::pod_from_bytes,
         optional_keys::{OptionalNonZeroElGamalPubkey, OptionalNonZeroPubkey},
         primitives::{PodBool, PodU64},
+    },
+    spl_token_2022_interface::{
+        check_program_account,
+        error::TokenError,
+        extension::{
+            confidential_transfer::{instruction::*, *},
+            confidential_transfer_fee::{
+                ConfidentialTransferFeeAmount, ConfidentialTransferFeeConfig,
+                EncryptedWithheldAmount,
+            },
+            memo_transfer::memo_required,
+            pausable::PausableConfig,
+            set_account_type,
+            transfer_fee::TransferFeeConfig,
+            transfer_hook, BaseStateWithExtensions, BaseStateWithExtensionsMut, ExtensionType,
+            PodStateWithExtensions, PodStateWithExtensionsMut,
+        },
+        instruction::{decode_instruction_data, decode_instruction_type},
+        pod::{PodAccount, PodMint},
+        state::Account,
     },
     spl_token_confidential_transfer_proof_extraction::{
         instruction::verify_and_extract_context, transfer::TransferProofContext,

@@ -22,13 +22,17 @@ mod entrypoint;
 // Export current sdk types for downstream users building with a different sdk
 // version
 pub use solana_zk_sdk;
+#[deprecated(
+    since = "9.1.0",
+    note = "Use spl_token_2022_interface instead and remove spl_token_2022 as a dependency"
+)]
 pub use spl_token_2022_interface::{check_id, check_program_account, id, ID};
 use {
-    error::TokenError,
     solana_program_error::{ProgramError, ProgramResult},
     solana_pubkey::Pubkey,
     solana_sdk_ids::system_program,
     solana_zk_sdk::encryption::pod::elgamal::PodElGamalCiphertext,
+    spl_token_2022_interface::error::TokenError,
 };
 
 /// Convert the UI representation of a token amount (using the decimals field

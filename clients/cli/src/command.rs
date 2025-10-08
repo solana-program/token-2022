@@ -36,14 +36,12 @@ use {
     solana_system_interface::program as system_program,
     spl_associated_token_account_client::address::get_associated_token_address_with_program_id,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
-    spl_token_2022::{
+    spl_token_2022::extension::confidential_transfer::account_info::{
+        ApplyPendingBalanceAccountInfo, TransferAccountInfo, WithdrawAccountInfo,
+    },
+    spl_token_2022_interface::{
         extension::{
-            confidential_transfer::{
-                account_info::{
-                    ApplyPendingBalanceAccountInfo, TransferAccountInfo, WithdrawAccountInfo,
-                },
-                ConfidentialTransferAccount, ConfidentialTransferMint,
-            },
+            confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
             confidential_transfer_fee::ConfidentialTransferFeeConfig,
             cpi_guard::CpiGuard,
             default_account_state::DefaultAccountState,
@@ -2340,7 +2338,7 @@ async fn command_accounts(
     } else {
         vec![
             TokenAccountsFilter::ProgramId(spl_token::id()),
-            TokenAccountsFilter::ProgramId(spl_token_2022::id()),
+            TokenAccountsFilter::ProgramId(spl_token_2022_interface::id()),
         ]
     };
 

@@ -1,5 +1,10 @@
 use {
-    crate::{
+    crate::processor::Processor,
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_msg::msg,
+    solana_program_error::ProgramResult,
+    solana_pubkey::Pubkey,
+    spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
         extension::{
@@ -10,13 +15,8 @@ use {
             BaseStateWithExtensionsMut, PodStateWithExtensionsMut,
         },
         pod::{PodCOption, PodMint},
-        processor::Processor,
         state::AccountState,
     },
-    solana_account_info::{next_account_info, AccountInfo},
-    solana_msg::msg,
-    solana_program_error::ProgramResult,
-    solana_pubkey::Pubkey,
 };
 
 fn check_valid_default_state(state: AccountState) -> ProgramResult {

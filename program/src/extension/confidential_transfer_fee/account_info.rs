@@ -1,5 +1,4 @@
 use {
-    crate::{error::TokenError, extension::confidential_transfer_fee::EncryptedWithheldAmount},
     bytemuck::{Pod, Zeroable},
     solana_zk_sdk::{
         encryption::{
@@ -7,6 +6,9 @@ use {
             pedersen::PedersenOpening,
         },
         zk_elgamal_proof_program::proof_data::ciphertext_ciphertext_equality::CiphertextCiphertextEqualityProofData,
+    },
+    spl_token_2022_interface::{
+        error::TokenError, extension::confidential_transfer_fee::EncryptedWithheldAmount,
     },
 };
 

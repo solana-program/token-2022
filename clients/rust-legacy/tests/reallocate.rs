@@ -12,7 +12,7 @@ use {
         transport::TransportError,
     },
     solana_system_interface::instruction as system_instruction,
-    spl_token_2022::{error::TokenError, extension::ExtensionType, state::Account},
+    spl_token_2022_interface::{error::TokenError, extension::ExtensionType, state::Account},
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
     test_case::test_case,
 };

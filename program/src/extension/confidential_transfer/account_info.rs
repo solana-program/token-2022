@@ -1,11 +1,4 @@
 use {
-    crate::{
-        error::TokenError,
-        extension::confidential_transfer::{
-            ConfidentialTransferAccount, DecryptableBalance, EncryptedBalance,
-            PENDING_BALANCE_LO_BIT_LENGTH,
-        },
-    },
     bytemuck::{Pod, Zeroable},
     solana_zk_sdk::{
         encryption::{
@@ -15,6 +8,13 @@ use {
         zk_elgamal_proof_program::proof_data::ZeroCiphertextProofData,
     },
     spl_pod::primitives::PodU64,
+    spl_token_2022_interface::{
+        error::TokenError,
+        extension::confidential_transfer::{
+            ConfidentialTransferAccount, DecryptableBalance, EncryptedBalance,
+            PENDING_BALANCE_LO_BIT_LENGTH,
+        },
+    },
     spl_token_confidential_transfer_proof_generation::{
         transfer::{transfer_split_proof_data, TransferProofData},
         transfer_with_fee::{transfer_with_fee_split_proof_data, TransferWithFeeProofData},
