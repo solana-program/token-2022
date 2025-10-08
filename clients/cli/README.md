@@ -1,6 +1,7 @@
 # SPL Token program command-line utility
 
-A basic command-line for creating and using SPL Tokens.  See <https://spl.solana.com/token> for more details
+A basic command-line for creating and using SPL Tokens.  See the
+[Solana Program Docs](https://www.solana-program.com/docs/token) for more info.
 
 ## Build
 
@@ -12,31 +13,15 @@ cargo build
 
 ## Testing
 
-The tests require locally built programs for Token, Token-2022, and Associated
-Token Account. To build these, you can run:
+The tests require a locally built program for Token-2022. To build it, run the
+following command from the root directory of this repository:
 
 ```sh
-BUILD_DEPENDENT_PROGRAMS=1 cargo build
-```
-
-This method uses the local `build.rs` file, which can be error-prone, so alternatively,
-you can build the programs by running the following commands from this directory:
-
-```sh
-cargo build-sbf --manifest-path ../program/Cargo.toml
-cargo build-sbf --manifest-path ../program-2022/Cargo.toml
-cargo build-sbf --manifest-path ../../associated-token-account/program/Cargo.toml
+cargo build-sbf --manifest-path program/Cargo.toml
 ```
 
 After that, you can run the tests as any other Rust project:
 
 ```sh
 cargo test
-```
-
-To run it locally you can do it like this:
-
-```sh
-cargo build --manifest-path token/cli/Cargo.toml
-target/debug/spl-token <command>
 ```

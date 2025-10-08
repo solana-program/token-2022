@@ -5,9 +5,10 @@ A token program on the Solana blockchain, usable for fungible and non-fungible t
 This program provides an interface and implementation that third parties can
 utilize to create and use their tokens.
 
-Full documentation is available at [https://www.solana-program.com/docs/token-2022](https://www.solana-program.com/docs/token-2022)
+Full documentation is available at the
+[Solana Program Docs](https://www.solana-program.com/docs/token-2022).
 
 ## Audit
 
-The repository [README](https://github.com/solana-labs/solana-program-library#audits)
-contains information about program audits.
+The [security-audits README](https://github.com/anza-xyz/security-audits?tab=readme-ov-file#token-2022)
+contains all program audits.

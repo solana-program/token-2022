@@ -48,40 +48,37 @@ If you have Node 16+, you can [activate PNPM with Corepack](https://pnpm.io/inst
 
 1. Clone the project:
 ```shell
-git clone https://github.com/solana-labs/solana-program-library.git
+git clone https://github.com/solana-program/token-2022.git
 ```
 
 2. Navigate to the root of the repository:
 ```shell
-cd solana-program-library
+cd token-2022
 ```
 
-3. Install the dependencies:
+3. Build the on-chain programs:
+```shell
+make build-sbf-program
+make build-sbf-confidential-elgamal-registry
+```
+
+4. Navigate to the SPL Token library:
+```shell
+cd clients/js-legacy
+```
+
+5. Build the libraries in the repository:
 ```shell
 pnpm install
-```
-
-4. Build the libraries in the repository:
-```shell
 pnpm run build
 ```
 
-5. Navigate to the SPL Token library:
-```shell
-cd token/js
-```
-
-6. Build the on-chain programs:
-```shell
-pnpm run test:build-programs
-```
-
-7. Run the tests:
+6. Run the tests:
 ```shell
 pnpm run test
 ```
 
-8. Run the example:
+7. Run the example:
 ```shell
 pnpm run example
 ```
