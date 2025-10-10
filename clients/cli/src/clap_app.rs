@@ -14,7 +14,7 @@ use {
         ArgConstant,
     },
     solana_sdk::{instruction::AccountMeta, pubkey::Pubkey},
-    spl_token_2022::instruction::{AuthorityType, MAX_SIGNERS, MIN_SIGNERS},
+    spl_token_2022_interface::instruction::{AuthorityType, MAX_SIGNERS, MIN_SIGNERS},
     std::{fmt, str::FromStr},
     strum::IntoEnumIterator,
     strum_macros::{AsRefStr, EnumIter, EnumString, IntoStaticStr},
@@ -111,7 +111,7 @@ impl OfflineArgs for clap::Command<'_> {
     }
 }
 
-pub static VALID_TOKEN_PROGRAM_IDS: [Pubkey; 2] = [spl_token_2022::ID, spl_token::ID];
+pub static VALID_TOKEN_PROGRAM_IDS: [Pubkey; 2] = [spl_token_2022_interface::ID, spl_token::ID];
 
 #[derive(AsRefStr, Debug, Clone, Copy, PartialEq, EnumString, IntoStaticStr)]
 #[strum(serialize_all = "kebab-case")]

@@ -10,15 +10,15 @@ use {
         transaction::TransactionError,
         transport::TransportError,
     },
-    spl_token_2022::{
+    spl_token_2022::extension::confidential_mint_burn::account_info::{
+        BurnAccountInfo, SupplyAccountInfo,
+    },
+    spl_token_2022_interface::{
         error::TokenError,
         extension::{
-            confidential_mint_burn::{
-                account_info::{BurnAccountInfo, SupplyAccountInfo},
-                ConfidentialMintBurn,
-            },
-            confidential_transfer::ConfidentialTransferAccount,
-            BaseStateWithExtensions, ExtensionType,
+            confidential_mint_burn::ConfidentialMintBurn,
+            confidential_transfer::ConfidentialTransferAccount, BaseStateWithExtensions,
+            ExtensionType,
         },
         solana_zk_sdk::encryption::{
             auth_encryption::*, elgamal::*, pod::elgamal::PodElGamalCiphertext,

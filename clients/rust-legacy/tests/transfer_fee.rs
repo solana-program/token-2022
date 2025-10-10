@@ -6,7 +6,7 @@ use {
         instruction::InstructionError, program_option::COption, pubkey::Pubkey, signature::Signer,
         signer::keypair::Keypair, transaction::TransactionError, transport::TransportError,
     },
-    spl_token_2022::{
+    spl_token_2022_interface::{
         error::TokenError,
         extension::{
             transfer_fee::{

@@ -2,12 +2,6 @@
 //! correct accounts
 
 use {
-    crate::{
-        extension::{transfer_fee, transfer_hook, StateWithExtensions},
-        instruction,
-        pod::PodMultisig,
-        state::{Mint, PackedSizeOf},
-    },
     solana_account_info::AccountInfo,
     solana_cpi::invoke_signed,
     solana_instruction::{AccountMeta, Instruction},
@@ -15,6 +9,12 @@ use {
     solana_pubkey::Pubkey,
     spl_pod::bytemuck::pod_from_bytes,
     spl_token_2022_interface::inline_spl_token,
+    spl_token_2022_interface::{
+        extension::{transfer_fee, transfer_hook, StateWithExtensions},
+        instruction,
+        pod::PodMultisig,
+        state::{Mint, PackedSizeOf},
+    },
     spl_transfer_hook_interface::onchain::add_extra_accounts_for_execute_cpi,
 };
 

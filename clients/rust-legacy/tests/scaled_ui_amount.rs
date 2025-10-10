@@ -20,11 +20,10 @@ use {
         transaction::{Transaction, TransactionError},
         transport::TransportError,
     },
-    spl_token_2022::{
+    spl_token_2022_interface::{
         error::TokenError,
         extension::{scaled_ui_amount::ScaledUiAmountConfig, BaseStateWithExtensions},
         instruction::{amount_to_ui_amount, ui_amount_to_amount, AuthorityType},
-        processor::Processor,
     },
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
     std::{convert::TryInto, sync::Arc},
@@ -380,11 +379,7 @@ fn process_instruction(
 async fn amount_conversions() {
     let authority = Keypair::new();
     let mut program_test = ProgramTest::default();
-    program_test.add_program(
-        "spl_token_2022",
-        spl_token_2022::id(),
-        processor!(Processor::process),
-    );
+    program_test.add_program("spl_token_2022", spl_token_2022_interface::id(), None);
     program_test.prefer_bpf(false);
     let program_id = Pubkey::new_unique();
     program_test.add_program(
@@ -416,7 +411,7 @@ async fn amount_conversions() {
             program_id,
             accounts: vec![
                 AccountMeta::new_readonly(*token.get_address(), false),
-                AccountMeta::new_readonly(spl_token_2022::id(), false),
+                AccountMeta::new_readonly(spl_token_2022_interface::id(), false),
             ],
             data: vec![],
         }],

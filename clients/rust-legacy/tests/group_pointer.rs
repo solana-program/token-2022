@@ -1,16 +1,15 @@
 mod program_test;
 use {
     program_test::TestContext,
-    solana_program_test::{processor, tokio, ProgramTest},
+    solana_program_test::{tokio, ProgramTest},
     solana_sdk::{
         instruction::InstructionError, pubkey::Pubkey, signature::Signer, signer::keypair::Keypair,
         transaction::TransactionError, transport::TransportError,
     },
-    spl_token_2022::{
+    spl_token_2022_interface::{
         error::TokenError,
         extension::{group_pointer::GroupPointer, BaseStateWithExtensions},
         instruction,
-        processor::Processor,
     },
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
     std::{convert::TryInto, sync::Arc},
@@ -18,12 +17,7 @@ use {
 
 fn setup_program_test() -> ProgramTest {
     let mut program_test = ProgramTest::default();
-    program_test.prefer_bpf(false);
-    program_test.add_program(
-        "spl_token_2022",
-        spl_token_2022::id(),
-        processor!(Processor::process),
-    );
+    program_test.add_program("spl_token_2022", spl_token_2022_interface::id(), None);
     program_test
 }
 
@@ -75,12 +69,7 @@ async fn success_init() {
 #[tokio::test]
 async fn fail_init_all_none() {
     let mut program_test = ProgramTest::default();
-    program_test.prefer_bpf(false);
-    program_test.add_program(
-        "spl_token_2022",
-        spl_token_2022::id(),
-        processor!(Processor::process),
-    );
+    program_test.add_program("spl_token_2022", spl_token_2022_interface::id(), None);
     let context = program_test.start_with_context().await;
     let context = Arc::new(tokio::sync::Mutex::new(context));
     let mut context = TestContext {

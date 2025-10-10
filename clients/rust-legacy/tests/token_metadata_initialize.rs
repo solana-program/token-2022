@@ -2,12 +2,12 @@ mod program_test;
 use {
     borsh::BorshDeserialize,
     program_test::TestContext,
-    solana_program_test::{processor, tokio, ProgramTest},
+    solana_program_test::{tokio, ProgramTest},
     solana_sdk::{
         instruction::InstructionError, pubkey::Pubkey, signature::Signer, signer::keypair::Keypair,
         transaction::TransactionError, transport::TransportError,
     },
-    spl_token_2022::{error::TokenError, extension::BaseStateWithExtensions, processor::Processor},
+    spl_token_2022_interface::{error::TokenError, extension::BaseStateWithExtensions},
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
     spl_token_metadata_interface::{error::TokenMetadataError, state::TokenMetadata},
     std::{convert::TryInto, sync::Arc},
@@ -15,11 +15,7 @@ use {
 
 fn setup_program_test() -> ProgramTest {
     let mut program_test = ProgramTest::default();
-    program_test.add_program(
-        "spl_token_2022",
-        spl_token_2022::id(),
-        processor!(Processor::process),
-    );
+    program_test.add_program("spl_token_2022", spl_token_2022_interface::id(), None);
     program_test
 }
 
@@ -229,7 +225,7 @@ async fn fail_init_in_another_mint() {
         .token
         .process_ixs(
             &[spl_token_metadata_interface::instruction::initialize(
-                &spl_token_2022::id(),
+                &spl_token_2022_interface::id(),
                 &first_mint,
                 &Pubkey::new_unique(),
                 token_context.token.get_address(),
@@ -263,7 +259,7 @@ async fn fail_without_signature() {
     let token_context = test_context.token_context.take().unwrap();
 
     let mut instruction = spl_token_metadata_interface::instruction::initialize(
-        &spl_token_2022::id(),
+        &spl_token_2022_interface::id(),
         token_context.token.get_address(),
         &Pubkey::new_unique(),
         token_context.token.get_address(),

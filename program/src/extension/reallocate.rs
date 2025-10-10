@@ -1,13 +1,5 @@
 use {
-    crate::{
-        error::TokenError,
-        extension::{
-            set_account_type, AccountType, BaseStateWithExtensions, ExtensionType,
-            StateWithExtensions, StateWithExtensionsMut,
-        },
-        processor::Processor,
-        state::Account,
-    },
+    crate::processor::Processor,
     solana_account_info::{next_account_info, AccountInfo},
     solana_cpi::invoke,
     solana_msg::msg,
@@ -17,6 +9,14 @@ use {
     solana_rent::Rent,
     solana_system_interface::instruction as system_instruction,
     solana_sysvar::Sysvar,
+    spl_token_2022_interface::{
+        error::TokenError,
+        extension::{
+            set_account_type, AccountType, BaseStateWithExtensions, ExtensionType,
+            StateWithExtensions, StateWithExtensionsMut,
+        },
+        state::Account,
+    },
 };
 
 /// Processes a [Reallocate](enum.TokenInstruction.html) instruction

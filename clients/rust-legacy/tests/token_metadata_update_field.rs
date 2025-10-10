@@ -2,12 +2,12 @@
 mod program_test;
 use {
     program_test::TestContext,
-    solana_program_test::{processor, tokio, ProgramTest},
+    solana_program_test::{tokio, ProgramTest},
     solana_sdk::{
         instruction::InstructionError, pubkey::Pubkey, signature::Signer, signer::keypair::Keypair,
         transaction::TransactionError, transport::TransportError,
     },
-    spl_token_2022::{extension::BaseStateWithExtensions, processor::Processor},
+    spl_token_2022_interface::extension::BaseStateWithExtensions,
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
     spl_token_metadata_interface::{
         error::TokenMetadataError,
@@ -20,11 +20,7 @@ use {
 
 fn setup_program_test() -> ProgramTest {
     let mut program_test = ProgramTest::default();
-    program_test.add_program(
-        "spl_token_2022",
-        spl_token_2022::id(),
-        processor!(Processor::process),
-    );
+    program_test.add_program("spl_token_2022", spl_token_2022_interface::id(), None);
     program_test
 }
 
@@ -160,7 +156,7 @@ async fn fail_authority_checks() {
 
     // no signature
     let mut instruction = update_field(
-        &spl_token_2022::id(),
+        &spl_token_2022_interface::id(),
         token_context.token.get_address(),
         &update_authority.pubkey(),
         Field::Name,

@@ -1,7 +1,6 @@
 //! Rewrites of the instruction data types represented as Pods
 
 use {
-    crate::pod::PodCOption,
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_program_error::ProgramError,
@@ -10,6 +9,7 @@ use {
         bytemuck::{pod_from_bytes, pod_get_packed_len},
         primitives::PodU64,
     },
+    spl_token_2022_interface::pod::PodCOption,
 };
 
 #[repr(C)]

@@ -1,18 +1,17 @@
 #![allow(dead_code)]
 
 use {
-    solana_program_test::{processor, tokio::sync::Mutex, ProgramTest, ProgramTestContext},
+    solana_program_test::{tokio::sync::Mutex, ProgramTest, ProgramTestContext},
     solana_sdk::{
         pubkey::Pubkey,
         signer::{keypair::Keypair, Signer},
     },
-    spl_token_2022::{
+    spl_token_2022_interface::{
         extension::{
             confidential_transfer::ConfidentialTransferAccount, BaseStateWithExtensions,
             ExtensionType,
         },
         id, native_mint,
-        processor::Processor,
         solana_zk_sdk::encryption::{auth_encryption::*, elgamal::*},
     },
     spl_token_client::{
@@ -42,19 +41,9 @@ pub struct TestContext {
 
 impl TestContext {
     pub async fn new() -> Self {
-        let mut program_test =
-            ProgramTest::new("spl_token_2022", id(), processor!(Processor::process));
-        program_test.prefer_bpf(true);
-        program_test.add_program(
-            "spl_record",
-            spl_record::id(),
-            processor!(spl_record::processor::process_instruction),
-        );
-        program_test.add_program(
-            "spl_elgamal_registry",
-            spl_elgamal_registry::id(),
-            processor!(spl_elgamal_registry::processor::process_instruction),
-        );
+        let mut program_test = ProgramTest::new("spl_token_2022", id(), None);
+        program_test.add_program("spl_record", spl_record::id(), None);
+        program_test.add_program("spl_elgamal_registry", spl_elgamal_registry::id(), None);
         let context = program_test.start_with_context().await;
         let context = Arc::new(Mutex::new(context));
 

@@ -11,7 +11,7 @@ use {
         transaction::{Transaction, TransactionError},
     },
     solana_system_interface::instruction as system_instruction,
-    spl_token_2022::{
+    spl_token_2022_interface::{
         error::TokenError,
         extension::{
             transfer_fee::{self, TransferFeeAmount},
@@ -37,10 +37,10 @@ async fn no_extensions() {
             &mint_account.pubkey(),
             rent.minimum_balance(space),
             space as u64,
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
         ),
         instruction::initialize_mint(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             &mint_authority_pubkey,
             None,
@@ -65,10 +65,10 @@ async fn no_extensions() {
             &account.pubkey(),
             rent.minimum_balance(space),
             space as u64,
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
         ),
         instruction::initialize_account3(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &account.pubkey(),
             &mint_account.pubkey(),
             &account_owner_pubkey,
@@ -88,8 +88,11 @@ async fn no_extensions() {
         .await
         .expect("get_account")
         .expect("account not none");
-    assert_eq!(account_info.data.len(), spl_token_2022::state::Account::LEN);
-    assert_eq!(account_info.owner, spl_token_2022::id());
+    assert_eq!(
+        account_info.data.len(),
+        spl_token_2022_interface::state::Account::LEN
+    );
+    assert_eq!(account_info.owner, spl_token_2022_interface::id());
     assert_eq!(account_info.lamports, rent.minimum_balance(space));
 }
 
@@ -106,7 +109,7 @@ async fn fail_on_invalid_mint() {
         &mint_account.pubkey(),
         rent.minimum_balance(space),
         space as u64,
-        &spl_token_2022::id(),
+        &spl_token_2022_interface::id(),
     )];
     let tx = Transaction::new_signed_with_payer(
         &instructions,
@@ -125,10 +128,10 @@ async fn fail_on_invalid_mint() {
             &account.pubkey(),
             rent.minimum_balance(space),
             space as u64,
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
         ),
         instruction::initialize_account3(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &account.pubkey(),
             &mint_account.pubkey(),
             &account_owner_pubkey,
@@ -173,10 +176,10 @@ async fn single_extension() {
             &mint_account.pubkey(),
             rent.minimum_balance(space),
             space as u64,
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
         ),
         transfer_fee::instruction::initialize_transfer_fee_config(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             None,
             None,
@@ -185,7 +188,7 @@ async fn single_extension() {
         )
         .unwrap(),
         instruction::initialize_mint(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             &mint_authority_pubkey,
             None,
@@ -212,10 +215,10 @@ async fn single_extension() {
             &account.pubkey(),
             rent.minimum_balance(space),
             space as u64,
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
         ),
         instruction::initialize_account3(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &account.pubkey(),
             &mint_account.pubkey(),
             &account_owner_pubkey,
@@ -240,7 +243,7 @@ async fn single_extension() {
         ExtensionType::try_calculate_account_len::<Account>(&[ExtensionType::TransferFeeAmount])
             .unwrap(),
     );
-    assert_eq!(account_info.owner, spl_token_2022::id());
+    assert_eq!(account_info.owner, spl_token_2022_interface::id());
     assert_eq!(account_info.lamports, rent.minimum_balance(space));
     let state = StateWithExtensions::<Account>::unpack(&account_info.data).unwrap();
     assert_eq!(state.base.mint, mint_account.pubkey());

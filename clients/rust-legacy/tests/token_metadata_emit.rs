@@ -1,12 +1,11 @@
 mod program_test;
 use {
     program_test::TestContext,
-    solana_program_test::{processor, tokio, ProgramTest},
+    solana_program_test::{tokio, ProgramTest},
     solana_sdk::{
         borsh1::try_from_slice_unchecked, program::MAX_RETURN_DATA, pubkey::Pubkey,
         signature::Signer, signer::keypair::Keypair, transaction::Transaction,
     },
-    spl_token_2022::processor::Processor,
     spl_token_client::token::ExtensionInitializationParams,
     spl_token_metadata_interface::{instruction::emit, state::TokenMetadata},
     std::{convert::TryInto, sync::Arc},
@@ -15,11 +14,7 @@ use {
 
 fn setup_program_test() -> ProgramTest {
     let mut program_test = ProgramTest::default();
-    program_test.add_program(
-        "spl_token_2022",
-        spl_token_2022::id(),
-        processor!(Processor::process),
-    );
+    program_test.add_program("spl_token_2022", spl_token_2022_interface::id(), None);
     program_test
 }
 
@@ -56,7 +51,7 @@ async fn setup(mint: Keypair, authority: &Pubkey) -> TestContext {
 #[test_case(None, None ; "full data")]
 #[tokio::test]
 async fn success(start: Option<u64>, end: Option<u64>) {
-    let program_id = spl_token_2022::id();
+    let program_id = spl_token_2022_interface::id();
     let authority = Keypair::new();
     let mint_keypair = Keypair::new();
     let mut test_context = setup(mint_keypair, &authority.pubkey()).await;

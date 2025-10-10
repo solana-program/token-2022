@@ -12,7 +12,7 @@ use {
         transaction::{Transaction, TransactionError},
     },
     solana_system_interface::instruction as system_instruction,
-    spl_token_2022::{
+    spl_token_2022_interface::{
         error::TokenError,
         extension::{
             confidential_transfer, confidential_transfer_fee,
@@ -64,16 +64,16 @@ async fn fail_extension_no_space() {
             &mint_account.pubkey(),
             rent.minimum_balance(space),
             space as u64,
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
         ),
         instruction::initialize_mint_close_authority(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             Some(&mint_authority_pubkey),
         )
         .unwrap(),
         instruction::initialize_mint(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             &mint_authority_pubkey,
             None,
@@ -117,10 +117,10 @@ async fn fail_extension_after_mint_init() {
             &mint_account.pubkey(),
             rent.minimum_balance(space),
             space as u64,
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
         ),
         instruction::initialize_mint(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             &mint_authority_pubkey,
             None,
@@ -128,7 +128,7 @@ async fn fail_extension_after_mint_init() {
         )
         .unwrap(),
         instruction::initialize_mint_close_authority(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             Some(&mint_authority_pubkey),
         )
@@ -203,10 +203,10 @@ async fn fail_init_overallocated_mint() {
             &mint_account.pubkey(),
             rent.minimum_balance(space),
             space as u64,
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
         ),
         instruction::initialize_mint(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             &mint_authority_pubkey,
             None,
@@ -252,10 +252,10 @@ async fn fail_account_init_after_mint_extension() {
             &mint_account.pubkey(),
             rent.minimum_balance(mint_space),
             mint_space as u64,
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
         ),
         instruction::initialize_mint(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             &mint_authority_pubkey,
             None,
@@ -267,16 +267,16 @@ async fn fail_account_init_after_mint_extension() {
             &token_account.pubkey(),
             rent.minimum_balance(account_space),
             account_space as u64,
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
         ),
         instruction::initialize_mint_close_authority(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &token_account.pubkey(),
             Some(&mint_authority_pubkey),
         )
         .unwrap(),
         instruction::initialize_account(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &token_account.pubkey(),
             &mint_account.pubkey(),
             &mint_authority_pubkey,
@@ -320,10 +320,10 @@ async fn fail_account_init_after_mint_init() {
             &mint_account.pubkey(),
             rent.minimum_balance(mint_space),
             mint_space as u64,
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
         ),
         instruction::initialize_mint(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             &mint_authority_pubkey,
             None,
@@ -331,7 +331,7 @@ async fn fail_account_init_after_mint_init() {
         )
         .unwrap(),
         instruction::initialize_account(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             &mint_account.pubkey(),
             &mint_authority_pubkey,
@@ -374,16 +374,16 @@ async fn fail_account_init_after_mint_init_with_extension() {
             &mint_account.pubkey(),
             rent.minimum_balance(mint_space),
             mint_space as u64,
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
         ),
         instruction::initialize_mint_close_authority(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             Some(&mint_authority_pubkey),
         )
         .unwrap(),
         instruction::initialize_mint(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             &mint_authority_pubkey,
             None,
@@ -391,7 +391,7 @@ async fn fail_account_init_after_mint_init_with_extension() {
         )
         .unwrap(),
         instruction::initialize_account(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             &mint_account.pubkey(),
             &mint_authority_pubkey,
@@ -434,10 +434,10 @@ async fn fail_fee_init_after_mint_init() {
             &mint_account.pubkey(),
             rent.minimum_balance(space),
             space as u64,
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
         ),
         instruction::initialize_mint(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             &mint_authority_pubkey,
             None,
@@ -445,7 +445,7 @@ async fn fail_fee_init_after_mint_init() {
         )
         .unwrap(),
         transfer_fee::instruction::initialize_transfer_fee_config(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             Some(&Pubkey::new_unique()),
             Some(&Pubkey::new_unique()),
@@ -497,7 +497,7 @@ async fn fail_invalid_extensions_combination() {
 
     let transfer_fee_config_init_instruction =
         transfer_fee::instruction::initialize_transfer_fee_config(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             Some(&Pubkey::new_unique()),
             Some(&Pubkey::new_unique()),
@@ -508,7 +508,7 @@ async fn fail_invalid_extensions_combination() {
 
     let confidential_transfer_mint_init_instruction =
         confidential_transfer::instruction::initialize_mint(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             Some(Pubkey::new_unique()),
             true,
@@ -518,7 +518,7 @@ async fn fail_invalid_extensions_combination() {
 
     let confidential_transfer_fee_config_init_instruction =
         confidential_transfer_fee::instruction::initialize_confidential_transfer_fee_config(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             Some(Pubkey::new_unique()),
             &PodElGamalPubkey::default(),
@@ -526,7 +526,7 @@ async fn fail_invalid_extensions_combination() {
         .unwrap();
 
     let initialize_mint_instruction = instruction::initialize_mint(
-        &spl_token_2022::id(),
+        &spl_token_2022_interface::id(),
         &mint_account.pubkey(),
         &mint_authority_pubkey,
         None,
@@ -546,7 +546,7 @@ async fn fail_invalid_extensions_combination() {
         &mint_account.pubkey(),
         rent.minimum_balance(mint_space),
         mint_space as u64,
-        &spl_token_2022::id(),
+        &spl_token_2022_interface::id(),
     );
 
     let instructions = vec![
@@ -588,7 +588,7 @@ async fn fail_invalid_extensions_combination() {
         &mint_account.pubkey(),
         rent.minimum_balance(mint_space),
         mint_space as u64,
-        &spl_token_2022::id(),
+        &spl_token_2022_interface::id(),
     );
 
     let instructions = vec![
@@ -631,7 +631,7 @@ async fn fail_invalid_extensions_combination() {
         &mint_account.pubkey(),
         rent.minimum_balance(mint_space),
         mint_space as u64,
-        &spl_token_2022::id(),
+        &spl_token_2022_interface::id(),
     );
 
     let instructions = vec![

@@ -6,7 +6,7 @@ use {
         instruction::InstructionError, pubkey::Pubkey, signature::Signer, signer::keypair::Keypair,
         transaction::TransactionError, transport::TransportError,
     },
-    spl_token_2022::error::TokenError,
+    spl_token_2022_interface::error::TokenError,
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
 };
 

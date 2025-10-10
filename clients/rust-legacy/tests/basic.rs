@@ -7,7 +7,7 @@ use {
         program_option::COption,
         signer::{keypair::Keypair, Signer},
     },
-    spl_token_2022::{instruction, state},
+    spl_token_2022_interface::{instruction, state},
     spl_token_client::{
         client::{ProgramBanksClient, ProgramBanksClientProcessTransaction, ProgramClient},
         token::Token,
@@ -46,7 +46,7 @@ impl TestContext {
 
         let token = Token::new(
             Arc::clone(&client),
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &mint_account.pubkey(),
             Some(decimals),
             Arc::new(keypair_clone(&payer)),

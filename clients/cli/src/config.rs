@@ -16,7 +16,7 @@ use {
         pubkey::Pubkey, signature::Signer, signer::null_signer::NullSigner,
     },
     spl_associated_token_account_client::address::get_associated_token_address_with_program_id,
-    spl_token_2022::{
+    spl_token_2022_interface::{
         extension::StateWithExtensionsOwned,
         state::{Account, Mint},
     },
@@ -282,7 +282,7 @@ impl<'a> Config<'a> {
 
         let default_program_id = spl_token::id();
         let (program_id, restrict_to_program_id) = if matches.is_present("program_2022") {
-            (spl_token_2022::id(), true)
+            (spl_token_2022_interface::id(), true)
         } else if let Some(program_id) = pubkey_from_matches("program_id") {
             (program_id, true)
         } else if !sign_only {

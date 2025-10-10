@@ -15,7 +15,7 @@ use {
     solana_system_interface::{instruction as system_instruction, program as system_program},
     solana_test_validator::{TestValidator, TestValidatorGenesis, UpgradeableProgramInfo},
     spl_associated_token_account_client::address::get_associated_token_address_with_program_id,
-    spl_token_2022::{
+    spl_token_2022_interface::{
         extension::{
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
             confidential_transfer_fee::ConfidentialTransferFeeConfig,
@@ -165,7 +165,7 @@ async fn new_validator_for_test() -> (TestValidator, Keypair) {
     solana_logger::setup();
     let mut test_validator_genesis = TestValidatorGenesis::default();
     test_validator_genesis.add_upgradeable_programs_with_path(&[UpgradeableProgramInfo {
-        program_id: spl_token_2022::id(),
+        program_id: spl_token_2022_interface::id(),
         loader: bpf_loader_upgradeable::id(),
         program_path: PathBuf::from("../../target/deploy/spl_token_2022.so"),
         upgrade_authority: Pubkey::new_unique(),
@@ -264,10 +264,10 @@ async fn create_nonce(config: &Config<'_>, authority: &Keypair) -> Pubkey {
 }
 
 async fn do_create_native_mint(rpc_client: &RpcClient, payer: &Keypair) {
-    let native_mint = spl_token_2022::native_mint::id();
+    let native_mint = spl_token_2022_interface::native_mint::id();
     if rpc_client.get_account(&native_mint).await.is_err() {
         let transaction = Transaction::new_signed_with_payer(
-            &[create_native_mint(&spl_token_2022::id(), &payer.pubkey()).unwrap()],
+            &[create_native_mint(&spl_token_2022_interface::id(), &payer.pubkey()).unwrap()],
             Some(&payer.pubkey()),
             &[payer],
             rpc_client.get_latest_blockhash().await.unwrap(),
@@ -420,7 +420,7 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
-    let default_decimals = format!("{}", spl_token_2022::native_mint::DECIMALS);
+    let default_decimals = format!("{}", spl_token_2022_interface::native_mint::DECIMALS);
     let minimum_signers_help = minimum_signers_help_string();
     let multisig_member_help = multisig_member_help_string();
 
@@ -439,7 +439,7 @@ where
 }
 
 async fn exec_test_cmd<T: AsRef<OsStr>>(config: &Config<'_>, args: &[T]) -> CommandResult {
-    let default_decimals = format!("{}", spl_token_2022::native_mint::DECIMALS);
+    let default_decimals = format!("{}", spl_token_2022_interface::native_mint::DECIMALS);
     let minimum_signers_help = minimum_signers_help_string();
     let multisig_member_help = multisig_member_help_string();
 
@@ -487,7 +487,8 @@ async fn create_token_default(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn create_token_2022(test_validator: &TestValidator, payer: &Keypair) {
-    let config = test_config_with_default_signer(test_validator, payer, &spl_token_2022::id());
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
     let mut wallet_manager = None;
     let mut bulk_signers: Vec<Arc<dyn Signer>> = Vec::new();
     let mut multisigner_ids = Vec::new();
@@ -498,7 +499,7 @@ async fn create_token_2022(test_validator: &TestValidator, payer: &Keypair) {
         "--program-2022",
     ];
 
-    let default_decimals = format!("{}", spl_token_2022::native_mint::DECIMALS);
+    let default_decimals = format!("{}", spl_token_2022_interface::native_mint::DECIMALS);
     let minimum_signers_help = minimum_signers_help_string();
     let multisig_member_help = multisig_member_help_string();
 
@@ -521,11 +522,12 @@ async fn create_token_2022(test_validator: &TestValidator, payer: &Keypair) {
     )
     .await;
 
-    assert_eq!(config.program_id, spl_token_2022::ID);
+    assert_eq!(config.program_id, spl_token_2022_interface::ID);
 }
 
 async fn create_token_interest_bearing(test_validator: &TestValidator, payer: &Keypair) {
-    let config = test_config_with_default_signer(test_validator, payer, &spl_token_2022::id());
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
     let rate_bps: i16 = 100;
     let result = process_test_command(
         &config,
@@ -545,7 +547,7 @@ async fn create_token_interest_bearing(test_validator: &TestValidator, payer: &K
     let extension = mint_account
         .get_extension::<InterestBearingConfig>()
         .unwrap();
-    assert_eq!(account.owner, spl_token_2022::id());
+    assert_eq!(account.owner, spl_token_2022_interface::id());
     assert_eq!(i16::from(extension.current_rate), rate_bps);
     assert_eq!(
         Option::<Pubkey>::from(extension.rate_authority),
@@ -554,7 +556,8 @@ async fn create_token_interest_bearing(test_validator: &TestValidator, payer: &K
 }
 
 async fn set_interest_rate(test_validator: &TestValidator, payer: &Keypair) {
-    let config = test_config_with_default_signer(test_validator, payer, &spl_token_2022::id());
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
     let initial_rate: i16 = 100;
     let new_rate: i16 = 300;
     let token = create_interest_bearing_token(&config, payer, initial_rate).await;
@@ -563,7 +566,7 @@ async fn set_interest_rate(test_validator: &TestValidator, payer: &Keypair) {
     let extension = mint_account
         .get_extension::<InterestBearingConfig>()
         .unwrap();
-    assert_eq!(account.owner, spl_token_2022::id());
+    assert_eq!(account.owner, spl_token_2022_interface::id());
     assert_eq!(i16::from(extension.current_rate), initial_rate);
 
     let result = process_test_command(
@@ -1721,7 +1724,8 @@ async fn burn_with_account_delegate(test_validator: &TestValidator, payer: &Keyp
 }
 
 async fn burn_with_permanent_delegate(test_validator: &TestValidator, payer: &Keypair) {
-    let config = test_config_with_default_signer(test_validator, payer, &spl_token_2022::id());
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     let token = Keypair::new();
     let token_keypair_file = NamedTempFile::new().unwrap();
@@ -1788,7 +1792,8 @@ async fn burn_with_permanent_delegate(test_validator: &TestValidator, payer: &Ke
 }
 
 async fn transfer_with_permanent_delegate(test_validator: &TestValidator, payer: &Keypair) {
-    let config = test_config_with_default_signer(test_validator, payer, &spl_token_2022::id());
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     let token = Keypair::new();
     let token_keypair_file = NamedTempFile::new().unwrap();
@@ -1878,7 +1883,8 @@ async fn transfer_with_permanent_delegate(test_validator: &TestValidator, payer:
 }
 
 async fn close_mint(test_validator: &TestValidator, payer: &Keypair) {
-    let config = test_config_with_default_signer(test_validator, payer, &spl_token_2022::id());
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     let token = Keypair::new();
     let token_pubkey = token.pubkey();
@@ -1918,7 +1924,7 @@ async fn close_mint(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn required_transfer_memos(test_validator: &TestValidator, payer: &Keypair) {
-    let program_id = spl_token_2022::id();
+    let program_id = spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, &program_id);
     let token = create_token(&config, payer).await;
     let destination_account = create_auxiliary_account(&config, payer, token).await;
@@ -2026,7 +2032,7 @@ async fn required_transfer_memos(test_validator: &TestValidator, payer: &Keypair
 }
 
 async fn cpi_guard(test_validator: &TestValidator, payer: &Keypair) {
-    let program_id = spl_token_2022::id();
+    let program_id = spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, &program_id);
     let token = create_token(&config, payer).await;
     let token_account = create_associated_account(&config, payer, &token, &payer.pubkey()).await;
@@ -2083,7 +2089,7 @@ async fn cpi_guard(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn immutable_accounts(test_validator: &TestValidator, payer: &Keypair) {
-    let program_id = spl_token_2022::id();
+    let program_id = spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, &program_id);
     let token = create_token(&config, payer).await;
     let new_owner = Keypair::new().pubkey();
@@ -2181,7 +2187,8 @@ async fn immutable_accounts(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn non_transferable(test_validator: &TestValidator, payer: &Keypair) {
-    let config = test_config_with_default_signer(test_validator, payer, &spl_token_2022::id());
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     let token = Keypair::new();
     let token_keypair_file = NamedTempFile::new().unwrap();
@@ -2230,7 +2237,7 @@ async fn non_transferable(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn default_account_state(test_validator: &TestValidator, payer: &Keypair) {
-    let program_id = spl_token_2022::id();
+    let program_id = spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, &program_id);
 
     let token = Keypair::new();
@@ -2290,7 +2297,8 @@ async fn default_account_state(test_validator: &TestValidator, payer: &Keypair) 
 }
 
 async fn transfer_fee(test_validator: &TestValidator, payer: &Keypair) {
-    let config = test_config_with_default_signer(test_validator, payer, &spl_token_2022::id());
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     let transfer_fee_basis_points = 100;
     let maximum_fee = 10_000_000_000;
@@ -2551,7 +2559,8 @@ async fn transfer_fee(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn transfer_fee_basis_point(test_validator: &TestValidator, payer: &Keypair) {
-    let config = test_config_with_default_signer(test_validator, payer, &spl_token_2022::id());
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     let transfer_fee_basis_points = 100;
     let maximum_fee = 1.2;
@@ -2599,9 +2608,10 @@ async fn transfer_fee_basis_point(test_validator: &TestValidator, payer: &Keypai
 }
 
 async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) {
-    use spl_token_2022::solana_zk_sdk::encryption::elgamal::ElGamalKeypair;
+    use spl_token_2022_interface::solana_zk_sdk::encryption::elgamal::ElGamalKeypair;
 
-    let config = test_config_with_default_signer(test_validator, payer, &spl_token_2022::id());
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     // create token with confidential transfers enabled
     let auto_approve = false;
@@ -2901,7 +2911,8 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
 }
 
 async fn confidential_transfer_with_fee(test_validator: &TestValidator, payer: &Keypair) {
-    let config = test_config_with_default_signer(test_validator, payer, &spl_token_2022::id());
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     // create token with confidential transfers enabled
     let auto_approve = true;
@@ -3308,7 +3319,7 @@ async fn withdraw_excess_lamports_from_multisig(test_validator: &TestValidator, 
     let owner_keypair_file = NamedTempFile::new().unwrap();
     write_keypair_file(payer, &owner_keypair_file).unwrap();
 
-    let program_id = &spl_token_2022::id();
+    let program_id = &spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, program_id);
 
     let multisig = Arc::new(Keypair::new());
@@ -3408,7 +3419,7 @@ async fn withdraw_excess_lamports_from_multisig(test_validator: &TestValidator, 
 }
 
 async fn withdraw_excess_lamports_from_mint(test_validator: &TestValidator, payer: &Keypair) {
-    let program_id = &spl_token_2022::id();
+    let program_id = &spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, program_id);
     let owner_keypair_file = NamedTempFile::new().unwrap();
     write_keypair_file(payer, &owner_keypair_file).unwrap();
@@ -3477,7 +3488,7 @@ async fn withdraw_excess_lamports_from_mint(test_validator: &TestValidator, paye
 }
 
 async fn withdraw_excess_lamports_from_account(test_validator: &TestValidator, payer: &Keypair) {
-    let program_id = &spl_token_2022::id();
+    let program_id = &spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, program_id);
     let owner_keypair_file = NamedTempFile::new().unwrap();
     write_keypair_file(payer, &owner_keypair_file).unwrap();
@@ -3549,7 +3560,7 @@ async fn withdraw_excess_lamports_from_account(test_validator: &TestValidator, p
 }
 
 async fn metadata_pointer(test_validator: &TestValidator, payer: &Keypair) {
-    let program_id = spl_token_2022::id();
+    let program_id = spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, &program_id);
     let metadata_address = Pubkey::new_unique();
 
@@ -3630,7 +3641,7 @@ async fn metadata_pointer(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn group_pointer(test_validator: &TestValidator, payer: &Keypair) {
-    let program_id = spl_token_2022::id();
+    let program_id = spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, &program_id);
     let group_address = Pubkey::new_unique();
 
@@ -3713,7 +3724,7 @@ async fn group_pointer(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn group_member_pointer(test_validator: &TestValidator, payer: &Keypair) {
-    let program_id = spl_token_2022::id();
+    let program_id = spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, &program_id);
     let member_address = Pubkey::new_unique();
 
@@ -3798,7 +3809,7 @@ async fn group_member_pointer(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn transfer_hook(test_validator: &TestValidator, payer: &Keypair) {
-    let program_id = spl_token_2022::id();
+    let program_id = spl_token_2022_interface::id();
     let mut config = test_config_with_default_signer(test_validator, payer, &program_id);
     let transfer_hook_program_id = Pubkey::new_unique();
 
@@ -3914,7 +3925,7 @@ async fn transfer_hook(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn transfer_hook_with_transfer_fee(test_validator: &TestValidator, payer: &Keypair) {
-    let program_id = spl_token_2022::id();
+    let program_id = spl_token_2022_interface::id();
     let mut config = test_config_with_default_signer(test_validator, payer, &program_id);
     let transfer_hook_program_id = Pubkey::new_unique();
 
@@ -4015,7 +4026,7 @@ async fn transfer_hook_with_transfer_fee(test_validator: &TestValidator, payer: 
 }
 
 async fn metadata(test_validator: &TestValidator, payer: &Keypair) {
-    let program_id = spl_token_2022::id();
+    let program_id = spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, &program_id);
     let name = "this";
     let symbol = "is";
@@ -4183,7 +4194,7 @@ async fn metadata(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn group(test_validator: &TestValidator, payer: &Keypair) {
-    let program_id = spl_token_2022::id();
+    let program_id = spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, &program_id);
     let max_size = 10;
 
@@ -4335,7 +4346,8 @@ async fn compute_budget(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn scaled_ui_amount(test_validator: &TestValidator, payer: &Keypair) {
-    let config = test_config_with_default_signer(test_validator, payer, &spl_token_2022::id());
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     // create token with scaled ui amount extension
     let token = Keypair::new();
@@ -4413,7 +4425,8 @@ async fn scaled_ui_amount(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn pause(test_validator: &TestValidator, payer: &Keypair) {
-    let config = test_config_with_default_signer(test_validator, payer, &spl_token_2022::id());
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     // create token with pausable extension
     let token = Keypair::new();

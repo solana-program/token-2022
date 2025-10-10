@@ -6,7 +6,7 @@ use {
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let default_decimals = format!("{}", spl_token_2022::native_mint::DECIMALS);
+    let default_decimals = format!("{}", spl_token_2022_interface::native_mint::DECIMALS);
     let minimum_signers_help = minimum_signers_help_string();
     let multisig_member_help = multisig_member_help_string();
     let app_matches = app(

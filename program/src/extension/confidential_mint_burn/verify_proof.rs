@@ -1,4 +1,4 @@
-use crate::error::TokenError;
+use spl_token_2022_interface::error::TokenError;
 #[cfg(feature = "zk-ops")]
 use {
     solana_account_info::{next_account_info, AccountInfo},

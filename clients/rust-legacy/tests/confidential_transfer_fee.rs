@@ -13,15 +13,15 @@ use {
     },
     solana_system_interface::instruction as system_instruction,
     spl_elgamal_registry::state::ELGAMAL_REGISTRY_ACCOUNT_LEN,
-    spl_token_2022::{
+    spl_token_2022::extension::confidential_transfer_fee::account_info::WithheldTokensInfo,
+    spl_token_2022_interface::{
         error::TokenError,
         extension::{
             confidential_transfer::{
                 self, ConfidentialTransferAccount, ConfidentialTransferMint, DecryptableBalance,
             },
             confidential_transfer_fee::{
-                account_info::WithheldTokensInfo, ConfidentialTransferFeeAmount,
-                ConfidentialTransferFeeConfig,
+                ConfidentialTransferFeeAmount, ConfidentialTransferFeeConfig,
             },
             transfer_fee::{TransferFee, TransferFeeAmount},
             BaseStateWithExtensions, ExtensionType,

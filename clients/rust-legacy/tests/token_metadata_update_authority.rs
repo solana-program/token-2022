@@ -1,7 +1,7 @@
 mod program_test;
 use {
     program_test::TestContext,
-    solana_program_test::{processor, tokio, ProgramTest},
+    solana_program_test::{tokio, ProgramTest},
     solana_sdk::{
         instruction::InstructionError,
         pubkey::Pubkey,
@@ -11,7 +11,7 @@ use {
         transport::TransportError,
     },
     spl_pod::optional_keys::OptionalNonZeroPubkey,
-    spl_token_2022::{extension::BaseStateWithExtensions, processor::Processor},
+    spl_token_2022_interface::extension::BaseStateWithExtensions,
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
     spl_token_metadata_interface::{
         error::TokenMetadataError, instruction::update_authority, state::TokenMetadata,
@@ -21,11 +21,7 @@ use {
 
 fn setup_program_test() -> ProgramTest {
     let mut program_test = ProgramTest::default();
-    program_test.add_program(
-        "spl_token_2022",
-        spl_token_2022::id(),
-        processor!(Processor::process),
-    );
+    program_test.add_program("spl_token_2022", spl_token_2022_interface::id(), None);
     program_test
 }
 
@@ -147,7 +143,7 @@ async fn success_update() {
 
 #[tokio::test]
 async fn fail_authority_checks() {
-    let program_id = spl_token_2022::id();
+    let program_id = spl_token_2022_interface::id();
     let authority = Keypair::new();
     let mint_keypair = Keypair::new();
     let mint_pubkey = mint_keypair.pubkey();

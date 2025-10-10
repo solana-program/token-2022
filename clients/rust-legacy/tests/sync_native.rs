@@ -9,7 +9,7 @@ use {
         pubkey::Pubkey, signature::Signer, signer::keypair::Keypair, transaction::Transaction,
     },
     solana_system_interface::instruction as system_instruction,
-    spl_token_2022::extension::ExtensionType,
+    spl_token_2022_interface::extension::ExtensionType,
     spl_token_client::{client::ProgramBanksClientProcessTransaction, token::Token},
     std::sync::Arc,
 };

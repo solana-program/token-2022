@@ -44,6 +44,10 @@ pub mod transfer_hook;
 /// Confidential mint-burn extension
 pub mod confidential_mint_burn;
 
+#[deprecated(
+    since = "9.1.0",
+    note = "Use spl_token_2022_interface instead and remove spl_token_2022 as a dependency"
+)]
 pub use spl_token_2022_interface::extension::{
     alloc_and_serialize, alloc_and_serialize_variable_len_extension, set_account_type, AccountType,
     BaseState, BaseStateWithExtensions, BaseStateWithExtensionsMut, Extension, ExtensionType,

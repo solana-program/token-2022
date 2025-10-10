@@ -2,13 +2,13 @@
 
 pub use spl_transfer_hook_interface::offchain::{AccountDataResult, AccountFetchError};
 use {
-    crate::{
-        extension::{transfer_fee, transfer_hook, StateWithExtensions},
-        state::Mint,
-    },
     solana_instruction::Instruction,
     solana_program_error::ProgramError,
     solana_pubkey::Pubkey,
+    spl_token_2022_interface::{
+        extension::{transfer_fee, transfer_hook, StateWithExtensions},
+        state::Mint,
+    },
     spl_transfer_hook_interface::offchain::add_extra_account_metas_for_execute,
     std::future::Future,
 };

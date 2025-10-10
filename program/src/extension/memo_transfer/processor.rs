@@ -1,5 +1,10 @@
 use {
-    crate::{
+    crate::processor::Processor,
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_msg::msg,
+    solana_program_error::ProgramResult,
+    solana_pubkey::Pubkey,
+    spl_token_2022_interface::{
         check_program_account,
         extension::{
             memo_transfer::{instruction::RequiredMemoTransfersInstruction, MemoTransfer},
@@ -7,12 +12,7 @@ use {
         },
         instruction::decode_instruction_type,
         pod::PodAccount,
-        processor::Processor,
     },
-    solana_account_info::{next_account_info, AccountInfo},
-    solana_msg::msg,
-    solana_program_error::ProgramResult,
-    solana_pubkey::Pubkey,
 };
 
 /// Toggle the `RequiredMemoTransfers` extension, initializing the extension if

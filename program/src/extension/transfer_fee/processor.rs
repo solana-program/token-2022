@@ -1,5 +1,13 @@
 use {
-    crate::{
+    crate::processor::{Processor, TransferInstruction},
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_clock::Clock,
+    solana_msg::msg,
+    solana_program_error::ProgramResult,
+    solana_program_option::COption,
+    solana_pubkey::Pubkey,
+    solana_sysvar::Sysvar,
+    spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
         extension::{
@@ -11,15 +19,7 @@ use {
             PodStateWithExtensionsMut,
         },
         pod::{PodAccount, PodMint},
-        processor::{Processor, TransferInstruction},
     },
-    solana_account_info::{next_account_info, AccountInfo},
-    solana_clock::Clock,
-    solana_msg::msg,
-    solana_program_error::ProgramResult,
-    solana_program_option::COption,
-    solana_pubkey::Pubkey,
-    solana_sysvar::Sysvar,
     std::convert::TryInto,
 };
 

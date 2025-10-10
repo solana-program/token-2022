@@ -1,11 +1,4 @@
 use {
-    super::ConfidentialMintBurn,
-    crate::{
-        error::TokenError,
-        extension::confidential_transfer::{
-            ConfidentialTransferAccount, DecryptableBalance, EncryptedBalance,
-        },
-    },
     bytemuck::{Pod, Zeroable},
     solana_zk_sdk::{
         encryption::{
@@ -18,6 +11,15 @@ use {
             },
         },
         zk_elgamal_proof_program::proof_data::CiphertextCiphertextEqualityProofData,
+    },
+    spl_token_2022_interface::{
+        error::TokenError,
+        extension::{
+            confidential_mint_burn::ConfidentialMintBurn,
+            confidential_transfer::{
+                ConfidentialTransferAccount, DecryptableBalance, EncryptedBalance,
+            },
+        },
     },
     spl_token_confidential_transfer_proof_generation::{
         burn::{burn_split_proof_data, BurnProofData},

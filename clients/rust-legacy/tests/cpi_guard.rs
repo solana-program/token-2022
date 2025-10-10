@@ -2,7 +2,6 @@ mod program_test;
 use {
     program_test::{keypair_clone, TestContext, TokenContext},
     solana_program_test::{
-        processor,
         tokio::{self, sync::Mutex},
         ProgramTest,
     },
@@ -11,14 +10,13 @@ use {
         transaction::TransactionError, transport::TransportError,
     },
     spl_instruction_padding::instruction::wrap_instruction,
-    spl_token_2022::{
+    spl_token_2022_interface::{
         error::TokenError,
         extension::{
             cpi_guard::{self, CpiGuard},
             BaseStateWithExtensions, ExtensionType,
         },
         instruction::{self, AuthorityType},
-        processor::Processor as SplToken2022Processor,
     },
     spl_token_client::{
         client::ProgramBanksClientProcessTransaction,
@@ -37,16 +35,12 @@ async fn make_context() -> TestContext {
                 In a non-BPF context, `get_stack_height()` always returns 0, and all tests WILL fail.");
     }
 
-    let mut program_test = ProgramTest::new(
-        "spl_token_2022",
-        spl_token_2022::id(),
-        processor!(SplToken2022Processor::process),
-    );
+    let mut program_test = ProgramTest::new("spl_token_2022", spl_token_2022_interface::id(), None);
 
     program_test.add_program(
         "spl_instruction_padding",
         spl_instruction_padding::id(),
-        processor!(spl_instruction_padding::processor::process),
+        None,
     );
 
     let program_context = program_test.start_with_context().await;
@@ -109,7 +103,7 @@ async fn test_cpi_guard_enable_disable() {
             &[wrap_instruction(
                 spl_instruction_padding::id(),
                 cpi_guard::instruction::disable_cpi_guard(
-                    &spl_token_2022::id(),
+                    &spl_token_2022_interface::id(),
                     &alice.pubkey(),
                     &alice.pubkey(),
                     &[],
@@ -147,7 +141,7 @@ async fn test_cpi_guard_enable_disable() {
             &[wrap_instruction(
                 spl_instruction_padding::id(),
                 cpi_guard::instruction::enable_cpi_guard(
-                    &spl_token_2022::id(),
+                    &spl_token_2022_interface::id(),
                     &alice.pubkey(),
                     &alice.pubkey(),
                     &[],
@@ -206,7 +200,7 @@ async fn test_cpi_guard_transfer() {
             spl_instruction_padding::id(),
             if do_checked {
                 instruction::transfer_checked(
-                    &spl_token_2022::id(),
+                    &spl_token_2022_interface::id(),
                     &alice.pubkey(),
                     token.get_address(),
                     &bob.pubkey(),
@@ -219,7 +213,7 @@ async fn test_cpi_guard_transfer() {
             } else {
                 #[allow(deprecated)]
                 instruction::transfer(
-                    &spl_token_2022::id(),
+                    &spl_token_2022_interface::id(),
                     &alice.pubkey(),
                     &bob.pubkey(),
                     &authority,
@@ -354,7 +348,7 @@ async fn test_cpi_guard_burn() {
             spl_instruction_padding::id(),
             if do_checked {
                 instruction::burn_checked(
-                    &spl_token_2022::id(),
+                    &spl_token_2022_interface::id(),
                     &alice.pubkey(),
                     token.get_address(),
                     &authority,
@@ -365,7 +359,7 @@ async fn test_cpi_guard_burn() {
                 .unwrap()
             } else {
                 instruction::burn(
-                    &spl_token_2022::id(),
+                    &spl_token_2022_interface::id(),
                     &alice.pubkey(),
                     token.get_address(),
                     &authority,
@@ -493,7 +487,7 @@ async fn test_cpi_guard_approve() {
             spl_instruction_padding::id(),
             if do_checked {
                 instruction::approve_checked(
-                    &spl_token_2022::id(),
+                    &spl_token_2022_interface::id(),
                     &alice.pubkey(),
                     token.get_address(),
                     &bob.pubkey(),
@@ -505,7 +499,7 @@ async fn test_cpi_guard_approve() {
                 .unwrap()
             } else {
                 instruction::approve(
-                    &spl_token_2022::id(),
+                    &spl_token_2022_interface::id(),
                     &alice.pubkey(),
                     &bob.pubkey(),
                     &alice.pubkey(),
@@ -619,7 +613,7 @@ async fn test_cpi_guard_close_account() {
         wrap_instruction(
             spl_instruction_padding::id(),
             instruction::close_account(
-                &spl_token_2022::id(),
+                &spl_token_2022_interface::id(),
                 &account,
                 &destination,
                 &authority,
@@ -764,7 +758,7 @@ async fn test_cpi_guard_set_authority() {
             SetAuthTest::RemoveCloseAuth => (keypair_clone(&bob), None),
         };
         let token_instruction = instruction::set_authority(
-            &spl_token_2022::id(),
+            &spl_token_2022_interface::id(),
             &account.pubkey(),
             new_authority.as_ref(),
             if action == SetAuthTest::ChangeOwner {
