@@ -42,14 +42,14 @@
   },
   "homepage": "https://github.com/solana-program/token-2022#readme",
   "peerDependencies": {
-    "@solana/kit": "^3.0",
-    "@solana/sysvars": "^3.0"
+    "@solana/kit": "^4.0",
+    "@solana/sysvars": "^4.0"
   },
   "devDependencies": {
     "@ava/typescript": "^6.0.0",
     "@solana-program/system": "^0.8.0",
     "@solana/eslint-config-solana": "^3.0.3",
-    "@solana/kit": "^3.0",
+    "@solana/kit": "^4.0",
     "@types/node": "^24",
     "@typescript-eslint/eslint-plugin": "^7.16.1",
     "@typescript-eslint/parser": "^7.16.1",
