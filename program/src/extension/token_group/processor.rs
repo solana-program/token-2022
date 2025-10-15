@@ -1,7 +1,12 @@
 //! Token-group processor
 
 use {
-    crate::{
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_msg::msg,
+    solana_program_error::{ProgramError, ProgramResult},
+    solana_pubkey::Pubkey,
+    spl_pod::optional_keys::OptionalNonZeroPubkey,
+    spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
         extension::{
@@ -11,11 +16,6 @@ use {
         },
         pod::{PodCOption, PodMint},
     },
-    solana_account_info::{next_account_info, AccountInfo},
-    solana_msg::msg,
-    solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_group_interface::{
         error::TokenGroupError,
         instruction::{

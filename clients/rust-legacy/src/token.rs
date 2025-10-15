@@ -27,29 +27,28 @@ use {
     spl_record::state::RecordData,
     spl_token_2022::{
         extension::{
-            confidential_mint_burn::{
-                self,
-                account_info::{BurnAccountInfo, SupplyAccountInfo},
-                ConfidentialMintBurn,
+            confidential_mint_burn::account_info::{BurnAccountInfo, SupplyAccountInfo},
+            confidential_transfer::account_info::{
+                ApplyPendingBalanceAccountInfo, EmptyAccountAccountInfo, TransferAccountInfo,
+                WithdrawAccountInfo,
             },
-            confidential_transfer::{
-                self,
-                account_info::{
-                    ApplyPendingBalanceAccountInfo, EmptyAccountAccountInfo, TransferAccountInfo,
-                    WithdrawAccountInfo,
-                },
-                ConfidentialTransferAccount, DecryptableBalance,
-            },
+            confidential_transfer_fee::account_info::WithheldTokensInfo,
+        },
+        offchain,
+    },
+    spl_token_2022_interface::{
+        extension::{
+            confidential_mint_burn::{self, ConfidentialMintBurn},
+            confidential_transfer::{self, ConfidentialTransferAccount, DecryptableBalance},
             confidential_transfer_fee::{
-                self, account_info::WithheldTokensInfo, ConfidentialTransferFeeAmount,
-                ConfidentialTransferFeeConfig,
+                self, ConfidentialTransferFeeAmount, ConfidentialTransferFeeConfig,
             },
             cpi_guard, default_account_state, group_member_pointer, group_pointer,
             interest_bearing_mint, memo_transfer, metadata_pointer, pausable, scaled_ui_amount,
             transfer_fee, transfer_hook, BaseStateWithExtensions, Extension, ExtensionType,
             StateWithExtensionsOwned,
         },
-        instruction, offchain,
+        instruction,
         solana_zk_sdk::{
             encryption::{
                 auth_encryption::AeKey,

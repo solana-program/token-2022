@@ -16,13 +16,14 @@ use {
     },
     solana_system_interface::instruction as system_instruction,
     spl_elgamal_registry::state::ELGAMAL_REGISTRY_ACCOUNT_LEN,
-    spl_token_2022::{
+    spl_token_2022::extension::confidential_transfer::account_info::{
+        EmptyAccountAccountInfo, TransferAccountInfo, WithdrawAccountInfo,
+    },
+    spl_token_2022_interface::{
         error::TokenError,
         extension::{
             confidential_transfer::{
-                self,
-                account_info::{EmptyAccountAccountInfo, TransferAccountInfo, WithdrawAccountInfo},
-                ConfidentialTransferAccount, MAXIMUM_DEPOSIT_TRANSFER_AMOUNT,
+                self, ConfidentialTransferAccount, MAXIMUM_DEPOSIT_TRANSFER_AMOUNT,
             },
             BaseStateWithExtensions, ExtensionType,
         },
@@ -3281,9 +3282,9 @@ async fn test_confidential_transfer_pending_decryption_after_transfer() {
 #[cfg(test)]
 mod unit_tests {
 
-    use spl_token_2022::{
-        extension::confidential_transfer::account_info::combine_balances,
-        extension::confidential_transfer::PENDING_BALANCE_LO_BIT_LENGTH,
+    use {
+        spl_token_2022::extension::confidential_transfer::account_info::combine_balances,
+        spl_token_2022_interface::extension::confidential_transfer::PENDING_BALANCE_LO_BIT_LENGTH,
     };
 
     #[test]

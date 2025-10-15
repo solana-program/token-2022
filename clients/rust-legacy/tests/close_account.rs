@@ -7,7 +7,7 @@ use {
         signer::keypair::Keypair, transaction::TransactionError, transport::TransportError,
     },
     solana_system_interface::instruction as system_instruction,
-    spl_token_2022::{instruction, state::Account},
+    spl_token_2022_interface::{instruction, state::Account},
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
 };
 
@@ -17,7 +17,7 @@ async fn success_init_after_close_account() {
     let payer = Keypair::from_bytes(&context.context.lock().await.payer.to_bytes()).unwrap();
     context.init_token_with_mint(vec![]).await.unwrap();
     let token = context.token_context.take().unwrap().token;
-    let token_program_id = spl_token_2022::id();
+    let token_program_id = spl_token_2022_interface::id();
     let owner = Keypair::new();
     let token_account_keypair = Keypair::new();
     token
@@ -67,7 +67,7 @@ async fn fail_init_after_close_account() {
     let payer = Keypair::from_bytes(&context.context.lock().await.payer.to_bytes()).unwrap();
     context.init_token_with_mint(vec![]).await.unwrap();
     let token = context.token_context.take().unwrap().token;
-    let token_program_id = spl_token_2022::id();
+    let token_program_id = spl_token_2022_interface::id();
     let owner = Keypair::new();
     let token_account_keypair = Keypair::new();
     token
@@ -123,7 +123,7 @@ async fn fail_init_after_close_mint() {
         .await
         .unwrap();
     let token = context.token_context.take().unwrap().token;
-    let token_program_id = spl_token_2022::id();
+    let token_program_id = spl_token_2022_interface::id();
 
     let destination = Pubkey::new_unique();
     let error = token

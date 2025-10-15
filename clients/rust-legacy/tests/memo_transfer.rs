@@ -13,7 +13,7 @@ use {
         transport::TransportError,
     },
     solana_system_interface::instruction as system_instruction,
-    spl_token_2022::{
+    spl_token_2022_interface::{
         error::TokenError,
         extension::{memo_transfer::MemoTransfer, BaseStateWithExtensions, ExtensionType},
     },
@@ -99,8 +99,8 @@ async fn test_memo_transfers(
         let instructions = vec![
             memo_ix.clone(),
             system_instruction::transfer(&ctx.payer.pubkey(), &alice.pubkey(), 42),
-            spl_token_2022::instruction::transfer(
-                &spl_token_2022::id(),
+            spl_token_2022_interface::instruction::transfer(
+                &spl_token_2022_interface::id(),
                 &alice_account,
                 &bob_account,
                 &alice.pubkey(),
@@ -148,8 +148,8 @@ async fn test_memo_transfers(
     #[allow(deprecated)]
     let instructions = vec![
         memo_ix,
-        spl_token_2022::instruction::transfer(
-            &spl_token_2022::id(),
+        spl_token_2022_interface::instruction::transfer(
+            &spl_token_2022_interface::id(),
             &alice_account,
             &bob_account,
             &alice.pubkey(),

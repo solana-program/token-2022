@@ -8,7 +8,7 @@ use {
     solana_system_interface::instruction as system_instruction,
     solana_transaction::Transaction,
     solana_transaction_error::TransportError,
-    spl_token_2022::{
+    spl_token_2022_interface::{
         id, instruction,
         state::{Account, Mint},
     },

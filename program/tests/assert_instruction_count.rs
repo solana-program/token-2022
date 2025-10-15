@@ -7,9 +7,9 @@ use {
     solana_signer::Signer,
     solana_system_interface::instruction as system_instruction,
     solana_transaction::Transaction,
-    spl_token_2022::{
+    spl_token_2022::processor::Processor,
+    spl_token_2022_interface::{
         id, instruction,
-        processor::Processor,
         state::{Account, Mint},
     },
 };

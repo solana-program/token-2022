@@ -2,45 +2,18 @@
 
 use {
     crate::{
-        check_program_account,
-        error::TokenError,
         extension::{
-            confidential_mint_burn::{self, ConfidentialMintBurn},
-            confidential_transfer::{self, ConfidentialTransferAccount, ConfidentialTransferMint},
-            confidential_transfer_fee::{
-                self, ConfidentialTransferFeeAmount, ConfidentialTransferFeeConfig,
-            },
-            cpi_guard::{self, in_cpi, CpiGuard},
-            default_account_state::{self, DefaultAccountState},
-            group_member_pointer::{self, GroupMemberPointer},
-            group_pointer::{self, GroupPointer},
-            immutable_owner::ImmutableOwner,
-            interest_bearing_mint::{self, InterestBearingConfig},
-            memo_transfer::{self, check_previous_sibling_instruction_is_memo, memo_required},
-            metadata_pointer::{self, MetadataPointer},
-            mint_close_authority::MintCloseAuthority,
-            non_transferable::{NonTransferable, NonTransferableAccount},
-            pausable::{self, PausableAccount, PausableConfig},
-            permanent_delegate::{get_permanent_delegate, PermanentDelegate},
-            reallocate,
-            scaled_ui_amount::{self, ScaledUiAmountConfig},
-            token_group, token_metadata,
-            transfer_fee::{self, TransferFeeAmount, TransferFeeConfig},
-            transfer_hook::{self, TransferHook, TransferHookAccount},
-            AccountType, BaseStateWithExtensions, BaseStateWithExtensionsMut, ExtensionType,
-            PodStateWithExtensions, PodStateWithExtensionsMut,
+            confidential_mint_burn, confidential_transfer, confidential_transfer_fee,
+            cpi_guard::{self, in_cpi},
+            default_account_state, group_member_pointer, group_pointer, interest_bearing_mint,
+            memo_transfer::{self, check_previous_sibling_instruction_is_memo},
+            metadata_pointer, pausable, reallocate, scaled_ui_amount, token_group, token_metadata,
+            transfer_fee, transfer_hook,
         },
-        instruction::{
-            decode_instruction_data, decode_instruction_type, is_valid_signer_index, AuthorityType,
-            MAX_SIGNERS,
-        },
-        native_mint,
-        pod::{PodAccount, PodCOption, PodMint, PodMultisig},
         pod_instruction::{
             decode_instruction_data_with_coption_pubkey, AmountCheckedData, AmountData,
             InitializeMintData, InitializeMultisigData, PodTokenInstruction, SetAuthorityData,
         },
-        state::{Account, AccountState, Mint, PackedSizeOf},
     },
     solana_account_info::{next_account_info, AccountInfo},
     solana_clock::Clock,
@@ -56,6 +29,41 @@ use {
     spl_pod::{
         bytemuck::{pod_from_bytes, pod_from_bytes_mut},
         primitives::{PodBool, PodU64},
+    },
+    spl_token_2022_interface::{
+        check_program_account,
+        error::TokenError,
+        extension::{
+            confidential_mint_burn::ConfidentialMintBurn,
+            confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
+            confidential_transfer_fee::{
+                ConfidentialTransferFeeAmount, ConfidentialTransferFeeConfig,
+            },
+            cpi_guard::CpiGuard,
+            default_account_state::DefaultAccountState,
+            group_member_pointer::GroupMemberPointer,
+            group_pointer::GroupPointer,
+            immutable_owner::ImmutableOwner,
+            interest_bearing_mint::InterestBearingConfig,
+            memo_transfer::memo_required,
+            metadata_pointer::MetadataPointer,
+            mint_close_authority::MintCloseAuthority,
+            non_transferable::{NonTransferable, NonTransferableAccount},
+            pausable::{PausableAccount, PausableConfig},
+            permanent_delegate::{get_permanent_delegate, PermanentDelegate},
+            scaled_ui_amount::ScaledUiAmountConfig,
+            transfer_fee::{TransferFeeAmount, TransferFeeConfig},
+            transfer_hook::{TransferHook, TransferHookAccount},
+            AccountType, BaseStateWithExtensions, BaseStateWithExtensionsMut, ExtensionType,
+            PodStateWithExtensions, PodStateWithExtensionsMut,
+        },
+        instruction::{
+            decode_instruction_data, decode_instruction_type, is_valid_signer_index, AuthorityType,
+            MAX_SIGNERS,
+        },
+        native_mint,
+        pod::{PodAccount, PodCOption, PodMint, PodMultisig},
+        state::{Account, AccountState, Mint, PackedSizeOf},
     },
     spl_token_group_interface::instruction::TokenGroupInstruction,
     spl_token_metadata_interface::instruction::TokenMetadataInstruction,
@@ -2027,10 +2035,6 @@ fn delete_account(account_info: &AccountInfo) -> Result<(), ProgramError> {
 mod tests {
     use {
         super::*,
-        crate::{
-            extension::transfer_fee::instruction::initialize_transfer_fee_config, instruction::*,
-            state::Multisig,
-        },
         serial_test::serial,
         solana_account::{
             create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
@@ -2041,6 +2045,10 @@ mod tests {
         solana_program_error::PrintProgramError,
         solana_program_option::COption,
         solana_sdk_ids::sysvar::rent,
+        spl_token_2022_interface::{
+            extension::transfer_fee::instruction::initialize_transfer_fee_config, instruction::*,
+            state::Multisig,
+        },
         std::sync::{Arc, RwLock},
     };
 
