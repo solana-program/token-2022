@@ -1,6 +1,5 @@
 #![allow(clippy::arithmetic_side_effects)]
 #![deny(missing_docs)]
-#![cfg_attr(not(test), warn(unsafe_code))]
 
 //! An ERC20-like Token program for the Solana blockchain
 

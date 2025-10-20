@@ -45,14 +45,14 @@ solana-signer = "2.2.1"
 solana-system-interface = "1"
 solana-transaction = "2.2.1"
 spl-associated-token-account-client = { version = "2.0.0" }
-spl-elgamal-registry = { version = "0.3.0",features = ["no-entrypoint"], path = "../../confidential/elgamal-registry"}
+spl-elgamal-registry = { version = "0.3.0",features = ["no-entrypoint"] }
 spl-memo = { version = "6.0", features = ["no-entrypoint"] }
 spl-record = { version = "0.3.0", features = ["no-entrypoint"] }
 spl-token = { version = "8.0", features = ["no-entrypoint"] }
 spl-token-confidential-transfer-proof-extraction = { version = "0.4.1" }
 spl-token-confidential-transfer-proof-generation = { version = "0.4.1" }
 spl-token-2022-interface = { version = "1.0.0" }
-spl-token-2022 = { version = "9.0.0", features = ["no-entrypoint"], path = "../../program" }
+spl-token-2022 = { version = "9.0.0", features = ["no-entrypoint"] }
 spl-token-group-interface = { version = "0.6.0" }
 spl-token-metadata-interface = { version = "0.7.0" }
 spl-transfer-hook-interface = { version = "0.10.0" }
