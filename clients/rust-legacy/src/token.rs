@@ -18,7 +18,7 @@ use {
     solana_signer::{signers::Signers, Signer, SignerError},
     solana_system_interface::instruction as system_instruction,
     solana_transaction::Transaction,
-    spl_associated_token_account_client::{
+    spl_associated_token_account_interface::{
         address::get_associated_token_address_with_program_id,
         instruction::{
             create_associated_token_account, create_associated_token_account_idempotent,
@@ -370,7 +370,8 @@ struct TokenMemo {
 }
 impl TokenMemo {
     pub fn to_instruction(&self) -> Instruction {
-        spl_memo::build_memo(
+        spl_memo_interface::instruction::build_memo(
+            &spl_memo_interface::v3::id(),
             self.text.as_bytes(),
             &self.signers.iter().collect::<Vec<_>>(),
         )
@@ -427,20 +428,20 @@ impl<T> fmt::Debug for Token<T> {
 }
 
 fn native_mint(program_id: &Pubkey) -> Pubkey {
-    if program_id == &spl_token_2022::id() {
-        spl_token_2022::native_mint::id()
-    } else if program_id == &spl_token::id() {
-        spl_token::native_mint::id()
+    if program_id == &spl_token_2022_interface::id() {
+        spl_token_2022_interface::native_mint::id()
+    } else if program_id == &spl_token_interface::id() {
+        spl_token_interface::native_mint::id()
     } else {
         panic!("Unrecognized token program id: {}", program_id);
     }
 }
 
 fn native_mint_decimals(program_id: &Pubkey) -> u8 {
-    if program_id == &spl_token_2022::id() {
-        spl_token_2022::native_mint::DECIMALS
-    } else if program_id == &spl_token::id() {
-        spl_token::native_mint::DECIMALS
+    if program_id == &spl_token_2022_interface::id() {
+        spl_token_2022_interface::native_mint::DECIMALS
+    } else if program_id == &spl_token_interface::id() {
+        spl_token_interface::native_mint::DECIMALS
     } else {
         panic!("Unrecognized token program id: {}", program_id);
     }
@@ -1503,7 +1504,7 @@ where
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         // mutable owner for Tokenkeg, immutable otherwise
-        let immutable_owner = self.program_id != spl_token::id();
+        let immutable_owner = self.program_id != spl_token_interface::id();
         let instructions = self.wrap_ixs(account, owner, lamports, immutable_owner)?;
 
         self.process_ixs(&instructions, signing_keypairs).await
@@ -3655,13 +3656,15 @@ where
         let multisig_signers = self.get_multisig_signers(authority, &signing_pubkeys);
 
         self.process_ixs(
-            &[spl_token_2022::instruction::withdraw_excess_lamports(
-                &self.program_id,
-                source,
-                destination,
-                authority,
-                &multisig_signers,
-            )?],
+            &[
+                spl_token_2022_interface::instruction::withdraw_excess_lamports(
+                    &self.program_id,
+                    source,
+                    destination,
+                    authority,
+                    &multisig_signers,
+                )?,
+            ],
             signing_keypairs,
         )
         .await
@@ -4091,7 +4094,9 @@ where
         account_info
             .get_total_balance(elgamal_secret_key, aes_key)
             .map_err(|e| match e {
-                spl_token_2022::error::TokenError::Overflow => TokenError::AccountDecryption,
+                spl_token_2022_interface::error::TokenError::Overflow => {
+                    TokenError::AccountDecryption
+                }
                 _ => TokenError::AccountDecryption,
             })
     }

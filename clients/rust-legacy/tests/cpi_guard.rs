@@ -9,7 +9,7 @@ use {
         instruction::InstructionError, pubkey::Pubkey, signature::Signer, signer::keypair::Keypair,
         transaction::TransactionError, transport::TransportError,
     },
-    spl_instruction_padding::instruction::wrap_instruction,
+    spl_instruction_padding_interface::instruction::wrap_instruction,
     spl_token_2022_interface::{
         error::TokenError,
         extension::{
@@ -39,7 +39,7 @@ async fn make_context() -> TestContext {
 
     program_test.add_program(
         "spl_instruction_padding",
-        spl_instruction_padding::id(),
+        spl_instruction_padding_interface::id(),
         None,
     );
 
@@ -101,7 +101,7 @@ async fn test_cpi_guard_enable_disable() {
     let error = token
         .process_ixs(
             &[wrap_instruction(
-                spl_instruction_padding::id(),
+                spl_instruction_padding_interface::id(),
                 cpi_guard::instruction::disable_cpi_guard(
                     &spl_token_2022_interface::id(),
                     &alice.pubkey(),
@@ -139,7 +139,7 @@ async fn test_cpi_guard_enable_disable() {
     let error = token
         .process_ixs(
             &[wrap_instruction(
-                spl_instruction_padding::id(),
+                spl_instruction_padding_interface::id(),
                 cpi_guard::instruction::enable_cpi_guard(
                     &spl_token_2022_interface::id(),
                     &alice.pubkey(),
@@ -197,7 +197,7 @@ async fn test_cpi_guard_transfer() {
 
     let mk_transfer = |authority, do_checked| {
         wrap_instruction(
-            spl_instruction_padding::id(),
+            spl_instruction_padding_interface::id(),
             if do_checked {
                 instruction::transfer_checked(
                     &spl_token_2022_interface::id(),
@@ -345,7 +345,7 @@ async fn test_cpi_guard_burn() {
 
     let mk_burn = |authority, do_checked| {
         wrap_instruction(
-            spl_instruction_padding::id(),
+            spl_instruction_padding_interface::id(),
             if do_checked {
                 instruction::burn_checked(
                     &spl_token_2022_interface::id(),
@@ -484,7 +484,7 @@ async fn test_cpi_guard_approve() {
 
     let mk_approve = |do_checked| {
         wrap_instruction(
-            spl_instruction_padding::id(),
+            spl_instruction_padding_interface::id(),
             if do_checked {
                 instruction::approve_checked(
                     &spl_token_2022_interface::id(),
@@ -611,7 +611,7 @@ async fn test_cpi_guard_close_account() {
 
     let mk_close = |account, destination, authority| {
         wrap_instruction(
-            spl_instruction_padding::id(),
+            spl_instruction_padding_interface::id(),
             instruction::close_account(
                 &spl_token_2022_interface::id(),
                 &account,
@@ -773,7 +773,13 @@ async fn test_cpi_guard_set_authority() {
 
         // this wraps it or doesn't based on the test case
         let instruction = if do_in_cpi {
-            wrap_instruction(spl_instruction_padding::id(), token_instruction, vec![], 0).unwrap()
+            wrap_instruction(
+                spl_instruction_padding_interface::id(),
+                token_instruction,
+                vec![],
+                0,
+            )
+            .unwrap()
         } else {
             token_instruction
         };

@@ -3,17 +3,17 @@ use {
     crate::{clap_app::Error, command::CommandResult, config::Config},
     clap::ArgMatches,
     solana_clap_v3_utils::input_parsers::{pubkey_of_signer, Amount},
+    solana_cli_output::display::build_balance_message,
     solana_client::{
         nonblocking::rpc_client::RpcClient, rpc_client::RpcClient as BlockingRpcClient,
         tpu_client::TpuClient, tpu_client::TpuClientConfig,
     },
     solana_remote_wallet::remote_wallet::RemoteWalletManager,
     solana_sdk::{
-        message::Message, native_token::lamports_to_sol, native_token::Sol, program_pack::Pack,
-        pubkey::Pubkey, signature::Signer,
+        message::Message, native_token::Sol, program_pack::Pack, pubkey::Pubkey, signature::Signer,
     },
     solana_system_interface::instruction as system_instruction,
-    spl_associated_token_account_client::address::get_associated_token_address_with_program_id,
+    spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     spl_token_2022_interface::{
         extension::StateWithExtensions,
         instruction,
@@ -253,7 +253,9 @@ async fn command_deposit_into_or_withdraw_from(
     config.check_account(&from_or_to, Some(*token)).await?;
     let amount = match ui_amount {
         Amount::Raw(ui_amount) => ui_amount,
-        Amount::Decimal(ui_amount) => spl_token::ui_amount_to_amount(ui_amount, mint_info.decimals),
+        Amount::Decimal(ui_amount) => {
+            spl_token_2022::ui_amount_to_amount(ui_amount, mint_info.decimals)
+        }
         Amount::All => {
             return Err(
                 "Use of ALL keyword currently not supported for the bench command"
@@ -372,8 +374,8 @@ async fn check_fee_payer_balance(config: &Config<'_>, required_balance: u64) -> 
         Err(format!(
             "Fee payer, {}, has insufficient balance: {} required, {} available",
             config.fee_payer()?.pubkey(),
-            lamports_to_sol(required_balance),
-            lamports_to_sol(balance)
+            build_balance_message(required_balance, false, false),
+            build_balance_message(balance, false, false)
         )
         .into())
     } else {

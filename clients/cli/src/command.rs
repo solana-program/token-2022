@@ -21,20 +21,19 @@ use {
         keypair::signer_from_path,
     },
     solana_cli_output::{
-        return_signers_data, CliSignOnlyData, CliSignature, OutputFormat, QuietDisplay,
-        ReturnSignersConfig, VerboseDisplay,
+        display::build_balance_message, return_signers_data, CliSignOnlyData, CliSignature,
+        OutputFormat, QuietDisplay, ReturnSignersConfig, VerboseDisplay,
     },
     solana_client::rpc_request::TokenAccountsFilter,
     solana_remote_wallet::remote_wallet::RemoteWalletManager,
     solana_sdk::{
         instruction::AccountMeta,
-        native_token::*,
         program_option::COption,
         pubkey::Pubkey,
         signature::{Keypair, Signer},
     },
     solana_system_interface::program as system_program,
-    spl_associated_token_account_client::address::get_associated_token_address_with_program_id,
+    spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022::extension::confidential_transfer::account_info::{
         ApplyPendingBalanceAccountInfo, TransferAccountInfo, WithdrawAccountInfo,
@@ -95,7 +94,7 @@ fn print_error_and_exit<T, E: Display>(e: E) -> T {
 fn amount_to_raw_amount(amount: Amount, decimals: u8, all_amount: Option<u64>, name: &str) -> u64 {
     match amount {
         Amount::Raw(ui_amount) => ui_amount,
-        Amount::Decimal(ui_amount) => spl_token::ui_amount_to_amount(ui_amount, decimals),
+        Amount::Decimal(ui_amount) => spl_token_2022::ui_amount_to_amount(ui_amount, decimals),
         Amount::All => {
             if let Some(raw_amount) = all_amount {
                 raw_amount
@@ -145,8 +144,8 @@ async fn check_wallet_balance(
         Err(format!(
             "Wallet {}, has insufficient balance: {} required, {} available",
             wallet,
-            lamports_to_sol(required_balance),
-            lamports_to_sol(balance)
+            build_balance_message(required_balance, false, false),
+            build_balance_message(balance, false, false)
         )
         .into())
     } else {
@@ -822,7 +821,7 @@ async fn command_set_transfer_fee(
             "Setting transfer fee for {} to {} bps, {} maximum",
             token_pubkey,
             transfer_fee_basis_points,
-            spl_token::amount_to_ui_amount(maximum_fee, decimals)
+            spl_token_2022::amount_to_ui_amount(maximum_fee, decimals)
         ),
     );
 
@@ -877,7 +876,7 @@ async fn command_create_account(
     }
 
     if immutable_owner {
-        if config.program_id == spl_token::id() {
+        if config.program_id == spl_token_interface::id() {
             return Err(format!(
                 "Specified --immutable, but token program {} does not support the extension",
                 config.program_id
@@ -1331,7 +1330,9 @@ async fn command_transfer(
     // the amount the user wants to transfer, as a u64
     let transfer_balance = match ui_amount {
         Amount::Raw(ui_amount) => ui_amount,
-        Amount::Decimal(ui_amount) => spl_token::ui_amount_to_amount(ui_amount, mint_info.decimals),
+        Amount::Decimal(ui_amount) => {
+            spl_token_2022::ui_amount_to_amount(ui_amount, mint_info.decimals)
+        }
         Amount::All => {
             if config.sign_only {
                 return Err("Use of ALL keyword to burn tokens requires online signing"
@@ -1351,7 +1352,7 @@ async fn command_transfer(
             } else {
                 ""
             },
-            spl_token::amount_to_ui_amount(transfer_balance, mint_info.decimals),
+            spl_token_2022::amount_to_ui_amount(transfer_balance, mint_info.decimals),
             sender,
             recipient
         ),
@@ -1806,7 +1807,9 @@ async fn command_burn(
 
     let amount = match ui_amount {
         Amount::Raw(ui_amount) => ui_amount,
-        Amount::Decimal(ui_amount) => spl_token::ui_amount_to_amount(ui_amount, mint_info.decimals),
+        Amount::Decimal(ui_amount) => {
+            spl_token_2022::ui_amount_to_amount(ui_amount, mint_info.decimals)
+        }
         Amount::All => {
             if config.sign_only {
                 return Err("Use of ALL keyword to burn tokens requires online signing"
@@ -1821,7 +1824,7 @@ async fn command_burn(
         config,
         format!(
             "Burn {} tokens\n  Source: {}",
-            spl_token::amount_to_ui_amount(amount, mint_info.decimals),
+            spl_token_2022::amount_to_ui_amount(amount, mint_info.decimals),
             account
         ),
     );
@@ -1861,7 +1864,7 @@ async fn command_mint(
         config,
         format!(
             "Minting {} tokens\n  Token: {}\n  Recipient: {}",
-            spl_token::amount_to_ui_amount(amount, mint_info.decimals),
+            spl_token_2022::amount_to_ui_amount(amount, mint_info.decimals),
             token,
             recipient
         ),
@@ -1973,11 +1976,13 @@ async fn command_wrap(
     immutable_owner: bool,
     bulk_signers: BulkSigners,
 ) -> CommandResult {
-    let lamports = match amount {
-        Amount::Raw(amount) => amount,
-        Amount::Decimal(amount) => sol_to_lamports(amount),
+    let lamports = match amount.sol_to_lamport() {
         Amount::All => {
             return Err("ALL keyword not supported for SOL amount".into());
+        }
+        Amount::Raw(amount) => amount,
+        Amount::Decimal(_) => {
+            unreachable!();
         }
     };
     let token = native_token_client_from_config(config)?;
@@ -1989,7 +1994,7 @@ async fn command_wrap(
         config,
         format!(
             "Wrapping {} SOL into {}",
-            lamports_to_sol(lamports),
+            build_balance_message(lamports, false, false),
             account
         ),
     );
@@ -2005,7 +2010,7 @@ async fn command_wrap(
     }
 
     let res = if immutable_owner {
-        if config.program_id == spl_token::id() {
+        if config.program_id == spl_token_interface::id() {
             return Err(format!(
                 "Specified --immutable, but token program {} does not support the extension",
                 config.program_id
@@ -2070,7 +2075,10 @@ async fn command_unwrap(
 
         println_display(
             config,
-            format!("  Amount: {} SOL", lamports_to_sol(account_data.lamports)),
+            format!(
+                "  Amount: {} SOL",
+                build_balance_message(account_data.lamports, false, false)
+            ),
         );
     }
 
@@ -2116,7 +2124,7 @@ async fn command_approve(
         config,
         format!(
             "Approve {} tokens\n  Account: {}\n  Delegate: {}",
-            spl_token::amount_to_ui_amount(amount, mint_info.decimals),
+            spl_token_2022::amount_to_ui_amount(amount, mint_info.decimals),
             account,
             delegate
         ),
@@ -2337,7 +2345,7 @@ async fn command_accounts(
         vec![TokenAccountsFilter::ProgramId(config.program_id)]
     } else {
         vec![
-            TokenAccountsFilter::ProgramId(spl_token::id()),
+            TokenAccountsFilter::ProgramId(spl_token_interface::id()),
             TokenAccountsFilter::ProgramId(spl_token_2022_interface::id()),
         ]
     };
@@ -3366,7 +3374,9 @@ async fn command_deposit_withdraw_confidential_tokens(
     // the amount the user wants to deposit or withdraw, as a u64
     let amount = match ui_amount {
         Amount::Raw(ui_amount) => ui_amount,
-        Amount::Decimal(ui_amount) => spl_token::ui_amount_to_amount(ui_amount, mint_info.decimals),
+        Amount::Decimal(ui_amount) => {
+            spl_token_2022::ui_amount_to_amount(ui_amount, mint_info.decimals)
+        }
         Amount::All => {
             if config.sign_only {
                 return Err("Use of ALL keyword to burn tokens requires online signing"
@@ -3388,7 +3398,7 @@ async fn command_deposit_withdraw_confidential_tokens(
                 config,
                 format!(
                     "Depositing {} confidential tokens",
-                    spl_token::amount_to_ui_amount(amount, mint_info.decimals),
+                    spl_token_2022::amount_to_ui_amount(amount, mint_info.decimals),
                 ),
             );
             let current_balance = state_with_extension.base.amount;
@@ -3408,7 +3418,7 @@ async fn command_deposit_withdraw_confidential_tokens(
                 config,
                 format!(
                     "Withdrawing {} confidential tokens",
-                    spl_token::amount_to_ui_amount(amount, mint_info.decimals)
+                    spl_token_2022::amount_to_ui_amount(amount, mint_info.decimals)
                 ),
             );
         }

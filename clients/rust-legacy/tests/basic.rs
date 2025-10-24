@@ -69,7 +69,7 @@ impl TestContext {
 }
 
 fn keypair_clone(kp: &Keypair) -> Keypair {
-    Keypair::from_bytes(&kp.to_bytes()).expect("failed to copy keypair")
+    Keypair::new_from_array(*kp.secret_bytes())
 }
 
 #[tokio::test]

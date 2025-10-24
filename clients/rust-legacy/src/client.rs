@@ -135,7 +135,8 @@ pub trait SimulateTransactionRpc: SimulateTransaction {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ProgramRpcClientSendTransaction;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum RpcClientResponse {
     Signature(Signature),
     Transaction(Transaction),

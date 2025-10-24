@@ -10,12 +10,13 @@ use {
     },
     solana_cli_output::OutputFormat,
     solana_client::nonblocking::rpc_client::RpcClient,
+    solana_commitment_config::CommitmentConfig,
     solana_remote_wallet::remote_wallet::RemoteWalletManager,
     solana_sdk::{
-        account::Account as RawAccount, commitment_config::CommitmentConfig, hash::Hash,
-        pubkey::Pubkey, signature::Signer, signer::null_signer::NullSigner,
+        account::Account as RawAccount, hash::Hash, pubkey::Pubkey, signature::Signer,
+        signer::null_signer::NullSigner,
     },
-    spl_associated_token_account_client::address::get_associated_token_address_with_program_id,
+    spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     spl_token_2022_interface::{
         extension::StateWithExtensionsOwned,
         state::{Account, Mint},
@@ -280,7 +281,7 @@ impl<'a> Config<'a> {
                 .and_then(|pubkey| Pubkey::from_str(pubkey).ok())
         };
 
-        let default_program_id = spl_token::id();
+        let default_program_id = spl_token_interface::id();
         let (program_id, restrict_to_program_id) = if matches.is_present("program_2022") {
             (spl_token_2022_interface::id(), true)
         } else if let Some(program_id) = pubkey_from_matches("program_id") {

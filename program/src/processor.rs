@@ -25,7 +25,7 @@ use {
     solana_rent::Rent,
     solana_sdk_ids::system_program,
     solana_system_interface::instruction as system_instruction,
-    solana_sysvar::Sysvar,
+    solana_sysvar::{Sysvar, SysvarSerialize},
     spl_pod::{
         bytemuck::{pod_from_bytes, pod_from_bytes_mut},
         primitives::{PodBool, PodU64},
@@ -2020,7 +2020,9 @@ fn delete_account(account_info: &AccountInfo) -> Result<(), ProgramError> {
     account_info.assign(&system_program::id());
     let mut account_data = account_info.data.borrow_mut();
     let data_len = account_data.len();
-    solana_program_memory::sol_memset(*account_data, 0, data_len);
+    unsafe {
+        solana_program_memory::sol_memset(*account_data, 0, data_len);
+    }
     Ok(())
 }
 
@@ -2040,9 +2042,8 @@ mod tests {
             create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
         },
         solana_account_info::IntoAccountInfo,
-        solana_clock::{Clock, Epoch},
+        solana_clock::Clock,
         solana_instruction::Instruction,
-        solana_program_error::PrintProgramError,
         solana_program_option::COption,
         solana_sdk_ids::sysvar::rent,
         spl_token_2022_interface::{
@@ -2169,12 +2170,6 @@ mod tests {
         )
         .unwrap();
         mint_account
-    }
-
-    #[test]
-    fn test_print_error() {
-        let error = return_token_error_as_program_error();
-        error.print::<TokenError>();
     }
 
     #[test]
@@ -6131,7 +6126,6 @@ mod tests {
                 &mut signer_data,
                 &program_id,
                 false,
-                Epoch::default(),
             );
             MAX_SIGNERS + 1
         ];
@@ -6154,7 +6148,6 @@ mod tests {
             &mut data,
             &program_id,
             false,
-            Epoch::default(),
         );
 
         // no multisig, but the account is its own authority, and data is mutably
@@ -6173,7 +6166,6 @@ mod tests {
                 &mut data,
                 &program_id,
                 false,
-                Epoch::default(),
             );
             let account_info_data_len = account_info.data_len();
             let mut borrowed_data = account_info.try_borrow_mut_data().unwrap();
@@ -6339,7 +6331,6 @@ mod tests {
                     &mut signer_data,
                     &program_id,
                     false,
-                    Epoch::default(),
                 );
                 MAX_SIGNERS + 1
             ];
@@ -8154,7 +8145,6 @@ mod tests {
             &mut destination_data,
             &system_program_id,
             false,
-            Epoch::default(),
         );
 
         let multisig_key = Pubkey::new_unique();
@@ -8178,7 +8168,6 @@ mod tests {
                 &mut signer_data,
                 &program_id,
                 false,
-                Epoch::default(),
             );
             MAX_SIGNERS + 1
         ];
@@ -8245,7 +8234,6 @@ mod tests {
             &mut destination_data,
             &system_program_id,
             false,
-            Epoch::default(),
         );
         let mint_key = Pubkey::new_unique();
         let mut mint_account =
@@ -8266,7 +8254,6 @@ mod tests {
             &mut mint_account.data,
             &program_id,
             false,
-            Epoch::default(),
         );
 
         let account_info: AccountInfo = (&account_key, true, &mut account_account).into();
@@ -8316,7 +8303,6 @@ mod tests {
             &mut destination_data,
             &system_program_id,
             false,
-            Epoch::default(),
         );
         let mint_key = Pubkey::new_unique();
         let mut mint_account = SolanaAccount::new(
@@ -8367,7 +8353,6 @@ mod tests {
             &mut destination_data,
             &system_program_id,
             false,
-            Epoch::default(),
         );
         let mint_key = Pubkey::new_unique();
         let mut mint_account = SolanaAccount::new(
@@ -8386,7 +8371,6 @@ mod tests {
             &mut mint_authority_data,
             &system_program_id,
             false,
-            Epoch::default(),
         );
         let mut rent_sysvar = rent_sysvar();
 

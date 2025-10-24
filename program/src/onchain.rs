@@ -348,7 +348,6 @@ mod tests {
             &mut [],
             &source_owner,
             false,
-            0,
         );
 
         let mut mint_lamports = 100;
@@ -366,7 +365,6 @@ mod tests {
             &mut mint_data,
             &mint_owner,
             false,
-            0,
         );
 
         let mut destination_lamports = 100;
@@ -379,7 +377,6 @@ mod tests {
             &mut [],
             &destination_owner,
             false,
-            0,
         );
 
         let authority_is_signer = !with_multisig; // Authority signs only if not multisig
@@ -402,7 +399,6 @@ mod tests {
                 &mut [],
                 &authority_owner,
                 false,
-                0,
             )
         } else {
             // Setup multisig
@@ -434,7 +430,6 @@ mod tests {
                 &mut multisig_data,
                 &token_program_id,
                 false,
-                0,
             )
         };
 
@@ -457,7 +452,6 @@ mod tests {
                 &mut [],
                 &signer1_owner,
                 false,
-                0,
             );
 
             let signer2_info = AccountInfo::new(
@@ -468,7 +462,6 @@ mod tests {
                 &mut [],
                 &signer2_owner,
                 false,
-                0,
             );
 
             let signer3_info = AccountInfo::new(
@@ -479,7 +472,6 @@ mod tests {
                 &mut [],
                 &signer3_owner,
                 false,
-                0,
             );
 
             additional_accounts.extend(vec![signer1_info, signer2_info, signer3_info]);
@@ -507,7 +499,6 @@ mod tests {
                 &mut validation_data,
                 &transfer_hook_program_id,
                 false,
-                0,
             );
 
             let hook_program_info = AccountInfo::new(
@@ -518,7 +509,6 @@ mod tests {
                 &mut [],
                 &hook_program_owner,
                 true,
-                0,
             );
 
             let extra_account1_info = AccountInfo::new(
@@ -529,7 +519,6 @@ mod tests {
                 &mut [],
                 &extra_account1_owner,
                 false,
-                0,
             );
 
             let extra_account2_info = AccountInfo::new(
@@ -540,7 +529,6 @@ mod tests {
                 &mut [],
                 &extra_account2_owner,
                 false,
-                0,
             );
 
             let extra_account3_info = AccountInfo::new(
@@ -551,7 +539,6 @@ mod tests {
                 &mut [],
                 &extra_account3_owner,
                 false,
-                0,
             );
 
             additional_accounts.extend(vec![
@@ -698,7 +685,6 @@ mod tests {
             &mut data,
             &wrong_owner,
             false,
-            0,
         );
 
         let accounts = vec![];
@@ -714,16 +700,8 @@ mod tests {
         let mut lamports = 100;
         let mut data = vec![0; 10]; // Wrong size for a multisig account
 
-        let not_multisig = AccountInfo::new(
-            &key,
-            false,
-            false,
-            &mut lamports,
-            &mut data,
-            &owner,
-            false,
-            0,
-        );
+        let not_multisig =
+            AccountInfo::new(&key, false, false, &mut lamports, &mut data, &owner, false);
 
         let accounts = vec![];
 
@@ -767,7 +745,6 @@ mod tests {
             &mut multisig_data,
             &owner,
             false,
-            0,
         );
 
         let signer1_owner = Pubkey::new_unique();
@@ -784,7 +761,6 @@ mod tests {
             &mut [],
             &signer1_owner,
             false,
-            0,
         );
 
         let signer2_info = AccountInfo::new(
@@ -795,7 +771,6 @@ mod tests {
             &mut [],
             &signer2_owner,
             false,
-            0,
         );
 
         // Accounts that should not be included
@@ -817,7 +792,6 @@ mod tests {
             &mut [],
             &extra_account1_owner,
             false,
-            0,
         );
 
         let extra_account2_info = AccountInfo::new(
@@ -828,7 +802,6 @@ mod tests {
             &mut [],
             &extra_account2_owner,
             false,
-            0,
         );
 
         let system_program_key = Pubkey::default(); // System program has default pubkey
@@ -842,7 +815,6 @@ mod tests {
             &mut [],
             &system_program_owner,
             false,
-            0,
         );
 
         let accounts = vec![
@@ -863,7 +835,6 @@ mod tests {
         assert_eq!(result_accounts[0].is_signer, signer1_info.is_signer);
         assert_eq!(result_accounts[0].executable, signer1_info.executable);
         assert_eq!(result_accounts[0].lamports, signer1_info.lamports);
-        assert_eq!(result_accounts[0].rent_epoch, signer1_info.rent_epoch);
 
         assert_eq!(result_accounts[1].data_len(), signer2_info.data_len());
         assert_eq!(result_accounts[1].owner, signer2_info.owner);
@@ -872,6 +843,5 @@ mod tests {
         assert_eq!(result_accounts[1].is_signer, signer2_info.is_signer);
         assert_eq!(result_accounts[1].executable, signer2_info.executable);
         assert_eq!(result_accounts[1].lamports, signer2_info.lamports);
-        assert_eq!(result_accounts[1].rent_epoch, signer2_info.rent_epoch);
     }
 }

@@ -14,7 +14,7 @@ use {
     solana_sdk_ids::bpf_loader_upgradeable,
     solana_system_interface::{instruction as system_instruction, program as system_program},
     solana_test_validator::{TestValidator, TestValidatorGenesis, UpgradeableProgramInfo},
-    spl_associated_token_account_client::address::get_associated_token_address_with_program_id,
+    spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     spl_token_2022_interface::{
         extension::{
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
@@ -156,7 +156,7 @@ async fn main() {
 }
 
 fn clone_keypair(keypair: &Keypair) -> Keypair {
-    Keypair::from_bytes(&keypair.to_bytes()).unwrap()
+    Keypair::new_from_array(*keypair.secret_bytes())
 }
 
 const TEST_DECIMALS: u8 = 9;
@@ -237,7 +237,7 @@ async fn create_nonce(config: &Config<'_>, authority: &Keypair) -> Pubkey {
 
     let nonce_rent = config
         .rpc_client
-        .get_minimum_balance_for_rent_exemption(solana_sdk::nonce::State::size())
+        .get_minimum_balance_for_rent_exemption(solana_nonce::state::State::size())
         .await
         .unwrap();
     let instr = system_instruction::create_nonce_account(
@@ -407,11 +407,11 @@ async fn run_transfer_test(config: &Config<'_>, payer: &Keypair) {
 
     let account = config.rpc_client.get_account(&source).await.unwrap();
     let token_account = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
-    let amount = spl_token::ui_amount_to_amount(90.0, TEST_DECIMALS);
+    let amount = spl_token_2022::ui_amount_to_amount(90.0, TEST_DECIMALS);
     assert_eq!(token_account.base.amount, amount);
     let account = config.rpc_client.get_account(&destination).await.unwrap();
     let token_account = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
-    let amount = spl_token::ui_amount_to_amount(10.0, TEST_DECIMALS);
+    let amount = spl_token_2022::ui_amount_to_amount(10.0, TEST_DECIMALS);
     assert_eq!(token_account.base.amount, amount);
 }
 
@@ -690,7 +690,7 @@ async fn mint(test_validator: &TestValidator, payer: &Keypair) {
         )
         .await
         .unwrap();
-        amount += spl_token::ui_amount_to_amount(1.0, TEST_DECIMALS);
+        amount += spl_token_2022::ui_amount_to_amount(1.0, TEST_DECIMALS);
 
         let account_data = config.rpc_client.get_account(&account).await.unwrap();
         let token_account = StateWithExtensionsOwned::<Account>::unpack(account_data.data).unwrap();
@@ -712,7 +712,7 @@ async fn mint(test_validator: &TestValidator, payer: &Keypair) {
         )
         .await
         .unwrap();
-        amount += spl_token::ui_amount_to_amount(1.0, TEST_DECIMALS);
+        amount += spl_token_2022::ui_amount_to_amount(1.0, TEST_DECIMALS);
 
         let account_data = config.rpc_client.get_account(&account).await.unwrap();
         let token_account = StateWithExtensionsOwned::<Account>::unpack(account_data.data).unwrap();
@@ -735,7 +735,7 @@ async fn mint(test_validator: &TestValidator, payer: &Keypair) {
         )
         .await
         .unwrap();
-        amount += spl_token::ui_amount_to_amount(1.0, TEST_DECIMALS);
+        amount += spl_token_2022::ui_amount_to_amount(1.0, TEST_DECIMALS);
 
         let account_data = config.rpc_client.get_account(&account).await.unwrap();
         let token_account = StateWithExtensionsOwned::<Account>::unpack(account_data.data).unwrap();
@@ -761,7 +761,7 @@ async fn balance_after_mint(test_validator: &TestValidator, payer: &Keypair) {
         )
         .await;
         let value: serde_json::Value = serde_json::from_str(&result.unwrap()).unwrap();
-        let amount = spl_token::ui_amount_to_amount(ui_amount, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(ui_amount, TEST_DECIMALS);
         assert_eq!(value["amount"], format!("{}", amount));
         assert_eq!(value["uiAmountString"], format!("{}", ui_amount));
     }
@@ -790,7 +790,7 @@ async fn balance_after_mint_with_owner(test_validator: &TestValidator, payer: &K
         )
         .await;
         let value: serde_json::Value = serde_json::from_str(&result.unwrap()).unwrap();
-        let amount = spl_token::ui_amount_to_amount(ui_amount, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(ui_amount, TEST_DECIMALS);
         assert_eq!(value["amount"], format!("{}", amount));
         assert_eq!(value["uiAmountString"], format!("{}", ui_amount));
     }
@@ -963,7 +963,7 @@ async fn transfer_fund_recipient(test_validator: &TestValidator, payer: &Keypair
         let token_account = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
         assert_eq!(
             token_account.base.amount,
-            spl_token::ui_amount_to_amount(90.0, TEST_DECIMALS)
+            spl_token_2022::ui_amount_to_amount(90.0, TEST_DECIMALS)
         );
     }
 }
@@ -1041,7 +1041,7 @@ async fn transfer_non_standard_recipient(test_validator: &TestValidator, payer: 
             let token_account = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
             assert_eq!(
                 token_account.base.amount,
-                spl_token::ui_amount_to_amount(1.0, TEST_DECIMALS)
+                spl_token_2022::ui_amount_to_amount(1.0, TEST_DECIMALS)
             );
 
             // transfer fails to non-system recipient without flag
@@ -1084,7 +1084,7 @@ async fn transfer_non_standard_recipient(test_validator: &TestValidator, payer: 
             let token_account = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
             assert_eq!(
                 token_account.base.amount,
-                spl_token::ui_amount_to_amount(1.0, TEST_DECIMALS)
+                spl_token_2022::ui_amount_to_amount(1.0, TEST_DECIMALS)
             );
 
             // transfer to same-program non-account fails
@@ -1127,7 +1127,7 @@ async fn transfer_non_standard_recipient(test_validator: &TestValidator, payer: 
 }
 
 async fn allow_non_system_account_recipient(test_validator: &TestValidator, payer: &Keypair) {
-    let config = test_config_with_default_signer(test_validator, payer, &spl_token::id());
+    let config = test_config_with_default_signer(test_validator, payer, &spl_token_interface::id());
 
     let token = create_token(&config, payer).await;
     let source = create_associated_account(&config, payer, &token, &payer.pubkey()).await;
@@ -1159,7 +1159,7 @@ async fn allow_non_system_account_recipient(test_validator: &TestValidator, paye
         .await
         .unwrap()
         .unwrap();
-    let amount = spl_token::ui_amount_to_amount(90.0, TEST_DECIMALS);
+    let amount = spl_token_2022::ui_amount_to_amount(90.0, TEST_DECIMALS);
     assert_eq!(ui_account.token_amount.amount, format!("{amount}"));
 }
 
@@ -1327,7 +1327,7 @@ async fn gc(test_validator: &TestValidator, payer: &Keypair) {
             .unwrap();
 
         // aux is gone and its tokens are in ata
-        let amount = spl_token::ui_amount_to_amount(2.0, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(2.0, TEST_DECIMALS);
         assert_eq!(ui_ata.token_amount.amount, format!("{amount}"));
         config.rpc_client.get_account(&aux).await.unwrap_err();
 
@@ -1376,7 +1376,7 @@ async fn gc(test_validator: &TestValidator, payer: &Keypair) {
             .unwrap();
 
         // aux is gone and its tokens are in ata, and ata has not been closed
-        let amount = spl_token::ui_amount_to_amount(1.0, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(1.0, TEST_DECIMALS);
         assert_eq!(ui_ata.token_amount.amount, format!("{amount}"));
         config.rpc_client.get_account(&aux).await.unwrap_err();
 
@@ -1413,7 +1413,7 @@ async fn gc(test_validator: &TestValidator, payer: &Keypair) {
             .unwrap();
 
         // aux tokens are now in ata
-        let amount = spl_token::ui_amount_to_amount(1.0, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(1.0, TEST_DECIMALS);
         assert_eq!(ui_ata.token_amount.amount, format!("{amount}"));
     }
 }
@@ -1469,7 +1469,7 @@ async fn transfer_with_account_delegate(test_validator: &TestValidator, payer: &
             .await
             .unwrap()
             .unwrap();
-        let amount = spl_token::ui_amount_to_amount(100.0, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(100.0, TEST_DECIMALS);
         assert_eq!(ui_account.token_amount.amount, format!("{amount}"));
         assert_eq!(ui_account.delegate, None);
         assert_eq!(ui_account.delegated_amount, None);
@@ -1507,7 +1507,7 @@ async fn transfer_with_account_delegate(test_validator: &TestValidator, payer: &
             .unwrap()
             .unwrap();
         assert_eq!(ui_account.delegate.unwrap(), delegate.pubkey().to_string());
-        let amount = spl_token::ui_amount_to_amount(10.0, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(10.0, TEST_DECIMALS);
         assert_eq!(
             ui_account.delegated_amount.unwrap().amount,
             format!("{amount}")
@@ -1540,7 +1540,7 @@ async fn transfer_with_account_delegate(test_validator: &TestValidator, payer: &
             .await
             .unwrap()
             .unwrap();
-        let amount = spl_token::ui_amount_to_amount(90.0, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(90.0, TEST_DECIMALS);
         assert_eq!(ui_account.token_amount.amount, format!("{amount}"));
         assert_eq!(ui_account.delegate, None);
         assert_eq!(ui_account.delegated_amount, None);
@@ -1550,7 +1550,7 @@ async fn transfer_with_account_delegate(test_validator: &TestValidator, payer: &
             .await
             .unwrap()
             .unwrap();
-        let amount = spl_token::ui_amount_to_amount(10.0, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(10.0, TEST_DECIMALS);
         assert_eq!(ui_account.token_amount.amount, format!("{amount}"));
     }
 }
@@ -1580,7 +1580,7 @@ async fn burn(test_validator: &TestValidator, payer: &Keypair) {
 
         let account = config.rpc_client.get_account(&source).await.unwrap();
         let token_account = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
-        let amount = spl_token::ui_amount_to_amount(90.0, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(90.0, TEST_DECIMALS);
         assert_eq!(token_account.base.amount, amount);
 
         process_test_command(
@@ -1598,7 +1598,7 @@ async fn burn(test_validator: &TestValidator, payer: &Keypair) {
 
         let account = config.rpc_client.get_account(&source).await.unwrap();
         let token_account = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
-        let amount = spl_token::ui_amount_to_amount(0.0, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(0.0, TEST_DECIMALS);
         assert_eq!(token_account.base.amount, amount);
 
         let result = process_test_command(
@@ -1655,7 +1655,7 @@ async fn burn_with_account_delegate(test_validator: &TestValidator, payer: &Keyp
             .await
             .unwrap()
             .unwrap();
-        let amount = spl_token::ui_amount_to_amount(100.0, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(100.0, TEST_DECIMALS);
         assert_eq!(ui_account.token_amount.amount, format!("{amount}"));
         assert_eq!(ui_account.delegate, None);
         assert_eq!(ui_account.delegated_amount, None);
@@ -1686,7 +1686,7 @@ async fn burn_with_account_delegate(test_validator: &TestValidator, payer: &Keyp
             .unwrap()
             .unwrap();
         assert_eq!(ui_account.delegate.unwrap(), delegate.pubkey().to_string());
-        let amount = spl_token::ui_amount_to_amount(10.0, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(10.0, TEST_DECIMALS);
         assert_eq!(
             ui_account.delegated_amount.unwrap().amount,
             format!("{amount}")
@@ -1716,7 +1716,7 @@ async fn burn_with_account_delegate(test_validator: &TestValidator, payer: &Keyp
             .await
             .unwrap()
             .unwrap();
-        let amount = spl_token::ui_amount_to_amount(90.0, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(90.0, TEST_DECIMALS);
         assert_eq!(ui_account.token_amount.amount, format!("{amount}"));
         assert_eq!(ui_account.delegate, None);
         assert_eq!(ui_account.delegated_amount, None);
@@ -1763,7 +1763,7 @@ async fn burn_with_permanent_delegate(test_validator: &TestValidator, payer: &Ke
         .unwrap()
         .unwrap();
 
-    let amount = spl_token::ui_amount_to_amount(100.0, TEST_DECIMALS);
+    let amount = spl_token_2022::ui_amount_to_amount(100.0, TEST_DECIMALS);
     assert_eq!(ui_account.token_amount.amount, format!("{amount}"));
 
     exec_test_cmd(
@@ -1787,7 +1787,7 @@ async fn burn_with_permanent_delegate(test_validator: &TestValidator, payer: &Ke
         .unwrap()
         .unwrap();
 
-    let amount = spl_token::ui_amount_to_amount(90.0, TEST_DECIMALS);
+    let amount = spl_token_2022::ui_amount_to_amount(90.0, TEST_DECIMALS);
     assert_eq!(ui_account.token_amount.amount, format!("{amount}"));
 }
 
@@ -1832,7 +1832,7 @@ async fn transfer_with_permanent_delegate(test_validator: &TestValidator, payer:
         .unwrap()
         .unwrap();
 
-    let amount = spl_token::ui_amount_to_amount(100.0, TEST_DECIMALS);
+    let amount = spl_token_2022::ui_amount_to_amount(100.0, TEST_DECIMALS);
     assert_eq!(ui_account.token_amount.amount, format!("{amount}"));
 
     let ui_account = config
@@ -1868,7 +1868,7 @@ async fn transfer_with_permanent_delegate(test_validator: &TestValidator, payer:
         .unwrap()
         .unwrap();
 
-    let amount = spl_token::ui_amount_to_amount(50.0, TEST_DECIMALS);
+    let amount = spl_token_2022::ui_amount_to_amount(50.0, TEST_DECIMALS);
     assert_eq!(ui_account.token_amount.amount, format!("{amount}"));
 
     let ui_account = config
@@ -1878,7 +1878,7 @@ async fn transfer_with_permanent_delegate(test_validator: &TestValidator, payer:
         .unwrap()
         .unwrap();
 
-    let amount = spl_token::ui_amount_to_amount(50.0, TEST_DECIMALS);
+    let amount = spl_token_2022::ui_amount_to_amount(50.0, TEST_DECIMALS);
     assert_eq!(ui_account.token_amount.amount, format!("{amount}"));
 }
 
@@ -2002,7 +2002,7 @@ async fn required_transfer_memos(test_validator: &TestValidator, payer: &Keypair
     let account_state = StateWithExtensionsOwned::<Account>::unpack(account_data.data).unwrap();
     assert_eq!(
         account_state.base.amount,
-        spl_token::ui_amount_to_amount(1.0, TEST_DECIMALS)
+        spl_token_2022::ui_amount_to_amount(1.0, TEST_DECIMALS)
     );
 
     // disable works
@@ -2374,7 +2374,7 @@ async fn transfer_fee(test_validator: &TestValidator, payer: &Keypair) {
     let account_state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
     let extension = account_state.get_extension::<TransferFeeAmount>().unwrap();
     let withheld_amount =
-        spl_token::amount_to_ui_amount(u64::from(extension.withheld_amount), TEST_DECIMALS);
+        spl_token_2022::amount_to_ui_amount(u64::from(extension.withheld_amount), TEST_DECIMALS);
     assert_eq!(withheld_amount, 1.0);
 
     process_test_command(
@@ -2418,7 +2418,7 @@ async fn transfer_fee(test_validator: &TestValidator, payer: &Keypair) {
     // burn tokens
     let account = config.rpc_client.get_account(&token_account).await.unwrap();
     let account_state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
-    let burn_amount = spl_token::amount_to_ui_amount(account_state.base.amount, TEST_DECIMALS);
+    let burn_amount = spl_token_2022::amount_to_ui_amount(account_state.base.amount, TEST_DECIMALS);
     process_test_command(
         &config,
         payer,
@@ -2436,7 +2436,7 @@ async fn transfer_fee(test_validator: &TestValidator, payer: &Keypair) {
     let account_state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
     let extension = account_state.get_extension::<TransferFeeAmount>().unwrap();
     let withheld_amount =
-        spl_token::amount_to_ui_amount(u64::from(extension.withheld_amount), TEST_DECIMALS);
+        spl_token_2022::amount_to_ui_amount(u64::from(extension.withheld_amount), TEST_DECIMALS);
     assert_eq!(withheld_amount, 9.0);
 
     process_test_command(
@@ -2458,7 +2458,7 @@ async fn transfer_fee(test_validator: &TestValidator, payer: &Keypair) {
     let mint_state = StateWithExtensionsOwned::<Mint>::unpack(mint.data).unwrap();
     let extension = mint_state.get_extension::<TransferFeeConfig>().unwrap();
     let withheld_amount =
-        spl_token::amount_to_ui_amount(u64::from(extension.withheld_amount), TEST_DECIMALS);
+        spl_token_2022::amount_to_ui_amount(u64::from(extension.withheld_amount), TEST_DECIMALS);
     assert_eq!(withheld_amount, 9.0);
 
     process_test_command(
@@ -2503,7 +2503,7 @@ async fn transfer_fee(test_validator: &TestValidator, payer: &Keypair) {
         u16::from(extension.newer_transfer_fee.transfer_fee_basis_points),
         new_transfer_fee_basis_points
     );
-    let new_maximum_fee = spl_token::ui_amount_to_amount(new_maximum_fee, TEST_DECIMALS);
+    let new_maximum_fee = spl_token_2022::ui_amount_to_amount(new_maximum_fee, TEST_DECIMALS);
     assert_eq!(
         u64::from(extension.newer_transfer_fee.maximum_fee),
         new_maximum_fee
@@ -3063,13 +3063,13 @@ async fn multisig_transfer(test_validator: &TestValidator, payer: &Keypair) {
         let token_account = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
         assert_eq!(
             token_account.base.amount,
-            spl_token::ui_amount_to_amount(90.0, TEST_DECIMALS)
+            spl_token_2022::ui_amount_to_amount(90.0, TEST_DECIMALS)
         );
         let account = config.rpc_client.get_account(&destination).await.unwrap();
         let token_account = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
         assert_eq!(
             token_account.base.amount,
-            spl_token::ui_amount_to_amount(10.0, TEST_DECIMALS)
+            spl_token_2022::ui_amount_to_amount(10.0, TEST_DECIMALS)
         );
     }
 }
@@ -3247,11 +3247,11 @@ async fn do_offline_multisig_transfer(
 
         let account = config.rpc_client.get_account(&source).await.unwrap();
         let token_account = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
-        let amount = spl_token::ui_amount_to_amount(0.0, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(0.0, TEST_DECIMALS);
         assert_eq!(token_account.base.amount, amount);
         let account = config.rpc_client.get_account(&destination).await.unwrap();
         let token_account = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
-        let amount = spl_token::ui_amount_to_amount(100.0, TEST_DECIMALS);
+        let amount = spl_token_2022::ui_amount_to_amount(100.0, TEST_DECIMALS);
         assert_eq!(token_account.base.amount, amount);
 
         // get new nonce

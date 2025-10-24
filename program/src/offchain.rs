@@ -340,8 +340,8 @@ mod tests {
             AccountMeta::new_readonly(MINT_PUBKEY, false),
             AccountMeta::new(destination, false),
             AccountMeta::new_readonly(authority, true),
-            AccountMeta::new_readonly(EXTRA_META_1, true),
-            AccountMeta::new_readonly(EXTRA_META_2, true),
+            AccountMeta::new_readonly(EXTRA_META_1, false), // demoted
+            AccountMeta::new_readonly(EXTRA_META_2, false), // demoted
             AccountMeta::new(extra_meta_3_pubkey, false),
             AccountMeta::new(extra_meta_4_pubkey, false),
             AccountMeta::new_readonly(TRANSFER_HOOK_PROGRAM_ID, false),
@@ -377,8 +377,8 @@ mod tests {
             AccountMeta::new_readonly(signer_1, true),
             AccountMeta::new_readonly(signer_2, true),
             AccountMeta::new_readonly(signer_3, true),
-            AccountMeta::new_readonly(EXTRA_META_1, true),
-            AccountMeta::new_readonly(EXTRA_META_2, true),
+            AccountMeta::new_readonly(EXTRA_META_1, false), // demoted
+            AccountMeta::new_readonly(EXTRA_META_2, false), // demoted
             AccountMeta::new(extra_meta_3_pubkey, false),
             AccountMeta::new(extra_meta_4_pubkey, false),
             AccountMeta::new_readonly(TRANSFER_HOOK_PROGRAM_ID, false),
@@ -438,8 +438,8 @@ mod tests {
             AccountMeta::new_readonly(MINT_PUBKEY, false),
             AccountMeta::new(destination, false),
             AccountMeta::new_readonly(authority, true),
-            AccountMeta::new_readonly(EXTRA_META_1, true),
-            AccountMeta::new_readonly(EXTRA_META_2, true),
+            AccountMeta::new_readonly(EXTRA_META_1, false), // demoted
+            AccountMeta::new_readonly(EXTRA_META_2, false), // demoted
             AccountMeta::new(extra_meta_3_pubkey, false),
             AccountMeta::new(extra_meta_4_pubkey, false),
             AccountMeta::new_readonly(TRANSFER_HOOK_PROGRAM_ID, false),
@@ -476,8 +476,8 @@ mod tests {
             AccountMeta::new_readonly(signer_1, true),
             AccountMeta::new_readonly(signer_2, true),
             AccountMeta::new_readonly(signer_3, true),
-            AccountMeta::new_readonly(EXTRA_META_1, true),
-            AccountMeta::new_readonly(EXTRA_META_2, true),
+            AccountMeta::new_readonly(EXTRA_META_1, false), // demoted
+            AccountMeta::new_readonly(EXTRA_META_2, false), // demoted
             AccountMeta::new(extra_meta_3_pubkey, false),
             AccountMeta::new(extra_meta_4_pubkey, false),
             AccountMeta::new_readonly(TRANSFER_HOOK_PROGRAM_ID, false),
