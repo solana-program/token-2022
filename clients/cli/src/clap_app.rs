@@ -111,7 +111,8 @@ impl OfflineArgs for clap::Command<'_> {
     }
 }
 
-pub static VALID_TOKEN_PROGRAM_IDS: [Pubkey; 2] = [spl_token_2022_interface::ID, spl_token::ID];
+pub static VALID_TOKEN_PROGRAM_IDS: [Pubkey; 2] =
+    [spl_token_2022_interface::ID, spl_token_interface::ID];
 
 #[derive(AsRefStr, Debug, Clone, Copy, PartialEq, EnumString, IntoStaticStr)]
 #[strum(serialize_all = "kebab-case")]
