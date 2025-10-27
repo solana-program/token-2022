@@ -5,6 +5,7 @@ A basic command-line for creating and using SPL Tokens.  See the
 
 ## Build
 
+
 To build the CLI locally, simply run:
 
 ```sh
@@ -24,4 +25,6 @@ After that, you can run the tests as any other Rust project:
 
 ```sh
 cargo test
+
 ```
+

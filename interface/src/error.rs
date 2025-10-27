@@ -268,6 +268,9 @@ pub enum TokenError {
     /// Pending supply is not zero
     #[error("Key rotation attempted while pending balance is not zero")]
     PendingBalanceNonZero,
+    /// Expected pending balance credit counter did not match actual
+    #[error("Expected pending balance credit counter did not match actual")]
+    PendingBalanceCreditCounterMismatch,
 }
 impl From<TokenError> for ProgramError {
     fn from(e: TokenError) -> Self {

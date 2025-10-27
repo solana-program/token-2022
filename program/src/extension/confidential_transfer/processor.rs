@@ -1204,13 +1204,24 @@ fn process_apply_pending_balance(
         &confidential_transfer_account.pending_balance_hi,
     )
     .ok_or(TokenError::CiphertextArithmeticFailed)?;
+    
+    npm install @solana/kit
+        // Ensure the client-provided expected_pending_balance_credit_counter matches
+    // the actual pending_balance_credit_counter. If they differ, the
+    // client-provided `new_decryptable_available_balance` may not correspond
+    // to the updated `available_balance` ciphertext. Refuse to apply the
+    // client-supplied decryptable balance to avoid corrupting the
+    // decryptable/available balance relationship.
+    let actual_pending = confidential_transfer_account.pending_balance_credit_counter;
+    if *expected_pending_balance_credit_counter != actual_pending {
+        msg!("expected pending balance credit counter mismatch: expected={}, actual={}",
+            u64::from(*expected_pending_balance_credit_counter), u64::from(actual_pending));
+        return Err(TokenError::PendingBalanceCreditCounterMismatch.into());
+    }
 
-    confidential_transfer_account.actual_pending_balance_credit_counter =
-        confidential_transfer_account.pending_balance_credit_counter;
-    confidential_transfer_account.expected_pending_balance_credit_counter =
-        *expected_pending_balance_credit_counter;
-    confidential_transfer_account.decryptable_available_balance =
-        *new_decryptable_available_balance;
+    confidential_transfer_account.actual_pending_balance_credit_counter = actual_pending;
+    confidential_transfer_account.expected_pending_balance_credit_counter = *expected_pending_balance_credit_counter;
+    confidential_transfer_account.decryptable_available_balance = *new_decryptable_available_balance;
     confidential_transfer_account.pending_balance_credit_counter = 0.into();
     confidential_transfer_account.pending_balance_lo = EncryptedBalance::zeroed();
     confidential_transfer_account.pending_balance_hi = EncryptedBalance::zeroed();
