@@ -10,6 +10,7 @@ use {
 };
 
 /// Errors that may be returned by the Token program.
+#[repr(u32)]
 #[cfg_attr(test, derive(strum_macros::FromRepr, strum_macros::EnumIter))]
 #[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq)]
 pub enum TokenError {
@@ -277,79 +278,8 @@ impl From<TokenError> for ProgramError {
 }
 impl TryFrom<u32> for TokenError {
     type Error = ProgramError;
-    fn try_from(error: u32) -> Result<Self, Self::Error> {
-        match error {
-            0 => Ok(Self::NotRentExempt),
-            1 => Ok(Self::InsufficientFunds),
-            2 => Ok(Self::InvalidMint),
-            3 => Ok(Self::MintMismatch),
-            4 => Ok(Self::OwnerMismatch),
-            5 => Ok(Self::FixedSupply),
-            6 => Ok(Self::AlreadyInUse),
-            7 => Ok(Self::InvalidNumberOfProvidedSigners),
-            8 => Ok(Self::InvalidNumberOfRequiredSigners),
-            9 => Ok(Self::UninitializedState),
-            10 => Ok(Self::NativeNotSupported),
-            11 => Ok(Self::NonNativeHasBalance),
-            12 => Ok(Self::InvalidInstruction),
-            13 => Ok(Self::InvalidState),
-            14 => Ok(Self::Overflow),
-            15 => Ok(Self::AuthorityTypeNotSupported),
-            16 => Ok(Self::MintCannotFreeze),
-            17 => Ok(Self::AccountFrozen),
-            18 => Ok(Self::MintDecimalsMismatch),
-            19 => Ok(Self::NonNativeNotSupported),
-            20 => Ok(Self::ExtensionTypeMismatch),
-            21 => Ok(Self::ExtensionBaseMismatch),
-            22 => Ok(Self::ExtensionAlreadyInitialized),
-            23 => Ok(Self::ConfidentialTransferAccountHasBalance),
-            24 => Ok(Self::ConfidentialTransferAccountNotApproved),
-            25 => Ok(Self::ConfidentialTransferDepositsAndTransfersDisabled),
-            26 => Ok(Self::ConfidentialTransferElGamalPubkeyMismatch),
-            27 => Ok(Self::ConfidentialTransferBalanceMismatch),
-            28 => Ok(Self::MintHasSupply),
-            29 => Ok(Self::NoAuthorityExists),
-            30 => Ok(Self::TransferFeeExceedsMaximum),
-            31 => Ok(Self::MintRequiredForTransfer),
-            32 => Ok(Self::FeeMismatch),
-            33 => Ok(Self::FeeParametersMismatch),
-            34 => Ok(Self::ImmutableOwner),
-            35 => Ok(Self::AccountHasWithheldTransferFees),
-            36 => Ok(Self::NoMemo),
-            37 => Ok(Self::NonTransferable),
-            38 => Ok(Self::NonTransferableNeedsImmutableOwnership),
-            39 => Ok(Self::MaximumPendingBalanceCreditCounterExceeded),
-            40 => Ok(Self::MaximumDepositAmountExceeded),
-            41 => Ok(Self::CpiGuardSettingsLocked),
-            42 => Ok(Self::CpiGuardTransferBlocked),
-            43 => Ok(Self::CpiGuardBurnBlocked),
-            44 => Ok(Self::CpiGuardCloseAccountBlocked),
-            45 => Ok(Self::CpiGuardApproveBlocked),
-            46 => Ok(Self::CpiGuardSetAuthorityBlocked),
-            47 => Ok(Self::CpiGuardOwnerChangeBlocked),
-            48 => Ok(Self::ExtensionNotFound),
-            49 => Ok(Self::NonConfidentialTransfersDisabled),
-            50 => Ok(Self::ConfidentialTransferFeeAccountHasWithheldFee),
-            51 => Ok(Self::InvalidExtensionCombination),
-            52 => Ok(Self::InvalidLengthForAlloc),
-            53 => Ok(Self::AccountDecryption),
-            54 => Ok(Self::ProofGeneration),
-            55 => Ok(Self::InvalidProofInstructionOffset),
-            56 => Ok(Self::HarvestToMintDisabled),
-            57 => Ok(Self::SplitProofContextStateAccountsNotSupported),
-            58 => Ok(Self::NotEnoughProofContextStateAccounts),
-            59 => Ok(Self::MalformedCiphertext),
-            60 => Ok(Self::CiphertextArithmeticFailed),
-            61 => Ok(Self::PedersenCommitmentMismatch),
-            62 => Ok(Self::RangeProofLengthMismatch),
-            63 => Ok(Self::IllegalBitLength),
-            64 => Ok(Self::FeeCalculation),
-            65 => Ok(Self::IllegalMintBurnConversion),
-            66 => Ok(Self::InvalidScale),
-            67 => Ok(Self::MintPaused),
-            68 => Ok(Self::PendingBalanceNonZero),
-            _ => Err(ProgramError::InvalidArgument),
-        }
+    fn try_from(code: u32) -> Result<Self, Self::Error> {
+        num_traits::FromPrimitive::from_u32(code).ok_or(ProgramError::InvalidArgument)
     }
 }
 
@@ -581,7 +511,7 @@ mod test {
         for variant in TokenError::iter() {
             let variant_u32 = variant as u32;
             assert_eq!(
-                TokenError::from_repr(variant_u32 as usize).unwrap(),
+                TokenError::from_repr(variant_u32).unwrap(),
                 TokenError::try_from(variant_u32).unwrap()
             );
         }
