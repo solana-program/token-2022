@@ -10,6 +10,8 @@ use {
 };
 
 /// Errors that may be returned by the Token program.
+#[repr(u32)]
+#[cfg_attr(test, derive(strum_macros::FromRepr, strum_macros::EnumIter))]
 #[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq)]
 pub enum TokenError {
     // 0
@@ -274,6 +276,12 @@ impl From<TokenError> for ProgramError {
         ProgramError::Custom(e as u32)
     }
 }
+impl TryFrom<u32> for TokenError {
+    type Error = ProgramError;
+    fn try_from(code: u32) -> Result<Self, Self::Error> {
+        num_traits::FromPrimitive::from_u32(code).ok_or(ProgramError::InvalidArgument)
+    }
+}
 
 impl ToStr for TokenError {
     fn to_str(&self) -> &'static str {
@@ -491,6 +499,21 @@ impl From<TokenProofExtractionError> for TokenError {
             TokenProofExtractionError::FeeParametersMismatch => TokenError::FeeParametersMismatch,
             TokenProofExtractionError::CurveArithmetic => TokenError::CiphertextArithmeticFailed,
             TokenProofExtractionError::CiphertextExtraction => TokenError::MalformedCiphertext,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use {super::*, strum::IntoEnumIterator};
+    #[test]
+    fn test_parse_error_from_primitive_exhaustive() {
+        for variant in TokenError::iter() {
+            let variant_u32 = variant as u32;
+            assert_eq!(
+                TokenError::from_repr(variant_u32).unwrap(),
+                TokenError::try_from(variant_u32).unwrap()
+            );
         }
     }
 }

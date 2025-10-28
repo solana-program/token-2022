@@ -1,11 +1,8 @@
 //! Program entrypoint
 
 use {
-    crate::processor::Processor,
-    solana_account_info::AccountInfo,
-    solana_program_error::{PrintProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
-    solana_security_txt::security_txt,
+    crate::processor::Processor, solana_account_info::AccountInfo, solana_msg::msg,
+    solana_program_error::ProgramResult, solana_pubkey::Pubkey, solana_security_txt::security_txt,
     spl_token_2022_interface::error::TokenError,
 };
 
@@ -17,7 +14,7 @@ fn process_instruction(
 ) -> ProgramResult {
     if let Err(error) = Processor::process(program_id, accounts, instruction_data) {
         // catch the error so we can print it
-        error.print::<TokenError>();
+        msg!(error.to_str::<TokenError>());
         return Err(error);
     }
     Ok(())
