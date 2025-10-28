@@ -9,8 +9,8 @@ on:
 env:
   JS_PACKAGES: "['clients-js', 'clients-js-legacy']"
   SBPF_PROGRAM_PACKAGES: "['confidential-elgamal-registry', 'program']"
-  RUST_PACKAGES: "['clients-cli', 'clients-rust-legacy', 'interface', 'program', 'confidential-ciphertext-arithmetic', 'confidential-elgamal-registry', 'confidential-proof-extraction', 'confidential-proof-generation', 'confidential-proof-tests']"
-  WASM_PACKAGES: "['interface', 'program']"
+  RUST_PACKAGES: "['clients-cli', 'clients-rust-legacy', 'interface', 'program', 'confidential-ciphertext-arithmetic', 'confidential-elgamal-registry', 'confidential-elgamal-registry-interface', 'confidential-proof-extraction', 'confidential-proof-generation', 'confidential-proof-tests']"
+  WASM_PACKAGES: "['confidential-elgamal-registry-interface', 'interface', 'program']"
 
 jobs:
   set_env:

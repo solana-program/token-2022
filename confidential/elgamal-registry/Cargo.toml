@@ -1,7 +1,7 @@
 [package]
 name = "spl-elgamal-registry"
 version = "0.3.0"
-description = "Solana ElGamal Registry Program"
+description = "SPL ElGamal Registry Program"
 authors = { workspace = true }
 repository = { workspace = true }
 homepage = { workspace = true }
@@ -10,7 +10,6 @@ edition = { workspace = true }
 
 [features]
 no-entrypoint = []
-test-sbf = []
 
 [dependencies]
 bytemuck = { version = "1.23.1", features = ["derive"] }
@@ -27,6 +26,7 @@ solana-security-txt = "1.1.1"
 solana-system-interface = { version = "2.0.0", features = ["bincode"] }
 solana-sysvar = { version = "3.0.0", features = ["bincode"] }
 solana-zk-sdk = "4.0.0"
+spl-elgamal-registry-interface = { version = "0.1.0", path = "../elgamal-registry-interface" }
 spl-pod = "0.7.1"
 spl-token-confidential-transfer-proof-extraction = { version = "0.5.0", path = "../proof-extraction" }
 

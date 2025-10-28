@@ -25,5 +25,5 @@ security_txt! {
 
     // Optional Fields
     preferred_languages: "en",
-    source_code: "https://github.com/solana-program/token-2022/tree/master/confidential-transfer/elgamal-registry"
+    source_code: "https://github.com/solana-program/token-2022/tree/master/confidential/elgamal-registry"
 }
