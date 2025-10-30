@@ -41,7 +41,7 @@ base64 = { version = "0.22.1", optional = true }
 spl-token-confidential-transfer-proof-generation = { version = "0.5.0", path = "../confidential/proof-generation" }
 
 [dev-dependencies]
-proptest = "1.7"
+proptest = "1.9"
 solana-pubkey = { version = "3.0.0", features = ["curve25519"] }
 spl-token-interface = { version = "2.0" }
 spl-token-2022-interface = { path = ".", features = ["serde"] }
