@@ -23,5 +23,8 @@ crate-type = ["lib"]
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
+[package.metadata.solana]
+program-id = "regVYJW7tcT8zipN5YiBvHsvR5jXW1uLFxaHSbugABg"
+
 [lints]
 workspace = true
