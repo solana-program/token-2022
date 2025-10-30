@@ -1,10 +1,4 @@
 use {
-    crate::{
-        get_elgamal_registry_address_and_bump_seed,
-        instruction::RegistryInstruction,
-        state::{ElGamalRegistry, ELGAMAL_REGISTRY_ACCOUNT_LEN},
-        REGISTRY_ADDRESS_SEED,
-    },
     solana_account_info::{next_account_info, AccountInfo},
     solana_cpi::invoke_signed,
     solana_msg::msg,
@@ -15,6 +9,12 @@ use {
     solana_sysvar::Sysvar,
     solana_zk_sdk::zk_elgamal_proof_program::proof_data::pubkey_validity::{
         PubkeyValidityProofContext, PubkeyValidityProofData,
+    },
+    spl_elgamal_registry_interface::{
+        get_elgamal_registry_address_and_bump_seed,
+        instruction::RegistryInstruction,
+        state::{ElGamalRegistry, ELGAMAL_REGISTRY_ACCOUNT_LEN},
+        REGISTRY_ADDRESS_SEED,
     },
     spl_pod::bytemuck::pod_from_bytes_mut,
     spl_token_confidential_transfer_proof_extraction::instruction::verify_and_extract_context,

@@ -29,7 +29,7 @@ use {
     solana_zk_sdk::encryption::pod::{
         auth_encryption::PodAeCiphertext, elgamal::PodElGamalCiphertext,
     },
-    spl_elgamal_registry::state::ElGamalRegistry,
+    spl_elgamal_registry_interface::state::ElGamalRegistry,
     spl_pod::{
         bytemuck::pod_from_bytes,
         optional_keys::{OptionalNonZeroElGamalPubkey, OptionalNonZeroPubkey},
