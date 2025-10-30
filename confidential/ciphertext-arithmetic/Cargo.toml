@@ -10,7 +10,7 @@ edition = { workspace = true }
 
 [dependencies]
 base64 = "0.22.1"
-bytemuck = "1.23.1"
+bytemuck = "1.24.0"
 solana-curve25519 = "2.3.4"
 solana-zk-sdk = "4.0.0"
 
