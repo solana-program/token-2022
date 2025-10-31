@@ -731,6 +731,8 @@ pub enum TokenInstruction<'a> {
     ScaledUiAmountExtension,
     /// Instruction prefix for instructions to the pausable extension
     PausableExtension,
+    /// Instruction prefix for instructions to the permissioned burn extension
+    PermissionedBurnExtension,
 }
 impl<'a> TokenInstruction<'a> {
     /// Unpacks a byte buffer into a
@@ -1052,6 +1054,9 @@ impl<'a> TokenInstruction<'a> {
             }
             &Self::PausableExtension => {
                 buf.push(44);
+            }
+            &Self::PermissionedBurnExtension => {
+                buf.push(45);
             }
         };
         buf

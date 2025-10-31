@@ -5,6 +5,7 @@ use {
         check_program_account,
         instruction::{encode_instruction, TokenInstruction},
     },
+    bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
@@ -34,7 +35,7 @@ pub enum PermissionedBurnInstruction {
     Disable,
 }
 
-/// Data expected by `PausableInstruction::Initialize`
+/// Data expected by `PermissionedBurnInstruction::Enable`
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -56,8 +57,8 @@ pub fn enable(
         token_program_id,
         accounts,
         TokenInstruction::PermissionedBurnExtension,
-        PausableInstruction::Enable,
-        &InitializeInstructionData {
+        PermissionedBurnInstruction::Enable,
+        &EnableInstructionData {
             authority: *authority,
         },
     ))
@@ -82,7 +83,7 @@ pub fn disable(
         token_program_id,
         accounts,
         TokenInstruction::PermissionedBurnExtension,
-        PausableInstruction::Disable,
+        PermissionedBurnInstruction::Disable,
         &(),
     ))
 }

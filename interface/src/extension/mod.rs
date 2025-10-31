@@ -22,6 +22,7 @@ use {
             mint_close_authority::MintCloseAuthority,
             non_transferable::{NonTransferable, NonTransferableAccount},
             pausable::{PausableAccount, PausableConfig},
+            permissioned_burn::{PermissionedBurnAccount, PermissionedBurnConfig},
             permanent_delegate::PermanentDelegate,
             scaled_ui_amount::ScaledUiAmountConfig,
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
@@ -74,6 +75,8 @@ pub mod mint_close_authority;
 pub mod non_transferable;
 /// Pausable extension
 pub mod pausable;
+/// Permissioned burn extension
+pub mod permissioned_burn;
 /// Permanent Delegate extension
 pub mod permanent_delegate;
 /// Scaled UI Amount extension
@@ -1119,6 +1122,10 @@ pub enum ExtensionType {
     Pausable,
     /// Indicates that the account belongs to a pausable mint
     PausableAccount,
+    /// Tokens burning requires approval from authorirty.
+    PermissionedBurn,
+    /// Indicates that the account belongs to a mint requiring permissioned burn.
+    PermissionedBurnAccount,
 
     /// Test variable-length mint extension
     #[cfg(test)]
@@ -1204,6 +1211,8 @@ impl ExtensionType {
             ExtensionType::ScaledUiAmount => pod_get_packed_len::<ScaledUiAmountConfig>(),
             ExtensionType::Pausable => pod_get_packed_len::<PausableConfig>(),
             ExtensionType::PausableAccount => pod_get_packed_len::<PausableAccount>(),
+            ExtensionType::PermissionedBurn => pod_get_packed_len::<PermissionedBurnConfig>(),
+            ExtensionType::PermissionedBurnAccount => pod_get_packed_len::<PermissionedBurnAccount>(),
             #[cfg(test)]
             ExtensionType::AccountPaddingTest => pod_get_packed_len::<AccountPaddingTest>(),
             #[cfg(test)]
@@ -1271,6 +1280,7 @@ impl ExtensionType {
             | ExtensionType::TokenGroupMember
             | ExtensionType::ScaledUiAmount
             | ExtensionType::Pausable => AccountType::Mint,
+            | ExtensionType::PermissionedBurn => AccountType::Mint,
             ExtensionType::ImmutableOwner
             | ExtensionType::TransferFeeAmount
             | ExtensionType::ConfidentialTransferAccount
@@ -1280,6 +1290,7 @@ impl ExtensionType {
             | ExtensionType::CpiGuard
             | ExtensionType::ConfidentialTransferFeeAmount
             | ExtensionType::PausableAccount => AccountType::Account,
+            | ExtensionType::PermissionedBurnAccount => AccountType::Account,
             #[cfg(test)]
             ExtensionType::VariableLenMintTest => AccountType::Mint,
             #[cfg(test)]
