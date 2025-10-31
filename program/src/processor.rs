@@ -7,8 +7,8 @@ use {
             cpi_guard::{self, in_cpi},
             default_account_state, group_member_pointer, group_pointer, interest_bearing_mint,
             memo_transfer::{self, check_previous_sibling_instruction_is_memo},
-            metadata_pointer, pausable, reallocate, scaled_ui_amount, token_group, token_metadata,
-            transfer_fee, transfer_hook, permissioned_burn,
+            metadata_pointer, pausable, permissioned_burn, reallocate, scaled_ui_amount,
+            token_group, token_metadata, transfer_fee, transfer_hook,
         },
         pod_instruction::{
             decode_instruction_data_with_coption_pubkey, AmountCheckedData, AmountData,
@@ -50,8 +50,8 @@ use {
             mint_close_authority::MintCloseAuthority,
             non_transferable::{NonTransferable, NonTransferableAccount},
             pausable::{PausableAccount, PausableConfig},
-            permissioned_burn::PermissionedBurnConfig,
             permanent_delegate::{get_permanent_delegate, PermanentDelegate},
+            permissioned_burn::PermissionedBurnConfig,
             scaled_ui_amount::ScaledUiAmountConfig,
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::{TransferHook, TransferHookAccount},
@@ -1118,7 +1118,7 @@ impl Processor {
                 return Err(ProgramError::MissingRequiredSignature);
             }
 
-            if *approver_ai.key !=  ext.authority {
+            if *approver_ai.key != ext.authority {
                 return Err(ProgramError::InvalidAccountData);
             }
         }
@@ -1958,7 +1958,11 @@ impl Processor {
                 }
                 PodTokenInstruction::PermissionedBurnExtension => {
                     msg!("Instruction: PermissionedBurnExtension");
-                    permissioned_burn::processor::process_instruction(program_id, accounts, &input[1..])
+                    permissioned_burn::processor::process_instruction(
+                        program_id,
+                        accounts,
+                        &input[1..],
+                    )
                 }
             }
         } else if let Ok(instruction) = TokenMetadataInstruction::unpack(input) {
