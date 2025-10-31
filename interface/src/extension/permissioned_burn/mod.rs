@@ -33,5 +33,5 @@ impl Extension for PermissionedBurnConfig {
 }
 
 impl Extension for PermissionedBurnAccount {
-    const TYPE: ExtensionType = ExtensionType::PermissionedBurn;
+    const TYPE: ExtensionType = ExtensionType::PermissionedBurnAccount;
 }

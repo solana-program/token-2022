@@ -1,6 +1,6 @@
-/// Instruction types for the pausable extension
+/// Instruction types for the permissioned burn extension
 pub mod instruction;
-/// Instruction processor for the pausable extension
+/// Instruction processor for the permissioned burn extension
 pub mod processor;
 
 #[deprecated(
