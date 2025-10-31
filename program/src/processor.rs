@@ -8,7 +8,7 @@ use {
             default_account_state, group_member_pointer, group_pointer, interest_bearing_mint,
             memo_transfer::{self, check_previous_sibling_instruction_is_memo},
             metadata_pointer, pausable, reallocate, scaled_ui_amount, token_group, token_metadata,
-            transfer_fee, transfer_hook,
+            transfer_fee, transfer_hook, permissioned_burn,
         },
         pod_instruction::{
             decode_instruction_data_with_coption_pubkey, AmountCheckedData, AmountData,
@@ -1941,6 +1941,10 @@ impl Processor {
                 PodTokenInstruction::PausableExtension => {
                     msg!("Instruction: PausableExtension");
                     pausable::processor::process_instruction(program_id, accounts, &input[1..])
+                }
+                PodTokenInstruction::PermissionedBurnExtension => {
+                    msg!("Instruction: PermissionedBurnExtension");
+                    permissioned_burn::processor::process_instruction(program_id, accounts, &input[1..])
                 }
             }
         } else if let Ok(instruction) = TokenMetadataInstruction::unpack(input) {

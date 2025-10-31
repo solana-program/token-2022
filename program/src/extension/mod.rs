@@ -26,6 +26,8 @@ pub mod mint_close_authority;
 pub mod non_transferable;
 /// Pausable extension
 pub mod pausable;
+/// Pausable extension
+pub mod permissioned_burn;
 /// Permanent Delegate extension
 pub mod permanent_delegate;
 /// Utility to reallocate token accounts
