@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use {
     crate::extension::{Extension, ExtensionType},
     bytemuck::{Pod, Zeroable},
-    spl_pod::{optional_keys::OptionalNonZeroPubkey, primitives::PodBool},
+    solana_pubkey::Pubkey
 };
 
 /// Instruction types for the permissioned burn extension
@@ -16,9 +16,7 @@ pub mod instruction;
 #[repr(C)]
 pub struct PermissionedBurnConfig {
     /// Authority that is required for burning
-    pub authority: OptionalNonZeroPubkey,
-    /// Whether permission from the authority is required to burn
-    pub enabled: PodBool,
+    pub authority: Pubkey,
 }
 
 /// Indicates that the tokens from this account belong to a permissioned burn mint

@@ -50,7 +50,7 @@ use {
             mint_close_authority::MintCloseAuthority,
             non_transferable::{NonTransferable, NonTransferableAccount},
             pausable::{PausableAccount, PausableConfig},
-            permissioned_burn::{PermissionedBurnAccount, PermissionedBurnConfig},
+            permissioned_burn::PermissionedBurnConfig,
             permanent_delegate::{get_permanent_delegate, PermanentDelegate},
             scaled_ui_amount::ScaledUiAmountConfig,
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
@@ -1111,25 +1111,15 @@ impl Processor {
             }
         }
         if let Ok(ext) = mint.get_extension::<PermissionedBurnConfig>() {
-            if ext.enabled.into() {
-                // Pull the required extra signer from the accounts
-                let approver_ai = next_account_info(account_info_iter)?;
+            // Pull the required extra signer from the accounts
+            let approver_ai = next_account_info(account_info_iter)?;
 
-                // Decode the configured approver from the mint extension
-                let required_approver: Option<Pubkey> = Option::<Pubkey>::from(ext.authority);
+            if !approver_ai.is_signer {
+                return Err(ProgramError::MissingRequiredSignature);
+            }
 
-                // Enforce: approver must be present in config
-                let Some(req_key) = required_approver else {
-                    return Err(ProgramError::InvalidAccountData);
-                };
-
-                if !approver_ai.is_signer {
-                    return Err(ProgramError::MissingRequiredSignature);
-                }
-
-                if *approver_ai.key != req_key {
-                    return Err(ProgramError::InvalidAccountData);
-                }
+            if *approver_ai.key !=  ext.authority {
+                return Err(ProgramError::InvalidAccountData);
             }
         }
 

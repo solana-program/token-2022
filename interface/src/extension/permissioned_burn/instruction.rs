@@ -22,31 +22,25 @@ pub enum PermissionedBurnInstruction {
     ///
     /// Accounts expected by this instruction:
     ///
-    ///   0. `[writable]`  The mint account for which to enable.
+    ///   0. `[writable]`  The mint account to initialize.
     ///
     /// Data expected by this instruction:
-    ///   `crate::extension::permissioned_burn::instruction::EnableInstructionData`
-    Enable,
-    /// Stop requiring burn to be signed by an additional authority.
-    ///
-    /// Accounts expected by this instruction:
-    ///
-    ///   0. `[writable]`  The mint account for which to enable.
-    Disable,
+    ///   `crate::extension::permissioned_burn::instruction::InitializeInstructionData`
+    Initialize,
 }
 
-/// Data expected by `PermissionedBurnInstruction::Enable`
+/// Data expected by `PermissionedBurnInstruction::Initialize`
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
-pub struct EnableInstructionData {
+pub struct InitializeInstructionData {
     /// The public key for the account that is required for token burning.
     pub authority: Pubkey,
 }
 
-/// Create an `Enable` instruction
-pub fn enable(
+/// Create an `Initialize` instruction
+pub fn initialize(
     token_program_id: &Pubkey,
     mint: &Pubkey,
     authority: &Pubkey,
@@ -57,33 +51,9 @@ pub fn enable(
         token_program_id,
         accounts,
         TokenInstruction::PermissionedBurnExtension,
-        PermissionedBurnInstruction::Enable,
-        &EnableInstructionData {
+        PermissionedBurnInstruction::Initialize,
+        &InitializeInstructionData {
             authority: *authority,
         },
-    ))
-}
-
-/// Create a `Disable` instruction
-pub fn disable(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-    signers: &[&Pubkey],
-) -> Result<Instruction, ProgramError> {
-    check_program_account(token_program_id)?;
-    let mut accounts = vec![
-        AccountMeta::new(*mint, false),
-        AccountMeta::new_readonly(*authority, signers.is_empty()),
-    ];
-    for signer_pubkey in signers.iter() {
-        accounts.push(AccountMeta::new_readonly(**signer_pubkey, true));
-    }
-    Ok(encode_instruction(
-        token_program_id,
-        accounts,
-        TokenInstruction::PermissionedBurnExtension,
-        PermissionedBurnInstruction::Disable,
-        &(),
     ))
 }
