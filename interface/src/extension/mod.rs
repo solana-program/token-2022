@@ -23,7 +23,7 @@ use {
             non_transferable::{NonTransferable, NonTransferableAccount},
             pausable::{PausableAccount, PausableConfig},
             permanent_delegate::PermanentDelegate,
-            permissioned_burn::{PermissionedBurnAccount, PermissionedBurnConfig},
+            permissioned_burn::PermissionedBurnConfig,
             scaled_ui_amount::ScaledUiAmountConfig,
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::{TransferHook, TransferHookAccount},
@@ -1124,8 +1124,6 @@ pub enum ExtensionType {
     PausableAccount,
     /// Tokens burning requires approval from authorirty.
     PermissionedBurn,
-    /// Indicates that the account belongs to a mint requiring permissioned burn.
-    PermissionedBurnAccount,
 
     /// Test variable-length mint extension
     #[cfg(test)]
@@ -1212,9 +1210,6 @@ impl ExtensionType {
             ExtensionType::Pausable => pod_get_packed_len::<PausableConfig>(),
             ExtensionType::PausableAccount => pod_get_packed_len::<PausableAccount>(),
             ExtensionType::PermissionedBurn => pod_get_packed_len::<PermissionedBurnConfig>(),
-            ExtensionType::PermissionedBurnAccount => {
-                pod_get_packed_len::<PermissionedBurnAccount>()
-            }
             #[cfg(test)]
             ExtensionType::AccountPaddingTest => pod_get_packed_len::<AccountPaddingTest>(),
             #[cfg(test)]
@@ -1292,7 +1287,6 @@ impl ExtensionType {
             | ExtensionType::CpiGuard
             | ExtensionType::ConfidentialTransferFeeAmount
             | ExtensionType::PausableAccount => AccountType::Account,
-            ExtensionType::PermissionedBurnAccount => AccountType::Account,
             #[cfg(test)]
             ExtensionType::VariableLenMintTest => AccountType::Mint,
             #[cfg(test)]
