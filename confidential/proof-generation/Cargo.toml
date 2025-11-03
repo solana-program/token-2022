@@ -1,6 +1,6 @@
 [package]
 name = "spl-token-confidential-transfer-proof-generation"
-version = "0.5.0"
+version = "0.5.1"
 description = "Solana Program Library Confidential Transfer Proof Generation"
 authors = { workspace = true }
 repository = { workspace = true }
