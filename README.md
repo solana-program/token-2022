@@ -48,7 +48,7 @@ The following clients are available. You may use the following links to learn
 more about each client:
 
 - [JS client (auto-generated with Kit)](./clients/js)
-- [JS-legacy client (using `@solana/web3.js`](./clients/js-legacy)
+- [JS-legacy client (using `@solana/web3.js`)](./clients/js-legacy)
 - [Rust client (auto-generated)](./clients/rust)
 - [Rust legacy client](./clients/rust-legacy)
 
