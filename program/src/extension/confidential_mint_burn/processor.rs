@@ -1,5 +1,13 @@
+#[cfg(feature = "zk-ops")]
 use {
-    crate::processor::Processor,
+    crate::{
+        check_auditor_ciphertext,
+        extension::confidential_mint_burn::verify_proof::{verify_burn_proof, verify_mint_proof},
+    },
+    spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic,
+};
+use {
+    crate::{extension::cpi_guard::in_cpi, processor::Processor},
     solana_account_info::{next_account_info, AccountInfo},
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
@@ -26,6 +34,7 @@ use {
                 ConfidentialMintBurn,
             },
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
+            cpi_guard::CpiGuard,
             pausable::PausableConfig,
             BaseStateWithExtensions, BaseStateWithExtensionsMut, PodStateWithExtensionsMut,
         },
@@ -33,14 +42,6 @@ use {
         pod::{PodAccount, PodMint},
     },
     spl_token_confidential_transfer_proof_extraction::instruction::verify_and_extract_context,
-};
-#[cfg(feature = "zk-ops")]
-use {
-    crate::{
-        check_auditor_ciphertext,
-        extension::confidential_mint_burn::verify_proof::{verify_burn_proof, verify_mint_proof},
-    },
-    spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic,
 };
 
 /// Processes an [`InitializeMint`] instruction.
@@ -336,6 +337,17 @@ fn process_confidential_burn(
         authority_info_data_len,
         account_info_iter.as_slice(),
     )?;
+
+    if let Ok(cpi_guard) = token_account.get_extension::<CpiGuard>() {
+        // Blocks all cases where the authority has signed if CPI Guard is
+        // enabled, including:
+        // * the account is delegated to the owner
+        // * the account owner is the permanent delegate
+        if *authority_info.key == token_account.base.owner && cpi_guard.lock_cpi.into() && in_cpi()
+        {
+            return Err(TokenError::CpiGuardBurnBlocked.into());
+        }
+    }
 
     if token_account.base.is_frozen() {
         return Err(TokenError::AccountFrozen.into());
