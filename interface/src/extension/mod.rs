@@ -1276,8 +1276,8 @@ impl ExtensionType {
             | ExtensionType::ConfidentialMintBurn
             | ExtensionType::TokenGroupMember
             | ExtensionType::ScaledUiAmount
-            | ExtensionType::Pausable => AccountType::Mint,
-            ExtensionType::PermissionedBurn => AccountType::Mint,
+          | ExtensionType::Pausable
+          | ExtensionType::PermissionedBurn => AccountType::Mint,
             ExtensionType::ImmutableOwner
             | ExtensionType::TransferFeeAmount
             | ExtensionType::ConfidentialTransferAccount
