@@ -54,3 +54,8 @@ config = "scripts/spellcheck.toml"
 pre-release-commit-message = "Publish {{crate_name}} v{{version}}"
 tag-message = "Publish {{crate_name}} v{{version}}"
 consolidate-commits = false
+
+[patch.crates-io]
+spl-token-confidential-transfer-proof-extraction = { path = "confidential/proof-extraction" }
+spl-token-confidential-transfer-proof-generation = { path = "confidential/proof-generation" }
+spl-token-2022-interface = { path = "interface" }
