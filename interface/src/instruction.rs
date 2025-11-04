@@ -875,6 +875,7 @@ impl<'a> TokenInstruction<'a> {
             42 => Self::ConfidentialMintBurnExtension,
             43 => Self::ScaledUiAmountExtension,
             44 => Self::PausableExtension,
+            46 => Self::PermissionedBurnExtension,
             _ => return Err(TokenError::InvalidInstruction.into()),
         })
     }
@@ -1056,7 +1057,7 @@ impl<'a> TokenInstruction<'a> {
                 buf.push(44);
             }
             &Self::PermissionedBurnExtension => {
-                buf.push(45);
+                buf.push(46);
             }
         };
         buf
