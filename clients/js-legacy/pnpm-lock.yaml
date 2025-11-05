@@ -47,7 +47,7 @@ importers:
         version: 10.0.10
       '@types/node':
         specifier: ^24.0.0
-        version: 24.9.2
+        version: 24.10.0
       '@types/node-fetch':
         specifier: ^2.6.12
         version: 2.6.13
@@ -92,7 +92,7 @@ importers:
         version: 0.4.0
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@types/node@24.9.2)(typescript@5.9.3)
+        version: 10.9.2(@types/node@24.10.0)(typescript@5.9.3)
       typedoc:
         specifier: ^0.28.0
         version: 0.28.14(typescript@5.9.3)
@@ -366,8 +366,8 @@ packages:
   '@types/node@12.20.55':
     resolution: {integrity: sha512-J8xLz7q2OFulZ2cyGTLE1TbbZcjpno7FaN6zdJNrgAdrJ+DZzh/uFR6YrTb4C+nXakvud8Q4+rbhoIWlYQbUFQ==}
 
-  '@types/node@24.9.2':
-    resolution: {integrity: sha512-uWN8YqxXxqFMX2RqGOrumsKeti4LlmIMIyV0lgut4jx7KQBcBiW6vkDtIBvHnHIquwNfJhk8v2OtmO8zXWHfPA==}
+  '@types/node@24.10.0':
+    resolution: {integrity: sha512-qzQZRBqkFsYyaSWXuEHc2WR9c0a0CXwiE5FWUvn7ZM+vdy1uZLfCunD38UzhuB7YN/J11ndbDBcTmOdxJo9Q7A==}
 
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
@@ -1914,7 +1914,7 @@ snapshots:
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 24.9.2
+      '@types/node': 24.10.0
 
   '@types/deep-eql@4.0.2': {}
 
@@ -1926,12 +1926,12 @@ snapshots:
 
   '@types/node-fetch@2.6.13':
     dependencies:
-      '@types/node': 24.9.2
+      '@types/node': 24.10.0
       form-data: 4.0.4
 
   '@types/node@12.20.55': {}
 
-  '@types/node@24.9.2':
+  '@types/node@24.10.0':
     dependencies:
       undici-types: 7.16.0
 
@@ -1941,11 +1941,11 @@ snapshots:
 
   '@types/ws@7.4.7':
     dependencies:
-      '@types/node': 24.9.2
+      '@types/node': 24.10.0
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 24.9.2
+      '@types/node': 24.10.0
 
   '@typescript-eslint/eslint-plugin@8.46.3(@typescript-eslint/parser@8.46.3(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)':
     dependencies:
@@ -3026,14 +3026,14 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
-  ts-node@10.9.2(@types/node@24.9.2)(typescript@5.9.3):
+  ts-node@10.9.2(@types/node@24.10.0)(typescript@5.9.3):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.11
       '@tsconfig/node12': 1.0.11
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
-      '@types/node': 24.9.2
+      '@types/node': 24.10.0
       acorn: 8.14.0
       acorn-walk: 8.3.4
       arg: 4.1.3
