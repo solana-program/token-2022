@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use {
     crate::extension::{Extension, ExtensionType},
     bytemuck::{Pod, Zeroable},
-    solana_pubkey::Pubkey,
+    spl_pod::optional_keys::OptionalNonZeroPubkey
 };
 
 /// Instruction types for the permissioned burn extension
@@ -16,7 +16,7 @@ pub mod instruction;
 #[repr(C)]
 pub struct PermissionedBurnConfig {
     /// Authority that is required for burning
-    pub authority: Pubkey,
+    pub authority: OptionalNonZeroPubkey,
 }
 
 impl Extension for PermissionedBurnConfig {

@@ -967,6 +967,19 @@ impl Processor {
                     )?;
                     extension.authority = new_authority.try_into()?;
                 }
+                AuthorityType::PermissionedBurn => {
+                    let extension = mint.get_extension_mut::<PermissionedBurnConfig>()?;
+                    let maybe_authority: Option<Pubkey> = extension.authority.into();
+                    let authority = maybe_authority.ok_or(TokenError::AuthorityTypeNotSupported)?;
+                    Self::validate_owner(
+                        program_id,
+                        &authority,
+                        authority_info,
+                        authority_info_data_len,
+                        account_info_iter.as_slice(),
+                    )?;
+                    extension.authority = new_authority.try_into()?;
+                }
                 _ => {
                     return Err(TokenError::AuthorityTypeNotSupported.into());
                 }
@@ -1118,7 +1131,8 @@ impl Processor {
                 return Err(ProgramError::MissingRequiredSignature);
             }
 
-            if *approver_ai.key != ext.authority {
+            let maybe_burn_authority: Option<Pubkey> = ext.authority.into();
+            if Some(*approver_ai.key) != maybe_burn_authority {
                 return Err(ProgramError::InvalidAccountData);
             }
         }

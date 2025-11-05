@@ -1160,6 +1160,8 @@ pub enum AuthorityType {
     ScaledUiAmount,
     /// Authority to pause or resume minting / transferring / burning
     Pause,
+    /// Authority to perform a permissioned token burn
+    PermissionedBurn,
 }
 
 impl AuthorityType {
@@ -1182,6 +1184,7 @@ impl AuthorityType {
             AuthorityType::GroupMemberPointer => 14,
             AuthorityType::ScaledUiAmount => 15,
             AuthorityType::Pause => 16,
+            AuthorityType::PermissionedBurn => 17,
         }
     }
 
@@ -1205,6 +1208,7 @@ impl AuthorityType {
             14 => Ok(AuthorityType::GroupMemberPointer),
             15 => Ok(AuthorityType::ScaledUiAmount),
             16 => Ok(AuthorityType::Pause),
+            17 => Ok(AuthorityType::PermissionedBurn),
             _ => Err(TokenError::InvalidInstruction.into()),
         }
     }

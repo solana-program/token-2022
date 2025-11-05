@@ -28,7 +28,7 @@ fn process_initialize(
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
 
     let extension = mint.init_extension::<PermissionedBurnConfig>(true)?;
-    extension.authority = *authority;
+    extension.authority = Some(*authority).try_into()?;
 
     Ok(())
 }
