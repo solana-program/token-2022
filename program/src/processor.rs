@@ -1087,6 +1087,57 @@ impl Processor {
         amount: u64,
         instruction_variant: InstructionVariant,
     ) -> ProgramResult {
+        Self::do_process_burn(program_id, accounts, amount, instruction_variant)
+    }
+
+    /// Processes a [`PermissionedBurn`](enum.TokenInstruction.html) instruction.
+    pub(crate) fn process_permissioned_burn(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        amount: u64,
+        instruction_variant: InstructionVariant,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let source_account_info = next_account_info(account_info_iter)?;
+        let mint_info = next_account_info(account_info_iter)?;
+        let authority_info = next_account_info(account_info_iter)?;
+        let authority_info_data_len = authority_info.data_len();
+
+        let mut mint_data = mint_info.data.borrow_mut();
+        let mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
+
+        if let Ok(ext) = mint.get_extension::<PermissionedBurnConfig>() {
+            // Pull the required extra signer from the accounts
+            let approver_ai = next_account_info(account_info_iter)?;
+
+            if !approver_ai.is_signer {
+                return Err(ProgramError::MissingRequiredSignature);
+            }
+
+            let maybe_burn_authority: Option<Pubkey> = ext.authority.into();
+            if Some(*approver_ai.key) != maybe_burn_authority {
+                return Err(ProgramError::InvalidAccountData);
+            }
+        }
+
+        let remaining_after = account_info_iter.as_slice();
+        let mut forward = vec![
+            source_account_info.clone(),
+            mint_info.clone(),
+            authority_info.clone(),
+        ];
+        forward.extend_from_slice(remaining_after);
+
+        Self::do_process_burn(program_id, &forward, amount, instruction_variant)
+    }
+
+    fn do_process_burn(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        amount: u64,
+        instruction_variant: InstructionVariant,
+    ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
         let source_account_info = next_account_info(account_info_iter)?;
@@ -1121,19 +1172,6 @@ impl Processor {
         if let Ok(extension) = mint.get_extension::<PausableConfig>() {
             if extension.paused.into() {
                 return Err(TokenError::MintPaused.into());
-            }
-        }
-        if let Ok(ext) = mint.get_extension::<PermissionedBurnConfig>() {
-            // Pull the required extra signer from the accounts
-            let approver_ai = next_account_info(account_info_iter)?;
-
-            if !approver_ai.is_signer {
-                return Err(ProgramError::MissingRequiredSignature);
-            }
-
-            let maybe_burn_authority: Option<Pubkey> = ext.authority.into();
-            if Some(*approver_ai.key) != maybe_burn_authority {
-                return Err(ProgramError::InvalidAccountData);
             }
         }
 
@@ -1767,6 +1805,16 @@ impl Processor {
                 }
                 PodTokenInstruction::Burn => {
                     msg!("Instruction: Burn");
+                    let data = decode_instruction_data::<AmountData>(input)?;
+                    Self::process_burn(
+                        program_id,
+                        accounts,
+                        data.amount.into(),
+                        InstructionVariant::Unchecked,
+                    )
+                }
+                PodTokenInstruction::PermissionedBurn => {
+                    msg!("Instruction: PermissionedBurn");
                     let data = decode_instruction_data::<AmountData>(input)?;
                     Self::process_burn(
                         program_id,

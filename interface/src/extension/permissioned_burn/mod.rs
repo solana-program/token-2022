@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use {
     crate::extension::{Extension, ExtensionType},
     bytemuck::{Pod, Zeroable},
-    spl_pod::optional_keys::OptionalNonZeroPubkey
+    spl_pod::optional_keys::OptionalNonZeroPubkey,
 };
 
 /// Instruction types for the permissioned burn extension
