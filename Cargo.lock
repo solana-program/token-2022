@@ -10075,9 +10075,9 @@ dependencies = [
 
 [[package]]
 name = "spl-transfer-hook-interface"
-version = "2.0.0"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bdfff2798bcdc48ba52be12a47a28cf2d003f6f9846484ad7e6fec68d2578c25"
+checksum = "c34b46b8f39bc64a9ab177a0ea8e9a58826db76f8d9d154a2400ee60baef7b1e"
 dependencies = [
  "arrayref",
  "bytemuck",
