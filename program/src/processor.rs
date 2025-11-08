@@ -1102,7 +1102,6 @@ impl Processor {
         let source_account_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
         let authority_info = next_account_info(account_info_iter)?;
-        let authority_info_data_len = authority_info.data_len();
 
         let mut mint_data = mint_info.data.borrow_mut();
         let mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
@@ -1816,7 +1815,7 @@ impl Processor {
                 PodTokenInstruction::PermissionedBurn => {
                     msg!("Instruction: PermissionedBurn");
                     let data = decode_instruction_data::<AmountData>(input)?;
-                    Self::process_burn(
+                    Self::process_permissioned_burn(
                         program_id,
                         accounts,
                         data.amount.into(),
