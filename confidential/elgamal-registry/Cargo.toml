@@ -14,7 +14,7 @@ no-entrypoint = []
 [dependencies]
 bytemuck = { version = "1.24.0", features = ["derive"] }
 solana-account-info = "3.0.0"
-solana-cpi = "3.0.0"
+solana-cpi = "3.1.0"
 solana-instruction = "3.0.0"
 solana-msg = "3.0.0"
 solana-program-entrypoint = "3.0.0"
