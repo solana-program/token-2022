@@ -28,6 +28,8 @@ pub mod non_transferable;
 pub mod pausable;
 /// Permanent Delegate extension
 pub mod permanent_delegate;
+/// Permissioned burn extension
+pub mod permissioned_burn;
 /// Utility to reallocate token accounts
 pub mod reallocate;
 /// Scaled UI Amount extension
