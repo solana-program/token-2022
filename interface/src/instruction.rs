@@ -731,6 +731,24 @@ pub enum TokenInstruction<'a> {
     ScaledUiAmountExtension,
     /// Instruction prefix for instructions to the pausable extension
     PausableExtension,
+    /// 45
+    /// Transfer lamports from a native SOL account to a destination account.
+    ///
+    /// This is useful to unwrap lamports from a wrapped SOL account.
+    ///
+    /// Accounts expected by this instruction:
+    ///
+    ///   0. `[writable]` The source account.
+    ///   1. `[writable]` The destination account.
+    ///   2. `[signer]` The source account's owner/delegate.
+    ///
+    UnwrapLamports {
+        /// The amount of lamports to transfer. When an amount is
+        /// not specified, the entire balance of the source account will be
+        /// transferred.
+        #[cfg_attr(feature = "serde", serde(with = "coption_fromstr"))]
+        amount: COption<u64>,
+    },
 }
 impl<'a> TokenInstruction<'a> {
     /// Unpacks a byte buffer into a
@@ -873,6 +891,10 @@ impl<'a> TokenInstruction<'a> {
             42 => Self::ConfidentialMintBurnExtension,
             43 => Self::ScaledUiAmountExtension,
             44 => Self::PausableExtension,
+            45 => {
+                let (amount, _rest) = Self::unpack_u64_option(rest)?;
+                Self::UnwrapLamports { amount }
+            }
             _ => return Err(TokenError::InvalidInstruction.into()),
         })
     }
@@ -1052,6 +1074,10 @@ impl<'a> TokenInstruction<'a> {
             }
             &Self::PausableExtension => {
                 buf.push(44);
+            }
+            &Self::UnwrapLamports { amount } => {
+                buf.push(45);
+                Self::pack_u64_option(&amount, &mut buf);
             }
         };
         buf
@@ -2084,6 +2110,37 @@ pub fn withdraw_excess_lamports(
     })
 }
 
+/// Creates an `UnwrapLamports` instruction
+pub fn unwrap_lamports(
+    token_program_id: &Pubkey,
+    source_pubkey: &Pubkey,
+    destination_pubkey: &Pubkey,
+    authority_pubkey: &Pubkey,
+    signer_pubkeys: &[&Pubkey],
+    amount: Option<u64>,
+) -> Result<Instruction, ProgramError> {
+    check_program_account(token_program_id)?;
+    let amount = amount.into();
+    let data = TokenInstruction::UnwrapLamports { amount }.pack();
+
+    let mut accounts = Vec::with_capacity(3 + signer_pubkeys.len());
+    accounts.push(AccountMeta::new(*source_pubkey, false));
+    accounts.push(AccountMeta::new(*destination_pubkey, false));
+    accounts.push(AccountMeta::new_readonly(
+        *authority_pubkey,
+        signer_pubkeys.is_empty(),
+    ));
+    for signer_pubkey in signer_pubkeys.iter() {
+        accounts.push(AccountMeta::new_readonly(**signer_pubkey, true));
+    }
+
+    Ok(Instruction {
+        program_id: *token_program_id,
+        accounts,
+        data,
+    })
+}
+
 #[cfg(test)]
 mod test {
     use {super::*, proptest::prelude::*};
@@ -2453,6 +2510,25 @@ mod test {
         let packed = check.pack();
         let mut expect = vec![35u8];
         expect.extend_from_slice(&[11u8; 32]);
+        assert_eq!(packed, expect);
+        let unpacked = TokenInstruction::unpack(&expect).unwrap();
+        assert_eq!(unpacked, check);
+    }
+
+    #[test]
+    fn test_unwrap_lamports_packing() {
+        let amount = COption::None;
+        let check = TokenInstruction::UnwrapLamports { amount };
+        let packed = check.pack();
+        let expect = Vec::from([45u8, 0]);
+        assert_eq!(packed, expect);
+        let unpacked = TokenInstruction::unpack(&expect).unwrap();
+        assert_eq!(unpacked, check);
+
+        let amount = COption::Some(1);
+        let check = TokenInstruction::UnwrapLamports { amount };
+        let packed = check.pack();
+        let expect = Vec::from([45u8, 1, 1, 0, 0, 0, 0, 0, 0, 0]);
         assert_eq!(packed, expect);
         let unpacked = TokenInstruction::unpack(&expect).unwrap();
         assert_eq!(unpacked, check);
