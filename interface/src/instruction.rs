@@ -1088,6 +1088,27 @@ impl<'a> TokenInstruction<'a> {
         }
     }
 
+    pub(crate) fn unpack_u64_option(input: &[u8]) -> Result<(COption<u64>, &[u8]), ProgramError> {
+        match input.split_first() {
+            Option::Some((&0, rest)) => Ok((COption::None, rest)),
+            Option::Some((&1, rest)) => {
+                let (value, rest) = Self::unpack_u64(rest)?;
+                Ok((COption::Some(value), rest))
+            }
+            _ => Err(TokenError::InvalidInstruction.into()),
+        }
+    }
+
+    pub(crate) fn pack_u64_option(value: &COption<u64>, buf: &mut Vec<u8>) {
+        match *value {
+            COption::Some(ref amount) => {
+                buf.push(1);
+                buf.extend_from_slice(&amount.to_le_bytes());
+            }
+            COption::None => buf.push(0),
+        }
+    }
+
     pub(crate) fn unpack_u16(input: &[u8]) -> Result<(u16, &[u8]), ProgramError> {
         let value = input
             .get(..U16_BYTES)
