@@ -4,7 +4,7 @@
     "generate:clients": "zx ./scripts/generate-clients.mjs"
   },
   "devDependencies": {
-    "@codama/renderers-js": "^1.4.3",
+    "@codama/renderers-js": "^1.5.0",
     "@codama/renderers-rust": "^1.2.7",
     "@iarna/toml": "^2.2.5",
     "codama": "^1.4.1",
