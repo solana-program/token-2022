@@ -1,13 +1,14 @@
 mod program_test;
 use {
     program_test::{keypair_clone, TestContext, TokenContext},
+    solana_program_pack::Pack,
     solana_program_test::{
         tokio::{self, sync::Mutex},
         ProgramTest,
     },
     solana_sdk::{
-        instruction::InstructionError, pubkey::Pubkey, signature::Signer, signer::keypair::Keypair,
-        transaction::TransactionError, transport::TransportError,
+        instruction::InstructionError, pubkey::Pubkey, rent::Rent, signature::Signer,
+        signer::keypair::Keypair, transaction::TransactionError, transport::TransportError,
     },
     spl_instruction_padding_interface::instruction::wrap_instruction,
     spl_token_2022_interface::{
@@ -17,6 +18,7 @@ use {
             BaseStateWithExtensions, ExtensionType,
         },
         instruction::{self, AuthorityType},
+        state::Account,
     },
     spl_token_client::{
         client::ProgramBanksClientProcessTransaction,
@@ -46,10 +48,14 @@ async fn make_context() -> TestContext {
     let program_context = program_test.start_with_context().await;
     let program_context = Arc::new(Mutex::new(program_context));
 
-    let mut test_context = TestContext {
+    TestContext {
         context: program_context,
         token_context: None,
-    };
+    }
+}
+
+async fn make_context_with_new_mint() -> TestContext {
+    let mut test_context = make_context().await;
 
     test_context.init_token_with_mint(vec![]).await.unwrap();
     let token_context = test_context.token_context.as_ref().unwrap();
@@ -73,6 +79,37 @@ async fn make_context() -> TestContext {
     test_context
 }
 
+async fn make_context_with_native_mint(amount: u64) -> TestContext {
+    let mut test_context = make_context().await;
+
+    test_context.init_token_with_native_mint().await.unwrap();
+    let token_context = test_context.token_context.as_ref().unwrap();
+
+    token_context
+        .token
+        .wrap_with_mutable_ownership(
+            &token_context.alice.pubkey(),
+            &token_context.alice.pubkey(),
+            amount,
+            &[&token_context.alice],
+        )
+        .await
+        .unwrap();
+
+    token_context
+        .token
+        .wrap_with_mutable_ownership(
+            &token_context.bob.pubkey(),
+            &token_context.bob.pubkey(),
+            amount,
+            &[&token_context.bob],
+        )
+        .await
+        .unwrap();
+
+    test_context
+}
+
 fn client_error(token_error: TokenError) -> TokenClientError {
     TokenClientError::Client(Box::new(TransportError::TransactionError(
         TransactionError::InstructionError(0, InstructionError::Custom(token_error as u32)),
@@ -81,7 +118,7 @@ fn client_error(token_error: TokenError) -> TokenClientError {
 
 #[tokio::test]
 async fn test_cpi_guard_enable_disable() {
-    let context = make_context().await;
+    let context = make_context_with_new_mint().await;
     let TokenContext {
         token, alice, bob, ..
     } = context.token_context.unwrap();
@@ -185,7 +222,7 @@ async fn test_cpi_guard_enable_disable() {
 
 #[tokio::test]
 async fn test_cpi_guard_transfer() {
-    let context = make_context().await;
+    let context = make_context_with_new_mint().await;
     let TokenContext {
         token,
         token_unchecked,
@@ -333,7 +370,7 @@ async fn test_cpi_guard_transfer() {
 
 #[tokio::test]
 async fn test_cpi_guard_burn() {
-    let context = make_context().await;
+    let context = make_context_with_new_mint().await;
     let TokenContext {
         token,
         token_unchecked,
@@ -473,7 +510,7 @@ async fn test_cpi_guard_burn() {
 
 #[tokio::test]
 async fn test_cpi_guard_approve() {
-    let context = make_context().await;
+    let context = make_context_with_new_mint().await;
     let TokenContext {
         token,
         token_unchecked,
@@ -565,6 +602,91 @@ async fn test_cpi_guard_approve() {
     }
 }
 
+#[tokio::test]
+async fn test_cpi_guard_unwrap_lamports() {
+    let mut amount = 100;
+    let total_amount = amount + Rent::default().minimum_balance(Account::get_packed_len());
+
+    let context = make_context_with_native_mint(total_amount).await;
+    let TokenContext {
+        token, alice, bob, ..
+    } = context.token_context.unwrap();
+
+    let mk_unwrap_lamports = [wrap_instruction(
+        spl_instruction_padding_interface::id(),
+        instruction::unwrap_lamports(
+            &spl_token_2022_interface::id(),
+            &alice.pubkey(),
+            &bob.pubkey(),
+            &alice.pubkey(),
+            &[],
+            Some(1),
+        )
+        .unwrap(),
+        vec![],
+        0,
+    )
+    .unwrap()];
+
+    token
+        .reallocate(
+            &alice.pubkey(),
+            &alice.pubkey(),
+            &[ExtensionType::CpiGuard],
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    token
+        .enable_cpi_guard(&alice.pubkey(), &alice.pubkey(), &[&alice])
+        .await
+        .unwrap();
+
+    token.sync_native(&alice.pubkey()).await.unwrap();
+
+    // unwrap lamports works normally with cpi guard enabled
+    token
+        .unwrap_lamports(
+            &alice.pubkey(),
+            &bob.pubkey(),
+            &alice.pubkey(),
+            Some(1),
+            &[&alice],
+        )
+        .await
+        .unwrap();
+    amount -= 1;
+
+    let alice_state = token.get_account_info(&alice.pubkey()).await.unwrap();
+    assert_eq!(alice_state.base.amount, amount);
+
+    // user-auth cpi unwrap lamport with cpi guard doesn't work
+    let error = token
+        .process_ixs(&mk_unwrap_lamports, &[&alice])
+        .await
+        .unwrap_err();
+    assert_eq!(error, client_error(TokenError::CpiGuardTransferBlocked));
+
+    let alice_state = token.get_account_info(&alice.pubkey()).await.unwrap();
+    assert_eq!(alice_state.base.amount, amount);
+
+    // unwrap lamports still works through cpi with cpi guard off
+    token
+        .disable_cpi_guard(&alice.pubkey(), &alice.pubkey(), &[&alice])
+        .await
+        .unwrap();
+
+    token
+        .process_ixs(&mk_unwrap_lamports, &[&alice])
+        .await
+        .unwrap();
+    amount -= 1;
+
+    let alice_state = token.get_account_info(&alice.pubkey()).await.unwrap();
+    assert_eq!(alice_state.base.amount, amount);
+}
+
 async fn make_close_test_account<S: Signer>(
     token: &Token<ProgramBanksClientProcessTransaction>,
     owner: &S,
@@ -604,7 +726,7 @@ async fn make_close_test_account<S: Signer>(
 
 #[tokio::test]
 async fn test_cpi_guard_close_account() {
-    let context = make_context().await;
+    let context = make_context_with_new_mint().await;
     let TokenContext {
         token, alice, bob, ..
     } = context.token_context.unwrap();
@@ -689,7 +811,7 @@ enum SetAuthTest {
 
 #[tokio::test]
 async fn test_cpi_guard_set_authority() {
-    let context = make_context().await;
+    let context = make_context_with_new_mint().await;
     let TokenContext {
         token, alice, bob, ..
     } = context.token_context.unwrap();
