@@ -1703,15 +1703,6 @@ impl Processor {
         // if self_transfer || amount == 0
         check_program_account(source_account_info.owner)?;
 
-        // This check MUST occur just before the amounts are manipulated
-        // to ensure self-transfers are fully validated
-        if self_transfer {
-            if memo_required(&source_account) {
-                check_previous_sibling_instruction_is_memo()?;
-            }
-            return Ok(());
-        }
-
         let source_starting_lamports = source_account_info.lamports();
         **source_account_info.lamports.borrow_mut() = source_starting_lamports
             .checked_sub(amount)
