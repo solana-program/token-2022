@@ -1703,21 +1703,19 @@ impl Processor {
         // if self_transfer || amount == 0
         check_program_account(source_account_info.owner)?;
 
-        if self_transfer {
-            return Ok(());
-        }
-
-        let source_starting_lamports = source_account_info.lamports();
-        **source_account_info.lamports.borrow_mut() = source_starting_lamports
+        if !self_transfer {            
+            let source_starting_lamports = source_account_info.lamports();
+            **source_account_info.lamports.borrow_mut() = source_starting_lamports
             .checked_sub(amount)
             .ok_or(TokenError::Overflow)?;
-
-        let destination_starting_lamports = destination_account_info.lamports();
-        **destination_account_info.lamports.borrow_mut() = destination_starting_lamports
+            
+            let destination_starting_lamports = destination_account_info.lamports();
+            **destination_account_info.lamports.borrow_mut() = destination_starting_lamports
             .checked_add(amount)
             .ok_or(TokenError::Overflow)?;
-
-        source_account.base.amount = remaining_amount.into();
+        
+            source_account.base.amount = remaining_amount.into();
+        }       
 
         Ok(())
     }
