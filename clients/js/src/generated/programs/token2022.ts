@@ -83,6 +83,7 @@ import {
   type ParsedTransferCheckedWithFeeInstruction,
   type ParsedTransferInstruction,
   type ParsedUiAmountToAmountInstruction,
+  type ParsedUnwrapLamportsInstruction,
   type ParsedUpdateConfidentialTransferMintInstruction,
   type ParsedUpdateDefaultAccountStateInstruction,
   type ParsedUpdateGroupMemberPointerInstruction,
@@ -217,6 +218,7 @@ export enum Token2022Instruction {
   UpdateTokenGroupMaxSize,
   UpdateTokenGroupUpdateAuthority,
   InitializeTokenGroupMember,
+  UnwrapLamports,
 }
 
 export function identifyToken2022Instruction(
@@ -671,6 +673,9 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.InitializeTokenGroupMember;
   }
+  if (containsBytes(data, getU8Encoder().encode(45), 0)) {
+    return Token2022Instruction.UnwrapLamports;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -939,4 +944,7 @@ export type ParsedToken2022Instruction<
     } & ParsedUpdateTokenGroupUpdateAuthorityInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeTokenGroupMember;
-    } & ParsedInitializeTokenGroupMemberInstruction<TProgram>);
+    } & ParsedInitializeTokenGroupMemberInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.UnwrapLamports;
+    } & ParsedUnwrapLamportsInstruction<TProgram>);

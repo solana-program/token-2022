@@ -112,6 +112,7 @@ export type TokenArgs = {
   extensions: OptionOrNullable<Array<ExtensionArgs>>;
 };
 
+/** Gets the encoder for {@link TokenArgs} account data. */
 export function getTokenEncoder(): Encoder<TokenArgs> {
   return getStructEncoder([
     ['mint', getAddressEncoder()],
@@ -153,6 +154,7 @@ export function getTokenEncoder(): Encoder<TokenArgs> {
   ]);
 }
 
+/** Gets the decoder for {@link Token} account data. */
 export function getTokenDecoder(): Decoder<Token> {
   return getStructDecoder([
     ['mint', getAddressDecoder()],
@@ -194,6 +196,7 @@ export function getTokenDecoder(): Decoder<Token> {
   ]);
 }
 
+/** Gets the codec for {@link Token} account data. */
 export function getTokenCodec(): Codec<TokenArgs, Token> {
   return combineCodec(getTokenEncoder(), getTokenDecoder());
 }
