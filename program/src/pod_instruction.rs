@@ -131,6 +131,21 @@ fn unpack_pubkey_option(input: &[u8]) -> Result<PodCOption<Pubkey>, ProgramError
     }
 }
 
+const U64_BYTES: usize = 8;
+fn unpack_u64_option(input: &[u8]) -> Result<PodCOption<u64>, ProgramError> {
+    match input.split_first() {
+        Option::Some((&0, _)) => Ok(PodCOption::none()),
+        Option::Some((&1, rest)) => {
+            let amount = rest
+                .get(..U64_BYTES)
+                .and_then(|x| x.try_into().map(u64::from_le_bytes).ok())
+                .ok_or(ProgramError::InvalidInstructionData)?;
+            Ok(PodCOption::some(amount))
+        }
+        _ => Err(ProgramError::InvalidInstructionData),
+    }
+}
+
 /// Specialty function for deserializing `Pod` data and a `COption<Pubkey>`
 ///
 /// `COption<T>` is not `Pod` compatible when serialized in an instruction, but
@@ -145,6 +160,22 @@ pub(crate) fn decode_instruction_data_with_coption_pubkey<T: Pod>(
         .and_then(pod_from_bytes)?;
     let pubkey = unpack_pubkey_option(&input_with_type[end_of_t..])?;
     Ok((value, pubkey))
+}
+
+/// Specialty function for deserializing `Pod` data and a `COption<u64>`
+///
+/// `COption<T>` is not `Pod` compatible when serialized in an instruction, but
+/// since it is always at the end of an instruction, so we can do this safely
+pub(crate) fn decode_instruction_data_with_coption_u64<T: Pod>(
+    input_with_type: &[u8],
+) -> Result<(&T, PodCOption<u64>), ProgramError> {
+    let end_of_t = pod_get_packed_len::<T>().saturating_add(1);
+    let value = input_with_type
+        .get(1..end_of_t)
+        .ok_or(ProgramError::InvalidInstructionData)
+        .and_then(pod_from_bytes)?;
+    let amount = unpack_u64_option(&input_with_type[end_of_t..])?;
+    Ok((value, amount))
 }
 
 #[cfg(test)]
@@ -194,6 +225,9 @@ mod tests {
                 | PodTokenInstruction::MintToChecked
                 | PodTokenInstruction::BurnChecked => {
                     let _ = decode_instruction_data::<AmountCheckedData>(input)?;
+                }
+                PodTokenInstruction::UnwrapLamports => {
+                    let _ = decode_instruction_data_with_coption_u64::<()>(input)?;
                 }
                 PodTokenInstruction::InitializeMintCloseAuthority => {
                     let _ = decode_instruction_data_with_coption_pubkey::<()>(input)?;
@@ -598,6 +632,18 @@ mod tests {
         let (_, pod_close_authority) =
             decode_instruction_data_with_coption_pubkey::<()>(&packed).unwrap();
         assert_eq!(pod_close_authority, close_authority.into());
+    }
+
+    #[test]
+    fn test_unwrap_lamports_packing() {
+        let amount = COption::Some(1);
+        let check = TokenInstruction::UnwrapLamports { amount };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+        assert_eq!(instruction_type, PodTokenInstruction::UnwrapLamports);
+        let (_, pod_amount) = decode_instruction_data_with_coption_u64::<()>(&packed).unwrap();
+        assert_eq!(pod_amount, amount.into());
     }
 
     #[test]
