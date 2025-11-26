@@ -731,7 +731,7 @@ pub enum TokenInstruction<'a> {
     ScaledUiAmountExtension,
     /// Instruction prefix for instructions to the pausable extension
     PausableExtension,
-    /// 45
+    // 45
     /// Transfer lamports from a native SOL account to a destination account.
     ///
     /// This is useful to unwrap lamports from a wrapped SOL account.
