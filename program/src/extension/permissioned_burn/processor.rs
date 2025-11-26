@@ -1,4 +1,8 @@
 use {
+    crate::{
+        pod_instruction::{AmountCheckedData, AmountData},
+        processor::{InstructionVariant, Processor},
+    },
     solana_account_info::{next_account_info, AccountInfo},
     solana_msg::msg,
     solana_program_error::ProgramResult,
@@ -45,6 +49,28 @@ pub(crate) fn process_instruction(
             msg!("PermissionedBurnInstruction::Initialize");
             let InitializeInstructionData { authority } = decode_instruction_data(input)?;
             process_initialize(program_id, accounts, authority)
+        }
+        PermissionedBurnInstruction::Burn => {
+            msg!("PermissionedBurnInstruction::Burn");
+            let data = decode_instruction_data::<AmountData>(input)?;
+            Processor::process_permissioned_burn(
+                program_id,
+                accounts,
+                data.amount.into(),
+                InstructionVariant::Unchecked,
+            )
+        }
+        PermissionedBurnInstruction::BurnChecked => {
+            msg!("PermissionedBurnInstruction::BurnChecked");
+            let data = decode_instruction_data::<AmountCheckedData>(input)?;
+            Processor::process_permissioned_burn(
+                program_id,
+                accounts,
+                data.amount.into(),
+                InstructionVariant::Checked {
+                    decimals: data.decimals,
+                },
+            )
         }
     }
 }

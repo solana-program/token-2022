@@ -1090,7 +1090,7 @@ impl Processor {
         Self::do_process_burn(program_id, accounts, amount, instruction_variant)
     }
 
-    /// Processes a [`PermissionedBurn`](enum.TokenInstruction.html) instruction.
+    /// Processes a permissioned burn extension instruction.
     pub(crate) fn process_permissioned_burn(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -1806,16 +1806,6 @@ impl Processor {
                     msg!("Instruction: Burn");
                     let data = decode_instruction_data::<AmountData>(input)?;
                     Self::process_burn(
-                        program_id,
-                        accounts,
-                        data.amount.into(),
-                        InstructionVariant::Unchecked,
-                    )
-                }
-                PodTokenInstruction::PermissionedBurn => {
-                    msg!("Instruction: PermissionedBurn");
-                    let data = decode_instruction_data::<AmountData>(input)?;
-                    Self::process_permissioned_burn(
                         program_id,
                         accounts,
                         data.amount.into(),
