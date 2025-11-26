@@ -1,7 +1,7 @@
 use {
     crate::{
         pod_instruction::{AmountCheckedData, AmountData},
-        processor::{InstructionVariant, Processor},
+        processor::{BurnInstructionVariant, InstructionVariant, Processor},
     },
     solana_account_info::{next_account_info, AccountInfo},
     solana_msg::msg,
@@ -53,23 +53,23 @@ pub(crate) fn process_instruction(
         PermissionedBurnInstruction::Burn => {
             msg!("PermissionedBurnInstruction::Burn");
             let data = decode_instruction_data::<AmountData>(input)?;
-            Processor::process_permissioned_burn(
+            Processor::process_burn(
                 program_id,
                 accounts,
                 data.amount.into(),
-                InstructionVariant::Unchecked,
+                BurnInstructionVariant::Permissioned(InstructionVariant::Unchecked),
             )
         }
         PermissionedBurnInstruction::BurnChecked => {
             msg!("PermissionedBurnInstruction::BurnChecked");
             let data = decode_instruction_data::<AmountCheckedData>(input)?;
-            Processor::process_permissioned_burn(
+            Processor::process_burn(
                 program_id,
                 accounts,
                 data.amount.into(),
-                InstructionVariant::Checked {
+                BurnInstructionVariant::Permissioned(InstructionVariant::Checked {
                     decimals: data.decimals,
-                },
+                }),
             )
         }
     }

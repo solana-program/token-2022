@@ -82,6 +82,15 @@ pub(crate) enum InstructionVariant {
     Checked { decimals: u8 },
 }
 
+/// Burn instruction variant. Standard variants must not be used with the
+/// permissioned burn extension.
+///
+/// Permissioned variants require the extra authority to sign.
+pub(crate) enum BurnInstructionVariant {
+    Standard(InstructionVariant),
+    Permissioned(InstructionVariant),
+}
+
 /// Program state handler.
 pub struct Processor {}
 impl Processor {
@@ -1085,17 +1094,7 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
-        instruction_variant: InstructionVariant,
-    ) -> ProgramResult {
-        Self::do_process_burn(program_id, accounts, amount, instruction_variant)
-    }
-
-    /// Processes a permissioned burn extension instruction.
-    pub(crate) fn process_permissioned_burn(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-        amount: u64,
-        instruction_variant: InstructionVariant,
+        instruction_variant: BurnInstructionVariant,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1104,40 +1103,51 @@ impl Processor {
         let authority_info = next_account_info(account_info_iter)?;
 
         let mut mint_data = mint_info.data.borrow_mut();
-        let mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
+        let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
 
-        if let Ok(ext) = mint.get_extension::<PermissionedBurnConfig>() {
-            // Pull the required extra signer from the accounts
-            let approver_ai = next_account_info(account_info_iter)?;
-
-            if !approver_ai.is_signer {
-                return Err(ProgramError::MissingRequiredSignature);
-            }
-
-            let maybe_burn_authority: Option<Pubkey> = ext.authority.into();
-            if Some(*approver_ai.key) != maybe_burn_authority {
-                return Err(ProgramError::InvalidAccountData);
-            }
-        }
-
-        let remaining_after = account_info_iter.as_slice();
+        let permissioned_ext = mint.get_extension::<PermissionedBurnConfig>();
         let mut forward = vec![
             source_account_info.clone(),
             mint_info.clone(),
             authority_info.clone(),
         ];
+
+        match instruction_variant {
+            BurnInstructionVariant::Standard(_) => {
+                // Standard burns cannot be used when the permissioned burn
+                // extension is present.
+                if permissioned_ext.is_ok() {
+                    return Err(TokenError::InvalidInstruction.into());
+                }
+            }
+            BurnInstructionVariant::Permissioned(_) => {
+                let ext = permissioned_ext.map_err(|_| TokenError::InvalidInstruction)?;
+
+                // Pull the required extra signer from the accounts
+                let approver_ai = next_account_info(account_info_iter)?;
+
+                if !approver_ai.is_signer {
+                    return Err(ProgramError::MissingRequiredSignature);
+                }
+
+                let maybe_burn_authority: Option<Pubkey> = ext.authority.into();
+                if Some(*approver_ai.key) != maybe_burn_authority {
+                    return Err(ProgramError::InvalidAccountData);
+                }
+
+                forward.push(approver_ai.clone());
+            }
+        }
+
+        let remaining_after = account_info_iter.as_slice();
         forward.extend_from_slice(remaining_after);
 
-        Self::do_process_burn(program_id, &forward, amount, instruction_variant)
-    }
+        let instruction_variant = match instruction_variant {
+            BurnInstructionVariant::Standard(v) | BurnInstructionVariant::Permissioned(v) => v,
+        };
 
-    fn do_process_burn(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-        amount: u64,
-        instruction_variant: InstructionVariant,
-    ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
+        let burn_accounts = forward;
+        let account_info_iter = &mut burn_accounts.iter();
 
         let source_account_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
@@ -1809,7 +1819,7 @@ impl Processor {
                         program_id,
                         accounts,
                         data.amount.into(),
-                        InstructionVariant::Unchecked,
+                        BurnInstructionVariant::Standard(InstructionVariant::Unchecked),
                     )
                 }
                 PodTokenInstruction::CloseAccount => {
@@ -1867,9 +1877,9 @@ impl Processor {
                         program_id,
                         accounts,
                         data.amount.into(),
-                        InstructionVariant::Checked {
+                        BurnInstructionVariant::Standard(InstructionVariant::Checked {
                             decimals: data.decimals,
-                        },
+                        }),
                     )
                 }
                 PodTokenInstruction::SyncNative => {
