@@ -842,6 +842,72 @@ async fn accounts_with_owner(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn wrapped_sol(test_validator: &TestValidator, payer: &Keypair) {
+    // both tests use the same ata so they can't run together
+    unwrap_lamports(test_validator, payer).await;
+    wrap_unwrap_sol(test_validator, payer).await;
+}
+
+async fn unwrap_lamports(test_validator: &TestValidator, payer: &Keypair) {
+    let program_id = &spl_token_2022_interface::id();
+    let config = test_config_with_default_signer(test_validator, payer, program_id);
+    let native_mint = *Token::new_native(
+        config.program_client.clone(),
+        program_id,
+        config.fee_payer().unwrap().clone(),
+    )
+    .get_address();
+
+    process_test_command(
+        &config,
+        payer,
+        &["spl-token", CommandName::Wrap.into(), "10.0"],
+    )
+    .await
+    .unwrap();
+
+    let wrapped_account = get_associated_token_address_with_program_id(
+        &payer.pubkey(),
+        &native_mint,
+        &config.program_id,
+    );
+    let new_account = Keypair::new();
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::UnwrapLamports.into(),
+            "5.0",
+            &new_account.pubkey().to_string(),
+            "--from",
+            &wrapped_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    let balance = config
+        .rpc_client
+        .get_balance(&new_account.pubkey())
+        .await
+        .unwrap();
+    assert_eq!(balance, 5000000000);
+
+    process_test_command(
+        &config,
+        payer,
+        &["spl-token", CommandName::UnwrapLamports.into(), "ALL"],
+    )
+    .await
+    .unwrap();
+    config
+        .rpc_client
+        .get_account(&wrapped_account)
+        .await
+        .unwrap_err();
+}
+
+async fn wrap_unwrap_sol(test_validator: &TestValidator, payer: &Keypair) {
     for program_id in VALID_TOKEN_PROGRAM_IDS.iter() {
         let config = test_config_with_default_signer(test_validator, payer, program_id);
         let native_mint = *Token::new_native(

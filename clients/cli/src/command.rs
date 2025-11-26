@@ -2099,6 +2099,95 @@ async fn command_unwrap(
     })
 }
 
+async fn command_unwrap_lamports(
+    config: &Config<'_>,
+    ui_amount: Amount,
+    source_owner: Pubkey,
+    source_account: Option<Pubkey>,
+    destination_account: Option<Pubkey>,
+    bulk_signers: BulkSigners,
+) -> CommandResult {
+    let use_associated_account = source_account.is_none();
+    let token = native_token_client_from_config(config)?;
+
+    let source_account =
+        source_account.unwrap_or_else(|| token.get_associated_token_address(&source_owner));
+
+    let destination_account = destination_account.unwrap_or(source_owner);
+
+    let amount = match ui_amount.sol_to_lamport() {
+        Amount::Raw(ui_amount) => Some(ui_amount),
+        Amount::Decimal(_) => unreachable!(),
+        Amount::All => None,
+    };
+
+    let display_amount = amount
+        .map(|amount| amount.to_string())
+        .unwrap_or_else(|| "all".to_string());
+
+    println_display(
+        config,
+        format!(
+            "Unwrapping {} lamports to {}",
+            display_amount, destination_account
+        ),
+    );
+
+    if !config.sign_only {
+        let account_data = config.get_account_checked(&source_account).await?;
+
+        if !use_associated_account {
+            let account_state = StateWithExtensionsOwned::<Account>::unpack(account_data.data)?;
+
+            if account_state.base.mint != *token.get_address() {
+                return Err(format!("{} is not a native token account", source_account).into());
+            }
+        }
+
+        if account_data.lamports == 0 {
+            if use_associated_account {
+                return Err("No wrapped SOL in associated account; did you mean to specify an auxiliary address?".to_string().into());
+            } else {
+                return Err(format!("No wrapped SOL in {}", source_account).into());
+            }
+        }
+
+        println_display(
+            config,
+            format!(
+                "  Amount: {} SOL",
+                build_balance_message(account_data.lamports, false, false)
+            ),
+        );
+
+        // TODO: check if the destination account exists and if it doesn't check
+        // if the amount being transferred covers the rent exempt balance, then add
+        // a flag to fund the destination account
+    }
+
+    println_display(config, format!("  Recipient: {}", &destination_account));
+
+    let res = token
+        .unwrap_lamports(
+            &source_account,
+            &destination_account,
+            &source_owner,
+            amount,
+            &bulk_signers,
+        )
+        .await?;
+
+    let tx_return = finish_tx(config, &res, false).await?;
+    Ok(match tx_return {
+        TransactionReturnData::CliSignature(signature) => {
+            config.output_format.formatted_string(&signature)
+        }
+        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
+            config.output_format.formatted_string(&sign_only_data)
+        }
+    })
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn command_approve(
     config: &Config<'_>,
@@ -4272,6 +4361,20 @@ pub async fn process_command(
 
             let account = pubkey_of_signer(arg_matches, "account", &mut wallet_manager).unwrap();
             command_unwrap(config, wallet_address, account, bulk_signers).await
+        }
+        (CommandName::UnwrapLamports, arg_matches) => {
+            let (owner_signer, owner) =
+                config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
+            if config.multisigner_pubkeys.is_empty() {
+                push_signer_with_dedup(owner_signer, &mut bulk_signers);
+            }
+
+            let amount = *arg_matches.get_one::<Amount>("amount").unwrap();
+            let source = pubkey_of_signer(arg_matches, "from", &mut wallet_manager).unwrap();
+            let recipient =
+                pubkey_of_signer(arg_matches, "recipient", &mut wallet_manager).unwrap();
+
+            command_unwrap_lamports(config, amount, owner, source, recipient, bulk_signers).await
         }
         (CommandName::Approve, arg_matches) => {
             let (owner_signer, owner_address) =
