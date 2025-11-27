@@ -1732,7 +1732,7 @@ pub fn app<'a>(
                         .takes_value(true)
                         .index(1)
                         .required(true)
-                        .help("Amount to unwrap, in tokens; accepts keyword ALL"),
+                        .help("Amount to unwrap, in SOL; accepts keyword ALL"),
                 )
                 .arg(
                     Arg::with_name("recipient")
