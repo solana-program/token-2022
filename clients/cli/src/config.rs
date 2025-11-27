@@ -1,6 +1,7 @@
 use {
     crate::clap_app::{Error, COMPUTE_UNIT_LIMIT_ARG, COMPUTE_UNIT_PRICE_ARG, MULTISIG_SIGNER_ARG},
     clap::ArgMatches,
+    solana_account::Account as RawAccount,
     solana_clap_v3_utils::{
         input_parsers::pubkey_of_signer,
         input_validators::normalize_to_url_if_moniker,
@@ -11,11 +12,10 @@ use {
     solana_cli_output::OutputFormat,
     solana_client::nonblocking::rpc_client::RpcClient,
     solana_commitment_config::CommitmentConfig,
+    solana_hash::Hash,
+    solana_pubkey::Pubkey,
     solana_remote_wallet::remote_wallet::RemoteWalletManager,
-    solana_sdk::{
-        account::Account as RawAccount, hash::Hash, pubkey::Pubkey, signature::Signer,
-        signer::null_signer::NullSigner,
-    },
+    solana_signer::{null_signer::NullSigner, Signer},
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     spl_token_2022_interface::{
         extension::StateWithExtensionsOwned,
