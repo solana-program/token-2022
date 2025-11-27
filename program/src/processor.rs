@@ -1103,7 +1103,7 @@ impl Processor {
         let authority_info = next_account_info(account_info_iter)?;
 
         let mut mint_data = mint_info.data.borrow_mut();
-        let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
+        let mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
 
         let permissioned_ext = mint.get_extension::<PermissionedBurnConfig>();
         let mut forward = vec![
