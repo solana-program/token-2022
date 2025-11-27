@@ -1672,7 +1672,7 @@ impl Processor {
             PodCOption {
                 option: PodCOption::<u64>::NONE,
                 value: _,
-            } => (source_account_info.lamports(), 0),
+            } => (source_account.base.amount, 0),
             _ => return Err(ProgramError::InvalidInstructionData),
         };
 
