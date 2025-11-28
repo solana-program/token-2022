@@ -1106,11 +1106,6 @@ impl Processor {
         let mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
 
         let permissioned_ext = mint.get_extension::<PermissionedBurnConfig>();
-        let mut forward = vec![
-            source_account_info.clone(),
-            mint_info.clone(),
-            authority_info.clone(),
-        ];
 
         match instruction_variant {
             BurnInstructionVariant::Standard(_) => {
@@ -1137,15 +1132,9 @@ impl Processor {
             }
         }
 
-        let remaining_after = account_info_iter.as_slice();
-        forward.extend_from_slice(remaining_after);
-
         let instruction_variant = match instruction_variant {
             BurnInstructionVariant::Standard(v) | BurnInstructionVariant::Permissioned(v) => v,
         };
-
-        let burn_accounts = forward;
-        let account_info_iter = &mut burn_accounts.iter();
 
         let authority_info_data_len = authority_info.data_len();
 
