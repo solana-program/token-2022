@@ -29,7 +29,7 @@ importers:
         version: 5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
       '@solana/prettier-config-solana':
         specifier: 0.0.5
-        version: 0.0.5(prettier@3.7.0)
+        version: 0.0.5(prettier@3.7.1)
       '@solana/spl-memo':
         specifier: 0.2.5
         version: 0.2.5(@solana/web3.js@1.98.4(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10))
@@ -71,7 +71,7 @@ importers:
         version: 10.1.8(eslint@8.57.1)
       eslint-plugin-prettier:
         specifier: ^5.2.1
-        version: 5.5.4(eslint-config-prettier@10.1.8(eslint@8.57.1))(eslint@8.57.1)(prettier@3.7.0)
+        version: 5.5.4(eslint-config-prettier@10.1.8(eslint@8.57.1))(eslint@8.57.1)(prettier@3.7.1)
       eslint-plugin-require-extensions:
         specifier: ^0.1.1
         version: 0.1.3(eslint@8.57.1)
@@ -83,7 +83,7 @@ importers:
         version: 11.7.5
       prettier:
         specifier: ^3.4.2
-        version: 3.7.0
+        version: 3.7.1
       process:
         specifier: ^0.11.10
         version: 0.11.10
@@ -1288,8 +1288,8 @@ packages:
     resolution: {integrity: sha512-GbK2cP9nraSSUF9N2XwUwqfzlAFlMNYYl+ShE/V+H8a9uNl/oUqB1w2EL54Jh0OlyRSd8RfWYJ3coVS4TROP2w==}
     engines: {node: '>=6.0.0'}
 
-  prettier@3.7.0:
-    resolution: {integrity: sha512-pBiBj/gjRY9Qpk1b7cDda6Rbwvkaggos779AHQ0Ek/odwDx6xG6DRBxtnp1QmxbuD7pAO8/SQ8vuhtGv9LoLWA==}
+  prettier@3.7.1:
+    resolution: {integrity: sha512-RWKXE4qB3u5Z6yz7omJkjWwmTfLdcbv44jUVHC5NpfXwFGzvpQM798FGv/6WNK879tc+Cn0AAyherCl1KjbyZQ==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -1865,9 +1865,9 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/prettier-config-solana@0.0.5(prettier@3.7.0)':
+  '@solana/prettier-config-solana@0.0.5(prettier@3.7.1)':
     dependencies:
-      prettier: 3.7.0
+      prettier: 3.7.1
 
   '@solana/spl-memo@0.2.5(@solana/web3.js@1.98.4(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10))':
     dependencies:
@@ -2317,10 +2317,10 @@ snapshots:
     dependencies:
       eslint: 8.57.1
 
-  eslint-plugin-prettier@5.5.4(eslint-config-prettier@10.1.8(eslint@8.57.1))(eslint@8.57.1)(prettier@3.7.0):
+  eslint-plugin-prettier@5.5.4(eslint-config-prettier@10.1.8(eslint@8.57.1))(eslint@8.57.1)(prettier@3.7.1):
     dependencies:
       eslint: 8.57.1
-      prettier: 3.7.0
+      prettier: 3.7.1
       prettier-linter-helpers: 1.0.0
       synckit: 0.11.11
     optionalDependencies:
@@ -2887,7 +2887,7 @@ snapshots:
     dependencies:
       fast-diff: 1.3.0
 
-  prettier@3.7.0: {}
+  prettier@3.7.1: {}
 
   process@0.11.10: {}
 
