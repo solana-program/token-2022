@@ -1134,8 +1134,6 @@ impl Processor {
                 if Some(*approver_ai.key) != maybe_burn_authority {
                     return Err(ProgramError::InvalidAccountData);
                 }
-
-                forward.push(approver_ai.clone());
             }
         }
 
@@ -1149,16 +1147,11 @@ impl Processor {
         let burn_accounts = forward;
         let account_info_iter = &mut burn_accounts.iter();
 
-        let source_account_info = next_account_info(account_info_iter)?;
-        let mint_info = next_account_info(account_info_iter)?;
-        let authority_info = next_account_info(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
         let mut source_account_data = source_account_info.data.borrow_mut();
         let source_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
-        let mut mint_data = mint_info.data.borrow_mut();
-        let mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
 
         if source_account.base.is_frozen() {
             return Err(TokenError::AccountFrozen.into());
