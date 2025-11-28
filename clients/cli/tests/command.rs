@@ -28,6 +28,7 @@ use {
             metadata_pointer::MetadataPointer,
             non_transferable::NonTransferable,
             pausable::PausableConfig,
+            permissioned_burn::PermissionedBurnConfig,
             scaled_ui_amount::ScaledUiAmountConfig,
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::TransferHook,
@@ -148,6 +149,7 @@ async fn main() {
         async_trial!(compute_budget, test_validator, payer),
         async_trial!(scaled_ui_amount, test_validator, payer),
         async_trial!(pause, test_validator, payer),
+        async_trial!(permissioned_burn, test_validator, payer),
         // GC messes with every other test, so have it on its own test validator
         async_trial!(gc, gc_test_validator, gc_payer),
     ];
@@ -4506,4 +4508,35 @@ async fn pause(test_validator: &TestValidator, payer: &Keypair) {
     let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
     let extension = test_mint.get_extension::<PausableConfig>().unwrap();
     assert_eq!(Option::<Pubkey>::from(extension.authority), None,);
+}
+
+async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+
+    let token = Keypair::new();
+    let token_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&token, &token_keypair_file).unwrap();
+    let token_pubkey = token.pubkey();
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::CreateToken.into(),
+            token_keypair_file.path().to_str().unwrap(),
+            "--enable-permissioned-burn",
+        ],
+    )
+    .await
+    .unwrap();
+
+    let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
+    let extension = test_mint.get_extension::<PermissionedBurnConfig>().unwrap();
+    assert_eq!(
+        Option::<Pubkey>::from(extension.authority),
+        Some(payer.pubkey())
+    );
 }

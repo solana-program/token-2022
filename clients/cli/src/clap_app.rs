@@ -925,6 +925,12 @@ pub fn app<'a>(
                             "Enable the mint authority to pause mint, burn, and transfer for this mint"
                         )
                 )
+                .arg(
+                    Arg::with_name("enable_permissioned_burn")
+                        .long("enable-permissioned-burn")
+                        .takes_value(false)
+                        .help("Require the configured permissioned burn authority for burning tokens")
+                )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
                 .arg(memo_arg())
