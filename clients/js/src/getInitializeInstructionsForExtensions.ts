@@ -28,6 +28,7 @@ import {
   getInitializeScaledUiAmountMintInstruction,
   getInitializeConfidentialTransferFeeInstruction,
   getInitializePausableConfigInstruction,
+  getInitializePermissionedBurnInstruction,
 } from './generated';
 
 /**
@@ -97,6 +98,22 @@ export function getPreInitializeInstructionsForMintExtensions(
             authority: extension.authority,
           }),
         ];
+      case 'PermissionedBurn': {
+        const authority = isOption(extension.authority)
+          ? extension.authority
+          : wrapNullable(extension.authority);
+        if (isNone(authority)) {
+          throw new Error(
+            'PermissionedBurn extension requires a permissioned burn authority'
+          );
+        }
+        return [
+          getInitializePermissionedBurnInstruction({
+            mint,
+            authority: authority.value,
+          }),
+        ];
+      }
       case 'GroupPointer':
         return [
           getInitializeGroupPointerInstruction({
