@@ -731,6 +731,8 @@ pub enum TokenInstruction<'a> {
     ScaledUiAmountExtension,
     /// Instruction prefix for instructions to the pausable extension
     PausableExtension,
+    /// Instruction prefix for instructions to the permissioned burn extension
+    PermissionedBurnExtension,
 }
 impl<'a> TokenInstruction<'a> {
     /// Unpacks a byte buffer into a
@@ -873,6 +875,7 @@ impl<'a> TokenInstruction<'a> {
             42 => Self::ConfidentialMintBurnExtension,
             43 => Self::ScaledUiAmountExtension,
             44 => Self::PausableExtension,
+            46 => Self::PermissionedBurnExtension,
             _ => return Err(TokenError::InvalidInstruction.into()),
         })
     }
@@ -1053,6 +1056,9 @@ impl<'a> TokenInstruction<'a> {
             &Self::PausableExtension => {
                 buf.push(44);
             }
+            &Self::PermissionedBurnExtension => {
+                buf.push(46);
+            }
         };
         buf
     }
@@ -1154,6 +1160,8 @@ pub enum AuthorityType {
     ScaledUiAmount,
     /// Authority to pause or resume minting / transferring / burning
     Pause,
+    /// Authority to perform a permissioned token burn
+    PermissionedBurn,
 }
 
 impl AuthorityType {
@@ -1176,6 +1184,7 @@ impl AuthorityType {
             AuthorityType::GroupMemberPointer => 14,
             AuthorityType::ScaledUiAmount => 15,
             AuthorityType::Pause => 16,
+            AuthorityType::PermissionedBurn => 17,
         }
     }
 
@@ -1199,6 +1208,7 @@ impl AuthorityType {
             14 => Ok(AuthorityType::GroupMemberPointer),
             15 => Ok(AuthorityType::ScaledUiAmount),
             16 => Ok(AuthorityType::Pause),
+            17 => Ok(AuthorityType::PermissionedBurn),
             _ => Err(TokenError::InvalidInstruction.into()),
         }
     }

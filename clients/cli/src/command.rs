@@ -268,6 +268,7 @@ async fn command_create_token(
     enable_transfer_hook: bool,
     ui_multiplier: Option<f64>,
     pausable: bool,
+    enable_permissioned_burn: bool,
     bulk_signers: Vec<Arc<dyn Signer>>,
 ) -> CommandResult {
     println_display(
@@ -407,6 +408,10 @@ async fn command_create_token(
 
     if pausable {
         extensions.push(ExtensionInitializationParams::PausableConfig { authority });
+    }
+
+    if enable_permissioned_burn {
+        extensions.push(ExtensionInitializationParams::PermissionedBurnConfig { authority });
     }
 
     let res = token
@@ -3804,6 +3809,7 @@ pub async fn process_command(
                 arg_matches.is_present("enable_transfer_hook"),
                 ui_multiplier,
                 arg_matches.is_present("enable_pause"),
+                arg_matches.is_present("enable_permissioned_burn"),
                 bulk_signers,
             )
             .await
