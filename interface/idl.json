@@ -3365,7 +3365,7 @@
             "kind": "instructionArgumentNode",
             "name": "maximumPendingBalanceCreditCounter",
             "docs": [
-              "The maximum number of despots and transfers that an account can receiver",
+              "The maximum number of deposits and transfers that an account can receive",
               "before the `ApplyPendingBalance` is executed"
             ],
             "type": {
@@ -4964,7 +4964,7 @@
             "name": "supplyElgamalPubkey",
             "docs": ["The ElGamal pubkey used to encrypt the confidential supply."],
             "type": {
-              "type": "publicKeyTypeNode"
+              "kind": "publicKeyTypeNode"
             }
           },
           {
@@ -4972,9 +4972,8 @@
             "name": "decryptableSupply",
             "docs": ["The initial 0 supply encrypted with the supply aes key"],
             "type": {
-              "type": "numberTypeNode",
-              "format": "u8",
-              "endian": "le"
+              "kind": "definedTypeLinkNode",
+              "name": "decryptableSupply"
             }
           }
         ],
@@ -5057,11 +5056,11 @@
             "name": "newSupplyElgamalPubkey",
             "docs": ["The new ElGamal pubkey used to encrypt the confidential supply."],
             "type": {
-              "type": "publicKeyTypeNode"
+              "kind": "publicKeyTypeNode"
             }
           },
           {
-            "kind": "instructionAccountNode",
+            "kind": "instructionArgumentNode",
             "name": "cyphertextEqualityProofInstructionOffset",
             "docs": [
               "Relative location of the",
@@ -5154,9 +5153,8 @@
             "name": "newDecryptableSupply",
             "docs": ["The new decryptable supply encrypted with the supply aes key"],
             "type": {
-              "type": "numberTypeNode",
-              "format": "u8",
-              "endian": "le"
+              "kind": "definedTypeLinkNode",
+              "name": "decryptableSupply"
             }
           }
         ],
@@ -5314,7 +5312,7 @@
               "kind": "numberTypeNode",
               "format": "i8",
               "endian": "le"
-            } 
+            }
           },
           {
             "kind": "instructionArgumentNode",
@@ -5351,9 +5349,8 @@
             "name": "newDecryptableSupply",
             "docs": ["The new decryptable supply encrypted with the supply aes key"],
             "type": {
-              "kind": "numberTypeNode",
-              "format": "u8",
-              "endian": "le"
+              "kind": "definedTypeLinkNode",
+              "name": "decryptableSupply"
             }
           }
         ],
@@ -5421,7 +5418,7 @@
             "name": "equalityProofRecord",
             "isWritable": false,
             "isSigner": false,
-            "isOptional": false,
+            "isOptional": true,
             "docs": [
               "(Optional) Equality proof record account or context state account."
             ]
@@ -5431,7 +5428,7 @@
             "name": "ciphertextValidityProofRecord",
             "isWritable": false,
             "isSigner": false,
-            "isOptional": false,
+            "isOptional": true,
             "docs": [
               "(Optional) Ciphertext validity proof record account or context state account."
             ]
@@ -5441,7 +5438,7 @@
             "name": "rangeProofRecord",
             "isWritable": false,
             "isSigner": false,
-            "isOptional": false,
+            "isOptional": true,
             "docs": [
               "(Optional) Range proof record account or context state account."
             ]
@@ -10562,9 +10559,7 @@
                         "The ElGamal pubkey used to encrypt the confidential supply."
                       ],
                       "type": {
-                        "item": {
-                          "kind": "publicKeyTypeNode"
-                        }
+                        "kind": "publicKeyTypeNode"
                       }
                     },
                     {
@@ -10574,11 +10569,8 @@
                         "The decryptable confidential supply of the mint."
                       ],
                       "type": {
-                        "item": {
-                          "kind": "numberTypeNode",
-                          "format": "u8",
-                          "endian": "le"
-                        }
+                        "kind": "definedTypeLinkNode",
+                        "name": "encryptedSupply"
                       }
                     }
                   ]
