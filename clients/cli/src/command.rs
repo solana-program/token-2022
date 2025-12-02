@@ -2105,6 +2105,7 @@ async fn command_unwrap_lamports(
     source_owner: Pubkey,
     source_account: Option<Pubkey>,
     destination_account: Option<Pubkey>,
+    allow_unfunded_recipient: bool,
     bulk_signers: BulkSigners,
 ) -> CommandResult {
     let use_associated_account = source_account.is_none();
@@ -4374,7 +4375,18 @@ pub async fn process_command(
             let recipient =
                 pubkey_of_signer(arg_matches, "recipient", &mut wallet_manager).unwrap();
 
-            command_unwrap_lamports(config, amount, owner, source, recipient, bulk_signers).await
+            let allow_unfunded_recipient = arg_matches.is_present("allow_unfunded_recipient");
+
+            command_unwrap_lamports(
+                config,
+                amount,
+                owner,
+                source,
+                recipient,
+                allow_unfunded_recipient,
+                bulk_signers,
+            )
+            .await
         }
         (CommandName::Approve, arg_matches) => {
             let (owner_signer, owner_address) =

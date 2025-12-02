@@ -1759,6 +1759,12 @@ pub fn app<'a>(
                              Defaults to the client keypair.",
                         ),
                 )
+                .arg(
+                    Arg::with_name("allow_unfunded_recipient")
+                        .long("allow-unfunded-recipient")
+                        .takes_value(false)
+                        .help("Complete the transfer even if the recipient address is not funded")
+                )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
                 .offline_args(),
