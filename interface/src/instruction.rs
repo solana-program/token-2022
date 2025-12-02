@@ -2119,7 +2119,7 @@ pub fn unwrap_lamports(
     signer_pubkeys: &[&Pubkey],
     amount: Option<u64>,
 ) -> Result<Instruction, ProgramError> {
-    check_program_account(token_program_id)?;
+    check_spl_token_program_account(token_program_id)?;
     let amount = amount.into();
     let data = TokenInstruction::UnwrapLamports { amount }.pack();
 
