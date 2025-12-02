@@ -4362,7 +4362,7 @@ pub async fn process_command(
             let account = pubkey_of_signer(arg_matches, "account", &mut wallet_manager).unwrap();
             command_unwrap(config, wallet_address, account, bulk_signers).await
         }
-        (CommandName::UnwrapLamports, arg_matches) => {
+        (CommandName::UnwrapSol, arg_matches) => {
             let (owner_signer, owner) =
                 config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
             if config.multisigner_pubkeys.is_empty() {

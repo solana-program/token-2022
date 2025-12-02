@@ -172,7 +172,7 @@ pub enum CommandName {
     UpdateUiAmountMultiplier,
     Pause,
     Resume,
-    UnwrapLamports,
+    UnwrapSol,
 }
 impl fmt::Display for CommandName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -1723,7 +1723,7 @@ pub fn app<'a>(
                 .offline_args(),
         )
         .subcommand(
-            SubCommand::with_name(CommandName::UnwrapLamports.into())
+            SubCommand::with_name(CommandName::UnwrapSol.into())
                 .about("Unwrap lamports from a SOL token account")
                 .arg(
                     Arg::with_name("amount")
