@@ -6,7 +6,7 @@
 
 #[cfg(feature = "serde")]
 use {
-    crate::serialization::coption_fromstr,
+    crate::serialization::{coption_fromstr, coption_u64_fromval},
     serde::{Deserialize, Serialize},
     serde_with::{As, DisplayFromStr},
 };
@@ -746,7 +746,7 @@ pub enum TokenInstruction<'a> {
         /// The amount of lamports to transfer. When an amount is
         /// not specified, the entire balance of the source account will be
         /// transferred.
-        #[cfg_attr(feature = "serde", serde(with = "coption_fromstr"))]
+        #[cfg_attr(feature = "serde", serde(with = "coption_u64_fromval"))]
         amount: COption<u64>,
     },
 }

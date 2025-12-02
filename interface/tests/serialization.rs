@@ -47,7 +47,7 @@ fn serde_instruction_coption_u64() {
     };
 
     let serialized = serde_json::to_string(&inst).unwrap();
-    assert_eq!(&serialized, "{\"unwrapLamports\":{\"amount\":\"1\"}}");
+    assert_eq!(&serialized, "{\"unwrapLamports\":{\"amount\":1}}");
 
     serde_json::from_str::<instruction::TokenInstruction>(&serialized).unwrap();
 }
