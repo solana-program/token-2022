@@ -1672,21 +1672,12 @@ impl Processor {
             PodCOption {
                 option: PodCOption::<u64>::NONE,
                 value: _,
-            } => (source_account.base.amount, 0),
+            } => (source_account.base.amount.into(), 0),
             _ => return Err(ProgramError::InvalidInstructionData),
         };
 
         if !source_account.base.is_native() {
             return Err(TokenError::NonNativeNotSupported.into());
-        }
-
-        let self_transfer = source_account_info.key == destination_account_info.key;
-        if let Ok(cpi_guard) = source_account.get_extension::<CpiGuard>() {
-            if cpi_guard.lock_cpi.into()
-                && in_cpi()
-            {
-                return Err(TokenError::CpiGuardTransferBlocked.into());
-            }
         }
 
         Self::validate_owner(
@@ -1697,24 +1688,29 @@ impl Processor {
             account_info_iter.as_slice(),
         )?;
 
-        // Revisit this later to see if it's worth adding a check to reduce
-        // compute costs, ie:
-        // if self_transfer || amount == 0
-        check_program_account(source_account_info.owner)?;
+        let self_transfer = source_account_info.key == destination_account_info.key;
+        if let Ok(cpi_guard) = source_account.get_extension::<CpiGuard>() {
+            if cpi_guard.lock_cpi.into() && in_cpi() {
+                return Err(TokenError::CpiGuardTransferBlocked.into());
+            }
+        }
 
-        if !self_transfer {            
-            let source_starting_lamports = source_account_info.lamports();
-            **source_account_info.lamports.borrow_mut() = source_starting_lamports
-            .checked_sub(amount)
-            .ok_or(TokenError::Overflow)?;
-            
-            let destination_starting_lamports = destination_account_info.lamports();
-            **destination_account_info.lamports.borrow_mut() = destination_starting_lamports
-            .checked_add(amount)
-            .ok_or(TokenError::Overflow)?;
-        
+        if amount == 0 {
+            check_program_account(source_account_info.owner)?;
+        } else {
+            if !self_transfer {
+                let source_starting_lamports = source_account_info.lamports();
+                **source_account_info.lamports.borrow_mut() = source_starting_lamports
+                    .checked_sub(amount)
+                    .ok_or(TokenError::Overflow)?;
+
+                let destination_starting_lamports = destination_account_info.lamports();
+                **destination_account_info.lamports.borrow_mut() = destination_starting_lamports
+                    .checked_add(amount)
+                    .ok_or(TokenError::Overflow)?;
+            }
             source_account.base.amount = remaining_amount.into();
-        }       
+        }
 
         Ok(())
     }
@@ -4242,11 +4238,11 @@ mod tests {
         // 500 amount balance change...
         let account = Account::unpack_unchecked(&account_account.data).unwrap();
         assert_eq!(account.amount, 0);
-        // 500 + account_minimum_balance() lamports balance change...
-        assert_eq!(account_account.lamports(), 0);
+        // 500 lamports balance change...
+        assert_eq!(account_account.lamports(), account_minimum_balance());
         assert_eq!(
             account2_account.lamports(),
-            zero_space_rent_exempt_balance + 500 + 500 + account_minimum_balance()
+            zero_space_rent_exempt_balance + 500 + 500
         );
     }
 
@@ -4322,14 +4318,14 @@ mod tests {
         // mint to account
         native_mint_to(&account_info, 1000).unwrap();
 
-        // unwrap Some(1000) lamports
+        // unwrap Some(500) lamports
         let instruction = unwrap_lamports(
             &program_id,
             account_info.key,
             account_info.key,
             owner_info.key,
             &[],
-            Some(1000),
+            Some(500),
         )
         .unwrap();
         assert_eq!(
@@ -4344,24 +4340,24 @@ mod tests {
                 &instruction.data,
             )
         );
-        // no amount balance change...
+        // 500 amount balance change...
         let account = Account::unpack_unchecked(&account_info.try_borrow_data().unwrap()).unwrap();
-        assert_eq!(account.amount, 1000);
+        assert_eq!(account.amount, 500);
         // no lamport balance change...
         assert_eq!(account_info.lamports(), 1000 + account_minimum_balance());
 
-        // unwrap None lamports
+        // insufficient funds
         let instruction = unwrap_lamports(
             &program_id,
             account_info.key,
             account_info.key,
             owner_info.key,
             &[],
-            None,
+            Some(501),
         )
         .unwrap();
         assert_eq!(
-            Ok(()),
+            Err(TokenError::InsufficientFunds.into()),
             Processor::process(
                 &instruction.program_id,
                 &[
@@ -4372,11 +4368,6 @@ mod tests {
                 &instruction.data,
             )
         );
-        // no amount balance change...
-        let account = Account::unpack_unchecked(&account_info.try_borrow_data().unwrap()).unwrap();
-        assert_eq!(account.amount, 1000);
-        // no lamport balance change...
-        assert_eq!(account_info.lamports(), 1000 + account_minimum_balance());
 
         // missing signer
         let mut owner_no_sign_info = owner_info.clone();
@@ -4386,7 +4377,7 @@ mod tests {
             account_info.key,
             owner_no_sign_info.key,
             &[],
-            Some(1000),
+            Some(500),
         )
         .unwrap();
         instruction.accounts[2].is_signer = false;
@@ -4434,7 +4425,7 @@ mod tests {
             account_info.key,
             owner2_info.key,
             &[],
-            Some(1000),
+            Some(500),
         )
         .unwrap();
         assert_eq!(
@@ -4450,18 +4441,18 @@ mod tests {
             )
         );
 
-        // insufficient funds
+        // unwrap None lamports
         let instruction = unwrap_lamports(
             &program_id,
             account_info.key,
             account_info.key,
             owner_info.key,
             &[],
-            Some(1001),
+            None,
         )
         .unwrap();
         assert_eq!(
-            Err(TokenError::InsufficientFunds.into()),
+            Ok(()),
             Processor::process(
                 &instruction.program_id,
                 &[
@@ -4472,6 +4463,11 @@ mod tests {
                 &instruction.data,
             )
         );
+        // 500 amount balance change...
+        let account = Account::unpack_unchecked(&account_info.try_borrow_data().unwrap()).unwrap();
+        assert_eq!(account.amount, 0);
+        // no lamport balance change...
+        assert_eq!(account_info.lamports(), 1000 + account_minimum_balance());
     }
 
     #[test]
