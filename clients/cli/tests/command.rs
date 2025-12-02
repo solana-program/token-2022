@@ -31,7 +31,7 @@ use {
             scaled_ui_amount::ScaledUiAmountConfig,
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::TransferHook,
-            BaseStateWithExtensions, StateWithExtensionsOwned,
+            BaseStateWithExtensions, ExtensionType, StateWithExtensionsOwned,
         },
         instruction::create_native_mint,
         solana_zk_sdk::encryption::pod::elgamal::PodElGamalPubkey,
@@ -842,8 +842,9 @@ async fn accounts_with_owner(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn wrapped_sol(test_validator: &TestValidator, payer: &Keypair) {
-    // both tests use the same ata so they can't run together
+    // the tests use the same ata so they can't run together
     unwrap_lamports(test_validator, payer).await;
+    multisig_unwrap_lamports(test_validator, payer).await;
     wrap_unwrap_sol(test_validator, payer).await;
 }
 
@@ -865,46 +866,290 @@ async fn unwrap_lamports(test_validator: &TestValidator, payer: &Keypair) {
     .await
     .unwrap();
 
-    let wrapped_account = get_associated_token_address_with_program_id(
+    let funded_amount = spl_token_2022::ui_amount_to_amount(10.0, TEST_DECIMALS);
+
+    let wrapped_address = get_associated_token_address_with_program_id(
         &payer.pubkey(),
         &native_mint,
         &config.program_id,
     );
-    let new_account = Keypair::new();
+    let new_address = Pubkey::new_unique();
 
+    // unwrap fails to unfunded recipient without flag
     process_test_command(
         &config,
         payer,
         &[
             "spl-token",
-            CommandName::UnwrapLamports.into(),
+            CommandName::UnwrapSol.into(),
             "5.0",
-            &new_account.pubkey().to_string(),
+            &new_address.to_string(),
             "--from",
-            &wrapped_account.to_string(),
+            &wrapped_address.to_string(),
+        ],
+    )
+    .await
+    .unwrap_err();
+
+    // with unfunded flag, unwrap goes through
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::UnwrapSol.into(),
+            "5.0",
+            &new_address.to_string(),
+            "--from",
+            &wrapped_address.to_string(),
+            "--allow-unfunded-recipient",
         ],
     )
     .await
     .unwrap();
-    let balance = config
+
+    let amount = spl_token_2022::ui_amount_to_amount(5.0, TEST_DECIMALS);
+
+    let account_space =
+        ExtensionType::try_calculate_account_len::<Account>(&[ExtensionType::ImmutableOwner])
+            .unwrap();
+    let rent_exempt_lamports = config
         .rpc_client
-        .get_balance(&new_account.pubkey())
+        .get_minimum_balance_for_rent_exemption(account_space)
         .await
         .unwrap();
-    assert_eq!(balance, 5000000000);
+    let zero_space_rent_exempt_lamports = config
+        .rpc_client
+        .get_minimum_balance_for_rent_exemption(0)
+        .await
+        .unwrap();
+    let balance = config.rpc_client.get_balance(&new_address).await.unwrap();
+    assert_eq!(balance, amount + zero_space_rent_exempt_lamports); // we fund the recipient first
+
+    let wrapped_account = config
+        .rpc_client
+        .get_account(&wrapped_address)
+        .await
+        .unwrap();
+    let wrapped_token_account =
+        StateWithExtensionsOwned::<Account>::unpack(wrapped_account.data).unwrap();
+    assert_eq!(wrapped_account.lamports, funded_amount - amount);
+    assert_eq!(
+        wrapped_token_account.base.amount,
+        (funded_amount - amount) - rent_exempt_lamports
+    );
 
     process_test_command(
         &config,
         payer,
-        &["spl-token", CommandName::UnwrapLamports.into(), "ALL"],
+        &["spl-token", CommandName::UnwrapSol.into(), "ALL"],
     )
     .await
     .unwrap();
-    config
+
+    let wrapped_account = config
         .rpc_client
-        .get_account(&wrapped_account)
+        .get_account(&wrapped_address)
         .await
-        .unwrap_err();
+        .unwrap();
+    let wrapped_token_account =
+        StateWithExtensionsOwned::<Account>::unpack(wrapped_account.data).unwrap();
+    assert_eq!(wrapped_account.lamports, rent_exempt_lamports);
+    assert_eq!(wrapped_token_account.base.amount, 0);
+
+    // close the native account
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Close.into(),
+            "--address",
+            &wrapped_address.to_string(),
+            "--recipient",
+            &payer.pubkey().to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+}
+
+async fn multisig_unwrap_lamports(test_validator: &TestValidator, payer: &Keypair) {
+    let m = 3;
+    let n = 5u8;
+
+    let (multisig_members, multisig_paths): (Vec<_>, Vec<_>) =
+        std::iter::once(clone_keypair(payer))
+            .chain(std::iter::repeat_with(Keypair::new).take((n - 2) as usize))
+            .map(|s| {
+                let keypair_file = NamedTempFile::new().unwrap();
+                write_keypair_file(&s, &keypair_file).unwrap();
+                (s.pubkey(), keypair_file)
+            })
+            .unzip();
+    let program_id = &spl_token_2022_interface::id();
+
+    let config = test_config_with_default_signer(test_validator, payer, program_id);
+    let native_mint = *Token::new_native(
+        config.program_client.clone(),
+        program_id,
+        config.fee_payer().unwrap().clone(),
+    )
+    .get_address();
+
+    let multisig = Arc::new(Keypair::new());
+    let multisig_pubkey = multisig.pubkey();
+
+    process_test_command(
+        &config,
+        payer,
+        &["spl-token", CommandName::Wrap.into(), "10.0"],
+    )
+    .await
+    .unwrap();
+
+    let payer_wrapped_address = get_associated_token_address_with_program_id(
+        &payer.pubkey(),
+        &native_mint,
+        &config.program_id,
+    );
+
+    let multisig_wrapped_address = get_associated_token_address_with_program_id(
+        &multisig_pubkey,
+        &native_mint,
+        &config.program_id,
+    );
+
+    let new_address = Pubkey::new_unique();
+
+    // we have to do this before we create the multisig or the transfer would fail
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Transfer.into(),
+            "--fund-recipient",
+            "--allow-unfunded-recipient",
+            &native_mint.to_string(),
+            "9.5",
+            &multisig_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let funded_amount = spl_token_2022::ui_amount_to_amount(9.5, TEST_DECIMALS);
+
+    let multisig_members = std::iter::once(multisig_pubkey)
+        .chain(multisig_members.iter().cloned())
+        .collect::<Vec<_>>();
+    let multisig_path = NamedTempFile::new().unwrap();
+    write_keypair_file(&multisig, &multisig_path).unwrap();
+    let multisig_paths = std::iter::once(&multisig_path)
+        .chain(multisig_paths.iter())
+        .collect::<Vec<_>>();
+
+    let multisig_strings = multisig_members
+        .iter()
+        .map(|p| p.to_string())
+        .collect::<Vec<_>>();
+    process_test_command(
+        &config,
+        payer,
+        [
+            "spl-token",
+            CommandName::CreateMultisig.into(),
+            "--address-keypair",
+            multisig_path.path().to_str().unwrap(),
+            "--program-id",
+            &program_id.to_string(),
+            &m.to_string(),
+        ]
+        .into_iter()
+        .chain(multisig_strings.iter().map(|p| p.as_str())),
+    )
+    .await
+    .unwrap();
+
+    let account = config
+        .rpc_client
+        .get_account(&multisig_pubkey)
+        .await
+        .unwrap();
+    let multisig = Multisig::unpack(&account.data).unwrap();
+    assert_eq!(multisig.m, m);
+    assert_eq!(multisig.n, n);
+
+    exec_test_cmd(
+        &config,
+        &[
+            "spl-token",
+            CommandName::UnwrapSol.into(),
+            "5",
+            &new_address.to_string(),
+            "--allow-unfunded-recipient",
+            "--multisig-signer",
+            multisig_paths[0].path().to_str().unwrap(),
+            "--multisig-signer",
+            multisig_paths[1].path().to_str().unwrap(),
+            "--multisig-signer",
+            multisig_paths[2].path().to_str().unwrap(),
+            "--owner",
+            &multisig_pubkey.to_string(),
+            "--program-2022",
+            "--fee-payer",
+            multisig_paths[1].path().to_str().unwrap(), // Set the `payer` to the fee payer
+        ],
+    )
+    .await
+    .unwrap();
+
+    let amount = spl_token_2022::ui_amount_to_amount(5.0, TEST_DECIMALS);
+
+    let account_space =
+        ExtensionType::try_calculate_account_len::<Account>(&[ExtensionType::ImmutableOwner])
+            .unwrap();
+    let rent_exempt_lamports = config
+        .rpc_client
+        .get_minimum_balance_for_rent_exemption(account_space)
+        .await
+        .unwrap();
+    let zero_space_rent_exempt_lamports = config
+        .rpc_client
+        .get_minimum_balance_for_rent_exemption(0)
+        .await
+        .unwrap();
+    let new_account_balance = config.rpc_client.get_balance(&new_address).await.unwrap();
+    assert_eq!(
+        new_account_balance,
+        amount + zero_space_rent_exempt_lamports // we fund the account before the unwrap
+    );
+    let wrapped_account = config
+        .rpc_client
+        .get_account(&multisig_wrapped_address)
+        .await
+        .unwrap();
+    let wrapped_token_account =
+        StateWithExtensionsOwned::<Account>::unpack(wrapped_account.data).unwrap();
+    assert_eq!(
+        wrapped_account.lamports,
+        funded_amount + rent_exempt_lamports - amount
+    );
+    assert_eq!(wrapped_token_account.base.amount, funded_amount - amount);
+
+    // close the native account
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Unwrap.into(),
+            &payer_wrapped_address.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
 }
 
 async fn wrap_unwrap_sol(test_validator: &TestValidator, payer: &Keypair) {
