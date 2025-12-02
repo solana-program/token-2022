@@ -1724,7 +1724,7 @@ pub fn app<'a>(
         )
         .subcommand(
             SubCommand::with_name(CommandName::UnwrapSol.into())
-                .about("Unwrap lamports from a SOL token account")
+                .about("Unwrap SOL from a wrapped SOL token account")
                 .arg(
                     Arg::with_name("amount")
                         .value_parser(Amount::parse)
