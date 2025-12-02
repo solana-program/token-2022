@@ -31,8 +31,9 @@ use {
         program_option::COption,
         pubkey::Pubkey,
         signature::{Keypair, Signer},
+        transaction::Transaction,
     },
-    solana_system_interface::program as system_program,
+    solana_system_interface::{instruction::transfer, program as system_program},
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022::extension::confidential_transfer::account_info::{
@@ -2121,29 +2122,10 @@ async fn command_unwrap_lamports(
         Amount::Decimal(_) => unreachable!(),
         Amount::All => None,
     };
-
-    let display_amount = amount
-        .map(|amount| amount.to_string())
-        .unwrap_or_else(|| "all".to_string());
-
-    println_display(
-        config,
-        format!(
-            "Unwrapping {} lamports to {}",
-            display_amount, destination_account
-        ),
-    );
+    let mut balance = None;
 
     if !config.sign_only {
         let account_data = config.get_account_checked(&source_account).await?;
-
-        if !use_associated_account {
-            let account_state = StateWithExtensionsOwned::<Account>::unpack(account_data.data)?;
-
-            if account_state.base.mint != *token.get_address() {
-                return Err(format!("{} is not a native token account", source_account).into());
-            }
-        }
 
         if account_data.lamports == 0 {
             if use_associated_account {
@@ -2153,20 +2135,73 @@ async fn command_unwrap_lamports(
             }
         }
 
-        println_display(
-            config,
-            format!(
-                "  Amount: {} SOL",
-                build_balance_message(account_data.lamports, false, false)
-            ),
-        );
+        let account_state = StateWithExtensionsOwned::<Account>::unpack(account_data.data)?;
 
-        // TODO: check if the destination account exists and if it doesn't check
-        // if the amount being transferred covers the rent exempt balance, then add
-        // a flag to fund the destination account
+        if let Some(amount) = amount {
+            if account_state.base.amount < amount {
+                return Err(format!(
+                    "Error: Sender has insufficient funds, current balance is {} SOL",
+                    build_balance_message(account_state.base.amount, false, false)
+                )
+                .into());
+            }
+        }
+
+        balance = Some(account_state.base.amount);
+
+        if !use_associated_account && account_state.base.mint != *token.get_address() {
+            return Err(format!("{} is not a native token account", source_account).into());
+        }
+
+        if config.rpc_client.get_balance(&destination_account).await? == 0 {
+            // if it doesn't exist, we gate transfer with a different flag
+            if allow_unfunded_recipient {
+                println_display(
+                    config,
+                    format!("Funding recipient: {}", destination_account,),
+                );
+
+                let rent_exempt_lamports = config
+                    .rpc_client
+                    .get_minimum_balance_for_rent_exemption(0)
+                    .await?;
+                let fee_payer = config.fee_payer()?;
+                let instruction = transfer(
+                    &fee_payer.pubkey(),
+                    &destination_account,
+                    rent_exempt_lamports,
+                );
+                let recent_blockhash = config.rpc_client.get_latest_blockhash().await?;
+                let transaction = Transaction::new_signed_with_payer(
+                    &[instruction],
+                    Some(&fee_payer.pubkey()),
+                    &[fee_payer],
+                    recent_blockhash,
+                );
+                config
+                    .rpc_client
+                    .send_and_confirm_transaction(&transaction)
+                    .await?;
+            } else {
+                return Err("Error: The recipient address is not funded. \
+                            Add `--allow-unfunded-recipient` to complete the transfer."
+                    .into());
+            }
+        }
     }
 
-    println_display(config, format!("  Recipient: {}", &destination_account));
+    let display_amount = amount
+        .or(balance)
+        .map(|amount| build_balance_message(amount, false, false))
+        .unwrap_or_else(|| "all".to_string());
+
+    println_display(
+        config,
+        format!(
+            "Unwrapping {} SOL to {}",
+            display_amount, destination_account
+        ),
+    );
 
     let res = token
         .unwrap_lamports(
