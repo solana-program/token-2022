@@ -31,9 +31,8 @@ use {
         program_option::COption,
         pubkey::Pubkey,
         signature::{Keypair, Signer},
-        transaction::Transaction,
     },
-    solana_system_interface::{instruction::transfer, program as system_program},
+    solana_system_interface::program as system_program,
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022::extension::confidential_transfer::account_info::{
@@ -2155,34 +2154,7 @@ async fn command_unwrap_lamports(
 
         if config.rpc_client.get_balance(&destination_account).await? == 0 {
             // if it doesn't exist, we gate transfer with a different flag
-            if allow_unfunded_recipient {
-                println_display(
-                    config,
-                    format!("Funding recipient: {}", destination_account,),
-                );
-
-                let rent_exempt_lamports = config
-                    .rpc_client
-                    .get_minimum_balance_for_rent_exemption(0)
-                    .await?;
-                let fee_payer = config.fee_payer()?;
-                let instruction = transfer(
-                    &fee_payer.pubkey(),
-                    &destination_account,
-                    rent_exempt_lamports,
-                );
-                let recent_blockhash = config.rpc_client.get_latest_blockhash().await?;
-                let transaction = Transaction::new_signed_with_payer(
-                    &[instruction],
-                    Some(&fee_payer.pubkey()),
-                    &[fee_payer],
-                    recent_blockhash,
-                );
-                config
-                    .rpc_client
-                    .send_and_confirm_transaction(&transaction)
-                    .await?;
-            } else {
+            if !allow_unfunded_recipient {
                 return Err("Error: The recipient address is not funded. \
                             Add `--allow-unfunded-recipient` to complete the transfer."
                     .into());

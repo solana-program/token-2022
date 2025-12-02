@@ -918,13 +918,9 @@ async fn unwrap_lamports(test_validator: &TestValidator, payer: &Keypair) {
         .get_minimum_balance_for_rent_exemption(account_space)
         .await
         .unwrap();
-    let zero_space_rent_exempt_lamports = config
-        .rpc_client
-        .get_minimum_balance_for_rent_exemption(0)
-        .await
-        .unwrap();
+
     let balance = config.rpc_client.get_balance(&new_address).await.unwrap();
-    assert_eq!(balance, amount + zero_space_rent_exempt_lamports); // we fund the recipient first
+    assert_eq!(balance, amount);
 
     let wrapped_account = config
         .rpc_client
@@ -1115,16 +1111,8 @@ async fn multisig_unwrap_lamports(test_validator: &TestValidator, payer: &Keypai
         .get_minimum_balance_for_rent_exemption(account_space)
         .await
         .unwrap();
-    let zero_space_rent_exempt_lamports = config
-        .rpc_client
-        .get_minimum_balance_for_rent_exemption(0)
-        .await
-        .unwrap();
     let new_account_balance = config.rpc_client.get_balance(&new_address).await.unwrap();
-    assert_eq!(
-        new_account_balance,
-        amount + zero_space_rent_exempt_lamports // we fund the account before the unwrap
-    );
+    assert_eq!(new_account_balance, amount);
     let wrapped_account = config
         .rpc_client
         .get_account(&multisig_wrapped_address)
