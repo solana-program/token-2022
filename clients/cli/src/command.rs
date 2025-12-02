@@ -365,7 +365,7 @@ async fn command_create_token(
     }
 
     if let Some(text) = memo {
-        token.with_memo(text, vec![config.default_signer()?.pubkey()]);
+        token.with_memo(text, bulk_signers.iter().map(|s| s.pubkey()).collect());
     }
 
     // CLI checks that only one is set
