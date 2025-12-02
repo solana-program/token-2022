@@ -612,7 +612,7 @@ async fn test_cpi_guard_unwrap_lamports() {
         token, alice, bob, ..
     } = context.token_context.unwrap();
 
-    let mk_unwrap_lamports = [wrap_instruction(
+    let unwrap_lamports = [wrap_instruction(
         spl_instruction_padding_interface::id(),
         instruction::unwrap_lamports(
             &spl_token_2022_interface::id(),
@@ -643,8 +643,6 @@ async fn test_cpi_guard_unwrap_lamports() {
         .await
         .unwrap();
 
-    token.sync_native(&alice.pubkey()).await.unwrap();
-
     // unwrap lamports works normally with cpi guard enabled
     token
         .unwrap_lamports(
@@ -663,7 +661,7 @@ async fn test_cpi_guard_unwrap_lamports() {
 
     // user-auth cpi unwrap lamport with cpi guard doesn't work
     let error = token
-        .process_ixs(&mk_unwrap_lamports, &[&alice])
+        .process_ixs(&unwrap_lamports, &[&alice])
         .await
         .unwrap_err();
     assert_eq!(error, client_error(TokenError::CpiGuardTransferBlocked));
@@ -678,7 +676,7 @@ async fn test_cpi_guard_unwrap_lamports() {
         .unwrap();
 
     token
-        .process_ixs(&mk_unwrap_lamports, &[&alice])
+        .process_ixs(&unwrap_lamports, &[&alice])
         .await
         .unwrap();
     amount -= 1;
