@@ -1,7 +1,6 @@
 import { struct, u8 } from '@solana/buffer-layout';
 import type { AccountMeta, PublicKey, Signer } from '@solana/web3.js';
 import { TransactionInstruction } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID } from '../constants.js';
 import {
     TokenInvalidInstructionDataError,
     TokenInvalidInstructionKeysError,
@@ -31,7 +30,7 @@ export const unwrapLamportsInstructionData = struct<UnwrapLamportsInstructionDat
  * @param destination  Account receiving the lamports
  * @param owner        Owner of the source account
  * @param amount       Amount of lamports to unwrap
- * @param multiSigners Signing accounts if `authority` is a multisig
+ * @param multiSigners Signing accounts if `owner` is a multisig
  * @param programId    SPL Token program account
  *
  * @return Instruction to add to a transaction
@@ -101,8 +100,6 @@ export function decodeUnwrapLamportsInstruction(
     } = decodeUnwrapLamportsInstructionUnchecked(instruction);
     if (data.instruction !== TokenInstruction.UnwrapLamports) throw new TokenInvalidInstructionTypeError();
     if (!source || !destination || !owner) throw new TokenInvalidInstructionKeysError();
-
-    // TODO: key checks?
 
     return {
         programId,

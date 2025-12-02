@@ -13,7 +13,7 @@ import { createUnwrapLamportsInstruction } from '../instructions/unwrapLamports.
  * @param destination    Account receiving the lamports
  * @param owner          Owner of the source account
  * @param amount         Amount of lamports to unwrap
- * @param multiSigners   Signing accounts if `authority` is a multisig
+ * @param multiSigners   Signing accounts if `owner` is a multisig
  * @param confirmOptions Options for confirming the transaction
  * @param programId      SPL Token program account
  *
