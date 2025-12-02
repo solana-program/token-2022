@@ -92,7 +92,8 @@ export function decodeUnwrapLamportsInstruction(
     programId: PublicKey,
 ): DecodedUnwrapLamportsInstruction {
     if (!instruction.programId.equals(programId)) throw new TokenInvalidInstructionProgramError();
-    if (instruction.data.length !== unwrapLamportsInstructionData.span) throw new TokenInvalidInstructionDataError();
+    if (instruction.data.length !== unwrapLamportsInstructionData.getSpan(instruction.data))
+        throw new TokenInvalidInstructionDataError();
 
     const {
         keys: { source, destination, owner, multiSigners },
