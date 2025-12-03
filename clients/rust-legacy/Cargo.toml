@@ -42,7 +42,7 @@ solana-rpc-client = "3.0.0"
 solana-rpc-client-api = "3.0.0"
 solana-signature = "3.0.0"
 solana-signer = "3.0.0"
-solana-system-interface = "2"
+solana-system-interface = "3"
 solana-transaction = "3.0.0"
 spl-associated-token-account-interface = { version = "2.0.0" }
 spl-elgamal-registry = { version = "0.4.0", path = "../../confidential/elgamal-registry", features = ["no-entrypoint"] }
