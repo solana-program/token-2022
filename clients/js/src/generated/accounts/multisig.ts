@@ -48,7 +48,6 @@ export type Multisig = {
 
 export type MultisigArgs = Multisig;
 
-/** Gets the encoder for {@link MultisigArgs} account data. */
 export function getMultisigEncoder(): FixedSizeEncoder<MultisigArgs> {
   return getStructEncoder([
     ['m', getU8Encoder()],
@@ -58,7 +57,6 @@ export function getMultisigEncoder(): FixedSizeEncoder<MultisigArgs> {
   ]);
 }
 
-/** Gets the decoder for {@link Multisig} account data. */
 export function getMultisigDecoder(): FixedSizeDecoder<Multisig> {
   return getStructDecoder([
     ['m', getU8Decoder()],
@@ -68,7 +66,6 @@ export function getMultisigDecoder(): FixedSizeDecoder<Multisig> {
   ]);
 }
 
-/** Gets the codec for {@link Multisig} account data. */
 export function getMultisigCodec(): FixedSizeCodec<MultisigArgs, Multisig> {
   return combineCodec(getMultisigEncoder(), getMultisigDecoder());
 }

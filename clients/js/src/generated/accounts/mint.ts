@@ -92,7 +92,6 @@ export type MintArgs = {
   extensions: OptionOrNullable<Array<ExtensionArgs>>;
 };
 
-/** Gets the encoder for {@link MintArgs} account data. */
 export function getMintEncoder(): Encoder<MintArgs> {
   return getStructEncoder([
     [
@@ -125,7 +124,6 @@ export function getMintEncoder(): Encoder<MintArgs> {
   ]);
 }
 
-/** Gets the decoder for {@link Mint} account data. */
 export function getMintDecoder(): Decoder<Mint> {
   return getStructDecoder([
     [
@@ -158,7 +156,6 @@ export function getMintDecoder(): Decoder<Mint> {
   ]);
 }
 
-/** Gets the codec for {@link Mint} account data. */
 export function getMintCodec(): Codec<MintArgs, Mint> {
   return combineCodec(getMintEncoder(), getMintDecoder());
 }
