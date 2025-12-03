@@ -41,6 +41,7 @@ export enum ExtensionType {
   TransferHookAccount,
   ConfidentialTransferFee,
   ConfidentialTransferFeeAmount,
+  ConfidentialMintBurn,
   ScaledUiAmountConfig,
   PausableConfig,
   PausableAccount,

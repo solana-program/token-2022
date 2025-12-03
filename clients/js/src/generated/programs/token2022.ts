@@ -15,10 +15,12 @@ import {
 import {
   type ParsedAmountToUiAmountInstruction,
   type ParsedApplyConfidentialPendingBalanceInstruction,
+  type ParsedApplyPendingBurnInstruction,
   type ParsedApproveCheckedInstruction,
   type ParsedApproveConfidentialTransferAccountInstruction,
   type ParsedApproveInstruction,
   type ParsedBurnCheckedInstruction,
+  type ParsedBurnFromConfidentialBalanceInstruction,
   type ParsedBurnInstruction,
   type ParsedCloseAccountInstruction,
   type ParsedConfidentialDepositInstruction,
@@ -46,6 +48,7 @@ import {
   type ParsedInitializeAccount2Instruction,
   type ParsedInitializeAccount3Instruction,
   type ParsedInitializeAccountInstruction,
+  type ParsedInitializeConfidentialMintBurnInstruction,
   type ParsedInitializeConfidentialTransferFeeInstruction,
   type ParsedInitializeConfidentialTransferMintInstruction,
   type ParsedInitializeDefaultAccountStateInstruction,
@@ -69,12 +72,14 @@ import {
   type ParsedInitializeTransferFeeConfigInstruction,
   type ParsedInitializeTransferHookInstruction,
   type ParsedMintToCheckedInstruction,
+  type ParsedMintToConfidentialBalanceInstruction,
   type ParsedMintToInstruction,
   type ParsedPauseInstruction,
   type ParsedReallocateInstruction,
   type ParsedRemoveTokenMetadataKeyInstruction,
   type ParsedResumeInstruction,
   type ParsedRevokeInstruction,
+  type ParsedRotateSupplyElGamalPubkeyInstruction,
   type ParsedSetAuthorityInstruction,
   type ParsedSetTransferFeeInstruction,
   type ParsedSyncNativeInstruction,
@@ -84,6 +89,7 @@ import {
   type ParsedTransferInstruction,
   type ParsedUiAmountToAmountInstruction,
   type ParsedUpdateConfidentialTransferMintInstruction,
+  type ParsedUpdateDecryptableSupplyInstruction,
   type ParsedUpdateDefaultAccountStateInstruction,
   type ParsedUpdateGroupMemberPointerInstruction,
   type ParsedUpdateGroupPointerInstruction,
@@ -176,6 +182,12 @@ export enum Token2022Instruction {
   EnableNonConfidentialCredits,
   DisableNonConfidentialCredits,
   ConfidentialTransferWithFee,
+  InitializeConfidentialMintBurn,
+  RotateSupplyElGamalPubkey,
+  UpdateDecryptableSupply,
+  MintToConfidentialBalance,
+  BurnFromConfidentialBalance,
+  ApplyPendingBurn,
   InitializeDefaultAccountState,
   UpdateDefaultAccountState,
   Reallocate,
@@ -420,6 +432,42 @@ export function identifyToken2022Instruction(
     containsBytes(data, getU8Encoder().encode(13), 1)
   ) {
     return Token2022Instruction.ConfidentialTransferWithFee;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(42), 0) &&
+    containsBytes(data, getU8Encoder().encode(42), 1)
+  ) {
+    return Token2022Instruction.InitializeConfidentialMintBurn;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(42), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.RotateSupplyElGamalPubkey;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(42), 0) &&
+    containsBytes(data, getU8Encoder().encode(2), 1)
+  ) {
+    return Token2022Instruction.UpdateDecryptableSupply;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(42), 0) &&
+    containsBytes(data, getU8Encoder().encode(3), 1)
+  ) {
+    return Token2022Instruction.MintToConfidentialBalance;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(42), 0) &&
+    containsBytes(data, getU8Encoder().encode(4), 1)
+  ) {
+    return Token2022Instruction.BurnFromConfidentialBalance;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(42), 0) &&
+    containsBytes(data, getU8Encoder().encode(5), 1)
+  ) {
+    return Token2022Instruction.ApplyPendingBurn;
   }
   if (
     containsBytes(data, getU8Encoder().encode(28), 0) &&
@@ -817,6 +865,24 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.ConfidentialTransferWithFee;
     } & ParsedConfidentialTransferWithFeeInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializeConfidentialMintBurn;
+    } & ParsedInitializeConfidentialMintBurnInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.RotateSupplyElGamalPubkey;
+    } & ParsedRotateSupplyElGamalPubkeyInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.UpdateDecryptableSupply;
+    } & ParsedUpdateDecryptableSupplyInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.MintToConfidentialBalance;
+    } & ParsedMintToConfidentialBalanceInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.BurnFromConfidentialBalance;
+    } & ParsedBurnFromConfidentialBalanceInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.ApplyPendingBurn;
+    } & ParsedApplyPendingBurnInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.InitializeDefaultAccountState;
     } & ParsedInitializeDefaultAccountStateInstruction<TProgram>)
