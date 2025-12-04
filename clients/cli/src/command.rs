@@ -2099,7 +2099,7 @@ async fn command_unwrap(
     })
 }
 
-async fn command_unwrap_lamports(
+async fn command_unwrap_sol(
     config: &Config<'_>,
     ui_amount: Amount,
     source_owner: Pubkey,
@@ -4384,7 +4384,7 @@ pub async fn process_command(
 
             let allow_unfunded_recipient = arg_matches.is_present("allow_unfunded_recipient");
 
-            command_unwrap_lamports(
+            command_unwrap_sol(
                 config,
                 amount,
                 owner,

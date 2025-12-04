@@ -843,12 +843,12 @@ async fn accounts_with_owner(test_validator: &TestValidator, payer: &Keypair) {
 
 async fn wrapped_sol(test_validator: &TestValidator, payer: &Keypair) {
     // the tests use the same ata so they can't run together
-    unwrap_lamports(test_validator, payer).await;
-    multisig_unwrap_lamports(test_validator, payer).await;
+    unwrap_sol(test_validator, payer).await;
+    multisig_unwrap_sol(test_validator, payer).await;
     wrap_unwrap_sol(test_validator, payer).await;
 }
 
-async fn unwrap_lamports(test_validator: &TestValidator, payer: &Keypair) {
+async fn unwrap_sol(test_validator: &TestValidator, payer: &Keypair) {
     let program_id = &spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, program_id);
     let native_mint = *Token::new_native(
@@ -970,7 +970,7 @@ async fn unwrap_lamports(test_validator: &TestValidator, payer: &Keypair) {
     .unwrap();
 }
 
-async fn multisig_unwrap_lamports(test_validator: &TestValidator, payer: &Keypair) {
+async fn multisig_unwrap_sol(test_validator: &TestValidator, payer: &Keypair) {
     let m = 3;
     let n = 5u8;
 
