@@ -160,7 +160,17 @@ fn transfer_checked() {
     let destination_token_account = setup::setup_token_account(&mint, &owner, 0);
 
     mollusk.process_and_validate_instruction(
-        &instruction::transfer_checked(&id(), &source, &mint, &destination, &owner, &[], TRANSFER_AMOUNT, decimals).unwrap(),
+        &instruction::transfer_checked(
+            &id(),
+            &source,
+            &mint,
+            &destination,
+            &owner,
+            &[],
+            TRANSFER_AMOUNT,
+            decimals,
+        )
+        .unwrap(),
         &[
             (source, source_token_account),
             (mint, mint_account),

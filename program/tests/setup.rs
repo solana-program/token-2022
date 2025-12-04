@@ -63,4 +63,3 @@ pub fn setup_token_account(mint: &Pubkey, owner: &Pubkey, amount: u64) -> Solana
         ..Default::default()
     }
 }
-
