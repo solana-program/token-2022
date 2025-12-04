@@ -23,3 +23,4 @@ export * from './thawAccount.js';
 export * from './transfer.js';
 export * from './transferChecked.js';
 export * from './uiAmountToAmount.js';
+export * from './unwrapLamports.js';

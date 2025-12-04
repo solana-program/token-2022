@@ -41,6 +41,30 @@ fn serde_instruction_coption_pubkey_with_none() {
 }
 
 #[test]
+fn serde_instruction_coption_u64() {
+    let inst = instruction::TokenInstruction::UnwrapLamports {
+        amount: COption::Some(1),
+    };
+
+    let serialized = serde_json::to_string(&inst).unwrap();
+    assert_eq!(&serialized, "{\"unwrapLamports\":{\"amount\":1}}");
+
+    serde_json::from_str::<instruction::TokenInstruction>(&serialized).unwrap();
+}
+
+#[test]
+fn serde_instruction_coption_u64_with_none() {
+    let inst = instruction::TokenInstruction::UnwrapLamports {
+        amount: COption::None,
+    };
+
+    let serialized = serde_json::to_string(&inst).unwrap();
+    assert_eq!(&serialized, "{\"unwrapLamports\":{\"amount\":null}}");
+
+    serde_json::from_str::<instruction::TokenInstruction>(&serialized).unwrap();
+}
+
+#[test]
 fn serde_instruction_optional_nonzero_pubkeys_podbool() {
     // tests serde of ix containing OptionalNonZeroPubkey, PodBool and
     // OptionalNonZeroElGamalPubkey
