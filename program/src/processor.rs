@@ -1688,7 +1688,6 @@ impl Processor {
             account_info_iter.as_slice(),
         )?;
 
-        let self_transfer = source_account_info.key == destination_account_info.key;
         if let Ok(cpi_guard) = source_account.get_extension::<CpiGuard>() {
             if cpi_guard.lock_cpi.into() && in_cpi() {
                 return Err(TokenError::CpiGuardTransferBlocked.into());
