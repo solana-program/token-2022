@@ -1696,9 +1696,10 @@ impl Processor {
         }
 
         if amount == 0 {
-            check_program_account(source_account_info.owner)?;
+            check_program_account(source_account_info.owner)
         } else {
-            if !self_transfer {
+            source_account.base.amount = remaining_amount.into();
+            if source_account_info.key != destination_account_info.key {
                 let source_starting_lamports = source_account_info.lamports();
                 **source_account_info.lamports.borrow_mut() = source_starting_lamports
                     .checked_sub(amount)
@@ -1709,10 +1710,8 @@ impl Processor {
                     .checked_add(amount)
                     .ok_or(TokenError::Overflow)?;
             }
-            source_account.base.amount = remaining_amount.into();
+            Ok(())
         }
-
-        Ok(())
     }
 
     /// Processes an [`Instruction`](enum.Instruction.html).
