@@ -12,7 +12,7 @@ edition = { workspace = true }
 bytemuck = { version = "1.23.1", features = ["derive"] }
 solana-instruction = "3.0.0"
 solana-program-error = "3.0.0"
-solana-pubkey = { version = "3.0.0", features = ["curve25519"] }
+solana-pubkey = { version = "4.0.0", features = ["curve25519"] }
 solana-sdk-ids = "3.0.0"
 solana-zk-sdk = "4.0.0"
 spl-token-confidential-transfer-proof-extraction = { version = "0.5.0", path = "../proof-extraction" }

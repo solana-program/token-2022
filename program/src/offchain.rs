@@ -215,7 +215,6 @@ mod tests {
         },
         solana_instruction::AccountMeta,
         solana_program_option::COption,
-        solana_program_test::tokio,
         spl_pod::optional_keys::OptionalNonZeroPubkey,
         spl_tlv_account_resolution::{
             account::ExtraAccountMeta, seeds::Seed, state::ExtraAccountMetaList,
