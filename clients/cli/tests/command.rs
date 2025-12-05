@@ -4515,6 +4515,7 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     let token = Keypair::new();
+    let burn_authority = Keypair::new();
     let token_keypair_file = NamedTempFile::new().unwrap();
     write_keypair_file(&token, &token_keypair_file).unwrap();
     let token_pubkey = token.pubkey();
@@ -4527,6 +4528,8 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
             CommandName::CreateToken.into(),
             token_keypair_file.path().to_str().unwrap(),
             "--enable-permissioned-burn",
+            "--permissioned-burn-authority",
+            burn_authority.pubkey().to_string().as_str(),
         ],
     )
     .await
@@ -4537,6 +4540,6 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
     let extension = test_mint.get_extension::<PermissionedBurnConfig>().unwrap();
     assert_eq!(
         Option::<Pubkey>::from(extension.authority),
-        Some(payer.pubkey())
+        Some(burn_authority.pubkey())
     );
 }

@@ -52,6 +52,7 @@ use {
             mint_close_authority::MintCloseAuthority,
             pausable::PausableConfig,
             permanent_delegate::PermanentDelegate,
+            permissioned_burn::PermissionedBurnConfig,
             scaled_ui_amount::ScaledUiAmountConfig,
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::TransferHook,
@@ -269,6 +270,7 @@ async fn command_create_token(
     ui_multiplier: Option<f64>,
     pausable: bool,
     enable_permissioned_burn: bool,
+    permissioned_burn_authority: Option<Pubkey>,
     bulk_signers: Vec<Arc<dyn Signer>>,
 ) -> CommandResult {
     println_display(
@@ -411,7 +413,9 @@ async fn command_create_token(
     }
 
     if enable_permissioned_burn {
-        extensions.push(ExtensionInitializationParams::PermissionedBurnConfig { authority });
+        extensions.push(ExtensionInitializationParams::PermissionedBurnConfig {
+            authority: permissioned_burn_authority.unwrap_or(authority),
+        });
     }
 
     let res = token
@@ -1129,6 +1133,16 @@ async fn command_authorize(
                         ))
                     }
                 }
+                CliAuthorityType::PermissionedBurn => {
+                    if let Ok(extension) = mint.get_extension::<PermissionedBurnConfig>() {
+                        Ok(Option::<Pubkey>::from(extension.authority))
+                    } else {
+                        Err(format!(
+                            "Mint `{}` does not support permissioned burn",
+                            account
+                        ))
+                    }
+                }
             }?;
 
             Ok((account, previous_authority))
@@ -1172,7 +1186,8 @@ async fn command_authorize(
                 | CliAuthorityType::Group
                 | CliAuthorityType::GroupMemberPointer
                 | CliAuthorityType::ScaledUiAmount
-                | CliAuthorityType::Pause => Err(format!(
+                | CliAuthorityType::Pause
+                | CliAuthorityType::PermissionedBurn => Err(format!(
                     "Authority type `{auth_str}` not supported for SPL Token accounts",
                 )),
                 CliAuthorityType::Owner => {
@@ -3780,6 +3795,12 @@ pub async fn process_command(
                     });
             let transfer_hook_program_id =
                 pubkey_of_signer(arg_matches, "transfer_hook", &mut wallet_manager).unwrap();
+            let permissioned_burn_authority = pubkey_of_signer(
+                arg_matches,
+                "permissioned_burn_authority",
+                &mut wallet_manager,
+            )
+            .unwrap();
 
             let confidential_transfer_auto_approve = arg_matches
                 .value_of("enable_confidential_transfers")
@@ -3810,6 +3831,7 @@ pub async fn process_command(
                 ui_multiplier,
                 arg_matches.is_present("enable_pause"),
                 arg_matches.is_present("enable_permissioned_burn"),
+                permissioned_burn_authority,
                 bulk_signers,
             )
             .await

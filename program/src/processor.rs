@@ -1101,17 +1101,14 @@ impl Processor {
 
         let source_account_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
-        let (permissioned_burn_authority_info, authority_info) =
-            match burn_variant {
-                BurnInstructionVariant::Permissioned => {
-                    let permissioned_burn_authority_info = next_account_info(account_info_iter)?;
-                    let authority_info = next_account_info(account_info_iter)?;
-                    (Some(permissioned_burn_authority_info), authority_info)
-                }
-                BurnInstructionVariant::Standard => {
-                    (None, next_account_info(account_info_iter)?)
-                }
-            };
+        let (permissioned_burn_authority_info, authority_info) = match burn_variant {
+            BurnInstructionVariant::Permissioned => {
+                let permissioned_burn_authority_info = next_account_info(account_info_iter)?;
+                let authority_info = next_account_info(account_info_iter)?;
+                (Some(permissioned_burn_authority_info), authority_info)
+            }
+            BurnInstructionVariant::Standard => (None, next_account_info(account_info_iter)?),
+        };
 
         let authority_info_data_len = authority_info.data_len();
 
@@ -1132,8 +1129,8 @@ impl Processor {
                 let ext = permissioned_ext.map_err(|_| TokenError::InvalidInstruction)?;
 
                 // Pull the required extra signer from the accounts
-                let approver_ai = permissioned_burn_authority_info
-                    .ok_or(ProgramError::NotEnoughAccountKeys)?;
+                let approver_ai =
+                    permissioned_burn_authority_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
 
                 if !approver_ai.is_signer {
                     return Err(ProgramError::MissingRequiredSignature);

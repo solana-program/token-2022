@@ -8,13 +8,13 @@ use {
     },
     spl_token_2022_interface::{
         error::TokenError,
-        instruction::AuthorityType,
         extension::{
             permissioned_burn::{
                 instruction as permissioned_burn_instruction, PermissionedBurnConfig,
             },
             BaseStateWithExtensions,
         },
+        instruction::AuthorityType,
     },
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
 };

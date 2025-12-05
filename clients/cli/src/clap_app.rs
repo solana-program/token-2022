@@ -245,6 +245,7 @@ pub enum CliAuthorityType {
     Group,
     ScaledUiAmount,
     Pause,
+    PermissionedBurn,
 }
 impl TryFrom<CliAuthorityType> for AuthorityType {
     type Error = Error;
@@ -277,6 +278,7 @@ impl TryFrom<CliAuthorityType> for AuthorityType {
             }
             CliAuthorityType::ScaledUiAmount => Ok(AuthorityType::ScaledUiAmount),
             CliAuthorityType::Pause => Ok(AuthorityType::Pause),
+            CliAuthorityType::PermissionedBurn => Ok(AuthorityType::PermissionedBurn),
         }
     }
 }
@@ -930,6 +932,15 @@ pub fn app<'a>(
                         .long("enable-permissioned-burn")
                         .takes_value(false)
                         .help("Require the configured permissioned burn authority for burning tokens")
+                )
+                .arg(
+                    Arg::with_name("permissioned_burn_authority")
+                        .long("permissioned-burn-authority")
+                        .validator(|s| is_valid_signer(s))
+                        .value_name("SIGNER")
+                        .takes_value(true)
+                        .requires("enable_permissioned_burn")
+                        .help("Specify a permissioned burn authority for the mint. Defaults to the mint authority.")
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
