@@ -275,7 +275,8 @@ export type Extension =
       newMultiplier: number;
     }
   | { __kind: 'PausableConfig'; authority: Option<Address>; paused: boolean }
-  | { __kind: 'PausableAccount' };
+  | { __kind: 'PausableAccount' }
+  | { __kind: 'PermissionedBurn'; authority: Option<Address> };
 
 export type ExtensionArgs =
   | { __kind: 'Uninitialized' }
@@ -492,7 +493,8 @@ export type ExtensionArgs =
       authority: OptionOrNullable<Address>;
       paused: boolean;
     }
-  | { __kind: 'PausableAccount' };
+  | { __kind: 'PausableAccount' }
+  | { __kind: 'PermissionedBurn'; authority: OptionOrNullable<Address> };
 
 export function getExtensionEncoder(): Encoder<ExtensionArgs> {
   return getDiscriminatedUnionEncoder(
@@ -816,6 +818,21 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
         ),
       ],
       ['PausableAccount', getUnitEncoder()],
+      [
+        'PermissionedBurn',
+        addEncoderSizePrefix(
+          getStructEncoder([
+            [
+              'authority',
+              getOptionEncoder(getAddressEncoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
+          ]),
+          getU16Encoder()
+        ),
+      ],
     ],
     { size: getU16Encoder() }
   );
@@ -1143,6 +1160,21 @@ export function getExtensionDecoder(): Decoder<Extension> {
         ),
       ],
       ['PausableAccount', getUnitDecoder()],
+      [
+        'PermissionedBurn',
+        addDecoderSizePrefix(
+          getStructDecoder([
+            [
+              'authority',
+              getOptionDecoder(getAddressDecoder(), {
+                prefix: null,
+                noneValue: 'zeroes',
+              }),
+            ],
+          ]),
+          getU16Decoder()
+        ),
+      ],
     ],
     { size: getU16Decoder() }
   );
@@ -1390,6 +1422,18 @@ export function extension(
 export function extension(
   kind: 'PausableAccount'
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'PausableAccount'>;
+export function extension(
+  kind: 'PermissionedBurn',
+  data: GetDiscriminatedUnionVariantContent<
+    ExtensionArgs,
+    '__kind',
+    'PermissionedBurn'
+  >
+): GetDiscriminatedUnionVariant<
+  ExtensionArgs,
+  '__kind',
+  'PermissionedBurn'
+>;
 export function extension<K extends ExtensionArgs['__kind'], Data>(
   kind: K,
   data?: Data

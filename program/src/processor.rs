@@ -7,8 +7,8 @@ use {
             cpi_guard::{self, in_cpi},
             default_account_state, group_member_pointer, group_pointer, interest_bearing_mint,
             memo_transfer::{self, check_previous_sibling_instruction_is_memo},
-            metadata_pointer, pausable, reallocate, scaled_ui_amount, token_group, token_metadata,
-            transfer_fee, transfer_hook,
+            metadata_pointer, pausable, permissioned_burn, reallocate, scaled_ui_amount,
+            token_group, token_metadata, transfer_fee, transfer_hook,
         },
         pod_instruction::{
             decode_instruction_data_with_coption_pubkey, AmountCheckedData, AmountData,
@@ -51,6 +51,7 @@ use {
             non_transferable::{NonTransferable, NonTransferableAccount},
             pausable::{PausableAccount, PausableConfig},
             permanent_delegate::{get_permanent_delegate, PermanentDelegate},
+            permissioned_burn::PermissionedBurnConfig,
             scaled_ui_amount::ScaledUiAmountConfig,
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::{TransferHook, TransferHookAccount},
@@ -79,6 +80,15 @@ pub(crate) enum TransferInstruction {
 pub(crate) enum InstructionVariant {
     Unchecked,
     Checked { decimals: u8 },
+}
+
+/// Burn instruction variant. Standard variants must not be used with the
+/// permissioned burn extension.
+///
+/// Permissioned variants require the extra authority to sign.
+pub(crate) enum BurnInstructionVariant {
+    Standard,
+    Permissioned,
 }
 
 /// Program state handler.
@@ -966,6 +976,19 @@ impl Processor {
                     )?;
                     extension.authority = new_authority.try_into()?;
                 }
+                AuthorityType::PermissionedBurn => {
+                    let extension = mint.get_extension_mut::<PermissionedBurnConfig>()?;
+                    let maybe_authority: Option<Pubkey> = extension.authority.into();
+                    let authority = maybe_authority.ok_or(TokenError::AuthorityTypeNotSupported)?;
+                    Self::validate_owner(
+                        program_id,
+                        &authority,
+                        authority_info,
+                        authority_info_data_len,
+                        account_info_iter.as_slice(),
+                    )?;
+                    extension.authority = new_authority.try_into()?;
+                }
                 _ => {
                     return Err(TokenError::AuthorityTypeNotSupported.into());
                 }
@@ -1071,20 +1094,58 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
+        burn_variant: BurnInstructionVariant,
         instruction_variant: InstructionVariant,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
         let source_account_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
-        let authority_info = next_account_info(account_info_iter)?;
+        let (permissioned_burn_authority_info, authority_info) = match burn_variant {
+            BurnInstructionVariant::Permissioned => {
+                let permissioned_burn_authority_info = next_account_info(account_info_iter)?;
+                let authority_info = next_account_info(account_info_iter)?;
+                (Some(permissioned_burn_authority_info), authority_info)
+            }
+            BurnInstructionVariant::Standard => (None, next_account_info(account_info_iter)?),
+        };
+
         let authority_info_data_len = authority_info.data_len();
+
+        let mut mint_data = mint_info.data.borrow_mut();
+        let mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
+
+        let permissioned_ext = mint.get_extension::<PermissionedBurnConfig>();
+
+        match burn_variant {
+            BurnInstructionVariant::Standard => {
+                // Standard burns cannot be used when the permissioned burn
+                // extension is present.
+                if permissioned_ext.is_ok() {
+                    return Err(TokenError::InvalidInstruction.into());
+                }
+            }
+            BurnInstructionVariant::Permissioned => {
+                let ext = permissioned_ext.map_err(|_| TokenError::InvalidInstruction)?;
+
+                // Pull the required extra signer from the accounts
+                let approver_ai =
+                    permissioned_burn_authority_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
+
+                if !approver_ai.is_signer {
+                    return Err(ProgramError::MissingRequiredSignature);
+                }
+
+                let maybe_burn_authority: Option<Pubkey> = ext.authority.into();
+                if Some(*approver_ai.key) != maybe_burn_authority {
+                    return Err(ProgramError::InvalidAccountData);
+                }
+            }
+        }
 
         let mut source_account_data = source_account_info.data.borrow_mut();
         let source_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
-        let mut mint_data = mint_info.data.borrow_mut();
-        let mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
 
         if source_account.base.is_frozen() {
             return Err(TokenError::AccountFrozen.into());
@@ -1109,6 +1170,7 @@ impl Processor {
                 return Err(TokenError::MintPaused.into());
             }
         }
+
         let maybe_permanent_delegate = get_permanent_delegate(&mint);
 
         if let Ok(cpi_guard) = source_account.get_extension::<CpiGuard>() {
@@ -1744,6 +1806,7 @@ impl Processor {
                         program_id,
                         accounts,
                         data.amount.into(),
+                        BurnInstructionVariant::Standard,
                         InstructionVariant::Unchecked,
                     )
                 }
@@ -1802,6 +1865,7 @@ impl Processor {
                         program_id,
                         accounts,
                         data.amount.into(),
+                        BurnInstructionVariant::Standard,
                         InstructionVariant::Checked {
                             decimals: data.decimals,
                         },
@@ -1941,6 +2005,14 @@ impl Processor {
                 PodTokenInstruction::PausableExtension => {
                     msg!("Instruction: PausableExtension");
                     pausable::processor::process_instruction(program_id, accounts, &input[1..])
+                }
+                PodTokenInstruction::PermissionedBurnExtension => {
+                    msg!("Instruction: PermissionedBurnExtension");
+                    permissioned_burn::processor::process_instruction(
+                        program_id,
+                        accounts,
+                        &input[1..],
+                    )
                 }
             }
         } else if let Ok(instruction) = TokenMetadataInstruction::unpack(input) {

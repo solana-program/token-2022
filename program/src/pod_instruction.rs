@@ -115,6 +115,8 @@ pub(crate) enum PodTokenInstruction {
     ConfidentialMintBurnExtension,
     ScaledUiAmountExtension,
     PausableExtension,
+    // 45
+    PermissionedBurnExtension = 46,
 }
 
 fn unpack_pubkey_option(input: &[u8]) -> Result<PodCOption<Pubkey>, ProgramError> {
