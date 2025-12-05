@@ -57,7 +57,8 @@ pub(crate) fn process_instruction(
                 program_id,
                 accounts,
                 data.amount.into(),
-                BurnInstructionVariant::Permissioned(InstructionVariant::Unchecked),
+                BurnInstructionVariant::Permissioned,
+                InstructionVariant::Unchecked,
             )
         }
         PermissionedBurnInstruction::BurnChecked => {
@@ -67,9 +68,10 @@ pub(crate) fn process_instruction(
                 program_id,
                 accounts,
                 data.amount.into(),
-                BurnInstructionVariant::Permissioned(InstructionVariant::Checked {
+                BurnInstructionVariant::Permissioned,
+                InstructionVariant::Checked {
                     decimals: data.decimals,
-                }),
+                },
             )
         }
     }

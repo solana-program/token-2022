@@ -73,7 +73,7 @@ const permissionedBurnInstructionData = struct<PermissionedBurnInstructionData>(
  * @param account                       Token account to update
  * @param mint                          Token mint account
  * @param owner                         The account's owner/delegate
- * @param permissionedBurnAuthority     The account's owner/delegate
+ * @param permissionedBurnAuthority     Authority configured on the mint for permissioned burns
  * @param amount                        Amount to burn
  * @param multiSigners                  The signer account(s)
  * @param programId                     SPL Token program account
@@ -95,13 +95,11 @@ export function createPermissionedBurnInstruction(
         [
             { pubkey: account, isSigner: false, isWritable: true },
             { pubkey: mint, isSigner: false, isWritable: true },
+            { pubkey: permissionedBurnAuthority, isSigner: true, isWritable: false },
         ],
         owner,
         multiSigners,
     );
-
-    // permissioned burn authority comes after the owner/delegate and before any multisig signers
-    keys.splice(3, 0, { pubkey: permissionedBurnAuthority, isSigner: true, isWritable: false });
 
     const data = Buffer.alloc(permissionedBurnInstructionData.span);
     permissionedBurnInstructionData.encode(
@@ -136,7 +134,7 @@ const permissionedBurnCheckedInstructionData = struct<PermissionedBurnCheckedIns
  * @param account                       Token account to update
  * @param mint                          Token mint account
  * @param owner                         The account's owner/delegate
- * @param permissionedBurnAuthority     The account's owner/delegate
+ * @param permissionedBurnAuthority     Authority configured on the mint for permissioned burns
  * @param amount                        Amount to burn
  * @param decimals                      Number of the decimals of the mint
  * @param multiSigners                  The signer account(s)
@@ -160,12 +158,11 @@ export function createPermissionedBurnCheckedInstruction(
         [
             { pubkey: account, isSigner: false, isWritable: true },
             { pubkey: mint, isSigner: false, isWritable: true },
+            { pubkey: permissionedBurnAuthority, isSigner: true, isWritable: false },
         ],
         owner,
         multiSigners,
     );
-
-    keys.splice(3, 0, { pubkey: permissionedBurnAuthority, isSigner: true, isWritable: false });
 
     const data = Buffer.alloc(permissionedBurnCheckedInstructionData.span);
     permissionedBurnCheckedInstructionData.encode(

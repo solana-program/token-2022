@@ -87,8 +87,8 @@ pub(crate) enum InstructionVariant {
 ///
 /// Permissioned variants require the extra authority to sign.
 pub(crate) enum BurnInstructionVariant {
-    Standard(InstructionVariant),
-    Permissioned(InstructionVariant),
+    Standard,
+    Permissioned,
 }
 
 /// Program state handler.
@@ -1094,32 +1094,46 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
-        instruction_variant: BurnInstructionVariant,
+        burn_variant: BurnInstructionVariant,
+        instruction_variant: InstructionVariant,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
         let source_account_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
-        let authority_info = next_account_info(account_info_iter)?;
+        let (permissioned_burn_authority_info, authority_info) =
+            match burn_variant {
+                BurnInstructionVariant::Permissioned => {
+                    let permissioned_burn_authority_info = next_account_info(account_info_iter)?;
+                    let authority_info = next_account_info(account_info_iter)?;
+                    (Some(permissioned_burn_authority_info), authority_info)
+                }
+                BurnInstructionVariant::Standard => {
+                    (None, next_account_info(account_info_iter)?)
+                }
+            };
+
+        let authority_info_data_len = authority_info.data_len();
 
         let mut mint_data = mint_info.data.borrow_mut();
         let mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
 
         let permissioned_ext = mint.get_extension::<PermissionedBurnConfig>();
 
-        match instruction_variant {
-            BurnInstructionVariant::Standard(_) => {
+        match burn_variant {
+            BurnInstructionVariant::Standard => {
                 // Standard burns cannot be used when the permissioned burn
                 // extension is present.
                 if permissioned_ext.is_ok() {
                     return Err(TokenError::InvalidInstruction.into());
                 }
             }
-            BurnInstructionVariant::Permissioned(_) => {
+            BurnInstructionVariant::Permissioned => {
                 let ext = permissioned_ext.map_err(|_| TokenError::InvalidInstruction)?;
 
                 // Pull the required extra signer from the accounts
-                let approver_ai = next_account_info(account_info_iter)?;
+                let approver_ai = permissioned_burn_authority_info
+                    .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
                 if !approver_ai.is_signer {
                     return Err(ProgramError::MissingRequiredSignature);
@@ -1131,12 +1145,6 @@ impl Processor {
                 }
             }
         }
-
-        let instruction_variant = match instruction_variant {
-            BurnInstructionVariant::Standard(v) | BurnInstructionVariant::Permissioned(v) => v,
-        };
-
-        let authority_info_data_len = authority_info.data_len();
 
         let mut source_account_data = source_account_info.data.borrow_mut();
         let source_account =
@@ -1801,7 +1809,8 @@ impl Processor {
                         program_id,
                         accounts,
                         data.amount.into(),
-                        BurnInstructionVariant::Standard(InstructionVariant::Unchecked),
+                        BurnInstructionVariant::Standard,
+                        InstructionVariant::Unchecked,
                     )
                 }
                 PodTokenInstruction::CloseAccount => {
@@ -1859,9 +1868,10 @@ impl Processor {
                         program_id,
                         accounts,
                         data.amount.into(),
-                        BurnInstructionVariant::Standard(InstructionVariant::Checked {
+                        BurnInstructionVariant::Standard,
+                        InstructionVariant::Checked {
                             decimals: data.decimals,
-                        }),
+                        },
                     )
                 }
                 PodTokenInstruction::SyncNative => {

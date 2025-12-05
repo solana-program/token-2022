@@ -190,11 +190,11 @@ export function getPermissionedBurnCheckedInstruction<
   const originalAccounts = {
     account: { value: input.account ?? null, isWritable: true },
     mint: { value: input.mint ?? null, isWritable: true },
-    authority: { value: input.authority ?? null, isWritable: false },
     permissionedBurnAuthority: {
       value: input.permissionedBurnAuthority ?? null,
       isWritable: false,
     },
+    authority: { value: input.authority ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -218,8 +218,8 @@ export function getPermissionedBurnCheckedInstruction<
     accounts: [
       getAccountMeta(accounts.account),
       getAccountMeta(accounts.mint),
-      getAccountMeta(accounts.authority),
       getAccountMeta(accounts.permissionedBurnAuthority),
+      getAccountMeta(accounts.authority),
       ...remainingAccounts,
     ],
     data: getPermissionedBurnCheckedInstructionDataEncoder().encode(
@@ -251,13 +251,13 @@ export type ParsedPermissionedBurnCheckedInstruction<
     account: TAccountMetas[0];
     /** The token mint. */
     mint: TAccountMetas[1];
-    /** The account's owner/delegate or its multisignature account. */
-    authority: TAccountMetas[2];
     /**
      * Authority configured on the mint that must sign any permissioned burn
      * instruction.
      */
-    permissionedBurnAuthority: TAccountMetas[3];
+    permissionedBurnAuthority: TAccountMetas[2];
+    /** The account's owner/delegate or its multisignature account. */
+    authority: TAccountMetas[3];
     multiSigners: TAccountMetas[4][];
   };
   data: PermissionedBurnCheckedInstructionData;
@@ -286,8 +286,8 @@ export function parsePermissionedBurnCheckedInstruction<
     accounts: {
       account: getNextAccount(),
       mint: getNextAccount(),
-      authority: getNextAccount(),
       permissionedBurnAuthority: getNextAccount(),
+      authority: getNextAccount(),
       multiSigners: instruction.accounts.slice(4) as TAccountMetas[4][],
     },
     data: getPermissionedBurnCheckedInstructionDataDecoder().decode(
