@@ -8,6 +8,7 @@ use {
     },
     spl_token_2022_interface::{
         error::TokenError,
+        instruction::AuthorityType,
         extension::{
             permissioned_burn::{
                 instruction as permissioned_burn_instruction, PermissionedBurnConfig,
@@ -51,6 +52,7 @@ async fn success_initialize() {
 async fn permissioned_burn_enforced() {
     let mut context = TestContext::new().await;
     let authority = Keypair::new();
+    let new_authority = Keypair::new();
     context
         .init_token_with_mint(vec![
             ExtensionInitializationParams::PermissionedBurnConfig {
@@ -93,8 +95,8 @@ async fn permissioned_burn_enforced() {
         &spl_token_2022_interface::id(),
         &account,
         &token.get_address(),
-        &account_owner.pubkey(),
         &wrong_permissioned.pubkey(),
+        &account_owner.pubkey(),
         &[],
         1,
         decimals,
@@ -116,8 +118,8 @@ async fn permissioned_burn_enforced() {
         &spl_token_2022_interface::id(),
         &account,
         &token.get_address(),
-        &account_owner.pubkey(),
         &authority.pubkey(),
+        &account_owner.pubkey(),
         &[],
         1,
         decimals,
@@ -132,4 +134,56 @@ async fn permissioned_burn_enforced() {
     assert_eq!(u64::from(account_after.base.amount), 1);
     let mint_after = token.get_mint_info().await.unwrap();
     assert_eq!(u64::from(mint_after.base.supply), 1);
+
+    // Update permissioned burn authority and ensure new authority is enforced.
+    token
+        .set_authority(
+            token.get_address(),
+            &authority.pubkey(),
+            Some(&new_authority.pubkey()),
+            AuthorityType::PermissionedBurn,
+            &[&authority],
+        )
+        .await
+        .unwrap();
+
+    // Old authority should no longer work.
+    let ix_old = permissioned_burn_instruction::burn_checked(
+        &spl_token_2022_interface::id(),
+        &account,
+        &token.get_address(),
+        &authority.pubkey(),
+        &account_owner.pubkey(),
+        &[],
+        1,
+        decimals,
+    )
+    .unwrap();
+    let err_old = token
+        .process_ixs(&[ix_old], &[&account_owner, &authority])
+        .await
+        .unwrap_err();
+    assert_eq!(
+        err_old,
+        TokenClientError::Client(Box::new(TransportError::TransactionError(
+            TransactionError::InstructionError(0, InstructionError::InvalidAccountData)
+        )))
+    );
+
+    // New authority should succeed.
+    let ix_new = permissioned_burn_instruction::burn_checked(
+        &spl_token_2022_interface::id(),
+        &account,
+        &token.get_address(),
+        &new_authority.pubkey(),
+        &account_owner.pubkey(),
+        &[],
+        1,
+        decimals,
+    )
+    .unwrap();
+    token
+        .process_ixs(&[ix_new], &[&account_owner, &new_authority])
+        .await
+        .unwrap();
 }
