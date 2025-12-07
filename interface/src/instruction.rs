@@ -6,7 +6,7 @@
 
 #[cfg(feature = "serde")]
 use {
-    crate::serialization::{coption_fromstr, coption_u64_fromval, batch_fromstr},
+    crate::serialization::{batch_fromstr, coption_u64_fromval, coption_fromstr},
     serde::{Deserialize, Serialize},
     serde_with::{As, DisplayFromStr},
 };
