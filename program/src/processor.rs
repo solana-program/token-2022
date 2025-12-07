@@ -1788,8 +1788,62 @@ impl Processor {
         }
     }
 
+    /// The size of the batch instruction header.
+    ///
+    /// The header of each instruction consists of two `u8` values:
+    /// * number of the accounts
+    /// * length of the instruction data
+    const IX_HEADER_SIZE: usize = 2;
+    /// Processes an [`Batch`](enum.TokenInstruction.html)
+    /// instruction
+    pub fn process_batch(
+        program_id: &Pubkey,
+        mut accounts: &[AccountInfo],
+        mut data: &[u8],
+    ) -> ProgramResult {
+        loop {
+            let header = data
+                .get(..Self::IX_HEADER_SIZE)
+                .ok_or(TokenError::InvalidInstruction)?;
+
+            let expected_accounts = header[0] as usize;
+            let data_offset = Self::IX_HEADER_SIZE + header[1] as usize;
+
+            let ix_accounts = accounts
+                .get(..expected_accounts)
+                .ok_or(ProgramError::NotEnoughAccountKeys)?;
+            let ix_data = data
+                .get(Self::IX_HEADER_SIZE..data_offset)
+                .ok_or(TokenError::InvalidInstruction)?;
+
+            Self::_process_inner(program_id, ix_accounts, ix_data)?;
+
+            if data_offset == data.len() {
+                break;
+            }
+
+            accounts = &accounts[expected_accounts..];
+            data = &data[data_offset..];
+        }
+
+        Ok(())
+    }
+
     /// Processes an [`Instruction`](enum.Instruction.html).
     pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
+        if let Ok(PodTokenInstruction::Batch) = decode_instruction_type(input) {
+            msg!("Instruction: Batch");
+            Self::process_batch(program_id, accounts, &input[1..])
+        } else {
+            Self::_process_inner(program_id, accounts, input)
+        }
+    }
+
+    fn _process_inner(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        input: &[u8],
+    ) -> ProgramResult {
         if let Ok(instruction_type) = decode_instruction_type(input) {
             match instruction_type {
                 PodTokenInstruction::InitializeMint => {
@@ -2206,7 +2260,7 @@ mod tests {
         },
         solana_account_info::IntoAccountInfo,
         solana_clock::Clock,
-        solana_instruction::Instruction,
+        solana_instruction::{AccountMeta, Instruction},
         solana_program_option::COption,
         solana_sdk_ids::sysvar::rent,
         spl_token_2022_interface::{
