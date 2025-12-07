@@ -118,6 +118,8 @@ pub(crate) enum PodTokenInstruction {
     // 45
     UnwrapLamports,
     PermissionedBurnExtension,
+    // 255
+    Batch = 255,    
 }
 
 fn unpack_pubkey_option(input: &[u8]) -> Result<PodCOption<Pubkey>, ProgramError> {
@@ -561,6 +563,33 @@ mod tests {
         assert_eq!(pod_freeze_authority, freeze_authority.into());
     }
 
+    #[test]
+    fn test_batch_packing() {
+        let create_account_instr_data = TokenInstruction::InitializeAccount {}.pack();
+        let close_account_instr_data = TokenInstruction::CloseAccount {}.pack();
+        let approve_instr_data = TokenInstruction::Approve { amount: 500 }.pack();
+
+        let mut batch_data = Vec::new();
+        batch_data.push(4);
+        batch_data.push(create_account_instr_data.len() as u8);
+        batch_data.extend_from_slice(&create_account_instr_data);
+        batch_data.push(3);
+        batch_data.push(close_account_instr_data.len() as u8);
+        batch_data.extend_from_slice(&close_account_instr_data);
+        batch_data.push(3);
+        batch_data.push(approve_instr_data.len() as u8);
+        batch_data.extend_from_slice(&approve_instr_data);
+
+        let check = TokenInstruction::Batch {
+            data: batch_data.clone(),
+        };
+        let packed = check.pack();
+
+        let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
+
+        assert_eq!(instruction_type, PodTokenInstruction::Batch);
+        assert_eq!(batch_data, packed[1..]);
+    }
     #[test]
     fn test_get_account_data_size_packing() {
         let extension_types = vec![];
