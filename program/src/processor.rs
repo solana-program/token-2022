@@ -2129,7 +2129,13 @@ mod tests {
         solana_program_option::COption,
         solana_sdk_ids::sysvar::rent,
         spl_token_2022_interface::{
-            extension::transfer_fee::instruction::initialize_transfer_fee_config, instruction::*,
+            extension::{
+                permissioned_burn,
+                transfer_fee::instruction::initialize_transfer_fee_config,
+                ExtensionType,
+            },
+            instruction::*,
+            pod::PodMint,
             state::Multisig,
         },
         std::sync::{Arc, RwLock},
@@ -6186,6 +6192,130 @@ mod tests {
             ],
         )
         .unwrap();
+    }
+
+    #[test]
+    fn test_permissioned_burn_none_authority_errors() {
+        let program_id = crate::id();
+        let mint_key = Pubkey::new_unique();
+        let owner_key = Pubkey::new_unique();
+        let burn_authority_key = Pubkey::new_unique();
+        let account_key = Pubkey::new_unique();
+
+        let mint_size = ExtensionType::try_calculate_account_len::<PodMint>(&[
+            ExtensionType::PermissionedBurn,
+        ])
+        .unwrap();
+
+        let mut mint_account = SolanaAccount::new(
+            Rent::default().minimum_balance(mint_size),
+            mint_size,
+            &program_id,
+        );
+        let mut account_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let mut owner_account = SolanaAccount::default();
+        let mut burn_authority_account = SolanaAccount::default();
+        let mut rent_sysvar = rent_sysvar();
+
+        do_process_instruction(
+            permissioned_burn::instruction::initialize(
+                &program_id,
+                &mint_key,
+                &burn_authority_key,
+            )
+            .unwrap(),
+            vec![&mut mint_account],
+        )
+        .unwrap();
+        do_process_instruction(
+            initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
+            vec![&mut mint_account, &mut rent_sysvar],
+        )
+        .unwrap();
+
+        // Create account and mint some tokens.
+        do_process_instruction(
+            initialize_account(&program_id, &account_key, &mint_key, &owner_key).unwrap(),
+            vec![
+                &mut account_account,
+                &mut mint_account,
+                &mut owner_account,
+                &mut rent_sysvar,
+            ],
+        )
+        .unwrap();
+        do_process_instruction(
+            mint_to(
+                &program_id,
+                &mint_key,
+                &account_key,
+                &owner_key,
+                &[],
+                10,
+            )
+            .unwrap(),
+            vec![&mut mint_account, &mut account_account, &mut owner_account],
+        )
+        .unwrap();
+
+        // Clear the permissioned burn authority.
+        do_process_instruction(
+            set_authority(
+                &program_id,
+                &mint_key,
+                None,
+                AuthorityType::PermissionedBurn,
+                &burn_authority_key,
+                &[],
+            )
+            .unwrap(),
+            vec![&mut mint_account, &mut burn_authority_account],
+        )
+        .unwrap();
+
+        // Attempt a permissioned burn should fail when authority is None.
+        assert_eq!(
+            Err(TokenError::InvalidInstruction.into()),
+            do_process_instruction(
+                permissioned_burn::instruction::burn(
+                    &program_id,
+                    &account_key,
+                    &mint_key,
+                    &burn_authority_key,
+                    &owner_key,
+                    &[],
+                    1
+                )
+                .unwrap(),
+                vec![
+                    &mut account_account,
+                    &mut mint_account,
+                    &mut burn_authority_account,
+                    &mut owner_account
+                ],
+            )
+        );
+
+        // Standard burn should still succeed after authority is cleared.
+        assert_eq!(
+            Ok(()),
+            do_process_instruction(
+                burn(
+                    &program_id,
+                    &account_key,
+                    &mint_key,
+                    &owner_key,
+                    &[],
+                    1
+                )
+                .unwrap(),
+                vec![&mut account_account, &mut mint_account, &mut owner_account],
+            )
+        );
     }
 
     #[test]
