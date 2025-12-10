@@ -50,7 +50,6 @@ export enum ExtensionType {
   TokenGroup,
   GroupMemberPointer,
   TokenGroupMember,
-  PermissionedBurn,
 }
 
 export type ExtensionTypeArgs = ExtensionType;

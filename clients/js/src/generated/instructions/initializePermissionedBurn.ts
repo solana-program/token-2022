@@ -107,9 +107,8 @@ export function getInitializePermissionedBurnInstructionDataCodec(): FixedSizeCo
 export type InitializePermissionedBurnInput<
   TAccountMint extends string = string,
 > = {
-  /** The mint to initialize. */
+  /** The mint account to initialize. */
   mint: Address<TAccountMint>;
-  /** The public key for the account that is required for token burning. */
   authority: InitializePermissionedBurnInstructionDataArgs['authority'];
 };
 
@@ -151,7 +150,7 @@ export type ParsedInitializePermissionedBurnInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** The mint to initialize. */
+    /** The mint account to initialize. */
     mint: TAccountMetas[0];
   };
   data: InitializePermissionedBurnInstructionData;

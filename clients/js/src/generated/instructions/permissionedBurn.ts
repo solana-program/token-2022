@@ -52,10 +52,10 @@ export type PermissionedBurnInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
   TAccountAccount extends string | AccountMeta<string> = string,
   TAccountMint extends string | AccountMeta<string> = string,
-  TAccountAuthority extends string | AccountMeta<string> = string,
   TAccountPermissionedBurnAuthority extends
     | string
     | AccountMeta<string> = string,
+  TAccountAuthority extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -67,13 +67,13 @@ export type PermissionedBurnInstruction<
       TAccountMint extends string
         ? WritableAccount<TAccountMint>
         : TAccountMint,
-      TAccountAuthority extends string
-        ? ReadonlyAccount<TAccountAuthority>
-        : TAccountAuthority,
       TAccountPermissionedBurnAuthority extends string
         ? ReadonlySignerAccount<TAccountPermissionedBurnAuthority> &
             AccountSignerMeta<TAccountPermissionedBurnAuthority>
         : TAccountPermissionedBurnAuthority,
+      TAccountAuthority extends string
+        ? ReadonlyAccount<TAccountAuthority>
+        : TAccountAuthority,
       ...TRemainingAccounts,
     ]
   >;
@@ -127,24 +127,17 @@ export function getPermissionedBurnInstructionDataCodec(): FixedSizeCodec<
 export type PermissionedBurnInput<
   TAccountAccount extends string = string,
   TAccountMint extends string = string,
-  TAccountAuthority extends string = string,
   TAccountPermissionedBurnAuthority extends string = string,
+  TAccountAuthority extends string = string,
 > = {
   /** The source account to burn from. */
   account: Address<TAccountAccount>;
   /** The token mint. */
   mint: Address<TAccountMint>;
+  /** Authority configured on the mint that must sign any permissioned burn instruction. */
+  permissionedBurnAuthority: TransactionSigner<TAccountPermissionedBurnAuthority>;
   /** The account's owner/delegate or its multisignature account. */
-  authority:
-    | Address<TAccountAuthority>
-    | TransactionSigner<TAccountAuthority>;
-  /**
-   * Authority configured on the mint that must sign any permissioned burn
-   * instruction.
-   */
-  permissionedBurnAuthority:
-    | Address<TAccountPermissionedBurnAuthority>
-    | TransactionSigner<TAccountPermissionedBurnAuthority>;
+  authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
   amount: PermissionedBurnInstructionDataArgs['amount'];
   multiSigners?: Array<TransactionSigner>;
 };
@@ -152,29 +145,26 @@ export type PermissionedBurnInput<
 export function getPermissionedBurnInstruction<
   TAccountAccount extends string,
   TAccountMint extends string,
-  TAccountAuthority extends string,
   TAccountPermissionedBurnAuthority extends string,
+  TAccountAuthority extends string,
   TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
   input: PermissionedBurnInput<
     TAccountAccount,
     TAccountMint,
-    TAccountAuthority,
-    TAccountPermissionedBurnAuthority
+    TAccountPermissionedBurnAuthority,
+    TAccountAuthority
   >,
   config?: { programAddress?: TProgramAddress }
 ): PermissionedBurnInstruction<
   TProgramAddress,
   TAccountAccount,
   TAccountMint,
+  TAccountPermissionedBurnAuthority,
   (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
     ? ReadonlySignerAccount<TAccountAuthority> &
         AccountSignerMeta<TAccountAuthority>
-    : TAccountAuthority,
-  (typeof input)['permissionedBurnAuthority'] extends TransactionSigner<TAccountPermissionedBurnAuthority>
-    ? ReadonlySignerAccount<TAccountPermissionedBurnAuthority> &
-        AccountSignerMeta<TAccountPermissionedBurnAuthority>
-    : TAccountPermissionedBurnAuthority
+    : TAccountAuthority
 > {
   // Program address.
   const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
@@ -223,14 +213,11 @@ export function getPermissionedBurnInstruction<
     TProgramAddress,
     TAccountAccount,
     TAccountMint,
+    TAccountPermissionedBurnAuthority,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
       ? ReadonlySignerAccount<TAccountAuthority> &
           AccountSignerMeta<TAccountAuthority>
-      : TAccountAuthority,
-    (typeof input)['permissionedBurnAuthority'] extends TransactionSigner<TAccountPermissionedBurnAuthority>
-      ? ReadonlySignerAccount<TAccountPermissionedBurnAuthority> &
-          AccountSignerMeta<TAccountPermissionedBurnAuthority>
-      : TAccountPermissionedBurnAuthority
+      : TAccountAuthority
   >);
 }
 
@@ -244,14 +231,10 @@ export type ParsedPermissionedBurnInstruction<
     account: TAccountMetas[0];
     /** The token mint. */
     mint: TAccountMetas[1];
-    /**
-     * Authority configured on the mint that must sign any permissioned burn
-     * instruction.
-     */
+    /** Authority configured on the mint that must sign any permissioned burn instruction. */
     permissionedBurnAuthority: TAccountMetas[2];
     /** The account's owner/delegate or its multisignature account. */
     authority: TAccountMetas[3];
-    multiSigners: TAccountMetas[4][];
   };
   data: PermissionedBurnInstructionData;
 };
@@ -281,10 +264,7 @@ export function parsePermissionedBurnInstruction<
       mint: getNextAccount(),
       permissionedBurnAuthority: getNextAccount(),
       authority: getNextAccount(),
-      multiSigners: instruction.accounts.slice(4) as TAccountMetas[4][],
     },
-    data: getPermissionedBurnInstructionDataDecoder().decode(
-      instruction.data
-    ),
+    data: getPermissionedBurnInstructionDataDecoder().decode(instruction.data),
   };
 }
