@@ -1116,28 +1116,38 @@ impl Processor {
         let mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
 
         let permissioned_ext = mint.get_extension::<PermissionedBurnConfig>();
+        let maybe_permissioned_burn_authority =
+            permissioned_ext
+                .as_ref()
+                .ok()
+                .and_then(|ext| Option::<Pubkey>::from(ext.authority));
 
         match burn_variant {
             BurnInstructionVariant::Standard => {
                 // Standard burns cannot be used when the permissioned burn
                 // extension is present.
-                if permissioned_ext.is_ok() {
+                if maybe_permissioned_burn_authority.is_some() {
                     return Err(TokenError::InvalidInstruction.into());
                 }
             }
             BurnInstructionVariant::Permissioned => {
-                let ext = permissioned_ext.map_err(|_| TokenError::InvalidInstruction)?;
+                permissioned_ext.map_err(|_| TokenError::InvalidInstruction)?;
+
+                let expected_burn_authority = maybe_permissioned_burn_authority
+                    .ok_or_else(|| {
+                        msg!("Permissioned burn authority is None; use the standard burn");
+                        TokenError::InvalidInstruction
+                    })?;
 
                 // Pull the required extra signer from the accounts
-                let approver_ai =
-                    permissioned_burn_authority_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
+                let approver_ai = permissioned_burn_authority_info
+                    .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
                 if !approver_ai.is_signer {
                     return Err(ProgramError::MissingRequiredSignature);
                 }
 
-                let maybe_burn_authority: Option<Pubkey> = ext.authority.into();
-                if Some(*approver_ai.key) != maybe_burn_authority {
+                if *approver_ai.key != expected_burn_authority {
                     return Err(ProgramError::InvalidAccountData);
                 }
             }

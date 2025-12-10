@@ -35,13 +35,15 @@ pub enum PermissionedBurnInstruction {
     ///   * Single authority
     ///   0. `[writable]` The source account to burn from.
     ///   1. `[writable]` The token mint.
-    ///   2. `[signer]` The permissioned burn authority configured on the mint.
+    ///   2. `[signer]` The permissioned burn authority configured on the mint,
+    ///      if any.
     ///   3. `[signer]` The source account's owner/delegate.
     ///
     ///   * Multisignature authority
     ///   0. `[writable]` The source account to burn from.
     ///   1. `[writable]` The token mint.
-    ///   2. `[signer]` The permissioned burn authority configured on the mint.
+    ///   2. `[signer]` The permissioned burn authority configured on the mint,
+    ///      if any.
     ///   3. `[]` The source account's multisignature owner/delegate.
     ///   4. `..4+M` `[signer]` M signer accounts for the multisig.
     ///

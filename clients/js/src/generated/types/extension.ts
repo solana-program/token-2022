@@ -494,7 +494,10 @@ export type ExtensionArgs =
       paused: boolean;
     }
   | { __kind: 'PausableAccount' }
-  | { __kind: 'PermissionedBurn'; authority: OptionOrNullable<Address> };
+  | {
+      __kind: 'PermissionedBurn';
+      authority: OptionOrNullable<Address>;
+    };
 
 export function getExtensionEncoder(): Encoder<ExtensionArgs> {
   return getDiscriminatedUnionEncoder(
@@ -1429,11 +1432,7 @@ export function extension(
     '__kind',
     'PermissionedBurn'
   >
-): GetDiscriminatedUnionVariant<
-  ExtensionArgs,
-  '__kind',
-  'PermissionedBurn'
->;
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'PermissionedBurn'>;
 export function extension<K extends ExtensionArgs['__kind'], Data>(
   kind: K,
   data?: Data
