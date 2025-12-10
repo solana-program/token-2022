@@ -151,6 +151,7 @@ pub fn burn(
 }
 
 /// Create a `BurnChecked` instruction using the permissioned burn extension.
+#[allow(clippy::too_many_arguments)]
 pub fn burn_checked(
     token_program_id: &Pubkey,
     account: &Pubkey,

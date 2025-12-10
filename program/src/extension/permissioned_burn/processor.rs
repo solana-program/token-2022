@@ -48,7 +48,7 @@ pub(crate) fn process_instruction(
         PermissionedBurnInstruction::Initialize => {
             msg!("PermissionedBurnInstruction::Initialize");
             let InitializeInstructionData { authority } = decode_instruction_data(input)?;
-            process_initialize(program_id, accounts, &authority)
+            process_initialize(program_id, accounts, authority)
         }
         PermissionedBurnInstruction::Burn => {
             msg!("PermissionedBurnInstruction::Burn");

@@ -94,7 +94,7 @@ async fn permissioned_burn_enforced() {
     let ix_wrong = permissioned_burn_instruction::burn_checked(
         &spl_token_2022_interface::id(),
         &account,
-        &token.get_address(),
+        token.get_address(),
         &wrong_permissioned.pubkey(),
         &account_owner.pubkey(),
         &[],
@@ -117,7 +117,7 @@ async fn permissioned_burn_enforced() {
     let ix_ok = permissioned_burn_instruction::burn_checked(
         &spl_token_2022_interface::id(),
         &account,
-        &token.get_address(),
+        token.get_address(),
         &authority.pubkey(),
         &account_owner.pubkey(),
         &[],
@@ -131,9 +131,9 @@ async fn permissioned_burn_enforced() {
         .unwrap();
 
     let account_after = token.get_account_info(&account).await.unwrap();
-    assert_eq!(u64::from(account_after.base.amount), 1);
+    assert_eq!(account_after.base.amount, 1);
     let mint_after = token.get_mint_info().await.unwrap();
-    assert_eq!(u64::from(mint_after.base.supply), 1);
+    assert_eq!(mint_after.base.supply, 1);
 
     // Update permissioned burn authority and ensure new authority is enforced.
     token
@@ -151,7 +151,7 @@ async fn permissioned_burn_enforced() {
     let ix_old = permissioned_burn_instruction::burn_checked(
         &spl_token_2022_interface::id(),
         &account,
-        &token.get_address(),
+        token.get_address(),
         &authority.pubkey(),
         &account_owner.pubkey(),
         &[],
@@ -174,7 +174,7 @@ async fn permissioned_burn_enforced() {
     let ix_new = permissioned_burn_instruction::burn_checked(
         &spl_token_2022_interface::id(),
         &account,
-        &token.get_address(),
+        token.get_address(),
         &new_authority.pubkey(),
         &account_owner.pubkey(),
         &[],

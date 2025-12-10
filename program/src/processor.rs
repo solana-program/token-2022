@@ -1116,11 +1116,10 @@ impl Processor {
         let mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
 
         let permissioned_ext = mint.get_extension::<PermissionedBurnConfig>();
-        let maybe_permissioned_burn_authority =
-            permissioned_ext
-                .as_ref()
-                .ok()
-                .and_then(|ext| Option::<Pubkey>::from(ext.authority));
+        let maybe_permissioned_burn_authority = permissioned_ext
+            .as_ref()
+            .ok()
+            .and_then(|ext| Option::<Pubkey>::from(ext.authority));
 
         match burn_variant {
             BurnInstructionVariant::Standard => {
@@ -1133,15 +1132,15 @@ impl Processor {
             BurnInstructionVariant::Permissioned => {
                 permissioned_ext.map_err(|_| TokenError::InvalidInstruction)?;
 
-                let expected_burn_authority = maybe_permissioned_burn_authority
-                    .ok_or_else(|| {
+                let expected_burn_authority =
+                    maybe_permissioned_burn_authority.ok_or_else(|| {
                         msg!("Permissioned burn authority is None; use the standard burn");
                         TokenError::InvalidInstruction
                     })?;
 
                 // Pull the required extra signer from the accounts
-                let approver_ai = permissioned_burn_authority_info
-                    .ok_or(ProgramError::NotEnoughAccountKeys)?;
+                let approver_ai =
+                    permissioned_burn_authority_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
 
                 if !approver_ai.is_signer {
                     return Err(ProgramError::MissingRequiredSignature);
@@ -2130,8 +2129,7 @@ mod tests {
         solana_sdk_ids::sysvar::rent,
         spl_token_2022_interface::{
             extension::{
-                permissioned_burn,
-                transfer_fee::instruction::initialize_transfer_fee_config,
+                permissioned_burn, transfer_fee::instruction::initialize_transfer_fee_config,
                 ExtensionType,
             },
             instruction::*,
@@ -6202,10 +6200,9 @@ mod tests {
         let burn_authority_key = Pubkey::new_unique();
         let account_key = Pubkey::new_unique();
 
-        let mint_size = ExtensionType::try_calculate_account_len::<PodMint>(&[
-            ExtensionType::PermissionedBurn,
-        ])
-        .unwrap();
+        let mint_size =
+            ExtensionType::try_calculate_account_len::<PodMint>(&[ExtensionType::PermissionedBurn])
+                .unwrap();
 
         let mut mint_account = SolanaAccount::new(
             Rent::default().minimum_balance(mint_size),
@@ -6222,12 +6219,8 @@ mod tests {
         let mut rent_sysvar = rent_sysvar();
 
         do_process_instruction(
-            permissioned_burn::instruction::initialize(
-                &program_id,
-                &mint_key,
-                &burn_authority_key,
-            )
-            .unwrap(),
+            permissioned_burn::instruction::initialize(&program_id, &mint_key, &burn_authority_key)
+                .unwrap(),
             vec![&mut mint_account],
         )
         .unwrap();
@@ -6249,15 +6242,7 @@ mod tests {
         )
         .unwrap();
         do_process_instruction(
-            mint_to(
-                &program_id,
-                &mint_key,
-                &account_key,
-                &owner_key,
-                &[],
-                10,
-            )
-            .unwrap(),
+            mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 10).unwrap(),
             vec![&mut mint_account, &mut account_account, &mut owner_account],
         )
         .unwrap();
@@ -6304,15 +6289,7 @@ mod tests {
         assert_eq!(
             Ok(()),
             do_process_instruction(
-                burn(
-                    &program_id,
-                    &account_key,
-                    &mint_key,
-                    &owner_key,
-                    &[],
-                    1
-                )
-                .unwrap(),
+                burn(&program_id, &account_key, &mint_key, &owner_key, &[], 1).unwrap(),
                 vec![&mut account_account, &mut mint_account, &mut owner_account],
             )
         );
