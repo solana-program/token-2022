@@ -32,6 +32,7 @@ export enum AuthorityType {
     GroupMemberPointer = 14,
     ScaledUiAmountConfig = 15,
     PausableConfig = 16,
+    PermissionedBurn = 17,
 }
 
 /** TODO: docs */
