@@ -29,7 +29,7 @@ solana-account = "3.2.0"
 solana-banks-client = { version = "3.0.0", optional = true }
 solana-banks-interface = { version = "3.0.0", optional = true }
 solana-compute-budget-interface = "3.0.0"
-solana-cli-output = { version = "3.0.0", optional = true }
+solana-cli-output = { version = "3.1.0", features = ["agave-unstable-api"], optional = true }
 solana-hash = "3.0.0"
 solana-instruction = "3.0.0"
 solana-message = "3.0.0"
@@ -64,7 +64,7 @@ async-trait = "0.1"
 borsh = "1.5.7"
 bytemuck = "1.24.0"
 futures-util = "0.3"
-solana-program-test = "3.0.0"
+solana-program-test = { version = "3.1.0", features = ["agave-unstable-api"] }
 solana-sdk = "3.0.0"
 solana-sdk-ids = "3.0.0"
 spl-pod = { version = "0.7.1" }
