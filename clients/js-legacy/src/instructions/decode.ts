@@ -242,7 +242,7 @@ export function isAmountToUiAmountInstruction(
 }
 
 /** TODO: docs */
-export function isUiamountToAmountInstruction(
+export function isUiAmountToAmountInstruction(
     decoded: DecodedInstruction,
 ): decoded is DecodedUiAmountToAmountInstruction {
     return decoded.data.instruction === TokenInstruction.UiAmountToAmount;
