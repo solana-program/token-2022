@@ -1122,7 +1122,7 @@ pub enum ExtensionType {
     Pausable,
     /// Indicates that the account belongs to a pausable mint
     PausableAccount,
-    /// Tokens burning requires approval from authorirty.
+    /// Tokens burning requires approval from authority.
     PermissionedBurn,
 
     /// Test variable-length mint extension

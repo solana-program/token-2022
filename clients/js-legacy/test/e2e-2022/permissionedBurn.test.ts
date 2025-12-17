@@ -65,12 +65,20 @@ describe('permissioned burn', () => {
 
     it('enforces permissioned authority for burn', async () => {
         const owner = Keypair.generate();
-        const account = await createAccount(connection, payer, mint, owner.publicKey, undefined, undefined, TEST_PROGRAM_ID);
+        const account = await createAccount(
+            connection,
+            payer,
+            mint,
+            owner.publicKey,
+            undefined,
+            undefined,
+            TEST_PROGRAM_ID,
+        );
         await mintTo(connection, payer, mint, account, mintAuthority, 2, [], undefined, TEST_PROGRAM_ID);
 
-        await expect(burn(connection, payer, account, mint, owner, 1, [], undefined, TEST_PROGRAM_ID)).to.be.rejectedWith(
-            Error,
-        );
+        await expect(
+            burn(connection, payer, account, mint, owner, 1, [], undefined, TEST_PROGRAM_ID),
+        ).to.be.rejectedWith(Error);
 
         const wrongPermissioned = Keypair.generate();
         const badBurnTx = new Transaction().add(
@@ -85,9 +93,9 @@ describe('permissioned burn', () => {
                 TEST_PROGRAM_ID,
             ),
         );
-        await expect(sendAndConfirmTransaction(connection, badBurnTx, [payer, owner, wrongPermissioned])).to.be.rejectedWith(
-            Error,
-        );
+        await expect(
+            sendAndConfirmTransaction(connection, badBurnTx, [payer, owner, wrongPermissioned]),
+        ).to.be.rejectedWith(Error);
 
         const burnTx = new Transaction().add(
             createPermissionedBurnCheckedInstruction(

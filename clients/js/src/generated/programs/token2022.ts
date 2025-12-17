@@ -221,10 +221,10 @@ export enum Token2022Instruction {
   UpdateTokenGroupMaxSize,
   UpdateTokenGroupUpdateAuthority,
   InitializeTokenGroupMember,
+  UnwrapLamports,
   InitializePermissionedBurn,
   PermissionedBurn,
   PermissionedBurnChecked,
-  UnwrapLamports,
 }
 
 export function identifyToken2022Instruction(
@@ -679,6 +679,9 @@ export function identifyToken2022Instruction(
   ) {
     return Token2022Instruction.InitializeTokenGroupMember;
   }
+  if (containsBytes(data, getU8Encoder().encode(45), 0)) {
+    return Token2022Instruction.UnwrapLamports;
+  }
   if (
     containsBytes(data, getU8Encoder().encode(46), 0) &&
     containsBytes(data, getU8Encoder().encode(0), 1)
@@ -696,8 +699,6 @@ export function identifyToken2022Instruction(
     containsBytes(data, getU8Encoder().encode(2), 1)
   ) {
     return Token2022Instruction.PermissionedBurnChecked;
-  if (containsBytes(data, getU8Encoder().encode(45), 0)) {
-    return Token2022Instruction.UnwrapLamports;
   }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
@@ -969,6 +970,9 @@ export type ParsedToken2022Instruction<
       instructionType: Token2022Instruction.InitializeTokenGroupMember;
     } & ParsedInitializeTokenGroupMemberInstruction<TProgram>)
   | ({
+      instructionType: Token2022Instruction.UnwrapLamports;
+    } & ParsedUnwrapLamportsInstruction<TProgram>)
+  | ({
       instructionType: Token2022Instruction.InitializePermissionedBurn;
     } & ParsedInitializePermissionedBurnInstruction<TProgram>)
   | ({
@@ -977,5 +981,3 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.PermissionedBurnChecked;
     } & ParsedPermissionedBurnCheckedInstruction<TProgram>);
-      instructionType: Token2022Instruction.UnwrapLamports;
-    } & ParsedUnwrapLamportsInstruction<TProgram>);
