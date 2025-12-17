@@ -82,6 +82,7 @@ export * from './transfer';
 export * from './transferChecked';
 export * from './transferCheckedWithFee';
 export * from './uiAmountToAmount';
+export * from './unwrapLamports';
 export * from './updateConfidentialTransferMint';
 export * from './updateDefaultAccountState';
 export * from './updateGroupMemberPointer';

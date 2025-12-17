@@ -11,8 +11,9 @@ use {
             token_group, token_metadata, transfer_fee, transfer_hook,
         },
         pod_instruction::{
-            decode_instruction_data_with_coption_pubkey, AmountCheckedData, AmountData,
-            InitializeMintData, InitializeMultisigData, PodTokenInstruction, SetAuthorityData,
+            decode_instruction_data_with_coption_pubkey, decode_instruction_data_with_coption_u64,
+            AmountCheckedData, AmountData, InitializeMintData, InitializeMultisigData,
+            PodTokenInstruction, SetAuthorityData,
         },
     },
     solana_account_info::{next_account_info, AccountInfo},
@@ -1712,6 +1713,77 @@ impl Processor {
         Ok(())
     }
 
+    /// Processes a [`UnwrapLamports`](enum.TokenInstruction.html)
+    /// instruction
+    pub fn process_unwrap_lamports(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        amount: PodCOption<u64>,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let source_account_info = next_account_info(account_info_iter)?;
+        let destination_account_info = next_account_info(account_info_iter)?;
+        let authority_info = next_account_info(account_info_iter)?;
+        let authority_info_data_len = authority_info.data_len();
+
+        let mut source_account_data = source_account_info.data.borrow_mut();
+        let source_account =
+            PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
+
+        let (amount, remaining_amount) = match amount {
+            PodCOption {
+                option: PodCOption::<u64>::SOME,
+                value: amount,
+            } => (
+                amount,
+                Into::<u64>::into(source_account.base.amount)
+                    .checked_sub(amount)
+                    .ok_or(TokenError::InsufficientFunds)?,
+            ),
+            PodCOption {
+                option: PodCOption::<u64>::NONE,
+                value: _,
+            } => (source_account.base.amount.into(), 0),
+            _ => return Err(ProgramError::InvalidInstructionData),
+        };
+
+        if !source_account.base.is_native() {
+            return Err(TokenError::NonNativeNotSupported.into());
+        }
+
+        Self::validate_owner(
+            program_id,
+            &source_account.base.owner,
+            authority_info,
+            authority_info_data_len,
+            account_info_iter.as_slice(),
+        )?;
+
+        if let Ok(cpi_guard) = source_account.get_extension::<CpiGuard>() {
+            if cpi_guard.lock_cpi.into() && in_cpi() {
+                return Err(TokenError::CpiGuardTransferBlocked.into());
+            }
+        }
+
+        if amount == 0 {
+            check_program_account(source_account_info.owner)
+        } else {
+            source_account.base.amount = remaining_amount.into();
+            if source_account_info.key != destination_account_info.key {
+                let source_starting_lamports = source_account_info.lamports();
+                **source_account_info.lamports.borrow_mut() = source_starting_lamports
+                    .checked_sub(amount)
+                    .ok_or(TokenError::Overflow)?;
+
+                let destination_starting_lamports = destination_account_info.lamports();
+                **destination_account_info.lamports.borrow_mut() = destination_starting_lamports
+                    .checked_add(amount)
+                    .ok_or(TokenError::Overflow)?;
+            }
+            Ok(())
+        }
+    }
+
     /// Processes an [`Instruction`](enum.Instruction.html).
     pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
         if let Ok(instruction_type) = decode_instruction_type(input) {
@@ -2022,6 +2094,10 @@ impl Processor {
                         accounts,
                         &input[1..],
                     )
+                PodTokenInstruction::UnwrapLamports => {
+                    msg!("Instruction: UnwrapLamports");
+                    let (_, amount) = decode_instruction_data_with_coption_u64::<()>(input)?;
+                    Self::process_unwrap_lamports(program_id, accounts, amount)
                 }
             }
         } else if let Ok(instruction) = TokenMetadataInstruction::unpack(input) {
@@ -2121,6 +2197,7 @@ mod tests {
         serial_test::serial,
         solana_account::{
             create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
+            ReadableAccount,
         },
         solana_account_info::IntoAccountInfo,
         solana_clock::Clock,
@@ -2256,6 +2333,24 @@ mod tests {
         )
         .unwrap();
         mint_account
+    }
+
+    fn native_mint_to(account: &AccountInfo, amount: u64) -> ProgramResult {
+        let mut buffer = account.try_borrow_mut_data()?;
+        let mut account_account = Account::unpack(&buffer)?;
+
+        if !account_account.is_native() {
+            return Err(TokenError::NonNativeNotSupported.into());
+        }
+
+        let mut lamports = account.try_borrow_mut_lamports()?;
+        **lamports += amount;
+
+        account_account.amount += amount;
+
+        Account::pack(account_account, &mut buffer)?;
+
+        Ok(())
     }
 
     #[test]
@@ -3820,6 +3915,642 @@ mod tests {
         // no balance change...
         let account = Account::unpack_unchecked(&account_info.try_borrow_data().unwrap()).unwrap();
         assert_eq!(account.amount, 1000);
+    }
+
+    #[test]
+    fn test_unwrap_lamports_dups() {
+        let program_id = crate::id();
+        let account1_key = Pubkey::new_unique();
+        let mut account1_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let mut account1_info: AccountInfo = (&account1_key, true, &mut account1_account).into();
+        let account2_key = Pubkey::new_unique();
+        let mut account2_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let mut account2_info: AccountInfo = (&account2_key, false, &mut account2_account).into();
+        let account3_key = Pubkey::new_unique();
+        let mut account3_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let account3_info: AccountInfo = (&account3_key, false, &mut account3_account).into();
+        let account4_key = Pubkey::new_unique();
+        let mut account4_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let account4_info: AccountInfo = (&account4_key, true, &mut account4_account).into();
+        let multisig_key = Pubkey::new_unique();
+        let mut multisig_account = SolanaAccount::new(
+            multisig_minimum_balance(),
+            Multisig::get_packed_len(),
+            &program_id,
+        );
+        let multisig_info: AccountInfo = (&multisig_key, true, &mut multisig_account).into();
+        let owner_key = Pubkey::new_unique();
+        let mut owner_account = SolanaAccount::default();
+        let owner_info: AccountInfo = (&owner_key, true, &mut owner_account).into();
+        let mint_key = native_mint::id();
+        let mut mint_account = native_mint();
+        let mint_info: AccountInfo = (&mint_key, false, &mut mint_account).into();
+        let rent_key = rent::id();
+        let mut rent_sysvar = rent_sysvar();
+        let rent_info: AccountInfo = (&rent_key, false, &mut rent_sysvar).into();
+
+        // create account
+        do_process_instruction_dups(
+            initialize_account(&program_id, &account1_key, &mint_key, &account1_key).unwrap(),
+            vec![
+                account1_info.clone(),
+                mint_info.clone(),
+                account1_info.clone(),
+                rent_info.clone(),
+            ],
+        )
+        .unwrap();
+
+        // create another account
+        do_process_instruction_dups(
+            initialize_account(&program_id, &account2_key, &mint_key, &owner_key).unwrap(),
+            vec![
+                account2_info.clone(),
+                mint_info.clone(),
+                owner_info.clone(),
+                rent_info.clone(),
+            ],
+        )
+        .unwrap();
+
+        // mint to account
+        native_mint_to(&account1_info, 1000).unwrap();
+
+        // source-owner unwrap lamports
+        do_process_instruction_dups(
+            unwrap_lamports(
+                &program_id,
+                &account1_key,
+                &account2_key,
+                &account1_key,
+                &[],
+                Some(500),
+            )
+            .unwrap(),
+            vec![
+                account1_info.clone(),
+                account2_info.clone(),
+                account1_info.clone(),
+            ],
+        )
+        .unwrap();
+
+        // test destination-owner unwrap lamports
+        do_process_instruction_dups(
+            initialize_account(&program_id, &account3_key, &mint_key, &account2_key).unwrap(),
+            vec![
+                account3_info.clone(),
+                mint_info.clone(),
+                account2_info.clone(),
+                rent_info.clone(),
+            ],
+        )
+        .unwrap();
+        native_mint_to(&account3_info, 1000).unwrap();
+
+        account1_info.is_signer = false;
+        account2_info.is_signer = true;
+        do_process_instruction_dups(
+            unwrap_lamports(
+                &program_id,
+                &account3_key,
+                &account2_key,
+                &account2_key,
+                &[],
+                Some(500),
+            )
+            .unwrap(),
+            vec![
+                account3_info.clone(),
+                account2_info.clone(),
+                account2_info.clone(),
+            ],
+        )
+        .unwrap();
+
+        // test source-multisig signer
+        do_process_instruction_dups(
+            initialize_multisig(&program_id, &multisig_key, &[&account4_key], 1).unwrap(),
+            vec![
+                multisig_info.clone(),
+                rent_info.clone(),
+                account4_info.clone(),
+            ],
+        )
+        .unwrap();
+
+        do_process_instruction_dups(
+            initialize_account(&program_id, &account4_key, &mint_key, &multisig_key).unwrap(),
+            vec![
+                account4_info.clone(),
+                mint_info.clone(),
+                multisig_info.clone(),
+                rent_info.clone(),
+            ],
+        )
+        .unwrap();
+        native_mint_to(&account4_info, 1000).unwrap();
+
+        // source-multisig-signer unwrap lamports
+        do_process_instruction_dups(
+            unwrap_lamports(
+                &program_id,
+                &account4_key,
+                &account2_key,
+                &multisig_key,
+                &[&account4_key],
+                Some(500),
+            )
+            .unwrap(),
+            vec![
+                account4_info.clone(),
+                account2_info.clone(),
+                multisig_info.clone(),
+                account4_info.clone(),
+            ],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_unwrap_lamports() {
+        let program_id = crate::id();
+        let zero_space_rent_exempt_balance = Rent::default().minimum_balance(0);
+        let account_key = Pubkey::new_unique();
+        let mut account_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let account2_key = Pubkey::new_unique();
+        let mut account2_account = SolanaAccount::new(
+            zero_space_rent_exempt_balance,
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let mismatch_account_key = Pubkey::new_unique();
+        let mut mismatch_account_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let owner_key = Pubkey::new_unique();
+        let mut owner_account = SolanaAccount::default();
+        let owner2_key = Pubkey::new_unique();
+        let mut owner2_account = SolanaAccount::default();
+        let mint_key = native_mint::id();
+        let mut mint_account = native_mint();
+        let mismatch_mint_key = Pubkey::new_unique();
+        let mut mismatch_mint_account =
+            SolanaAccount::new(mint_minimum_balance(), Mint::get_packed_len(), &program_id);
+        let mut rent_sysvar = rent_sysvar();
+
+        // create mismatch mint
+        do_process_instruction(
+            initialize_mint(&program_id, &mismatch_mint_key, &owner_key, None, 2).unwrap(),
+            vec![&mut mismatch_mint_account, &mut rent_sysvar],
+        )
+        .unwrap();
+
+        // create account
+        do_process_instruction(
+            initialize_account(&program_id, &account_key, &mint_key, &owner_key).unwrap(),
+            vec![
+                &mut account_account,
+                &mut mint_account,
+                &mut owner_account,
+                &mut rent_sysvar,
+            ],
+        )
+        .unwrap();
+
+        // create mismatch account
+        do_process_instruction(
+            initialize_account(
+                &program_id,
+                &mismatch_account_key,
+                &mismatch_mint_key,
+                &owner_key,
+            )
+            .unwrap(),
+            vec![
+                &mut mismatch_account_account,
+                &mut mismatch_mint_account,
+                &mut owner_account,
+                &mut rent_sysvar,
+            ],
+        )
+        .unwrap();
+
+        // mint to account
+        let account_info = (&account_key, false, &mut account_account).into();
+        native_mint_to(&account_info, 1000).unwrap();
+
+        // missing signer
+        let mut instruction = unwrap_lamports(
+            &program_id,
+            &account_key,
+            &account2_key,
+            &owner_key,
+            &[],
+            Some(1000),
+        )
+        .unwrap();
+        instruction.accounts[2].is_signer = false;
+        assert_eq!(
+            Err(ProgramError::MissingRequiredSignature),
+            do_process_instruction(
+                instruction,
+                vec![
+                    &mut account_account,
+                    &mut account2_account,
+                    &mut owner_account,
+                ],
+            )
+        );
+
+        // non native mint
+        assert_eq!(
+            Err(TokenError::NonNativeNotSupported.into()),
+            do_process_instruction(
+                unwrap_lamports(
+                    &program_id,
+                    &mismatch_account_key,
+                    &account_key,
+                    &owner_key,
+                    &[],
+                    None
+                )
+                .unwrap(),
+                vec![
+                    &mut mismatch_account_account,
+                    &mut account_account,
+                    &mut owner_account,
+                ],
+            )
+        );
+
+        // missing owner
+        assert_eq!(
+            Err(TokenError::OwnerMismatch.into()),
+            do_process_instruction(
+                unwrap_lamports(
+                    &program_id,
+                    &account_key,
+                    &account2_key,
+                    &owner2_key,
+                    &[],
+                    Some(1000)
+                )
+                .unwrap(),
+                vec![
+                    &mut account_account,
+                    &mut account2_account,
+                    &mut owner2_account,
+                ],
+            )
+        );
+
+        // account not owned by program
+        let not_program_id = Pubkey::new_unique();
+        account_account.owner = not_program_id;
+        assert_eq!(
+            Err(ProgramError::IncorrectProgramId),
+            do_process_instruction(
+                unwrap_lamports(
+                    &program_id,
+                    &account_key,
+                    &account2_key,
+                    &owner_key,
+                    &[],
+                    Some(0)
+                )
+                .unwrap(),
+                vec![
+                    &mut account_account,
+                    &mut account2_account,
+                    &mut owner2_account,
+                ],
+            )
+        );
+        account_account.owner = program_id;
+
+        // unwrap Some(500) lamports
+        do_process_instruction(
+            unwrap_lamports(
+                &program_id,
+                &account_key,
+                &account2_key,
+                &owner_key,
+                &[],
+                Some(500),
+            )
+            .unwrap(),
+            vec![
+                &mut account_account,
+                &mut account2_account,
+                &mut owner_account,
+            ],
+        )
+        .unwrap();
+        // 500 amount balance change...
+        let account = Account::unpack_unchecked(&account_account.data).unwrap();
+        assert_eq!(account.amount, 500);
+        // 500 lamports balance change...
+        assert_eq!(account_account.lamports(), 500 + account_minimum_balance());
+        assert_eq!(
+            account2_account.lamports(),
+            zero_space_rent_exempt_balance + 500
+        );
+
+        // insufficient funds
+        assert_eq!(
+            Err(TokenError::InsufficientFunds.into()),
+            do_process_instruction(
+                unwrap_lamports(
+                    &program_id,
+                    &account_key,
+                    &account2_key,
+                    &owner_key,
+                    &[],
+                    Some(501)
+                )
+                .unwrap(),
+                vec![
+                    &mut account_account,
+                    &mut account2_account,
+                    &mut owner_account,
+                ],
+            )
+        );
+
+        // unwrap None lamports
+        do_process_instruction(
+            unwrap_lamports(
+                &program_id,
+                &account_key,
+                &account2_key,
+                &owner_key,
+                &[],
+                None,
+            )
+            .unwrap(),
+            vec![
+                &mut account_account,
+                &mut account2_account,
+                &mut owner_account,
+            ],
+        )
+        .unwrap();
+        // 500 amount balance change...
+        let account = Account::unpack_unchecked(&account_account.data).unwrap();
+        assert_eq!(account.amount, 0);
+        // 500 lamports balance change...
+        assert_eq!(account_account.lamports(), account_minimum_balance());
+        assert_eq!(
+            account2_account.lamports(),
+            zero_space_rent_exempt_balance + 500 + 500
+        );
+    }
+
+    #[test]
+    fn test_self_unwrap_lamports() {
+        let program_id = crate::id();
+        let account_key = Pubkey::new_unique();
+        let mut account_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let mismatch_account_key = Pubkey::new_unique();
+        let mut mismatch_account_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let owner_key = Pubkey::new_unique();
+        let mut owner_account = SolanaAccount::default();
+        let owner2_key = Pubkey::new_unique();
+        let mut owner2_account = SolanaAccount::default();
+        let mint_key = native_mint::id();
+        let mut mint_account = native_mint();
+        let mismatch_mint_key = Pubkey::new_unique();
+        let mut mismatch_mint_account =
+            SolanaAccount::new(mint_minimum_balance(), Mint::get_packed_len(), &program_id);
+        let mut rent_sysvar = rent_sysvar();
+
+        // create mismatch mint
+        do_process_instruction(
+            initialize_mint(&program_id, &mismatch_mint_key, &owner_key, None, 2).unwrap(),
+            vec![&mut mismatch_mint_account, &mut rent_sysvar],
+        )
+        .unwrap();
+
+        // create account
+        do_process_instruction(
+            initialize_account(&program_id, &account_key, &mint_key, &owner_key).unwrap(),
+            vec![
+                &mut account_account,
+                &mut mint_account,
+                &mut owner_account,
+                &mut rent_sysvar,
+            ],
+        )
+        .unwrap();
+
+        // create mismatch account
+        do_process_instruction(
+            initialize_account(
+                &program_id,
+                &mismatch_account_key,
+                &mismatch_mint_key,
+                &owner_key,
+            )
+            .unwrap(),
+            vec![
+                &mut mismatch_account_account,
+                &mut mismatch_mint_account,
+                &mut owner_account,
+                &mut rent_sysvar,
+            ],
+        )
+        .unwrap();
+
+        let account_info = (&account_key, false, &mut account_account).into_account_info();
+        let mismatch_account_info =
+            (&mismatch_account_key, false, &mut mismatch_account_account).into_account_info();
+        let owner_info = (&owner_key, true, &mut owner_account).into_account_info();
+        let owner2_info = (&owner2_key, true, &mut owner2_account).into_account_info();
+
+        // mint to account
+        native_mint_to(&account_info, 1000).unwrap();
+
+        // unwrap Some(500) lamports
+        let instruction = unwrap_lamports(
+            &program_id,
+            account_info.key,
+            account_info.key,
+            owner_info.key,
+            &[],
+            Some(500),
+        )
+        .unwrap();
+        assert_eq!(
+            Ok(()),
+            Processor::process(
+                &instruction.program_id,
+                &[
+                    account_info.clone(),
+                    account_info.clone(),
+                    owner_info.clone(),
+                ],
+                &instruction.data,
+            )
+        );
+        // 500 amount balance change...
+        let account = Account::unpack_unchecked(&account_info.try_borrow_data().unwrap()).unwrap();
+        assert_eq!(account.amount, 500);
+        // no lamport balance change...
+        assert_eq!(account_info.lamports(), 1000 + account_minimum_balance());
+
+        // insufficient funds
+        let instruction = unwrap_lamports(
+            &program_id,
+            account_info.key,
+            account_info.key,
+            owner_info.key,
+            &[],
+            Some(501),
+        )
+        .unwrap();
+        assert_eq!(
+            Err(TokenError::InsufficientFunds.into()),
+            Processor::process(
+                &instruction.program_id,
+                &[
+                    account_info.clone(),
+                    account_info.clone(),
+                    owner_info.clone(),
+                ],
+                &instruction.data,
+            )
+        );
+
+        // missing signer
+        let mut owner_no_sign_info = owner_info.clone();
+        let mut instruction = unwrap_lamports(
+            &program_id,
+            account_info.key,
+            account_info.key,
+            owner_no_sign_info.key,
+            &[],
+            Some(500),
+        )
+        .unwrap();
+        instruction.accounts[2].is_signer = false;
+        owner_no_sign_info.is_signer = false;
+        assert_eq!(
+            Err(ProgramError::MissingRequiredSignature),
+            Processor::process(
+                &instruction.program_id,
+                &[
+                    account_info.clone(),
+                    account_info.clone(),
+                    owner_no_sign_info.clone(),
+                ],
+                &instruction.data,
+            )
+        );
+
+        // non native mint
+        let instruction = unwrap_lamports(
+            &program_id,
+            mismatch_account_info.key,
+            mismatch_account_info.key,
+            owner_info.key,
+            &[],
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            Err(TokenError::NonNativeNotSupported.into()),
+            Processor::process(
+                &instruction.program_id,
+                &[
+                    mismatch_account_info.clone(),
+                    mismatch_account_info.clone(),
+                    owner_info.clone(),
+                ],
+                &instruction.data,
+            )
+        );
+
+        // missing owner
+        let instruction = unwrap_lamports(
+            &program_id,
+            account_info.key,
+            account_info.key,
+            owner2_info.key,
+            &[],
+            Some(500),
+        )
+        .unwrap();
+        assert_eq!(
+            Err(TokenError::OwnerMismatch.into()),
+            Processor::process(
+                &instruction.program_id,
+                &[
+                    account_info.clone(),
+                    account_info.clone(),
+                    owner2_info.clone(),
+                ],
+                &instruction.data,
+            )
+        );
+
+        // unwrap None lamports
+        let instruction = unwrap_lamports(
+            &program_id,
+            account_info.key,
+            account_info.key,
+            owner_info.key,
+            &[],
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            Ok(()),
+            Processor::process(
+                &instruction.program_id,
+                &[
+                    account_info.clone(),
+                    account_info.clone(),
+                    owner_info.clone(),
+                ],
+                &instruction.data,
+            )
+        );
+        // 500 amount balance change...
+        let account = Account::unpack_unchecked(&account_info.try_borrow_data().unwrap()).unwrap();
+        assert_eq!(account.amount, 0);
+        // no lamport balance change...
+        assert_eq!(account_info.lamports(), 1000 + account_minimum_balance());
     }
 
     #[test]

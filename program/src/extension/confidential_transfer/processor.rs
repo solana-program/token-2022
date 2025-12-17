@@ -11,7 +11,7 @@ use {
     crate::{
         check_elgamal_registry_program_account,
         extension::{
-            confidential_transfer::verify_proof::*,
+            confidential_transfer::verify_proof::*, cpi_guard::in_cpi,
             memo_transfer::check_previous_sibling_instruction_is_memo,
         },
         processor::Processor,
@@ -44,6 +44,7 @@ use {
                 ConfidentialTransferFeeAmount, ConfidentialTransferFeeConfig,
                 EncryptedWithheldAmount,
             },
+            cpi_guard::CpiGuard,
             memo_transfer::memo_required,
             pausable::PausableConfig,
             set_account_type,
@@ -872,6 +873,17 @@ fn process_source_for_transfer(
         signers,
     )?;
 
+    if let Ok(cpi_guard) = token_account.get_extension::<CpiGuard>() {
+        // Blocks all cases where the authority has signed if CPI Guard is
+        // enabled, including:
+        // * the account is delegated to the owner
+        // * the account owner is the permanent delegate
+        if *authority_info.key == token_account.base.owner && cpi_guard.lock_cpi.into() && in_cpi()
+        {
+            return Err(TokenError::CpiGuardTransferBlocked.into());
+        }
+    }
+
     if token_account.base.is_frozen() {
         return Err(TokenError::AccountFrozen.into());
     }
@@ -1007,6 +1019,17 @@ fn process_source_for_transfer_with_fee(
         authority_info_data_len,
         signers,
     )?;
+
+    if let Ok(cpi_guard) = token_account.get_extension::<CpiGuard>() {
+        // Blocks all cases where the authority has signed if CPI Guard is
+        // enabled, including:
+        // * the account is delegated to the owner
+        // * the account owner is the permanent delegate
+        if *authority_info.key == token_account.base.owner && cpi_guard.lock_cpi.into() && in_cpi()
+        {
+            return Err(TokenError::CpiGuardTransferBlocked.into());
+        }
+    }
 
     if token_account.base.is_frozen() {
         return Err(TokenError::AccountFrozen.into());

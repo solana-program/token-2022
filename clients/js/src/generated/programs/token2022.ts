@@ -86,6 +86,7 @@ import {
   type ParsedTransferCheckedWithFeeInstruction,
   type ParsedTransferInstruction,
   type ParsedUiAmountToAmountInstruction,
+  type ParsedUnwrapLamportsInstruction,
   type ParsedUpdateConfidentialTransferMintInstruction,
   type ParsedUpdateDefaultAccountStateInstruction,
   type ParsedUpdateGroupMemberPointerInstruction,
@@ -223,6 +224,7 @@ export enum Token2022Instruction {
   InitializePermissionedBurn,
   PermissionedBurn,
   PermissionedBurnChecked,
+  UnwrapLamports,
 }
 
 export function identifyToken2022Instruction(
@@ -694,6 +696,8 @@ export function identifyToken2022Instruction(
     containsBytes(data, getU8Encoder().encode(2), 1)
   ) {
     return Token2022Instruction.PermissionedBurnChecked;
+  if (containsBytes(data, getU8Encoder().encode(45), 0)) {
+    return Token2022Instruction.UnwrapLamports;
   }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
@@ -973,3 +977,5 @@ export type ParsedToken2022Instruction<
   | ({
       instructionType: Token2022Instruction.PermissionedBurnChecked;
     } & ParsedPermissionedBurnCheckedInstruction<TProgram>);
+      instructionType: Token2022Instruction.UnwrapLamports;
+    } & ParsedUnwrapLamportsInstruction<TProgram>);

@@ -76,6 +76,68 @@ pub mod coption_fromstr {
     }
 }
 
+/// Helper function to serialize / deserialize a `COption` u64 value
+pub mod coption_u64_fromval {
+    use {
+        serde::{
+            de::{Error, Visitor},
+            Deserializer, Serializer,
+        },
+        solana_program_option::COption,
+        std::fmt,
+    };
+
+    /// Serialize u64 wrapped in `COption`
+    pub fn serialize<S>(x: &COption<u64>, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match *x {
+            COption::Some(ref value) => s.serialize_some(value),
+            COption::None => s.serialize_none(),
+        }
+    }
+
+    struct COptionU64Visitor {}
+
+    impl<'de> Visitor<'de> for COptionU64Visitor {
+        type Value = COption<u64>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a u64 type")
+        }
+
+        fn visit_some<D>(self, d: D) -> Result<Self::Value, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            d.deserialize_u64(self)
+        }
+
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            Ok(COption::Some(v))
+        }
+
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            Ok(COption::None)
+        }
+    }
+
+    /// Deserialize u64 in `COption`
+    pub fn deserialize<'de, D>(d: D) -> Result<COption<u64>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        d.deserialize_option(COptionU64Visitor {})
+    }
+}
+
 /// Helper to serialize / deserialize `PodAeCiphertext` values
 pub mod aeciphertext_fromstr {
     use {

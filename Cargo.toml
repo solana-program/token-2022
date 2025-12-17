@@ -1,3 +1,7 @@
+# Reduce the size of debug builds
+[profile.dev]
+debug = "line-tables-only"
+
 # The curve25519-dalek crate uses the `simd` backend by default in v4 if
 # possible, which has very slow performance on some platforms with opt-level 0,
 # which is the default for `dev` and `test` builds. This slowdown causes
@@ -54,3 +58,7 @@ config = "scripts/spellcheck.toml"
 pre-release-commit-message = "Publish {{crate_name}} v{{version}}"
 tag-message = "Publish {{crate_name}} v{{version}}"
 consolidate-commits = false
+
+[patch.crates-io]
+spl-token-confidential-transfer-proof-extraction = { path = "confidential/proof-extraction" }
+spl-token-confidential-transfer-proof-generation = { path = "confidential/proof-generation" }

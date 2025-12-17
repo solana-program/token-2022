@@ -1,6 +1,6 @@
 {
   "name": "@solana-program/token-2022",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "JavaScript client for the Token 2022 program",
   "sideEffects": false,
   "module": "./dist/src/index.mjs",
@@ -21,7 +21,7 @@
   "scripts": {
     "build": "rimraf dist && tsup && tsc -p ./tsconfig.declarations.json",
     "build:docs": "typedoc",
-    "test": "ava",
+    "test": "tsc --noEmit && ava",
     "lint": "eslint --ext js,ts,tsx src",
     "lint:fix": "eslint --fix --ext js,ts,tsx src",
     "format": "prettier --check src test",
@@ -42,15 +42,15 @@
   },
   "homepage": "https://github.com/solana-program/token-2022#readme",
   "peerDependencies": {
-    "@solana/kit": "^4.0",
-    "@solana/sysvars": "^4.0"
+    "@solana/kit": "^5.0",
+    "@solana/sysvars": "^5.0"
   },
   "devDependencies": {
     "@ava/typescript": "^6.0.0",
-    "@solana-program/system": "^0.9.0",
+    "@solana-program/system": "^0.10.0",
     "@solana/eslint-config-solana": "^3.0.3",
-    "@solana/kit": "^4.0",
-    "@types/node": "^24",
+    "@solana/kit": "^5.0",
+    "@types/node": "^25",
     "@typescript-eslint/eslint-plugin": "^7.16.1",
     "@typescript-eslint/parser": "^7.16.1",
     "ava": "^6.1.3",

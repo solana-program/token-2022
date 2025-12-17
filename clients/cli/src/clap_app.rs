@@ -172,6 +172,7 @@ pub enum CommandName {
     UpdateUiAmountMultiplier,
     Pause,
     Resume,
+    UnwrapSol,
 }
 impl fmt::Display for CommandName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -1734,6 +1735,53 @@ pub fn app<'a>(
                         ),
                 )
                 .arg(owner_address_arg())
+                .arg(multisig_signer_arg())
+                .nonce_args(true)
+                .offline_args(),
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::UnwrapSol.into())
+                .about("Unwrap SOL from a wrapped SOL token account")
+                .arg(
+                    Arg::with_name("amount")
+                        .value_parser(Amount::parse)
+                        .value_name("TOKEN_AMOUNT")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("Amount to unwrap, in SOL; accepts keyword ALL"),
+                )
+                .arg(
+                    Arg::with_name("recipient")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("RECIPIENT_ACCOUNT_ADDRESS")
+                        .takes_value(true)
+                        .index(2)
+                        .help("Specify the address to recieve the unwrapped SOL. \
+                               Defaults to the owner address.")
+                )
+                .arg(
+                    Arg::with_name("from")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("NATIVE_TOKEN_ACCOUNT_ADDRESS")
+                        .takes_value(true)
+                        .long("from")
+                        .help("Specify the token account that contains the wrapped SOL. \
+                            [default: owner's associated token account]")
+                )
+                .arg(owner_keypair_arg_with_value_name("NATIVE_TOKEN_OWNER_KEYPAIR")
+                        .help(
+                            "Specify the keypair for the wallet which owns the wrapped SOL. \
+                             This may be a keypair file or the ASK keyword. \
+                             Defaults to the client keypair.",
+                        ),
+                )
+                .arg(
+                    Arg::with_name("allow_unfunded_recipient")
+                        .long("allow-unfunded-recipient")
+                        .takes_value(false)
+                        .help("Complete the transfer even if the recipient address is not funded")
+                )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
                 .offline_args(),

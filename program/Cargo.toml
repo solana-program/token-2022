@@ -1,6 +1,6 @@
 [package]
 name = "spl-token-2022"
-version = "9.0.0"
+version = "10.0.0"
 description = "Solana Program Library Token 2022"
 documentation = "https://docs.rs/spl-token-2022"
 readme = "README.md"
@@ -31,7 +31,7 @@ solana-instruction = "3.0.0"
 solana-msg = "3.0.0"
 solana-program-entrypoint = "3.0.0"
 solana-program-error = "3.0.0"
-solana-program-memory = "3.0.0"
+solana-program-memory = "3.1.0"
 solana-program-option = "3.0.0"
 solana-program-pack = "3.0.0"
 solana-pubkey = "3.0.0"
@@ -43,26 +43,26 @@ solana-system-interface = { version = "2.0.0", features = ["bincode"] }
 solana-zk-sdk = "4.0.0"
 spl-elgamal-registry-interface = { version = "0.1.0", path = "../confidential/elgamal-registry-interface" }
 spl-memo-interface = { version = "2.0" }
-spl-token-2022-interface = { version = "2.0", path = "../interface" }
-spl-token-confidential-transfer-ciphertext-arithmetic = { version = "0.4.0", path = "../confidential/ciphertext-arithmetic" }
-spl-token-confidential-transfer-proof-extraction = { version = "0.5.0", path = "../confidential/proof-extraction" }
+spl-token-2022-interface = { version = "2.1.0", path = "../interface" }
+spl-token-confidential-transfer-ciphertext-arithmetic = { version = "0.4.1", path = "../confidential/ciphertext-arithmetic" }
+spl-token-confidential-transfer-proof-extraction = { version = "0.5.1", path = "../confidential/proof-extraction" }
 spl-token-group-interface = { version = "0.7.1" }
 spl-token-metadata-interface = { version = "0.8.0" }
 spl-transfer-hook-interface = { version = "2.0.0" }
 spl-pod = { version = "0.7.1" }
 thiserror = "2.0"
 serde = { version = "1.0.219", optional = true }
-serde_with = { version = "3.14.0", optional = true }
+serde_with = { version = "3.15.1", optional = true }
 base64 = { version = "0.22.1", optional = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
-spl-token-confidential-transfer-proof-generation = { version = "0.5.0", path = "../confidential/proof-generation" }
+spl-token-confidential-transfer-proof-generation = { version = "0.5.1", path = "../confidential/proof-generation" }
 
 [dev-dependencies]
 lazy_static = "1.5.0"
 proptest = "1.9"
 serial_test = "3.2.0"
-solana-account = "3.0.0"
+solana-account = "3.2.0"
 solana-hash = "3.0.0"
 solana-keypair = "3.0.0"
 solana-program-test = "3.0.0"
@@ -70,7 +70,7 @@ solana-signer = "3.0.0"
 solana-transaction = "3.0.0"
 solana-transaction-error = "3.0.0"
 spl-tlv-account-resolution = { version = "0.11.1" }
-serde_json = "1.0.142"
+serde_json = "1.0.145"
 test-case = "3.3.1"
 
 [lib]

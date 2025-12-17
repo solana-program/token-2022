@@ -8456,6 +8456,100 @@
       },
       {
         "kind": "instructionNode",
+        "name": "unwrapLamports",
+        "docs": [
+          "Transfer lamports from a native SOL account to a destination account."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "source",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The source account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "destination",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The destination account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The source account's owner or its multisignature account."
+            ],
+            "defaultValue": {
+              "kind": "identityValueNode"
+            }
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 45
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "amount",
+            "docs": ["The amount of lamports to transfer."],
+            "type": {
+              "kind": "optionTypeNode",
+              "fixed": false,
+              "item": {
+                "kind": "numberTypeNode",
+                "format": "u64",
+                "endian": "le"
+              },
+              "prefix": {
+                "kind": "numberTypeNode",
+                "format": "u8",
+                "endian": "le"
+              }
+            }            
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
         "name": "initializePermissionedBurn",
         "docs": [
           "Require permissioned burn for the given mint account.",
@@ -10201,6 +10295,36 @@
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "pausableAccount"
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "permissionedBurn",
+              "struct": {
+                "kind": "sizePrefixTypeNode",
+                "type": {
+                  "kind": "structTypeNode",
+                  "fields": [
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "authority",
+                      "docs": [
+                        "Authority that is required for burning"
+                      ],
+                      "type": {
+                        "kind": "zeroableOptionTypeNode",
+                        "item": {
+                          "kind": "publicKeyTypeNode"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "prefix": {
+                  "kind": "numberTypeNode",
+                  "format": "u16",
+                  "endian": "le"
+                }
+              }
             }
           ],
           "size": {

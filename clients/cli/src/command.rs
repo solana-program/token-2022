@@ -368,7 +368,7 @@ async fn command_create_token(
     }
 
     if let Some(text) = memo {
-        token.with_memo(text, vec![config.default_signer()?.pubkey()]);
+        token.with_memo(text, bulk_signers.iter().map(|s| s.pubkey()).collect());
     }
 
     // CLI checks that only one is set
@@ -2106,6 +2106,103 @@ async fn command_unwrap(
 
     let res = token
         .close_account(&account, &wallet_address, &wallet_address, &bulk_signers)
+        .await?;
+
+    let tx_return = finish_tx(config, &res, false).await?;
+    Ok(match tx_return {
+        TransactionReturnData::CliSignature(signature) => {
+            config.output_format.formatted_string(&signature)
+        }
+        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
+            config.output_format.formatted_string(&sign_only_data)
+        }
+    })
+}
+
+async fn command_unwrap_sol(
+    config: &Config<'_>,
+    ui_amount: Amount,
+    source_owner: Pubkey,
+    source_account: Option<Pubkey>,
+    destination_account: Option<Pubkey>,
+    allow_unfunded_recipient: bool,
+    bulk_signers: BulkSigners,
+) -> CommandResult {
+    let use_associated_account = source_account.is_none();
+    let token = native_token_client_from_config(config)?;
+
+    let source_account =
+        source_account.unwrap_or_else(|| token.get_associated_token_address(&source_owner));
+
+    let destination_account = destination_account.unwrap_or(source_owner);
+
+    let amount = match ui_amount.sol_to_lamport() {
+        Amount::Raw(ui_amount) => Some(ui_amount),
+        Amount::Decimal(_) => unreachable!(),
+        Amount::All => None,
+    };
+    let mut balance = None;
+
+    if !config.sign_only {
+        let account_data = config.get_account_checked(&source_account).await?;
+
+        if account_data.lamports == 0 {
+            if use_associated_account {
+                return Err("No wrapped SOL in associated account; did you mean to specify an auxiliary address?".to_string().into());
+            } else {
+                return Err(format!("No wrapped SOL in {}", source_account).into());
+            }
+        }
+
+        let account_state = StateWithExtensionsOwned::<Account>::unpack(account_data.data)?;
+
+        if let Some(amount) = amount {
+            if account_state.base.amount < amount {
+                return Err(format!(
+                    "Error: Sender has insufficient funds, current balance is {} SOL",
+                    build_balance_message(account_state.base.amount, false, false)
+                )
+                .into());
+            }
+        }
+
+        balance = Some(account_state.base.amount);
+
+        if !use_associated_account && account_state.base.mint != *token.get_address() {
+            return Err(format!("{} is not a native token account", source_account).into());
+        }
+
+        if config.rpc_client.get_balance(&destination_account).await? == 0 {
+            // if it doesn't exist, we gate transfer with a different flag
+            if !allow_unfunded_recipient {
+                return Err("Error: The recipient address is not funded. \
+                            Add `--allow-unfunded-recipient` to complete the transfer."
+                    .into());
+            }
+        }
+    }
+
+    let display_amount = amount
+        .or(balance)
+        .map(|amount| build_balance_message(amount, false, false))
+        .unwrap_or_else(|| "all".to_string());
+
+    println_display(
+        config,
+        format!(
+            "Unwrapping {} SOL to {}",
+            display_amount, destination_account
+        ),
+    );
+
+    let res = token
+        .unwrap_lamports(
+            &source_account,
+            &destination_account,
+            &source_owner,
+            amount,
+            &bulk_signers,
+        )
         .await?;
 
     let tx_return = finish_tx(config, &res, false).await?;
@@ -4300,6 +4397,31 @@ pub async fn process_command(
 
             let account = pubkey_of_signer(arg_matches, "account", &mut wallet_manager).unwrap();
             command_unwrap(config, wallet_address, account, bulk_signers).await
+        }
+        (CommandName::UnwrapSol, arg_matches) => {
+            let (owner_signer, owner) =
+                config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
+            if config.multisigner_pubkeys.is_empty() {
+                push_signer_with_dedup(owner_signer, &mut bulk_signers);
+            }
+
+            let amount = *arg_matches.get_one::<Amount>("amount").unwrap();
+            let source = pubkey_of_signer(arg_matches, "from", &mut wallet_manager).unwrap();
+            let recipient =
+                pubkey_of_signer(arg_matches, "recipient", &mut wallet_manager).unwrap();
+
+            let allow_unfunded_recipient = arg_matches.is_present("allow_unfunded_recipient");
+
+            command_unwrap_sol(
+                config,
+                amount,
+                owner,
+                source,
+                recipient,
+                allow_unfunded_recipient,
+                bulk_signers,
+            )
+            .await
         }
         (CommandName::Approve, arg_matches) => {
             let (owner_signer, owner_address) =
