@@ -37,7 +37,7 @@ solana-packet = "3.0.0"
 solana-program-error = "3.0.0"
 solana-program-pack = "3.0.0"
 solana-program-test = { version = "3.0.0", optional = true }
-solana-pubkey = "3.0.0"
+solana-pubkey = "4.0.0"
 solana-rpc-client = "3.0.0"
 solana-rpc-client-api = "3.0.0"
 solana-signature = "3.0.0"
