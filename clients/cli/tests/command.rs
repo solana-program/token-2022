@@ -4826,8 +4826,7 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
             "spl-token",
             CommandName::CreateToken.into(),
             token_keypair_file.path().to_str().unwrap(),
-            "--enable-permissioned-burn",
-            "--permissioned-burn-authority",
+            "--permissioned-burn",
             burn_authority.pubkey().to_string().as_str(),
         ],
     )

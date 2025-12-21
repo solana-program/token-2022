@@ -3892,12 +3892,10 @@ pub async fn process_command(
                     });
             let transfer_hook_program_id =
                 pubkey_of_signer(arg_matches, "transfer_hook", &mut wallet_manager).unwrap();
-            let permissioned_burn_authority = pubkey_of_signer(
-                arg_matches,
-                "permissioned_burn_authority",
-                &mut wallet_manager,
-            )
-            .unwrap();
+            let permissioned_burn_authority =
+                pubkey_of_signer(arg_matches, "permissioned_burn", &mut wallet_manager).unwrap();
+            let enable_permissioned_burn = arg_matches.is_present("enable_permissioned_burn")
+                || permissioned_burn_authority.is_some();
 
             let confidential_transfer_auto_approve = arg_matches
                 .value_of("enable_confidential_transfers")
@@ -3927,7 +3925,7 @@ pub async fn process_command(
                 arg_matches.is_present("enable_transfer_hook"),
                 ui_multiplier,
                 arg_matches.is_present("enable_pause"),
-                arg_matches.is_present("enable_permissioned_burn"),
+                enable_permissioned_burn,
                 permissioned_burn_authority,
                 bulk_signers,
             )

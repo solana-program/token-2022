@@ -2094,6 +2094,7 @@ impl Processor {
                         accounts,
                         &input[1..],
                     )
+                }
                 PodTokenInstruction::UnwrapLamports => {
                     msg!("Instruction: UnwrapLamports");
                     let (_, amount) = decode_instruction_data_with_coption_u64::<()>(input)?;

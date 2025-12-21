@@ -1084,6 +1084,7 @@ impl<'a> TokenInstruction<'a> {
             }
             &Self::PermissionedBurnExtension => {
                 buf.push(46);
+            }
         };
         buf
     }
