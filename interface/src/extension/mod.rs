@@ -23,6 +23,7 @@ use {
             non_transferable::{NonTransferable, NonTransferableAccount},
             pausable::{PausableAccount, PausableConfig},
             permanent_delegate::PermanentDelegate,
+            permissioned_burn::PermissionedBurnConfig,
             scaled_ui_amount::ScaledUiAmountConfig,
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::{TransferHook, TransferHookAccount},
@@ -76,6 +77,8 @@ pub mod non_transferable;
 pub mod pausable;
 /// Permanent Delegate extension
 pub mod permanent_delegate;
+/// Permissioned burn extension
+pub mod permissioned_burn;
 /// Scaled UI Amount extension
 pub mod scaled_ui_amount;
 /// Token-group extension
@@ -1119,6 +1122,8 @@ pub enum ExtensionType {
     Pausable,
     /// Indicates that the account belongs to a pausable mint
     PausableAccount,
+    /// Tokens burning requires approval from authority.
+    PermissionedBurn,
 
     /// Test variable-length mint extension
     #[cfg(test)]
@@ -1204,6 +1209,7 @@ impl ExtensionType {
             ExtensionType::ScaledUiAmount => pod_get_packed_len::<ScaledUiAmountConfig>(),
             ExtensionType::Pausable => pod_get_packed_len::<PausableConfig>(),
             ExtensionType::PausableAccount => pod_get_packed_len::<PausableAccount>(),
+            ExtensionType::PermissionedBurn => pod_get_packed_len::<PermissionedBurnConfig>(),
             #[cfg(test)]
             ExtensionType::AccountPaddingTest => pod_get_packed_len::<AccountPaddingTest>(),
             #[cfg(test)]
@@ -1270,7 +1276,8 @@ impl ExtensionType {
             | ExtensionType::ConfidentialMintBurn
             | ExtensionType::TokenGroupMember
             | ExtensionType::ScaledUiAmount
-            | ExtensionType::Pausable => AccountType::Mint,
+            | ExtensionType::Pausable
+            | ExtensionType::PermissionedBurn => AccountType::Mint,
             ExtensionType::ImmutableOwner
             | ExtensionType::TransferFeeAmount
             | ExtensionType::ConfidentialTransferAccount

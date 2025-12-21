@@ -731,6 +731,8 @@ pub enum TokenInstruction<'a> {
     ScaledUiAmountExtension,
     /// Instruction prefix for instructions to the pausable extension
     PausableExtension,
+    /// Instruction prefix for instructions to the permissioned burn extension
+    PermissionedBurnExtension,
     // 45
     /// Transfer lamports from a native SOL account to a destination account.
     ///
@@ -891,6 +893,7 @@ impl<'a> TokenInstruction<'a> {
             42 => Self::ConfidentialMintBurnExtension,
             43 => Self::ScaledUiAmountExtension,
             44 => Self::PausableExtension,
+            46 => Self::PermissionedBurnExtension,
             45 => {
                 let (amount, _rest) = Self::unpack_u64_option(rest)?;
                 Self::UnwrapLamports { amount }
@@ -1079,6 +1082,9 @@ impl<'a> TokenInstruction<'a> {
                 buf.push(45);
                 Self::pack_u64_option(&amount, &mut buf);
             }
+            &Self::PermissionedBurnExtension => {
+                buf.push(46);
+            }
         };
         buf
     }
@@ -1201,6 +1207,8 @@ pub enum AuthorityType {
     ScaledUiAmount,
     /// Authority to pause or resume minting / transferring / burning
     Pause,
+    /// Authority to perform a permissioned token burn
+    PermissionedBurn,
 }
 
 impl AuthorityType {
@@ -1223,6 +1231,7 @@ impl AuthorityType {
             AuthorityType::GroupMemberPointer => 14,
             AuthorityType::ScaledUiAmount => 15,
             AuthorityType::Pause => 16,
+            AuthorityType::PermissionedBurn => 17,
         }
     }
 
@@ -1246,6 +1255,7 @@ impl AuthorityType {
             14 => Ok(AuthorityType::GroupMemberPointer),
             15 => Ok(AuthorityType::ScaledUiAmount),
             16 => Ok(AuthorityType::Pause),
+            17 => Ok(AuthorityType::PermissionedBurn),
             _ => Err(TokenError::InvalidInstruction.into()),
         }
     }

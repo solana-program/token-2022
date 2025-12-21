@@ -46,4 +46,5 @@ export enum TokenInstruction {
     ScaledUiAmountExtension = 43,
     PausableExtension = 44,
     UnwrapLamports = 45,
+    PermissionedBurnExtension = 46,
 }

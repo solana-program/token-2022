@@ -117,6 +117,7 @@ pub(crate) enum PodTokenInstruction {
     PausableExtension,
     // 45
     UnwrapLamports,
+    PermissionedBurnExtension,
 }
 
 fn unpack_pubkey_option(input: &[u8]) -> Result<PodCOption<Pubkey>, ProgramError> {
