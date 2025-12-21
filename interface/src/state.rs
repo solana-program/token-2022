@@ -49,6 +49,9 @@ impl IsInitialized for Mint {
 impl Pack for Mint {
     const LEN: usize = 82;
     fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
+        if src.len() != Self::LEN {
+            return Err(ProgramError::InvalidAccountData);
+        }
         let src = array_ref![src, 0, 82];
         let (mint_authority, supply, decimals, is_initialized, freeze_authority) =
             array_refs![src, 36, 8, 1, 1, 36];
@@ -146,6 +149,9 @@ impl IsInitialized for Account {
 impl Pack for Account {
     const LEN: usize = 165;
     fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
+        if src.len() != Self::LEN {
+            return Err(ProgramError::InvalidAccountData);
+        }
         let src = array_ref![src, 0, 165];
         let (mint, owner, amount, delegate, state, is_native, delegated_amount, close_authority) =
             array_refs![src, 32, 32, 8, 36, 1, 12, 8, 36];
@@ -235,6 +241,9 @@ impl IsInitialized for Multisig {
 impl Pack for Multisig {
     const LEN: usize = 355;
     fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
+        if src.len() != Self::LEN {
+            return Err(ProgramError::InvalidAccountData);
+        }
         let src = array_ref![src, 0, 355];
         #[allow(clippy::ptr_offset_with_cast)]
         let (m, n, is_initialized, signers_flat) = array_refs![src, 1, 1, 1, 32 * MAX_SIGNERS];
@@ -547,5 +556,54 @@ pub(crate) mod test {
         src[Account::LEN] = AccountType::Account as u8;
         let result = Account::unpack_account_mint(&src);
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_unpack_from_slice_invalid_length() {
+        // Mint - should return Err instead of panicking
+        assert_eq!(
+            Err(ProgramError::InvalidAccountData),
+            Mint::unpack_from_slice(&[])
+        );
+        assert_eq!(
+            Err(ProgramError::InvalidAccountData),
+            Mint::unpack_from_slice(&[0u8; Mint::LEN - 1])
+        );
+        assert_eq!(
+            Err(ProgramError::InvalidAccountData),
+            Mint::unpack_from_slice(&[0u8; Mint::LEN + 1])
+        );
+
+        // Account - should return Err instead of panicking
+        assert_eq!(
+            Err(ProgramError::InvalidAccountData),
+            Account::unpack_from_slice(&[])
+        );
+        assert_eq!(
+            Err(ProgramError::InvalidAccountData),
+            Account::unpack_from_slice(&[0u8; Account::LEN - 1])
+        );
+        assert_eq!(
+            Err(ProgramError::InvalidAccountData),
+            Account::unpack_from_slice(&[0u8; Account::LEN + 1])
+        );
+
+        // Multisig - should return Err instead of panicking
+        assert_eq!(
+            Err(ProgramError::InvalidAccountData),
+            Multisig::unpack_from_slice(&[])
+        );
+        assert_eq!(
+            Err(ProgramError::InvalidAccountData),
+            Multisig::unpack_from_slice(&[0u8; 82])
+        );
+        assert_eq!(
+            Err(ProgramError::InvalidAccountData),
+            Multisig::unpack_from_slice(&[0u8; Multisig::LEN - 1])
+        );
+        assert_eq!(
+            Err(ProgramError::InvalidAccountData),
+            Multisig::unpack_from_slice(&[0u8; Multisig::LEN + 1])
+        );
     }
 }
