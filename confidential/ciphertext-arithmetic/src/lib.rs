@@ -1,12 +1,10 @@
 use {
-    base64::{engine::general_purpose::STANDARD, Engine},
     bytemuck::bytes_of,
     solana_curve25519::{
         ristretto::{add_ristretto, multiply_ristretto, subtract_ristretto, PodRistrettoPoint},
         scalar::PodScalar,
     },
     solana_zk_sdk::encryption::pod::elgamal::PodElGamalCiphertext,
-    std::str::FromStr,
 };
 
 const SHIFT_BITS: usize = 16;
@@ -56,10 +54,25 @@ pub fn add_with_lo_hi(
     right_ciphertext_lo: &PodElGamalCiphertext,
     right_ciphertext_hi: &PodElGamalCiphertext,
 ) -> Option<PodElGamalCiphertext> {
+    let (left_commitment, left_handle) = elgamal_ciphertext_to_ristretto(left_ciphertext);
+    let (lo_commitment, lo_handle) = elgamal_ciphertext_to_ristretto(right_ciphertext_lo);
+    let (hi_commitment, hi_handle) = elgamal_ciphertext_to_ristretto(right_ciphertext_hi);
+
     let shift_scalar = u64_to_scalar(1_u64 << SHIFT_BITS);
-    let shifted_right_ciphertext_hi = multiply(&shift_scalar, right_ciphertext_hi)?;
-    let combined_right_ciphertext = add(right_ciphertext_lo, &shifted_right_ciphertext_hi)?;
-    add(left_ciphertext, &combined_right_ciphertext)
+
+    let hi_commitment_shifted = multiply_ristretto(&shift_scalar, &hi_commitment)?;
+    let right_commitment_combined = add_ristretto(&lo_commitment, &hi_commitment_shifted)?;
+
+    let hi_handle_shifted = multiply_ristretto(&shift_scalar, &hi_handle)?;
+    let right_handle_combined = add_ristretto(&lo_handle, &hi_handle_shifted)?;
+
+    let final_commitment = add_ristretto(&left_commitment, &right_commitment_combined)?;
+    let final_handle = add_ristretto(&left_handle, &right_handle_combined)?;
+
+    Some(ristretto_to_elgamal_ciphertext(
+        &final_commitment,
+        &final_handle,
+    ))
 }
 
 /// Subtract two ElGamal ciphertexts
@@ -86,10 +99,25 @@ pub fn subtract_with_lo_hi(
     right_ciphertext_lo: &PodElGamalCiphertext,
     right_ciphertext_hi: &PodElGamalCiphertext,
 ) -> Option<PodElGamalCiphertext> {
+    let (left_commitment, left_handle) = elgamal_ciphertext_to_ristretto(left_ciphertext);
+    let (lo_commitment, lo_handle) = elgamal_ciphertext_to_ristretto(right_ciphertext_lo);
+    let (hi_commitment, hi_handle) = elgamal_ciphertext_to_ristretto(right_ciphertext_hi);
+
     let shift_scalar = u64_to_scalar(1_u64 << SHIFT_BITS);
-    let shifted_right_ciphertext_hi = multiply(&shift_scalar, right_ciphertext_hi)?;
-    let combined_right_ciphertext = add(right_ciphertext_lo, &shifted_right_ciphertext_hi)?;
-    subtract(left_ciphertext, &combined_right_ciphertext)
+
+    let hi_commitment_shifted = multiply_ristretto(&shift_scalar, &hi_commitment)?;
+    let right_commitment_combined = add_ristretto(&lo_commitment, &hi_commitment_shifted)?;
+
+    let hi_handle_shifted = multiply_ristretto(&shift_scalar, &hi_handle)?;
+    let right_handle_combined = add_ristretto(&lo_handle, &hi_handle_shifted)?;
+
+    let final_commitment = subtract_ristretto(&left_commitment, &right_commitment_combined)?;
+    let final_handle = subtract_ristretto(&left_handle, &right_handle_combined)?;
+
+    Some(ristretto_to_elgamal_ciphertext(
+        &final_commitment,
+        &final_handle,
+    ))
 }
 
 /// Add a constant amount to a ciphertext
@@ -149,12 +177,8 @@ fn ristretto_to_elgamal_ciphertext(
     let mut ciphertext_bytes = [0u8; 64];
     ciphertext_bytes[..32].copy_from_slice(bytes_of(commitment));
     ciphertext_bytes[32..64].copy_from_slice(bytes_of(handle));
-    // Unfortunately, the `solana-zk-sdk` does not exporse a constructor interface
-    // to construct `PodRistrettoPoint` from bytes. As a work-around, encode the
-    // bytes as base64 string and then convert the string to a
-    // `PodElGamalCiphertext`.
-    let ciphertext_string = STANDARD.encode(ciphertext_bytes);
-    FromStr::from_str(&ciphertext_string).unwrap()
+
+    PodElGamalCiphertext::from(ciphertext_bytes)
 }
 
 #[cfg(test)]
