@@ -1328,6 +1328,7 @@ impl ExtensionType {
         let mut confidential_mint_burn = false;
         let mut interest_bearing = false;
         let mut scaled_ui_amount = false;
+        let mut non_transferable = false;
 
         for extension_type in mint_extension_types {
             match extension_type {
@@ -1339,6 +1340,7 @@ impl ExtensionType {
                 ExtensionType::ConfidentialMintBurn => confidential_mint_burn = true,
                 ExtensionType::InterestBearingConfig => interest_bearing = true,
                 ExtensionType::ScaledUiAmount => scaled_ui_amount = true,
+                ExtensionType::NonTransferable => non_transferable = true,
                 _ => (),
             }
         }
@@ -1357,6 +1359,10 @@ impl ExtensionType {
         }
 
         if scaled_ui_amount && interest_bearing {
+            return Err(TokenError::InvalidExtensionCombination);
+        }
+
+        if non_transferable && confidential_transfer_mint && !confidential_mint_burn {
             return Err(TokenError::InvalidExtensionCombination);
         }
 
