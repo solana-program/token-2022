@@ -126,7 +126,7 @@ fn process_withdraw_withheld_tokens_from_mint(
     }
     let destination_confidential_transfer_account =
         destination_account.get_extension_mut::<ConfidentialTransferAccount>()?;
-    destination_confidential_transfer_account.valid_as_destination()?;
+    destination_confidential_transfer_account.valid_as_withheld_amount_destination()?;
 
     // The funds are moved from the mint to a destination account. Here, the
     // `source` equates to the withdraw withheld authority associated in the
@@ -228,7 +228,7 @@ fn process_withdraw_withheld_tokens_from_accounts(
     {
         let destination_confidential_transfer_account =
             destination_account.get_extension::<ConfidentialTransferAccount>()?;
-        destination_confidential_transfer_account.valid_as_destination()?;
+        destination_confidential_transfer_account.valid_as_withheld_amount_destination()?;
 
         // The funds are moved from the accounts to a destination account. Here, the
         // `source` equates to the withdraw withheld authority associated in the

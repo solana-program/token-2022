@@ -1199,3 +1199,170 @@ async fn confidential_transfer_configure_token_account_with_fee_with_registry() 
         PodElGamalCiphertext::default(),
     );
 }
+
+#[tokio::test]
+async fn test_withdraw_withheld_tokens_with_max_pending_counter() {
+    let transfer_fee_authority = Keypair::new();
+    let withdraw_withheld_authority = Keypair::new();
+
+    let confidential_transfer_authority = Keypair::new();
+    let auto_approve_new_accounts = true;
+    let auditor_elgamal_keypair = ElGamalKeypair::new_rand();
+    let auditor_elgamal_pubkey = (*auditor_elgamal_keypair.pubkey()).into();
+
+    let confidential_transfer_fee_authority = Keypair::new();
+    let withdraw_withheld_authority_elgamal_keypair = ElGamalKeypair::new_rand();
+    let withdraw_withheld_authority_elgamal_pubkey =
+        (*withdraw_withheld_authority_elgamal_keypair.pubkey()).into();
+
+    let mut context = TestContext::new().await;
+    context
+        .init_token_with_mint(vec![
+            ExtensionInitializationParams::TransferFeeConfig {
+                transfer_fee_config_authority: Some(transfer_fee_authority.pubkey()),
+                withdraw_withheld_authority: Some(withdraw_withheld_authority.pubkey()),
+                transfer_fee_basis_points: TEST_FEE_BASIS_POINTS,
+                maximum_fee: TEST_MAXIMUM_FEE,
+            },
+            ExtensionInitializationParams::ConfidentialTransferMint {
+                authority: Some(confidential_transfer_authority.pubkey()),
+                auto_approve_new_accounts,
+                auditor_elgamal_pubkey: Some(auditor_elgamal_pubkey),
+            },
+            ExtensionInitializationParams::ConfidentialTransferFeeConfig {
+                authority: Some(confidential_transfer_fee_authority.pubkey()),
+                withdraw_withheld_authority_elgamal_pubkey,
+            },
+        ])
+        .await
+        .unwrap();
+
+    let TokenContext {
+        token,
+        alice,
+        bob,
+        mint_authority,
+        decimals,
+        ..
+    } = context.token_context.unwrap();
+
+    let alice_meta =
+        ConfidentialTokenAccountMeta::new(&token, &alice, &mint_authority, 1000, decimals).await;
+    let bob_meta =
+        ConfidentialTokenAccountMeta::new(&token, &bob, &mint_authority, 0, decimals).await;
+
+    // Setup destination for withdrawal
+    // We manually configure to have a low max pending limit (1) to easily saturate it.
+    let fee_collector = Keypair::new();
+    let fee_collector_account = Keypair::new();
+    let extensions = vec![
+        ExtensionType::ConfidentialTransferAccount,
+        ExtensionType::ConfidentialTransferFeeAmount,
+    ];
+    token
+        .create_auxiliary_token_account_with_extension_space(
+            &fee_collector_account,
+            &fee_collector.pubkey(),
+            extensions,
+        )
+        .await
+        .unwrap();
+
+    let fc_elgamal =
+        ElGamalKeypair::new_from_signer(&fee_collector, &fee_collector_account.pubkey().to_bytes())
+            .unwrap();
+    let fc_aes =
+        AeKey::new_from_signer(&fee_collector, &fee_collector_account.pubkey().to_bytes()).unwrap();
+
+    // Configure with max_pending_balance_credit_counter = 1
+    token
+        .confidential_transfer_configure_token_account(
+            &fee_collector_account.pubkey(),
+            &fee_collector.pubkey(),
+            None,
+            Some(1),
+            &fc_elgamal,
+            &fc_aes,
+            &[&fee_collector],
+        )
+        .await
+        .unwrap();
+
+    // Saturate destinaion pending counter
+    token
+        .mint_to(
+            &fee_collector_account.pubkey(),
+            &mint_authority.pubkey(),
+            100,
+            &[&mint_authority],
+        )
+        .await
+        .unwrap();
+    token
+        .confidential_transfer_deposit(
+            &fee_collector_account.pubkey(),
+            &fee_collector.pubkey(),
+            100,
+            decimals,
+            &[&fee_collector],
+        )
+        .await
+        .unwrap();
+
+    // Generate fees in Bob's account via a transfer from Alice
+    let transfer_fee_parameters = TransferFee {
+        epoch: 0.into(),
+        maximum_fee: TEST_MAXIMUM_FEE.into(),
+        transfer_fee_basis_points: TEST_FEE_BASIS_POINTS.into(),
+    };
+
+    token
+        .confidential_transfer_transfer_with_fee(
+            &alice_meta.token_account,
+            &bob_meta.token_account,
+            &alice.pubkey(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            200, // Amount
+            None,
+            &alice_meta.elgamal_keypair,
+            &alice_meta.aes_key,
+            bob_meta.elgamal_keypair.pubkey(),
+            Some(auditor_elgamal_keypair.pubkey()),
+            withdraw_withheld_authority_elgamal_keypair.pubkey(),
+            transfer_fee_parameters.transfer_fee_basis_points.into(),
+            transfer_fee_parameters.maximum_fee.into(),
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    // Calculate fee: 200 * 2.5% = 5
+    let fee = 5;
+    let new_decryptable_balance = fc_aes.encrypt(fee);
+
+    // Withdraw fees from Bob to destination account
+    token
+        .confidential_transfer_withdraw_withheld_tokens_from_accounts(
+            &fee_collector_account.pubkey(),
+            &withdraw_withheld_authority.pubkey(),
+            None,
+            None,
+            &withdraw_withheld_authority_elgamal_keypair,
+            fc_elgamal.pubkey(),
+            &new_decryptable_balance.into(),
+            &[&bob_meta.token_account],
+            &[&withdraw_withheld_authority],
+        )
+        .await
+        .unwrap();
+
+    let available = token
+        .confidential_transfer_get_available_balance(&fee_collector_account.pubkey(), &fc_aes)
+        .await
+        .unwrap();
+    assert_eq!(available, fee);
+}
