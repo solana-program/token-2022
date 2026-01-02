@@ -1,6 +1,10 @@
 use {
-    crate::extension::{Extension, ExtensionType},
+    crate::{
+        error::TokenError,
+        extension::{Extension, ExtensionType},
+    },
     bytemuck::{Pod, Zeroable},
+    solana_program_error::ProgramResult,
     solana_zk_sdk::encryption::pod::{
         auth_encryption::PodAeCiphertext,
         elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
@@ -26,4 +30,15 @@ pub struct ConfidentialMintBurn {
 
 impl Extension for ConfidentialMintBurn {
     const TYPE: ExtensionType = ExtensionType::ConfidentialMintBurn;
+}
+
+impl ConfidentialMintBurn {
+    /// Checks if the mint can be closed based on confidential supply state
+    pub fn closable(&self) -> ProgramResult {
+        if self.confidential_supply == PodElGamalCiphertext::default() {
+            Ok(())
+        } else {
+            Err(TokenError::MintHasSupply.into())
+        }
+    }
 }
