@@ -1218,6 +1218,10 @@ fn process_apply_pending_balance(
         account_info_iter.as_slice(),
     )?;
 
+    if token_account.base.is_frozen() {
+        return Err(TokenError::AccountFrozen.into());
+    }
+
     let confidential_transfer_account =
         token_account.get_extension_mut::<ConfidentialTransferAccount>()?;
 

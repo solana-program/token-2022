@@ -3279,6 +3279,94 @@ async fn test_confidential_transfer_pending_decryption_after_transfer() {
     }
 }
 
+#[tokio::test]
+async fn confidential_transfer_apply_pending_balance_frozen_account() {
+    let authority = Keypair::new();
+    let auto_approve_new_accounts = true;
+    let auditor_elgamal_keypair = ElGamalKeypair::new_rand();
+    let auditor_elgamal_pubkey = (*auditor_elgamal_keypair.pubkey()).into();
+
+    let mut context = TestContext::new().await;
+    context
+        .init_token_with_freezing_mint(vec![
+            ExtensionInitializationParams::ConfidentialTransferMint {
+                authority: Some(authority.pubkey()),
+                auto_approve_new_accounts,
+                auditor_elgamal_pubkey: Some(auditor_elgamal_pubkey),
+            },
+        ])
+        .await
+        .unwrap();
+
+    let TokenContext {
+        token,
+        alice,
+        mint_authority,
+        freeze_authority,
+        decimals,
+        ..
+    } = context.token_context.unwrap();
+
+    let freeze_authority = freeze_authority.unwrap();
+    let alice_meta = ConfidentialTokenAccountMeta::new(&token, &alice, Some(2), false, false).await;
+
+    // Mint tokens to Alice
+    token
+        .mint_to(
+            &alice_meta.token_account,
+            &mint_authority.pubkey(),
+            1000,
+            &[&mint_authority],
+        )
+        .await
+        .unwrap();
+
+    // Deposit tokens to create a pending balance
+    token
+        .confidential_transfer_deposit(
+            &alice_meta.token_account,
+            &alice.pubkey(),
+            1000,
+            decimals,
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    // Freeze Alice's account
+    token
+        .freeze(
+            &alice_meta.token_account,
+            &freeze_authority.pubkey(),
+            &[&freeze_authority],
+        )
+        .await
+        .unwrap();
+
+    // Attempt to Apply Pending Balance
+    let err = token
+        .confidential_transfer_apply_pending_balance(
+            &alice_meta.token_account,
+            &alice.pubkey(),
+            None,
+            alice_meta.elgamal_keypair.secret(),
+            &alice_meta.aes_key,
+            &[&alice],
+        )
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        err,
+        TokenClientError::Client(Box::new(TransportError::TransactionError(
+            TransactionError::InstructionError(
+                0,
+                InstructionError::Custom(TokenError::AccountFrozen as u32)
+            )
+        )))
+    );
+}
+
 #[cfg(test)]
 mod unit_tests {
 
