@@ -1,5 +1,5 @@
 import { struct } from '@solana/buffer-layout';
-import { bool } from '@solana/buffer-layout-utils';
+import { bool } from '../../serialization.js';
 import type { Account } from '../../state/account.js';
 import { ExtensionType, getExtensionData } from '../extensionType.js';
 

@@ -5,7 +5,7 @@ import { programSupportsExtensions, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } fr
 import { TokenUnsupportedInstructionError } from '../../errors.js';
 import { addSigners } from '../../instructions/internal.js';
 import { TokenInstruction } from '../../instructions/types.js';
-import { publicKey } from '@solana/buffer-layout-utils';
+import { publicKey } from '../../serialization.js';
 import { createTransferCheckedInstruction } from '../../instructions/transferChecked.js';
 import { createTransferCheckedWithFeeInstruction } from '../transferFee/instructions.js';
 import { getMint } from '../../state/mint.js';

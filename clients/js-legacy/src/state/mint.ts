@@ -1,5 +1,5 @@
 import { struct, u32, u8 } from '@solana/buffer-layout';
-import { bool, publicKey, u64 } from '@solana/buffer-layout-utils';
+import { bool, publicKey, u64 } from '../serialization.js';
 import type { AccountInfo, Commitment, Connection } from '@solana/web3.js';
 import { PublicKey } from '@solana/web3.js';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from '../constants.js';

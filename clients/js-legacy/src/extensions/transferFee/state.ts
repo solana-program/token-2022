@@ -1,6 +1,6 @@
 import type { Layout } from '@solana/buffer-layout';
 import { struct, u16 } from '@solana/buffer-layout';
-import { publicKey, u64 } from '@solana/buffer-layout-utils';
+import { publicKey, u64 } from '../../serialization.js';
 import type { PublicKey } from '@solana/web3.js';
 import type { Account } from '../../state/account.js';
 import type { Mint } from '../../state/mint.js';

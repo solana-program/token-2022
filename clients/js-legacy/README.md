@@ -72,9 +72,9 @@ cd clients/js-legacy
 pnpm install
 pnpm run build
 ```
-
-6. Run the tests:
+6. Run the tests (start the local test validator first):
 ```shell
+../../scripts/restart-test-validator.sh
 pnpm run test
 ```
 

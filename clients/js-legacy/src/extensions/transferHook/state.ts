@@ -3,7 +3,7 @@ import type { Mint } from '../../state/mint.js';
 import { ExtensionType, getExtensionData } from '../extensionType.js';
 import type { AccountInfo, AccountMeta, Connection } from '@solana/web3.js';
 import { PublicKey } from '@solana/web3.js';
-import { bool, publicKey, u64 } from '@solana/buffer-layout-utils';
+import { bool, publicKey, u64 } from '../../serialization.js';
 import type { Account } from '../../state/account.js';
 import { TokenTransferHookAccountNotFound } from '../../errors.js';
 import { unpackSeeds } from './seeds.js';

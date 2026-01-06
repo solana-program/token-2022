@@ -1,5 +1,5 @@
 import { struct } from '@solana/buffer-layout';
-import { publicKey, bool } from '@solana/buffer-layout-utils';
+import { bool, publicKey } from '../../serialization.js';
 import type { PublicKey } from '@solana/web3.js';
 import type { Account } from '../../state/account.js';
 import type { Mint } from '../../state/mint.js';

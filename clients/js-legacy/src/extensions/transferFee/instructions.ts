@@ -1,5 +1,5 @@
 import { struct, u16, u8 } from '@solana/buffer-layout';
-import { u64 } from '@solana/buffer-layout-utils';
+import { u64 } from '../../serialization.js';
 import type { AccountMeta, Signer, PublicKey } from '@solana/web3.js';
 import { TransactionInstruction } from '@solana/web3.js';
 import { programSupportsExtensions, TOKEN_2022_PROGRAM_ID } from '../../constants.js';

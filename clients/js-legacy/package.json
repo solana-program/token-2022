@@ -54,13 +54,15 @@
     },
     "dependencies": {
         "@solana/buffer-layout": "^4.0.0",
-        "@solana/buffer-layout-utils": "^0.3.0",
+        "@solana/codecs-core": "^5.1.0",
+        "@solana/codecs-data-structures": "^5.1.0",
+        "@solana/codecs-numbers": "^5.1.0",
         "@solana/spl-token-group": "^0.0.7",
         "@solana/spl-token-metadata": "^0.1.6",
         "buffer": "^6.0.3"
     },
     "devDependencies": {
-        "@solana/codecs-strings": "5.0.0",
+        "@solana/codecs-strings": "^5.1.0",
         "@solana/prettier-config-solana": "0.0.5",
         "@solana/spl-memo": "0.2.5",
         "@solana/web3.js": "^1.95.5",
