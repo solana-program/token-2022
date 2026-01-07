@@ -26,20 +26,20 @@ num-traits = "0.2"
 num_enum = "0.7.5"
 solana-account-info = "3.0.0"
 solana-clock = "3.0.0"
-solana-cpi = "3.0.0"
+solana-cpi = "3.1.0"
 solana-instruction = "3.0.0"
 solana-msg = "3.0.0"
-solana-program-entrypoint = "3.0.0"
+solana-program-entrypoint = "3.1.0"
 solana-program-error = "3.0.0"
 solana-program-memory = "3.1.0"
 solana-program-option = "3.0.0"
 solana-program-pack = "3.0.0"
-solana-pubkey = "3.0.0"
+solana-pubkey = "4.0.0"
 solana-rent = "3.0.0"
 solana-sdk-ids = "3.0.0"
 solana-security-txt = "1.1.1"
 solana-sysvar = { version = "3.0.0", features = ["bincode"] }
-solana-system-interface = { version = "2.0.0", features = ["bincode"] }
+solana-system-interface = { version = "3.0.0", features = ["bincode"] }
 solana-zk-sdk = "4.0.0"
 spl-elgamal-registry-interface = { version = "0.1.0", path = "../confidential/elgamal-registry-interface" }
 spl-memo-interface = { version = "2.0" }
@@ -60,18 +60,19 @@ spl-token-confidential-transfer-proof-generation = { version = "0.5.1", path = "
 
 [dev-dependencies]
 lazy_static = "1.5.0"
+mollusk-svm = "0.8"
 proptest = "1.9"
 serial_test = "3.2.0"
 solana-account = "3.2.0"
-solana-hash = "3.0.0"
+solana-hash = "4.0.0"
 solana-keypair = "3.0.0"
-solana-program-test = "3.0.0"
 solana-signer = "3.0.0"
-solana-transaction = "3.0.0"
+solana-transaction = { version = "3.0.0", features = ["bincode"] }
 solana-transaction-error = "3.0.0"
 spl-tlv-account-resolution = { version = "0.11.1" }
 serde_json = "1.0.145"
 test-case = "3.3.1"
+tokio = { version = "1", features = ["macros", "rt"] }
 
 [lib]
 crate-type = ["cdylib", "lib"]
