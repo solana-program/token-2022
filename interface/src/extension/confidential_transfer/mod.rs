@@ -179,6 +179,20 @@ impl ConfidentialTransferAccount {
         Ok(())
     }
 
+    /// Checks if a confidential extension is configured to receive withheld tokens.
+    ///
+    /// Since withheld tokens are credited directly to the available balance,
+    /// we do not need to check the pending balance credit counter.
+    pub fn valid_as_withheld_amount_destination(&self) -> ProgramResult {
+        self.approved()?;
+
+        if !bool::from(self.allow_confidential_credits) {
+            return Err(TokenError::ConfidentialTransferDepositsAndTransfersDisabled.into());
+        }
+
+        Ok(())
+    }
+
     /// Increments a confidential extension pending balance credit counter.
     pub fn increment_pending_balance_credit_counter(&mut self) -> ProgramResult {
         self.pending_balance_credit_counter = (u64::from(self.pending_balance_credit_counter)
