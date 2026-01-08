@@ -34,6 +34,12 @@ impl Extension for ConfidentialMintBurn {
 
 impl ConfidentialMintBurn {
     /// Checks if the mint can be closed based on confidential supply state
+    ///
+    /// The check verifies that the encrypted supply is an identically zero
+    /// ElGamal ciphertext. In case the encrypted supply is zero, but not
+    /// an identically zero ciphertext, one must use the
+    /// `RotateSupplyElGamalPubkey` to update the supply ciphertext to an
+    /// identically zero ciphertext.
     pub fn closable(&self) -> ProgramResult {
         if self.confidential_supply == PodElGamalCiphertext::default() {
             Ok(())
