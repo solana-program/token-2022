@@ -1095,3 +1095,100 @@ async fn pause_confidential_mint_burn() {
         )))
     );
 }
+
+#[tokio::test]
+async fn fail_close_mint_with_confidential_supply() {
+    let confidential_transfer_authority = Keypair::new();
+    let auto_approve_new_accounts = true;
+    let auditor_elgamal_keypair = ElGamalKeypair::new_rand();
+    let auditor_elgamal_pubkey = (*auditor_elgamal_keypair.pubkey()).into();
+
+    let supply_elgamal_keypair = ElGamalKeypair::new_rand();
+    let supply_elgamal_pubkey = (*supply_elgamal_keypair.pubkey()).into();
+    let supply_aes_key = AeKey::new_rand();
+    let decryptable_supply = supply_aes_key.encrypt(0).into();
+
+    let mut context = TestContext::new().await;
+    context
+        .init_token_with_mint(vec![
+            ExtensionInitializationParams::MintCloseAuthority {
+                close_authority: Some(confidential_transfer_authority.pubkey()),
+            },
+            ExtensionInitializationParams::ConfidentialTransferMint {
+                authority: Some(confidential_transfer_authority.pubkey()),
+                auto_approve_new_accounts,
+                auditor_elgamal_pubkey: Some(auditor_elgamal_pubkey),
+            },
+            ExtensionInitializationParams::ConfidentialMintBurn {
+                supply_elgamal_pubkey,
+                decryptable_supply,
+            },
+        ])
+        .await
+        .unwrap();
+
+    let TokenContext {
+        token,
+        mint_authority,
+        alice,
+        ..
+    } = context.token_context.unwrap();
+
+    let alice_meta = ConfidentialTokenAccountMeta::new(&token, &alice).await;
+    let mint_amount = 100;
+
+    // Mint confidential tokens to Alice. This increases the confidential supply.
+    token
+        .confidential_transfer_mint(
+            &mint_authority.pubkey(),
+            &alice_meta.token_account,
+            None,
+            None,
+            None,
+            mint_amount,
+            &supply_elgamal_keypair,
+            alice_meta.elgamal_keypair.pubkey(),
+            Some(auditor_elgamal_keypair.pubkey()),
+            &supply_aes_key,
+            None,
+            &[&mint_authority],
+        )
+        .await
+        .unwrap();
+
+    // Apply pending balance to finalize the mint
+    token
+        .confidential_transfer_apply_pending_balance(
+            &alice_meta.token_account,
+            &alice.pubkey(),
+            None,
+            alice_meta.elgamal_keypair.secret(),
+            &alice_meta.aes_key,
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    // Attempt to close the mint.
+    // This should fail because the confidential supply is non-zero (100).
+    let err = token
+        .close_account(
+            token.get_address(),
+            &alice.pubkey(),
+            &confidential_transfer_authority.pubkey(),
+            &[&confidential_transfer_authority],
+        )
+        .await
+        .unwrap_err();
+
+    // 4. Assert that the error is MintHasSupply
+    assert_eq!(
+        err,
+        TokenClientError::Client(Box::new(TransportError::TransactionError(
+            TransactionError::InstructionError(
+                0,
+                InstructionError::Custom(TokenError::MintHasSupply as u32)
+            )
+        )))
+    );
+}

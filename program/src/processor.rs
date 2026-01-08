@@ -1273,6 +1273,10 @@ impl Processor {
             if u64::from(mint.base.supply) != 0 {
                 return Err(TokenError::MintHasSupply.into());
             }
+
+            if let Ok(confidential_mint_burn) = mint.get_extension::<ConfidentialMintBurn>() {
+                confidential_mint_burn.closable()?;
+            }
         } else {
             return Err(ProgramError::UninitializedAccount);
         }
