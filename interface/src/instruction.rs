@@ -731,8 +731,6 @@ pub enum TokenInstruction<'a> {
     ScaledUiAmountExtension,
     /// Instruction prefix for instructions to the pausable extension
     PausableExtension,
-    /// Instruction prefix for instructions to the permissioned burn extension
-    PermissionedBurnExtension,
     // 45
     /// Transfer lamports from a native SOL account to a destination account.
     ///
@@ -751,6 +749,8 @@ pub enum TokenInstruction<'a> {
         #[cfg_attr(feature = "serde", serde(with = "coption_u64_fromval"))]
         amount: COption<u64>,
     },
+    /// Instruction prefix for instructions to the permissioned burn extension
+    PermissionedBurnExtension,
 }
 impl<'a> TokenInstruction<'a> {
     /// Unpacks a byte buffer into a
@@ -893,11 +893,11 @@ impl<'a> TokenInstruction<'a> {
             42 => Self::ConfidentialMintBurnExtension,
             43 => Self::ScaledUiAmountExtension,
             44 => Self::PausableExtension,
-            46 => Self::PermissionedBurnExtension,
             45 => {
                 let (amount, _rest) = Self::unpack_u64_option(rest)?;
                 Self::UnwrapLamports { amount }
             }
+            46 => Self::PermissionedBurnExtension,
             _ => return Err(TokenError::InvalidInstruction.into()),
         })
     }
