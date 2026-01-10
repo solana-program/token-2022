@@ -33,6 +33,7 @@ export enum AuthorityType {
   GroupMemberPointer,
   ScaledUiAmount,
   Pause,
+  PermissionedBurn,
 }
 
 export type AuthorityTypeArgs = AuthorityType;

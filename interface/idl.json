@@ -8547,6 +8547,336 @@
             "offset": 0
           }
         ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "initializePermissionedBurn",
+        "docs": [
+          "Require permissioned burn for the given mint account.",
+          "",
+          "Fails if the mint has already been initialized, so must be called before `InitializeMint`."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The mint account to initialize."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 46
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "permissionedBurnDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 0
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "authority",
+            "docs": [
+              "The public key for the account that is required for token burning."
+            ],
+            "type": {
+              "kind": "publicKeyTypeNode"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "permissionedBurnDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "permissionedBurn",
+        "docs": [
+          "Burn tokens when the mint has the permissioned burn extension enabled."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "account",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The source account to burn from."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The token mint."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "permissionedBurnAuthority",
+            "isWritable": false,
+            "isSigner": true,
+            "isOptional": false,
+            "docs": [
+              "Authority configured on the mint that must sign any permissioned burn instruction."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The account's owner/delegate or its multisignature account."
+            ],
+            "defaultValue": {
+              "kind": "identityValueNode"
+            }
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 46
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "permissionedBurnDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 1
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "amount",
+            "docs": [
+              "The amount of tokens to burn."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "permissionedBurnDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "permissionedBurnChecked",
+        "docs": [
+          "Burn tokens with expected decimals when the mint has the permissioned burn extension enabled."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "account",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The source account to burn from."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "The token mint."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "permissionedBurnAuthority",
+            "isWritable": false,
+            "isSigner": true,
+            "isOptional": false,
+            "docs": [
+              "Authority configured on the mint that must sign any permissioned burn instruction."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": [
+              "The account's owner/delegate or its multisignature account."
+            ],
+            "defaultValue": {
+              "kind": "identityValueNode"
+            }
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 46
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "permissionedBurnDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 2
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "amount",
+            "docs": [
+              "The amount of tokens to burn."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "decimals",
+            "docs": [
+              "Expected number of base 10 digits to the right of the decimal place."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "permissionedBurnDiscriminator",
+            "offset": 1
+          }
+        ]
       }
     ],
     "definedTypes": [
@@ -8651,6 +8981,10 @@
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "pause"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "permissionedBurn"
             }
           ],
           "size": {
@@ -9965,6 +10299,36 @@
             {
               "kind": "enumEmptyVariantTypeNode",
               "name": "pausableAccount"
+            },
+            {
+              "kind": "enumStructVariantTypeNode",
+              "name": "permissionedBurn",
+              "struct": {
+                "kind": "sizePrefixTypeNode",
+                "type": {
+                  "kind": "structTypeNode",
+                  "fields": [
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "authority",
+                      "docs": [
+                        "Authority that is required for burning"
+                      ],
+                      "type": {
+                        "kind": "zeroableOptionTypeNode",
+                        "item": {
+                          "kind": "publicKeyTypeNode"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "prefix": {
+                  "kind": "numberTypeNode",
+                  "format": "u16",
+                  "endian": "le"
+                }
+              }
             }
           ],
           "size": {

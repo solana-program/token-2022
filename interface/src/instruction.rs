@@ -749,6 +749,8 @@ pub enum TokenInstruction<'a> {
         #[cfg_attr(feature = "serde", serde(with = "coption_u64_fromval"))]
         amount: COption<u64>,
     },
+    /// Instruction prefix for instructions to the permissioned burn extension
+    PermissionedBurnExtension,
 }
 impl<'a> TokenInstruction<'a> {
     /// Unpacks a byte buffer into a
@@ -895,6 +897,7 @@ impl<'a> TokenInstruction<'a> {
                 let (amount, _rest) = Self::unpack_u64_option(rest)?;
                 Self::UnwrapLamports { amount }
             }
+            46 => Self::PermissionedBurnExtension,
             _ => return Err(TokenError::InvalidInstruction.into()),
         })
     }
@@ -1079,6 +1082,9 @@ impl<'a> TokenInstruction<'a> {
                 buf.push(45);
                 Self::pack_u64_option(&amount, &mut buf);
             }
+            &Self::PermissionedBurnExtension => {
+                buf.push(46);
+            }
         };
         buf
     }
@@ -1201,6 +1207,8 @@ pub enum AuthorityType {
     ScaledUiAmount,
     /// Authority to pause or resume minting / transferring / burning
     Pause,
+    /// Authority to perform a permissioned token burn
+    PermissionedBurn,
 }
 
 impl AuthorityType {
@@ -1223,6 +1231,7 @@ impl AuthorityType {
             AuthorityType::GroupMemberPointer => 14,
             AuthorityType::ScaledUiAmount => 15,
             AuthorityType::Pause => 16,
+            AuthorityType::PermissionedBurn => 17,
         }
     }
 
@@ -1246,6 +1255,7 @@ impl AuthorityType {
             14 => Ok(AuthorityType::GroupMemberPointer),
             15 => Ok(AuthorityType::ScaledUiAmount),
             16 => Ok(AuthorityType::Pause),
+            17 => Ok(AuthorityType::PermissionedBurn),
             _ => Err(TokenError::InvalidInstruction.into()),
         }
     }
