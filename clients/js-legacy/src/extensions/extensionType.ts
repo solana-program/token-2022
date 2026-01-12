@@ -18,6 +18,7 @@ import { MINT_CLOSE_AUTHORITY_SIZE } from './mintCloseAuthority.js';
 import { NON_TRANSFERABLE_SIZE, NON_TRANSFERABLE_ACCOUNT_SIZE } from './nonTransferable.js';
 import { PAUSABLE_CONFIG_SIZE, PAUSABLE_ACCOUNT_SIZE } from './pausable/index.js';
 import { PERMANENT_DELEGATE_SIZE } from './permanentDelegate.js';
+import { PERMISSIONED_BURN_SIZE } from './permissionedBurn/state.js';
 import { SCALED_UI_AMOUNT_CONFIG_SIZE } from './scaledUiAmount/index.js';
 import { TRANSFER_FEE_AMOUNT_SIZE, TRANSFER_FEE_CONFIG_SIZE } from './transferFee/index.js';
 import { TRANSFER_HOOK_ACCOUNT_SIZE, TRANSFER_HOOK_SIZE } from './transferHook/index.js';
@@ -53,6 +54,7 @@ export enum ExtensionType {
     ScaledUiAmountConfig = 25,
     PausableConfig = 26,
     PausableAccount = 27,
+    PermissionedBurn = 28,
 }
 
 export const TYPE_SIZE = 2;
@@ -123,6 +125,8 @@ export function getTypeLen(e: ExtensionType): number {
             return PAUSABLE_CONFIG_SIZE;
         case ExtensionType.PausableAccount:
             return PAUSABLE_ACCOUNT_SIZE;
+        case ExtensionType.PermissionedBurn:
+            return PERMISSIONED_BURN_SIZE;
         case ExtensionType.TokenMetadata:
             throw Error(`Cannot get type length for variable extension type: ${e}`);
         default:
@@ -148,6 +152,7 @@ export function isMintExtension(e: ExtensionType): boolean {
         case ExtensionType.TokenGroupMember:
         case ExtensionType.ScaledUiAmountConfig:
         case ExtensionType.PausableConfig:
+        case ExtensionType.PermissionedBurn:
             return true;
         case ExtensionType.Uninitialized:
         case ExtensionType.TransferFeeAmount:
@@ -192,6 +197,7 @@ export function isAccountExtension(e: ExtensionType): boolean {
         case ExtensionType.TokenGroupMember:
         case ExtensionType.ScaledUiAmountConfig:
         case ExtensionType.PausableConfig:
+        case ExtensionType.PermissionedBurn:
             return false;
         default:
             throw Error(`Unknown extension type: ${e}`);
@@ -230,6 +236,7 @@ export function getAccountTypeOfMintType(e: ExtensionType): ExtensionType {
         case ExtensionType.TokenGroupMember:
         case ExtensionType.ScaledUiAmountConfig:
         case ExtensionType.PausableAccount:
+        case ExtensionType.PermissionedBurn:
             return ExtensionType.Uninitialized;
     }
 }

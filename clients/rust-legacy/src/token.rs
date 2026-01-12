@@ -44,9 +44,9 @@ use {
                 self, ConfidentialTransferFeeAmount, ConfidentialTransferFeeConfig,
             },
             cpi_guard, default_account_state, group_member_pointer, group_pointer,
-            interest_bearing_mint, memo_transfer, metadata_pointer, pausable, scaled_ui_amount,
-            transfer_fee, transfer_hook, BaseStateWithExtensions, Extension, ExtensionType,
-            StateWithExtensionsOwned,
+            interest_bearing_mint, memo_transfer, metadata_pointer, pausable, permissioned_burn,
+            scaled_ui_amount, transfer_fee, transfer_hook, BaseStateWithExtensions, Extension,
+            ExtensionType, StateWithExtensionsOwned,
         },
         instruction,
         solana_zk_sdk::{
@@ -201,6 +201,9 @@ pub enum ExtensionInitializationParams {
     PausableConfig {
         authority: Pubkey,
     },
+    PermissionedBurnConfig {
+        authority: Pubkey,
+    },
     ConfidentialMintBurn {
         supply_elgamal_pubkey: PodElGamalPubkey,
         decryptable_supply: PodAeCiphertext,
@@ -226,6 +229,7 @@ impl ExtensionInitializationParams {
             Self::GroupMemberPointer { .. } => ExtensionType::GroupMemberPointer,
             Self::ScaledUiAmountConfig { .. } => ExtensionType::ScaledUiAmount,
             Self::PausableConfig { .. } => ExtensionType::Pausable,
+            Self::PermissionedBurnConfig { .. } => ExtensionType::PermissionedBurn,
             Self::ConfidentialMintBurn { .. } => ExtensionType::ConfidentialMintBurn,
         }
     }
@@ -347,6 +351,9 @@ impl ExtensionInitializationParams {
             ),
             Self::PausableConfig { authority } => {
                 pausable::instruction::initialize(token_program_id, mint, &authority)
+            }
+            Self::PermissionedBurnConfig { authority } => {
+                permissioned_burn::instruction::initialize(token_program_id, mint, &authority)
             }
             Self::ConfidentialMintBurn {
                 supply_elgamal_pubkey,

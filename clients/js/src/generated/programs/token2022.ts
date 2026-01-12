@@ -62,6 +62,7 @@ import {
   type ParsedInitializeNonTransferableMintInstruction,
   type ParsedInitializePausableConfigInstruction,
   type ParsedInitializePermanentDelegateInstruction,
+  type ParsedInitializePermissionedBurnInstruction,
   type ParsedInitializeScaledUiAmountMintInstruction,
   type ParsedInitializeTokenGroupInstruction,
   type ParsedInitializeTokenGroupMemberInstruction,
@@ -71,6 +72,8 @@ import {
   type ParsedMintToCheckedInstruction,
   type ParsedMintToInstruction,
   type ParsedPauseInstruction,
+  type ParsedPermissionedBurnCheckedInstruction,
+  type ParsedPermissionedBurnInstruction,
   type ParsedReallocateInstruction,
   type ParsedRemoveTokenMetadataKeyInstruction,
   type ParsedResumeInstruction,
@@ -219,6 +222,9 @@ export enum Token2022Instruction {
   UpdateTokenGroupUpdateAuthority,
   InitializeTokenGroupMember,
   UnwrapLamports,
+  InitializePermissionedBurn,
+  PermissionedBurn,
+  PermissionedBurnChecked,
 }
 
 export function identifyToken2022Instruction(
@@ -676,6 +682,24 @@ export function identifyToken2022Instruction(
   if (containsBytes(data, getU8Encoder().encode(45), 0)) {
     return Token2022Instruction.UnwrapLamports;
   }
+  if (
+    containsBytes(data, getU8Encoder().encode(46), 0) &&
+    containsBytes(data, getU8Encoder().encode(0), 1)
+  ) {
+    return Token2022Instruction.InitializePermissionedBurn;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(46), 0) &&
+    containsBytes(data, getU8Encoder().encode(1), 1)
+  ) {
+    return Token2022Instruction.PermissionedBurn;
+  }
+  if (
+    containsBytes(data, getU8Encoder().encode(46), 0) &&
+    containsBytes(data, getU8Encoder().encode(2), 1)
+  ) {
+    return Token2022Instruction.PermissionedBurnChecked;
+  }
   throw new Error(
     'The provided instruction could not be identified as a token-2022 instruction.'
   );
@@ -947,4 +971,13 @@ export type ParsedToken2022Instruction<
     } & ParsedInitializeTokenGroupMemberInstruction<TProgram>)
   | ({
       instructionType: Token2022Instruction.UnwrapLamports;
-    } & ParsedUnwrapLamportsInstruction<TProgram>);
+    } & ParsedUnwrapLamportsInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.InitializePermissionedBurn;
+    } & ParsedInitializePermissionedBurnInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.PermissionedBurn;
+    } & ParsedPermissionedBurnInstruction<TProgram>)
+  | ({
+      instructionType: Token2022Instruction.PermissionedBurnChecked;
+    } & ParsedPermissionedBurnCheckedInstruction<TProgram>);
