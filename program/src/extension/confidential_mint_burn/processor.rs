@@ -221,10 +221,8 @@ fn process_confidential_mint(
         return Err(ProgramError::InvalidInstructionData);
     }
 
-    if let Some(auditor_pubkey) = Option::<PodElGamalPubkey>::from(auditor_elgamal_pubkey) {
-        if auditor_pubkey != proof_context.mint_pubkeys.auditor {
-            return Err(ProgramError::InvalidInstructionData);
-        }
+    if !auditor_elgamal_pubkey.equals(&proof_context.mint_pubkeys.auditor) {
+        return Err(TokenError::ConfidentialTransferElGamalPubkeyMismatch.into());
     }
 
     let proof_context_auditor_ciphertext_lo = proof_context
