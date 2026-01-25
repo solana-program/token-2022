@@ -24,7 +24,10 @@ pub fn verify_mint_proof(
     ciphertext_validity_proof_instruction_offset: i8,
     range_proof_instruction_offset: i8,
 ) -> Result<MintProofContext, ProgramError> {
-    let sysvar_account_info = if equality_proof_instruction_offset != 0 {
+    let sysvar_account_info = if equality_proof_instruction_offset != 0
+        || ciphertext_validity_proof_instruction_offset != 0
+        || range_proof_instruction_offset != 0
+    {
         Some(next_account_info(account_info_iter)?)
     } else {
         None
@@ -72,7 +75,10 @@ pub fn verify_burn_proof(
     ciphertext_validity_proof_instruction_offset: i8,
     range_proof_instruction_offset: i8,
 ) -> Result<BurnProofContext, ProgramError> {
-    let sysvar_account_info = if equality_proof_instruction_offset != 0 {
+    let sysvar_account_info = if equality_proof_instruction_offset != 0
+        || ciphertext_validity_proof_instruction_offset != 0
+        || range_proof_instruction_offset != 0
+    {
         Some(next_account_info(account_info_iter)?)
     } else {
         None
