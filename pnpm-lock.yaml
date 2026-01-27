@@ -9,8 +9,8 @@ importers:
   .:
     devDependencies:
       '@codama/renderers-js':
-        specifier: ^1.4.3
-        version: 1.4.3(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+        specifier: ^1.5.5
+        version: 1.5.5(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
       '@codama/renderers-rust':
         specifier: ^1.2.9
         version: 1.2.9(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
@@ -33,34 +33,21 @@ packages:
     resolution: {integrity: sha512-0uLecW/RZC2c1wx3j/eiRAYvilvNY+2DoyEYu/hV0OfM1/uIgIyuy5U+wolV+LY4wLFYdApjYdy+5D32lngCHg==}
     hasBin: true
 
-  '@codama/errors@1.3.7':
-    resolution: {integrity: sha512-96BF8agDVc2vAgL4qw1lZZfuJ7XBefdzTBk2VOUnOhdMQiLb0QhJCC4BH88OcL+rZXQdet4pk7Qwarj1I1GFKg==}
-    hasBin: true
-
   '@codama/errors@1.5.0':
     resolution: {integrity: sha512-i4cS+S7JaZXhofQHFY3cwzt8rqxUVPNaeJND5VOyKUbtcOi933YXJXk52gDG4mc+CpGqHJijsJjfSpr1lJGxzg==}
     hasBin: true
 
-  '@codama/node-types@1.3.7':
-    resolution: {integrity: sha512-L9UTFfoeki5t+BYJAa4OMsqBPpbMbx8YJQar+55mYcjwGlJsKJW7mRfLYvwEFkCUYyLdNva40OVmTf88jccZCA==}
-
   '@codama/node-types@1.5.0':
     resolution: {integrity: sha512-Ebz2vOUukmNaFXWdkni1ZihXkAIUnPYtqIMXYxKXOxjMP+TGz2q0lGtRo7sqw1pc2ksFBIkfBp5pZsl5p6gwXA==}
-
-  '@codama/nodes@1.3.7':
-    resolution: {integrity: sha512-3OV6SIBcqsIDARyzZVGdfnffNlnKSYcb0aGp/9Liz5/EID0oBTIyuh/Cmj5Ww6RX4WPb+GNAxABAGW94zbcfQg==}
 
   '@codama/nodes@1.5.0':
     resolution: {integrity: sha512-yg+xmorWiMNjS3n19CGIt/FZ/ZCuDIu+HEY45bq6gHu1MN3RtJZY+Q3v0ErnBPA60D8mNWkvkKoeSZXfzcAvfw==}
 
-  '@codama/renderers-core@1.2.2':
-    resolution: {integrity: sha512-dPyHgn5L45G+tWP17ITvOlpX3+s2FcJHMjAhFZlmUHAJpH/wl+UsUwuWg698iSb56Er2jUwqX7srw5iZf7XHjQ==}
-
   '@codama/renderers-core@1.3.5':
     resolution: {integrity: sha512-MuZLU+3LZPQb1HuZffwZl+v5JHQDe5LYHGhA1wTMNlwRedYIysSxBjogHNciNIHsKP3JjmqyYmLO5LCEp3hjaQ==}
 
-  '@codama/renderers-js@1.4.3':
-    resolution: {integrity: sha512-FC/wba6IZayKeWk710XP0OJN50kf9B6cVQGo6uXb8M8hMw9qjSJLDPwpou57Y0V7tja3kjTFPBb3I9zHheeDtQ==}
+  '@codama/renderers-js@1.5.5':
+    resolution: {integrity: sha512-zYVw8KGRHFzrpPKAv8PJI1pMy28qc/iEMspMC6Iw915Vsg0od75FUmUhDAvrTwgc28oyCmlrsWv6BNON4AKmqQ==}
     engines: {node: '>=20.18.0'}
 
   '@codama/renderers-rust@1.2.9':
@@ -69,9 +56,6 @@ packages:
 
   '@codama/validators@1.5.0':
     resolution: {integrity: sha512-p3ufDxnCH1jiuHGzcBv4/d+ctzUcKD2K3gX/W8169tC41o9DggjlEpNy1Z6YAAhVb3wHnmXVGA2qmp32rWSfWw==}
-
-  '@codama/visitors-core@1.3.7':
-    resolution: {integrity: sha512-B1JnzhRDJiLxewha/F3YzeEp8Zrtd7eKiGNJFJHSPufAnIVm2lQUDaKS+OrAOHnSRmRKIAVdzfpFpdz6EM0N6Q==}
 
   '@codama/visitors-core@1.5.0':
     resolution: {integrity: sha512-3PIAlBX0a06hIxzyPtQMfQcqWGFBgfbwysSwcXBbvHUYbemwhD6xwlBKJuqTwm9DyFj3faStp5fpvcp03Rjxtw==}
@@ -82,20 +66,8 @@ packages:
   '@iarna/toml@2.2.5':
     resolution: {integrity: sha512-trnsAYxU3xnS1gPHPyU961coFyLkh4gAD/0zQ5mymY4yOZ+CYvsPqUbOFSw0aDM4y0tV7tiFxL/1XfXPNC6IPg==}
 
-  '@solana/codecs-core@4.0.0':
-    resolution: {integrity: sha512-28kNUsyIlhU3MO3/7ZLDqeJf2YAm32B4tnTjl5A9HrbBqsTZ+upT/RzxZGP1MMm7jnPuIKCMwmTpsyqyR6IUpw==}
-    engines: {node: '>=20.18.0'}
-    peerDependencies:
-      typescript: '>=5.3.3'
-
   '@solana/codecs-core@5.0.0':
     resolution: {integrity: sha512-rCG2d8OaamVF2/J//YyCgDqNJpUytVVltw9C8mJtEz5c6Se/LR6BFuG8g4xeJswq/ab4RFk5/HFdgbvNjKgQjA==}
-    engines: {node: '>=20.18.0'}
-    peerDependencies:
-      typescript: '>=5.3.3'
-
-  '@solana/codecs-numbers@4.0.0':
-    resolution: {integrity: sha512-z9zpjtcwzqT9rbkKVZpkWB5/0V7+6YRKs6BccHkGJlaDx8Pe/+XOvPi2rEdXPqrPd9QWb5Xp1iBfcgaDMyiOiA==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.3.3'
@@ -106,25 +78,11 @@ packages:
     peerDependencies:
       typescript: '>=5.3.3'
 
-  '@solana/codecs-strings@4.0.0':
-    resolution: {integrity: sha512-XvyD+sQ1zyA0amfxbpoFZsucLoe+yASQtDiLUGMDg5TZ82IHE3B7n82jE8d8cTAqi0HgqQiwU13snPhvg1O0Ow==}
-    engines: {node: '>=20.18.0'}
-    peerDependencies:
-      fastestsmallesttextencoderdecoder: ^1.0.22
-      typescript: '>=5.3.3'
-
   '@solana/codecs-strings@5.0.0':
     resolution: {integrity: sha512-ALkRwpV8bGR6qjAYw0YXZwp2YI4wzvKOJGmx04Ut8gMdbaUx7qOcJkhEQKI6ZVC3lAWSIS1N1wGccUZDwvfKxw==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       fastestsmallesttextencoderdecoder: ^1.0.22
-      typescript: '>=5.3.3'
-
-  '@solana/errors@4.0.0':
-    resolution: {integrity: sha512-3YEtvcMvtcnTl4HahqLt0VnaGVf7vVWOnt6/uPky5e0qV6BlxDSbGkbBzttNjxLXHognV0AQi3pjvrtfUnZmbg==}
-    engines: {node: '>=20.18.0'}
-    hasBin: true
-    peerDependencies:
       typescript: '>=5.3.3'
 
   '@solana/errors@5.0.0':
@@ -256,14 +214,19 @@ packages:
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
 
-  prettier@3.6.2:
-    resolution: {integrity: sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ==}
+  prettier@3.7.4:
+    resolution: {integrity: sha512-v6UNi1+3hSlVvv8fSaoUbggEM5VErKmmpGA7Pl3HF8V6uKY7rvClBOJlH6yNwQtfTueNkGVpOv/mtWL9L4bgRA==}
     engines: {node: '>=14'}
     hasBin: true
 
   prompts@2.4.2:
     resolution: {integrity: sha512-NxNv/kLguCA7p3jE8oL2aEBsrJWgAakBpgmgK6lpPWV+WuOmY6r2/zbAVnP+T8bQlA0nzHXSJSJW0Hq7ylaD2Q==}
     engines: {node: '>= 6'}
+
+  semver@7.7.3:
+    resolution: {integrity: sha512-SdsKMrI9TdgjdweUSR9MweHA4EJ8YxHn8DFaDisvhVlUOe4BF1tLD7GAj0lIqWVl+dPb/rExr0Btby5loQm20Q==}
+    engines: {node: '>=10'}
+    hasBin: true
 
   set-function-length@1.2.2:
     resolution: {integrity: sha512-pgRc4hJ4/sNjWCSS9AmnS40x3bNMDTknHgL5UaMBTMyJnU90EgWh1Rz+MC9eFu4BuN/UwZjKQuY/1v3rM7HMfg==}
@@ -293,37 +256,18 @@ snapshots:
       picocolors: 1.1.1
       prompts: 2.4.2
 
-  '@codama/errors@1.3.7':
-    dependencies:
-      '@codama/node-types': 1.3.7
-      commander: 14.0.1
-      picocolors: 1.1.1
-
   '@codama/errors@1.5.0':
     dependencies:
       '@codama/node-types': 1.5.0
       commander: 14.0.2
       picocolors: 1.1.1
 
-  '@codama/node-types@1.3.7': {}
-
   '@codama/node-types@1.5.0': {}
-
-  '@codama/nodes@1.3.7':
-    dependencies:
-      '@codama/errors': 1.3.7
-      '@codama/node-types': 1.3.7
 
   '@codama/nodes@1.5.0':
     dependencies:
       '@codama/errors': 1.5.0
       '@codama/node-types': 1.5.0
-
-  '@codama/renderers-core@1.2.2':
-    dependencies:
-      '@codama/errors': 1.3.7
-      '@codama/nodes': 1.3.7
-      '@codama/visitors-core': 1.3.7
 
   '@codama/renderers-core@1.3.5':
     dependencies:
@@ -331,14 +275,15 @@ snapshots:
       '@codama/nodes': 1.5.0
       '@codama/visitors-core': 1.5.0
 
-  '@codama/renderers-js@1.4.3(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
+  '@codama/renderers-js@1.5.5(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
     dependencies:
-      '@codama/errors': 1.3.7
-      '@codama/nodes': 1.3.7
-      '@codama/renderers-core': 1.2.2
-      '@codama/visitors-core': 1.3.7
-      '@solana/codecs-strings': 4.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
-      prettier: 3.6.2
+      '@codama/errors': 1.5.0
+      '@codama/nodes': 1.5.0
+      '@codama/renderers-core': 1.3.5
+      '@codama/visitors-core': 1.5.0
+      '@solana/codecs-strings': 5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      prettier: 3.7.4
+      semver: 7.7.3
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
       - typescript
@@ -362,12 +307,6 @@ snapshots:
       '@codama/nodes': 1.5.0
       '@codama/visitors-core': 1.5.0
 
-  '@codama/visitors-core@1.3.7':
-    dependencies:
-      '@codama/errors': 1.3.7
-      '@codama/nodes': 1.3.7
-      json-stable-stringify: 1.3.0
-
   '@codama/visitors-core@1.5.0':
     dependencies:
       '@codama/errors': 1.5.0
@@ -382,20 +321,9 @@ snapshots:
 
   '@iarna/toml@2.2.5': {}
 
-  '@solana/codecs-core@4.0.0(typescript@5.9.3)':
-    dependencies:
-      '@solana/errors': 4.0.0(typescript@5.9.3)
-      typescript: 5.9.3
-
   '@solana/codecs-core@5.0.0(typescript@5.9.3)':
     dependencies:
       '@solana/errors': 5.0.0(typescript@5.9.3)
-      typescript: 5.9.3
-
-  '@solana/codecs-numbers@4.0.0(typescript@5.9.3)':
-    dependencies:
-      '@solana/codecs-core': 4.0.0(typescript@5.9.3)
-      '@solana/errors': 4.0.0(typescript@5.9.3)
       typescript: 5.9.3
 
   '@solana/codecs-numbers@5.0.0(typescript@5.9.3)':
@@ -404,26 +332,12 @@ snapshots:
       '@solana/errors': 5.0.0(typescript@5.9.3)
       typescript: 5.9.3
 
-  '@solana/codecs-strings@4.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
-    dependencies:
-      '@solana/codecs-core': 4.0.0(typescript@5.9.3)
-      '@solana/codecs-numbers': 4.0.0(typescript@5.9.3)
-      '@solana/errors': 4.0.0(typescript@5.9.3)
-      fastestsmallesttextencoderdecoder: 1.0.22
-      typescript: 5.9.3
-
   '@solana/codecs-strings@5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
     dependencies:
       '@solana/codecs-core': 5.0.0(typescript@5.9.3)
       '@solana/codecs-numbers': 5.0.0(typescript@5.9.3)
       '@solana/errors': 5.0.0(typescript@5.9.3)
       fastestsmallesttextencoderdecoder: 1.0.22
-      typescript: 5.9.3
-
-  '@solana/errors@4.0.0(typescript@5.9.3)':
-    dependencies:
-      chalk: 5.6.2
-      commander: 14.0.1
       typescript: 5.9.3
 
   '@solana/errors@5.0.0(typescript@5.9.3)':
@@ -549,12 +463,14 @@ snapshots:
 
   picocolors@1.1.1: {}
 
-  prettier@3.6.2: {}
+  prettier@3.7.4: {}
 
   prompts@2.4.2:
     dependencies:
       kleur: 3.0.3
       sisteransi: 1.0.5
+
+  semver@7.7.3: {}
 
   set-function-length@1.2.2:
     dependencies:
