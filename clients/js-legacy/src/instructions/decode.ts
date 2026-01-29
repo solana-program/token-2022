@@ -28,6 +28,8 @@ import type { DecodedInitializeMint2Instruction } from './initializeMint2.js';
 import { decodeInitializeMint2Instruction } from './initializeMint2.js';
 import type { DecodedInitializeMultisigInstruction } from './initializeMultisig.js';
 import { decodeInitializeMultisigInstruction } from './initializeMultisig.js';
+import type { DecodedInitializeMultisig2Instruction } from './initializeMultisig2.js';
+import { decodeInitializeMultisig2Instruction } from './initializeMultisig2.js';
 import type { DecodedMintToInstruction } from './mintTo.js';
 import { decodeMintToInstruction } from './mintTo.js';
 import type { DecodedMintToCheckedInstruction } from './mintToChecked.js';
@@ -48,7 +50,7 @@ import { TokenInstruction } from './types.js';
 import type { DecodedUiAmountToAmountInstruction } from './uiAmountToAmount.js';
 import { decodeUiAmountToAmountInstruction } from './uiAmountToAmount.js';
 
-/** TODO: docs */
+/** Union type for all decoded instructions */
 export type DecodedInstruction =
     | DecodedInitializeMintInstruction
     | DecodedInitializeAccountInstruction
@@ -69,14 +71,12 @@ export type DecodedInstruction =
     | DecodedInitializeAccount2Instruction
     | DecodedSyncNativeInstruction
     | DecodedInitializeAccount3Instruction
+    | DecodedInitializeMultisig2Instruction
     | DecodedInitializeMint2Instruction
     | DecodedAmountToUiAmountInstruction
-    | DecodedUiAmountToAmountInstruction
-    // | DecodedInitializeMultisig2Instruction
-    // TODO: implement ^ and remove `never`
-    | never;
+    | DecodedUiAmountToAmountInstruction;
 
-/** TODO: docs */
+/** Decode and validate any token instruction */
 export function decodeInstruction(
     instruction: TransactionInstruction,
     programId = TOKEN_PROGRAM_ID,
@@ -106,11 +106,11 @@ export function decodeInstruction(
     if (type === TokenInstruction.SyncNative) return decodeSyncNativeInstruction(instruction, programId);
     if (type === TokenInstruction.InitializeAccount3)
         return decodeInitializeAccount3Instruction(instruction, programId);
+    if (type === TokenInstruction.InitializeMultisig2)
+        return decodeInitializeMultisig2Instruction(instruction, programId);
     if (type === TokenInstruction.InitializeMint2) return decodeInitializeMint2Instruction(instruction, programId);
     if (type === TokenInstruction.AmountToUiAmount) return decodeAmountToUiAmountInstruction(instruction, programId);
     if (type === TokenInstruction.UiAmountToAmount) return decodeUiAmountToAmountInstruction(instruction, programId);
-    // TODO: implement
-    if (type === TokenInstruction.InitializeMultisig2) throw new TokenInvalidInstructionTypeError();
 
     throw new TokenInvalidInstructionTypeError();
 }
@@ -213,21 +213,21 @@ export function isSyncNativeInstruction(decoded: DecodedInstruction): decoded is
     return decoded.data.instruction === TokenInstruction.SyncNative;
 }
 
-/** TODO: docs */
+/** Type guard to check if instruction is InitializeAccount3 */
 export function isInitializeAccount3Instruction(
     decoded: DecodedInstruction,
 ): decoded is DecodedInitializeAccount3Instruction {
     return decoded.data.instruction === TokenInstruction.InitializeAccount3;
 }
 
-/** TODO: docs, implement */
-// export function isInitializeMultisig2Instruction(
-//     decoded: DecodedInstruction
-// ): decoded is DecodedInitializeMultisig2Instruction {
-//     return decoded.data.instruction === TokenInstruction.InitializeMultisig2;
-// }
+/** Type guard to check if instruction is InitializeMultisig2 */
+export function isInitializeMultisig2Instruction(
+    decoded: DecodedInstruction,
+): decoded is DecodedInitializeMultisig2Instruction {
+    return decoded.data.instruction === TokenInstruction.InitializeMultisig2;
+}
 
-/** TODO: docs */
+/** Type guard to check if instruction is InitializeMint2 */
 export function isInitializeMint2Instruction(
     decoded: DecodedInstruction,
 ): decoded is DecodedInitializeMint2Instruction {
