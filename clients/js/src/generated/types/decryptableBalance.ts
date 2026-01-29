@@ -7,15 +7,15 @@
  */
 
 import {
-  combineCodec,
-  fixDecoderSize,
-  fixEncoderSize,
-  getBytesDecoder,
-  getBytesEncoder,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type ReadonlyUint8Array,
+    combineCodec,
+    fixDecoderSize,
+    fixEncoderSize,
+    getBytesDecoder,
+    getBytesEncoder,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type ReadonlyUint8Array,
 } from '@solana/kit';
 
 /** Authenticated encryption containing an account balance. */
@@ -24,19 +24,13 @@ export type DecryptableBalance = ReadonlyUint8Array;
 export type DecryptableBalanceArgs = DecryptableBalance;
 
 export function getDecryptableBalanceEncoder(): FixedSizeEncoder<DecryptableBalanceArgs> {
-  return fixEncoderSize(getBytesEncoder(), 36);
+    return fixEncoderSize(getBytesEncoder(), 36);
 }
 
 export function getDecryptableBalanceDecoder(): FixedSizeDecoder<DecryptableBalance> {
-  return fixDecoderSize(getBytesDecoder(), 36);
+    return fixDecoderSize(getBytesDecoder(), 36);
 }
 
-export function getDecryptableBalanceCodec(): FixedSizeCodec<
-  DecryptableBalanceArgs,
-  DecryptableBalance
-> {
-  return combineCodec(
-    getDecryptableBalanceEncoder(),
-    getDecryptableBalanceDecoder()
-  );
+export function getDecryptableBalanceCodec(): FixedSizeCodec<DecryptableBalanceArgs, DecryptableBalance> {
+    return combineCodec(getDecryptableBalanceEncoder(), getDecryptableBalanceDecoder());
 }

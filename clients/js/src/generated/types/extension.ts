@@ -7,1449 +7,1112 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
-  combineCodec,
-  getAddressDecoder,
-  getAddressEncoder,
-  getBooleanDecoder,
-  getBooleanEncoder,
-  getDiscriminatedUnionDecoder,
-  getDiscriminatedUnionEncoder,
-  getF64Decoder,
-  getF64Encoder,
-  getI16Decoder,
-  getI16Encoder,
-  getMapDecoder,
-  getMapEncoder,
-  getOptionDecoder,
-  getOptionEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU16Decoder,
-  getU16Encoder,
-  getU32Decoder,
-  getU32Encoder,
-  getU64Decoder,
-  getU64Encoder,
-  getUnitDecoder,
-  getUnitEncoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
-  type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type GetDiscriminatedUnionVariant,
-  type GetDiscriminatedUnionVariantContent,
-  type Option,
-  type OptionOrNullable,
+    addDecoderSizePrefix,
+    addEncoderSizePrefix,
+    combineCodec,
+    getAddressDecoder,
+    getAddressEncoder,
+    getBooleanDecoder,
+    getBooleanEncoder,
+    getDiscriminatedUnionDecoder,
+    getDiscriminatedUnionEncoder,
+    getF64Decoder,
+    getF64Encoder,
+    getI16Decoder,
+    getI16Encoder,
+    getMapDecoder,
+    getMapEncoder,
+    getOptionDecoder,
+    getOptionEncoder,
+    getStructDecoder,
+    getStructEncoder,
+    getU16Decoder,
+    getU16Encoder,
+    getU32Decoder,
+    getU32Encoder,
+    getU64Decoder,
+    getU64Encoder,
+    getUnitDecoder,
+    getUnitEncoder,
+    getUtf8Decoder,
+    getUtf8Encoder,
+    type Address,
+    type Codec,
+    type Decoder,
+    type Encoder,
+    type GetDiscriminatedUnionVariant,
+    type GetDiscriminatedUnionVariantContent,
+    type Option,
+    type OptionOrNullable,
 } from '@solana/kit';
 import {
-  getAccountStateDecoder,
-  getAccountStateEncoder,
-  getDecryptableBalanceDecoder,
-  getDecryptableBalanceEncoder,
-  getEncryptedBalanceDecoder,
-  getEncryptedBalanceEncoder,
-  getTransferFeeDecoder,
-  getTransferFeeEncoder,
-  type AccountState,
-  type AccountStateArgs,
-  type DecryptableBalance,
-  type DecryptableBalanceArgs,
-  type EncryptedBalance,
-  type EncryptedBalanceArgs,
-  type TransferFee,
-  type TransferFeeArgs,
+    getAccountStateDecoder,
+    getAccountStateEncoder,
+    getDecryptableBalanceDecoder,
+    getDecryptableBalanceEncoder,
+    getEncryptedBalanceDecoder,
+    getEncryptedBalanceEncoder,
+    getTransferFeeDecoder,
+    getTransferFeeEncoder,
+    type AccountState,
+    type AccountStateArgs,
+    type DecryptableBalance,
+    type DecryptableBalanceArgs,
+    type EncryptedBalance,
+    type EncryptedBalanceArgs,
+    type TransferFee,
+    type TransferFeeArgs,
 } from '.';
 
 export type Extension =
-  | { __kind: 'Uninitialized' }
-  | {
-      __kind: 'TransferFeeConfig';
-      /** Optional authority to set the fee. */
-      transferFeeConfigAuthority: Address;
-      /** Withdraw from mint instructions must be signed by this key. */
-      withdrawWithheldAuthority: Address;
-      /** Withheld transfer fee tokens that have been moved to the mint for withdrawal. */
-      withheldAmount: bigint;
-      /** Older transfer fee, used if the current epoch < newerTransferFee.epoch. */
-      olderTransferFee: TransferFee;
-      /** Newer transfer fee, used if the current epoch >= newerTransferFee.epoch. */
-      newerTransferFee: TransferFee;
-    }
-  | {
-      __kind: 'TransferFeeAmount';
-      /** Withheld transfer fee tokens that can be claimed by the fee authority. */
-      withheldAmount: bigint;
-    }
-  | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
-  | {
-      __kind: 'ConfidentialTransferMint';
-      /**
-       * Authority to modify the `ConfidentialTransferMint` configuration and to
-       * approve new accounts (if `auto_approve_new_accounts` is true).
-       *
-       * The legacy Token Multisig account is not supported as the authority.
-       */
-      authority: Option<Address>;
-      /**
-       * Indicate if newly configured accounts must be approved by the
-       * `authority` before they may be used by the user.
-       *
-       * * If `true`, no approval is required and new accounts may be used immediately.
-       * * If `false`, the authority must approve newly configured accounts (see
-       *   `ConfidentialTransferInstruction::ConfigureAccount`).
-       */
-      autoApproveNewAccounts: boolean;
-      /** Authority to decode any transfer amount in a confidential transfer. */
-      auditorElgamalPubkey: Option<Address>;
-    }
-  | {
-      __kind: 'ConfidentialTransferAccount';
-      /**
-       * `true` if this account has been approved for use. All confidential
-       * transfer operations for the account will fail until approval is granted.
-       */
-      approved: boolean;
-      /** The public key associated with ElGamal encryption. */
-      elgamalPubkey: Address;
-      /** The low 16 bits of the pending balance (encrypted by `elgamal_pubkey`). */
-      pendingBalanceLow: EncryptedBalance;
-      /** The high 32 bits of the pending balance (encrypted by `elgamal_pubkey`). */
-      pendingBalanceHigh: EncryptedBalance;
-      /** The available balance (encrypted by `encrypiton_pubkey`). */
-      availableBalance: EncryptedBalance;
-      /** The decryptable available balance. */
-      decryptableAvailableBalance: DecryptableBalance;
-      /** If `false`, the extended account rejects any incoming confidential transfers. */
-      allowConfidentialCredits: boolean;
-      /** If `false`, the base account rejects any incoming transfers. */
-      allowNonConfidentialCredits: boolean;
-      /** The total number of `Deposit` and `Transfer` instructions that have credited `pending_balance`. */
-      pendingBalanceCreditCounter: bigint;
-      /**
-       * The maximum number of `Deposit` and `Transfer` instructions that can
-       * credit `pending_balance` before the `ApplyPendingBalance`
-       * instruction is executed.
-       */
-      maximumPendingBalanceCreditCounter: bigint;
-      /**
-       * The `expected_pending_balance_credit_counter` value that was included in
-       * the last `ApplyPendingBalance` instruction.
-       */
-      expectedPendingBalanceCreditCounter: bigint;
-      /**
-       * The actual `pending_balance_credit_counter` when the last
-       * `ApplyPendingBalance` instruction was executed.
-       */
-      actualPendingBalanceCreditCounter: bigint;
-    }
-  | { __kind: 'DefaultAccountState'; state: AccountState }
-  | { __kind: 'ImmutableOwner' }
-  | {
-      __kind: 'MemoTransfer';
-      /** Require transfers into this account to be accompanied by a memo. */
-      requireIncomingTransferMemos: boolean;
-    }
-  | { __kind: 'NonTransferable' }
-  | {
-      __kind: 'InterestBearingConfig';
-      rateAuthority: Address;
-      initializationTimestamp: bigint;
-      preUpdateAverageRate: number;
-      lastUpdateTimestamp: bigint;
-      currentRate: number;
-    }
-  | {
-      __kind: 'CpiGuard';
-      /** Lock certain token operations from taking place within CPI for this account. */
-      lockCpi: boolean;
-    }
-  | { __kind: 'PermanentDelegate'; delegate: Address }
-  | { __kind: 'NonTransferableAccount' }
-  | {
-      __kind: 'TransferHook';
-      /** The transfer hook update authority. */
-      authority: Address;
-      /** The transfer hook program account. */
-      programId: Address;
-    }
-  | {
-      __kind: 'TransferHookAccount';
-      /**
-       * Whether or not this account is currently transferring tokens
-       * True during the transfer hook cpi, otherwise false.
-       */
-      transferring: boolean;
-    }
-  | {
-      __kind: 'ConfidentialTransferFee';
-      /** Optional authority to set the withdraw withheld authority ElGamal key. */
-      authority: Option<Address>;
-      /**
-       * Withheld fees from accounts must be encrypted with this ElGamal key.
-       *
-       * Note that whoever holds the ElGamal private key for this ElGamal public
-       * key has the ability to decode any withheld fee amount that are
-       * associated with accounts. When combined with the fee parameters, the
-       * withheld fee amounts can reveal information about transfer amounts.
-       */
-      elgamalPubkey: Address;
-      /** If `false`, the harvest of withheld tokens to mint is rejected. */
-      harvestToMintEnabled: boolean;
-      /**
-       * Withheld confidential transfer fee tokens that have been moved to the
-       * mint for withdrawal.
-       */
-      withheldAmount: EncryptedBalance;
-    }
-  | {
-      __kind: 'ConfidentialTransferFeeAmount';
-      /** Amount withheld during confidential transfers, to be harvest to the mint. */
-      withheldAmount: EncryptedBalance;
-    }
-  | {
-      __kind: 'MetadataPointer';
-      /** Optional authority that can set the metadata address. */
-      authority: Option<Address>;
-      /** Optional Account Address that holds the metadata. */
-      metadataAddress: Option<Address>;
-    }
-  | {
-      __kind: 'TokenMetadata';
-      /** The authority that can sign to update the metadata. */
-      updateAuthority: Option<Address>;
-      /** The associated mint, used to counter spoofing to be sure that metadata belongs to a particular mint. */
-      mint: Address;
-      /** The longer name of the token. */
-      name: string;
-      /** The shortened symbol for the token. */
-      symbol: string;
-      /** The URI pointing to richer metadata. */
-      uri: string;
-      /** Any additional metadata about the token as key-value pairs. */
-      additionalMetadata: Map<string, string>;
-    }
-  | {
-      __kind: 'GroupPointer';
-      /** Optional authority that can set the group address. */
-      authority: Option<Address>;
-      /** Optional account address that holds the group. */
-      groupAddress: Option<Address>;
-    }
-  | {
-      __kind: 'TokenGroup';
-      /** The authority that can sign to update the group. */
-      updateAuthority: Option<Address>;
-      /** The associated mint, used to counter spoofing to be sure that group belongs to a particular mint. */
-      mint: Address;
-      /** The current number of group members. */
-      size: bigint;
-      /** The maximum number of group members. */
-      maxSize: bigint;
-    }
-  | {
-      __kind: 'GroupMemberPointer';
-      /** Optional authority that can set the member address. */
-      authority: Option<Address>;
-      /** Optional account address that holds the member. */
-      memberAddress: Option<Address>;
-    }
-  | {
-      __kind: 'TokenGroupMember';
-      /** The associated mint, used to counter spoofing to be sure that member belongs to a particular mint. */
-      mint: Address;
-      /** The pubkey of the `TokenGroup`. */
-      group: Address;
-      /** The member number. */
-      memberNumber: bigint;
-    }
-  | { __kind: 'ConfidentialMintBurn' }
-  | {
-      __kind: 'ScaledUiAmountConfig';
-      authority: Address;
-      multiplier: number;
-      newMultiplierEffectiveTimestamp: bigint;
-      newMultiplier: number;
-    }
-  | { __kind: 'PausableConfig'; authority: Option<Address>; paused: boolean }
-  | { __kind: 'PausableAccount' }
-  | {
-      __kind: 'PermissionedBurn';
-      /** Authority that is required for burning */
-      authority: Option<Address>;
-    };
+    | { __kind: 'Uninitialized' }
+    | {
+          __kind: 'TransferFeeConfig';
+          /** Optional authority to set the fee. */
+          transferFeeConfigAuthority: Address;
+          /** Withdraw from mint instructions must be signed by this key. */
+          withdrawWithheldAuthority: Address;
+          /** Withheld transfer fee tokens that have been moved to the mint for withdrawal. */
+          withheldAmount: bigint;
+          /** Older transfer fee, used if the current epoch < newerTransferFee.epoch. */
+          olderTransferFee: TransferFee;
+          /** Newer transfer fee, used if the current epoch >= newerTransferFee.epoch. */
+          newerTransferFee: TransferFee;
+      }
+    | {
+          __kind: 'TransferFeeAmount';
+          /** Withheld transfer fee tokens that can be claimed by the fee authority. */
+          withheldAmount: bigint;
+      }
+    | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
+    | {
+          __kind: 'ConfidentialTransferMint';
+          /**
+           * Authority to modify the `ConfidentialTransferMint` configuration and to
+           * approve new accounts (if `auto_approve_new_accounts` is true).
+           *
+           * The legacy Token Multisig account is not supported as the authority.
+           */
+          authority: Option<Address>;
+          /**
+           * Indicate if newly configured accounts must be approved by the
+           * `authority` before they may be used by the user.
+           *
+           * * If `true`, no approval is required and new accounts may be used immediately.
+           * * If `false`, the authority must approve newly configured accounts (see
+           *   `ConfidentialTransferInstruction::ConfigureAccount`).
+           */
+          autoApproveNewAccounts: boolean;
+          /** Authority to decode any transfer amount in a confidential transfer. */
+          auditorElgamalPubkey: Option<Address>;
+      }
+    | {
+          __kind: 'ConfidentialTransferAccount';
+          /**
+           * `true` if this account has been approved for use. All confidential
+           * transfer operations for the account will fail until approval is granted.
+           */
+          approved: boolean;
+          /** The public key associated with ElGamal encryption. */
+          elgamalPubkey: Address;
+          /** The low 16 bits of the pending balance (encrypted by `elgamal_pubkey`). */
+          pendingBalanceLow: EncryptedBalance;
+          /** The high 32 bits of the pending balance (encrypted by `elgamal_pubkey`). */
+          pendingBalanceHigh: EncryptedBalance;
+          /** The available balance (encrypted by `encrypiton_pubkey`). */
+          availableBalance: EncryptedBalance;
+          /** The decryptable available balance. */
+          decryptableAvailableBalance: DecryptableBalance;
+          /** If `false`, the extended account rejects any incoming confidential transfers. */
+          allowConfidentialCredits: boolean;
+          /** If `false`, the base account rejects any incoming transfers. */
+          allowNonConfidentialCredits: boolean;
+          /** The total number of `Deposit` and `Transfer` instructions that have credited `pending_balance`. */
+          pendingBalanceCreditCounter: bigint;
+          /**
+           * The maximum number of `Deposit` and `Transfer` instructions that can
+           * credit `pending_balance` before the `ApplyPendingBalance`
+           * instruction is executed.
+           */
+          maximumPendingBalanceCreditCounter: bigint;
+          /**
+           * The `expected_pending_balance_credit_counter` value that was included in
+           * the last `ApplyPendingBalance` instruction.
+           */
+          expectedPendingBalanceCreditCounter: bigint;
+          /**
+           * The actual `pending_balance_credit_counter` when the last
+           * `ApplyPendingBalance` instruction was executed.
+           */
+          actualPendingBalanceCreditCounter: bigint;
+      }
+    | { __kind: 'DefaultAccountState'; state: AccountState }
+    | { __kind: 'ImmutableOwner' }
+    | {
+          __kind: 'MemoTransfer';
+          /** Require transfers into this account to be accompanied by a memo. */
+          requireIncomingTransferMemos: boolean;
+      }
+    | { __kind: 'NonTransferable' }
+    | {
+          __kind: 'InterestBearingConfig';
+          rateAuthority: Address;
+          initializationTimestamp: bigint;
+          preUpdateAverageRate: number;
+          lastUpdateTimestamp: bigint;
+          currentRate: number;
+      }
+    | {
+          __kind: 'CpiGuard';
+          /** Lock certain token operations from taking place within CPI for this account. */
+          lockCpi: boolean;
+      }
+    | { __kind: 'PermanentDelegate'; delegate: Address }
+    | { __kind: 'NonTransferableAccount' }
+    | {
+          __kind: 'TransferHook';
+          /** The transfer hook update authority. */
+          authority: Address;
+          /** The transfer hook program account. */
+          programId: Address;
+      }
+    | {
+          __kind: 'TransferHookAccount';
+          /**
+           * Whether or not this account is currently transferring tokens
+           * True during the transfer hook cpi, otherwise false.
+           */
+          transferring: boolean;
+      }
+    | {
+          __kind: 'ConfidentialTransferFee';
+          /** Optional authority to set the withdraw withheld authority ElGamal key. */
+          authority: Option<Address>;
+          /**
+           * Withheld fees from accounts must be encrypted with this ElGamal key.
+           *
+           * Note that whoever holds the ElGamal private key for this ElGamal public
+           * key has the ability to decode any withheld fee amount that are
+           * associated with accounts. When combined with the fee parameters, the
+           * withheld fee amounts can reveal information about transfer amounts.
+           */
+          elgamalPubkey: Address;
+          /** If `false`, the harvest of withheld tokens to mint is rejected. */
+          harvestToMintEnabled: boolean;
+          /**
+           * Withheld confidential transfer fee tokens that have been moved to the
+           * mint for withdrawal.
+           */
+          withheldAmount: EncryptedBalance;
+      }
+    | {
+          __kind: 'ConfidentialTransferFeeAmount';
+          /** Amount withheld during confidential transfers, to be harvest to the mint. */
+          withheldAmount: EncryptedBalance;
+      }
+    | {
+          __kind: 'MetadataPointer';
+          /** Optional authority that can set the metadata address. */
+          authority: Option<Address>;
+          /** Optional Account Address that holds the metadata. */
+          metadataAddress: Option<Address>;
+      }
+    | {
+          __kind: 'TokenMetadata';
+          /** The authority that can sign to update the metadata. */
+          updateAuthority: Option<Address>;
+          /** The associated mint, used to counter spoofing to be sure that metadata belongs to a particular mint. */
+          mint: Address;
+          /** The longer name of the token. */
+          name: string;
+          /** The shortened symbol for the token. */
+          symbol: string;
+          /** The URI pointing to richer metadata. */
+          uri: string;
+          /** Any additional metadata about the token as key-value pairs. */
+          additionalMetadata: Map<string, string>;
+      }
+    | {
+          __kind: 'GroupPointer';
+          /** Optional authority that can set the group address. */
+          authority: Option<Address>;
+          /** Optional account address that holds the group. */
+          groupAddress: Option<Address>;
+      }
+    | {
+          __kind: 'TokenGroup';
+          /** The authority that can sign to update the group. */
+          updateAuthority: Option<Address>;
+          /** The associated mint, used to counter spoofing to be sure that group belongs to a particular mint. */
+          mint: Address;
+          /** The current number of group members. */
+          size: bigint;
+          /** The maximum number of group members. */
+          maxSize: bigint;
+      }
+    | {
+          __kind: 'GroupMemberPointer';
+          /** Optional authority that can set the member address. */
+          authority: Option<Address>;
+          /** Optional account address that holds the member. */
+          memberAddress: Option<Address>;
+      }
+    | {
+          __kind: 'TokenGroupMember';
+          /** The associated mint, used to counter spoofing to be sure that member belongs to a particular mint. */
+          mint: Address;
+          /** The pubkey of the `TokenGroup`. */
+          group: Address;
+          /** The member number. */
+          memberNumber: bigint;
+      }
+    | { __kind: 'ConfidentialMintBurn' }
+    | {
+          __kind: 'ScaledUiAmountConfig';
+          authority: Address;
+          multiplier: number;
+          newMultiplierEffectiveTimestamp: bigint;
+          newMultiplier: number;
+      }
+    | { __kind: 'PausableConfig'; authority: Option<Address>; paused: boolean }
+    | { __kind: 'PausableAccount' }
+    | {
+          __kind: 'PermissionedBurn';
+          /** Authority that is required for burning */
+          authority: Option<Address>;
+      };
 
 export type ExtensionArgs =
-  | { __kind: 'Uninitialized' }
-  | {
-      __kind: 'TransferFeeConfig';
-      /** Optional authority to set the fee. */
-      transferFeeConfigAuthority: Address;
-      /** Withdraw from mint instructions must be signed by this key. */
-      withdrawWithheldAuthority: Address;
-      /** Withheld transfer fee tokens that have been moved to the mint for withdrawal. */
-      withheldAmount: number | bigint;
-      /** Older transfer fee, used if the current epoch < newerTransferFee.epoch. */
-      olderTransferFee: TransferFeeArgs;
-      /** Newer transfer fee, used if the current epoch >= newerTransferFee.epoch. */
-      newerTransferFee: TransferFeeArgs;
-    }
-  | {
-      __kind: 'TransferFeeAmount';
-      /** Withheld transfer fee tokens that can be claimed by the fee authority. */
-      withheldAmount: number | bigint;
-    }
-  | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
-  | {
-      __kind: 'ConfidentialTransferMint';
-      /**
-       * Authority to modify the `ConfidentialTransferMint` configuration and to
-       * approve new accounts (if `auto_approve_new_accounts` is true).
-       *
-       * The legacy Token Multisig account is not supported as the authority.
-       */
-      authority: OptionOrNullable<Address>;
-      /**
-       * Indicate if newly configured accounts must be approved by the
-       * `authority` before they may be used by the user.
-       *
-       * * If `true`, no approval is required and new accounts may be used immediately.
-       * * If `false`, the authority must approve newly configured accounts (see
-       *   `ConfidentialTransferInstruction::ConfigureAccount`).
-       */
-      autoApproveNewAccounts: boolean;
-      /** Authority to decode any transfer amount in a confidential transfer. */
-      auditorElgamalPubkey: OptionOrNullable<Address>;
-    }
-  | {
-      __kind: 'ConfidentialTransferAccount';
-      /**
-       * `true` if this account has been approved for use. All confidential
-       * transfer operations for the account will fail until approval is granted.
-       */
-      approved: boolean;
-      /** The public key associated with ElGamal encryption. */
-      elgamalPubkey: Address;
-      /** The low 16 bits of the pending balance (encrypted by `elgamal_pubkey`). */
-      pendingBalanceLow: EncryptedBalanceArgs;
-      /** The high 32 bits of the pending balance (encrypted by `elgamal_pubkey`). */
-      pendingBalanceHigh: EncryptedBalanceArgs;
-      /** The available balance (encrypted by `encrypiton_pubkey`). */
-      availableBalance: EncryptedBalanceArgs;
-      /** The decryptable available balance. */
-      decryptableAvailableBalance: DecryptableBalanceArgs;
-      /** If `false`, the extended account rejects any incoming confidential transfers. */
-      allowConfidentialCredits: boolean;
-      /** If `false`, the base account rejects any incoming transfers. */
-      allowNonConfidentialCredits: boolean;
-      /** The total number of `Deposit` and `Transfer` instructions that have credited `pending_balance`. */
-      pendingBalanceCreditCounter: number | bigint;
-      /**
-       * The maximum number of `Deposit` and `Transfer` instructions that can
-       * credit `pending_balance` before the `ApplyPendingBalance`
-       * instruction is executed.
-       */
-      maximumPendingBalanceCreditCounter: number | bigint;
-      /**
-       * The `expected_pending_balance_credit_counter` value that was included in
-       * the last `ApplyPendingBalance` instruction.
-       */
-      expectedPendingBalanceCreditCounter: number | bigint;
-      /**
-       * The actual `pending_balance_credit_counter` when the last
-       * `ApplyPendingBalance` instruction was executed.
-       */
-      actualPendingBalanceCreditCounter: number | bigint;
-    }
-  | { __kind: 'DefaultAccountState'; state: AccountStateArgs }
-  | { __kind: 'ImmutableOwner' }
-  | {
-      __kind: 'MemoTransfer';
-      /** Require transfers into this account to be accompanied by a memo. */
-      requireIncomingTransferMemos: boolean;
-    }
-  | { __kind: 'NonTransferable' }
-  | {
-      __kind: 'InterestBearingConfig';
-      rateAuthority: Address;
-      initializationTimestamp: number | bigint;
-      preUpdateAverageRate: number;
-      lastUpdateTimestamp: number | bigint;
-      currentRate: number;
-    }
-  | {
-      __kind: 'CpiGuard';
-      /** Lock certain token operations from taking place within CPI for this account. */
-      lockCpi: boolean;
-    }
-  | { __kind: 'PermanentDelegate'; delegate: Address }
-  | { __kind: 'NonTransferableAccount' }
-  | {
-      __kind: 'TransferHook';
-      /** The transfer hook update authority. */
-      authority: Address;
-      /** The transfer hook program account. */
-      programId: Address;
-    }
-  | {
-      __kind: 'TransferHookAccount';
-      /**
-       * Whether or not this account is currently transferring tokens
-       * True during the transfer hook cpi, otherwise false.
-       */
-      transferring: boolean;
-    }
-  | {
-      __kind: 'ConfidentialTransferFee';
-      /** Optional authority to set the withdraw withheld authority ElGamal key. */
-      authority: OptionOrNullable<Address>;
-      /**
-       * Withheld fees from accounts must be encrypted with this ElGamal key.
-       *
-       * Note that whoever holds the ElGamal private key for this ElGamal public
-       * key has the ability to decode any withheld fee amount that are
-       * associated with accounts. When combined with the fee parameters, the
-       * withheld fee amounts can reveal information about transfer amounts.
-       */
-      elgamalPubkey: Address;
-      /** If `false`, the harvest of withheld tokens to mint is rejected. */
-      harvestToMintEnabled: boolean;
-      /**
-       * Withheld confidential transfer fee tokens that have been moved to the
-       * mint for withdrawal.
-       */
-      withheldAmount: EncryptedBalanceArgs;
-    }
-  | {
-      __kind: 'ConfidentialTransferFeeAmount';
-      /** Amount withheld during confidential transfers, to be harvest to the mint. */
-      withheldAmount: EncryptedBalanceArgs;
-    }
-  | {
-      __kind: 'MetadataPointer';
-      /** Optional authority that can set the metadata address. */
-      authority: OptionOrNullable<Address>;
-      /** Optional Account Address that holds the metadata. */
-      metadataAddress: OptionOrNullable<Address>;
-    }
-  | {
-      __kind: 'TokenMetadata';
-      /** The authority that can sign to update the metadata. */
-      updateAuthority: OptionOrNullable<Address>;
-      /** The associated mint, used to counter spoofing to be sure that metadata belongs to a particular mint. */
-      mint: Address;
-      /** The longer name of the token. */
-      name: string;
-      /** The shortened symbol for the token. */
-      symbol: string;
-      /** The URI pointing to richer metadata. */
-      uri: string;
-      /** Any additional metadata about the token as key-value pairs. */
-      additionalMetadata: Map<string, string>;
-    }
-  | {
-      __kind: 'GroupPointer';
-      /** Optional authority that can set the group address. */
-      authority: OptionOrNullable<Address>;
-      /** Optional account address that holds the group. */
-      groupAddress: OptionOrNullable<Address>;
-    }
-  | {
-      __kind: 'TokenGroup';
-      /** The authority that can sign to update the group. */
-      updateAuthority: OptionOrNullable<Address>;
-      /** The associated mint, used to counter spoofing to be sure that group belongs to a particular mint. */
-      mint: Address;
-      /** The current number of group members. */
-      size: number | bigint;
-      /** The maximum number of group members. */
-      maxSize: number | bigint;
-    }
-  | {
-      __kind: 'GroupMemberPointer';
-      /** Optional authority that can set the member address. */
-      authority: OptionOrNullable<Address>;
-      /** Optional account address that holds the member. */
-      memberAddress: OptionOrNullable<Address>;
-    }
-  | {
-      __kind: 'TokenGroupMember';
-      /** The associated mint, used to counter spoofing to be sure that member belongs to a particular mint. */
-      mint: Address;
-      /** The pubkey of the `TokenGroup`. */
-      group: Address;
-      /** The member number. */
-      memberNumber: number | bigint;
-    }
-  | { __kind: 'ConfidentialMintBurn' }
-  | {
-      __kind: 'ScaledUiAmountConfig';
-      authority: Address;
-      multiplier: number;
-      newMultiplierEffectiveTimestamp: number | bigint;
-      newMultiplier: number;
-    }
-  | {
-      __kind: 'PausableConfig';
-      authority: OptionOrNullable<Address>;
-      paused: boolean;
-    }
-  | { __kind: 'PausableAccount' }
-  | {
-      __kind: 'PermissionedBurn';
-      /** Authority that is required for burning */
-      authority: OptionOrNullable<Address>;
-    };
+    | { __kind: 'Uninitialized' }
+    | {
+          __kind: 'TransferFeeConfig';
+          /** Optional authority to set the fee. */
+          transferFeeConfigAuthority: Address;
+          /** Withdraw from mint instructions must be signed by this key. */
+          withdrawWithheldAuthority: Address;
+          /** Withheld transfer fee tokens that have been moved to the mint for withdrawal. */
+          withheldAmount: number | bigint;
+          /** Older transfer fee, used if the current epoch < newerTransferFee.epoch. */
+          olderTransferFee: TransferFeeArgs;
+          /** Newer transfer fee, used if the current epoch >= newerTransferFee.epoch. */
+          newerTransferFee: TransferFeeArgs;
+      }
+    | {
+          __kind: 'TransferFeeAmount';
+          /** Withheld transfer fee tokens that can be claimed by the fee authority. */
+          withheldAmount: number | bigint;
+      }
+    | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
+    | {
+          __kind: 'ConfidentialTransferMint';
+          /**
+           * Authority to modify the `ConfidentialTransferMint` configuration and to
+           * approve new accounts (if `auto_approve_new_accounts` is true).
+           *
+           * The legacy Token Multisig account is not supported as the authority.
+           */
+          authority: OptionOrNullable<Address>;
+          /**
+           * Indicate if newly configured accounts must be approved by the
+           * `authority` before they may be used by the user.
+           *
+           * * If `true`, no approval is required and new accounts may be used immediately.
+           * * If `false`, the authority must approve newly configured accounts (see
+           *   `ConfidentialTransferInstruction::ConfigureAccount`).
+           */
+          autoApproveNewAccounts: boolean;
+          /** Authority to decode any transfer amount in a confidential transfer. */
+          auditorElgamalPubkey: OptionOrNullable<Address>;
+      }
+    | {
+          __kind: 'ConfidentialTransferAccount';
+          /**
+           * `true` if this account has been approved for use. All confidential
+           * transfer operations for the account will fail until approval is granted.
+           */
+          approved: boolean;
+          /** The public key associated with ElGamal encryption. */
+          elgamalPubkey: Address;
+          /** The low 16 bits of the pending balance (encrypted by `elgamal_pubkey`). */
+          pendingBalanceLow: EncryptedBalanceArgs;
+          /** The high 32 bits of the pending balance (encrypted by `elgamal_pubkey`). */
+          pendingBalanceHigh: EncryptedBalanceArgs;
+          /** The available balance (encrypted by `encrypiton_pubkey`). */
+          availableBalance: EncryptedBalanceArgs;
+          /** The decryptable available balance. */
+          decryptableAvailableBalance: DecryptableBalanceArgs;
+          /** If `false`, the extended account rejects any incoming confidential transfers. */
+          allowConfidentialCredits: boolean;
+          /** If `false`, the base account rejects any incoming transfers. */
+          allowNonConfidentialCredits: boolean;
+          /** The total number of `Deposit` and `Transfer` instructions that have credited `pending_balance`. */
+          pendingBalanceCreditCounter: number | bigint;
+          /**
+           * The maximum number of `Deposit` and `Transfer` instructions that can
+           * credit `pending_balance` before the `ApplyPendingBalance`
+           * instruction is executed.
+           */
+          maximumPendingBalanceCreditCounter: number | bigint;
+          /**
+           * The `expected_pending_balance_credit_counter` value that was included in
+           * the last `ApplyPendingBalance` instruction.
+           */
+          expectedPendingBalanceCreditCounter: number | bigint;
+          /**
+           * The actual `pending_balance_credit_counter` when the last
+           * `ApplyPendingBalance` instruction was executed.
+           */
+          actualPendingBalanceCreditCounter: number | bigint;
+      }
+    | { __kind: 'DefaultAccountState'; state: AccountStateArgs }
+    | { __kind: 'ImmutableOwner' }
+    | {
+          __kind: 'MemoTransfer';
+          /** Require transfers into this account to be accompanied by a memo. */
+          requireIncomingTransferMemos: boolean;
+      }
+    | { __kind: 'NonTransferable' }
+    | {
+          __kind: 'InterestBearingConfig';
+          rateAuthority: Address;
+          initializationTimestamp: number | bigint;
+          preUpdateAverageRate: number;
+          lastUpdateTimestamp: number | bigint;
+          currentRate: number;
+      }
+    | {
+          __kind: 'CpiGuard';
+          /** Lock certain token operations from taking place within CPI for this account. */
+          lockCpi: boolean;
+      }
+    | { __kind: 'PermanentDelegate'; delegate: Address }
+    | { __kind: 'NonTransferableAccount' }
+    | {
+          __kind: 'TransferHook';
+          /** The transfer hook update authority. */
+          authority: Address;
+          /** The transfer hook program account. */
+          programId: Address;
+      }
+    | {
+          __kind: 'TransferHookAccount';
+          /**
+           * Whether or not this account is currently transferring tokens
+           * True during the transfer hook cpi, otherwise false.
+           */
+          transferring: boolean;
+      }
+    | {
+          __kind: 'ConfidentialTransferFee';
+          /** Optional authority to set the withdraw withheld authority ElGamal key. */
+          authority: OptionOrNullable<Address>;
+          /**
+           * Withheld fees from accounts must be encrypted with this ElGamal key.
+           *
+           * Note that whoever holds the ElGamal private key for this ElGamal public
+           * key has the ability to decode any withheld fee amount that are
+           * associated with accounts. When combined with the fee parameters, the
+           * withheld fee amounts can reveal information about transfer amounts.
+           */
+          elgamalPubkey: Address;
+          /** If `false`, the harvest of withheld tokens to mint is rejected. */
+          harvestToMintEnabled: boolean;
+          /**
+           * Withheld confidential transfer fee tokens that have been moved to the
+           * mint for withdrawal.
+           */
+          withheldAmount: EncryptedBalanceArgs;
+      }
+    | {
+          __kind: 'ConfidentialTransferFeeAmount';
+          /** Amount withheld during confidential transfers, to be harvest to the mint. */
+          withheldAmount: EncryptedBalanceArgs;
+      }
+    | {
+          __kind: 'MetadataPointer';
+          /** Optional authority that can set the metadata address. */
+          authority: OptionOrNullable<Address>;
+          /** Optional Account Address that holds the metadata. */
+          metadataAddress: OptionOrNullable<Address>;
+      }
+    | {
+          __kind: 'TokenMetadata';
+          /** The authority that can sign to update the metadata. */
+          updateAuthority: OptionOrNullable<Address>;
+          /** The associated mint, used to counter spoofing to be sure that metadata belongs to a particular mint. */
+          mint: Address;
+          /** The longer name of the token. */
+          name: string;
+          /** The shortened symbol for the token. */
+          symbol: string;
+          /** The URI pointing to richer metadata. */
+          uri: string;
+          /** Any additional metadata about the token as key-value pairs. */
+          additionalMetadata: Map<string, string>;
+      }
+    | {
+          __kind: 'GroupPointer';
+          /** Optional authority that can set the group address. */
+          authority: OptionOrNullable<Address>;
+          /** Optional account address that holds the group. */
+          groupAddress: OptionOrNullable<Address>;
+      }
+    | {
+          __kind: 'TokenGroup';
+          /** The authority that can sign to update the group. */
+          updateAuthority: OptionOrNullable<Address>;
+          /** The associated mint, used to counter spoofing to be sure that group belongs to a particular mint. */
+          mint: Address;
+          /** The current number of group members. */
+          size: number | bigint;
+          /** The maximum number of group members. */
+          maxSize: number | bigint;
+      }
+    | {
+          __kind: 'GroupMemberPointer';
+          /** Optional authority that can set the member address. */
+          authority: OptionOrNullable<Address>;
+          /** Optional account address that holds the member. */
+          memberAddress: OptionOrNullable<Address>;
+      }
+    | {
+          __kind: 'TokenGroupMember';
+          /** The associated mint, used to counter spoofing to be sure that member belongs to a particular mint. */
+          mint: Address;
+          /** The pubkey of the `TokenGroup`. */
+          group: Address;
+          /** The member number. */
+          memberNumber: number | bigint;
+      }
+    | { __kind: 'ConfidentialMintBurn' }
+    | {
+          __kind: 'ScaledUiAmountConfig';
+          authority: Address;
+          multiplier: number;
+          newMultiplierEffectiveTimestamp: number | bigint;
+          newMultiplier: number;
+      }
+    | { __kind: 'PausableConfig'; authority: OptionOrNullable<Address>; paused: boolean }
+    | { __kind: 'PausableAccount' }
+    | {
+          __kind: 'PermissionedBurn';
+          /** Authority that is required for burning */
+          authority: OptionOrNullable<Address>;
+      };
 
 export function getExtensionEncoder(): Encoder<ExtensionArgs> {
-  return getDiscriminatedUnionEncoder(
-    [
-      ['Uninitialized', getUnitEncoder()],
-      [
-        'TransferFeeConfig',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            ['transferFeeConfigAuthority', getAddressEncoder()],
-            ['withdrawWithheldAuthority', getAddressEncoder()],
-            ['withheldAmount', getU64Encoder()],
-            ['olderTransferFee', getTransferFeeEncoder()],
-            ['newerTransferFee', getTransferFeeEncoder()],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'TransferFeeAmount',
-        addEncoderSizePrefix(
-          getStructEncoder([['withheldAmount', getU64Encoder()]]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'MintCloseAuthority',
-        addEncoderSizePrefix(
-          getStructEncoder([['closeAuthority', getAddressEncoder()]]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'ConfidentialTransferMint',
-        addEncoderSizePrefix(
-          getStructEncoder([
+    return getDiscriminatedUnionEncoder(
+        [
+            ['Uninitialized', getUnitEncoder()],
             [
-              'authority',
-              getOptionEncoder(getAddressEncoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
-            ],
-            ['autoApproveNewAccounts', getBooleanEncoder()],
-            [
-              'auditorElgamalPubkey',
-              getOptionEncoder(getAddressEncoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
-            ],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'ConfidentialTransferAccount',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            ['approved', getBooleanEncoder()],
-            ['elgamalPubkey', getAddressEncoder()],
-            ['pendingBalanceLow', getEncryptedBalanceEncoder()],
-            ['pendingBalanceHigh', getEncryptedBalanceEncoder()],
-            ['availableBalance', getEncryptedBalanceEncoder()],
-            ['decryptableAvailableBalance', getDecryptableBalanceEncoder()],
-            ['allowConfidentialCredits', getBooleanEncoder()],
-            ['allowNonConfidentialCredits', getBooleanEncoder()],
-            ['pendingBalanceCreditCounter', getU64Encoder()],
-            ['maximumPendingBalanceCreditCounter', getU64Encoder()],
-            ['expectedPendingBalanceCreditCounter', getU64Encoder()],
-            ['actualPendingBalanceCreditCounter', getU64Encoder()],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'DefaultAccountState',
-        addEncoderSizePrefix(
-          getStructEncoder([['state', getAccountStateEncoder()]]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'ImmutableOwner',
-        addEncoderSizePrefix(getStructEncoder([]), getU16Encoder()),
-      ],
-      [
-        'MemoTransfer',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            ['requireIncomingTransferMemos', getBooleanEncoder()],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'NonTransferable',
-        addEncoderSizePrefix(getStructEncoder([]), getU16Encoder()),
-      ],
-      [
-        'InterestBearingConfig',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            ['rateAuthority', getAddressEncoder()],
-            ['initializationTimestamp', getU64Encoder()],
-            ['preUpdateAverageRate', getI16Encoder()],
-            ['lastUpdateTimestamp', getU64Encoder()],
-            ['currentRate', getI16Encoder()],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'CpiGuard',
-        addEncoderSizePrefix(
-          getStructEncoder([['lockCpi', getBooleanEncoder()]]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'PermanentDelegate',
-        addEncoderSizePrefix(
-          getStructEncoder([['delegate', getAddressEncoder()]]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'NonTransferableAccount',
-        addEncoderSizePrefix(getStructEncoder([]), getU16Encoder()),
-      ],
-      [
-        'TransferHook',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            ['authority', getAddressEncoder()],
-            ['programId', getAddressEncoder()],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'TransferHookAccount',
-        addEncoderSizePrefix(
-          getStructEncoder([['transferring', getBooleanEncoder()]]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'ConfidentialTransferFee',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            [
-              'authority',
-              getOptionEncoder(getAddressEncoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
-            ],
-            ['elgamalPubkey', getAddressEncoder()],
-            ['harvestToMintEnabled', getBooleanEncoder()],
-            ['withheldAmount', getEncryptedBalanceEncoder()],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'ConfidentialTransferFeeAmount',
-        addEncoderSizePrefix(
-          getStructEncoder([['withheldAmount', getEncryptedBalanceEncoder()]]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'MetadataPointer',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            [
-              'authority',
-              getOptionEncoder(getAddressEncoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
+                'TransferFeeConfig',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        ['transferFeeConfigAuthority', getAddressEncoder()],
+                        ['withdrawWithheldAuthority', getAddressEncoder()],
+                        ['withheldAmount', getU64Encoder()],
+                        ['olderTransferFee', getTransferFeeEncoder()],
+                        ['newerTransferFee', getTransferFeeEncoder()],
+                    ]),
+                    getU16Encoder(),
+                ),
             ],
             [
-              'metadataAddress',
-              getOptionEncoder(getAddressEncoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
-            ],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'TokenMetadata',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            [
-              'updateAuthority',
-              getOptionEncoder(getAddressEncoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
-            ],
-            ['mint', getAddressEncoder()],
-            ['name', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-            ['symbol', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-            ['uri', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-            [
-              'additionalMetadata',
-              getMapEncoder(
-                addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
-                addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
-              ),
-            ],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'GroupPointer',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            [
-              'authority',
-              getOptionEncoder(getAddressEncoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
+                'TransferFeeAmount',
+                addEncoderSizePrefix(getStructEncoder([['withheldAmount', getU64Encoder()]]), getU16Encoder()),
             ],
             [
-              'groupAddress',
-              getOptionEncoder(getAddressEncoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
-            ],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'TokenGroup',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            [
-              'updateAuthority',
-              getOptionEncoder(getAddressEncoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
-            ],
-            ['mint', getAddressEncoder()],
-            ['size', getU64Encoder()],
-            ['maxSize', getU64Encoder()],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'GroupMemberPointer',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            [
-              'authority',
-              getOptionEncoder(getAddressEncoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
+                'MintCloseAuthority',
+                addEncoderSizePrefix(getStructEncoder([['closeAuthority', getAddressEncoder()]]), getU16Encoder()),
             ],
             [
-              'memberAddress',
-              getOptionEncoder(getAddressEncoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
+                'ConfidentialTransferMint',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        ['authority', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
+                        ['autoApproveNewAccounts', getBooleanEncoder()],
+                        [
+                            'auditorElgamalPubkey',
+                            getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' }),
+                        ],
+                    ]),
+                    getU16Encoder(),
+                ),
             ],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'TokenGroupMember',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            ['mint', getAddressEncoder()],
-            ['group', getAddressEncoder()],
-            ['memberNumber', getU64Encoder()],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      ['ConfidentialMintBurn', getUnitEncoder()],
-      [
-        'ScaledUiAmountConfig',
-        addEncoderSizePrefix(
-          getStructEncoder([
-            ['authority', getAddressEncoder()],
-            ['multiplier', getF64Encoder()],
-            ['newMultiplierEffectiveTimestamp', getU64Encoder()],
-            ['newMultiplier', getF64Encoder()],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      [
-        'PausableConfig',
-        addEncoderSizePrefix(
-          getStructEncoder([
             [
-              'authority',
-              getOptionEncoder(getAddressEncoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
+                'ConfidentialTransferAccount',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        ['approved', getBooleanEncoder()],
+                        ['elgamalPubkey', getAddressEncoder()],
+                        ['pendingBalanceLow', getEncryptedBalanceEncoder()],
+                        ['pendingBalanceHigh', getEncryptedBalanceEncoder()],
+                        ['availableBalance', getEncryptedBalanceEncoder()],
+                        ['decryptableAvailableBalance', getDecryptableBalanceEncoder()],
+                        ['allowConfidentialCredits', getBooleanEncoder()],
+                        ['allowNonConfidentialCredits', getBooleanEncoder()],
+                        ['pendingBalanceCreditCounter', getU64Encoder()],
+                        ['maximumPendingBalanceCreditCounter', getU64Encoder()],
+                        ['expectedPendingBalanceCreditCounter', getU64Encoder()],
+                        ['actualPendingBalanceCreditCounter', getU64Encoder()],
+                    ]),
+                    getU16Encoder(),
+                ),
             ],
-            ['paused', getBooleanEncoder()],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-      ['PausableAccount', getUnitEncoder()],
-      [
-        'PermissionedBurn',
-        addEncoderSizePrefix(
-          getStructEncoder([
             [
-              'authority',
-              getOptionEncoder(getAddressEncoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
+                'DefaultAccountState',
+                addEncoderSizePrefix(getStructEncoder([['state', getAccountStateEncoder()]]), getU16Encoder()),
             ],
-          ]),
-          getU16Encoder()
-        ),
-      ],
-    ],
-    { size: getU16Encoder() }
-  );
+            ['ImmutableOwner', addEncoderSizePrefix(getStructEncoder([]), getU16Encoder())],
+            [
+                'MemoTransfer',
+                addEncoderSizePrefix(
+                    getStructEncoder([['requireIncomingTransferMemos', getBooleanEncoder()]]),
+                    getU16Encoder(),
+                ),
+            ],
+            ['NonTransferable', addEncoderSizePrefix(getStructEncoder([]), getU16Encoder())],
+            [
+                'InterestBearingConfig',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        ['rateAuthority', getAddressEncoder()],
+                        ['initializationTimestamp', getU64Encoder()],
+                        ['preUpdateAverageRate', getI16Encoder()],
+                        ['lastUpdateTimestamp', getU64Encoder()],
+                        ['currentRate', getI16Encoder()],
+                    ]),
+                    getU16Encoder(),
+                ),
+            ],
+            ['CpiGuard', addEncoderSizePrefix(getStructEncoder([['lockCpi', getBooleanEncoder()]]), getU16Encoder())],
+            [
+                'PermanentDelegate',
+                addEncoderSizePrefix(getStructEncoder([['delegate', getAddressEncoder()]]), getU16Encoder()),
+            ],
+            ['NonTransferableAccount', addEncoderSizePrefix(getStructEncoder([]), getU16Encoder())],
+            [
+                'TransferHook',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        ['authority', getAddressEncoder()],
+                        ['programId', getAddressEncoder()],
+                    ]),
+                    getU16Encoder(),
+                ),
+            ],
+            [
+                'TransferHookAccount',
+                addEncoderSizePrefix(getStructEncoder([['transferring', getBooleanEncoder()]]), getU16Encoder()),
+            ],
+            [
+                'ConfidentialTransferFee',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        ['authority', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
+                        ['elgamalPubkey', getAddressEncoder()],
+                        ['harvestToMintEnabled', getBooleanEncoder()],
+                        ['withheldAmount', getEncryptedBalanceEncoder()],
+                    ]),
+                    getU16Encoder(),
+                ),
+            ],
+            [
+                'ConfidentialTransferFeeAmount',
+                addEncoderSizePrefix(
+                    getStructEncoder([['withheldAmount', getEncryptedBalanceEncoder()]]),
+                    getU16Encoder(),
+                ),
+            ],
+            [
+                'MetadataPointer',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        ['authority', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
+                        [
+                            'metadataAddress',
+                            getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' }),
+                        ],
+                    ]),
+                    getU16Encoder(),
+                ),
+            ],
+            [
+                'TokenMetadata',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        [
+                            'updateAuthority',
+                            getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' }),
+                        ],
+                        ['mint', getAddressEncoder()],
+                        ['name', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+                        ['symbol', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+                        ['uri', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+                        [
+                            'additionalMetadata',
+                            getMapEncoder(
+                                addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
+                                addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
+                            ),
+                        ],
+                    ]),
+                    getU16Encoder(),
+                ),
+            ],
+            [
+                'GroupPointer',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        ['authority', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
+                        ['groupAddress', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
+                    ]),
+                    getU16Encoder(),
+                ),
+            ],
+            [
+                'TokenGroup',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        [
+                            'updateAuthority',
+                            getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' }),
+                        ],
+                        ['mint', getAddressEncoder()],
+                        ['size', getU64Encoder()],
+                        ['maxSize', getU64Encoder()],
+                    ]),
+                    getU16Encoder(),
+                ),
+            ],
+            [
+                'GroupMemberPointer',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        ['authority', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
+                        ['memberAddress', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
+                    ]),
+                    getU16Encoder(),
+                ),
+            ],
+            [
+                'TokenGroupMember',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        ['mint', getAddressEncoder()],
+                        ['group', getAddressEncoder()],
+                        ['memberNumber', getU64Encoder()],
+                    ]),
+                    getU16Encoder(),
+                ),
+            ],
+            ['ConfidentialMintBurn', getUnitEncoder()],
+            [
+                'ScaledUiAmountConfig',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        ['authority', getAddressEncoder()],
+                        ['multiplier', getF64Encoder()],
+                        ['newMultiplierEffectiveTimestamp', getU64Encoder()],
+                        ['newMultiplier', getF64Encoder()],
+                    ]),
+                    getU16Encoder(),
+                ),
+            ],
+            [
+                'PausableConfig',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        ['authority', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
+                        ['paused', getBooleanEncoder()],
+                    ]),
+                    getU16Encoder(),
+                ),
+            ],
+            ['PausableAccount', getUnitEncoder()],
+            [
+                'PermissionedBurn',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        ['authority', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
+                    ]),
+                    getU16Encoder(),
+                ),
+            ],
+        ],
+        { size: getU16Encoder() },
+    );
 }
 
 export function getExtensionDecoder(): Decoder<Extension> {
-  return getDiscriminatedUnionDecoder(
-    [
-      ['Uninitialized', getUnitDecoder()],
-      [
-        'TransferFeeConfig',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            ['transferFeeConfigAuthority', getAddressDecoder()],
-            ['withdrawWithheldAuthority', getAddressDecoder()],
-            ['withheldAmount', getU64Decoder()],
-            ['olderTransferFee', getTransferFeeDecoder()],
-            ['newerTransferFee', getTransferFeeDecoder()],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'TransferFeeAmount',
-        addDecoderSizePrefix(
-          getStructDecoder([['withheldAmount', getU64Decoder()]]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'MintCloseAuthority',
-        addDecoderSizePrefix(
-          getStructDecoder([['closeAuthority', getAddressDecoder()]]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'ConfidentialTransferMint',
-        addDecoderSizePrefix(
-          getStructDecoder([
+    return getDiscriminatedUnionDecoder(
+        [
+            ['Uninitialized', getUnitDecoder()],
             [
-              'authority',
-              getOptionDecoder(getAddressDecoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
-            ],
-            ['autoApproveNewAccounts', getBooleanDecoder()],
-            [
-              'auditorElgamalPubkey',
-              getOptionDecoder(getAddressDecoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
-            ],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'ConfidentialTransferAccount',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            ['approved', getBooleanDecoder()],
-            ['elgamalPubkey', getAddressDecoder()],
-            ['pendingBalanceLow', getEncryptedBalanceDecoder()],
-            ['pendingBalanceHigh', getEncryptedBalanceDecoder()],
-            ['availableBalance', getEncryptedBalanceDecoder()],
-            ['decryptableAvailableBalance', getDecryptableBalanceDecoder()],
-            ['allowConfidentialCredits', getBooleanDecoder()],
-            ['allowNonConfidentialCredits', getBooleanDecoder()],
-            ['pendingBalanceCreditCounter', getU64Decoder()],
-            ['maximumPendingBalanceCreditCounter', getU64Decoder()],
-            ['expectedPendingBalanceCreditCounter', getU64Decoder()],
-            ['actualPendingBalanceCreditCounter', getU64Decoder()],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'DefaultAccountState',
-        addDecoderSizePrefix(
-          getStructDecoder([['state', getAccountStateDecoder()]]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'ImmutableOwner',
-        addDecoderSizePrefix(getStructDecoder([]), getU16Decoder()),
-      ],
-      [
-        'MemoTransfer',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            ['requireIncomingTransferMemos', getBooleanDecoder()],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'NonTransferable',
-        addDecoderSizePrefix(getStructDecoder([]), getU16Decoder()),
-      ],
-      [
-        'InterestBearingConfig',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            ['rateAuthority', getAddressDecoder()],
-            ['initializationTimestamp', getU64Decoder()],
-            ['preUpdateAverageRate', getI16Decoder()],
-            ['lastUpdateTimestamp', getU64Decoder()],
-            ['currentRate', getI16Decoder()],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'CpiGuard',
-        addDecoderSizePrefix(
-          getStructDecoder([['lockCpi', getBooleanDecoder()]]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'PermanentDelegate',
-        addDecoderSizePrefix(
-          getStructDecoder([['delegate', getAddressDecoder()]]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'NonTransferableAccount',
-        addDecoderSizePrefix(getStructDecoder([]), getU16Decoder()),
-      ],
-      [
-        'TransferHook',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            ['authority', getAddressDecoder()],
-            ['programId', getAddressDecoder()],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'TransferHookAccount',
-        addDecoderSizePrefix(
-          getStructDecoder([['transferring', getBooleanDecoder()]]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'ConfidentialTransferFee',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            [
-              'authority',
-              getOptionDecoder(getAddressDecoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
-            ],
-            ['elgamalPubkey', getAddressDecoder()],
-            ['harvestToMintEnabled', getBooleanDecoder()],
-            ['withheldAmount', getEncryptedBalanceDecoder()],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'ConfidentialTransferFeeAmount',
-        addDecoderSizePrefix(
-          getStructDecoder([['withheldAmount', getEncryptedBalanceDecoder()]]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'MetadataPointer',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            [
-              'authority',
-              getOptionDecoder(getAddressDecoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
+                'TransferFeeConfig',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        ['transferFeeConfigAuthority', getAddressDecoder()],
+                        ['withdrawWithheldAuthority', getAddressDecoder()],
+                        ['withheldAmount', getU64Decoder()],
+                        ['olderTransferFee', getTransferFeeDecoder()],
+                        ['newerTransferFee', getTransferFeeDecoder()],
+                    ]),
+                    getU16Decoder(),
+                ),
             ],
             [
-              'metadataAddress',
-              getOptionDecoder(getAddressDecoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
-            ],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'TokenMetadata',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            [
-              'updateAuthority',
-              getOptionDecoder(getAddressDecoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
-            ],
-            ['mint', getAddressDecoder()],
-            ['name', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-            ['symbol', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-            ['uri', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-            [
-              'additionalMetadata',
-              getMapDecoder(
-                addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder()),
-                addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())
-              ),
-            ],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'GroupPointer',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            [
-              'authority',
-              getOptionDecoder(getAddressDecoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
+                'TransferFeeAmount',
+                addDecoderSizePrefix(getStructDecoder([['withheldAmount', getU64Decoder()]]), getU16Decoder()),
             ],
             [
-              'groupAddress',
-              getOptionDecoder(getAddressDecoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
-            ],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'TokenGroup',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            [
-              'updateAuthority',
-              getOptionDecoder(getAddressDecoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
-            ],
-            ['mint', getAddressDecoder()],
-            ['size', getU64Decoder()],
-            ['maxSize', getU64Decoder()],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'GroupMemberPointer',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            [
-              'authority',
-              getOptionDecoder(getAddressDecoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
+                'MintCloseAuthority',
+                addDecoderSizePrefix(getStructDecoder([['closeAuthority', getAddressDecoder()]]), getU16Decoder()),
             ],
             [
-              'memberAddress',
-              getOptionDecoder(getAddressDecoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
+                'ConfidentialTransferMint',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        ['authority', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
+                        ['autoApproveNewAccounts', getBooleanDecoder()],
+                        [
+                            'auditorElgamalPubkey',
+                            getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' }),
+                        ],
+                    ]),
+                    getU16Decoder(),
+                ),
             ],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'TokenGroupMember',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            ['mint', getAddressDecoder()],
-            ['group', getAddressDecoder()],
-            ['memberNumber', getU64Decoder()],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      ['ConfidentialMintBurn', getUnitDecoder()],
-      [
-        'ScaledUiAmountConfig',
-        addDecoderSizePrefix(
-          getStructDecoder([
-            ['authority', getAddressDecoder()],
-            ['multiplier', getF64Decoder()],
-            ['newMultiplierEffectiveTimestamp', getU64Decoder()],
-            ['newMultiplier', getF64Decoder()],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      [
-        'PausableConfig',
-        addDecoderSizePrefix(
-          getStructDecoder([
             [
-              'authority',
-              getOptionDecoder(getAddressDecoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
+                'ConfidentialTransferAccount',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        ['approved', getBooleanDecoder()],
+                        ['elgamalPubkey', getAddressDecoder()],
+                        ['pendingBalanceLow', getEncryptedBalanceDecoder()],
+                        ['pendingBalanceHigh', getEncryptedBalanceDecoder()],
+                        ['availableBalance', getEncryptedBalanceDecoder()],
+                        ['decryptableAvailableBalance', getDecryptableBalanceDecoder()],
+                        ['allowConfidentialCredits', getBooleanDecoder()],
+                        ['allowNonConfidentialCredits', getBooleanDecoder()],
+                        ['pendingBalanceCreditCounter', getU64Decoder()],
+                        ['maximumPendingBalanceCreditCounter', getU64Decoder()],
+                        ['expectedPendingBalanceCreditCounter', getU64Decoder()],
+                        ['actualPendingBalanceCreditCounter', getU64Decoder()],
+                    ]),
+                    getU16Decoder(),
+                ),
             ],
-            ['paused', getBooleanDecoder()],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-      ['PausableAccount', getUnitDecoder()],
-      [
-        'PermissionedBurn',
-        addDecoderSizePrefix(
-          getStructDecoder([
             [
-              'authority',
-              getOptionDecoder(getAddressDecoder(), {
-                prefix: null,
-                noneValue: 'zeroes',
-              }),
+                'DefaultAccountState',
+                addDecoderSizePrefix(getStructDecoder([['state', getAccountStateDecoder()]]), getU16Decoder()),
             ],
-          ]),
-          getU16Decoder()
-        ),
-      ],
-    ],
-    { size: getU16Decoder() }
-  );
+            ['ImmutableOwner', addDecoderSizePrefix(getStructDecoder([]), getU16Decoder())],
+            [
+                'MemoTransfer',
+                addDecoderSizePrefix(
+                    getStructDecoder([['requireIncomingTransferMemos', getBooleanDecoder()]]),
+                    getU16Decoder(),
+                ),
+            ],
+            ['NonTransferable', addDecoderSizePrefix(getStructDecoder([]), getU16Decoder())],
+            [
+                'InterestBearingConfig',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        ['rateAuthority', getAddressDecoder()],
+                        ['initializationTimestamp', getU64Decoder()],
+                        ['preUpdateAverageRate', getI16Decoder()],
+                        ['lastUpdateTimestamp', getU64Decoder()],
+                        ['currentRate', getI16Decoder()],
+                    ]),
+                    getU16Decoder(),
+                ),
+            ],
+            ['CpiGuard', addDecoderSizePrefix(getStructDecoder([['lockCpi', getBooleanDecoder()]]), getU16Decoder())],
+            [
+                'PermanentDelegate',
+                addDecoderSizePrefix(getStructDecoder([['delegate', getAddressDecoder()]]), getU16Decoder()),
+            ],
+            ['NonTransferableAccount', addDecoderSizePrefix(getStructDecoder([]), getU16Decoder())],
+            [
+                'TransferHook',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        ['authority', getAddressDecoder()],
+                        ['programId', getAddressDecoder()],
+                    ]),
+                    getU16Decoder(),
+                ),
+            ],
+            [
+                'TransferHookAccount',
+                addDecoderSizePrefix(getStructDecoder([['transferring', getBooleanDecoder()]]), getU16Decoder()),
+            ],
+            [
+                'ConfidentialTransferFee',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        ['authority', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
+                        ['elgamalPubkey', getAddressDecoder()],
+                        ['harvestToMintEnabled', getBooleanDecoder()],
+                        ['withheldAmount', getEncryptedBalanceDecoder()],
+                    ]),
+                    getU16Decoder(),
+                ),
+            ],
+            [
+                'ConfidentialTransferFeeAmount',
+                addDecoderSizePrefix(
+                    getStructDecoder([['withheldAmount', getEncryptedBalanceDecoder()]]),
+                    getU16Decoder(),
+                ),
+            ],
+            [
+                'MetadataPointer',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        ['authority', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
+                        [
+                            'metadataAddress',
+                            getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' }),
+                        ],
+                    ]),
+                    getU16Decoder(),
+                ),
+            ],
+            [
+                'TokenMetadata',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        [
+                            'updateAuthority',
+                            getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' }),
+                        ],
+                        ['mint', getAddressDecoder()],
+                        ['name', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+                        ['symbol', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+                        ['uri', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+                        [
+                            'additionalMetadata',
+                            getMapDecoder(
+                                addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder()),
+                                addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder()),
+                            ),
+                        ],
+                    ]),
+                    getU16Decoder(),
+                ),
+            ],
+            [
+                'GroupPointer',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        ['authority', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
+                        ['groupAddress', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
+                    ]),
+                    getU16Decoder(),
+                ),
+            ],
+            [
+                'TokenGroup',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        [
+                            'updateAuthority',
+                            getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' }),
+                        ],
+                        ['mint', getAddressDecoder()],
+                        ['size', getU64Decoder()],
+                        ['maxSize', getU64Decoder()],
+                    ]),
+                    getU16Decoder(),
+                ),
+            ],
+            [
+                'GroupMemberPointer',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        ['authority', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
+                        ['memberAddress', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
+                    ]),
+                    getU16Decoder(),
+                ),
+            ],
+            [
+                'TokenGroupMember',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        ['mint', getAddressDecoder()],
+                        ['group', getAddressDecoder()],
+                        ['memberNumber', getU64Decoder()],
+                    ]),
+                    getU16Decoder(),
+                ),
+            ],
+            ['ConfidentialMintBurn', getUnitDecoder()],
+            [
+                'ScaledUiAmountConfig',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        ['authority', getAddressDecoder()],
+                        ['multiplier', getF64Decoder()],
+                        ['newMultiplierEffectiveTimestamp', getU64Decoder()],
+                        ['newMultiplier', getF64Decoder()],
+                    ]),
+                    getU16Decoder(),
+                ),
+            ],
+            [
+                'PausableConfig',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        ['authority', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
+                        ['paused', getBooleanDecoder()],
+                    ]),
+                    getU16Decoder(),
+                ),
+            ],
+            ['PausableAccount', getUnitDecoder()],
+            [
+                'PermissionedBurn',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        ['authority', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
+                    ]),
+                    getU16Decoder(),
+                ),
+            ],
+        ],
+        { size: getU16Decoder() },
+    );
 }
 
 export function getExtensionCodec(): Codec<ExtensionArgs, Extension> {
-  return combineCodec(getExtensionEncoder(), getExtensionDecoder());
+    return combineCodec(getExtensionEncoder(), getExtensionDecoder());
 }
 
 // Data Enum Helpers.
 export function extension(
-  kind: 'Uninitialized'
+    kind: 'Uninitialized',
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'Uninitialized'>;
 export function extension(
-  kind: 'TransferFeeConfig',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'TransferFeeConfig'
-  >
+    kind: 'TransferFeeConfig',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'TransferFeeConfig'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TransferFeeConfig'>;
 export function extension(
-  kind: 'TransferFeeAmount',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'TransferFeeAmount'
-  >
+    kind: 'TransferFeeAmount',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'TransferFeeAmount'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TransferFeeAmount'>;
 export function extension(
-  kind: 'MintCloseAuthority',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'MintCloseAuthority'
-  >
+    kind: 'MintCloseAuthority',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'MintCloseAuthority'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'MintCloseAuthority'>;
 export function extension(
-  kind: 'ConfidentialTransferMint',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'ConfidentialTransferMint'
-  >
-): GetDiscriminatedUnionVariant<
-  ExtensionArgs,
-  '__kind',
-  'ConfidentialTransferMint'
->;
+    kind: 'ConfidentialTransferMint',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'ConfidentialTransferMint'>,
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'ConfidentialTransferMint'>;
 export function extension(
-  kind: 'ConfidentialTransferAccount',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'ConfidentialTransferAccount'
-  >
-): GetDiscriminatedUnionVariant<
-  ExtensionArgs,
-  '__kind',
-  'ConfidentialTransferAccount'
->;
+    kind: 'ConfidentialTransferAccount',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'ConfidentialTransferAccount'>,
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'ConfidentialTransferAccount'>;
 export function extension(
-  kind: 'DefaultAccountState',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'DefaultAccountState'
-  >
+    kind: 'DefaultAccountState',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'DefaultAccountState'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'DefaultAccountState'>;
 export function extension(
-  kind: 'ImmutableOwner',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'ImmutableOwner'
-  >
+    kind: 'ImmutableOwner',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'ImmutableOwner'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'ImmutableOwner'>;
 export function extension(
-  kind: 'MemoTransfer',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'MemoTransfer'
-  >
+    kind: 'MemoTransfer',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'MemoTransfer'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'MemoTransfer'>;
 export function extension(
-  kind: 'NonTransferable',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'NonTransferable'
-  >
+    kind: 'NonTransferable',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'NonTransferable'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'NonTransferable'>;
 export function extension(
-  kind: 'InterestBearingConfig',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'InterestBearingConfig'
-  >
-): GetDiscriminatedUnionVariant<
-  ExtensionArgs,
-  '__kind',
-  'InterestBearingConfig'
->;
+    kind: 'InterestBearingConfig',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'InterestBearingConfig'>,
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'InterestBearingConfig'>;
 export function extension(
-  kind: 'CpiGuard',
-  data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'CpiGuard'>
+    kind: 'CpiGuard',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'CpiGuard'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'CpiGuard'>;
 export function extension(
-  kind: 'PermanentDelegate',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'PermanentDelegate'
-  >
+    kind: 'PermanentDelegate',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'PermanentDelegate'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'PermanentDelegate'>;
 export function extension(
-  kind: 'NonTransferableAccount',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'NonTransferableAccount'
-  >
-): GetDiscriminatedUnionVariant<
-  ExtensionArgs,
-  '__kind',
-  'NonTransferableAccount'
->;
+    kind: 'NonTransferableAccount',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'NonTransferableAccount'>,
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'NonTransferableAccount'>;
 export function extension(
-  kind: 'TransferHook',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'TransferHook'
-  >
+    kind: 'TransferHook',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'TransferHook'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TransferHook'>;
 export function extension(
-  kind: 'TransferHookAccount',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'TransferHookAccount'
-  >
+    kind: 'TransferHookAccount',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'TransferHookAccount'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TransferHookAccount'>;
 export function extension(
-  kind: 'ConfidentialTransferFee',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'ConfidentialTransferFee'
-  >
-): GetDiscriminatedUnionVariant<
-  ExtensionArgs,
-  '__kind',
-  'ConfidentialTransferFee'
->;
+    kind: 'ConfidentialTransferFee',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'ConfidentialTransferFee'>,
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'ConfidentialTransferFee'>;
 export function extension(
-  kind: 'ConfidentialTransferFeeAmount',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'ConfidentialTransferFeeAmount'
-  >
-): GetDiscriminatedUnionVariant<
-  ExtensionArgs,
-  '__kind',
-  'ConfidentialTransferFeeAmount'
->;
+    kind: 'ConfidentialTransferFeeAmount',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'ConfidentialTransferFeeAmount'>,
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'ConfidentialTransferFeeAmount'>;
 export function extension(
-  kind: 'MetadataPointer',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'MetadataPointer'
-  >
+    kind: 'MetadataPointer',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'MetadataPointer'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'MetadataPointer'>;
 export function extension(
-  kind: 'TokenMetadata',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'TokenMetadata'
-  >
+    kind: 'TokenMetadata',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'TokenMetadata'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TokenMetadata'>;
 export function extension(
-  kind: 'GroupPointer',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'GroupPointer'
-  >
+    kind: 'GroupPointer',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'GroupPointer'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'GroupPointer'>;
 export function extension(
-  kind: 'TokenGroup',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'TokenGroup'
-  >
+    kind: 'TokenGroup',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'TokenGroup'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TokenGroup'>;
 export function extension(
-  kind: 'GroupMemberPointer',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'GroupMemberPointer'
-  >
+    kind: 'GroupMemberPointer',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'GroupMemberPointer'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'GroupMemberPointer'>;
 export function extension(
-  kind: 'TokenGroupMember',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'TokenGroupMember'
-  >
+    kind: 'TokenGroupMember',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'TokenGroupMember'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TokenGroupMember'>;
 export function extension(
-  kind: 'ConfidentialMintBurn'
-): GetDiscriminatedUnionVariant<
-  ExtensionArgs,
-  '__kind',
-  'ConfidentialMintBurn'
->;
+    kind: 'ConfidentialMintBurn',
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'ConfidentialMintBurn'>;
 export function extension(
-  kind: 'ScaledUiAmountConfig',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'ScaledUiAmountConfig'
-  >
-): GetDiscriminatedUnionVariant<
-  ExtensionArgs,
-  '__kind',
-  'ScaledUiAmountConfig'
->;
+    kind: 'ScaledUiAmountConfig',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'ScaledUiAmountConfig'>,
+): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'ScaledUiAmountConfig'>;
 export function extension(
-  kind: 'PausableConfig',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'PausableConfig'
-  >
+    kind: 'PausableConfig',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'PausableConfig'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'PausableConfig'>;
 export function extension(
-  kind: 'PausableAccount'
+    kind: 'PausableAccount',
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'PausableAccount'>;
 export function extension(
-  kind: 'PermissionedBurn',
-  data: GetDiscriminatedUnionVariantContent<
-    ExtensionArgs,
-    '__kind',
-    'PermissionedBurn'
-  >
+    kind: 'PermissionedBurn',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'PermissionedBurn'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'PermissionedBurn'>;
-export function extension<K extends ExtensionArgs['__kind'], Data>(
-  kind: K,
-  data?: Data
-) {
-  return Array.isArray(data)
-    ? { __kind: kind, fields: data }
-    : { __kind: kind, ...(data ?? {}) };
+export function extension<K extends ExtensionArgs['__kind'], Data>(kind: K, data?: Data) {
+    return Array.isArray(data) ? { __kind: kind, fields: data } : { __kind: kind, ...(data ?? {}) };
 }
 
 export function isExtension<K extends Extension['__kind']>(
-  kind: K,
-  value: Extension
+    kind: K,
+    value: Extension,
 ): value is Extension & { __kind: K } {
-  return value.__kind === kind;
+    return value.__kind === kind;
 }

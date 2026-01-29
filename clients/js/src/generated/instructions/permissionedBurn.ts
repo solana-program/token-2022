@@ -7,29 +7,29 @@
  */
 
 import {
-  AccountRole,
-  combineCodec,
-  getStructDecoder,
-  getStructEncoder,
-  getU64Decoder,
-  getU64Encoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type AccountSignerMeta,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type ReadonlyAccount,
-  type ReadonlySignerAccount,
-  type ReadonlyUint8Array,
-  type TransactionSigner,
-  type WritableAccount,
+    AccountRole,
+    combineCodec,
+    getStructDecoder,
+    getStructEncoder,
+    getU64Decoder,
+    getU64Encoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type AccountSignerMeta,
+    type Address,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type ReadonlyAccount,
+    type ReadonlySignerAccount,
+    type ReadonlyUint8Array,
+    type TransactionSigner,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -37,234 +37,200 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export const PERMISSIONED_BURN_DISCRIMINATOR = 46;
 
 export function getPermissionedBurnDiscriminatorBytes() {
-  return getU8Encoder().encode(PERMISSIONED_BURN_DISCRIMINATOR);
+    return getU8Encoder().encode(PERMISSIONED_BURN_DISCRIMINATOR);
 }
 
 export const PERMISSIONED_BURN_PERMISSIONED_BURN_DISCRIMINATOR = 1;
 
 export function getPermissionedBurnPermissionedBurnDiscriminatorBytes() {
-  return getU8Encoder().encode(
-    PERMISSIONED_BURN_PERMISSIONED_BURN_DISCRIMINATOR
-  );
+    return getU8Encoder().encode(PERMISSIONED_BURN_PERMISSIONED_BURN_DISCRIMINATOR);
 }
 
 export type PermissionedBurnInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountAccount extends string | AccountMeta<string> = string,
-  TAccountMint extends string | AccountMeta<string> = string,
-  TAccountPermissionedBurnAuthority extends
-    | string
-    | AccountMeta<string> = string,
-  TAccountAuthority extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountAccount extends string | AccountMeta<string> = string,
+    TAccountMint extends string | AccountMeta<string> = string,
+    TAccountPermissionedBurnAuthority extends string | AccountMeta<string> = string,
+    TAccountAuthority extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountAccount extends string
-        ? WritableAccount<TAccountAccount>
-        : TAccountAccount,
-      TAccountMint extends string
-        ? WritableAccount<TAccountMint>
-        : TAccountMint,
-      TAccountPermissionedBurnAuthority extends string
-        ? ReadonlySignerAccount<TAccountPermissionedBurnAuthority> &
-            AccountSignerMeta<TAccountPermissionedBurnAuthority>
-        : TAccountPermissionedBurnAuthority,
-      TAccountAuthority extends string
-        ? ReadonlyAccount<TAccountAuthority>
-        : TAccountAuthority,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [
+            TAccountAccount extends string ? WritableAccount<TAccountAccount> : TAccountAccount,
+            TAccountMint extends string ? WritableAccount<TAccountMint> : TAccountMint,
+            TAccountPermissionedBurnAuthority extends string
+                ? ReadonlySignerAccount<TAccountPermissionedBurnAuthority> &
+                      AccountSignerMeta<TAccountPermissionedBurnAuthority>
+                : TAccountPermissionedBurnAuthority,
+            TAccountAuthority extends string ? ReadonlyAccount<TAccountAuthority> : TAccountAuthority,
+            ...TRemainingAccounts,
+        ]
+    >;
 
 export type PermissionedBurnInstructionData = {
-  discriminator: number;
-  permissionedBurnDiscriminator: number;
-  /** The amount of tokens to burn. */
-  amount: bigint;
+    discriminator: number;
+    permissionedBurnDiscriminator: number;
+    /** The amount of tokens to burn. */
+    amount: bigint;
 };
 
 export type PermissionedBurnInstructionDataArgs = {
-  /** The amount of tokens to burn. */
-  amount: number | bigint;
+    /** The amount of tokens to burn. */
+    amount: number | bigint;
 };
 
 export function getPermissionedBurnInstructionDataEncoder(): FixedSizeEncoder<PermissionedBurnInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['permissionedBurnDiscriminator', getU8Encoder()],
-      ['amount', getU64Encoder()],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator: PERMISSIONED_BURN_DISCRIMINATOR,
-      permissionedBurnDiscriminator:
-        PERMISSIONED_BURN_PERMISSIONED_BURN_DISCRIMINATOR,
-    })
-  );
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getU8Encoder()],
+            ['permissionedBurnDiscriminator', getU8Encoder()],
+            ['amount', getU64Encoder()],
+        ]),
+        value => ({
+            ...value,
+            discriminator: PERMISSIONED_BURN_DISCRIMINATOR,
+            permissionedBurnDiscriminator: PERMISSIONED_BURN_PERMISSIONED_BURN_DISCRIMINATOR,
+        }),
+    );
 }
 
 export function getPermissionedBurnInstructionDataDecoder(): FixedSizeDecoder<PermissionedBurnInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['permissionedBurnDiscriminator', getU8Decoder()],
-    ['amount', getU64Decoder()],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['permissionedBurnDiscriminator', getU8Decoder()],
+        ['amount', getU64Decoder()],
+    ]);
 }
 
 export function getPermissionedBurnInstructionDataCodec(): FixedSizeCodec<
-  PermissionedBurnInstructionDataArgs,
-  PermissionedBurnInstructionData
+    PermissionedBurnInstructionDataArgs,
+    PermissionedBurnInstructionData
 > {
-  return combineCodec(
-    getPermissionedBurnInstructionDataEncoder(),
-    getPermissionedBurnInstructionDataDecoder()
-  );
+    return combineCodec(getPermissionedBurnInstructionDataEncoder(), getPermissionedBurnInstructionDataDecoder());
 }
 
 export type PermissionedBurnInput<
-  TAccountAccount extends string = string,
-  TAccountMint extends string = string,
-  TAccountPermissionedBurnAuthority extends string = string,
-  TAccountAuthority extends string = string,
+    TAccountAccount extends string = string,
+    TAccountMint extends string = string,
+    TAccountPermissionedBurnAuthority extends string = string,
+    TAccountAuthority extends string = string,
 > = {
-  /** The source account to burn from. */
-  account: Address<TAccountAccount>;
-  /** The token mint. */
-  mint: Address<TAccountMint>;
-  /** Authority configured on the mint that must sign any permissioned burn instruction. */
-  permissionedBurnAuthority: TransactionSigner<TAccountPermissionedBurnAuthority>;
-  /** The account's owner/delegate or its multisignature account. */
-  authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
-  amount: PermissionedBurnInstructionDataArgs['amount'];
-  multiSigners?: Array<TransactionSigner>;
+    /** The source account to burn from. */
+    account: Address<TAccountAccount>;
+    /** The token mint. */
+    mint: Address<TAccountMint>;
+    /** Authority configured on the mint that must sign any permissioned burn instruction. */
+    permissionedBurnAuthority: TransactionSigner<TAccountPermissionedBurnAuthority>;
+    /** The account's owner/delegate or its multisignature account. */
+    authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
+    amount: PermissionedBurnInstructionDataArgs['amount'];
+    multiSigners?: Array<TransactionSigner>;
 };
 
 export function getPermissionedBurnInstruction<
-  TAccountAccount extends string,
-  TAccountMint extends string,
-  TAccountPermissionedBurnAuthority extends string,
-  TAccountAuthority extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountAccount extends string,
+    TAccountMint extends string,
+    TAccountPermissionedBurnAuthority extends string,
+    TAccountAuthority extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: PermissionedBurnInput<
-    TAccountAccount,
-    TAccountMint,
-    TAccountPermissionedBurnAuthority,
-    TAccountAuthority
-  >,
-  config?: { programAddress?: TProgramAddress }
+    input: PermissionedBurnInput<TAccountAccount, TAccountMint, TAccountPermissionedBurnAuthority, TAccountAuthority>,
+    config?: { programAddress?: TProgramAddress },
 ): PermissionedBurnInstruction<
-  TProgramAddress,
-  TAccountAccount,
-  TAccountMint,
-  TAccountPermissionedBurnAuthority,
-  (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-    ? ReadonlySignerAccount<TAccountAuthority> &
-        AccountSignerMeta<TAccountAuthority>
-    : TAccountAuthority
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
-
-  // Original accounts.
-  const originalAccounts = {
-    account: { value: input.account ?? null, isWritable: true },
-    mint: { value: input.mint ?? null, isWritable: true },
-    permissionedBurnAuthority: {
-      value: input.permissionedBurnAuthority ?? null,
-      isWritable: false,
-    },
-    authority: { value: input.authority ?? null, isWritable: false },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
-
-  // Original args.
-  const args = { ...input };
-
-  // Remaining accounts.
-  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
-    (signer) => ({
-      address: signer.address,
-      role: AccountRole.READONLY_SIGNER,
-      signer,
-    })
-  );
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [
-      getAccountMeta(accounts.account),
-      getAccountMeta(accounts.mint),
-      getAccountMeta(accounts.permissionedBurnAuthority),
-      getAccountMeta(accounts.authority),
-      ...remainingAccounts,
-    ],
-    data: getPermissionedBurnInstructionDataEncoder().encode(
-      args as PermissionedBurnInstructionDataArgs
-    ),
-    programAddress,
-  } as PermissionedBurnInstruction<
     TProgramAddress,
     TAccountAccount,
     TAccountMint,
     TAccountPermissionedBurnAuthority,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-      ? ReadonlySignerAccount<TAccountAuthority> &
-          AccountSignerMeta<TAccountAuthority>
-      : TAccountAuthority
-  >);
+        ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
+        : TAccountAuthority
+> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+
+    // Original accounts.
+    const originalAccounts = {
+        account: { value: input.account ?? null, isWritable: true },
+        mint: { value: input.mint ?? null, isWritable: true },
+        permissionedBurnAuthority: { value: input.permissionedBurnAuthority ?? null, isWritable: false },
+        authority: { value: input.authority ?? null, isWritable: false },
+    };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+
+    // Original args.
+    const args = { ...input };
+
+    // Remaining accounts.
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
+        address: signer.address,
+        role: AccountRole.READONLY_SIGNER,
+        signer,
+    }));
+
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [
+            getAccountMeta(accounts.account),
+            getAccountMeta(accounts.mint),
+            getAccountMeta(accounts.permissionedBurnAuthority),
+            getAccountMeta(accounts.authority),
+            ...remainingAccounts,
+        ],
+        data: getPermissionedBurnInstructionDataEncoder().encode(args as PermissionedBurnInstructionDataArgs),
+        programAddress,
+    } as PermissionedBurnInstruction<
+        TProgramAddress,
+        TAccountAccount,
+        TAccountMint,
+        TAccountPermissionedBurnAuthority,
+        (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
+            ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
+            : TAccountAuthority
+    >);
 }
 
 export type ParsedPermissionedBurnInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The source account to burn from. */
-    account: TAccountMetas[0];
-    /** The token mint. */
-    mint: TAccountMetas[1];
-    /** Authority configured on the mint that must sign any permissioned burn instruction. */
-    permissionedBurnAuthority: TAccountMetas[2];
-    /** The account's owner/delegate or its multisignature account. */
-    authority: TAccountMetas[3];
-  };
-  data: PermissionedBurnInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The source account to burn from. */
+        account: TAccountMetas[0];
+        /** The token mint. */
+        mint: TAccountMetas[1];
+        /** Authority configured on the mint that must sign any permissioned burn instruction. */
+        permissionedBurnAuthority: TAccountMetas[2];
+        /** The account's owner/delegate or its multisignature account. */
+        authority: TAccountMetas[3];
+    };
+    data: PermissionedBurnInstructionData;
 };
 
-export function parsePermissionedBurnInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
->(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+export function parsePermissionedBurnInstruction<TProgram extends string, TAccountMetas extends readonly AccountMeta[]>(
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedPermissionedBurnInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 4) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: {
-      account: getNextAccount(),
-      mint: getNextAccount(),
-      permissionedBurnAuthority: getNextAccount(),
-      authority: getNextAccount(),
-    },
-    data: getPermissionedBurnInstructionDataDecoder().decode(instruction.data),
-  };
+    if (instruction.accounts.length < 4) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: {
+            account: getNextAccount(),
+            mint: getNextAccount(),
+            permissionedBurnAuthority: getNextAccount(),
+            authority: getNextAccount(),
+        },
+        data: getPermissionedBurnInstructionDataDecoder().decode(instruction.data),
+    };
 }

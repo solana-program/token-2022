@@ -7,308 +7,278 @@
  */
 
 import {
-  AccountRole,
-  combineCodec,
-  getI8Decoder,
-  getI8Encoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type AccountSignerMeta,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type ReadonlyAccount,
-  type ReadonlySignerAccount,
-  type ReadonlyUint8Array,
-  type TransactionSigner,
-  type WritableAccount,
+    AccountRole,
+    combineCodec,
+    getI8Decoder,
+    getI8Encoder,
+    getStructDecoder,
+    getStructEncoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type AccountSignerMeta,
+    type Address,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type ReadonlyAccount,
+    type ReadonlySignerAccount,
+    type ReadonlyUint8Array,
+    type TransactionSigner,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import {
-  getDecryptableBalanceDecoder,
-  getDecryptableBalanceEncoder,
-  type DecryptableBalance,
-  type DecryptableBalanceArgs,
+    getDecryptableBalanceDecoder,
+    getDecryptableBalanceEncoder,
+    type DecryptableBalance,
+    type DecryptableBalanceArgs,
 } from '../types';
 
 export const WITHDRAW_WITHHELD_TOKENS_FROM_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR = 37;
 
 export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeDiscriminatorBytes() {
-  return getU8Encoder().encode(
-    WITHDRAW_WITHHELD_TOKENS_FROM_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR
-  );
+    return getU8Encoder().encode(WITHDRAW_WITHHELD_TOKENS_FROM_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR);
 }
 
 export const WITHDRAW_WITHHELD_TOKENS_FROM_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR = 1;
 
 export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeConfidentialTransferFeeDiscriminatorBytes() {
-  return getU8Encoder().encode(
-    WITHDRAW_WITHHELD_TOKENS_FROM_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR
-  );
+    return getU8Encoder().encode(
+        WITHDRAW_WITHHELD_TOKENS_FROM_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR,
+    );
 }
 
 export type WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | AccountMeta<string> = string,
-  TAccountDestination extends string | AccountMeta<string> = string,
-  TAccountInstructionsSysvarOrContextState extends
-    | string
-    | AccountMeta<string> = string,
-  TAccountRecord extends string | AccountMeta<string> = string,
-  TAccountAuthority extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string | AccountMeta<string> = string,
+    TAccountDestination extends string | AccountMeta<string> = string,
+    TAccountInstructionsSysvarOrContextState extends string | AccountMeta<string> = string,
+    TAccountRecord extends string | AccountMeta<string> = string,
+    TAccountAuthority extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountMint extends string
-        ? WritableAccount<TAccountMint>
-        : TAccountMint,
-      TAccountDestination extends string
-        ? WritableAccount<TAccountDestination>
-        : TAccountDestination,
-      TAccountInstructionsSysvarOrContextState extends string
-        ? ReadonlyAccount<TAccountInstructionsSysvarOrContextState>
-        : TAccountInstructionsSysvarOrContextState,
-      TAccountRecord extends string
-        ? ReadonlyAccount<TAccountRecord>
-        : TAccountRecord,
-      TAccountAuthority extends string
-        ? ReadonlyAccount<TAccountAuthority>
-        : TAccountAuthority,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [
+            TAccountMint extends string ? WritableAccount<TAccountMint> : TAccountMint,
+            TAccountDestination extends string ? WritableAccount<TAccountDestination> : TAccountDestination,
+            TAccountInstructionsSysvarOrContextState extends string
+                ? ReadonlyAccount<TAccountInstructionsSysvarOrContextState>
+                : TAccountInstructionsSysvarOrContextState,
+            TAccountRecord extends string ? ReadonlyAccount<TAccountRecord> : TAccountRecord,
+            TAccountAuthority extends string ? ReadonlyAccount<TAccountAuthority> : TAccountAuthority,
+            ...TRemainingAccounts,
+        ]
+    >;
 
-export type WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionData =
-  {
+export type WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionData = {
     discriminator: number;
     confidentialTransferFeeDiscriminator: number;
     /** Proof instruction offset */
     proofInstructionOffset: number;
     /** The new decryptable balance in the destination token account */
     newDecryptableAvailableBalance: DecryptableBalance;
-  };
+};
 
-export type WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataArgs =
-  {
+export type WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataArgs = {
     /** Proof instruction offset */
     proofInstructionOffset: number;
     /** The new decryptable balance in the destination token account */
     newDecryptableAvailableBalance: DecryptableBalanceArgs;
-  };
+};
 
 export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataEncoder(): FixedSizeEncoder<WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['confidentialTransferFeeDiscriminator', getU8Encoder()],
-      ['proofInstructionOffset', getI8Encoder()],
-      ['newDecryptableAvailableBalance', getDecryptableBalanceEncoder()],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator:
-        WITHDRAW_WITHHELD_TOKENS_FROM_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR,
-      confidentialTransferFeeDiscriminator:
-        WITHDRAW_WITHHELD_TOKENS_FROM_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR,
-    })
-  );
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getU8Encoder()],
+            ['confidentialTransferFeeDiscriminator', getU8Encoder()],
+            ['proofInstructionOffset', getI8Encoder()],
+            ['newDecryptableAvailableBalance', getDecryptableBalanceEncoder()],
+        ]),
+        value => ({
+            ...value,
+            discriminator: WITHDRAW_WITHHELD_TOKENS_FROM_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR,
+            confidentialTransferFeeDiscriminator:
+                WITHDRAW_WITHHELD_TOKENS_FROM_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR,
+        }),
+    );
 }
 
 export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataDecoder(): FixedSizeDecoder<WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['confidentialTransferFeeDiscriminator', getU8Decoder()],
-    ['proofInstructionOffset', getI8Decoder()],
-    ['newDecryptableAvailableBalance', getDecryptableBalanceDecoder()],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['confidentialTransferFeeDiscriminator', getU8Decoder()],
+        ['proofInstructionOffset', getI8Decoder()],
+        ['newDecryptableAvailableBalance', getDecryptableBalanceDecoder()],
+    ]);
 }
 
 export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataCodec(): FixedSizeCodec<
-  WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataArgs,
-  WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionData
+    WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataArgs,
+    WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionData
 > {
-  return combineCodec(
-    getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataEncoder(),
-    getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataDecoder()
-  );
+    return combineCodec(
+        getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataEncoder(),
+        getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataDecoder(),
+    );
 }
 
 export type WithdrawWithheldTokensFromMintForConfidentialTransferFeeInput<
-  TAccountMint extends string = string,
-  TAccountDestination extends string = string,
-  TAccountInstructionsSysvarOrContextState extends string = string,
-  TAccountRecord extends string = string,
-  TAccountAuthority extends string = string,
+    TAccountMint extends string = string,
+    TAccountDestination extends string = string,
+    TAccountInstructionsSysvarOrContextState extends string = string,
+    TAccountRecord extends string = string,
+    TAccountAuthority extends string = string,
 > = {
-  /** The token mint. */
-  mint: Address<TAccountMint>;
-  /** The fee receiver account. */
-  destination: Address<TAccountDestination>;
-  /** Instructions sysvar or context state account */
-  instructionsSysvarOrContextState: Address<TAccountInstructionsSysvarOrContextState>;
-  /** Optional record account if proof is read from record */
-  record?: Address<TAccountRecord>;
-  /** The mint's withdraw_withheld_authority */
-  authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
-  proofInstructionOffset: WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataArgs['proofInstructionOffset'];
-  newDecryptableAvailableBalance: WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataArgs['newDecryptableAvailableBalance'];
-  multiSigners?: Array<TransactionSigner>;
+    /** The token mint. */
+    mint: Address<TAccountMint>;
+    /** The fee receiver account. */
+    destination: Address<TAccountDestination>;
+    /** Instructions sysvar or context state account */
+    instructionsSysvarOrContextState: Address<TAccountInstructionsSysvarOrContextState>;
+    /** Optional record account if proof is read from record */
+    record?: Address<TAccountRecord>;
+    /** The mint's withdraw_withheld_authority */
+    authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
+    proofInstructionOffset: WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataArgs['proofInstructionOffset'];
+    newDecryptableAvailableBalance: WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataArgs['newDecryptableAvailableBalance'];
+    multiSigners?: Array<TransactionSigner>;
 };
 
 export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction<
-  TAccountMint extends string,
-  TAccountDestination extends string,
-  TAccountInstructionsSysvarOrContextState extends string,
-  TAccountRecord extends string,
-  TAccountAuthority extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string,
+    TAccountDestination extends string,
+    TAccountInstructionsSysvarOrContextState extends string,
+    TAccountRecord extends string,
+    TAccountAuthority extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: WithdrawWithheldTokensFromMintForConfidentialTransferFeeInput<
-    TAccountMint,
-    TAccountDestination,
-    TAccountInstructionsSysvarOrContextState,
-    TAccountRecord,
-    TAccountAuthority
-  >,
-  config?: { programAddress?: TProgramAddress }
+    input: WithdrawWithheldTokensFromMintForConfidentialTransferFeeInput<
+        TAccountMint,
+        TAccountDestination,
+        TAccountInstructionsSysvarOrContextState,
+        TAccountRecord,
+        TAccountAuthority
+    >,
+    config?: { programAddress?: TProgramAddress },
 ): WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction<
-  TProgramAddress,
-  TAccountMint,
-  TAccountDestination,
-  TAccountInstructionsSysvarOrContextState,
-  TAccountRecord,
-  (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-    ? ReadonlySignerAccount<TAccountAuthority> &
-        AccountSignerMeta<TAccountAuthority>
-    : TAccountAuthority
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
-
-  // Original accounts.
-  const originalAccounts = {
-    mint: { value: input.mint ?? null, isWritable: true },
-    destination: { value: input.destination ?? null, isWritable: true },
-    instructionsSysvarOrContextState: {
-      value: input.instructionsSysvarOrContextState ?? null,
-      isWritable: false,
-    },
-    record: { value: input.record ?? null, isWritable: false },
-    authority: { value: input.authority ?? null, isWritable: false },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
-
-  // Original args.
-  const args = { ...input };
-
-  // Remaining accounts.
-  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
-    (signer) => ({
-      address: signer.address,
-      role: AccountRole.READONLY_SIGNER,
-      signer,
-    })
-  );
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [
-      getAccountMeta(accounts.mint),
-      getAccountMeta(accounts.destination),
-      getAccountMeta(accounts.instructionsSysvarOrContextState),
-      getAccountMeta(accounts.record),
-      getAccountMeta(accounts.authority),
-      ...remainingAccounts,
-    ],
-    data: getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataEncoder().encode(
-      args as WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataArgs
-    ),
-    programAddress,
-  } as WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction<
     TProgramAddress,
     TAccountMint,
     TAccountDestination,
     TAccountInstructionsSysvarOrContextState,
     TAccountRecord,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-      ? ReadonlySignerAccount<TAccountAuthority> &
-          AccountSignerMeta<TAccountAuthority>
-      : TAccountAuthority
-  >);
+        ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
+        : TAccountAuthority
+> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+
+    // Original accounts.
+    const originalAccounts = {
+        mint: { value: input.mint ?? null, isWritable: true },
+        destination: { value: input.destination ?? null, isWritable: true },
+        instructionsSysvarOrContextState: { value: input.instructionsSysvarOrContextState ?? null, isWritable: false },
+        record: { value: input.record ?? null, isWritable: false },
+        authority: { value: input.authority ?? null, isWritable: false },
+    };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+
+    // Original args.
+    const args = { ...input };
+
+    // Remaining accounts.
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
+        address: signer.address,
+        role: AccountRole.READONLY_SIGNER,
+        signer,
+    }));
+
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [
+            getAccountMeta(accounts.mint),
+            getAccountMeta(accounts.destination),
+            getAccountMeta(accounts.instructionsSysvarOrContextState),
+            getAccountMeta(accounts.record),
+            getAccountMeta(accounts.authority),
+            ...remainingAccounts,
+        ],
+        data: getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataEncoder().encode(
+            args as WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataArgs,
+        ),
+        programAddress,
+    } as WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction<
+        TProgramAddress,
+        TAccountMint,
+        TAccountDestination,
+        TAccountInstructionsSysvarOrContextState,
+        TAccountRecord,
+        (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
+            ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
+            : TAccountAuthority
+    >);
 }
 
 export type ParsedWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The token mint. */
-    mint: TAccountMetas[0];
-    /** The fee receiver account. */
-    destination: TAccountMetas[1];
-    /** Instructions sysvar or context state account */
-    instructionsSysvarOrContextState: TAccountMetas[2];
-    /** Optional record account if proof is read from record */
-    record?: TAccountMetas[3] | undefined;
-    /** The mint's withdraw_withheld_authority */
-    authority: TAccountMetas[4];
-  };
-  data: WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The token mint. */
+        mint: TAccountMetas[0];
+        /** The fee receiver account. */
+        destination: TAccountMetas[1];
+        /** Instructions sysvar or context state account */
+        instructionsSysvarOrContextState: TAccountMetas[2];
+        /** Optional record account if proof is read from record */
+        record?: TAccountMetas[3] | undefined;
+        /** The mint's withdraw_withheld_authority */
+        authority: TAccountMetas[4];
+    };
+    data: WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionData;
 };
 
 export function parseWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+    TProgram extends string,
+    TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
-): ParsedWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction<
-  TProgram,
-  TAccountMetas
-> {
-  if (instruction.accounts.length < 5) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  const getNextOptionalAccount = () => {
-    const accountMeta = getNextAccount();
-    return accountMeta.address === TOKEN_2022_PROGRAM_ADDRESS
-      ? undefined
-      : accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: {
-      mint: getNextAccount(),
-      destination: getNextAccount(),
-      instructionsSysvarOrContextState: getNextAccount(),
-      record: getNextOptionalAccount(),
-      authority: getNextAccount(),
-    },
-    data: getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataDecoder().decode(
-      instruction.data
-    ),
-  };
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
+): ParsedWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction<TProgram, TAccountMetas> {
+    if (instruction.accounts.length < 5) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    const getNextOptionalAccount = () => {
+        const accountMeta = getNextAccount();
+        return accountMeta.address === TOKEN_2022_PROGRAM_ADDRESS ? undefined : accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: {
+            mint: getNextAccount(),
+            destination: getNextAccount(),
+            instructionsSysvarOrContextState: getNextAccount(),
+            record: getNextOptionalAccount(),
+            authority: getNextAccount(),
+        },
+        data: getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataDecoder().decode(
+            instruction.data,
+        ),
+    };
 }

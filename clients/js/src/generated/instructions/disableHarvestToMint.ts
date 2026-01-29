@@ -7,27 +7,27 @@
  */
 
 import {
-  AccountRole,
-  combineCodec,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type AccountSignerMeta,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type ReadonlyAccount,
-  type ReadonlySignerAccount,
-  type ReadonlyUint8Array,
-  type TransactionSigner,
-  type WritableAccount,
+    AccountRole,
+    combineCodec,
+    getStructDecoder,
+    getStructEncoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type AccountSignerMeta,
+    type Address,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type ReadonlyAccount,
+    type ReadonlySignerAccount,
+    type ReadonlyUint8Array,
+    type TransactionSigner,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -35,182 +35,162 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export const DISABLE_HARVEST_TO_MINT_DISCRIMINATOR = 37;
 
 export function getDisableHarvestToMintDiscriminatorBytes() {
-  return getU8Encoder().encode(DISABLE_HARVEST_TO_MINT_DISCRIMINATOR);
+    return getU8Encoder().encode(DISABLE_HARVEST_TO_MINT_DISCRIMINATOR);
 }
 
 export const DISABLE_HARVEST_TO_MINT_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR = 5;
 
 export function getDisableHarvestToMintConfidentialTransferFeeDiscriminatorBytes() {
-  return getU8Encoder().encode(
-    DISABLE_HARVEST_TO_MINT_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR
-  );
+    return getU8Encoder().encode(DISABLE_HARVEST_TO_MINT_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR);
 }
 
 export type DisableHarvestToMintInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | AccountMeta<string> = string,
-  TAccountAuthority extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string | AccountMeta<string> = string,
+    TAccountAuthority extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountMint extends string
-        ? WritableAccount<TAccountMint>
-        : TAccountMint,
-      TAccountAuthority extends string
-        ? ReadonlyAccount<TAccountAuthority>
-        : TAccountAuthority,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [
+            TAccountMint extends string ? WritableAccount<TAccountMint> : TAccountMint,
+            TAccountAuthority extends string ? ReadonlyAccount<TAccountAuthority> : TAccountAuthority,
+            ...TRemainingAccounts,
+        ]
+    >;
 
 export type DisableHarvestToMintInstructionData = {
-  discriminator: number;
-  confidentialTransferFeeDiscriminator: number;
+    discriminator: number;
+    confidentialTransferFeeDiscriminator: number;
 };
 
 export type DisableHarvestToMintInstructionDataArgs = {};
 
 export function getDisableHarvestToMintInstructionDataEncoder(): FixedSizeEncoder<DisableHarvestToMintInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['confidentialTransferFeeDiscriminator', getU8Encoder()],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator: DISABLE_HARVEST_TO_MINT_DISCRIMINATOR,
-      confidentialTransferFeeDiscriminator:
-        DISABLE_HARVEST_TO_MINT_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR,
-    })
-  );
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getU8Encoder()],
+            ['confidentialTransferFeeDiscriminator', getU8Encoder()],
+        ]),
+        value => ({
+            ...value,
+            discriminator: DISABLE_HARVEST_TO_MINT_DISCRIMINATOR,
+            confidentialTransferFeeDiscriminator: DISABLE_HARVEST_TO_MINT_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR,
+        }),
+    );
 }
 
 export function getDisableHarvestToMintInstructionDataDecoder(): FixedSizeDecoder<DisableHarvestToMintInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['confidentialTransferFeeDiscriminator', getU8Decoder()],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['confidentialTransferFeeDiscriminator', getU8Decoder()],
+    ]);
 }
 
 export function getDisableHarvestToMintInstructionDataCodec(): FixedSizeCodec<
-  DisableHarvestToMintInstructionDataArgs,
-  DisableHarvestToMintInstructionData
+    DisableHarvestToMintInstructionDataArgs,
+    DisableHarvestToMintInstructionData
 > {
-  return combineCodec(
-    getDisableHarvestToMintInstructionDataEncoder(),
-    getDisableHarvestToMintInstructionDataDecoder()
-  );
+    return combineCodec(
+        getDisableHarvestToMintInstructionDataEncoder(),
+        getDisableHarvestToMintInstructionDataDecoder(),
+    );
 }
 
 export type DisableHarvestToMintInput<
-  TAccountMint extends string = string,
-  TAccountAuthority extends string = string,
+    TAccountMint extends string = string,
+    TAccountAuthority extends string = string,
 > = {
-  /** The token mint. */
-  mint: Address<TAccountMint>;
-  /** The confidential transfer fee authority */
-  authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
-  multiSigners?: Array<TransactionSigner>;
+    /** The token mint. */
+    mint: Address<TAccountMint>;
+    /** The confidential transfer fee authority */
+    authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
+    multiSigners?: Array<TransactionSigner>;
 };
 
 export function getDisableHarvestToMintInstruction<
-  TAccountMint extends string,
-  TAccountAuthority extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string,
+    TAccountAuthority extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: DisableHarvestToMintInput<TAccountMint, TAccountAuthority>,
-  config?: { programAddress?: TProgramAddress }
+    input: DisableHarvestToMintInput<TAccountMint, TAccountAuthority>,
+    config?: { programAddress?: TProgramAddress },
 ): DisableHarvestToMintInstruction<
-  TProgramAddress,
-  TAccountMint,
-  (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-    ? ReadonlySignerAccount<TAccountAuthority> &
-        AccountSignerMeta<TAccountAuthority>
-    : TAccountAuthority
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
-
-  // Original accounts.
-  const originalAccounts = {
-    mint: { value: input.mint ?? null, isWritable: true },
-    authority: { value: input.authority ?? null, isWritable: false },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
-
-  // Original args.
-  const args = { ...input };
-
-  // Remaining accounts.
-  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
-    (signer) => ({
-      address: signer.address,
-      role: AccountRole.READONLY_SIGNER,
-      signer,
-    })
-  );
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [
-      getAccountMeta(accounts.mint),
-      getAccountMeta(accounts.authority),
-      ...remainingAccounts,
-    ],
-    data: getDisableHarvestToMintInstructionDataEncoder().encode({}),
-    programAddress,
-  } as DisableHarvestToMintInstruction<
     TProgramAddress,
     TAccountMint,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-      ? ReadonlySignerAccount<TAccountAuthority> &
-          AccountSignerMeta<TAccountAuthority>
-      : TAccountAuthority
-  >);
+        ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
+        : TAccountAuthority
+> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+
+    // Original accounts.
+    const originalAccounts = {
+        mint: { value: input.mint ?? null, isWritable: true },
+        authority: { value: input.authority ?? null, isWritable: false },
+    };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+
+    // Original args.
+    const args = { ...input };
+
+    // Remaining accounts.
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
+        address: signer.address,
+        role: AccountRole.READONLY_SIGNER,
+        signer,
+    }));
+
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [getAccountMeta(accounts.mint), getAccountMeta(accounts.authority), ...remainingAccounts],
+        data: getDisableHarvestToMintInstructionDataEncoder().encode({}),
+        programAddress,
+    } as DisableHarvestToMintInstruction<
+        TProgramAddress,
+        TAccountMint,
+        (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
+            ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
+            : TAccountAuthority
+    >);
 }
 
 export type ParsedDisableHarvestToMintInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The token mint. */
-    mint: TAccountMetas[0];
-    /** The confidential transfer fee authority */
-    authority: TAccountMetas[1];
-  };
-  data: DisableHarvestToMintInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The token mint. */
+        mint: TAccountMetas[0];
+        /** The confidential transfer fee authority */
+        authority: TAccountMetas[1];
+    };
+    data: DisableHarvestToMintInstructionData;
 };
 
 export function parseDisableHarvestToMintInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+    TProgram extends string,
+    TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedDisableHarvestToMintInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: { mint: getNextAccount(), authority: getNextAccount() },
-    data: getDisableHarvestToMintInstructionDataDecoder().decode(
-      instruction.data
-    ),
-  };
+    if (instruction.accounts.length < 2) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { mint: getNextAccount(), authority: getNextAccount() },
+        data: getDisableHarvestToMintInstructionDataDecoder().decode(instruction.data),
+    };
 }

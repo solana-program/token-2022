@@ -7,61 +7,58 @@
  */
 
 import {
-  combineCodec,
-  getStructDecoder,
-  getStructEncoder,
-  getU16Decoder,
-  getU16Encoder,
-  getU64Decoder,
-  getU64Encoder,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
+    combineCodec,
+    getStructDecoder,
+    getStructEncoder,
+    getU16Decoder,
+    getU16Encoder,
+    getU64Decoder,
+    getU64Encoder,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
 } from '@solana/kit';
 
 export type TransferFee = {
-  /** First epoch where the transfer fee takes effect. */
-  epoch: bigint;
-  /** Maximum fee assessed on transfers, expressed as an amount of tokens. */
-  maximumFee: bigint;
-  /**
-   * Amount of transfer collected as fees, expressed as basis points of the
-   * transfer amount, ie. increments of 0.01%.
-   */
-  transferFeeBasisPoints: number;
+    /** First epoch where the transfer fee takes effect. */
+    epoch: bigint;
+    /** Maximum fee assessed on transfers, expressed as an amount of tokens. */
+    maximumFee: bigint;
+    /**
+     * Amount of transfer collected as fees, expressed as basis points of the
+     * transfer amount, ie. increments of 0.01%.
+     */
+    transferFeeBasisPoints: number;
 };
 
 export type TransferFeeArgs = {
-  /** First epoch where the transfer fee takes effect. */
-  epoch: number | bigint;
-  /** Maximum fee assessed on transfers, expressed as an amount of tokens. */
-  maximumFee: number | bigint;
-  /**
-   * Amount of transfer collected as fees, expressed as basis points of the
-   * transfer amount, ie. increments of 0.01%.
-   */
-  transferFeeBasisPoints: number;
+    /** First epoch where the transfer fee takes effect. */
+    epoch: number | bigint;
+    /** Maximum fee assessed on transfers, expressed as an amount of tokens. */
+    maximumFee: number | bigint;
+    /**
+     * Amount of transfer collected as fees, expressed as basis points of the
+     * transfer amount, ie. increments of 0.01%.
+     */
+    transferFeeBasisPoints: number;
 };
 
 export function getTransferFeeEncoder(): FixedSizeEncoder<TransferFeeArgs> {
-  return getStructEncoder([
-    ['epoch', getU64Encoder()],
-    ['maximumFee', getU64Encoder()],
-    ['transferFeeBasisPoints', getU16Encoder()],
-  ]);
+    return getStructEncoder([
+        ['epoch', getU64Encoder()],
+        ['maximumFee', getU64Encoder()],
+        ['transferFeeBasisPoints', getU16Encoder()],
+    ]);
 }
 
 export function getTransferFeeDecoder(): FixedSizeDecoder<TransferFee> {
-  return getStructDecoder([
-    ['epoch', getU64Decoder()],
-    ['maximumFee', getU64Decoder()],
-    ['transferFeeBasisPoints', getU16Decoder()],
-  ]);
+    return getStructDecoder([
+        ['epoch', getU64Decoder()],
+        ['maximumFee', getU64Decoder()],
+        ['transferFeeBasisPoints', getU16Decoder()],
+    ]);
 }
 
-export function getTransferFeeCodec(): FixedSizeCodec<
-  TransferFeeArgs,
-  TransferFee
-> {
-  return combineCodec(getTransferFeeEncoder(), getTransferFeeDecoder());
+export function getTransferFeeCodec(): FixedSizeCodec<TransferFeeArgs, TransferFee> {
+    return combineCodec(getTransferFeeEncoder(), getTransferFeeDecoder());
 }

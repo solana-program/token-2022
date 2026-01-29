@@ -7,215 +7,171 @@
  */
 
 import {
-  combineCodec,
-  getAddressDecoder,
-  getAddressEncoder,
-  getBytesDecoder,
-  getBytesEncoder,
-  getOptionDecoder,
-  getOptionEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  transformEncoder,
-  type AccountMeta,
-  type AccountSignerMeta,
-  type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type Option,
-  type OptionOrNullable,
-  type ReadonlySignerAccount,
-  type ReadonlyUint8Array,
-  type TransactionSigner,
-  type WritableAccount,
+    combineCodec,
+    getAddressDecoder,
+    getAddressEncoder,
+    getBytesDecoder,
+    getBytesEncoder,
+    getOptionDecoder,
+    getOptionEncoder,
+    getStructDecoder,
+    getStructEncoder,
+    transformEncoder,
+    type AccountMeta,
+    type AccountSignerMeta,
+    type Address,
+    type Codec,
+    type Decoder,
+    type Encoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type Option,
+    type OptionOrNullable,
+    type ReadonlySignerAccount,
+    type ReadonlyUint8Array,
+    type TransactionSigner,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const UPDATE_TOKEN_GROUP_UPDATE_AUTHORITY_DISCRIMINATOR = new Uint8Array(
-  [161, 105, 88, 1, 237, 221, 216, 203]
-);
+export const UPDATE_TOKEN_GROUP_UPDATE_AUTHORITY_DISCRIMINATOR = new Uint8Array([161, 105, 88, 1, 237, 221, 216, 203]);
 
 export function getUpdateTokenGroupUpdateAuthorityDiscriminatorBytes() {
-  return getBytesEncoder().encode(
-    UPDATE_TOKEN_GROUP_UPDATE_AUTHORITY_DISCRIMINATOR
-  );
+    return getBytesEncoder().encode(UPDATE_TOKEN_GROUP_UPDATE_AUTHORITY_DISCRIMINATOR);
 }
 
 export type UpdateTokenGroupUpdateAuthorityInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountGroup extends string | AccountMeta<string> = string,
-  TAccountUpdateAuthority extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountGroup extends string | AccountMeta<string> = string,
+    TAccountUpdateAuthority extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountGroup extends string
-        ? WritableAccount<TAccountGroup>
-        : TAccountGroup,
-      TAccountUpdateAuthority extends string
-        ? ReadonlySignerAccount<TAccountUpdateAuthority> &
-            AccountSignerMeta<TAccountUpdateAuthority>
-        : TAccountUpdateAuthority,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [
+            TAccountGroup extends string ? WritableAccount<TAccountGroup> : TAccountGroup,
+            TAccountUpdateAuthority extends string
+                ? ReadonlySignerAccount<TAccountUpdateAuthority> & AccountSignerMeta<TAccountUpdateAuthority>
+                : TAccountUpdateAuthority,
+            ...TRemainingAccounts,
+        ]
+    >;
 
 export type UpdateTokenGroupUpdateAuthorityInstructionData = {
-  discriminator: ReadonlyUint8Array;
-  /** New authority for the group, or unset if `None` */
-  newUpdateAuthority: Option<Address>;
+    discriminator: ReadonlyUint8Array;
+    /** New authority for the group, or unset if `None` */
+    newUpdateAuthority: Option<Address>;
 };
 
 export type UpdateTokenGroupUpdateAuthorityInstructionDataArgs = {
-  /** New authority for the group, or unset if `None` */
-  newUpdateAuthority: OptionOrNullable<Address>;
+    /** New authority for the group, or unset if `None` */
+    newUpdateAuthority: OptionOrNullable<Address>;
 };
 
 export function getUpdateTokenGroupUpdateAuthorityInstructionDataEncoder(): Encoder<UpdateTokenGroupUpdateAuthorityInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getBytesEncoder()],
-      [
-        'newUpdateAuthority',
-        getOptionEncoder(getAddressEncoder(), {
-          prefix: null,
-          noneValue: 'zeroes',
-        }),
-      ],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator: UPDATE_TOKEN_GROUP_UPDATE_AUTHORITY_DISCRIMINATOR,
-    })
-  );
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getBytesEncoder()],
+            ['newUpdateAuthority', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
+        ]),
+        value => ({ ...value, discriminator: UPDATE_TOKEN_GROUP_UPDATE_AUTHORITY_DISCRIMINATOR }),
+    );
 }
 
 export function getUpdateTokenGroupUpdateAuthorityInstructionDataDecoder(): Decoder<UpdateTokenGroupUpdateAuthorityInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getBytesDecoder()],
-    [
-      'newUpdateAuthority',
-      getOptionDecoder(getAddressDecoder(), {
-        prefix: null,
-        noneValue: 'zeroes',
-      }),
-    ],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getBytesDecoder()],
+        ['newUpdateAuthority', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
+    ]);
 }
 
 export function getUpdateTokenGroupUpdateAuthorityInstructionDataCodec(): Codec<
-  UpdateTokenGroupUpdateAuthorityInstructionDataArgs,
-  UpdateTokenGroupUpdateAuthorityInstructionData
+    UpdateTokenGroupUpdateAuthorityInstructionDataArgs,
+    UpdateTokenGroupUpdateAuthorityInstructionData
 > {
-  return combineCodec(
-    getUpdateTokenGroupUpdateAuthorityInstructionDataEncoder(),
-    getUpdateTokenGroupUpdateAuthorityInstructionDataDecoder()
-  );
+    return combineCodec(
+        getUpdateTokenGroupUpdateAuthorityInstructionDataEncoder(),
+        getUpdateTokenGroupUpdateAuthorityInstructionDataDecoder(),
+    );
 }
 
 export type UpdateTokenGroupUpdateAuthorityInput<
-  TAccountGroup extends string = string,
-  TAccountUpdateAuthority extends string = string,
+    TAccountGroup extends string = string,
+    TAccountUpdateAuthority extends string = string,
 > = {
-  group: Address<TAccountGroup>;
-  /** Current update authority */
-  updateAuthority: TransactionSigner<TAccountUpdateAuthority>;
-  newUpdateAuthority: UpdateTokenGroupUpdateAuthorityInstructionDataArgs['newUpdateAuthority'];
+    group: Address<TAccountGroup>;
+    /** Current update authority */
+    updateAuthority: TransactionSigner<TAccountUpdateAuthority>;
+    newUpdateAuthority: UpdateTokenGroupUpdateAuthorityInstructionDataArgs['newUpdateAuthority'];
 };
 
 export function getUpdateTokenGroupUpdateAuthorityInstruction<
-  TAccountGroup extends string,
-  TAccountUpdateAuthority extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountGroup extends string,
+    TAccountUpdateAuthority extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: UpdateTokenGroupUpdateAuthorityInput<
-    TAccountGroup,
-    TAccountUpdateAuthority
-  >,
-  config?: { programAddress?: TProgramAddress }
-): UpdateTokenGroupUpdateAuthorityInstruction<
-  TProgramAddress,
-  TAccountGroup,
-  TAccountUpdateAuthority
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    input: UpdateTokenGroupUpdateAuthorityInput<TAccountGroup, TAccountUpdateAuthority>,
+    config?: { programAddress?: TProgramAddress },
+): UpdateTokenGroupUpdateAuthorityInstruction<TProgramAddress, TAccountGroup, TAccountUpdateAuthority> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
-  // Original accounts.
-  const originalAccounts = {
-    group: { value: input.group ?? null, isWritable: true },
-    updateAuthority: {
-      value: input.updateAuthority ?? null,
-      isWritable: false,
-    },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
+    // Original accounts.
+    const originalAccounts = {
+        group: { value: input.group ?? null, isWritable: true },
+        updateAuthority: { value: input.updateAuthority ?? null, isWritable: false },
+    };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
 
-  // Original args.
-  const args = { ...input };
+    // Original args.
+    const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [
-      getAccountMeta(accounts.group),
-      getAccountMeta(accounts.updateAuthority),
-    ],
-    data: getUpdateTokenGroupUpdateAuthorityInstructionDataEncoder().encode(
-      args as UpdateTokenGroupUpdateAuthorityInstructionDataArgs
-    ),
-    programAddress,
-  } as UpdateTokenGroupUpdateAuthorityInstruction<
-    TProgramAddress,
-    TAccountGroup,
-    TAccountUpdateAuthority
-  >);
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [getAccountMeta(accounts.group), getAccountMeta(accounts.updateAuthority)],
+        data: getUpdateTokenGroupUpdateAuthorityInstructionDataEncoder().encode(
+            args as UpdateTokenGroupUpdateAuthorityInstructionDataArgs,
+        ),
+        programAddress,
+    } as UpdateTokenGroupUpdateAuthorityInstruction<TProgramAddress, TAccountGroup, TAccountUpdateAuthority>);
 }
 
 export type ParsedUpdateTokenGroupUpdateAuthorityInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    group: TAccountMetas[0];
-    /** Current update authority */
-    updateAuthority: TAccountMetas[1];
-  };
-  data: UpdateTokenGroupUpdateAuthorityInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        group: TAccountMetas[0];
+        /** Current update authority */
+        updateAuthority: TAccountMetas[1];
+    };
+    data: UpdateTokenGroupUpdateAuthorityInstructionData;
 };
 
 export function parseUpdateTokenGroupUpdateAuthorityInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+    TProgram extends string,
+    TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedUpdateTokenGroupUpdateAuthorityInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: { group: getNextAccount(), updateAuthority: getNextAccount() },
-    data: getUpdateTokenGroupUpdateAuthorityInstructionDataDecoder().decode(
-      instruction.data
-    ),
-  };
+    if (instruction.accounts.length < 2) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { group: getNextAccount(), updateAuthority: getNextAccount() },
+        data: getUpdateTokenGroupUpdateAuthorityInstructionDataDecoder().decode(instruction.data),
+    };
 }

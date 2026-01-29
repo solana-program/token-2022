@@ -7,33 +7,33 @@
  */
 
 import {
-  AccountRole,
-  combineCodec,
-  getOptionDecoder,
-  getOptionEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU64Decoder,
-  getU64Encoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type AccountSignerMeta,
-  type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type Option,
-  type OptionOrNullable,
-  type ReadonlyAccount,
-  type ReadonlySignerAccount,
-  type ReadonlyUint8Array,
-  type TransactionSigner,
-  type WritableAccount,
+    AccountRole,
+    combineCodec,
+    getOptionDecoder,
+    getOptionEncoder,
+    getStructDecoder,
+    getStructEncoder,
+    getU64Decoder,
+    getU64Encoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type AccountSignerMeta,
+    type Address,
+    type Codec,
+    type Decoder,
+    type Encoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type Option,
+    type OptionOrNullable,
+    type ReadonlyAccount,
+    type ReadonlySignerAccount,
+    type ReadonlyUint8Array,
+    type TransactionSigner,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -41,196 +41,167 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export const UNWRAP_LAMPORTS_DISCRIMINATOR = 45;
 
 export function getUnwrapLamportsDiscriminatorBytes() {
-  return getU8Encoder().encode(UNWRAP_LAMPORTS_DISCRIMINATOR);
+    return getU8Encoder().encode(UNWRAP_LAMPORTS_DISCRIMINATOR);
 }
 
 export type UnwrapLamportsInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountSource extends string | AccountMeta<string> = string,
-  TAccountDestination extends string | AccountMeta<string> = string,
-  TAccountAuthority extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountSource extends string | AccountMeta<string> = string,
+    TAccountDestination extends string | AccountMeta<string> = string,
+    TAccountAuthority extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountSource extends string
-        ? WritableAccount<TAccountSource>
-        : TAccountSource,
-      TAccountDestination extends string
-        ? WritableAccount<TAccountDestination>
-        : TAccountDestination,
-      TAccountAuthority extends string
-        ? ReadonlyAccount<TAccountAuthority>
-        : TAccountAuthority,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [
+            TAccountSource extends string ? WritableAccount<TAccountSource> : TAccountSource,
+            TAccountDestination extends string ? WritableAccount<TAccountDestination> : TAccountDestination,
+            TAccountAuthority extends string ? ReadonlyAccount<TAccountAuthority> : TAccountAuthority,
+            ...TRemainingAccounts,
+        ]
+    >;
 
 export type UnwrapLamportsInstructionData = {
-  discriminator: number;
-  /** The amount of lamports to transfer. */
-  amount: Option<bigint>;
+    discriminator: number;
+    /** The amount of lamports to transfer. */
+    amount: Option<bigint>;
 };
 
 export type UnwrapLamportsInstructionDataArgs = {
-  /** The amount of lamports to transfer. */
-  amount: OptionOrNullable<number | bigint>;
+    /** The amount of lamports to transfer. */
+    amount: OptionOrNullable<number | bigint>;
 };
 
 export function getUnwrapLamportsInstructionDataEncoder(): Encoder<UnwrapLamportsInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['amount', getOptionEncoder(getU64Encoder())],
-    ]),
-    (value) => ({ ...value, discriminator: UNWRAP_LAMPORTS_DISCRIMINATOR })
-  );
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getU8Encoder()],
+            ['amount', getOptionEncoder(getU64Encoder())],
+        ]),
+        value => ({ ...value, discriminator: UNWRAP_LAMPORTS_DISCRIMINATOR }),
+    );
 }
 
 export function getUnwrapLamportsInstructionDataDecoder(): Decoder<UnwrapLamportsInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['amount', getOptionDecoder(getU64Decoder())],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['amount', getOptionDecoder(getU64Decoder())],
+    ]);
 }
 
 export function getUnwrapLamportsInstructionDataCodec(): Codec<
-  UnwrapLamportsInstructionDataArgs,
-  UnwrapLamportsInstructionData
+    UnwrapLamportsInstructionDataArgs,
+    UnwrapLamportsInstructionData
 > {
-  return combineCodec(
-    getUnwrapLamportsInstructionDataEncoder(),
-    getUnwrapLamportsInstructionDataDecoder()
-  );
+    return combineCodec(getUnwrapLamportsInstructionDataEncoder(), getUnwrapLamportsInstructionDataDecoder());
 }
 
 export type UnwrapLamportsInput<
-  TAccountSource extends string = string,
-  TAccountDestination extends string = string,
-  TAccountAuthority extends string = string,
+    TAccountSource extends string = string,
+    TAccountDestination extends string = string,
+    TAccountAuthority extends string = string,
 > = {
-  /** The source account. */
-  source: Address<TAccountSource>;
-  /** The destination account. */
-  destination: Address<TAccountDestination>;
-  /** The source account's owner or its multisignature account. */
-  authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
-  amount: UnwrapLamportsInstructionDataArgs['amount'];
-  multiSigners?: Array<TransactionSigner>;
+    /** The source account. */
+    source: Address<TAccountSource>;
+    /** The destination account. */
+    destination: Address<TAccountDestination>;
+    /** The source account's owner or its multisignature account. */
+    authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
+    amount: UnwrapLamportsInstructionDataArgs['amount'];
+    multiSigners?: Array<TransactionSigner>;
 };
 
 export function getUnwrapLamportsInstruction<
-  TAccountSource extends string,
-  TAccountDestination extends string,
-  TAccountAuthority extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountSource extends string,
+    TAccountDestination extends string,
+    TAccountAuthority extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: UnwrapLamportsInput<
-    TAccountSource,
-    TAccountDestination,
-    TAccountAuthority
-  >,
-  config?: { programAddress?: TProgramAddress }
+    input: UnwrapLamportsInput<TAccountSource, TAccountDestination, TAccountAuthority>,
+    config?: { programAddress?: TProgramAddress },
 ): UnwrapLamportsInstruction<
-  TProgramAddress,
-  TAccountSource,
-  TAccountDestination,
-  (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-    ? ReadonlySignerAccount<TAccountAuthority> &
-        AccountSignerMeta<TAccountAuthority>
-    : TAccountAuthority
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
-
-  // Original accounts.
-  const originalAccounts = {
-    source: { value: input.source ?? null, isWritable: true },
-    destination: { value: input.destination ?? null, isWritable: true },
-    authority: { value: input.authority ?? null, isWritable: false },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
-
-  // Original args.
-  const args = { ...input };
-
-  // Remaining accounts.
-  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
-    (signer) => ({
-      address: signer.address,
-      role: AccountRole.READONLY_SIGNER,
-      signer,
-    })
-  );
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [
-      getAccountMeta(accounts.source),
-      getAccountMeta(accounts.destination),
-      getAccountMeta(accounts.authority),
-      ...remainingAccounts,
-    ],
-    data: getUnwrapLamportsInstructionDataEncoder().encode(
-      args as UnwrapLamportsInstructionDataArgs
-    ),
-    programAddress,
-  } as UnwrapLamportsInstruction<
     TProgramAddress,
     TAccountSource,
     TAccountDestination,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-      ? ReadonlySignerAccount<TAccountAuthority> &
-          AccountSignerMeta<TAccountAuthority>
-      : TAccountAuthority
-  >);
+        ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
+        : TAccountAuthority
+> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+
+    // Original accounts.
+    const originalAccounts = {
+        source: { value: input.source ?? null, isWritable: true },
+        destination: { value: input.destination ?? null, isWritable: true },
+        authority: { value: input.authority ?? null, isWritable: false },
+    };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+
+    // Original args.
+    const args = { ...input };
+
+    // Remaining accounts.
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
+        address: signer.address,
+        role: AccountRole.READONLY_SIGNER,
+        signer,
+    }));
+
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [
+            getAccountMeta(accounts.source),
+            getAccountMeta(accounts.destination),
+            getAccountMeta(accounts.authority),
+            ...remainingAccounts,
+        ],
+        data: getUnwrapLamportsInstructionDataEncoder().encode(args as UnwrapLamportsInstructionDataArgs),
+        programAddress,
+    } as UnwrapLamportsInstruction<
+        TProgramAddress,
+        TAccountSource,
+        TAccountDestination,
+        (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
+            ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
+            : TAccountAuthority
+    >);
 }
 
 export type ParsedUnwrapLamportsInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The source account. */
-    source: TAccountMetas[0];
-    /** The destination account. */
-    destination: TAccountMetas[1];
-    /** The source account's owner or its multisignature account. */
-    authority: TAccountMetas[2];
-  };
-  data: UnwrapLamportsInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The source account. */
+        source: TAccountMetas[0];
+        /** The destination account. */
+        destination: TAccountMetas[1];
+        /** The source account's owner or its multisignature account. */
+        authority: TAccountMetas[2];
+    };
+    data: UnwrapLamportsInstructionData;
 };
 
-export function parseUnwrapLamportsInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
->(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+export function parseUnwrapLamportsInstruction<TProgram extends string, TAccountMetas extends readonly AccountMeta[]>(
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedUnwrapLamportsInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: {
-      source: getNextAccount(),
-      destination: getNextAccount(),
-      authority: getNextAccount(),
-    },
-    data: getUnwrapLamportsInstructionDataDecoder().decode(instruction.data),
-  };
+    if (instruction.accounts.length < 3) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { source: getNextAccount(), destination: getNextAccount(), authority: getNextAccount() },
+        data: getUnwrapLamportsInstructionDataDecoder().decode(instruction.data),
+    };
 }

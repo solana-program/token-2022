@@ -7,48 +7,45 @@
  */
 
 import {
-  combineCodec,
-  getEnumDecoder,
-  getEnumEncoder,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
+    combineCodec,
+    getEnumDecoder,
+    getEnumEncoder,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
 } from '@solana/kit';
 
 export enum AuthorityType {
-  MintTokens,
-  FreezeAccount,
-  AccountOwner,
-  CloseAccount,
-  TransferFeeConfig,
-  WithheldWithdraw,
-  CloseMint,
-  InterestRate,
-  PermanentDelegate,
-  ConfidentialTransferMint,
-  TransferHookProgramId,
-  ConfidentialTransferFeeConfig,
-  MetadataPointer,
-  GroupPointer,
-  GroupMemberPointer,
-  ScaledUiAmount,
-  Pause,
-  PermissionedBurn,
+    MintTokens,
+    FreezeAccount,
+    AccountOwner,
+    CloseAccount,
+    TransferFeeConfig,
+    WithheldWithdraw,
+    CloseMint,
+    InterestRate,
+    PermanentDelegate,
+    ConfidentialTransferMint,
+    TransferHookProgramId,
+    ConfidentialTransferFeeConfig,
+    MetadataPointer,
+    GroupPointer,
+    GroupMemberPointer,
+    ScaledUiAmount,
+    Pause,
+    PermissionedBurn,
 }
 
 export type AuthorityTypeArgs = AuthorityType;
 
 export function getAuthorityTypeEncoder(): FixedSizeEncoder<AuthorityTypeArgs> {
-  return getEnumEncoder(AuthorityType);
+    return getEnumEncoder(AuthorityType);
 }
 
 export function getAuthorityTypeDecoder(): FixedSizeDecoder<AuthorityType> {
-  return getEnumDecoder(AuthorityType);
+    return getEnumDecoder(AuthorityType);
 }
 
-export function getAuthorityTypeCodec(): FixedSizeCodec<
-  AuthorityTypeArgs,
-  AuthorityType
-> {
-  return combineCodec(getAuthorityTypeEncoder(), getAuthorityTypeDecoder());
+export function getAuthorityTypeCodec(): FixedSizeCodec<AuthorityTypeArgs, AuthorityType> {
+    return combineCodec(getAuthorityTypeEncoder(), getAuthorityTypeDecoder());
 }

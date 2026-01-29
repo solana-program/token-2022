@@ -7,122 +7,122 @@
  */
 
 import {
-  assertAccountExists,
-  assertAccountsExist,
-  combineCodec,
-  decodeAccount,
-  fetchEncodedAccount,
-  fetchEncodedAccounts,
-  getAddressDecoder,
-  getAddressEncoder,
-  getArrayDecoder,
-  getArrayEncoder,
-  getBooleanDecoder,
-  getBooleanEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  type Account,
-  type Address,
-  type EncodedAccount,
-  type FetchAccountConfig,
-  type FetchAccountsConfig,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type MaybeAccount,
-  type MaybeEncodedAccount,
+    assertAccountExists,
+    assertAccountsExist,
+    combineCodec,
+    decodeAccount,
+    fetchEncodedAccount,
+    fetchEncodedAccounts,
+    getAddressDecoder,
+    getAddressEncoder,
+    getArrayDecoder,
+    getArrayEncoder,
+    getBooleanDecoder,
+    getBooleanEncoder,
+    getStructDecoder,
+    getStructEncoder,
+    getU8Decoder,
+    getU8Encoder,
+    type Account,
+    type Address,
+    type EncodedAccount,
+    type FetchAccountConfig,
+    type FetchAccountsConfig,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type MaybeAccount,
+    type MaybeEncodedAccount,
 } from '@solana/kit';
 
 export type Multisig = {
-  /** Number of signers required. */
-  m: number;
-  /** Number of valid signers. */
-  n: number;
-  /** Is `true` if this structure has been initialized. */
-  isInitialized: boolean;
-  /** Signer public keys. */
-  signers: Array<Address>;
+    /** Number of signers required. */
+    m: number;
+    /** Number of valid signers. */
+    n: number;
+    /** Is `true` if this structure has been initialized. */
+    isInitialized: boolean;
+    /** Signer public keys. */
+    signers: Array<Address>;
 };
 
 export type MultisigArgs = Multisig;
 
+/** Gets the encoder for {@link MultisigArgs} account data. */
 export function getMultisigEncoder(): FixedSizeEncoder<MultisigArgs> {
-  return getStructEncoder([
-    ['m', getU8Encoder()],
-    ['n', getU8Encoder()],
-    ['isInitialized', getBooleanEncoder()],
-    ['signers', getArrayEncoder(getAddressEncoder(), { size: 11 })],
-  ]);
+    return getStructEncoder([
+        ['m', getU8Encoder()],
+        ['n', getU8Encoder()],
+        ['isInitialized', getBooleanEncoder()],
+        ['signers', getArrayEncoder(getAddressEncoder(), { size: 11 })],
+    ]);
 }
 
+/** Gets the decoder for {@link Multisig} account data. */
 export function getMultisigDecoder(): FixedSizeDecoder<Multisig> {
-  return getStructDecoder([
-    ['m', getU8Decoder()],
-    ['n', getU8Decoder()],
-    ['isInitialized', getBooleanDecoder()],
-    ['signers', getArrayDecoder(getAddressDecoder(), { size: 11 })],
-  ]);
+    return getStructDecoder([
+        ['m', getU8Decoder()],
+        ['n', getU8Decoder()],
+        ['isInitialized', getBooleanDecoder()],
+        ['signers', getArrayDecoder(getAddressDecoder(), { size: 11 })],
+    ]);
 }
 
+/** Gets the codec for {@link Multisig} account data. */
 export function getMultisigCodec(): FixedSizeCodec<MultisigArgs, Multisig> {
-  return combineCodec(getMultisigEncoder(), getMultisigDecoder());
+    return combineCodec(getMultisigEncoder(), getMultisigDecoder());
 }
 
 export function decodeMultisig<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>
+    encodedAccount: EncodedAccount<TAddress>,
 ): Account<Multisig, TAddress>;
 export function decodeMultisig<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>
+    encodedAccount: MaybeEncodedAccount<TAddress>,
 ): MaybeAccount<Multisig, TAddress>;
 export function decodeMultisig<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
+    encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>,
 ): Account<Multisig, TAddress> | MaybeAccount<Multisig, TAddress> {
-  return decodeAccount(
-    encodedAccount as MaybeEncodedAccount<TAddress>,
-    getMultisigDecoder()
-  );
+    return decodeAccount(encodedAccount as MaybeEncodedAccount<TAddress>, getMultisigDecoder());
 }
 
 export async function fetchMultisig<TAddress extends string = string>(
-  rpc: Parameters<typeof fetchEncodedAccount>[0],
-  address: Address<TAddress>,
-  config?: FetchAccountConfig
+    rpc: Parameters<typeof fetchEncodedAccount>[0],
+    address: Address<TAddress>,
+    config?: FetchAccountConfig,
 ): Promise<Account<Multisig, TAddress>> {
-  const maybeAccount = await fetchMaybeMultisig(rpc, address, config);
-  assertAccountExists(maybeAccount);
-  return maybeAccount;
+    const maybeAccount = await fetchMaybeMultisig(rpc, address, config);
+    assertAccountExists(maybeAccount);
+    return maybeAccount;
 }
 
 export async function fetchMaybeMultisig<TAddress extends string = string>(
-  rpc: Parameters<typeof fetchEncodedAccount>[0],
-  address: Address<TAddress>,
-  config?: FetchAccountConfig
+    rpc: Parameters<typeof fetchEncodedAccount>[0],
+    address: Address<TAddress>,
+    config?: FetchAccountConfig,
 ): Promise<MaybeAccount<Multisig, TAddress>> {
-  const maybeAccount = await fetchEncodedAccount(rpc, address, config);
-  return decodeMultisig(maybeAccount);
+    const maybeAccount = await fetchEncodedAccount(rpc, address, config);
+    return decodeMultisig(maybeAccount);
 }
 
 export async function fetchAllMultisig(
-  rpc: Parameters<typeof fetchEncodedAccounts>[0],
-  addresses: Array<Address>,
-  config?: FetchAccountsConfig
+    rpc: Parameters<typeof fetchEncodedAccounts>[0],
+    addresses: Array<Address>,
+    config?: FetchAccountsConfig,
 ): Promise<Account<Multisig>[]> {
-  const maybeAccounts = await fetchAllMaybeMultisig(rpc, addresses, config);
-  assertAccountsExist(maybeAccounts);
-  return maybeAccounts;
+    const maybeAccounts = await fetchAllMaybeMultisig(rpc, addresses, config);
+    assertAccountsExist(maybeAccounts);
+    return maybeAccounts;
 }
 
 export async function fetchAllMaybeMultisig(
-  rpc: Parameters<typeof fetchEncodedAccounts>[0],
-  addresses: Array<Address>,
-  config?: FetchAccountsConfig
+    rpc: Parameters<typeof fetchEncodedAccounts>[0],
+    addresses: Array<Address>,
+    config?: FetchAccountsConfig,
 ): Promise<MaybeAccount<Multisig>[]> {
-  const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
-  return maybeAccounts.map((maybeAccount) => decodeMultisig(maybeAccount));
+    const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
+    return maybeAccounts.map(maybeAccount => decodeMultisig(maybeAccount));
 }
 
 export function getMultisigSize(): number {
-  return 355;
+    return 355;
 }

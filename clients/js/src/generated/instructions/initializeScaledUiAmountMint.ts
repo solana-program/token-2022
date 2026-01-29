@@ -7,30 +7,30 @@
  */
 
 import {
-  combineCodec,
-  getAddressDecoder,
-  getAddressEncoder,
-  getF64Decoder,
-  getF64Encoder,
-  getOptionDecoder,
-  getOptionEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type Option,
-  type OptionOrNullable,
-  type ReadonlyUint8Array,
-  type WritableAccount,
+    combineCodec,
+    getAddressDecoder,
+    getAddressEncoder,
+    getF64Decoder,
+    getF64Encoder,
+    getOptionDecoder,
+    getOptionEncoder,
+    getStructDecoder,
+    getStructEncoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type Address,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type Option,
+    type OptionOrNullable,
+    type ReadonlyUint8Array,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -38,172 +38,143 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export const INITIALIZE_SCALED_UI_AMOUNT_MINT_DISCRIMINATOR = 43;
 
 export function getInitializeScaledUiAmountMintDiscriminatorBytes() {
-  return getU8Encoder().encode(INITIALIZE_SCALED_UI_AMOUNT_MINT_DISCRIMINATOR);
+    return getU8Encoder().encode(INITIALIZE_SCALED_UI_AMOUNT_MINT_DISCRIMINATOR);
 }
 
 export const INITIALIZE_SCALED_UI_AMOUNT_MINT_SCALED_UI_AMOUNT_MINT_DISCRIMINATOR = 0;
 
 export function getInitializeScaledUiAmountMintScaledUiAmountMintDiscriminatorBytes() {
-  return getU8Encoder().encode(
-    INITIALIZE_SCALED_UI_AMOUNT_MINT_SCALED_UI_AMOUNT_MINT_DISCRIMINATOR
-  );
+    return getU8Encoder().encode(INITIALIZE_SCALED_UI_AMOUNT_MINT_SCALED_UI_AMOUNT_MINT_DISCRIMINATOR);
 }
 
 export type InitializeScaledUiAmountMintInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountMint extends string
-        ? WritableAccount<TAccountMint>
-        : TAccountMint,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [TAccountMint extends string ? WritableAccount<TAccountMint> : TAccountMint, ...TRemainingAccounts]
+    >;
 
 export type InitializeScaledUiAmountMintInstructionData = {
-  discriminator: number;
-  scaledUiAmountMintDiscriminator: number;
-  /** The authority that can update the multiplier */
-  authority: Option<Address>;
-  /** The initial multiplier for the scaled UI extension */
-  multiplier: number;
+    discriminator: number;
+    scaledUiAmountMintDiscriminator: number;
+    /** The authority that can update the multiplier */
+    authority: Option<Address>;
+    /** The initial multiplier for the scaled UI extension */
+    multiplier: number;
 };
 
 export type InitializeScaledUiAmountMintInstructionDataArgs = {
-  /** The authority that can update the multiplier */
-  authority: OptionOrNullable<Address>;
-  /** The initial multiplier for the scaled UI extension */
-  multiplier: number;
+    /** The authority that can update the multiplier */
+    authority: OptionOrNullable<Address>;
+    /** The initial multiplier for the scaled UI extension */
+    multiplier: number;
 };
 
 export function getInitializeScaledUiAmountMintInstructionDataEncoder(): FixedSizeEncoder<InitializeScaledUiAmountMintInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['scaledUiAmountMintDiscriminator', getU8Encoder()],
-      [
-        'authority',
-        getOptionEncoder(getAddressEncoder(), {
-          prefix: null,
-          noneValue: 'zeroes',
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getU8Encoder()],
+            ['scaledUiAmountMintDiscriminator', getU8Encoder()],
+            ['authority', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
+            ['multiplier', getF64Encoder()],
+        ]),
+        value => ({
+            ...value,
+            discriminator: INITIALIZE_SCALED_UI_AMOUNT_MINT_DISCRIMINATOR,
+            scaledUiAmountMintDiscriminator: INITIALIZE_SCALED_UI_AMOUNT_MINT_SCALED_UI_AMOUNT_MINT_DISCRIMINATOR,
         }),
-      ],
-      ['multiplier', getF64Encoder()],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator: INITIALIZE_SCALED_UI_AMOUNT_MINT_DISCRIMINATOR,
-      scaledUiAmountMintDiscriminator:
-        INITIALIZE_SCALED_UI_AMOUNT_MINT_SCALED_UI_AMOUNT_MINT_DISCRIMINATOR,
-    })
-  );
+    );
 }
 
 export function getInitializeScaledUiAmountMintInstructionDataDecoder(): FixedSizeDecoder<InitializeScaledUiAmountMintInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['scaledUiAmountMintDiscriminator', getU8Decoder()],
-    [
-      'authority',
-      getOptionDecoder(getAddressDecoder(), {
-        prefix: null,
-        noneValue: 'zeroes',
-      }),
-    ],
-    ['multiplier', getF64Decoder()],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['scaledUiAmountMintDiscriminator', getU8Decoder()],
+        ['authority', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
+        ['multiplier', getF64Decoder()],
+    ]);
 }
 
 export function getInitializeScaledUiAmountMintInstructionDataCodec(): FixedSizeCodec<
-  InitializeScaledUiAmountMintInstructionDataArgs,
-  InitializeScaledUiAmountMintInstructionData
+    InitializeScaledUiAmountMintInstructionDataArgs,
+    InitializeScaledUiAmountMintInstructionData
 > {
-  return combineCodec(
-    getInitializeScaledUiAmountMintInstructionDataEncoder(),
-    getInitializeScaledUiAmountMintInstructionDataDecoder()
-  );
+    return combineCodec(
+        getInitializeScaledUiAmountMintInstructionDataEncoder(),
+        getInitializeScaledUiAmountMintInstructionDataDecoder(),
+    );
 }
 
-export type InitializeScaledUiAmountMintInput<
-  TAccountMint extends string = string,
-> = {
-  /** The mint to initialize. */
-  mint: Address<TAccountMint>;
-  authority: InitializeScaledUiAmountMintInstructionDataArgs['authority'];
-  multiplier: InitializeScaledUiAmountMintInstructionDataArgs['multiplier'];
+export type InitializeScaledUiAmountMintInput<TAccountMint extends string = string> = {
+    /** The mint to initialize. */
+    mint: Address<TAccountMint>;
+    authority: InitializeScaledUiAmountMintInstructionDataArgs['authority'];
+    multiplier: InitializeScaledUiAmountMintInstructionDataArgs['multiplier'];
 };
 
 export function getInitializeScaledUiAmountMintInstruction<
-  TAccountMint extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: InitializeScaledUiAmountMintInput<TAccountMint>,
-  config?: { programAddress?: TProgramAddress }
+    input: InitializeScaledUiAmountMintInput<TAccountMint>,
+    config?: { programAddress?: TProgramAddress },
 ): InitializeScaledUiAmountMintInstruction<TProgramAddress, TAccountMint> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
-  // Original accounts.
-  const originalAccounts = {
-    mint: { value: input.mint ?? null, isWritable: true },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
+    // Original accounts.
+    const originalAccounts = { mint: { value: input.mint ?? null, isWritable: true } };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
 
-  // Original args.
-  const args = { ...input };
+    // Original args.
+    const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [getAccountMeta(accounts.mint)],
-    data: getInitializeScaledUiAmountMintInstructionDataEncoder().encode(
-      args as InitializeScaledUiAmountMintInstructionDataArgs
-    ),
-    programAddress,
-  } as InitializeScaledUiAmountMintInstruction<TProgramAddress, TAccountMint>);
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [getAccountMeta(accounts.mint)],
+        data: getInitializeScaledUiAmountMintInstructionDataEncoder().encode(
+            args as InitializeScaledUiAmountMintInstructionDataArgs,
+        ),
+        programAddress,
+    } as InitializeScaledUiAmountMintInstruction<TProgramAddress, TAccountMint>);
 }
 
 export type ParsedInitializeScaledUiAmountMintInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The mint to initialize. */
-    mint: TAccountMetas[0];
-  };
-  data: InitializeScaledUiAmountMintInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The mint to initialize. */
+        mint: TAccountMetas[0];
+    };
+    data: InitializeScaledUiAmountMintInstructionData;
 };
 
 export function parseInitializeScaledUiAmountMintInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+    TProgram extends string,
+    TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeScaledUiAmountMintInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 1) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: { mint: getNextAccount() },
-    data: getInitializeScaledUiAmountMintInstructionDataDecoder().decode(
-      instruction.data
-    ),
-  };
+    if (instruction.accounts.length < 1) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { mint: getNextAccount() },
+        data: getInitializeScaledUiAmountMintInstructionDataDecoder().decode(instruction.data),
+    };
 }

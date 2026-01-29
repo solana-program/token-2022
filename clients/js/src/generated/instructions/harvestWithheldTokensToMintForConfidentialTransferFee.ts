@@ -7,23 +7,23 @@
  */
 
 import {
-  AccountRole,
-  combineCodec,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type ReadonlyUint8Array,
-  type WritableAccount,
+    AccountRole,
+    combineCodec,
+    getStructDecoder,
+    getStructEncoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type Address,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type ReadonlyUint8Array,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -31,162 +31,136 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export const HARVEST_WITHHELD_TOKENS_TO_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR = 37;
 
 export function getHarvestWithheldTokensToMintForConfidentialTransferFeeDiscriminatorBytes() {
-  return getU8Encoder().encode(
-    HARVEST_WITHHELD_TOKENS_TO_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR
-  );
+    return getU8Encoder().encode(HARVEST_WITHHELD_TOKENS_TO_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR);
 }
 
 export const HARVEST_WITHHELD_TOKENS_TO_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR = 3;
 
 export function getHarvestWithheldTokensToMintForConfidentialTransferFeeConfidentialTransferFeeDiscriminatorBytes() {
-  return getU8Encoder().encode(
-    HARVEST_WITHHELD_TOKENS_TO_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR
-  );
+    return getU8Encoder().encode(
+        HARVEST_WITHHELD_TOKENS_TO_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR,
+    );
 }
 
 export type HarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountMint extends string
-        ? WritableAccount<TAccountMint>
-        : TAccountMint,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [TAccountMint extends string ? WritableAccount<TAccountMint> : TAccountMint, ...TRemainingAccounts]
+    >;
 
-export type HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionData =
-  { discriminator: number; confidentialTransferFeeDiscriminator: number };
+export type HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionData = {
+    discriminator: number;
+    confidentialTransferFeeDiscriminator: number;
+};
 
-export type HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataArgs =
-  {};
+export type HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataArgs = {};
 
 export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataEncoder(): FixedSizeEncoder<HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['confidentialTransferFeeDiscriminator', getU8Encoder()],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator:
-        HARVEST_WITHHELD_TOKENS_TO_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR,
-      confidentialTransferFeeDiscriminator:
-        HARVEST_WITHHELD_TOKENS_TO_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR,
-    })
-  );
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getU8Encoder()],
+            ['confidentialTransferFeeDiscriminator', getU8Encoder()],
+        ]),
+        value => ({
+            ...value,
+            discriminator: HARVEST_WITHHELD_TOKENS_TO_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR,
+            confidentialTransferFeeDiscriminator:
+                HARVEST_WITHHELD_TOKENS_TO_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR,
+        }),
+    );
 }
 
 export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataDecoder(): FixedSizeDecoder<HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['confidentialTransferFeeDiscriminator', getU8Decoder()],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['confidentialTransferFeeDiscriminator', getU8Decoder()],
+    ]);
 }
 
 export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataCodec(): FixedSizeCodec<
-  HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataArgs,
-  HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionData
+    HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataArgs,
+    HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionData
 > {
-  return combineCodec(
-    getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataEncoder(),
-    getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataDecoder()
-  );
+    return combineCodec(
+        getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataEncoder(),
+        getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataDecoder(),
+    );
 }
 
-export type HarvestWithheldTokensToMintForConfidentialTransferFeeInput<
-  TAccountMint extends string = string,
-> = {
-  /** The mint. */
-  mint: Address<TAccountMint>;
-  sources?: Array<Address>;
+export type HarvestWithheldTokensToMintForConfidentialTransferFeeInput<TAccountMint extends string = string> = {
+    /** The mint. */
+    mint: Address<TAccountMint>;
+    sources?: Array<Address>;
 };
 
 export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<
-  TAccountMint extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: HarvestWithheldTokensToMintForConfidentialTransferFeeInput<TAccountMint>,
-  config?: { programAddress?: TProgramAddress }
-): HarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<
-  TProgramAddress,
-  TAccountMint
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    input: HarvestWithheldTokensToMintForConfidentialTransferFeeInput<TAccountMint>,
+    config?: { programAddress?: TProgramAddress },
+): HarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<TProgramAddress, TAccountMint> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
-  // Original accounts.
-  const originalAccounts = {
-    mint: { value: input.mint ?? null, isWritable: true },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
+    // Original accounts.
+    const originalAccounts = { mint: { value: input.mint ?? null, isWritable: true } };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
 
-  // Original args.
-  const args = { ...input };
+    // Original args.
+    const args = { ...input };
 
-  // Remaining accounts.
-  const remainingAccounts: AccountMeta[] = (args.sources ?? []).map(
-    (address) => ({ address, role: AccountRole.WRITABLE })
-  );
+    // Remaining accounts.
+    const remainingAccounts: AccountMeta[] = (args.sources ?? []).map(address => ({
+        address,
+        role: AccountRole.WRITABLE,
+    }));
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [getAccountMeta(accounts.mint), ...remainingAccounts],
-    data: getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataEncoder().encode(
-      {}
-    ),
-    programAddress,
-  } as HarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<
-    TProgramAddress,
-    TAccountMint
-  >);
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [getAccountMeta(accounts.mint), ...remainingAccounts],
+        data: getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataEncoder().encode({}),
+        programAddress,
+    } as HarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<TProgramAddress, TAccountMint>);
 }
 
 export type ParsedHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The mint. */
-    mint: TAccountMetas[0];
-  };
-  data: HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The mint. */
+        mint: TAccountMetas[0];
+    };
+    data: HarvestWithheldTokensToMintForConfidentialTransferFeeInstructionData;
 };
 
 export function parseHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+    TProgram extends string,
+    TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
-): ParsedHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<
-  TProgram,
-  TAccountMetas
-> {
-  if (instruction.accounts.length < 1) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: { mint: getNextAccount() },
-    data: getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataDecoder().decode(
-      instruction.data
-    ),
-  };
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
+): ParsedHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<TProgram, TAccountMetas> {
+    if (instruction.accounts.length < 1) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { mint: getNextAccount() },
+        data: getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataDecoder().decode(instruction.data),
+    };
 }

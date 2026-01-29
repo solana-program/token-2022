@@ -7,28 +7,28 @@
  */
 
 import {
-  combineCodec,
-  getAddressDecoder,
-  getAddressEncoder,
-  getOptionDecoder,
-  getOptionEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type Option,
-  type OptionOrNullable,
-  type ReadonlyUint8Array,
-  type WritableAccount,
+    combineCodec,
+    getAddressDecoder,
+    getAddressEncoder,
+    getOptionDecoder,
+    getOptionEncoder,
+    getStructDecoder,
+    getStructEncoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type Address,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type Option,
+    type OptionOrNullable,
+    type ReadonlyUint8Array,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -36,183 +36,143 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export const INITIALIZE_GROUP_POINTER_DISCRIMINATOR = 40;
 
 export function getInitializeGroupPointerDiscriminatorBytes() {
-  return getU8Encoder().encode(INITIALIZE_GROUP_POINTER_DISCRIMINATOR);
+    return getU8Encoder().encode(INITIALIZE_GROUP_POINTER_DISCRIMINATOR);
 }
 
 export const INITIALIZE_GROUP_POINTER_GROUP_POINTER_DISCRIMINATOR = 0;
 
 export function getInitializeGroupPointerGroupPointerDiscriminatorBytes() {
-  return getU8Encoder().encode(
-    INITIALIZE_GROUP_POINTER_GROUP_POINTER_DISCRIMINATOR
-  );
+    return getU8Encoder().encode(INITIALIZE_GROUP_POINTER_GROUP_POINTER_DISCRIMINATOR);
 }
 
 export type InitializeGroupPointerInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountMint extends string
-        ? WritableAccount<TAccountMint>
-        : TAccountMint,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [TAccountMint extends string ? WritableAccount<TAccountMint> : TAccountMint, ...TRemainingAccounts]
+    >;
 
 export type InitializeGroupPointerInstructionData = {
-  discriminator: number;
-  groupPointerDiscriminator: number;
-  /** The public key for the account that can update the group address. */
-  authority: Option<Address>;
-  /** The account address that holds the group. */
-  groupAddress: Option<Address>;
+    discriminator: number;
+    groupPointerDiscriminator: number;
+    /** The public key for the account that can update the group address. */
+    authority: Option<Address>;
+    /** The account address that holds the group. */
+    groupAddress: Option<Address>;
 };
 
 export type InitializeGroupPointerInstructionDataArgs = {
-  /** The public key for the account that can update the group address. */
-  authority: OptionOrNullable<Address>;
-  /** The account address that holds the group. */
-  groupAddress: OptionOrNullable<Address>;
+    /** The public key for the account that can update the group address. */
+    authority: OptionOrNullable<Address>;
+    /** The account address that holds the group. */
+    groupAddress: OptionOrNullable<Address>;
 };
 
 export function getInitializeGroupPointerInstructionDataEncoder(): FixedSizeEncoder<InitializeGroupPointerInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['groupPointerDiscriminator', getU8Encoder()],
-      [
-        'authority',
-        getOptionEncoder(getAddressEncoder(), {
-          prefix: null,
-          noneValue: 'zeroes',
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getU8Encoder()],
+            ['groupPointerDiscriminator', getU8Encoder()],
+            ['authority', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
+            ['groupAddress', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
+        ]),
+        value => ({
+            ...value,
+            discriminator: INITIALIZE_GROUP_POINTER_DISCRIMINATOR,
+            groupPointerDiscriminator: INITIALIZE_GROUP_POINTER_GROUP_POINTER_DISCRIMINATOR,
         }),
-      ],
-      [
-        'groupAddress',
-        getOptionEncoder(getAddressEncoder(), {
-          prefix: null,
-          noneValue: 'zeroes',
-        }),
-      ],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator: INITIALIZE_GROUP_POINTER_DISCRIMINATOR,
-      groupPointerDiscriminator:
-        INITIALIZE_GROUP_POINTER_GROUP_POINTER_DISCRIMINATOR,
-    })
-  );
+    );
 }
 
 export function getInitializeGroupPointerInstructionDataDecoder(): FixedSizeDecoder<InitializeGroupPointerInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['groupPointerDiscriminator', getU8Decoder()],
-    [
-      'authority',
-      getOptionDecoder(getAddressDecoder(), {
-        prefix: null,
-        noneValue: 'zeroes',
-      }),
-    ],
-    [
-      'groupAddress',
-      getOptionDecoder(getAddressDecoder(), {
-        prefix: null,
-        noneValue: 'zeroes',
-      }),
-    ],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['groupPointerDiscriminator', getU8Decoder()],
+        ['authority', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
+        ['groupAddress', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
+    ]);
 }
 
 export function getInitializeGroupPointerInstructionDataCodec(): FixedSizeCodec<
-  InitializeGroupPointerInstructionDataArgs,
-  InitializeGroupPointerInstructionData
+    InitializeGroupPointerInstructionDataArgs,
+    InitializeGroupPointerInstructionData
 > {
-  return combineCodec(
-    getInitializeGroupPointerInstructionDataEncoder(),
-    getInitializeGroupPointerInstructionDataDecoder()
-  );
+    return combineCodec(
+        getInitializeGroupPointerInstructionDataEncoder(),
+        getInitializeGroupPointerInstructionDataDecoder(),
+    );
 }
 
-export type InitializeGroupPointerInput<TAccountMint extends string = string> =
-  {
+export type InitializeGroupPointerInput<TAccountMint extends string = string> = {
     /** The mint to initialize. */
     mint: Address<TAccountMint>;
     authority: InitializeGroupPointerInstructionDataArgs['authority'];
     groupAddress: InitializeGroupPointerInstructionDataArgs['groupAddress'];
-  };
+};
 
 export function getInitializeGroupPointerInstruction<
-  TAccountMint extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: InitializeGroupPointerInput<TAccountMint>,
-  config?: { programAddress?: TProgramAddress }
+    input: InitializeGroupPointerInput<TAccountMint>,
+    config?: { programAddress?: TProgramAddress },
 ): InitializeGroupPointerInstruction<TProgramAddress, TAccountMint> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
-  // Original accounts.
-  const originalAccounts = {
-    mint: { value: input.mint ?? null, isWritable: true },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
+    // Original accounts.
+    const originalAccounts = { mint: { value: input.mint ?? null, isWritable: true } };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
 
-  // Original args.
-  const args = { ...input };
+    // Original args.
+    const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [getAccountMeta(accounts.mint)],
-    data: getInitializeGroupPointerInstructionDataEncoder().encode(
-      args as InitializeGroupPointerInstructionDataArgs
-    ),
-    programAddress,
-  } as InitializeGroupPointerInstruction<TProgramAddress, TAccountMint>);
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [getAccountMeta(accounts.mint)],
+        data: getInitializeGroupPointerInstructionDataEncoder().encode(
+            args as InitializeGroupPointerInstructionDataArgs,
+        ),
+        programAddress,
+    } as InitializeGroupPointerInstruction<TProgramAddress, TAccountMint>);
 }
 
 export type ParsedInitializeGroupPointerInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The mint to initialize. */
-    mint: TAccountMetas[0];
-  };
-  data: InitializeGroupPointerInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The mint to initialize. */
+        mint: TAccountMetas[0];
+    };
+    data: InitializeGroupPointerInstructionData;
 };
 
 export function parseInitializeGroupPointerInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+    TProgram extends string,
+    TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeGroupPointerInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 1) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: { mint: getNextAccount() },
-    data: getInitializeGroupPointerInstructionDataDecoder().decode(
-      instruction.data
-    ),
-  };
+    if (instruction.accounts.length < 1) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { mint: getNextAccount() },
+        data: getInitializeGroupPointerInstructionDataDecoder().decode(instruction.data),
+    };
 }

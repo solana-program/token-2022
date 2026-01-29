@@ -7,231 +7,201 @@
  */
 
 import {
-  AccountRole,
-  combineCodec,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type AccountSignerMeta,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type ReadonlyAccount,
-  type ReadonlySignerAccount,
-  type ReadonlyUint8Array,
-  type TransactionSigner,
-  type WritableAccount,
+    AccountRole,
+    combineCodec,
+    getStructDecoder,
+    getStructEncoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type AccountSignerMeta,
+    type Address,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type ReadonlyAccount,
+    type ReadonlySignerAccount,
+    type ReadonlyUint8Array,
+    type TransactionSigner,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
-import {
-  getAccountStateDecoder,
-  getAccountStateEncoder,
-  type AccountState,
-  type AccountStateArgs,
-} from '../types';
+import { getAccountStateDecoder, getAccountStateEncoder, type AccountState, type AccountStateArgs } from '../types';
 
 export const UPDATE_DEFAULT_ACCOUNT_STATE_DISCRIMINATOR = 28;
 
 export function getUpdateDefaultAccountStateDiscriminatorBytes() {
-  return getU8Encoder().encode(UPDATE_DEFAULT_ACCOUNT_STATE_DISCRIMINATOR);
+    return getU8Encoder().encode(UPDATE_DEFAULT_ACCOUNT_STATE_DISCRIMINATOR);
 }
 
 export const UPDATE_DEFAULT_ACCOUNT_STATE_DEFAULT_ACCOUNT_STATE_DISCRIMINATOR = 1;
 
 export function getUpdateDefaultAccountStateDefaultAccountStateDiscriminatorBytes() {
-  return getU8Encoder().encode(
-    UPDATE_DEFAULT_ACCOUNT_STATE_DEFAULT_ACCOUNT_STATE_DISCRIMINATOR
-  );
+    return getU8Encoder().encode(UPDATE_DEFAULT_ACCOUNT_STATE_DEFAULT_ACCOUNT_STATE_DISCRIMINATOR);
 }
 
 export type UpdateDefaultAccountStateInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | AccountMeta<string> = string,
-  TAccountFreezeAuthority extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string | AccountMeta<string> = string,
+    TAccountFreezeAuthority extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountMint extends string
-        ? WritableAccount<TAccountMint>
-        : TAccountMint,
-      TAccountFreezeAuthority extends string
-        ? ReadonlyAccount<TAccountFreezeAuthority>
-        : TAccountFreezeAuthority,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [
+            TAccountMint extends string ? WritableAccount<TAccountMint> : TAccountMint,
+            TAccountFreezeAuthority extends string ? ReadonlyAccount<TAccountFreezeAuthority> : TAccountFreezeAuthority,
+            ...TRemainingAccounts,
+        ]
+    >;
 
 export type UpdateDefaultAccountStateInstructionData = {
-  discriminator: number;
-  defaultAccountStateDiscriminator: number;
-  /** The state each new token account should start with. */
-  state: AccountState;
+    discriminator: number;
+    defaultAccountStateDiscriminator: number;
+    /** The state each new token account should start with. */
+    state: AccountState;
 };
 
 export type UpdateDefaultAccountStateInstructionDataArgs = {
-  /** The state each new token account should start with. */
-  state: AccountStateArgs;
+    /** The state each new token account should start with. */
+    state: AccountStateArgs;
 };
 
 export function getUpdateDefaultAccountStateInstructionDataEncoder(): FixedSizeEncoder<UpdateDefaultAccountStateInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['defaultAccountStateDiscriminator', getU8Encoder()],
-      ['state', getAccountStateEncoder()],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator: UPDATE_DEFAULT_ACCOUNT_STATE_DISCRIMINATOR,
-      defaultAccountStateDiscriminator:
-        UPDATE_DEFAULT_ACCOUNT_STATE_DEFAULT_ACCOUNT_STATE_DISCRIMINATOR,
-    })
-  );
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getU8Encoder()],
+            ['defaultAccountStateDiscriminator', getU8Encoder()],
+            ['state', getAccountStateEncoder()],
+        ]),
+        value => ({
+            ...value,
+            discriminator: UPDATE_DEFAULT_ACCOUNT_STATE_DISCRIMINATOR,
+            defaultAccountStateDiscriminator: UPDATE_DEFAULT_ACCOUNT_STATE_DEFAULT_ACCOUNT_STATE_DISCRIMINATOR,
+        }),
+    );
 }
 
 export function getUpdateDefaultAccountStateInstructionDataDecoder(): FixedSizeDecoder<UpdateDefaultAccountStateInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['defaultAccountStateDiscriminator', getU8Decoder()],
-    ['state', getAccountStateDecoder()],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['defaultAccountStateDiscriminator', getU8Decoder()],
+        ['state', getAccountStateDecoder()],
+    ]);
 }
 
 export function getUpdateDefaultAccountStateInstructionDataCodec(): FixedSizeCodec<
-  UpdateDefaultAccountStateInstructionDataArgs,
-  UpdateDefaultAccountStateInstructionData
+    UpdateDefaultAccountStateInstructionDataArgs,
+    UpdateDefaultAccountStateInstructionData
 > {
-  return combineCodec(
-    getUpdateDefaultAccountStateInstructionDataEncoder(),
-    getUpdateDefaultAccountStateInstructionDataDecoder()
-  );
+    return combineCodec(
+        getUpdateDefaultAccountStateInstructionDataEncoder(),
+        getUpdateDefaultAccountStateInstructionDataDecoder(),
+    );
 }
 
 export type UpdateDefaultAccountStateInput<
-  TAccountMint extends string = string,
-  TAccountFreezeAuthority extends string = string,
+    TAccountMint extends string = string,
+    TAccountFreezeAuthority extends string = string,
 > = {
-  /** The mint. */
-  mint: Address<TAccountMint>;
-  /** The mint freeze authority or its multisignature account. */
-  freezeAuthority:
-    | Address<TAccountFreezeAuthority>
-    | TransactionSigner<TAccountFreezeAuthority>;
-  state: UpdateDefaultAccountStateInstructionDataArgs['state'];
-  multiSigners?: Array<TransactionSigner>;
+    /** The mint. */
+    mint: Address<TAccountMint>;
+    /** The mint freeze authority or its multisignature account. */
+    freezeAuthority: Address<TAccountFreezeAuthority> | TransactionSigner<TAccountFreezeAuthority>;
+    state: UpdateDefaultAccountStateInstructionDataArgs['state'];
+    multiSigners?: Array<TransactionSigner>;
 };
 
 export function getUpdateDefaultAccountStateInstruction<
-  TAccountMint extends string,
-  TAccountFreezeAuthority extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string,
+    TAccountFreezeAuthority extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: UpdateDefaultAccountStateInput<TAccountMint, TAccountFreezeAuthority>,
-  config?: { programAddress?: TProgramAddress }
+    input: UpdateDefaultAccountStateInput<TAccountMint, TAccountFreezeAuthority>,
+    config?: { programAddress?: TProgramAddress },
 ): UpdateDefaultAccountStateInstruction<
-  TProgramAddress,
-  TAccountMint,
-  (typeof input)['freezeAuthority'] extends TransactionSigner<TAccountFreezeAuthority>
-    ? ReadonlySignerAccount<TAccountFreezeAuthority> &
-        AccountSignerMeta<TAccountFreezeAuthority>
-    : TAccountFreezeAuthority
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
-
-  // Original accounts.
-  const originalAccounts = {
-    mint: { value: input.mint ?? null, isWritable: true },
-    freezeAuthority: {
-      value: input.freezeAuthority ?? null,
-      isWritable: false,
-    },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
-
-  // Original args.
-  const args = { ...input };
-
-  // Remaining accounts.
-  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
-    (signer) => ({
-      address: signer.address,
-      role: AccountRole.READONLY_SIGNER,
-      signer,
-    })
-  );
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [
-      getAccountMeta(accounts.mint),
-      getAccountMeta(accounts.freezeAuthority),
-      ...remainingAccounts,
-    ],
-    data: getUpdateDefaultAccountStateInstructionDataEncoder().encode(
-      args as UpdateDefaultAccountStateInstructionDataArgs
-    ),
-    programAddress,
-  } as UpdateDefaultAccountStateInstruction<
     TProgramAddress,
     TAccountMint,
     (typeof input)['freezeAuthority'] extends TransactionSigner<TAccountFreezeAuthority>
-      ? ReadonlySignerAccount<TAccountFreezeAuthority> &
-          AccountSignerMeta<TAccountFreezeAuthority>
-      : TAccountFreezeAuthority
-  >);
+        ? ReadonlySignerAccount<TAccountFreezeAuthority> & AccountSignerMeta<TAccountFreezeAuthority>
+        : TAccountFreezeAuthority
+> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+
+    // Original accounts.
+    const originalAccounts = {
+        mint: { value: input.mint ?? null, isWritable: true },
+        freezeAuthority: { value: input.freezeAuthority ?? null, isWritable: false },
+    };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+
+    // Original args.
+    const args = { ...input };
+
+    // Remaining accounts.
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
+        address: signer.address,
+        role: AccountRole.READONLY_SIGNER,
+        signer,
+    }));
+
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [getAccountMeta(accounts.mint), getAccountMeta(accounts.freezeAuthority), ...remainingAccounts],
+        data: getUpdateDefaultAccountStateInstructionDataEncoder().encode(
+            args as UpdateDefaultAccountStateInstructionDataArgs,
+        ),
+        programAddress,
+    } as UpdateDefaultAccountStateInstruction<
+        TProgramAddress,
+        TAccountMint,
+        (typeof input)['freezeAuthority'] extends TransactionSigner<TAccountFreezeAuthority>
+            ? ReadonlySignerAccount<TAccountFreezeAuthority> & AccountSignerMeta<TAccountFreezeAuthority>
+            : TAccountFreezeAuthority
+    >);
 }
 
 export type ParsedUpdateDefaultAccountStateInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The mint. */
-    mint: TAccountMetas[0];
-    /** The mint freeze authority or its multisignature account. */
-    freezeAuthority: TAccountMetas[1];
-  };
-  data: UpdateDefaultAccountStateInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The mint. */
+        mint: TAccountMetas[0];
+        /** The mint freeze authority or its multisignature account. */
+        freezeAuthority: TAccountMetas[1];
+    };
+    data: UpdateDefaultAccountStateInstructionData;
 };
 
 export function parseUpdateDefaultAccountStateInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+    TProgram extends string,
+    TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedUpdateDefaultAccountStateInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: { mint: getNextAccount(), freezeAuthority: getNextAccount() },
-    data: getUpdateDefaultAccountStateInstructionDataDecoder().decode(
-      instruction.data
-    ),
-  };
+    if (instruction.accounts.length < 2) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { mint: getNextAccount(), freezeAuthority: getNextAccount() },
+        data: getUpdateDefaultAccountStateInstructionDataDecoder().decode(instruction.data),
+    };
 }

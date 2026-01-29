@@ -7,235 +7,188 @@
  */
 
 import {
-  combineCodec,
-  getAddressDecoder,
-  getAddressEncoder,
-  getBytesDecoder,
-  getBytesEncoder,
-  getOptionDecoder,
-  getOptionEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU64Decoder,
-  getU64Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type AccountSignerMeta,
-  type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type Option,
-  type OptionOrNullable,
-  type ReadonlyAccount,
-  type ReadonlySignerAccount,
-  type ReadonlyUint8Array,
-  type TransactionSigner,
-  type WritableAccount,
+    combineCodec,
+    getAddressDecoder,
+    getAddressEncoder,
+    getBytesDecoder,
+    getBytesEncoder,
+    getOptionDecoder,
+    getOptionEncoder,
+    getStructDecoder,
+    getStructEncoder,
+    getU64Decoder,
+    getU64Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type AccountSignerMeta,
+    type Address,
+    type Codec,
+    type Decoder,
+    type Encoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type Option,
+    type OptionOrNullable,
+    type ReadonlyAccount,
+    type ReadonlySignerAccount,
+    type ReadonlyUint8Array,
+    type TransactionSigner,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const INITIALIZE_TOKEN_GROUP_DISCRIMINATOR = new Uint8Array([
-  121, 113, 108, 39, 54, 51, 0, 4,
-]);
+export const INITIALIZE_TOKEN_GROUP_DISCRIMINATOR = new Uint8Array([121, 113, 108, 39, 54, 51, 0, 4]);
 
 export function getInitializeTokenGroupDiscriminatorBytes() {
-  return getBytesEncoder().encode(INITIALIZE_TOKEN_GROUP_DISCRIMINATOR);
+    return getBytesEncoder().encode(INITIALIZE_TOKEN_GROUP_DISCRIMINATOR);
 }
 
 export type InitializeTokenGroupInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountGroup extends string | AccountMeta<string> = string,
-  TAccountMint extends string | AccountMeta<string> = string,
-  TAccountMintAuthority extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountGroup extends string | AccountMeta<string> = string,
+    TAccountMint extends string | AccountMeta<string> = string,
+    TAccountMintAuthority extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountGroup extends string
-        ? WritableAccount<TAccountGroup>
-        : TAccountGroup,
-      TAccountMint extends string
-        ? ReadonlyAccount<TAccountMint>
-        : TAccountMint,
-      TAccountMintAuthority extends string
-        ? ReadonlySignerAccount<TAccountMintAuthority> &
-            AccountSignerMeta<TAccountMintAuthority>
-        : TAccountMintAuthority,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [
+            TAccountGroup extends string ? WritableAccount<TAccountGroup> : TAccountGroup,
+            TAccountMint extends string ? ReadonlyAccount<TAccountMint> : TAccountMint,
+            TAccountMintAuthority extends string
+                ? ReadonlySignerAccount<TAccountMintAuthority> & AccountSignerMeta<TAccountMintAuthority>
+                : TAccountMintAuthority,
+            ...TRemainingAccounts,
+        ]
+    >;
 
 export type InitializeTokenGroupInstructionData = {
-  discriminator: ReadonlyUint8Array;
-  /** Update authority for the group */
-  updateAuthority: Option<Address>;
-  /** The maximum number of group members */
-  maxSize: bigint;
+    discriminator: ReadonlyUint8Array;
+    /** Update authority for the group */
+    updateAuthority: Option<Address>;
+    /** The maximum number of group members */
+    maxSize: bigint;
 };
 
 export type InitializeTokenGroupInstructionDataArgs = {
-  /** Update authority for the group */
-  updateAuthority: OptionOrNullable<Address>;
-  /** The maximum number of group members */
-  maxSize: number | bigint;
+    /** Update authority for the group */
+    updateAuthority: OptionOrNullable<Address>;
+    /** The maximum number of group members */
+    maxSize: number | bigint;
 };
 
 export function getInitializeTokenGroupInstructionDataEncoder(): Encoder<InitializeTokenGroupInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getBytesEncoder()],
-      [
-        'updateAuthority',
-        getOptionEncoder(getAddressEncoder(), {
-          prefix: null,
-          noneValue: 'zeroes',
-        }),
-      ],
-      ['maxSize', getU64Encoder()],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator: INITIALIZE_TOKEN_GROUP_DISCRIMINATOR,
-    })
-  );
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getBytesEncoder()],
+            ['updateAuthority', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
+            ['maxSize', getU64Encoder()],
+        ]),
+        value => ({ ...value, discriminator: INITIALIZE_TOKEN_GROUP_DISCRIMINATOR }),
+    );
 }
 
 export function getInitializeTokenGroupInstructionDataDecoder(): Decoder<InitializeTokenGroupInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getBytesDecoder()],
-    [
-      'updateAuthority',
-      getOptionDecoder(getAddressDecoder(), {
-        prefix: null,
-        noneValue: 'zeroes',
-      }),
-    ],
-    ['maxSize', getU64Decoder()],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getBytesDecoder()],
+        ['updateAuthority', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
+        ['maxSize', getU64Decoder()],
+    ]);
 }
 
 export function getInitializeTokenGroupInstructionDataCodec(): Codec<
-  InitializeTokenGroupInstructionDataArgs,
-  InitializeTokenGroupInstructionData
+    InitializeTokenGroupInstructionDataArgs,
+    InitializeTokenGroupInstructionData
 > {
-  return combineCodec(
-    getInitializeTokenGroupInstructionDataEncoder(),
-    getInitializeTokenGroupInstructionDataDecoder()
-  );
+    return combineCodec(
+        getInitializeTokenGroupInstructionDataEncoder(),
+        getInitializeTokenGroupInstructionDataDecoder(),
+    );
 }
 
 export type InitializeTokenGroupInput<
-  TAccountGroup extends string = string,
-  TAccountMint extends string = string,
-  TAccountMintAuthority extends string = string,
+    TAccountGroup extends string = string,
+    TAccountMint extends string = string,
+    TAccountMintAuthority extends string = string,
 > = {
-  group: Address<TAccountGroup>;
-  mint: Address<TAccountMint>;
-  mintAuthority: TransactionSigner<TAccountMintAuthority>;
-  updateAuthority: InitializeTokenGroupInstructionDataArgs['updateAuthority'];
-  maxSize: InitializeTokenGroupInstructionDataArgs['maxSize'];
+    group: Address<TAccountGroup>;
+    mint: Address<TAccountMint>;
+    mintAuthority: TransactionSigner<TAccountMintAuthority>;
+    updateAuthority: InitializeTokenGroupInstructionDataArgs['updateAuthority'];
+    maxSize: InitializeTokenGroupInstructionDataArgs['maxSize'];
 };
 
 export function getInitializeTokenGroupInstruction<
-  TAccountGroup extends string,
-  TAccountMint extends string,
-  TAccountMintAuthority extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountGroup extends string,
+    TAccountMint extends string,
+    TAccountMintAuthority extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: InitializeTokenGroupInput<
-    TAccountGroup,
-    TAccountMint,
-    TAccountMintAuthority
-  >,
-  config?: { programAddress?: TProgramAddress }
-): InitializeTokenGroupInstruction<
-  TProgramAddress,
-  TAccountGroup,
-  TAccountMint,
-  TAccountMintAuthority
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    input: InitializeTokenGroupInput<TAccountGroup, TAccountMint, TAccountMintAuthority>,
+    config?: { programAddress?: TProgramAddress },
+): InitializeTokenGroupInstruction<TProgramAddress, TAccountGroup, TAccountMint, TAccountMintAuthority> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
-  // Original accounts.
-  const originalAccounts = {
-    group: { value: input.group ?? null, isWritable: true },
-    mint: { value: input.mint ?? null, isWritable: false },
-    mintAuthority: { value: input.mintAuthority ?? null, isWritable: false },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
+    // Original accounts.
+    const originalAccounts = {
+        group: { value: input.group ?? null, isWritable: true },
+        mint: { value: input.mint ?? null, isWritable: false },
+        mintAuthority: { value: input.mintAuthority ?? null, isWritable: false },
+    };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
 
-  // Original args.
-  const args = { ...input };
+    // Original args.
+    const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [
-      getAccountMeta(accounts.group),
-      getAccountMeta(accounts.mint),
-      getAccountMeta(accounts.mintAuthority),
-    ],
-    data: getInitializeTokenGroupInstructionDataEncoder().encode(
-      args as InitializeTokenGroupInstructionDataArgs
-    ),
-    programAddress,
-  } as InitializeTokenGroupInstruction<
-    TProgramAddress,
-    TAccountGroup,
-    TAccountMint,
-    TAccountMintAuthority
-  >);
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [
+            getAccountMeta(accounts.group),
+            getAccountMeta(accounts.mint),
+            getAccountMeta(accounts.mintAuthority),
+        ],
+        data: getInitializeTokenGroupInstructionDataEncoder().encode(args as InitializeTokenGroupInstructionDataArgs),
+        programAddress,
+    } as InitializeTokenGroupInstruction<TProgramAddress, TAccountGroup, TAccountMint, TAccountMintAuthority>);
 }
 
 export type ParsedInitializeTokenGroupInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    group: TAccountMetas[0];
-    mint: TAccountMetas[1];
-    mintAuthority: TAccountMetas[2];
-  };
-  data: InitializeTokenGroupInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        group: TAccountMetas[0];
+        mint: TAccountMetas[1];
+        mintAuthority: TAccountMetas[2];
+    };
+    data: InitializeTokenGroupInstructionData;
 };
 
 export function parseInitializeTokenGroupInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+    TProgram extends string,
+    TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeTokenGroupInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: {
-      group: getNextAccount(),
-      mint: getNextAccount(),
-      mintAuthority: getNextAccount(),
-    },
-    data: getInitializeTokenGroupInstructionDataDecoder().decode(
-      instruction.data
-    ),
-  };
+    if (instruction.accounts.length < 3) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { group: getNextAccount(), mint: getNextAccount(), mintAuthority: getNextAccount() },
+        data: getInitializeTokenGroupInstructionDataDecoder().decode(instruction.data),
+    };
 }

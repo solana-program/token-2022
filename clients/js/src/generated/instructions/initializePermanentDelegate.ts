@@ -7,24 +7,24 @@
  */
 
 import {
-  combineCodec,
-  getAddressDecoder,
-  getAddressEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type ReadonlyUint8Array,
-  type WritableAccount,
+    combineCodec,
+    getAddressDecoder,
+    getAddressEncoder,
+    getStructDecoder,
+    getStructEncoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type Address,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type ReadonlyUint8Array,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -32,140 +32,123 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export const INITIALIZE_PERMANENT_DELEGATE_DISCRIMINATOR = 35;
 
 export function getInitializePermanentDelegateDiscriminatorBytes() {
-  return getU8Encoder().encode(INITIALIZE_PERMANENT_DELEGATE_DISCRIMINATOR);
+    return getU8Encoder().encode(INITIALIZE_PERMANENT_DELEGATE_DISCRIMINATOR);
 }
 
 export type InitializePermanentDelegateInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountMint extends string
-        ? WritableAccount<TAccountMint>
-        : TAccountMint,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [TAccountMint extends string ? WritableAccount<TAccountMint> : TAccountMint, ...TRemainingAccounts]
+    >;
 
 export type InitializePermanentDelegateInstructionData = {
-  discriminator: number;
-  /** Authority that may sign for `Transfer`s and `Burn`s on any account */
-  delegate: Address;
+    discriminator: number;
+    /** Authority that may sign for `Transfer`s and `Burn`s on any account */
+    delegate: Address;
 };
 
 export type InitializePermanentDelegateInstructionDataArgs = {
-  /** Authority that may sign for `Transfer`s and `Burn`s on any account */
-  delegate: Address;
+    /** Authority that may sign for `Transfer`s and `Burn`s on any account */
+    delegate: Address;
 };
 
 export function getInitializePermanentDelegateInstructionDataEncoder(): FixedSizeEncoder<InitializePermanentDelegateInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['delegate', getAddressEncoder()],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator: INITIALIZE_PERMANENT_DELEGATE_DISCRIMINATOR,
-    })
-  );
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getU8Encoder()],
+            ['delegate', getAddressEncoder()],
+        ]),
+        value => ({ ...value, discriminator: INITIALIZE_PERMANENT_DELEGATE_DISCRIMINATOR }),
+    );
 }
 
 export function getInitializePermanentDelegateInstructionDataDecoder(): FixedSizeDecoder<InitializePermanentDelegateInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['delegate', getAddressDecoder()],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['delegate', getAddressDecoder()],
+    ]);
 }
 
 export function getInitializePermanentDelegateInstructionDataCodec(): FixedSizeCodec<
-  InitializePermanentDelegateInstructionDataArgs,
-  InitializePermanentDelegateInstructionData
+    InitializePermanentDelegateInstructionDataArgs,
+    InitializePermanentDelegateInstructionData
 > {
-  return combineCodec(
-    getInitializePermanentDelegateInstructionDataEncoder(),
-    getInitializePermanentDelegateInstructionDataDecoder()
-  );
+    return combineCodec(
+        getInitializePermanentDelegateInstructionDataEncoder(),
+        getInitializePermanentDelegateInstructionDataDecoder(),
+    );
 }
 
-export type InitializePermanentDelegateInput<
-  TAccountMint extends string = string,
-> = {
-  /** The mint to initialize. */
-  mint: Address<TAccountMint>;
-  delegate: InitializePermanentDelegateInstructionDataArgs['delegate'];
+export type InitializePermanentDelegateInput<TAccountMint extends string = string> = {
+    /** The mint to initialize. */
+    mint: Address<TAccountMint>;
+    delegate: InitializePermanentDelegateInstructionDataArgs['delegate'];
 };
 
 export function getInitializePermanentDelegateInstruction<
-  TAccountMint extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: InitializePermanentDelegateInput<TAccountMint>,
-  config?: { programAddress?: TProgramAddress }
+    input: InitializePermanentDelegateInput<TAccountMint>,
+    config?: { programAddress?: TProgramAddress },
 ): InitializePermanentDelegateInstruction<TProgramAddress, TAccountMint> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
-  // Original accounts.
-  const originalAccounts = {
-    mint: { value: input.mint ?? null, isWritable: true },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
+    // Original accounts.
+    const originalAccounts = { mint: { value: input.mint ?? null, isWritable: true } };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
 
-  // Original args.
-  const args = { ...input };
+    // Original args.
+    const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [getAccountMeta(accounts.mint)],
-    data: getInitializePermanentDelegateInstructionDataEncoder().encode(
-      args as InitializePermanentDelegateInstructionDataArgs
-    ),
-    programAddress,
-  } as InitializePermanentDelegateInstruction<TProgramAddress, TAccountMint>);
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [getAccountMeta(accounts.mint)],
+        data: getInitializePermanentDelegateInstructionDataEncoder().encode(
+            args as InitializePermanentDelegateInstructionDataArgs,
+        ),
+        programAddress,
+    } as InitializePermanentDelegateInstruction<TProgramAddress, TAccountMint>);
 }
 
 export type ParsedInitializePermanentDelegateInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The mint to initialize. */
-    mint: TAccountMetas[0];
-  };
-  data: InitializePermanentDelegateInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The mint to initialize. */
+        mint: TAccountMetas[0];
+    };
+    data: InitializePermanentDelegateInstructionData;
 };
 
 export function parseInitializePermanentDelegateInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+    TProgram extends string,
+    TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializePermanentDelegateInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 1) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: { mint: getNextAccount() },
-    data: getInitializePermanentDelegateInstructionDataDecoder().decode(
-      instruction.data
-    ),
-  };
+    if (instruction.accounts.length < 1) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { mint: getNextAccount() },
+        data: getInitializePermanentDelegateInstructionDataDecoder().decode(instruction.data),
+    };
 }

@@ -1,0 +1,16 @@
+{
+    "idl": "interface/idl.json",
+    "before": [],
+    "scripts": {
+        "js": {
+            "from": "@codama/renderers-js",
+            "args": [
+                "clients/js/src/generated",
+                {
+                    "packageFolder": "clients/js",
+                    "syncPackageJson": true
+                }
+            ]
+        }
+    }
+}

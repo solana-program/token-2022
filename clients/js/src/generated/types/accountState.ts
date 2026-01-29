@@ -7,33 +7,30 @@
  */
 
 import {
-  combineCodec,
-  getEnumDecoder,
-  getEnumEncoder,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
+    combineCodec,
+    getEnumDecoder,
+    getEnumEncoder,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
 } from '@solana/kit';
 
 export enum AccountState {
-  Uninitialized,
-  Initialized,
-  Frozen,
+    Uninitialized,
+    Initialized,
+    Frozen,
 }
 
 export type AccountStateArgs = AccountState;
 
 export function getAccountStateEncoder(): FixedSizeEncoder<AccountStateArgs> {
-  return getEnumEncoder(AccountState);
+    return getEnumEncoder(AccountState);
 }
 
 export function getAccountStateDecoder(): FixedSizeDecoder<AccountState> {
-  return getEnumDecoder(AccountState);
+    return getEnumDecoder(AccountState);
 }
 
-export function getAccountStateCodec(): FixedSizeCodec<
-  AccountStateArgs,
-  AccountState
-> {
-  return combineCodec(getAccountStateEncoder(), getAccountStateDecoder());
+export function getAccountStateCodec(): FixedSizeCodec<AccountStateArgs, AccountState> {
+    return combineCodec(getAccountStateEncoder(), getAccountStateDecoder());
 }
