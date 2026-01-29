@@ -97,7 +97,7 @@ export type ConfigureConfidentialTransferAccountInstructionData = {
   /** The decryptable balance (always 0) once the configure account succeeds. */
   decryptableZeroBalance: DecryptableBalance;
   /**
-   * The maximum number of despots and transfers that an account can receiver
+   * The maximum number of deposits and transfers that an account can receive
    * before the `ApplyPendingBalance` is executed
    */
   maximumPendingBalanceCreditCounter: bigint;
@@ -114,7 +114,7 @@ export type ConfigureConfidentialTransferAccountInstructionDataArgs = {
   /** The decryptable balance (always 0) once the configure account succeeds. */
   decryptableZeroBalance: DecryptableBalanceArgs;
   /**
-   * The maximum number of despots and transfers that an account can receiver
+   * The maximum number of deposits and transfers that an account can receive
    * before the `ApplyPendingBalance` is executed
    */
   maximumPendingBalanceCreditCounter: number | bigint;

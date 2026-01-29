@@ -52,6 +52,8 @@ import {
   getDecryptableBalanceEncoder,
   getEncryptedBalanceDecoder,
   getEncryptedBalanceEncoder,
+  getEncryptedSupplyDecoder,
+  getEncryptedSupplyEncoder,
   getTransferFeeDecoder,
   getTransferFeeEncoder,
   type AccountState,
@@ -60,6 +62,8 @@ import {
   type DecryptableBalanceArgs,
   type EncryptedBalance,
   type EncryptedBalanceArgs,
+  type EncryptedSupply,
+  type EncryptedSupplyArgs,
   type TransferFee,
   type TransferFeeArgs,
 } from '.';
@@ -266,7 +270,13 @@ export type Extension =
       /** The member number. */
       memberNumber: bigint;
     }
-  | { __kind: 'ConfidentialMintBurn' }
+  | {
+      __kind: 'ConfidentialMintBurnConfig';
+      /** The ElGamal pubkey used to encrypt the confidential supply. */
+      supplyElgamalPubkey: Address;
+      /** The decryptable confidential supply of the mint. */
+      decryptableSupply: EncryptedSupply;
+    }
   | {
       __kind: 'ScaledUiAmountConfig';
       authority: Address;
@@ -484,7 +494,13 @@ export type ExtensionArgs =
       /** The member number. */
       memberNumber: number | bigint;
     }
-  | { __kind: 'ConfidentialMintBurn' }
+  | {
+      __kind: 'ConfidentialMintBurnConfig';
+      /** The ElGamal pubkey used to encrypt the confidential supply. */
+      supplyElgamalPubkey: Address;
+      /** The decryptable confidential supply of the mint. */
+      decryptableSupply: EncryptedSupplyArgs;
+    }
   | {
       __kind: 'ScaledUiAmountConfig';
       authority: Address;
@@ -796,7 +812,16 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
           getU16Encoder()
         ),
       ],
-      ['ConfidentialMintBurn', getUnitEncoder()],
+      [
+        'ConfidentialMintBurnConfig',
+        addEncoderSizePrefix(
+          getStructEncoder([
+            ['supplyElgamalPubkey', getAddressEncoder()],
+            ['decryptableSupply', getEncryptedSupplyEncoder()],
+          ]),
+          getU16Encoder()
+        ),
+      ],
       [
         'ScaledUiAmountConfig',
         addEncoderSizePrefix(
@@ -1138,7 +1163,16 @@ export function getExtensionDecoder(): Decoder<Extension> {
           getU16Decoder()
         ),
       ],
-      ['ConfidentialMintBurn', getUnitDecoder()],
+      [
+        'ConfidentialMintBurnConfig',
+        addDecoderSizePrefix(
+          getStructDecoder([
+            ['supplyElgamalPubkey', getAddressDecoder()],
+            ['decryptableSupply', getEncryptedSupplyDecoder()],
+          ]),
+          getU16Decoder()
+        ),
+      ],
       [
         'ScaledUiAmountConfig',
         addDecoderSizePrefix(
@@ -1401,11 +1435,16 @@ export function extension(
   >
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TokenGroupMember'>;
 export function extension(
-  kind: 'ConfidentialMintBurn'
+  kind: 'ConfidentialMintBurnConfig',
+  data: GetDiscriminatedUnionVariantContent<
+    ExtensionArgs,
+    '__kind',
+    'ConfidentialMintBurnConfig'
+  >
 ): GetDiscriminatedUnionVariant<
   ExtensionArgs,
   '__kind',
-  'ConfidentialMintBurn'
+  'ConfidentialMintBurnConfig'
 >;
 export function extension(
   kind: 'ScaledUiAmountConfig',

@@ -3365,7 +3365,7 @@
             "kind": "instructionArgumentNode",
             "name": "maximumPendingBalanceCreditCounter",
             "docs": [
-              "The maximum number of despots and transfers that an account can receiver",
+              "The maximum number of deposits and transfers that an account can receive",
               "before the `ApplyPendingBalance` is executed"
             ],
             "type": {
@@ -4903,6 +4903,758 @@
             "kind": "fieldDiscriminatorNode",
             "name": "confidentialTransferDiscriminator",
             "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "initializeConfidentialMintBurn",
+        "docs": [
+          "Initialize confidential mint and burn for a mint.",
+          "",
+          "The instruction must be included within the same transaction as TokenInstruction::InitializeMint.",
+          "Otherwise another party can initialize the configuration.",
+          "",
+          "The instruction fails if the TokenInstruction::InitializeMint instruction has already executed for the mint."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token mint."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 42
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialMintBurnDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 0
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "supplyElgamalPubkey",
+            "docs": ["The ElGamal pubkey used to encrypt the confidential supply."],
+            "type": {
+              "kind": "publicKeyTypeNode"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "decryptableSupply",
+            "docs": ["The initial 0 supply encrypted with the supply aes key"],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "decryptableSupply"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "rotateSupplyElGamalPubkey",
+        "docs": [
+          "Rotates the ElGamal pubkey used to encrypt confidential supply",
+          "",
+          "The pending burn amount must be zero in order for this instruction",
+          "to be processed successfully."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "equalityProofRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "(Optional) Equality proof record account or context state account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 42
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialMintBurnDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 1
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "newSupplyElgamalPubkey",
+            "docs": ["The new ElGamal pubkey used to encrypt the confidential supply."],
+            "type": {
+              "kind": "publicKeyTypeNode"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "cyphertextEqualityProofInstructionOffset",
+            "docs": [
+              "Relative location of the",
+              "`ProofInstruction::VerifyCiphertextCiphertextEquality` instruction",
+              "to the `RotateSupplyElGamalPubkey` instruction in the transaction. If the offset",
+              "is `0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialMintBurnDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "updateDecryptableSupply",
+        "docs": [
+          "Updates the decryptable supply of the mint"
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token mint."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 42
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialMintBurnDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 2
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "newDecryptableSupply",
+            "docs": ["The new decryptable supply encrypted with the supply aes key"],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "decryptableSupply"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialMintBurnDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "mintToConfidentialBalance",
+        "docs": [
+          "Mints tokens to confidential balance",
+          "",
+          "Fails if the destination account is frozen."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": ["The mint's minting authority or its multisignature account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "equalityProofRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "(Optional) Equality proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "ciphertextValidityProofRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "(Optional) Ciphertext validity proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "rangeProofRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": [
+              "(Optional) Range proof record account or context state account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 42
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialMintBurnDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 3
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "mintAmountAuditorCiphertextLo",
+            "docs": ["The low part of the mint amount encrypted with the auditor aes key"],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "mintAmountAuditorCiphertextHi",
+            "docs": ["The high part of the mint amount encrypted with the auditor aes key"],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "equalityProofInstructionOffset",
+            "docs": [
+              "Relative location of the",
+              "`ProofInstruction::VerifyCiphertextCommitmentEquality` instruction",
+              "to the `MintToConfidentialBalance` instruction in the transaction. If the offset",
+              "is `0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "ciphertextValidityProofInstructionOffset",
+            "docs": [
+              "Relative location of the",
+              "`ProofInstruction::VerifyBatchedGroupedCiphertext3HandlesValidity` instruction",
+              "to the `MintToConfidentialBalance` instruction in the transaction. If the offset",
+              "is `0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "rangeProofInstructionOffset",
+            "docs": [
+              "Relative location of the",
+              "`ProofInstruction::VerifyBatchedRangeProofU128` instruction",
+              "to the `MintToConfidentialBalance` instruction in the transaction. If the offset",
+              "is `0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "newDecryptableSupply",
+            "docs": ["The new decryptable supply encrypted with the supply aes key"],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "decryptableSupply"
+            }
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialMintBurnDiscriminator",
+            "offset": 1
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "burnFromConfidentialBalance",
+        "docs": [
+          "Burns tokens from confidential balance",
+          "",
+          "Fails if the destination account is frozen."
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "token",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": ["The mint's minting authority or its multisignature account."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "equalityProofRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Equality proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "ciphertextValidityProofRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Ciphertext validity proof record account or context state account."
+            ]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "rangeProofRecord",
+            "isWritable": false,
+            "isSigner": false,
+            "isOptional": true,
+            "docs": [
+              "(Optional) Range proof record account or context state account."
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 42
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialMintBurnDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 4
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "newDecryptableAvailableBalance",
+            "docs": ["The new decryptable available balance encrypted with the supply aes key"],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "burnAmountAuditorCiphertextLo",
+            "docs": ["The low part of the burn amount encrypted with the auditor aes key"],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "burnAmountAuditorCiphertextHi",
+            "docs": ["The high part of the burn amount encrypted with the auditor aes key"],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "equalityProofInstructionOffset",
+            "docs": [
+              "Relative location of the",
+              "`ProofInstruction::VerifyCiphertextCommitmentEquality` instruction",
+              "to the `BurnFromConfidentialBalance` instruction in the transaction. If the offset",
+              "is `0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "ciphertextValidityProofInstructionOffset",
+            "docs": [
+              "Relative location of the",
+              "`ProofInstruction::VerifyBatchedGroupedCiphertext3HandlesValidity` instruction",
+              "to the `BurnFromConfidentialBalance` instruction in the transaction. If the offset",
+              "is `0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "rangeProofInstructionOffset",
+            "docs": [
+              "Relative location of the",
+              "`ProofInstruction::VerifyBatchedRangeProofU128` instruction",
+              "to the `BurnFromConfidentialBalance` instruction in the transaction. If the offset",
+              "is `0`, then use a context state account for the proof."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "i8",
+              "endian": "le"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialMintBurnDiscriminator",
+            "offset": 1
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "applyPendingBurn",
+        "docs": [
+          "Applies the pending burn amount to the confidential supply"
+        ],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "mint",
+            "isWritable": true,
+            "isSigner": false,
+            "isOptional": false,
+            "docs": ["The SPL Token mint."]
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "isWritable": false,
+            "isSigner": "either",
+            "isOptional": false,
+            "docs": ["The mint's minting authority or its multisignature account."]
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 42
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "confidentialMintBurnDiscriminator",
+            "defaultValueStrategy": "omitted",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 5
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          },
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "confidentialMintBurnDiscriminator",
+            "offset": 1
+          }
+        ],
+        "remainingAccounts": [
+          {
+            "kind": "instructionRemainingAccountsNode",
+            "isOptional": true,
+            "isSigner": true,
+            "docs": [],
+            "value": {
+              "kind": "argumentValueNode",
+              "name": "multiSigners"
+            }
           }
         ]
       },
@@ -9070,6 +9822,30 @@
       },
       {
         "kind": "definedTypeNode",
+        "name": "encryptedSupply",
+        "docs": ["ElGamal ciphertext containing the confidential supply."],
+        "type": {
+          "kind": "fixedSizeTypeNode",
+          "size": 64,
+          "type": {
+            "kind": "bytesTypeNode"
+          }
+        }
+      },
+      {
+        "kind": "definedTypeNode",
+        "name": "decryptableSupply",
+        "docs": ["Authenticated encryption containing the confidential supply."],
+        "type": {
+          "kind": "fixedSizeTypeNode",
+          "size": 36,
+          "type": {
+            "kind": "bytesTypeNode"
+          }
+        }
+      },
+      {
+        "kind": "definedTypeNode",
         "name": "extension",
         "docs": [],
         "type": {
@@ -10197,8 +10973,42 @@
               }
             },
             {
-              "kind": "enumEmptyVariantTypeNode",
-              "name": "confidentialMintBurn"
+              "kind": "enumStructVariantTypeNode",
+              "name": "confidentialMintBurnConfig",
+              "struct": {
+                "kind": "sizePrefixTypeNode",
+                "type": {
+                  "kind": "structTypeNode",
+                  "fields": [
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "supplyElgamalPubkey",
+                      "docs": [
+                        "The ElGamal pubkey used to encrypt the confidential supply."
+                      ],
+                      "type": {
+                        "kind": "publicKeyTypeNode"
+                      }
+                    },
+                    {
+                      "kind": "structFieldTypeNode",
+                      "name": "decryptableSupply",
+                      "docs": [
+                        "The decryptable confidential supply of the mint."
+                      ],
+                      "type": {
+                        "kind": "definedTypeLinkNode",
+                        "name": "encryptedSupply"
+                      }
+                    }
+                  ]
+                },
+                "prefix": {
+                  "kind": "numberTypeNode",
+                  "format": "u16",
+                  "endian": "le"
+                }
+              }
             },
             {
               "kind": "enumStructVariantTypeNode",
@@ -10461,6 +11271,11 @@
               "kind": "enumEmptyVariantTypeNode",
               "name": "confidentialTransferFeeAmount",
               "docs": ["Includes confidential withheld transfer fees"]
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "confidentialMintBurn",
+              "docs": ["Includes confidential mint-burn configuration"]
             },
             {
               "kind": "enumEmptyVariantTypeNode",
