@@ -27,3 +27,10 @@ test('it returns the size including all provided extensions', t => {
             68 /* TransferHook extension size */,
     );
 });
+
+test('it returns the correct size for the confidential mint burn extension', t => {
+    t.is(
+        getMintSize([extension('ConfidentialMintBurn', {})]),
+        166 /* extended mint base size */ + 4 /* ConfidentialMintBurn extension size */,
+    );
+});

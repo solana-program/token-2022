@@ -706,7 +706,7 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
                     getU16Encoder(),
                 ),
             ],
-            ['ConfidentialMintBurn', getUnitEncoder()],
+            ['ConfidentialMintBurn', addEncoderSizePrefix(getStructEncoder([]), getU16Encoder())],
             [
                 'ScaledUiAmountConfig',
                 addEncoderSizePrefix(
@@ -729,7 +729,7 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
                     getU16Encoder(),
                 ),
             ],
-            ['PausableAccount', getUnitEncoder()],
+            ['PausableAccount', addEncoderSizePrefix(getStructEncoder([]), getU16Encoder())],
             [
                 'PermissionedBurn',
                 addEncoderSizePrefix(
@@ -950,7 +950,7 @@ export function getExtensionDecoder(): Decoder<Extension> {
                     getU16Decoder(),
                 ),
             ],
-            ['ConfidentialMintBurn', getUnitDecoder()],
+            ['ConfidentialMintBurn', addDecoderSizePrefix(getStructDecoder([]), getU16Decoder())],
             [
                 'ScaledUiAmountConfig',
                 addDecoderSizePrefix(
@@ -973,7 +973,7 @@ export function getExtensionDecoder(): Decoder<Extension> {
                     getU16Decoder(),
                 ),
             ],
-            ['PausableAccount', getUnitDecoder()],
+            ['PausableAccount', addDecoderSizePrefix(getStructDecoder([]), getU16Decoder())],
             [
                 'PermissionedBurn',
                 addDecoderSizePrefix(
@@ -1090,6 +1090,7 @@ export function extension(
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'TokenGroupMember'>;
 export function extension(
     kind: 'ConfidentialMintBurn',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'ConfidentialMintBurn'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'ConfidentialMintBurn'>;
 export function extension(
     kind: 'ScaledUiAmountConfig',
@@ -1101,6 +1102,7 @@ export function extension(
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'PausableConfig'>;
 export function extension(
     kind: 'PausableAccount',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'PausableAccount'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'PausableAccount'>;
 export function extension(
     kind: 'PermissionedBurn',
