@@ -7,25 +7,25 @@
  */
 
 import {
-  combineCodec,
-  getAddressDecoder,
-  getAddressEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type ReadonlyAccount,
-  type ReadonlyUint8Array,
-  type WritableAccount,
+    combineCodec,
+    getAddressDecoder,
+    getAddressEncoder,
+    getStructDecoder,
+    getStructEncoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type Address,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type ReadonlyAccount,
+    type ReadonlyUint8Array,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -33,156 +33,131 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export const INITIALIZE_ACCOUNT3_DISCRIMINATOR = 18;
 
 export function getInitializeAccount3DiscriminatorBytes() {
-  return getU8Encoder().encode(INITIALIZE_ACCOUNT3_DISCRIMINATOR);
+    return getU8Encoder().encode(INITIALIZE_ACCOUNT3_DISCRIMINATOR);
 }
 
 export type InitializeAccount3Instruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountAccount extends string | AccountMeta<string> = string,
-  TAccountMint extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountAccount extends string | AccountMeta<string> = string,
+    TAccountMint extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountAccount extends string
-        ? WritableAccount<TAccountAccount>
-        : TAccountAccount,
-      TAccountMint extends string
-        ? ReadonlyAccount<TAccountMint>
-        : TAccountMint,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [
+            TAccountAccount extends string ? WritableAccount<TAccountAccount> : TAccountAccount,
+            TAccountMint extends string ? ReadonlyAccount<TAccountMint> : TAccountMint,
+            ...TRemainingAccounts,
+        ]
+    >;
 
 export type InitializeAccount3InstructionData = {
-  discriminator: number;
-  /** The new account's owner/multisignature. */
-  owner: Address;
+    discriminator: number;
+    /** The new account's owner/multisignature. */
+    owner: Address;
 };
 
 export type InitializeAccount3InstructionDataArgs = {
-  /** The new account's owner/multisignature. */
-  owner: Address;
+    /** The new account's owner/multisignature. */
+    owner: Address;
 };
 
 export function getInitializeAccount3InstructionDataEncoder(): FixedSizeEncoder<InitializeAccount3InstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['owner', getAddressEncoder()],
-    ]),
-    (value) => ({ ...value, discriminator: INITIALIZE_ACCOUNT3_DISCRIMINATOR })
-  );
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getU8Encoder()],
+            ['owner', getAddressEncoder()],
+        ]),
+        value => ({ ...value, discriminator: INITIALIZE_ACCOUNT3_DISCRIMINATOR }),
+    );
 }
 
 export function getInitializeAccount3InstructionDataDecoder(): FixedSizeDecoder<InitializeAccount3InstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['owner', getAddressDecoder()],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['owner', getAddressDecoder()],
+    ]);
 }
 
 export function getInitializeAccount3InstructionDataCodec(): FixedSizeCodec<
-  InitializeAccount3InstructionDataArgs,
-  InitializeAccount3InstructionData
+    InitializeAccount3InstructionDataArgs,
+    InitializeAccount3InstructionData
 > {
-  return combineCodec(
-    getInitializeAccount3InstructionDataEncoder(),
-    getInitializeAccount3InstructionDataDecoder()
-  );
+    return combineCodec(getInitializeAccount3InstructionDataEncoder(), getInitializeAccount3InstructionDataDecoder());
 }
 
-export type InitializeAccount3Input<
-  TAccountAccount extends string = string,
-  TAccountMint extends string = string,
-> = {
-  /** The account to initialize. */
-  account: Address<TAccountAccount>;
-  /** The mint this account will be associated with. */
-  mint: Address<TAccountMint>;
-  owner: InitializeAccount3InstructionDataArgs['owner'];
+export type InitializeAccount3Input<TAccountAccount extends string = string, TAccountMint extends string = string> = {
+    /** The account to initialize. */
+    account: Address<TAccountAccount>;
+    /** The mint this account will be associated with. */
+    mint: Address<TAccountMint>;
+    owner: InitializeAccount3InstructionDataArgs['owner'];
 };
 
 export function getInitializeAccount3Instruction<
-  TAccountAccount extends string,
-  TAccountMint extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountAccount extends string,
+    TAccountMint extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: InitializeAccount3Input<TAccountAccount, TAccountMint>,
-  config?: { programAddress?: TProgramAddress }
-): InitializeAccount3Instruction<
-  TProgramAddress,
-  TAccountAccount,
-  TAccountMint
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    input: InitializeAccount3Input<TAccountAccount, TAccountMint>,
+    config?: { programAddress?: TProgramAddress },
+): InitializeAccount3Instruction<TProgramAddress, TAccountAccount, TAccountMint> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
-  // Original accounts.
-  const originalAccounts = {
-    account: { value: input.account ?? null, isWritable: true },
-    mint: { value: input.mint ?? null, isWritable: false },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
+    // Original accounts.
+    const originalAccounts = {
+        account: { value: input.account ?? null, isWritable: true },
+        mint: { value: input.mint ?? null, isWritable: false },
+    };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
 
-  // Original args.
-  const args = { ...input };
+    // Original args.
+    const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [getAccountMeta(accounts.account), getAccountMeta(accounts.mint)],
-    data: getInitializeAccount3InstructionDataEncoder().encode(
-      args as InitializeAccount3InstructionDataArgs
-    ),
-    programAddress,
-  } as InitializeAccount3Instruction<
-    TProgramAddress,
-    TAccountAccount,
-    TAccountMint
-  >);
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [getAccountMeta(accounts.account), getAccountMeta(accounts.mint)],
+        data: getInitializeAccount3InstructionDataEncoder().encode(args as InitializeAccount3InstructionDataArgs),
+        programAddress,
+    } as InitializeAccount3Instruction<TProgramAddress, TAccountAccount, TAccountMint>);
 }
 
 export type ParsedInitializeAccount3Instruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The account to initialize. */
-    account: TAccountMetas[0];
-    /** The mint this account will be associated with. */
-    mint: TAccountMetas[1];
-  };
-  data: InitializeAccount3InstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The account to initialize. */
+        account: TAccountMetas[0];
+        /** The mint this account will be associated with. */
+        mint: TAccountMetas[1];
+    };
+    data: InitializeAccount3InstructionData;
 };
 
 export function parseInitializeAccount3Instruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+    TProgram extends string,
+    TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeAccount3Instruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: { account: getNextAccount(), mint: getNextAccount() },
-    data: getInitializeAccount3InstructionDataDecoder().decode(
-      instruction.data
-    ),
-  };
+    if (instruction.accounts.length < 2) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { account: getNextAccount(), mint: getNextAccount() },
+        data: getInitializeAccount3InstructionDataDecoder().decode(instruction.data),
+    };
 }

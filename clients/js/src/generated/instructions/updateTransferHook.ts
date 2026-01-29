@@ -7,33 +7,33 @@
  */
 
 import {
-  AccountRole,
-  combineCodec,
-  getAddressDecoder,
-  getAddressEncoder,
-  getOptionDecoder,
-  getOptionEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type AccountSignerMeta,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type Option,
-  type OptionOrNullable,
-  type ReadonlyAccount,
-  type ReadonlySignerAccount,
-  type ReadonlyUint8Array,
-  type TransactionSigner,
-  type WritableAccount,
+    AccountRole,
+    combineCodec,
+    getAddressDecoder,
+    getAddressEncoder,
+    getOptionDecoder,
+    getOptionEncoder,
+    getStructDecoder,
+    getStructEncoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type AccountSignerMeta,
+    type Address,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type Option,
+    type OptionOrNullable,
+    type ReadonlyAccount,
+    type ReadonlySignerAccount,
+    type ReadonlyUint8Array,
+    type TransactionSigner,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -41,204 +41,164 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export const UPDATE_TRANSFER_HOOK_DISCRIMINATOR = 36;
 
 export function getUpdateTransferHookDiscriminatorBytes() {
-  return getU8Encoder().encode(UPDATE_TRANSFER_HOOK_DISCRIMINATOR);
+    return getU8Encoder().encode(UPDATE_TRANSFER_HOOK_DISCRIMINATOR);
 }
 
 export const UPDATE_TRANSFER_HOOK_TRANSFER_HOOK_DISCRIMINATOR = 1;
 
 export function getUpdateTransferHookTransferHookDiscriminatorBytes() {
-  return getU8Encoder().encode(
-    UPDATE_TRANSFER_HOOK_TRANSFER_HOOK_DISCRIMINATOR
-  );
+    return getU8Encoder().encode(UPDATE_TRANSFER_HOOK_TRANSFER_HOOK_DISCRIMINATOR);
 }
 
 export type UpdateTransferHookInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | AccountMeta<string> = string,
-  TAccountAuthority extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string | AccountMeta<string> = string,
+    TAccountAuthority extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountMint extends string
-        ? WritableAccount<TAccountMint>
-        : TAccountMint,
-      TAccountAuthority extends string
-        ? ReadonlyAccount<TAccountAuthority>
-        : TAccountAuthority,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [
+            TAccountMint extends string ? WritableAccount<TAccountMint> : TAccountMint,
+            TAccountAuthority extends string ? ReadonlyAccount<TAccountAuthority> : TAccountAuthority,
+            ...TRemainingAccounts,
+        ]
+    >;
 
 export type UpdateTransferHookInstructionData = {
-  discriminator: number;
-  transferHookDiscriminator: number;
-  /** The program id that performs logic during transfers */
-  programId: Option<Address>;
+    discriminator: number;
+    transferHookDiscriminator: number;
+    /** The program id that performs logic during transfers */
+    programId: Option<Address>;
 };
 
 export type UpdateTransferHookInstructionDataArgs = {
-  /** The program id that performs logic during transfers */
-  programId: OptionOrNullable<Address>;
+    /** The program id that performs logic during transfers */
+    programId: OptionOrNullable<Address>;
 };
 
 export function getUpdateTransferHookInstructionDataEncoder(): FixedSizeEncoder<UpdateTransferHookInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['transferHookDiscriminator', getU8Encoder()],
-      [
-        'programId',
-        getOptionEncoder(getAddressEncoder(), {
-          prefix: null,
-          noneValue: 'zeroes',
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getU8Encoder()],
+            ['transferHookDiscriminator', getU8Encoder()],
+            ['programId', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
+        ]),
+        value => ({
+            ...value,
+            discriminator: UPDATE_TRANSFER_HOOK_DISCRIMINATOR,
+            transferHookDiscriminator: UPDATE_TRANSFER_HOOK_TRANSFER_HOOK_DISCRIMINATOR,
         }),
-      ],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator: UPDATE_TRANSFER_HOOK_DISCRIMINATOR,
-      transferHookDiscriminator:
-        UPDATE_TRANSFER_HOOK_TRANSFER_HOOK_DISCRIMINATOR,
-    })
-  );
+    );
 }
 
 export function getUpdateTransferHookInstructionDataDecoder(): FixedSizeDecoder<UpdateTransferHookInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['transferHookDiscriminator', getU8Decoder()],
-    [
-      'programId',
-      getOptionDecoder(getAddressDecoder(), {
-        prefix: null,
-        noneValue: 'zeroes',
-      }),
-    ],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['transferHookDiscriminator', getU8Decoder()],
+        ['programId', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
+    ]);
 }
 
 export function getUpdateTransferHookInstructionDataCodec(): FixedSizeCodec<
-  UpdateTransferHookInstructionDataArgs,
-  UpdateTransferHookInstructionData
+    UpdateTransferHookInstructionDataArgs,
+    UpdateTransferHookInstructionData
 > {
-  return combineCodec(
-    getUpdateTransferHookInstructionDataEncoder(),
-    getUpdateTransferHookInstructionDataDecoder()
-  );
+    return combineCodec(getUpdateTransferHookInstructionDataEncoder(), getUpdateTransferHookInstructionDataDecoder());
 }
 
-export type UpdateTransferHookInput<
-  TAccountMint extends string = string,
-  TAccountAuthority extends string = string,
-> = {
-  /** The mint. */
-  mint: Address<TAccountMint>;
-  /** The transfer hook authority. */
-  authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
-  programId: UpdateTransferHookInstructionDataArgs['programId'];
-  multiSigners?: Array<TransactionSigner>;
+export type UpdateTransferHookInput<TAccountMint extends string = string, TAccountAuthority extends string = string> = {
+    /** The mint. */
+    mint: Address<TAccountMint>;
+    /** The transfer hook authority. */
+    authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
+    programId: UpdateTransferHookInstructionDataArgs['programId'];
+    multiSigners?: Array<TransactionSigner>;
 };
 
 export function getUpdateTransferHookInstruction<
-  TAccountMint extends string,
-  TAccountAuthority extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string,
+    TAccountAuthority extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: UpdateTransferHookInput<TAccountMint, TAccountAuthority>,
-  config?: { programAddress?: TProgramAddress }
+    input: UpdateTransferHookInput<TAccountMint, TAccountAuthority>,
+    config?: { programAddress?: TProgramAddress },
 ): UpdateTransferHookInstruction<
-  TProgramAddress,
-  TAccountMint,
-  (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-    ? ReadonlySignerAccount<TAccountAuthority> &
-        AccountSignerMeta<TAccountAuthority>
-    : TAccountAuthority
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
-
-  // Original accounts.
-  const originalAccounts = {
-    mint: { value: input.mint ?? null, isWritable: true },
-    authority: { value: input.authority ?? null, isWritable: false },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
-
-  // Original args.
-  const args = { ...input };
-
-  // Remaining accounts.
-  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
-    (signer) => ({
-      address: signer.address,
-      role: AccountRole.READONLY_SIGNER,
-      signer,
-    })
-  );
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [
-      getAccountMeta(accounts.mint),
-      getAccountMeta(accounts.authority),
-      ...remainingAccounts,
-    ],
-    data: getUpdateTransferHookInstructionDataEncoder().encode(
-      args as UpdateTransferHookInstructionDataArgs
-    ),
-    programAddress,
-  } as UpdateTransferHookInstruction<
     TProgramAddress,
     TAccountMint,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-      ? ReadonlySignerAccount<TAccountAuthority> &
-          AccountSignerMeta<TAccountAuthority>
-      : TAccountAuthority
-  >);
+        ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
+        : TAccountAuthority
+> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+
+    // Original accounts.
+    const originalAccounts = {
+        mint: { value: input.mint ?? null, isWritable: true },
+        authority: { value: input.authority ?? null, isWritable: false },
+    };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+
+    // Original args.
+    const args = { ...input };
+
+    // Remaining accounts.
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
+        address: signer.address,
+        role: AccountRole.READONLY_SIGNER,
+        signer,
+    }));
+
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [getAccountMeta(accounts.mint), getAccountMeta(accounts.authority), ...remainingAccounts],
+        data: getUpdateTransferHookInstructionDataEncoder().encode(args as UpdateTransferHookInstructionDataArgs),
+        programAddress,
+    } as UpdateTransferHookInstruction<
+        TProgramAddress,
+        TAccountMint,
+        (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
+            ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
+            : TAccountAuthority
+    >);
 }
 
 export type ParsedUpdateTransferHookInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The mint. */
-    mint: TAccountMetas[0];
-    /** The transfer hook authority. */
-    authority: TAccountMetas[1];
-  };
-  data: UpdateTransferHookInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The mint. */
+        mint: TAccountMetas[0];
+        /** The transfer hook authority. */
+        authority: TAccountMetas[1];
+    };
+    data: UpdateTransferHookInstructionData;
 };
 
 export function parseUpdateTransferHookInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+    TProgram extends string,
+    TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedUpdateTransferHookInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: { mint: getNextAccount(), authority: getNextAccount() },
-    data: getUpdateTransferHookInstructionDataDecoder().decode(
-      instruction.data
-    ),
-  };
+    if (instruction.accounts.length < 2) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { mint: getNextAccount(), authority: getNextAccount() },
+        data: getUpdateTransferHookInstructionDataDecoder().decode(instruction.data),
+    };
 }

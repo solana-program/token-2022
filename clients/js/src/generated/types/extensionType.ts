@@ -7,14 +7,14 @@
  */
 
 import {
-  combineCodec,
-  getEnumDecoder,
-  getEnumEncoder,
-  getU16Decoder,
-  getU16Encoder,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
+    combineCodec,
+    getEnumDecoder,
+    getEnumEncoder,
+    getU16Decoder,
+    getU16Encoder,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
 } from '@solana/kit';
 
 /**
@@ -23,48 +23,45 @@ import {
  * applied to token holding accounts.
  */
 export enum ExtensionType {
-  Uninitialized,
-  TransferFeeConfig,
-  TransferFeeAmount,
-  MintCloseAuthority,
-  ConfidentialTransferMint,
-  ConfidentialTransferAccount,
-  DefaultAccountState,
-  ImmutableOwner,
-  MemoTransfer,
-  NonTransferable,
-  InterestBearingConfig,
-  CpiGuard,
-  PermanentDelegate,
-  NonTransferableAccount,
-  TransferHook,
-  TransferHookAccount,
-  ConfidentialTransferFee,
-  ConfidentialTransferFeeAmount,
-  ScaledUiAmountConfig,
-  PausableConfig,
-  PausableAccount,
-  MetadataPointer,
-  TokenMetadata,
-  GroupPointer,
-  TokenGroup,
-  GroupMemberPointer,
-  TokenGroupMember,
+    Uninitialized,
+    TransferFeeConfig,
+    TransferFeeAmount,
+    MintCloseAuthority,
+    ConfidentialTransferMint,
+    ConfidentialTransferAccount,
+    DefaultAccountState,
+    ImmutableOwner,
+    MemoTransfer,
+    NonTransferable,
+    InterestBearingConfig,
+    CpiGuard,
+    PermanentDelegate,
+    NonTransferableAccount,
+    TransferHook,
+    TransferHookAccount,
+    ConfidentialTransferFee,
+    ConfidentialTransferFeeAmount,
+    ScaledUiAmountConfig,
+    PausableConfig,
+    PausableAccount,
+    MetadataPointer,
+    TokenMetadata,
+    GroupPointer,
+    TokenGroup,
+    GroupMemberPointer,
+    TokenGroupMember,
 }
 
 export type ExtensionTypeArgs = ExtensionType;
 
 export function getExtensionTypeEncoder(): FixedSizeEncoder<ExtensionTypeArgs> {
-  return getEnumEncoder(ExtensionType, { size: getU16Encoder() });
+    return getEnumEncoder(ExtensionType, { size: getU16Encoder() });
 }
 
 export function getExtensionTypeDecoder(): FixedSizeDecoder<ExtensionType> {
-  return getEnumDecoder(ExtensionType, { size: getU16Decoder() });
+    return getEnumDecoder(ExtensionType, { size: getU16Decoder() });
 }
 
-export function getExtensionTypeCodec(): FixedSizeCodec<
-  ExtensionTypeArgs,
-  ExtensionType
-> {
-  return combineCodec(getExtensionTypeEncoder(), getExtensionTypeDecoder());
+export function getExtensionTypeCodec(): FixedSizeCodec<ExtensionTypeArgs, ExtensionType> {
+    return combineCodec(getExtensionTypeEncoder(), getExtensionTypeDecoder());
 }

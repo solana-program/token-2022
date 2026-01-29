@@ -7,31 +7,31 @@
  */
 
 import {
-  AccountRole,
-  combineCodec,
-  getStructDecoder,
-  getStructEncoder,
-  getU16Decoder,
-  getU16Encoder,
-  getU64Decoder,
-  getU64Encoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type AccountSignerMeta,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type ReadonlyAccount,
-  type ReadonlySignerAccount,
-  type ReadonlyUint8Array,
-  type TransactionSigner,
-  type WritableAccount,
+    AccountRole,
+    combineCodec,
+    getStructDecoder,
+    getStructEncoder,
+    getU16Decoder,
+    getU16Encoder,
+    getU64Decoder,
+    getU64Encoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type AccountSignerMeta,
+    type Address,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type ReadonlyAccount,
+    type ReadonlySignerAccount,
+    type ReadonlyUint8Array,
+    type TransactionSigner,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -39,204 +39,181 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export const SET_TRANSFER_FEE_DISCRIMINATOR = 26;
 
 export function getSetTransferFeeDiscriminatorBytes() {
-  return getU8Encoder().encode(SET_TRANSFER_FEE_DISCRIMINATOR);
+    return getU8Encoder().encode(SET_TRANSFER_FEE_DISCRIMINATOR);
 }
 
 export const SET_TRANSFER_FEE_TRANSFER_FEE_DISCRIMINATOR = 5;
 
 export function getSetTransferFeeTransferFeeDiscriminatorBytes() {
-  return getU8Encoder().encode(SET_TRANSFER_FEE_TRANSFER_FEE_DISCRIMINATOR);
+    return getU8Encoder().encode(SET_TRANSFER_FEE_TRANSFER_FEE_DISCRIMINATOR);
 }
 
 export type SetTransferFeeInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | AccountMeta<string> = string,
-  TAccountTransferFeeConfigAuthority extends
-    | string
-    | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string | AccountMeta<string> = string,
+    TAccountTransferFeeConfigAuthority extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountMint extends string
-        ? WritableAccount<TAccountMint>
-        : TAccountMint,
-      TAccountTransferFeeConfigAuthority extends string
-        ? ReadonlyAccount<TAccountTransferFeeConfigAuthority>
-        : TAccountTransferFeeConfigAuthority,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [
+            TAccountMint extends string ? WritableAccount<TAccountMint> : TAccountMint,
+            TAccountTransferFeeConfigAuthority extends string
+                ? ReadonlyAccount<TAccountTransferFeeConfigAuthority>
+                : TAccountTransferFeeConfigAuthority,
+            ...TRemainingAccounts,
+        ]
+    >;
 
 export type SetTransferFeeInstructionData = {
-  discriminator: number;
-  transferFeeDiscriminator: number;
-  /** Amount of transfer collected as fees, expressed as basis points of the transfer amount. */
-  transferFeeBasisPoints: number;
-  /** Maximum fee assessed on transfers. */
-  maximumFee: bigint;
+    discriminator: number;
+    transferFeeDiscriminator: number;
+    /** Amount of transfer collected as fees, expressed as basis points of the transfer amount. */
+    transferFeeBasisPoints: number;
+    /** Maximum fee assessed on transfers. */
+    maximumFee: bigint;
 };
 
 export type SetTransferFeeInstructionDataArgs = {
-  /** Amount of transfer collected as fees, expressed as basis points of the transfer amount. */
-  transferFeeBasisPoints: number;
-  /** Maximum fee assessed on transfers. */
-  maximumFee: number | bigint;
+    /** Amount of transfer collected as fees, expressed as basis points of the transfer amount. */
+    transferFeeBasisPoints: number;
+    /** Maximum fee assessed on transfers. */
+    maximumFee: number | bigint;
 };
 
 export function getSetTransferFeeInstructionDataEncoder(): FixedSizeEncoder<SetTransferFeeInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['transferFeeDiscriminator', getU8Encoder()],
-      ['transferFeeBasisPoints', getU16Encoder()],
-      ['maximumFee', getU64Encoder()],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator: SET_TRANSFER_FEE_DISCRIMINATOR,
-      transferFeeDiscriminator: SET_TRANSFER_FEE_TRANSFER_FEE_DISCRIMINATOR,
-    })
-  );
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getU8Encoder()],
+            ['transferFeeDiscriminator', getU8Encoder()],
+            ['transferFeeBasisPoints', getU16Encoder()],
+            ['maximumFee', getU64Encoder()],
+        ]),
+        value => ({
+            ...value,
+            discriminator: SET_TRANSFER_FEE_DISCRIMINATOR,
+            transferFeeDiscriminator: SET_TRANSFER_FEE_TRANSFER_FEE_DISCRIMINATOR,
+        }),
+    );
 }
 
 export function getSetTransferFeeInstructionDataDecoder(): FixedSizeDecoder<SetTransferFeeInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['transferFeeDiscriminator', getU8Decoder()],
-    ['transferFeeBasisPoints', getU16Decoder()],
-    ['maximumFee', getU64Decoder()],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['transferFeeDiscriminator', getU8Decoder()],
+        ['transferFeeBasisPoints', getU16Decoder()],
+        ['maximumFee', getU64Decoder()],
+    ]);
 }
 
 export function getSetTransferFeeInstructionDataCodec(): FixedSizeCodec<
-  SetTransferFeeInstructionDataArgs,
-  SetTransferFeeInstructionData
+    SetTransferFeeInstructionDataArgs,
+    SetTransferFeeInstructionData
 > {
-  return combineCodec(
-    getSetTransferFeeInstructionDataEncoder(),
-    getSetTransferFeeInstructionDataDecoder()
-  );
+    return combineCodec(getSetTransferFeeInstructionDataEncoder(), getSetTransferFeeInstructionDataDecoder());
 }
 
 export type SetTransferFeeInput<
-  TAccountMint extends string = string,
-  TAccountTransferFeeConfigAuthority extends string = string,
+    TAccountMint extends string = string,
+    TAccountTransferFeeConfigAuthority extends string = string,
 > = {
-  /** The mint. */
-  mint: Address<TAccountMint>;
-  /** The mint's fee account owner or its multisignature account. */
-  transferFeeConfigAuthority:
-    | Address<TAccountTransferFeeConfigAuthority>
-    | TransactionSigner<TAccountTransferFeeConfigAuthority>;
-  transferFeeBasisPoints: SetTransferFeeInstructionDataArgs['transferFeeBasisPoints'];
-  maximumFee: SetTransferFeeInstructionDataArgs['maximumFee'];
-  multiSigners?: Array<TransactionSigner>;
+    /** The mint. */
+    mint: Address<TAccountMint>;
+    /** The mint's fee account owner or its multisignature account. */
+    transferFeeConfigAuthority:
+        | Address<TAccountTransferFeeConfigAuthority>
+        | TransactionSigner<TAccountTransferFeeConfigAuthority>;
+    transferFeeBasisPoints: SetTransferFeeInstructionDataArgs['transferFeeBasisPoints'];
+    maximumFee: SetTransferFeeInstructionDataArgs['maximumFee'];
+    multiSigners?: Array<TransactionSigner>;
 };
 
 export function getSetTransferFeeInstruction<
-  TAccountMint extends string,
-  TAccountTransferFeeConfigAuthority extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string,
+    TAccountTransferFeeConfigAuthority extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: SetTransferFeeInput<TAccountMint, TAccountTransferFeeConfigAuthority>,
-  config?: { programAddress?: TProgramAddress }
+    input: SetTransferFeeInput<TAccountMint, TAccountTransferFeeConfigAuthority>,
+    config?: { programAddress?: TProgramAddress },
 ): SetTransferFeeInstruction<
-  TProgramAddress,
-  TAccountMint,
-  (typeof input)['transferFeeConfigAuthority'] extends TransactionSigner<TAccountTransferFeeConfigAuthority>
-    ? ReadonlySignerAccount<TAccountTransferFeeConfigAuthority> &
-        AccountSignerMeta<TAccountTransferFeeConfigAuthority>
-    : TAccountTransferFeeConfigAuthority
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
-
-  // Original accounts.
-  const originalAccounts = {
-    mint: { value: input.mint ?? null, isWritable: true },
-    transferFeeConfigAuthority: {
-      value: input.transferFeeConfigAuthority ?? null,
-      isWritable: false,
-    },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
-
-  // Original args.
-  const args = { ...input };
-
-  // Remaining accounts.
-  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
-    (signer) => ({
-      address: signer.address,
-      role: AccountRole.READONLY_SIGNER,
-      signer,
-    })
-  );
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [
-      getAccountMeta(accounts.mint),
-      getAccountMeta(accounts.transferFeeConfigAuthority),
-      ...remainingAccounts,
-    ],
-    data: getSetTransferFeeInstructionDataEncoder().encode(
-      args as SetTransferFeeInstructionDataArgs
-    ),
-    programAddress,
-  } as SetTransferFeeInstruction<
     TProgramAddress,
     TAccountMint,
     (typeof input)['transferFeeConfigAuthority'] extends TransactionSigner<TAccountTransferFeeConfigAuthority>
-      ? ReadonlySignerAccount<TAccountTransferFeeConfigAuthority> &
-          AccountSignerMeta<TAccountTransferFeeConfigAuthority>
-      : TAccountTransferFeeConfigAuthority
-  >);
+        ? ReadonlySignerAccount<TAccountTransferFeeConfigAuthority> &
+              AccountSignerMeta<TAccountTransferFeeConfigAuthority>
+        : TAccountTransferFeeConfigAuthority
+> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+
+    // Original accounts.
+    const originalAccounts = {
+        mint: { value: input.mint ?? null, isWritable: true },
+        transferFeeConfigAuthority: { value: input.transferFeeConfigAuthority ?? null, isWritable: false },
+    };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+
+    // Original args.
+    const args = { ...input };
+
+    // Remaining accounts.
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
+        address: signer.address,
+        role: AccountRole.READONLY_SIGNER,
+        signer,
+    }));
+
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [
+            getAccountMeta(accounts.mint),
+            getAccountMeta(accounts.transferFeeConfigAuthority),
+            ...remainingAccounts,
+        ],
+        data: getSetTransferFeeInstructionDataEncoder().encode(args as SetTransferFeeInstructionDataArgs),
+        programAddress,
+    } as SetTransferFeeInstruction<
+        TProgramAddress,
+        TAccountMint,
+        (typeof input)['transferFeeConfigAuthority'] extends TransactionSigner<TAccountTransferFeeConfigAuthority>
+            ? ReadonlySignerAccount<TAccountTransferFeeConfigAuthority> &
+                  AccountSignerMeta<TAccountTransferFeeConfigAuthority>
+            : TAccountTransferFeeConfigAuthority
+    >);
 }
 
 export type ParsedSetTransferFeeInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The mint. */
-    mint: TAccountMetas[0];
-    /** The mint's fee account owner or its multisignature account. */
-    transferFeeConfigAuthority: TAccountMetas[1];
-  };
-  data: SetTransferFeeInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The mint. */
+        mint: TAccountMetas[0];
+        /** The mint's fee account owner or its multisignature account. */
+        transferFeeConfigAuthority: TAccountMetas[1];
+    };
+    data: SetTransferFeeInstructionData;
 };
 
-export function parseSetTransferFeeInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
->(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+export function parseSetTransferFeeInstruction<TProgram extends string, TAccountMetas extends readonly AccountMeta[]>(
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSetTransferFeeInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: {
-      mint: getNextAccount(),
-      transferFeeConfigAuthority: getNextAccount(),
-    },
-    data: getSetTransferFeeInstructionDataDecoder().decode(instruction.data),
-  };
+    if (instruction.accounts.length < 2) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { mint: getNextAccount(), transferFeeConfigAuthority: getNextAccount() },
+        data: getSetTransferFeeInstructionDataDecoder().decode(instruction.data),
+    };
 }

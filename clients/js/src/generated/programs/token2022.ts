@@ -7,977 +7,1387 @@
  */
 
 import {
-  containsBytes,
-  getU8Encoder,
-  type Address,
-  type ReadonlyUint8Array,
+    assertIsInstructionWithAccounts,
+    containsBytes,
+    getU8Encoder,
+    type Address,
+    type Instruction,
+    type InstructionWithData,
+    type ReadonlyUint8Array,
 } from '@solana/kit';
 import {
-  type ParsedAmountToUiAmountInstruction,
-  type ParsedApplyConfidentialPendingBalanceInstruction,
-  type ParsedApproveCheckedInstruction,
-  type ParsedApproveConfidentialTransferAccountInstruction,
-  type ParsedApproveInstruction,
-  type ParsedBurnCheckedInstruction,
-  type ParsedBurnInstruction,
-  type ParsedCloseAccountInstruction,
-  type ParsedConfidentialDepositInstruction,
-  type ParsedConfidentialTransferInstruction,
-  type ParsedConfidentialTransferWithFeeInstruction,
-  type ParsedConfidentialWithdrawInstruction,
-  type ParsedConfigureConfidentialTransferAccountInstruction,
-  type ParsedCreateNativeMintInstruction,
-  type ParsedDisableConfidentialCreditsInstruction,
-  type ParsedDisableCpiGuardInstruction,
-  type ParsedDisableHarvestToMintInstruction,
-  type ParsedDisableMemoTransfersInstruction,
-  type ParsedDisableNonConfidentialCreditsInstruction,
-  type ParsedEmitTokenMetadataInstruction,
-  type ParsedEmptyConfidentialTransferAccountInstruction,
-  type ParsedEnableConfidentialCreditsInstruction,
-  type ParsedEnableCpiGuardInstruction,
-  type ParsedEnableHarvestToMintInstruction,
-  type ParsedEnableMemoTransfersInstruction,
-  type ParsedEnableNonConfidentialCreditsInstruction,
-  type ParsedFreezeAccountInstruction,
-  type ParsedGetAccountDataSizeInstruction,
-  type ParsedHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction,
-  type ParsedHarvestWithheldTokensToMintInstruction,
-  type ParsedInitializeAccount2Instruction,
-  type ParsedInitializeAccount3Instruction,
-  type ParsedInitializeAccountInstruction,
-  type ParsedInitializeConfidentialTransferFeeInstruction,
-  type ParsedInitializeConfidentialTransferMintInstruction,
-  type ParsedInitializeDefaultAccountStateInstruction,
-  type ParsedInitializeGroupMemberPointerInstruction,
-  type ParsedInitializeGroupPointerInstruction,
-  type ParsedInitializeImmutableOwnerInstruction,
-  type ParsedInitializeInterestBearingMintInstruction,
-  type ParsedInitializeMetadataPointerInstruction,
-  type ParsedInitializeMint2Instruction,
-  type ParsedInitializeMintCloseAuthorityInstruction,
-  type ParsedInitializeMintInstruction,
-  type ParsedInitializeMultisig2Instruction,
-  type ParsedInitializeMultisigInstruction,
-  type ParsedInitializeNonTransferableMintInstruction,
-  type ParsedInitializePausableConfigInstruction,
-  type ParsedInitializePermanentDelegateInstruction,
-  type ParsedInitializePermissionedBurnInstruction,
-  type ParsedInitializeScaledUiAmountMintInstruction,
-  type ParsedInitializeTokenGroupInstruction,
-  type ParsedInitializeTokenGroupMemberInstruction,
-  type ParsedInitializeTokenMetadataInstruction,
-  type ParsedInitializeTransferFeeConfigInstruction,
-  type ParsedInitializeTransferHookInstruction,
-  type ParsedMintToCheckedInstruction,
-  type ParsedMintToInstruction,
-  type ParsedPauseInstruction,
-  type ParsedPermissionedBurnCheckedInstruction,
-  type ParsedPermissionedBurnInstruction,
-  type ParsedReallocateInstruction,
-  type ParsedRemoveTokenMetadataKeyInstruction,
-  type ParsedResumeInstruction,
-  type ParsedRevokeInstruction,
-  type ParsedSetAuthorityInstruction,
-  type ParsedSetTransferFeeInstruction,
-  type ParsedSyncNativeInstruction,
-  type ParsedThawAccountInstruction,
-  type ParsedTransferCheckedInstruction,
-  type ParsedTransferCheckedWithFeeInstruction,
-  type ParsedTransferInstruction,
-  type ParsedUiAmountToAmountInstruction,
-  type ParsedUnwrapLamportsInstruction,
-  type ParsedUpdateConfidentialTransferMintInstruction,
-  type ParsedUpdateDefaultAccountStateInstruction,
-  type ParsedUpdateGroupMemberPointerInstruction,
-  type ParsedUpdateGroupPointerInstruction,
-  type ParsedUpdateMetadataPointerInstruction,
-  type ParsedUpdateMultiplierScaledUiMintInstruction,
-  type ParsedUpdateRateInterestBearingMintInstruction,
-  type ParsedUpdateTokenGroupMaxSizeInstruction,
-  type ParsedUpdateTokenGroupUpdateAuthorityInstruction,
-  type ParsedUpdateTokenMetadataFieldInstruction,
-  type ParsedUpdateTokenMetadataUpdateAuthorityInstruction,
-  type ParsedUpdateTransferHookInstruction,
-  type ParsedWithdrawExcessLamportsInstruction,
-  type ParsedWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruction,
-  type ParsedWithdrawWithheldTokensFromAccountsInstruction,
-  type ParsedWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction,
-  type ParsedWithdrawWithheldTokensFromMintInstruction,
+    parseAmountToUiAmountInstruction,
+    parseApplyConfidentialPendingBalanceInstruction,
+    parseApproveCheckedInstruction,
+    parseApproveConfidentialTransferAccountInstruction,
+    parseApproveInstruction,
+    parseBurnCheckedInstruction,
+    parseBurnInstruction,
+    parseCloseAccountInstruction,
+    parseConfidentialDepositInstruction,
+    parseConfidentialTransferInstruction,
+    parseConfidentialTransferWithFeeInstruction,
+    parseConfidentialWithdrawInstruction,
+    parseConfigureConfidentialTransferAccountInstruction,
+    parseCreateNativeMintInstruction,
+    parseDisableConfidentialCreditsInstruction,
+    parseDisableCpiGuardInstruction,
+    parseDisableHarvestToMintInstruction,
+    parseDisableMemoTransfersInstruction,
+    parseDisableNonConfidentialCreditsInstruction,
+    parseEmitTokenMetadataInstruction,
+    parseEmptyConfidentialTransferAccountInstruction,
+    parseEnableConfidentialCreditsInstruction,
+    parseEnableCpiGuardInstruction,
+    parseEnableHarvestToMintInstruction,
+    parseEnableMemoTransfersInstruction,
+    parseEnableNonConfidentialCreditsInstruction,
+    parseFreezeAccountInstruction,
+    parseGetAccountDataSizeInstruction,
+    parseHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction,
+    parseHarvestWithheldTokensToMintInstruction,
+    parseInitializeAccount2Instruction,
+    parseInitializeAccount3Instruction,
+    parseInitializeAccountInstruction,
+    parseInitializeConfidentialTransferFeeInstruction,
+    parseInitializeConfidentialTransferMintInstruction,
+    parseInitializeDefaultAccountStateInstruction,
+    parseInitializeGroupMemberPointerInstruction,
+    parseInitializeGroupPointerInstruction,
+    parseInitializeImmutableOwnerInstruction,
+    parseInitializeInterestBearingMintInstruction,
+    parseInitializeMetadataPointerInstruction,
+    parseInitializeMint2Instruction,
+    parseInitializeMintCloseAuthorityInstruction,
+    parseInitializeMintInstruction,
+    parseInitializeMultisig2Instruction,
+    parseInitializeMultisigInstruction,
+    parseInitializeNonTransferableMintInstruction,
+    parseInitializePausableConfigInstruction,
+    parseInitializePermanentDelegateInstruction,
+    parseInitializePermissionedBurnInstruction,
+    parseInitializeScaledUiAmountMintInstruction,
+    parseInitializeTokenGroupInstruction,
+    parseInitializeTokenGroupMemberInstruction,
+    parseInitializeTokenMetadataInstruction,
+    parseInitializeTransferFeeConfigInstruction,
+    parseInitializeTransferHookInstruction,
+    parseMintToCheckedInstruction,
+    parseMintToInstruction,
+    parsePauseInstruction,
+    parsePermissionedBurnCheckedInstruction,
+    parsePermissionedBurnInstruction,
+    parseReallocateInstruction,
+    parseRemoveTokenMetadataKeyInstruction,
+    parseResumeInstruction,
+    parseRevokeInstruction,
+    parseSetAuthorityInstruction,
+    parseSetTransferFeeInstruction,
+    parseSyncNativeInstruction,
+    parseThawAccountInstruction,
+    parseTransferCheckedInstruction,
+    parseTransferCheckedWithFeeInstruction,
+    parseTransferInstruction,
+    parseUiAmountToAmountInstruction,
+    parseUnwrapLamportsInstruction,
+    parseUpdateConfidentialTransferMintInstruction,
+    parseUpdateDefaultAccountStateInstruction,
+    parseUpdateGroupMemberPointerInstruction,
+    parseUpdateGroupPointerInstruction,
+    parseUpdateMetadataPointerInstruction,
+    parseUpdateMultiplierScaledUiMintInstruction,
+    parseUpdateRateInterestBearingMintInstruction,
+    parseUpdateTokenGroupMaxSizeInstruction,
+    parseUpdateTokenGroupUpdateAuthorityInstruction,
+    parseUpdateTokenMetadataFieldInstruction,
+    parseUpdateTokenMetadataUpdateAuthorityInstruction,
+    parseUpdateTransferHookInstruction,
+    parseWithdrawExcessLamportsInstruction,
+    parseWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruction,
+    parseWithdrawWithheldTokensFromAccountsInstruction,
+    parseWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction,
+    parseWithdrawWithheldTokensFromMintInstruction,
+    type ParsedAmountToUiAmountInstruction,
+    type ParsedApplyConfidentialPendingBalanceInstruction,
+    type ParsedApproveCheckedInstruction,
+    type ParsedApproveConfidentialTransferAccountInstruction,
+    type ParsedApproveInstruction,
+    type ParsedBurnCheckedInstruction,
+    type ParsedBurnInstruction,
+    type ParsedCloseAccountInstruction,
+    type ParsedConfidentialDepositInstruction,
+    type ParsedConfidentialTransferInstruction,
+    type ParsedConfidentialTransferWithFeeInstruction,
+    type ParsedConfidentialWithdrawInstruction,
+    type ParsedConfigureConfidentialTransferAccountInstruction,
+    type ParsedCreateNativeMintInstruction,
+    type ParsedDisableConfidentialCreditsInstruction,
+    type ParsedDisableCpiGuardInstruction,
+    type ParsedDisableHarvestToMintInstruction,
+    type ParsedDisableMemoTransfersInstruction,
+    type ParsedDisableNonConfidentialCreditsInstruction,
+    type ParsedEmitTokenMetadataInstruction,
+    type ParsedEmptyConfidentialTransferAccountInstruction,
+    type ParsedEnableConfidentialCreditsInstruction,
+    type ParsedEnableCpiGuardInstruction,
+    type ParsedEnableHarvestToMintInstruction,
+    type ParsedEnableMemoTransfersInstruction,
+    type ParsedEnableNonConfidentialCreditsInstruction,
+    type ParsedFreezeAccountInstruction,
+    type ParsedGetAccountDataSizeInstruction,
+    type ParsedHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction,
+    type ParsedHarvestWithheldTokensToMintInstruction,
+    type ParsedInitializeAccount2Instruction,
+    type ParsedInitializeAccount3Instruction,
+    type ParsedInitializeAccountInstruction,
+    type ParsedInitializeConfidentialTransferFeeInstruction,
+    type ParsedInitializeConfidentialTransferMintInstruction,
+    type ParsedInitializeDefaultAccountStateInstruction,
+    type ParsedInitializeGroupMemberPointerInstruction,
+    type ParsedInitializeGroupPointerInstruction,
+    type ParsedInitializeImmutableOwnerInstruction,
+    type ParsedInitializeInterestBearingMintInstruction,
+    type ParsedInitializeMetadataPointerInstruction,
+    type ParsedInitializeMint2Instruction,
+    type ParsedInitializeMintCloseAuthorityInstruction,
+    type ParsedInitializeMintInstruction,
+    type ParsedInitializeMultisig2Instruction,
+    type ParsedInitializeMultisigInstruction,
+    type ParsedInitializeNonTransferableMintInstruction,
+    type ParsedInitializePausableConfigInstruction,
+    type ParsedInitializePermanentDelegateInstruction,
+    type ParsedInitializePermissionedBurnInstruction,
+    type ParsedInitializeScaledUiAmountMintInstruction,
+    type ParsedInitializeTokenGroupInstruction,
+    type ParsedInitializeTokenGroupMemberInstruction,
+    type ParsedInitializeTokenMetadataInstruction,
+    type ParsedInitializeTransferFeeConfigInstruction,
+    type ParsedInitializeTransferHookInstruction,
+    type ParsedMintToCheckedInstruction,
+    type ParsedMintToInstruction,
+    type ParsedPauseInstruction,
+    type ParsedPermissionedBurnCheckedInstruction,
+    type ParsedPermissionedBurnInstruction,
+    type ParsedReallocateInstruction,
+    type ParsedRemoveTokenMetadataKeyInstruction,
+    type ParsedResumeInstruction,
+    type ParsedRevokeInstruction,
+    type ParsedSetAuthorityInstruction,
+    type ParsedSetTransferFeeInstruction,
+    type ParsedSyncNativeInstruction,
+    type ParsedThawAccountInstruction,
+    type ParsedTransferCheckedInstruction,
+    type ParsedTransferCheckedWithFeeInstruction,
+    type ParsedTransferInstruction,
+    type ParsedUiAmountToAmountInstruction,
+    type ParsedUnwrapLamportsInstruction,
+    type ParsedUpdateConfidentialTransferMintInstruction,
+    type ParsedUpdateDefaultAccountStateInstruction,
+    type ParsedUpdateGroupMemberPointerInstruction,
+    type ParsedUpdateGroupPointerInstruction,
+    type ParsedUpdateMetadataPointerInstruction,
+    type ParsedUpdateMultiplierScaledUiMintInstruction,
+    type ParsedUpdateRateInterestBearingMintInstruction,
+    type ParsedUpdateTokenGroupMaxSizeInstruction,
+    type ParsedUpdateTokenGroupUpdateAuthorityInstruction,
+    type ParsedUpdateTokenMetadataFieldInstruction,
+    type ParsedUpdateTokenMetadataUpdateAuthorityInstruction,
+    type ParsedUpdateTransferHookInstruction,
+    type ParsedWithdrawExcessLamportsInstruction,
+    type ParsedWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruction,
+    type ParsedWithdrawWithheldTokensFromAccountsInstruction,
+    type ParsedWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction,
+    type ParsedWithdrawWithheldTokensFromMintInstruction,
 } from '../instructions';
 
 export const TOKEN_2022_PROGRAM_ADDRESS =
-  'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb' as Address<'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'>;
+    'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb' as Address<'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'>;
 
 export enum Token2022Account {
-  Mint,
-  Token,
-  Multisig,
+    Mint,
+    Token,
+    Multisig,
 }
 
-export function identifyToken2022Account(
-  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array
-): Token2022Account {
-  const data = 'data' in account ? account.data : account;
-  if (data.length === 82) {
-    return Token2022Account.Mint;
-  }
-  if (data.length === 165) {
-    return Token2022Account.Token;
-  }
-  if (data.length === 355) {
-    return Token2022Account.Multisig;
-  }
-  throw new Error(
-    'The provided account could not be identified as a token-2022 account.'
-  );
+export function identifyToken2022Account(account: { data: ReadonlyUint8Array } | ReadonlyUint8Array): Token2022Account {
+    const data = 'data' in account ? account.data : account;
+    if (data.length === 82) {
+        return Token2022Account.Mint;
+    }
+    if (data.length === 165) {
+        return Token2022Account.Token;
+    }
+    if (data.length === 355) {
+        return Token2022Account.Multisig;
+    }
+    throw new Error('The provided account could not be identified as a token-2022 account.');
 }
 
 export enum Token2022Instruction {
-  InitializeMint,
-  InitializeAccount,
-  InitializeMultisig,
-  Transfer,
-  Approve,
-  Revoke,
-  SetAuthority,
-  MintTo,
-  Burn,
-  CloseAccount,
-  FreezeAccount,
-  ThawAccount,
-  TransferChecked,
-  ApproveChecked,
-  MintToChecked,
-  BurnChecked,
-  InitializeAccount2,
-  SyncNative,
-  InitializeAccount3,
-  InitializeMultisig2,
-  InitializeMint2,
-  GetAccountDataSize,
-  InitializeImmutableOwner,
-  AmountToUiAmount,
-  UiAmountToAmount,
-  InitializeMintCloseAuthority,
-  InitializeTransferFeeConfig,
-  TransferCheckedWithFee,
-  WithdrawWithheldTokensFromMint,
-  WithdrawWithheldTokensFromAccounts,
-  HarvestWithheldTokensToMint,
-  SetTransferFee,
-  InitializeConfidentialTransferMint,
-  UpdateConfidentialTransferMint,
-  ConfigureConfidentialTransferAccount,
-  ApproveConfidentialTransferAccount,
-  EmptyConfidentialTransferAccount,
-  ConfidentialDeposit,
-  ConfidentialWithdraw,
-  ConfidentialTransfer,
-  ApplyConfidentialPendingBalance,
-  EnableConfidentialCredits,
-  DisableConfidentialCredits,
-  EnableNonConfidentialCredits,
-  DisableNonConfidentialCredits,
-  ConfidentialTransferWithFee,
-  InitializeDefaultAccountState,
-  UpdateDefaultAccountState,
-  Reallocate,
-  EnableMemoTransfers,
-  DisableMemoTransfers,
-  CreateNativeMint,
-  InitializeNonTransferableMint,
-  InitializeInterestBearingMint,
-  UpdateRateInterestBearingMint,
-  EnableCpiGuard,
-  DisableCpiGuard,
-  InitializePermanentDelegate,
-  InitializeTransferHook,
-  UpdateTransferHook,
-  InitializeConfidentialTransferFee,
-  WithdrawWithheldTokensFromMintForConfidentialTransferFee,
-  WithdrawWithheldTokensFromAccountsForConfidentialTransferFee,
-  HarvestWithheldTokensToMintForConfidentialTransferFee,
-  EnableHarvestToMint,
-  DisableHarvestToMint,
-  WithdrawExcessLamports,
-  InitializeMetadataPointer,
-  UpdateMetadataPointer,
-  InitializeGroupPointer,
-  UpdateGroupPointer,
-  InitializeGroupMemberPointer,
-  UpdateGroupMemberPointer,
-  InitializeScaledUiAmountMint,
-  UpdateMultiplierScaledUiMint,
-  InitializePausableConfig,
-  Pause,
-  Resume,
-  InitializeTokenMetadata,
-  UpdateTokenMetadataField,
-  RemoveTokenMetadataKey,
-  UpdateTokenMetadataUpdateAuthority,
-  EmitTokenMetadata,
-  InitializeTokenGroup,
-  UpdateTokenGroupMaxSize,
-  UpdateTokenGroupUpdateAuthority,
-  InitializeTokenGroupMember,
-  UnwrapLamports,
-  InitializePermissionedBurn,
-  PermissionedBurn,
-  PermissionedBurnChecked,
+    InitializeMint,
+    InitializeAccount,
+    InitializeMultisig,
+    Transfer,
+    Approve,
+    Revoke,
+    SetAuthority,
+    MintTo,
+    Burn,
+    CloseAccount,
+    FreezeAccount,
+    ThawAccount,
+    TransferChecked,
+    ApproveChecked,
+    MintToChecked,
+    BurnChecked,
+    InitializeAccount2,
+    SyncNative,
+    InitializeAccount3,
+    InitializeMultisig2,
+    InitializeMint2,
+    GetAccountDataSize,
+    InitializeImmutableOwner,
+    AmountToUiAmount,
+    UiAmountToAmount,
+    InitializeMintCloseAuthority,
+    InitializeTransferFeeConfig,
+    TransferCheckedWithFee,
+    WithdrawWithheldTokensFromMint,
+    WithdrawWithheldTokensFromAccounts,
+    HarvestWithheldTokensToMint,
+    SetTransferFee,
+    InitializeConfidentialTransferMint,
+    UpdateConfidentialTransferMint,
+    ConfigureConfidentialTransferAccount,
+    ApproveConfidentialTransferAccount,
+    EmptyConfidentialTransferAccount,
+    ConfidentialDeposit,
+    ConfidentialWithdraw,
+    ConfidentialTransfer,
+    ApplyConfidentialPendingBalance,
+    EnableConfidentialCredits,
+    DisableConfidentialCredits,
+    EnableNonConfidentialCredits,
+    DisableNonConfidentialCredits,
+    ConfidentialTransferWithFee,
+    InitializeDefaultAccountState,
+    UpdateDefaultAccountState,
+    Reallocate,
+    EnableMemoTransfers,
+    DisableMemoTransfers,
+    CreateNativeMint,
+    InitializeNonTransferableMint,
+    InitializeInterestBearingMint,
+    UpdateRateInterestBearingMint,
+    EnableCpiGuard,
+    DisableCpiGuard,
+    InitializePermanentDelegate,
+    InitializeTransferHook,
+    UpdateTransferHook,
+    InitializeConfidentialTransferFee,
+    WithdrawWithheldTokensFromMintForConfidentialTransferFee,
+    WithdrawWithheldTokensFromAccountsForConfidentialTransferFee,
+    HarvestWithheldTokensToMintForConfidentialTransferFee,
+    EnableHarvestToMint,
+    DisableHarvestToMint,
+    WithdrawExcessLamports,
+    InitializeMetadataPointer,
+    UpdateMetadataPointer,
+    InitializeGroupPointer,
+    UpdateGroupPointer,
+    InitializeGroupMemberPointer,
+    UpdateGroupMemberPointer,
+    InitializeScaledUiAmountMint,
+    UpdateMultiplierScaledUiMint,
+    InitializePausableConfig,
+    Pause,
+    Resume,
+    InitializeTokenMetadata,
+    UpdateTokenMetadataField,
+    RemoveTokenMetadataKey,
+    UpdateTokenMetadataUpdateAuthority,
+    EmitTokenMetadata,
+    InitializeTokenGroup,
+    UpdateTokenGroupMaxSize,
+    UpdateTokenGroupUpdateAuthority,
+    InitializeTokenGroupMember,
+    UnwrapLamports,
+    InitializePermissionedBurn,
+    PermissionedBurn,
+    PermissionedBurnChecked,
 }
 
 export function identifyToken2022Instruction(
-  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
+    instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
 ): Token2022Instruction {
-  const data = 'data' in instruction ? instruction.data : instruction;
-  if (containsBytes(data, getU8Encoder().encode(0), 0)) {
-    return Token2022Instruction.InitializeMint;
-  }
-  if (containsBytes(data, getU8Encoder().encode(1), 0)) {
-    return Token2022Instruction.InitializeAccount;
-  }
-  if (containsBytes(data, getU8Encoder().encode(2), 0)) {
-    return Token2022Instruction.InitializeMultisig;
-  }
-  if (containsBytes(data, getU8Encoder().encode(3), 0)) {
-    return Token2022Instruction.Transfer;
-  }
-  if (containsBytes(data, getU8Encoder().encode(4), 0)) {
-    return Token2022Instruction.Approve;
-  }
-  if (containsBytes(data, getU8Encoder().encode(5), 0)) {
-    return Token2022Instruction.Revoke;
-  }
-  if (containsBytes(data, getU8Encoder().encode(6), 0)) {
-    return Token2022Instruction.SetAuthority;
-  }
-  if (containsBytes(data, getU8Encoder().encode(7), 0)) {
-    return Token2022Instruction.MintTo;
-  }
-  if (containsBytes(data, getU8Encoder().encode(8), 0)) {
-    return Token2022Instruction.Burn;
-  }
-  if (containsBytes(data, getU8Encoder().encode(9), 0)) {
-    return Token2022Instruction.CloseAccount;
-  }
-  if (containsBytes(data, getU8Encoder().encode(10), 0)) {
-    return Token2022Instruction.FreezeAccount;
-  }
-  if (containsBytes(data, getU8Encoder().encode(11), 0)) {
-    return Token2022Instruction.ThawAccount;
-  }
-  if (containsBytes(data, getU8Encoder().encode(12), 0)) {
-    return Token2022Instruction.TransferChecked;
-  }
-  if (containsBytes(data, getU8Encoder().encode(13), 0)) {
-    return Token2022Instruction.ApproveChecked;
-  }
-  if (containsBytes(data, getU8Encoder().encode(14), 0)) {
-    return Token2022Instruction.MintToChecked;
-  }
-  if (containsBytes(data, getU8Encoder().encode(15), 0)) {
-    return Token2022Instruction.BurnChecked;
-  }
-  if (containsBytes(data, getU8Encoder().encode(16), 0)) {
-    return Token2022Instruction.InitializeAccount2;
-  }
-  if (containsBytes(data, getU8Encoder().encode(17), 0)) {
-    return Token2022Instruction.SyncNative;
-  }
-  if (containsBytes(data, getU8Encoder().encode(18), 0)) {
-    return Token2022Instruction.InitializeAccount3;
-  }
-  if (containsBytes(data, getU8Encoder().encode(19), 0)) {
-    return Token2022Instruction.InitializeMultisig2;
-  }
-  if (containsBytes(data, getU8Encoder().encode(20), 0)) {
-    return Token2022Instruction.InitializeMint2;
-  }
-  if (containsBytes(data, getU8Encoder().encode(21), 0)) {
-    return Token2022Instruction.GetAccountDataSize;
-  }
-  if (containsBytes(data, getU8Encoder().encode(22), 0)) {
-    return Token2022Instruction.InitializeImmutableOwner;
-  }
-  if (containsBytes(data, getU8Encoder().encode(23), 0)) {
-    return Token2022Instruction.AmountToUiAmount;
-  }
-  if (containsBytes(data, getU8Encoder().encode(24), 0)) {
-    return Token2022Instruction.UiAmountToAmount;
-  }
-  if (containsBytes(data, getU8Encoder().encode(25), 0)) {
-    return Token2022Instruction.InitializeMintCloseAuthority;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(26), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
-    return Token2022Instruction.InitializeTransferFeeConfig;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(26), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
-    return Token2022Instruction.TransferCheckedWithFee;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(26), 0) &&
-    containsBytes(data, getU8Encoder().encode(2), 1)
-  ) {
-    return Token2022Instruction.WithdrawWithheldTokensFromMint;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(26), 0) &&
-    containsBytes(data, getU8Encoder().encode(3), 1)
-  ) {
-    return Token2022Instruction.WithdrawWithheldTokensFromAccounts;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(26), 0) &&
-    containsBytes(data, getU8Encoder().encode(4), 1)
-  ) {
-    return Token2022Instruction.HarvestWithheldTokensToMint;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(26), 0) &&
-    containsBytes(data, getU8Encoder().encode(5), 1)
-  ) {
-    return Token2022Instruction.SetTransferFee;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(27), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
-    return Token2022Instruction.InitializeConfidentialTransferMint;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(27), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
-    return Token2022Instruction.UpdateConfidentialTransferMint;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(27), 0) &&
-    containsBytes(data, getU8Encoder().encode(2), 1)
-  ) {
-    return Token2022Instruction.ConfigureConfidentialTransferAccount;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(27), 0) &&
-    containsBytes(data, getU8Encoder().encode(3), 1)
-  ) {
-    return Token2022Instruction.ApproveConfidentialTransferAccount;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(27), 0) &&
-    containsBytes(data, getU8Encoder().encode(4), 1)
-  ) {
-    return Token2022Instruction.EmptyConfidentialTransferAccount;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(27), 0) &&
-    containsBytes(data, getU8Encoder().encode(5), 1)
-  ) {
-    return Token2022Instruction.ConfidentialDeposit;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(27), 0) &&
-    containsBytes(data, getU8Encoder().encode(6), 1)
-  ) {
-    return Token2022Instruction.ConfidentialWithdraw;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(27), 0) &&
-    containsBytes(data, getU8Encoder().encode(7), 1)
-  ) {
-    return Token2022Instruction.ConfidentialTransfer;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(27), 0) &&
-    containsBytes(data, getU8Encoder().encode(8), 1)
-  ) {
-    return Token2022Instruction.ApplyConfidentialPendingBalance;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(27), 0) &&
-    containsBytes(data, getU8Encoder().encode(9), 1)
-  ) {
-    return Token2022Instruction.EnableConfidentialCredits;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(27), 0) &&
-    containsBytes(data, getU8Encoder().encode(10), 1)
-  ) {
-    return Token2022Instruction.DisableConfidentialCredits;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(27), 0) &&
-    containsBytes(data, getU8Encoder().encode(11), 1)
-  ) {
-    return Token2022Instruction.EnableNonConfidentialCredits;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(27), 0) &&
-    containsBytes(data, getU8Encoder().encode(12), 1)
-  ) {
-    return Token2022Instruction.DisableNonConfidentialCredits;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(27), 0) &&
-    containsBytes(data, getU8Encoder().encode(13), 1)
-  ) {
-    return Token2022Instruction.ConfidentialTransferWithFee;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(28), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
-    return Token2022Instruction.InitializeDefaultAccountState;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(28), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
-    return Token2022Instruction.UpdateDefaultAccountState;
-  }
-  if (containsBytes(data, getU8Encoder().encode(29), 0)) {
-    return Token2022Instruction.Reallocate;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(30), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
-    return Token2022Instruction.EnableMemoTransfers;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(30), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
-    return Token2022Instruction.DisableMemoTransfers;
-  }
-  if (containsBytes(data, getU8Encoder().encode(31), 0)) {
-    return Token2022Instruction.CreateNativeMint;
-  }
-  if (containsBytes(data, getU8Encoder().encode(32), 0)) {
-    return Token2022Instruction.InitializeNonTransferableMint;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(33), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
-    return Token2022Instruction.InitializeInterestBearingMint;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(33), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
-    return Token2022Instruction.UpdateRateInterestBearingMint;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(34), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
-    return Token2022Instruction.EnableCpiGuard;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(34), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
-    return Token2022Instruction.DisableCpiGuard;
-  }
-  if (containsBytes(data, getU8Encoder().encode(35), 0)) {
-    return Token2022Instruction.InitializePermanentDelegate;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(36), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
-    return Token2022Instruction.InitializeTransferHook;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(36), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
-    return Token2022Instruction.UpdateTransferHook;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(37), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
-    return Token2022Instruction.InitializeConfidentialTransferFee;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(37), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
-    return Token2022Instruction.WithdrawWithheldTokensFromMintForConfidentialTransferFee;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(37), 0) &&
-    containsBytes(data, getU8Encoder().encode(2), 1)
-  ) {
-    return Token2022Instruction.WithdrawWithheldTokensFromAccountsForConfidentialTransferFee;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(37), 0) &&
-    containsBytes(data, getU8Encoder().encode(3), 1)
-  ) {
-    return Token2022Instruction.HarvestWithheldTokensToMintForConfidentialTransferFee;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(37), 0) &&
-    containsBytes(data, getU8Encoder().encode(4), 1)
-  ) {
-    return Token2022Instruction.EnableHarvestToMint;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(37), 0) &&
-    containsBytes(data, getU8Encoder().encode(5), 1)
-  ) {
-    return Token2022Instruction.DisableHarvestToMint;
-  }
-  if (containsBytes(data, getU8Encoder().encode(38), 0)) {
-    return Token2022Instruction.WithdrawExcessLamports;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(39), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
-    return Token2022Instruction.InitializeMetadataPointer;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(39), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
-    return Token2022Instruction.UpdateMetadataPointer;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(40), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
-    return Token2022Instruction.InitializeGroupPointer;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(40), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
-    return Token2022Instruction.UpdateGroupPointer;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(41), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
-    return Token2022Instruction.InitializeGroupMemberPointer;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(41), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
-    return Token2022Instruction.UpdateGroupMemberPointer;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(43), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
-    return Token2022Instruction.InitializeScaledUiAmountMint;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(43), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
-    return Token2022Instruction.UpdateMultiplierScaledUiMint;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(44), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
-    return Token2022Instruction.InitializePausableConfig;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(44), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
-    return Token2022Instruction.Pause;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(44), 0) &&
-    containsBytes(data, getU8Encoder().encode(2), 1)
-  ) {
-    return Token2022Instruction.Resume;
-  }
-  if (
-    containsBytes(
-      data,
-      new Uint8Array([210, 225, 30, 162, 88, 184, 77, 141]),
-      0
-    )
-  ) {
-    return Token2022Instruction.InitializeTokenMetadata;
-  }
-  if (
-    containsBytes(
-      data,
-      new Uint8Array([221, 233, 49, 45, 181, 202, 220, 200]),
-      0
-    )
-  ) {
-    return Token2022Instruction.UpdateTokenMetadataField;
-  }
-  if (
-    containsBytes(data, new Uint8Array([234, 18, 32, 56, 89, 141, 37, 181]), 0)
-  ) {
-    return Token2022Instruction.RemoveTokenMetadataKey;
-  }
-  if (
-    containsBytes(
-      data,
-      new Uint8Array([215, 228, 166, 228, 84, 100, 86, 123]),
-      0
-    )
-  ) {
-    return Token2022Instruction.UpdateTokenMetadataUpdateAuthority;
-  }
-  if (
-    containsBytes(
-      data,
-      new Uint8Array([250, 166, 180, 250, 13, 12, 184, 70]),
-      0
-    )
-  ) {
-    return Token2022Instruction.EmitTokenMetadata;
-  }
-  if (
-    containsBytes(data, new Uint8Array([121, 113, 108, 39, 54, 51, 0, 4]), 0)
-  ) {
-    return Token2022Instruction.InitializeTokenGroup;
-  }
-  if (
-    containsBytes(
-      data,
-      new Uint8Array([108, 37, 171, 143, 248, 30, 18, 110]),
-      0
-    )
-  ) {
-    return Token2022Instruction.UpdateTokenGroupMaxSize;
-  }
-  if (
-    containsBytes(
-      data,
-      new Uint8Array([161, 105, 88, 1, 237, 221, 216, 203]),
-      0
-    )
-  ) {
-    return Token2022Instruction.UpdateTokenGroupUpdateAuthority;
-  }
-  if (
-    containsBytes(
-      data,
-      new Uint8Array([152, 32, 222, 176, 223, 237, 116, 134]),
-      0
-    )
-  ) {
-    return Token2022Instruction.InitializeTokenGroupMember;
-  }
-  if (containsBytes(data, getU8Encoder().encode(45), 0)) {
-    return Token2022Instruction.UnwrapLamports;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(46), 0) &&
-    containsBytes(data, getU8Encoder().encode(0), 1)
-  ) {
-    return Token2022Instruction.InitializePermissionedBurn;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(46), 0) &&
-    containsBytes(data, getU8Encoder().encode(1), 1)
-  ) {
-    return Token2022Instruction.PermissionedBurn;
-  }
-  if (
-    containsBytes(data, getU8Encoder().encode(46), 0) &&
-    containsBytes(data, getU8Encoder().encode(2), 1)
-  ) {
-    return Token2022Instruction.PermissionedBurnChecked;
-  }
-  throw new Error(
-    'The provided instruction could not be identified as a token-2022 instruction.'
-  );
+    const data = 'data' in instruction ? instruction.data : instruction;
+    if (containsBytes(data, getU8Encoder().encode(0), 0)) {
+        return Token2022Instruction.InitializeMint;
+    }
+    if (containsBytes(data, getU8Encoder().encode(1), 0)) {
+        return Token2022Instruction.InitializeAccount;
+    }
+    if (containsBytes(data, getU8Encoder().encode(2), 0)) {
+        return Token2022Instruction.InitializeMultisig;
+    }
+    if (containsBytes(data, getU8Encoder().encode(3), 0)) {
+        return Token2022Instruction.Transfer;
+    }
+    if (containsBytes(data, getU8Encoder().encode(4), 0)) {
+        return Token2022Instruction.Approve;
+    }
+    if (containsBytes(data, getU8Encoder().encode(5), 0)) {
+        return Token2022Instruction.Revoke;
+    }
+    if (containsBytes(data, getU8Encoder().encode(6), 0)) {
+        return Token2022Instruction.SetAuthority;
+    }
+    if (containsBytes(data, getU8Encoder().encode(7), 0)) {
+        return Token2022Instruction.MintTo;
+    }
+    if (containsBytes(data, getU8Encoder().encode(8), 0)) {
+        return Token2022Instruction.Burn;
+    }
+    if (containsBytes(data, getU8Encoder().encode(9), 0)) {
+        return Token2022Instruction.CloseAccount;
+    }
+    if (containsBytes(data, getU8Encoder().encode(10), 0)) {
+        return Token2022Instruction.FreezeAccount;
+    }
+    if (containsBytes(data, getU8Encoder().encode(11), 0)) {
+        return Token2022Instruction.ThawAccount;
+    }
+    if (containsBytes(data, getU8Encoder().encode(12), 0)) {
+        return Token2022Instruction.TransferChecked;
+    }
+    if (containsBytes(data, getU8Encoder().encode(13), 0)) {
+        return Token2022Instruction.ApproveChecked;
+    }
+    if (containsBytes(data, getU8Encoder().encode(14), 0)) {
+        return Token2022Instruction.MintToChecked;
+    }
+    if (containsBytes(data, getU8Encoder().encode(15), 0)) {
+        return Token2022Instruction.BurnChecked;
+    }
+    if (containsBytes(data, getU8Encoder().encode(16), 0)) {
+        return Token2022Instruction.InitializeAccount2;
+    }
+    if (containsBytes(data, getU8Encoder().encode(17), 0)) {
+        return Token2022Instruction.SyncNative;
+    }
+    if (containsBytes(data, getU8Encoder().encode(18), 0)) {
+        return Token2022Instruction.InitializeAccount3;
+    }
+    if (containsBytes(data, getU8Encoder().encode(19), 0)) {
+        return Token2022Instruction.InitializeMultisig2;
+    }
+    if (containsBytes(data, getU8Encoder().encode(20), 0)) {
+        return Token2022Instruction.InitializeMint2;
+    }
+    if (containsBytes(data, getU8Encoder().encode(21), 0)) {
+        return Token2022Instruction.GetAccountDataSize;
+    }
+    if (containsBytes(data, getU8Encoder().encode(22), 0)) {
+        return Token2022Instruction.InitializeImmutableOwner;
+    }
+    if (containsBytes(data, getU8Encoder().encode(23), 0)) {
+        return Token2022Instruction.AmountToUiAmount;
+    }
+    if (containsBytes(data, getU8Encoder().encode(24), 0)) {
+        return Token2022Instruction.UiAmountToAmount;
+    }
+    if (containsBytes(data, getU8Encoder().encode(25), 0)) {
+        return Token2022Instruction.InitializeMintCloseAuthority;
+    }
+    if (containsBytes(data, getU8Encoder().encode(26), 0) && containsBytes(data, getU8Encoder().encode(0), 1)) {
+        return Token2022Instruction.InitializeTransferFeeConfig;
+    }
+    if (containsBytes(data, getU8Encoder().encode(26), 0) && containsBytes(data, getU8Encoder().encode(1), 1)) {
+        return Token2022Instruction.TransferCheckedWithFee;
+    }
+    if (containsBytes(data, getU8Encoder().encode(26), 0) && containsBytes(data, getU8Encoder().encode(2), 1)) {
+        return Token2022Instruction.WithdrawWithheldTokensFromMint;
+    }
+    if (containsBytes(data, getU8Encoder().encode(26), 0) && containsBytes(data, getU8Encoder().encode(3), 1)) {
+        return Token2022Instruction.WithdrawWithheldTokensFromAccounts;
+    }
+    if (containsBytes(data, getU8Encoder().encode(26), 0) && containsBytes(data, getU8Encoder().encode(4), 1)) {
+        return Token2022Instruction.HarvestWithheldTokensToMint;
+    }
+    if (containsBytes(data, getU8Encoder().encode(26), 0) && containsBytes(data, getU8Encoder().encode(5), 1)) {
+        return Token2022Instruction.SetTransferFee;
+    }
+    if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(0), 1)) {
+        return Token2022Instruction.InitializeConfidentialTransferMint;
+    }
+    if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(1), 1)) {
+        return Token2022Instruction.UpdateConfidentialTransferMint;
+    }
+    if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(2), 1)) {
+        return Token2022Instruction.ConfigureConfidentialTransferAccount;
+    }
+    if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(3), 1)) {
+        return Token2022Instruction.ApproveConfidentialTransferAccount;
+    }
+    if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(4), 1)) {
+        return Token2022Instruction.EmptyConfidentialTransferAccount;
+    }
+    if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(5), 1)) {
+        return Token2022Instruction.ConfidentialDeposit;
+    }
+    if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(6), 1)) {
+        return Token2022Instruction.ConfidentialWithdraw;
+    }
+    if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(7), 1)) {
+        return Token2022Instruction.ConfidentialTransfer;
+    }
+    if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(8), 1)) {
+        return Token2022Instruction.ApplyConfidentialPendingBalance;
+    }
+    if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(9), 1)) {
+        return Token2022Instruction.EnableConfidentialCredits;
+    }
+    if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(10), 1)) {
+        return Token2022Instruction.DisableConfidentialCredits;
+    }
+    if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(11), 1)) {
+        return Token2022Instruction.EnableNonConfidentialCredits;
+    }
+    if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(12), 1)) {
+        return Token2022Instruction.DisableNonConfidentialCredits;
+    }
+    if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(13), 1)) {
+        return Token2022Instruction.ConfidentialTransferWithFee;
+    }
+    if (containsBytes(data, getU8Encoder().encode(28), 0) && containsBytes(data, getU8Encoder().encode(0), 1)) {
+        return Token2022Instruction.InitializeDefaultAccountState;
+    }
+    if (containsBytes(data, getU8Encoder().encode(28), 0) && containsBytes(data, getU8Encoder().encode(1), 1)) {
+        return Token2022Instruction.UpdateDefaultAccountState;
+    }
+    if (containsBytes(data, getU8Encoder().encode(29), 0)) {
+        return Token2022Instruction.Reallocate;
+    }
+    if (containsBytes(data, getU8Encoder().encode(30), 0) && containsBytes(data, getU8Encoder().encode(0), 1)) {
+        return Token2022Instruction.EnableMemoTransfers;
+    }
+    if (containsBytes(data, getU8Encoder().encode(30), 0) && containsBytes(data, getU8Encoder().encode(1), 1)) {
+        return Token2022Instruction.DisableMemoTransfers;
+    }
+    if (containsBytes(data, getU8Encoder().encode(31), 0)) {
+        return Token2022Instruction.CreateNativeMint;
+    }
+    if (containsBytes(data, getU8Encoder().encode(32), 0)) {
+        return Token2022Instruction.InitializeNonTransferableMint;
+    }
+    if (containsBytes(data, getU8Encoder().encode(33), 0) && containsBytes(data, getU8Encoder().encode(0), 1)) {
+        return Token2022Instruction.InitializeInterestBearingMint;
+    }
+    if (containsBytes(data, getU8Encoder().encode(33), 0) && containsBytes(data, getU8Encoder().encode(1), 1)) {
+        return Token2022Instruction.UpdateRateInterestBearingMint;
+    }
+    if (containsBytes(data, getU8Encoder().encode(34), 0) && containsBytes(data, getU8Encoder().encode(0), 1)) {
+        return Token2022Instruction.EnableCpiGuard;
+    }
+    if (containsBytes(data, getU8Encoder().encode(34), 0) && containsBytes(data, getU8Encoder().encode(1), 1)) {
+        return Token2022Instruction.DisableCpiGuard;
+    }
+    if (containsBytes(data, getU8Encoder().encode(35), 0)) {
+        return Token2022Instruction.InitializePermanentDelegate;
+    }
+    if (containsBytes(data, getU8Encoder().encode(36), 0) && containsBytes(data, getU8Encoder().encode(0), 1)) {
+        return Token2022Instruction.InitializeTransferHook;
+    }
+    if (containsBytes(data, getU8Encoder().encode(36), 0) && containsBytes(data, getU8Encoder().encode(1), 1)) {
+        return Token2022Instruction.UpdateTransferHook;
+    }
+    if (containsBytes(data, getU8Encoder().encode(37), 0) && containsBytes(data, getU8Encoder().encode(0), 1)) {
+        return Token2022Instruction.InitializeConfidentialTransferFee;
+    }
+    if (containsBytes(data, getU8Encoder().encode(37), 0) && containsBytes(data, getU8Encoder().encode(1), 1)) {
+        return Token2022Instruction.WithdrawWithheldTokensFromMintForConfidentialTransferFee;
+    }
+    if (containsBytes(data, getU8Encoder().encode(37), 0) && containsBytes(data, getU8Encoder().encode(2), 1)) {
+        return Token2022Instruction.WithdrawWithheldTokensFromAccountsForConfidentialTransferFee;
+    }
+    if (containsBytes(data, getU8Encoder().encode(37), 0) && containsBytes(data, getU8Encoder().encode(3), 1)) {
+        return Token2022Instruction.HarvestWithheldTokensToMintForConfidentialTransferFee;
+    }
+    if (containsBytes(data, getU8Encoder().encode(37), 0) && containsBytes(data, getU8Encoder().encode(4), 1)) {
+        return Token2022Instruction.EnableHarvestToMint;
+    }
+    if (containsBytes(data, getU8Encoder().encode(37), 0) && containsBytes(data, getU8Encoder().encode(5), 1)) {
+        return Token2022Instruction.DisableHarvestToMint;
+    }
+    if (containsBytes(data, getU8Encoder().encode(38), 0)) {
+        return Token2022Instruction.WithdrawExcessLamports;
+    }
+    if (containsBytes(data, getU8Encoder().encode(39), 0) && containsBytes(data, getU8Encoder().encode(0), 1)) {
+        return Token2022Instruction.InitializeMetadataPointer;
+    }
+    if (containsBytes(data, getU8Encoder().encode(39), 0) && containsBytes(data, getU8Encoder().encode(1), 1)) {
+        return Token2022Instruction.UpdateMetadataPointer;
+    }
+    if (containsBytes(data, getU8Encoder().encode(40), 0) && containsBytes(data, getU8Encoder().encode(0), 1)) {
+        return Token2022Instruction.InitializeGroupPointer;
+    }
+    if (containsBytes(data, getU8Encoder().encode(40), 0) && containsBytes(data, getU8Encoder().encode(1), 1)) {
+        return Token2022Instruction.UpdateGroupPointer;
+    }
+    if (containsBytes(data, getU8Encoder().encode(41), 0) && containsBytes(data, getU8Encoder().encode(0), 1)) {
+        return Token2022Instruction.InitializeGroupMemberPointer;
+    }
+    if (containsBytes(data, getU8Encoder().encode(41), 0) && containsBytes(data, getU8Encoder().encode(1), 1)) {
+        return Token2022Instruction.UpdateGroupMemberPointer;
+    }
+    if (containsBytes(data, getU8Encoder().encode(43), 0) && containsBytes(data, getU8Encoder().encode(0), 1)) {
+        return Token2022Instruction.InitializeScaledUiAmountMint;
+    }
+    if (containsBytes(data, getU8Encoder().encode(43), 0) && containsBytes(data, getU8Encoder().encode(1), 1)) {
+        return Token2022Instruction.UpdateMultiplierScaledUiMint;
+    }
+    if (containsBytes(data, getU8Encoder().encode(44), 0) && containsBytes(data, getU8Encoder().encode(0), 1)) {
+        return Token2022Instruction.InitializePausableConfig;
+    }
+    if (containsBytes(data, getU8Encoder().encode(44), 0) && containsBytes(data, getU8Encoder().encode(1), 1)) {
+        return Token2022Instruction.Pause;
+    }
+    if (containsBytes(data, getU8Encoder().encode(44), 0) && containsBytes(data, getU8Encoder().encode(2), 1)) {
+        return Token2022Instruction.Resume;
+    }
+    if (containsBytes(data, new Uint8Array([210, 225, 30, 162, 88, 184, 77, 141]), 0)) {
+        return Token2022Instruction.InitializeTokenMetadata;
+    }
+    if (containsBytes(data, new Uint8Array([221, 233, 49, 45, 181, 202, 220, 200]), 0)) {
+        return Token2022Instruction.UpdateTokenMetadataField;
+    }
+    if (containsBytes(data, new Uint8Array([234, 18, 32, 56, 89, 141, 37, 181]), 0)) {
+        return Token2022Instruction.RemoveTokenMetadataKey;
+    }
+    if (containsBytes(data, new Uint8Array([215, 228, 166, 228, 84, 100, 86, 123]), 0)) {
+        return Token2022Instruction.UpdateTokenMetadataUpdateAuthority;
+    }
+    if (containsBytes(data, new Uint8Array([250, 166, 180, 250, 13, 12, 184, 70]), 0)) {
+        return Token2022Instruction.EmitTokenMetadata;
+    }
+    if (containsBytes(data, new Uint8Array([121, 113, 108, 39, 54, 51, 0, 4]), 0)) {
+        return Token2022Instruction.InitializeTokenGroup;
+    }
+    if (containsBytes(data, new Uint8Array([108, 37, 171, 143, 248, 30, 18, 110]), 0)) {
+        return Token2022Instruction.UpdateTokenGroupMaxSize;
+    }
+    if (containsBytes(data, new Uint8Array([161, 105, 88, 1, 237, 221, 216, 203]), 0)) {
+        return Token2022Instruction.UpdateTokenGroupUpdateAuthority;
+    }
+    if (containsBytes(data, new Uint8Array([152, 32, 222, 176, 223, 237, 116, 134]), 0)) {
+        return Token2022Instruction.InitializeTokenGroupMember;
+    }
+    if (containsBytes(data, getU8Encoder().encode(45), 0)) {
+        return Token2022Instruction.UnwrapLamports;
+    }
+    if (containsBytes(data, getU8Encoder().encode(46), 0) && containsBytes(data, getU8Encoder().encode(0), 1)) {
+        return Token2022Instruction.InitializePermissionedBurn;
+    }
+    if (containsBytes(data, getU8Encoder().encode(46), 0) && containsBytes(data, getU8Encoder().encode(1), 1)) {
+        return Token2022Instruction.PermissionedBurn;
+    }
+    if (containsBytes(data, getU8Encoder().encode(46), 0) && containsBytes(data, getU8Encoder().encode(2), 1)) {
+        return Token2022Instruction.PermissionedBurnChecked;
+    }
+    throw new Error('The provided instruction could not be identified as a token-2022 instruction.');
 }
 
-export type ParsedToken2022Instruction<
-  TProgram extends string = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
-> =
-  | ({
-      instructionType: Token2022Instruction.InitializeMint;
-    } & ParsedInitializeMintInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeAccount;
-    } & ParsedInitializeAccountInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeMultisig;
-    } & ParsedInitializeMultisigInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.Transfer;
-    } & ParsedTransferInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.Approve;
-    } & ParsedApproveInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.Revoke;
-    } & ParsedRevokeInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.SetAuthority;
-    } & ParsedSetAuthorityInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.MintTo;
-    } & ParsedMintToInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.Burn;
-    } & ParsedBurnInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.CloseAccount;
-    } & ParsedCloseAccountInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.FreezeAccount;
-    } & ParsedFreezeAccountInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.ThawAccount;
-    } & ParsedThawAccountInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.TransferChecked;
-    } & ParsedTransferCheckedInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.ApproveChecked;
-    } & ParsedApproveCheckedInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.MintToChecked;
-    } & ParsedMintToCheckedInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.BurnChecked;
-    } & ParsedBurnCheckedInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeAccount2;
-    } & ParsedInitializeAccount2Instruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.SyncNative;
-    } & ParsedSyncNativeInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeAccount3;
-    } & ParsedInitializeAccount3Instruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeMultisig2;
-    } & ParsedInitializeMultisig2Instruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeMint2;
-    } & ParsedInitializeMint2Instruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.GetAccountDataSize;
-    } & ParsedGetAccountDataSizeInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeImmutableOwner;
-    } & ParsedInitializeImmutableOwnerInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.AmountToUiAmount;
-    } & ParsedAmountToUiAmountInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.UiAmountToAmount;
-    } & ParsedUiAmountToAmountInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeMintCloseAuthority;
-    } & ParsedInitializeMintCloseAuthorityInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeTransferFeeConfig;
-    } & ParsedInitializeTransferFeeConfigInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.TransferCheckedWithFee;
-    } & ParsedTransferCheckedWithFeeInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.WithdrawWithheldTokensFromMint;
-    } & ParsedWithdrawWithheldTokensFromMintInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.WithdrawWithheldTokensFromAccounts;
-    } & ParsedWithdrawWithheldTokensFromAccountsInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.HarvestWithheldTokensToMint;
-    } & ParsedHarvestWithheldTokensToMintInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.SetTransferFee;
-    } & ParsedSetTransferFeeInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeConfidentialTransferMint;
-    } & ParsedInitializeConfidentialTransferMintInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.UpdateConfidentialTransferMint;
-    } & ParsedUpdateConfidentialTransferMintInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.ConfigureConfidentialTransferAccount;
-    } & ParsedConfigureConfidentialTransferAccountInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.ApproveConfidentialTransferAccount;
-    } & ParsedApproveConfidentialTransferAccountInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.EmptyConfidentialTransferAccount;
-    } & ParsedEmptyConfidentialTransferAccountInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.ConfidentialDeposit;
-    } & ParsedConfidentialDepositInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.ConfidentialWithdraw;
-    } & ParsedConfidentialWithdrawInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.ConfidentialTransfer;
-    } & ParsedConfidentialTransferInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.ApplyConfidentialPendingBalance;
-    } & ParsedApplyConfidentialPendingBalanceInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.EnableConfidentialCredits;
-    } & ParsedEnableConfidentialCreditsInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.DisableConfidentialCredits;
-    } & ParsedDisableConfidentialCreditsInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.EnableNonConfidentialCredits;
-    } & ParsedEnableNonConfidentialCreditsInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.DisableNonConfidentialCredits;
-    } & ParsedDisableNonConfidentialCreditsInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.ConfidentialTransferWithFee;
-    } & ParsedConfidentialTransferWithFeeInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeDefaultAccountState;
-    } & ParsedInitializeDefaultAccountStateInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.UpdateDefaultAccountState;
-    } & ParsedUpdateDefaultAccountStateInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.Reallocate;
-    } & ParsedReallocateInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.EnableMemoTransfers;
-    } & ParsedEnableMemoTransfersInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.DisableMemoTransfers;
-    } & ParsedDisableMemoTransfersInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.CreateNativeMint;
-    } & ParsedCreateNativeMintInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeNonTransferableMint;
-    } & ParsedInitializeNonTransferableMintInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeInterestBearingMint;
-    } & ParsedInitializeInterestBearingMintInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.UpdateRateInterestBearingMint;
-    } & ParsedUpdateRateInterestBearingMintInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.EnableCpiGuard;
-    } & ParsedEnableCpiGuardInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.DisableCpiGuard;
-    } & ParsedDisableCpiGuardInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializePermanentDelegate;
-    } & ParsedInitializePermanentDelegateInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeTransferHook;
-    } & ParsedInitializeTransferHookInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.UpdateTransferHook;
-    } & ParsedUpdateTransferHookInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeConfidentialTransferFee;
-    } & ParsedInitializeConfidentialTransferFeeInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.WithdrawWithheldTokensFromMintForConfidentialTransferFee;
-    } & ParsedWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.WithdrawWithheldTokensFromAccountsForConfidentialTransferFee;
-    } & ParsedWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.HarvestWithheldTokensToMintForConfidentialTransferFee;
-    } & ParsedHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.EnableHarvestToMint;
-    } & ParsedEnableHarvestToMintInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.DisableHarvestToMint;
-    } & ParsedDisableHarvestToMintInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.WithdrawExcessLamports;
-    } & ParsedWithdrawExcessLamportsInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeMetadataPointer;
-    } & ParsedInitializeMetadataPointerInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.UpdateMetadataPointer;
-    } & ParsedUpdateMetadataPointerInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeGroupPointer;
-    } & ParsedInitializeGroupPointerInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.UpdateGroupPointer;
-    } & ParsedUpdateGroupPointerInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeGroupMemberPointer;
-    } & ParsedInitializeGroupMemberPointerInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.UpdateGroupMemberPointer;
-    } & ParsedUpdateGroupMemberPointerInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeScaledUiAmountMint;
-    } & ParsedInitializeScaledUiAmountMintInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.UpdateMultiplierScaledUiMint;
-    } & ParsedUpdateMultiplierScaledUiMintInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializePausableConfig;
-    } & ParsedInitializePausableConfigInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.Pause;
-    } & ParsedPauseInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.Resume;
-    } & ParsedResumeInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeTokenMetadata;
-    } & ParsedInitializeTokenMetadataInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.UpdateTokenMetadataField;
-    } & ParsedUpdateTokenMetadataFieldInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.RemoveTokenMetadataKey;
-    } & ParsedRemoveTokenMetadataKeyInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.UpdateTokenMetadataUpdateAuthority;
-    } & ParsedUpdateTokenMetadataUpdateAuthorityInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.EmitTokenMetadata;
-    } & ParsedEmitTokenMetadataInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeTokenGroup;
-    } & ParsedInitializeTokenGroupInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.UpdateTokenGroupMaxSize;
-    } & ParsedUpdateTokenGroupMaxSizeInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.UpdateTokenGroupUpdateAuthority;
-    } & ParsedUpdateTokenGroupUpdateAuthorityInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializeTokenGroupMember;
-    } & ParsedInitializeTokenGroupMemberInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.UnwrapLamports;
-    } & ParsedUnwrapLamportsInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.InitializePermissionedBurn;
-    } & ParsedInitializePermissionedBurnInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.PermissionedBurn;
-    } & ParsedPermissionedBurnInstruction<TProgram>)
-  | ({
-      instructionType: Token2022Instruction.PermissionedBurnChecked;
-    } & ParsedPermissionedBurnCheckedInstruction<TProgram>);
+export type ParsedToken2022Instruction<TProgram extends string = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'> =
+    | ({ instructionType: Token2022Instruction.InitializeMint } & ParsedInitializeMintInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.InitializeAccount } & ParsedInitializeAccountInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.InitializeMultisig } & ParsedInitializeMultisigInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.Transfer } & ParsedTransferInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.Approve } & ParsedApproveInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.Revoke } & ParsedRevokeInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.SetAuthority } & ParsedSetAuthorityInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.MintTo } & ParsedMintToInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.Burn } & ParsedBurnInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.CloseAccount } & ParsedCloseAccountInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.FreezeAccount } & ParsedFreezeAccountInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.ThawAccount } & ParsedThawAccountInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.TransferChecked } & ParsedTransferCheckedInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.ApproveChecked } & ParsedApproveCheckedInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.MintToChecked } & ParsedMintToCheckedInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.BurnChecked } & ParsedBurnCheckedInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.InitializeAccount2 } & ParsedInitializeAccount2Instruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.SyncNative } & ParsedSyncNativeInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.InitializeAccount3 } & ParsedInitializeAccount3Instruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.InitializeMultisig2 } & ParsedInitializeMultisig2Instruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.InitializeMint2 } & ParsedInitializeMint2Instruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.GetAccountDataSize } & ParsedGetAccountDataSizeInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializeImmutableOwner;
+      } & ParsedInitializeImmutableOwnerInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.AmountToUiAmount } & ParsedAmountToUiAmountInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.UiAmountToAmount } & ParsedUiAmountToAmountInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializeMintCloseAuthority;
+      } & ParsedInitializeMintCloseAuthorityInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializeTransferFeeConfig;
+      } & ParsedInitializeTransferFeeConfigInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.TransferCheckedWithFee;
+      } & ParsedTransferCheckedWithFeeInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.WithdrawWithheldTokensFromMint;
+      } & ParsedWithdrawWithheldTokensFromMintInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.WithdrawWithheldTokensFromAccounts;
+      } & ParsedWithdrawWithheldTokensFromAccountsInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.HarvestWithheldTokensToMint;
+      } & ParsedHarvestWithheldTokensToMintInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.SetTransferFee } & ParsedSetTransferFeeInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializeConfidentialTransferMint;
+      } & ParsedInitializeConfidentialTransferMintInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.UpdateConfidentialTransferMint;
+      } & ParsedUpdateConfidentialTransferMintInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.ConfigureConfidentialTransferAccount;
+      } & ParsedConfigureConfidentialTransferAccountInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.ApproveConfidentialTransferAccount;
+      } & ParsedApproveConfidentialTransferAccountInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.EmptyConfidentialTransferAccount;
+      } & ParsedEmptyConfidentialTransferAccountInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.ConfidentialDeposit } & ParsedConfidentialDepositInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.ConfidentialWithdraw } & ParsedConfidentialWithdrawInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.ConfidentialTransfer } & ParsedConfidentialTransferInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.ApplyConfidentialPendingBalance;
+      } & ParsedApplyConfidentialPendingBalanceInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.EnableConfidentialCredits;
+      } & ParsedEnableConfidentialCreditsInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.DisableConfidentialCredits;
+      } & ParsedDisableConfidentialCreditsInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.EnableNonConfidentialCredits;
+      } & ParsedEnableNonConfidentialCreditsInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.DisableNonConfidentialCredits;
+      } & ParsedDisableNonConfidentialCreditsInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.ConfidentialTransferWithFee;
+      } & ParsedConfidentialTransferWithFeeInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializeDefaultAccountState;
+      } & ParsedInitializeDefaultAccountStateInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.UpdateDefaultAccountState;
+      } & ParsedUpdateDefaultAccountStateInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.Reallocate } & ParsedReallocateInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.EnableMemoTransfers } & ParsedEnableMemoTransfersInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.DisableMemoTransfers } & ParsedDisableMemoTransfersInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.CreateNativeMint } & ParsedCreateNativeMintInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializeNonTransferableMint;
+      } & ParsedInitializeNonTransferableMintInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializeInterestBearingMint;
+      } & ParsedInitializeInterestBearingMintInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.UpdateRateInterestBearingMint;
+      } & ParsedUpdateRateInterestBearingMintInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.EnableCpiGuard } & ParsedEnableCpiGuardInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.DisableCpiGuard } & ParsedDisableCpiGuardInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializePermanentDelegate;
+      } & ParsedInitializePermanentDelegateInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializeTransferHook;
+      } & ParsedInitializeTransferHookInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.UpdateTransferHook } & ParsedUpdateTransferHookInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializeConfidentialTransferFee;
+      } & ParsedInitializeConfidentialTransferFeeInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.WithdrawWithheldTokensFromMintForConfidentialTransferFee;
+      } & ParsedWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.WithdrawWithheldTokensFromAccountsForConfidentialTransferFee;
+      } & ParsedWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.HarvestWithheldTokensToMintForConfidentialTransferFee;
+      } & ParsedHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.EnableHarvestToMint } & ParsedEnableHarvestToMintInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.DisableHarvestToMint } & ParsedDisableHarvestToMintInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.WithdrawExcessLamports;
+      } & ParsedWithdrawExcessLamportsInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializeMetadataPointer;
+      } & ParsedInitializeMetadataPointerInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.UpdateMetadataPointer;
+      } & ParsedUpdateMetadataPointerInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializeGroupPointer;
+      } & ParsedInitializeGroupPointerInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.UpdateGroupPointer } & ParsedUpdateGroupPointerInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializeGroupMemberPointer;
+      } & ParsedInitializeGroupMemberPointerInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.UpdateGroupMemberPointer;
+      } & ParsedUpdateGroupMemberPointerInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializeScaledUiAmountMint;
+      } & ParsedInitializeScaledUiAmountMintInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.UpdateMultiplierScaledUiMint;
+      } & ParsedUpdateMultiplierScaledUiMintInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializePausableConfig;
+      } & ParsedInitializePausableConfigInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.Pause } & ParsedPauseInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.Resume } & ParsedResumeInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializeTokenMetadata;
+      } & ParsedInitializeTokenMetadataInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.UpdateTokenMetadataField;
+      } & ParsedUpdateTokenMetadataFieldInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.RemoveTokenMetadataKey;
+      } & ParsedRemoveTokenMetadataKeyInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.UpdateTokenMetadataUpdateAuthority;
+      } & ParsedUpdateTokenMetadataUpdateAuthorityInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.EmitTokenMetadata } & ParsedEmitTokenMetadataInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.InitializeTokenGroup } & ParsedInitializeTokenGroupInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.UpdateTokenGroupMaxSize;
+      } & ParsedUpdateTokenGroupMaxSizeInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.UpdateTokenGroupUpdateAuthority;
+      } & ParsedUpdateTokenGroupUpdateAuthorityInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializeTokenGroupMember;
+      } & ParsedInitializeTokenGroupMemberInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.UnwrapLamports } & ParsedUnwrapLamportsInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.InitializePermissionedBurn;
+      } & ParsedInitializePermissionedBurnInstruction<TProgram>)
+    | ({ instructionType: Token2022Instruction.PermissionedBurn } & ParsedPermissionedBurnInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.PermissionedBurnChecked;
+      } & ParsedPermissionedBurnCheckedInstruction<TProgram>);
+
+export function parseToken2022Instruction<TProgram extends string>(
+    instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
+): ParsedToken2022Instruction<TProgram> {
+    const instructionType = identifyToken2022Instruction(instruction);
+    switch (instructionType) {
+        case Token2022Instruction.InitializeMint: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeMint,
+                ...parseInitializeMintInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeAccount: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeAccount,
+                ...parseInitializeAccountInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeMultisig: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeMultisig,
+                ...parseInitializeMultisigInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.Transfer: {
+            assertIsInstructionWithAccounts(instruction);
+            return { instructionType: Token2022Instruction.Transfer, ...parseTransferInstruction(instruction) };
+        }
+        case Token2022Instruction.Approve: {
+            assertIsInstructionWithAccounts(instruction);
+            return { instructionType: Token2022Instruction.Approve, ...parseApproveInstruction(instruction) };
+        }
+        case Token2022Instruction.Revoke: {
+            assertIsInstructionWithAccounts(instruction);
+            return { instructionType: Token2022Instruction.Revoke, ...parseRevokeInstruction(instruction) };
+        }
+        case Token2022Instruction.SetAuthority: {
+            assertIsInstructionWithAccounts(instruction);
+            return { instructionType: Token2022Instruction.SetAuthority, ...parseSetAuthorityInstruction(instruction) };
+        }
+        case Token2022Instruction.MintTo: {
+            assertIsInstructionWithAccounts(instruction);
+            return { instructionType: Token2022Instruction.MintTo, ...parseMintToInstruction(instruction) };
+        }
+        case Token2022Instruction.Burn: {
+            assertIsInstructionWithAccounts(instruction);
+            return { instructionType: Token2022Instruction.Burn, ...parseBurnInstruction(instruction) };
+        }
+        case Token2022Instruction.CloseAccount: {
+            assertIsInstructionWithAccounts(instruction);
+            return { instructionType: Token2022Instruction.CloseAccount, ...parseCloseAccountInstruction(instruction) };
+        }
+        case Token2022Instruction.FreezeAccount: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.FreezeAccount,
+                ...parseFreezeAccountInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.ThawAccount: {
+            assertIsInstructionWithAccounts(instruction);
+            return { instructionType: Token2022Instruction.ThawAccount, ...parseThawAccountInstruction(instruction) };
+        }
+        case Token2022Instruction.TransferChecked: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.TransferChecked,
+                ...parseTransferCheckedInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.ApproveChecked: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.ApproveChecked,
+                ...parseApproveCheckedInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.MintToChecked: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.MintToChecked,
+                ...parseMintToCheckedInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.BurnChecked: {
+            assertIsInstructionWithAccounts(instruction);
+            return { instructionType: Token2022Instruction.BurnChecked, ...parseBurnCheckedInstruction(instruction) };
+        }
+        case Token2022Instruction.InitializeAccount2: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeAccount2,
+                ...parseInitializeAccount2Instruction(instruction),
+            };
+        }
+        case Token2022Instruction.SyncNative: {
+            assertIsInstructionWithAccounts(instruction);
+            return { instructionType: Token2022Instruction.SyncNative, ...parseSyncNativeInstruction(instruction) };
+        }
+        case Token2022Instruction.InitializeAccount3: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeAccount3,
+                ...parseInitializeAccount3Instruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeMultisig2: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeMultisig2,
+                ...parseInitializeMultisig2Instruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeMint2: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeMint2,
+                ...parseInitializeMint2Instruction(instruction),
+            };
+        }
+        case Token2022Instruction.GetAccountDataSize: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.GetAccountDataSize,
+                ...parseGetAccountDataSizeInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeImmutableOwner: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeImmutableOwner,
+                ...parseInitializeImmutableOwnerInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.AmountToUiAmount: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.AmountToUiAmount,
+                ...parseAmountToUiAmountInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.UiAmountToAmount: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.UiAmountToAmount,
+                ...parseUiAmountToAmountInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeMintCloseAuthority: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeMintCloseAuthority,
+                ...parseInitializeMintCloseAuthorityInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeTransferFeeConfig: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeTransferFeeConfig,
+                ...parseInitializeTransferFeeConfigInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.TransferCheckedWithFee: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.TransferCheckedWithFee,
+                ...parseTransferCheckedWithFeeInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.WithdrawWithheldTokensFromMint: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.WithdrawWithheldTokensFromMint,
+                ...parseWithdrawWithheldTokensFromMintInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.WithdrawWithheldTokensFromAccounts: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.WithdrawWithheldTokensFromAccounts,
+                ...parseWithdrawWithheldTokensFromAccountsInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.HarvestWithheldTokensToMint: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.HarvestWithheldTokensToMint,
+                ...parseHarvestWithheldTokensToMintInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.SetTransferFee: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.SetTransferFee,
+                ...parseSetTransferFeeInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeConfidentialTransferMint: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeConfidentialTransferMint,
+                ...parseInitializeConfidentialTransferMintInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.UpdateConfidentialTransferMint: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.UpdateConfidentialTransferMint,
+                ...parseUpdateConfidentialTransferMintInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.ConfigureConfidentialTransferAccount: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.ConfigureConfidentialTransferAccount,
+                ...parseConfigureConfidentialTransferAccountInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.ApproveConfidentialTransferAccount: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.ApproveConfidentialTransferAccount,
+                ...parseApproveConfidentialTransferAccountInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.EmptyConfidentialTransferAccount: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.EmptyConfidentialTransferAccount,
+                ...parseEmptyConfidentialTransferAccountInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.ConfidentialDeposit: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.ConfidentialDeposit,
+                ...parseConfidentialDepositInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.ConfidentialWithdraw: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.ConfidentialWithdraw,
+                ...parseConfidentialWithdrawInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.ConfidentialTransfer: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.ConfidentialTransfer,
+                ...parseConfidentialTransferInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.ApplyConfidentialPendingBalance: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.ApplyConfidentialPendingBalance,
+                ...parseApplyConfidentialPendingBalanceInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.EnableConfidentialCredits: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.EnableConfidentialCredits,
+                ...parseEnableConfidentialCreditsInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.DisableConfidentialCredits: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.DisableConfidentialCredits,
+                ...parseDisableConfidentialCreditsInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.EnableNonConfidentialCredits: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.EnableNonConfidentialCredits,
+                ...parseEnableNonConfidentialCreditsInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.DisableNonConfidentialCredits: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.DisableNonConfidentialCredits,
+                ...parseDisableNonConfidentialCreditsInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.ConfidentialTransferWithFee: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.ConfidentialTransferWithFee,
+                ...parseConfidentialTransferWithFeeInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeDefaultAccountState: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeDefaultAccountState,
+                ...parseInitializeDefaultAccountStateInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.UpdateDefaultAccountState: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.UpdateDefaultAccountState,
+                ...parseUpdateDefaultAccountStateInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.Reallocate: {
+            assertIsInstructionWithAccounts(instruction);
+            return { instructionType: Token2022Instruction.Reallocate, ...parseReallocateInstruction(instruction) };
+        }
+        case Token2022Instruction.EnableMemoTransfers: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.EnableMemoTransfers,
+                ...parseEnableMemoTransfersInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.DisableMemoTransfers: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.DisableMemoTransfers,
+                ...parseDisableMemoTransfersInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.CreateNativeMint: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.CreateNativeMint,
+                ...parseCreateNativeMintInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeNonTransferableMint: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeNonTransferableMint,
+                ...parseInitializeNonTransferableMintInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeInterestBearingMint: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeInterestBearingMint,
+                ...parseInitializeInterestBearingMintInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.UpdateRateInterestBearingMint: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.UpdateRateInterestBearingMint,
+                ...parseUpdateRateInterestBearingMintInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.EnableCpiGuard: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.EnableCpiGuard,
+                ...parseEnableCpiGuardInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.DisableCpiGuard: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.DisableCpiGuard,
+                ...parseDisableCpiGuardInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializePermanentDelegate: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializePermanentDelegate,
+                ...parseInitializePermanentDelegateInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeTransferHook: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeTransferHook,
+                ...parseInitializeTransferHookInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.UpdateTransferHook: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.UpdateTransferHook,
+                ...parseUpdateTransferHookInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeConfidentialTransferFee: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeConfidentialTransferFee,
+                ...parseInitializeConfidentialTransferFeeInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.WithdrawWithheldTokensFromMintForConfidentialTransferFee: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.WithdrawWithheldTokensFromMintForConfidentialTransferFee,
+                ...parseWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.WithdrawWithheldTokensFromAccountsForConfidentialTransferFee: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.WithdrawWithheldTokensFromAccountsForConfidentialTransferFee,
+                ...parseWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.HarvestWithheldTokensToMintForConfidentialTransferFee: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.HarvestWithheldTokensToMintForConfidentialTransferFee,
+                ...parseHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.EnableHarvestToMint: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.EnableHarvestToMint,
+                ...parseEnableHarvestToMintInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.DisableHarvestToMint: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.DisableHarvestToMint,
+                ...parseDisableHarvestToMintInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.WithdrawExcessLamports: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.WithdrawExcessLamports,
+                ...parseWithdrawExcessLamportsInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeMetadataPointer: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeMetadataPointer,
+                ...parseInitializeMetadataPointerInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.UpdateMetadataPointer: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.UpdateMetadataPointer,
+                ...parseUpdateMetadataPointerInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeGroupPointer: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeGroupPointer,
+                ...parseInitializeGroupPointerInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.UpdateGroupPointer: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.UpdateGroupPointer,
+                ...parseUpdateGroupPointerInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeGroupMemberPointer: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeGroupMemberPointer,
+                ...parseInitializeGroupMemberPointerInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.UpdateGroupMemberPointer: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.UpdateGroupMemberPointer,
+                ...parseUpdateGroupMemberPointerInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeScaledUiAmountMint: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeScaledUiAmountMint,
+                ...parseInitializeScaledUiAmountMintInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.UpdateMultiplierScaledUiMint: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.UpdateMultiplierScaledUiMint,
+                ...parseUpdateMultiplierScaledUiMintInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializePausableConfig: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializePausableConfig,
+                ...parseInitializePausableConfigInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.Pause: {
+            assertIsInstructionWithAccounts(instruction);
+            return { instructionType: Token2022Instruction.Pause, ...parsePauseInstruction(instruction) };
+        }
+        case Token2022Instruction.Resume: {
+            assertIsInstructionWithAccounts(instruction);
+            return { instructionType: Token2022Instruction.Resume, ...parseResumeInstruction(instruction) };
+        }
+        case Token2022Instruction.InitializeTokenMetadata: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeTokenMetadata,
+                ...parseInitializeTokenMetadataInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.UpdateTokenMetadataField: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.UpdateTokenMetadataField,
+                ...parseUpdateTokenMetadataFieldInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.RemoveTokenMetadataKey: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.RemoveTokenMetadataKey,
+                ...parseRemoveTokenMetadataKeyInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.UpdateTokenMetadataUpdateAuthority: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.UpdateTokenMetadataUpdateAuthority,
+                ...parseUpdateTokenMetadataUpdateAuthorityInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.EmitTokenMetadata: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.EmitTokenMetadata,
+                ...parseEmitTokenMetadataInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeTokenGroup: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeTokenGroup,
+                ...parseInitializeTokenGroupInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.UpdateTokenGroupMaxSize: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.UpdateTokenGroupMaxSize,
+                ...parseUpdateTokenGroupMaxSizeInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.UpdateTokenGroupUpdateAuthority: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.UpdateTokenGroupUpdateAuthority,
+                ...parseUpdateTokenGroupUpdateAuthorityInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializeTokenGroupMember: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializeTokenGroupMember,
+                ...parseInitializeTokenGroupMemberInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.UnwrapLamports: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.UnwrapLamports,
+                ...parseUnwrapLamportsInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.InitializePermissionedBurn: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.InitializePermissionedBurn,
+                ...parseInitializePermissionedBurnInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.PermissionedBurn: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.PermissionedBurn,
+                ...parsePermissionedBurnInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.PermissionedBurnChecked: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.PermissionedBurnChecked,
+                ...parsePermissionedBurnCheckedInstruction(instruction),
+            };
+        }
+        default:
+            throw new Error('Unrecognized instruction type: ' + instructionType);
+    }
+}

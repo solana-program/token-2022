@@ -7,28 +7,28 @@
  */
 
 import {
-  combineCodec,
-  getAddressDecoder,
-  getAddressEncoder,
-  getOptionDecoder,
-  getOptionEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type Option,
-  type OptionOrNullable,
-  type ReadonlyUint8Array,
-  type WritableAccount,
+    combineCodec,
+    getAddressDecoder,
+    getAddressEncoder,
+    getOptionDecoder,
+    getOptionEncoder,
+    getStructDecoder,
+    getStructEncoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type Address,
+    type Codec,
+    type Decoder,
+    type Encoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type Option,
+    type OptionOrNullable,
+    type ReadonlyUint8Array,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -36,140 +36,123 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export const INITIALIZE_MINT_CLOSE_AUTHORITY_DISCRIMINATOR = 25;
 
 export function getInitializeMintCloseAuthorityDiscriminatorBytes() {
-  return getU8Encoder().encode(INITIALIZE_MINT_CLOSE_AUTHORITY_DISCRIMINATOR);
+    return getU8Encoder().encode(INITIALIZE_MINT_CLOSE_AUTHORITY_DISCRIMINATOR);
 }
 
 export type InitializeMintCloseAuthorityInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountMint extends string
-        ? WritableAccount<TAccountMint>
-        : TAccountMint,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [TAccountMint extends string ? WritableAccount<TAccountMint> : TAccountMint, ...TRemainingAccounts]
+    >;
 
 export type InitializeMintCloseAuthorityInstructionData = {
-  discriminator: number;
-  /** Authority that must sign the `CloseAccount` instruction on a mint. */
-  closeAuthority: Option<Address>;
+    discriminator: number;
+    /** Authority that must sign the `CloseAccount` instruction on a mint. */
+    closeAuthority: Option<Address>;
 };
 
 export type InitializeMintCloseAuthorityInstructionDataArgs = {
-  /** Authority that must sign the `CloseAccount` instruction on a mint. */
-  closeAuthority: OptionOrNullable<Address>;
+    /** Authority that must sign the `CloseAccount` instruction on a mint. */
+    closeAuthority: OptionOrNullable<Address>;
 };
 
 export function getInitializeMintCloseAuthorityInstructionDataEncoder(): Encoder<InitializeMintCloseAuthorityInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['closeAuthority', getOptionEncoder(getAddressEncoder())],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator: INITIALIZE_MINT_CLOSE_AUTHORITY_DISCRIMINATOR,
-    })
-  );
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getU8Encoder()],
+            ['closeAuthority', getOptionEncoder(getAddressEncoder())],
+        ]),
+        value => ({ ...value, discriminator: INITIALIZE_MINT_CLOSE_AUTHORITY_DISCRIMINATOR }),
+    );
 }
 
 export function getInitializeMintCloseAuthorityInstructionDataDecoder(): Decoder<InitializeMintCloseAuthorityInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['closeAuthority', getOptionDecoder(getAddressDecoder())],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['closeAuthority', getOptionDecoder(getAddressDecoder())],
+    ]);
 }
 
 export function getInitializeMintCloseAuthorityInstructionDataCodec(): Codec<
-  InitializeMintCloseAuthorityInstructionDataArgs,
-  InitializeMintCloseAuthorityInstructionData
+    InitializeMintCloseAuthorityInstructionDataArgs,
+    InitializeMintCloseAuthorityInstructionData
 > {
-  return combineCodec(
-    getInitializeMintCloseAuthorityInstructionDataEncoder(),
-    getInitializeMintCloseAuthorityInstructionDataDecoder()
-  );
+    return combineCodec(
+        getInitializeMintCloseAuthorityInstructionDataEncoder(),
+        getInitializeMintCloseAuthorityInstructionDataDecoder(),
+    );
 }
 
-export type InitializeMintCloseAuthorityInput<
-  TAccountMint extends string = string,
-> = {
-  /** The mint to initialize. */
-  mint: Address<TAccountMint>;
-  closeAuthority: InitializeMintCloseAuthorityInstructionDataArgs['closeAuthority'];
+export type InitializeMintCloseAuthorityInput<TAccountMint extends string = string> = {
+    /** The mint to initialize. */
+    mint: Address<TAccountMint>;
+    closeAuthority: InitializeMintCloseAuthorityInstructionDataArgs['closeAuthority'];
 };
 
 export function getInitializeMintCloseAuthorityInstruction<
-  TAccountMint extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: InitializeMintCloseAuthorityInput<TAccountMint>,
-  config?: { programAddress?: TProgramAddress }
+    input: InitializeMintCloseAuthorityInput<TAccountMint>,
+    config?: { programAddress?: TProgramAddress },
 ): InitializeMintCloseAuthorityInstruction<TProgramAddress, TAccountMint> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
-  // Original accounts.
-  const originalAccounts = {
-    mint: { value: input.mint ?? null, isWritable: true },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
+    // Original accounts.
+    const originalAccounts = { mint: { value: input.mint ?? null, isWritable: true } };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
 
-  // Original args.
-  const args = { ...input };
+    // Original args.
+    const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [getAccountMeta(accounts.mint)],
-    data: getInitializeMintCloseAuthorityInstructionDataEncoder().encode(
-      args as InitializeMintCloseAuthorityInstructionDataArgs
-    ),
-    programAddress,
-  } as InitializeMintCloseAuthorityInstruction<TProgramAddress, TAccountMint>);
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [getAccountMeta(accounts.mint)],
+        data: getInitializeMintCloseAuthorityInstructionDataEncoder().encode(
+            args as InitializeMintCloseAuthorityInstructionDataArgs,
+        ),
+        programAddress,
+    } as InitializeMintCloseAuthorityInstruction<TProgramAddress, TAccountMint>);
 }
 
 export type ParsedInitializeMintCloseAuthorityInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The mint to initialize. */
-    mint: TAccountMetas[0];
-  };
-  data: InitializeMintCloseAuthorityInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The mint to initialize. */
+        mint: TAccountMetas[0];
+    };
+    data: InitializeMintCloseAuthorityInstructionData;
 };
 
 export function parseInitializeMintCloseAuthorityInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+    TProgram extends string,
+    TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeMintCloseAuthorityInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 1) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: { mint: getNextAccount() },
-    data: getInitializeMintCloseAuthorityInstructionDataDecoder().decode(
-      instruction.data
-    ),
-  };
+    if (instruction.accounts.length < 1) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { mint: getNextAccount() },
+        data: getInitializeMintCloseAuthorityInstructionDataDecoder().decode(instruction.data),
+    };
 }

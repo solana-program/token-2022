@@ -7,27 +7,27 @@
  */
 
 import {
-  AccountRole,
-  combineCodec,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type AccountSignerMeta,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type ReadonlyAccount,
-  type ReadonlySignerAccount,
-  type ReadonlyUint8Array,
-  type TransactionSigner,
-  type WritableAccount,
+    AccountRole,
+    combineCodec,
+    getStructDecoder,
+    getStructEncoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type AccountSignerMeta,
+    type Address,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type ReadonlyAccount,
+    type ReadonlySignerAccount,
+    type ReadonlyUint8Array,
+    type TransactionSigner,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -35,174 +35,153 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export const FREEZE_ACCOUNT_DISCRIMINATOR = 10;
 
 export function getFreezeAccountDiscriminatorBytes() {
-  return getU8Encoder().encode(FREEZE_ACCOUNT_DISCRIMINATOR);
+    return getU8Encoder().encode(FREEZE_ACCOUNT_DISCRIMINATOR);
 }
 
 export type FreezeAccountInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountAccount extends string | AccountMeta<string> = string,
-  TAccountMint extends string | AccountMeta<string> = string,
-  TAccountOwner extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountAccount extends string | AccountMeta<string> = string,
+    TAccountMint extends string | AccountMeta<string> = string,
+    TAccountOwner extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountAccount extends string
-        ? WritableAccount<TAccountAccount>
-        : TAccountAccount,
-      TAccountMint extends string
-        ? ReadonlyAccount<TAccountMint>
-        : TAccountMint,
-      TAccountOwner extends string
-        ? ReadonlyAccount<TAccountOwner>
-        : TAccountOwner,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [
+            TAccountAccount extends string ? WritableAccount<TAccountAccount> : TAccountAccount,
+            TAccountMint extends string ? ReadonlyAccount<TAccountMint> : TAccountMint,
+            TAccountOwner extends string ? ReadonlyAccount<TAccountOwner> : TAccountOwner,
+            ...TRemainingAccounts,
+        ]
+    >;
 
 export type FreezeAccountInstructionData = { discriminator: number };
 
 export type FreezeAccountInstructionDataArgs = {};
 
 export function getFreezeAccountInstructionDataEncoder(): FixedSizeEncoder<FreezeAccountInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: FREEZE_ACCOUNT_DISCRIMINATOR })
-  );
+    return transformEncoder(getStructEncoder([['discriminator', getU8Encoder()]]), value => ({
+        ...value,
+        discriminator: FREEZE_ACCOUNT_DISCRIMINATOR,
+    }));
 }
 
 export function getFreezeAccountInstructionDataDecoder(): FixedSizeDecoder<FreezeAccountInstructionData> {
-  return getStructDecoder([['discriminator', getU8Decoder()]]);
+    return getStructDecoder([['discriminator', getU8Decoder()]]);
 }
 
 export function getFreezeAccountInstructionDataCodec(): FixedSizeCodec<
-  FreezeAccountInstructionDataArgs,
-  FreezeAccountInstructionData
+    FreezeAccountInstructionDataArgs,
+    FreezeAccountInstructionData
 > {
-  return combineCodec(
-    getFreezeAccountInstructionDataEncoder(),
-    getFreezeAccountInstructionDataDecoder()
-  );
+    return combineCodec(getFreezeAccountInstructionDataEncoder(), getFreezeAccountInstructionDataDecoder());
 }
 
 export type FreezeAccountInput<
-  TAccountAccount extends string = string,
-  TAccountMint extends string = string,
-  TAccountOwner extends string = string,
+    TAccountAccount extends string = string,
+    TAccountMint extends string = string,
+    TAccountOwner extends string = string,
 > = {
-  /** The account to freeze. */
-  account: Address<TAccountAccount>;
-  /** The token mint. */
-  mint: Address<TAccountMint>;
-  /** The mint freeze authority or its multisignature account. */
-  owner: Address<TAccountOwner> | TransactionSigner<TAccountOwner>;
-  multiSigners?: Array<TransactionSigner>;
+    /** The account to freeze. */
+    account: Address<TAccountAccount>;
+    /** The token mint. */
+    mint: Address<TAccountMint>;
+    /** The mint freeze authority or its multisignature account. */
+    owner: Address<TAccountOwner> | TransactionSigner<TAccountOwner>;
+    multiSigners?: Array<TransactionSigner>;
 };
 
 export function getFreezeAccountInstruction<
-  TAccountAccount extends string,
-  TAccountMint extends string,
-  TAccountOwner extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountAccount extends string,
+    TAccountMint extends string,
+    TAccountOwner extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: FreezeAccountInput<TAccountAccount, TAccountMint, TAccountOwner>,
-  config?: { programAddress?: TProgramAddress }
+    input: FreezeAccountInput<TAccountAccount, TAccountMint, TAccountOwner>,
+    config?: { programAddress?: TProgramAddress },
 ): FreezeAccountInstruction<
-  TProgramAddress,
-  TAccountAccount,
-  TAccountMint,
-  (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-    ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
-    : TAccountOwner
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
-
-  // Original accounts.
-  const originalAccounts = {
-    account: { value: input.account ?? null, isWritable: true },
-    mint: { value: input.mint ?? null, isWritable: false },
-    owner: { value: input.owner ?? null, isWritable: false },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
-
-  // Original args.
-  const args = { ...input };
-
-  // Remaining accounts.
-  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
-    (signer) => ({
-      address: signer.address,
-      role: AccountRole.READONLY_SIGNER,
-      signer,
-    })
-  );
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [
-      getAccountMeta(accounts.account),
-      getAccountMeta(accounts.mint),
-      getAccountMeta(accounts.owner),
-      ...remainingAccounts,
-    ],
-    data: getFreezeAccountInstructionDataEncoder().encode({}),
-    programAddress,
-  } as FreezeAccountInstruction<
     TProgramAddress,
     TAccountAccount,
     TAccountMint,
     (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-      ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
-      : TAccountOwner
-  >);
+        ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
+        : TAccountOwner
+> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+
+    // Original accounts.
+    const originalAccounts = {
+        account: { value: input.account ?? null, isWritable: true },
+        mint: { value: input.mint ?? null, isWritable: false },
+        owner: { value: input.owner ?? null, isWritable: false },
+    };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+
+    // Original args.
+    const args = { ...input };
+
+    // Remaining accounts.
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
+        address: signer.address,
+        role: AccountRole.READONLY_SIGNER,
+        signer,
+    }));
+
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [
+            getAccountMeta(accounts.account),
+            getAccountMeta(accounts.mint),
+            getAccountMeta(accounts.owner),
+            ...remainingAccounts,
+        ],
+        data: getFreezeAccountInstructionDataEncoder().encode({}),
+        programAddress,
+    } as FreezeAccountInstruction<
+        TProgramAddress,
+        TAccountAccount,
+        TAccountMint,
+        (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
+            ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
+            : TAccountOwner
+    >);
 }
 
 export type ParsedFreezeAccountInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The account to freeze. */
-    account: TAccountMetas[0];
-    /** The token mint. */
-    mint: TAccountMetas[1];
-    /** The mint freeze authority or its multisignature account. */
-    owner: TAccountMetas[2];
-  };
-  data: FreezeAccountInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The account to freeze. */
+        account: TAccountMetas[0];
+        /** The token mint. */
+        mint: TAccountMetas[1];
+        /** The mint freeze authority or its multisignature account. */
+        owner: TAccountMetas[2];
+    };
+    data: FreezeAccountInstructionData;
 };
 
-export function parseFreezeAccountInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
->(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+export function parseFreezeAccountInstruction<TProgram extends string, TAccountMetas extends readonly AccountMeta[]>(
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedFreezeAccountInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: {
-      account: getNextAccount(),
-      mint: getNextAccount(),
-      owner: getNextAccount(),
-    },
-    data: getFreezeAccountInstructionDataDecoder().decode(instruction.data),
-  };
+    if (instruction.accounts.length < 3) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { account: getNextAccount(), mint: getNextAccount(), owner: getNextAccount() },
+        data: getFreezeAccountInstructionDataDecoder().decode(instruction.data),
+    };
 }

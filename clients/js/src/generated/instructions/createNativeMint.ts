@@ -7,26 +7,26 @@
  */
 
 import {
-  combineCodec,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type AccountSignerMeta,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type ReadonlyAccount,
-  type ReadonlyUint8Array,
-  type TransactionSigner,
-  type WritableAccount,
-  type WritableSignerAccount,
+    combineCodec,
+    getStructDecoder,
+    getStructEncoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type AccountSignerMeta,
+    type Address,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type ReadonlyAccount,
+    type ReadonlyUint8Array,
+    type TransactionSigner,
+    type WritableAccount,
+    type WritableSignerAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -34,169 +34,135 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export const CREATE_NATIVE_MINT_DISCRIMINATOR = 31;
 
 export function getCreateNativeMintDiscriminatorBytes() {
-  return getU8Encoder().encode(CREATE_NATIVE_MINT_DISCRIMINATOR);
+    return getU8Encoder().encode(CREATE_NATIVE_MINT_DISCRIMINATOR);
 }
 
 export type CreateNativeMintInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountPayer extends string | AccountMeta<string> = string,
-  TAccountNativeMint extends string | AccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | AccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountPayer extends string | AccountMeta<string> = string,
+    TAccountNativeMint extends string | AccountMeta<string> = string,
+    TAccountSystemProgram extends string | AccountMeta<string> = '11111111111111111111111111111111',
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountPayer extends string
-        ? WritableSignerAccount<TAccountPayer> &
-            AccountSignerMeta<TAccountPayer>
-        : TAccountPayer,
-      TAccountNativeMint extends string
-        ? WritableAccount<TAccountNativeMint>
-        : TAccountNativeMint,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [
+            TAccountPayer extends string
+                ? WritableSignerAccount<TAccountPayer> & AccountSignerMeta<TAccountPayer>
+                : TAccountPayer,
+            TAccountNativeMint extends string ? WritableAccount<TAccountNativeMint> : TAccountNativeMint,
+            TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram,
+            ...TRemainingAccounts,
+        ]
+    >;
 
 export type CreateNativeMintInstructionData = { discriminator: number };
 
 export type CreateNativeMintInstructionDataArgs = {};
 
 export function getCreateNativeMintInstructionDataEncoder(): FixedSizeEncoder<CreateNativeMintInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: CREATE_NATIVE_MINT_DISCRIMINATOR })
-  );
+    return transformEncoder(getStructEncoder([['discriminator', getU8Encoder()]]), value => ({
+        ...value,
+        discriminator: CREATE_NATIVE_MINT_DISCRIMINATOR,
+    }));
 }
 
 export function getCreateNativeMintInstructionDataDecoder(): FixedSizeDecoder<CreateNativeMintInstructionData> {
-  return getStructDecoder([['discriminator', getU8Decoder()]]);
+    return getStructDecoder([['discriminator', getU8Decoder()]]);
 }
 
 export function getCreateNativeMintInstructionDataCodec(): FixedSizeCodec<
-  CreateNativeMintInstructionDataArgs,
-  CreateNativeMintInstructionData
+    CreateNativeMintInstructionDataArgs,
+    CreateNativeMintInstructionData
 > {
-  return combineCodec(
-    getCreateNativeMintInstructionDataEncoder(),
-    getCreateNativeMintInstructionDataDecoder()
-  );
+    return combineCodec(getCreateNativeMintInstructionDataEncoder(), getCreateNativeMintInstructionDataDecoder());
 }
 
 export type CreateNativeMintInput<
-  TAccountPayer extends string = string,
-  TAccountNativeMint extends string = string,
-  TAccountSystemProgram extends string = string,
+    TAccountPayer extends string = string,
+    TAccountNativeMint extends string = string,
+    TAccountSystemProgram extends string = string,
 > = {
-  /** Funding account (must be a system account) */
-  payer: TransactionSigner<TAccountPayer>;
-  /** The native mint address */
-  nativeMint: Address<TAccountNativeMint>;
-  /** System program for mint account funding */
-  systemProgram?: Address<TAccountSystemProgram>;
+    /** Funding account (must be a system account) */
+    payer: TransactionSigner<TAccountPayer>;
+    /** The native mint address */
+    nativeMint: Address<TAccountNativeMint>;
+    /** System program for mint account funding */
+    systemProgram?: Address<TAccountSystemProgram>;
 };
 
 export function getCreateNativeMintInstruction<
-  TAccountPayer extends string,
-  TAccountNativeMint extends string,
-  TAccountSystemProgram extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountPayer extends string,
+    TAccountNativeMint extends string,
+    TAccountSystemProgram extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: CreateNativeMintInput<
-    TAccountPayer,
-    TAccountNativeMint,
-    TAccountSystemProgram
-  >,
-  config?: { programAddress?: TProgramAddress }
-): CreateNativeMintInstruction<
-  TProgramAddress,
-  TAccountPayer,
-  TAccountNativeMint,
-  TAccountSystemProgram
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    input: CreateNativeMintInput<TAccountPayer, TAccountNativeMint, TAccountSystemProgram>,
+    config?: { programAddress?: TProgramAddress },
+): CreateNativeMintInstruction<TProgramAddress, TAccountPayer, TAccountNativeMint, TAccountSystemProgram> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
-  // Original accounts.
-  const originalAccounts = {
-    payer: { value: input.payer ?? null, isWritable: true },
-    nativeMint: { value: input.nativeMint ?? null, isWritable: true },
-    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
+    // Original accounts.
+    const originalAccounts = {
+        payer: { value: input.payer ?? null, isWritable: true },
+        nativeMint: { value: input.nativeMint ?? null, isWritable: true },
+        systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+    };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
 
-  // Resolve default values.
-  if (!accounts.systemProgram.value) {
-    accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
-  }
+    // Resolve default values.
+    if (!accounts.systemProgram.value) {
+        accounts.systemProgram.value =
+            '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+    }
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [
-      getAccountMeta(accounts.payer),
-      getAccountMeta(accounts.nativeMint),
-      getAccountMeta(accounts.systemProgram),
-    ],
-    data: getCreateNativeMintInstructionDataEncoder().encode({}),
-    programAddress,
-  } as CreateNativeMintInstruction<
-    TProgramAddress,
-    TAccountPayer,
-    TAccountNativeMint,
-    TAccountSystemProgram
-  >);
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [
+            getAccountMeta(accounts.payer),
+            getAccountMeta(accounts.nativeMint),
+            getAccountMeta(accounts.systemProgram),
+        ],
+        data: getCreateNativeMintInstructionDataEncoder().encode({}),
+        programAddress,
+    } as CreateNativeMintInstruction<TProgramAddress, TAccountPayer, TAccountNativeMint, TAccountSystemProgram>);
 }
 
 export type ParsedCreateNativeMintInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** Funding account (must be a system account) */
-    payer: TAccountMetas[0];
-    /** The native mint address */
-    nativeMint: TAccountMetas[1];
-    /** System program for mint account funding */
-    systemProgram: TAccountMetas[2];
-  };
-  data: CreateNativeMintInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** Funding account (must be a system account) */
+        payer: TAccountMetas[0];
+        /** The native mint address */
+        nativeMint: TAccountMetas[1];
+        /** System program for mint account funding */
+        systemProgram: TAccountMetas[2];
+    };
+    data: CreateNativeMintInstructionData;
 };
 
-export function parseCreateNativeMintInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
->(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+export function parseCreateNativeMintInstruction<TProgram extends string, TAccountMetas extends readonly AccountMeta[]>(
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCreateNativeMintInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: {
-      payer: getNextAccount(),
-      nativeMint: getNextAccount(),
-      systemProgram: getNextAccount(),
-    },
-    data: getCreateNativeMintInstructionDataDecoder().decode(instruction.data),
-  };
+    if (instruction.accounts.length < 3) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { payer: getNextAccount(), nativeMint: getNextAccount(), systemProgram: getNextAccount() },
+        data: getCreateNativeMintInstructionDataDecoder().decode(instruction.data),
+    };
 }

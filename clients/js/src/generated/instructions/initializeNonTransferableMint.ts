@@ -7,22 +7,22 @@
  */
 
 import {
-  combineCodec,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type ReadonlyUint8Array,
-  type WritableAccount,
+    combineCodec,
+    getStructDecoder,
+    getStructEncoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type Address,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type ReadonlyUint8Array,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -30,123 +30,104 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export const INITIALIZE_NON_TRANSFERABLE_MINT_DISCRIMINATOR = 32;
 
 export function getInitializeNonTransferableMintDiscriminatorBytes() {
-  return getU8Encoder().encode(INITIALIZE_NON_TRANSFERABLE_MINT_DISCRIMINATOR);
+    return getU8Encoder().encode(INITIALIZE_NON_TRANSFERABLE_MINT_DISCRIMINATOR);
 }
 
 export type InitializeNonTransferableMintInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMint extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountMint extends string
-        ? WritableAccount<TAccountMint>
-        : TAccountMint,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [TAccountMint extends string ? WritableAccount<TAccountMint> : TAccountMint, ...TRemainingAccounts]
+    >;
 
-export type InitializeNonTransferableMintInstructionData = {
-  discriminator: number;
-};
+export type InitializeNonTransferableMintInstructionData = { discriminator: number };
 
 export type InitializeNonTransferableMintInstructionDataArgs = {};
 
 export function getInitializeNonTransferableMintInstructionDataEncoder(): FixedSizeEncoder<InitializeNonTransferableMintInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({
-      ...value,
-      discriminator: INITIALIZE_NON_TRANSFERABLE_MINT_DISCRIMINATOR,
-    })
-  );
+    return transformEncoder(getStructEncoder([['discriminator', getU8Encoder()]]), value => ({
+        ...value,
+        discriminator: INITIALIZE_NON_TRANSFERABLE_MINT_DISCRIMINATOR,
+    }));
 }
 
 export function getInitializeNonTransferableMintInstructionDataDecoder(): FixedSizeDecoder<InitializeNonTransferableMintInstructionData> {
-  return getStructDecoder([['discriminator', getU8Decoder()]]);
+    return getStructDecoder([['discriminator', getU8Decoder()]]);
 }
 
 export function getInitializeNonTransferableMintInstructionDataCodec(): FixedSizeCodec<
-  InitializeNonTransferableMintInstructionDataArgs,
-  InitializeNonTransferableMintInstructionData
+    InitializeNonTransferableMintInstructionDataArgs,
+    InitializeNonTransferableMintInstructionData
 > {
-  return combineCodec(
-    getInitializeNonTransferableMintInstructionDataEncoder(),
-    getInitializeNonTransferableMintInstructionDataDecoder()
-  );
+    return combineCodec(
+        getInitializeNonTransferableMintInstructionDataEncoder(),
+        getInitializeNonTransferableMintInstructionDataDecoder(),
+    );
 }
 
-export type InitializeNonTransferableMintInput<
-  TAccountMint extends string = string,
-> = {
-  /** The mint account to initialize. */
-  mint: Address<TAccountMint>;
+export type InitializeNonTransferableMintInput<TAccountMint extends string = string> = {
+    /** The mint account to initialize. */
+    mint: Address<TAccountMint>;
 };
 
 export function getInitializeNonTransferableMintInstruction<
-  TAccountMint extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMint extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: InitializeNonTransferableMintInput<TAccountMint>,
-  config?: { programAddress?: TProgramAddress }
+    input: InitializeNonTransferableMintInput<TAccountMint>,
+    config?: { programAddress?: TProgramAddress },
 ): InitializeNonTransferableMintInstruction<TProgramAddress, TAccountMint> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
-  // Original accounts.
-  const originalAccounts = {
-    mint: { value: input.mint ?? null, isWritable: true },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
+    // Original accounts.
+    const originalAccounts = { mint: { value: input.mint ?? null, isWritable: true } };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [getAccountMeta(accounts.mint)],
-    data: getInitializeNonTransferableMintInstructionDataEncoder().encode({}),
-    programAddress,
-  } as InitializeNonTransferableMintInstruction<TProgramAddress, TAccountMint>);
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [getAccountMeta(accounts.mint)],
+        data: getInitializeNonTransferableMintInstructionDataEncoder().encode({}),
+        programAddress,
+    } as InitializeNonTransferableMintInstruction<TProgramAddress, TAccountMint>);
 }
 
 export type ParsedInitializeNonTransferableMintInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The mint account to initialize. */
-    mint: TAccountMetas[0];
-  };
-  data: InitializeNonTransferableMintInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The mint account to initialize. */
+        mint: TAccountMetas[0];
+    };
+    data: InitializeNonTransferableMintInstructionData;
 };
 
 export function parseInitializeNonTransferableMintInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+    TProgram extends string,
+    TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeNonTransferableMintInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 1) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: { mint: getNextAccount() },
-    data: getInitializeNonTransferableMintInstructionDataDecoder().decode(
-      instruction.data
-    ),
-  };
+    if (instruction.accounts.length < 1) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { mint: getNextAccount() },
+        data: getInitializeNonTransferableMintInstructionDataDecoder().decode(instruction.data),
+    };
 }

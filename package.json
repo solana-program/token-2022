@@ -1,18 +1,18 @@
 {
-  "private": true,
-  "scripts": {
-    "generate:clients": "zx ./scripts/generate-clients.mjs"
-  },
-  "devDependencies": {
-    "@codama/renderers-js": "^1.4.3",
-    "@codama/renderers-rust": "^1.2.9",
-    "@iarna/toml": "^2.2.5",
-    "codama": "^1.5.0",
-    "typescript": "^5.9.3",
-    "zx": "^8.8.5"
-  },
-  "engines": {
-    "node": ">=v20.0.0"
-  },
-  "packageManager": "pnpm@9.1.0"
+    "private": true,
+    "scripts": {
+        "generate:clients": "codama run --all"
+    },
+    "devDependencies": {
+        "@codama/renderers-js": "^1.6.0",
+        "@codama/renderers-rust": "^1.2.9",
+        "@solana/prettier-config-solana": "0.0.6",
+        "codama": "^1.5.0",
+        "typescript": "^5.9.3"
+    },
+    "engines": {
+        "node": ">=v20.0.0"
+    },
+    "packageManager": "pnpm@9.1.0",
+    "prettier": "@solana/prettier-config-solana"
 }

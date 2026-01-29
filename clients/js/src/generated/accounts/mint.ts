@@ -7,208 +7,177 @@
  */
 
 import {
-  assertAccountExists,
-  assertAccountsExist,
-  combineCodec,
-  decodeAccount,
-  fetchEncodedAccount,
-  fetchEncodedAccounts,
-  getAddressDecoder,
-  getAddressEncoder,
-  getArrayDecoder,
-  getArrayEncoder,
-  getBooleanDecoder,
-  getBooleanEncoder,
-  getConstantDecoder,
-  getConstantEncoder,
-  getHiddenPrefixDecoder,
-  getHiddenPrefixEncoder,
-  getOptionDecoder,
-  getOptionEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU32Decoder,
-  getU32Encoder,
-  getU64Decoder,
-  getU64Encoder,
-  getU8Decoder,
-  getU8Encoder,
-  padLeftEncoder,
-  type Account,
-  type Address,
-  type Codec,
-  type Decoder,
-  type EncodedAccount,
-  type Encoder,
-  type FetchAccountConfig,
-  type FetchAccountsConfig,
-  type MaybeAccount,
-  type MaybeEncodedAccount,
-  type Option,
-  type OptionOrNullable,
+    assertAccountExists,
+    assertAccountsExist,
+    combineCodec,
+    decodeAccount,
+    fetchEncodedAccount,
+    fetchEncodedAccounts,
+    getAddressDecoder,
+    getAddressEncoder,
+    getArrayDecoder,
+    getArrayEncoder,
+    getBooleanDecoder,
+    getBooleanEncoder,
+    getConstantDecoder,
+    getConstantEncoder,
+    getHiddenPrefixDecoder,
+    getHiddenPrefixEncoder,
+    getOptionDecoder,
+    getOptionEncoder,
+    getStructDecoder,
+    getStructEncoder,
+    getU32Decoder,
+    getU32Encoder,
+    getU64Decoder,
+    getU64Encoder,
+    getU8Decoder,
+    getU8Encoder,
+    padLeftEncoder,
+    type Account,
+    type Address,
+    type Codec,
+    type Decoder,
+    type EncodedAccount,
+    type Encoder,
+    type FetchAccountConfig,
+    type FetchAccountsConfig,
+    type MaybeAccount,
+    type MaybeEncodedAccount,
+    type Option,
+    type OptionOrNullable,
 } from '@solana/kit';
-import {
-  getExtensionDecoder,
-  getExtensionEncoder,
-  type Extension,
-  type ExtensionArgs,
-} from '../types';
+import { getExtensionDecoder, getExtensionEncoder, type Extension, type ExtensionArgs } from '../types';
 
 export type Mint = {
-  /**
-   * Optional authority used to mint new tokens. The mint authority may only
-   * be provided during mint creation. If no mint authority is present
-   * then the mint has a fixed supply and no further tokens may be minted.
-   */
-  mintAuthority: Option<Address>;
-  /** Total supply of tokens. */
-  supply: bigint;
-  /** Number of base 10 digits to the right of the decimal place. */
-  decimals: number;
-  /** Is `true` if this structure has been initialized. */
-  isInitialized: boolean;
-  /** Optional authority to freeze token accounts. */
-  freezeAuthority: Option<Address>;
-  /** The extensions activated on the mint account. */
-  extensions: Option<Array<Extension>>;
+    /**
+     * Optional authority used to mint new tokens. The mint authority may only
+     * be provided during mint creation. If no mint authority is present
+     * then the mint has a fixed supply and no further tokens may be minted.
+     */
+    mintAuthority: Option<Address>;
+    /** Total supply of tokens. */
+    supply: bigint;
+    /** Number of base 10 digits to the right of the decimal place. */
+    decimals: number;
+    /** Is `true` if this structure has been initialized. */
+    isInitialized: boolean;
+    /** Optional authority to freeze token accounts. */
+    freezeAuthority: Option<Address>;
+    /** The extensions activated on the mint account. */
+    extensions: Option<Array<Extension>>;
 };
 
 export type MintArgs = {
-  /**
-   * Optional authority used to mint new tokens. The mint authority may only
-   * be provided during mint creation. If no mint authority is present
-   * then the mint has a fixed supply and no further tokens may be minted.
-   */
-  mintAuthority: OptionOrNullable<Address>;
-  /** Total supply of tokens. */
-  supply: number | bigint;
-  /** Number of base 10 digits to the right of the decimal place. */
-  decimals: number;
-  /** Is `true` if this structure has been initialized. */
-  isInitialized: boolean;
-  /** Optional authority to freeze token accounts. */
-  freezeAuthority: OptionOrNullable<Address>;
-  /** The extensions activated on the mint account. */
-  extensions: OptionOrNullable<Array<ExtensionArgs>>;
+    /**
+     * Optional authority used to mint new tokens. The mint authority may only
+     * be provided during mint creation. If no mint authority is present
+     * then the mint has a fixed supply and no further tokens may be minted.
+     */
+    mintAuthority: OptionOrNullable<Address>;
+    /** Total supply of tokens. */
+    supply: number | bigint;
+    /** Number of base 10 digits to the right of the decimal place. */
+    decimals: number;
+    /** Is `true` if this structure has been initialized. */
+    isInitialized: boolean;
+    /** Optional authority to freeze token accounts. */
+    freezeAuthority: OptionOrNullable<Address>;
+    /** The extensions activated on the mint account. */
+    extensions: OptionOrNullable<Array<ExtensionArgs>>;
 };
 
+/** Gets the encoder for {@link MintArgs} account data. */
 export function getMintEncoder(): Encoder<MintArgs> {
-  return getStructEncoder([
-    [
-      'mintAuthority',
-      getOptionEncoder(getAddressEncoder(), {
-        prefix: getU32Encoder(),
-        noneValue: 'zeroes',
-      }),
-    ],
-    ['supply', getU64Encoder()],
-    ['decimals', getU8Encoder()],
-    ['isInitialized', getBooleanEncoder()],
-    [
-      'freezeAuthority',
-      getOptionEncoder(getAddressEncoder(), {
-        prefix: getU32Encoder(),
-        noneValue: 'zeroes',
-      }),
-    ],
-    [
-      'extensions',
-      getOptionEncoder(
-        getHiddenPrefixEncoder(
-          getArrayEncoder(getExtensionEncoder(), { size: 'remainder' }),
-          [getConstantEncoder(padLeftEncoder(getU8Encoder(), 83).encode(1))]
-        ),
-        { prefix: null }
-      ),
-    ],
-  ]);
+    return getStructEncoder([
+        ['mintAuthority', getOptionEncoder(getAddressEncoder(), { prefix: getU32Encoder(), noneValue: 'zeroes' })],
+        ['supply', getU64Encoder()],
+        ['decimals', getU8Encoder()],
+        ['isInitialized', getBooleanEncoder()],
+        ['freezeAuthority', getOptionEncoder(getAddressEncoder(), { prefix: getU32Encoder(), noneValue: 'zeroes' })],
+        [
+            'extensions',
+            getOptionEncoder(
+                getHiddenPrefixEncoder(getArrayEncoder(getExtensionEncoder(), { size: 'remainder' }), [
+                    getConstantEncoder(padLeftEncoder(getU8Encoder(), 83).encode(1)),
+                ]),
+                { prefix: null },
+            ),
+        ],
+    ]);
 }
 
+/** Gets the decoder for {@link Mint} account data. */
 export function getMintDecoder(): Decoder<Mint> {
-  return getStructDecoder([
-    [
-      'mintAuthority',
-      getOptionDecoder(getAddressDecoder(), {
-        prefix: getU32Decoder(),
-        noneValue: 'zeroes',
-      }),
-    ],
-    ['supply', getU64Decoder()],
-    ['decimals', getU8Decoder()],
-    ['isInitialized', getBooleanDecoder()],
-    [
-      'freezeAuthority',
-      getOptionDecoder(getAddressDecoder(), {
-        prefix: getU32Decoder(),
-        noneValue: 'zeroes',
-      }),
-    ],
-    [
-      'extensions',
-      getOptionDecoder(
-        getHiddenPrefixDecoder(
-          getArrayDecoder(getExtensionDecoder(), { size: 'remainder' }),
-          [getConstantDecoder(padLeftEncoder(getU8Encoder(), 83).encode(1))]
-        ),
-        { prefix: null }
-      ),
-    ],
-  ]);
+    return getStructDecoder([
+        ['mintAuthority', getOptionDecoder(getAddressDecoder(), { prefix: getU32Decoder(), noneValue: 'zeroes' })],
+        ['supply', getU64Decoder()],
+        ['decimals', getU8Decoder()],
+        ['isInitialized', getBooleanDecoder()],
+        ['freezeAuthority', getOptionDecoder(getAddressDecoder(), { prefix: getU32Decoder(), noneValue: 'zeroes' })],
+        [
+            'extensions',
+            getOptionDecoder(
+                getHiddenPrefixDecoder(getArrayDecoder(getExtensionDecoder(), { size: 'remainder' }), [
+                    getConstantDecoder(padLeftEncoder(getU8Encoder(), 83).encode(1)),
+                ]),
+                { prefix: null },
+            ),
+        ],
+    ]);
 }
 
+/** Gets the codec for {@link Mint} account data. */
 export function getMintCodec(): Codec<MintArgs, Mint> {
-  return combineCodec(getMintEncoder(), getMintDecoder());
+    return combineCodec(getMintEncoder(), getMintDecoder());
 }
 
 export function decodeMint<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>
+    encodedAccount: EncodedAccount<TAddress>,
 ): Account<Mint, TAddress>;
 export function decodeMint<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>
+    encodedAccount: MaybeEncodedAccount<TAddress>,
 ): MaybeAccount<Mint, TAddress>;
 export function decodeMint<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
+    encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>,
 ): Account<Mint, TAddress> | MaybeAccount<Mint, TAddress> {
-  return decodeAccount(
-    encodedAccount as MaybeEncodedAccount<TAddress>,
-    getMintDecoder()
-  );
+    return decodeAccount(encodedAccount as MaybeEncodedAccount<TAddress>, getMintDecoder());
 }
 
 export async function fetchMint<TAddress extends string = string>(
-  rpc: Parameters<typeof fetchEncodedAccount>[0],
-  address: Address<TAddress>,
-  config?: FetchAccountConfig
+    rpc: Parameters<typeof fetchEncodedAccount>[0],
+    address: Address<TAddress>,
+    config?: FetchAccountConfig,
 ): Promise<Account<Mint, TAddress>> {
-  const maybeAccount = await fetchMaybeMint(rpc, address, config);
-  assertAccountExists(maybeAccount);
-  return maybeAccount;
+    const maybeAccount = await fetchMaybeMint(rpc, address, config);
+    assertAccountExists(maybeAccount);
+    return maybeAccount;
 }
 
 export async function fetchMaybeMint<TAddress extends string = string>(
-  rpc: Parameters<typeof fetchEncodedAccount>[0],
-  address: Address<TAddress>,
-  config?: FetchAccountConfig
+    rpc: Parameters<typeof fetchEncodedAccount>[0],
+    address: Address<TAddress>,
+    config?: FetchAccountConfig,
 ): Promise<MaybeAccount<Mint, TAddress>> {
-  const maybeAccount = await fetchEncodedAccount(rpc, address, config);
-  return decodeMint(maybeAccount);
+    const maybeAccount = await fetchEncodedAccount(rpc, address, config);
+    return decodeMint(maybeAccount);
 }
 
 export async function fetchAllMint(
-  rpc: Parameters<typeof fetchEncodedAccounts>[0],
-  addresses: Array<Address>,
-  config?: FetchAccountsConfig
+    rpc: Parameters<typeof fetchEncodedAccounts>[0],
+    addresses: Array<Address>,
+    config?: FetchAccountsConfig,
 ): Promise<Account<Mint>[]> {
-  const maybeAccounts = await fetchAllMaybeMint(rpc, addresses, config);
-  assertAccountsExist(maybeAccounts);
-  return maybeAccounts;
+    const maybeAccounts = await fetchAllMaybeMint(rpc, addresses, config);
+    assertAccountsExist(maybeAccounts);
+    return maybeAccounts;
 }
 
 export async function fetchAllMaybeMint(
-  rpc: Parameters<typeof fetchEncodedAccounts>[0],
-  addresses: Array<Address>,
-  config?: FetchAccountsConfig
+    rpc: Parameters<typeof fetchEncodedAccounts>[0],
+    addresses: Array<Address>,
+    config?: FetchAccountsConfig,
 ): Promise<MaybeAccount<Mint>[]> {
-  const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
-  return maybeAccounts.map((maybeAccount) => decodeMint(maybeAccount));
+    const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
+    return maybeAccounts.map(maybeAccount => decodeMint(maybeAccount));
 }

@@ -7,192 +7,165 @@
  */
 
 import {
-  combineCodec,
-  getBytesDecoder,
-  getBytesEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU64Decoder,
-  getU64Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type AccountSignerMeta,
-  type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type ReadonlySignerAccount,
-  type ReadonlyUint8Array,
-  type TransactionSigner,
-  type WritableAccount,
+    combineCodec,
+    getBytesDecoder,
+    getBytesEncoder,
+    getStructDecoder,
+    getStructEncoder,
+    getU64Decoder,
+    getU64Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type AccountSignerMeta,
+    type Address,
+    type Codec,
+    type Decoder,
+    type Encoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type ReadonlySignerAccount,
+    type ReadonlyUint8Array,
+    type TransactionSigner,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const UPDATE_TOKEN_GROUP_MAX_SIZE_DISCRIMINATOR = new Uint8Array([
-  108, 37, 171, 143, 248, 30, 18, 110,
-]);
+export const UPDATE_TOKEN_GROUP_MAX_SIZE_DISCRIMINATOR = new Uint8Array([108, 37, 171, 143, 248, 30, 18, 110]);
 
 export function getUpdateTokenGroupMaxSizeDiscriminatorBytes() {
-  return getBytesEncoder().encode(UPDATE_TOKEN_GROUP_MAX_SIZE_DISCRIMINATOR);
+    return getBytesEncoder().encode(UPDATE_TOKEN_GROUP_MAX_SIZE_DISCRIMINATOR);
 }
 
 export type UpdateTokenGroupMaxSizeInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountGroup extends string | AccountMeta<string> = string,
-  TAccountUpdateAuthority extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountGroup extends string | AccountMeta<string> = string,
+    TAccountUpdateAuthority extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountGroup extends string
-        ? WritableAccount<TAccountGroup>
-        : TAccountGroup,
-      TAccountUpdateAuthority extends string
-        ? ReadonlySignerAccount<TAccountUpdateAuthority> &
-            AccountSignerMeta<TAccountUpdateAuthority>
-        : TAccountUpdateAuthority,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [
+            TAccountGroup extends string ? WritableAccount<TAccountGroup> : TAccountGroup,
+            TAccountUpdateAuthority extends string
+                ? ReadonlySignerAccount<TAccountUpdateAuthority> & AccountSignerMeta<TAccountUpdateAuthority>
+                : TAccountUpdateAuthority,
+            ...TRemainingAccounts,
+        ]
+    >;
 
 export type UpdateTokenGroupMaxSizeInstructionData = {
-  discriminator: ReadonlyUint8Array;
-  /** New max size for the group */
-  maxSize: bigint;
+    discriminator: ReadonlyUint8Array;
+    /** New max size for the group */
+    maxSize: bigint;
 };
 
 export type UpdateTokenGroupMaxSizeInstructionDataArgs = {
-  /** New max size for the group */
-  maxSize: number | bigint;
+    /** New max size for the group */
+    maxSize: number | bigint;
 };
 
 export function getUpdateTokenGroupMaxSizeInstructionDataEncoder(): Encoder<UpdateTokenGroupMaxSizeInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getBytesEncoder()],
-      ['maxSize', getU64Encoder()],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator: UPDATE_TOKEN_GROUP_MAX_SIZE_DISCRIMINATOR,
-    })
-  );
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getBytesEncoder()],
+            ['maxSize', getU64Encoder()],
+        ]),
+        value => ({ ...value, discriminator: UPDATE_TOKEN_GROUP_MAX_SIZE_DISCRIMINATOR }),
+    );
 }
 
 export function getUpdateTokenGroupMaxSizeInstructionDataDecoder(): Decoder<UpdateTokenGroupMaxSizeInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getBytesDecoder()],
-    ['maxSize', getU64Decoder()],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getBytesDecoder()],
+        ['maxSize', getU64Decoder()],
+    ]);
 }
 
 export function getUpdateTokenGroupMaxSizeInstructionDataCodec(): Codec<
-  UpdateTokenGroupMaxSizeInstructionDataArgs,
-  UpdateTokenGroupMaxSizeInstructionData
+    UpdateTokenGroupMaxSizeInstructionDataArgs,
+    UpdateTokenGroupMaxSizeInstructionData
 > {
-  return combineCodec(
-    getUpdateTokenGroupMaxSizeInstructionDataEncoder(),
-    getUpdateTokenGroupMaxSizeInstructionDataDecoder()
-  );
+    return combineCodec(
+        getUpdateTokenGroupMaxSizeInstructionDataEncoder(),
+        getUpdateTokenGroupMaxSizeInstructionDataDecoder(),
+    );
 }
 
 export type UpdateTokenGroupMaxSizeInput<
-  TAccountGroup extends string = string,
-  TAccountUpdateAuthority extends string = string,
+    TAccountGroup extends string = string,
+    TAccountUpdateAuthority extends string = string,
 > = {
-  group: Address<TAccountGroup>;
-  updateAuthority: TransactionSigner<TAccountUpdateAuthority>;
-  maxSize: UpdateTokenGroupMaxSizeInstructionDataArgs['maxSize'];
+    group: Address<TAccountGroup>;
+    updateAuthority: TransactionSigner<TAccountUpdateAuthority>;
+    maxSize: UpdateTokenGroupMaxSizeInstructionDataArgs['maxSize'];
 };
 
 export function getUpdateTokenGroupMaxSizeInstruction<
-  TAccountGroup extends string,
-  TAccountUpdateAuthority extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountGroup extends string,
+    TAccountUpdateAuthority extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: UpdateTokenGroupMaxSizeInput<TAccountGroup, TAccountUpdateAuthority>,
-  config?: { programAddress?: TProgramAddress }
-): UpdateTokenGroupMaxSizeInstruction<
-  TProgramAddress,
-  TAccountGroup,
-  TAccountUpdateAuthority
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    input: UpdateTokenGroupMaxSizeInput<TAccountGroup, TAccountUpdateAuthority>,
+    config?: { programAddress?: TProgramAddress },
+): UpdateTokenGroupMaxSizeInstruction<TProgramAddress, TAccountGroup, TAccountUpdateAuthority> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
-  // Original accounts.
-  const originalAccounts = {
-    group: { value: input.group ?? null, isWritable: true },
-    updateAuthority: {
-      value: input.updateAuthority ?? null,
-      isWritable: false,
-    },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
+    // Original accounts.
+    const originalAccounts = {
+        group: { value: input.group ?? null, isWritable: true },
+        updateAuthority: { value: input.updateAuthority ?? null, isWritable: false },
+    };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
 
-  // Original args.
-  const args = { ...input };
+    // Original args.
+    const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [
-      getAccountMeta(accounts.group),
-      getAccountMeta(accounts.updateAuthority),
-    ],
-    data: getUpdateTokenGroupMaxSizeInstructionDataEncoder().encode(
-      args as UpdateTokenGroupMaxSizeInstructionDataArgs
-    ),
-    programAddress,
-  } as UpdateTokenGroupMaxSizeInstruction<
-    TProgramAddress,
-    TAccountGroup,
-    TAccountUpdateAuthority
-  >);
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [getAccountMeta(accounts.group), getAccountMeta(accounts.updateAuthority)],
+        data: getUpdateTokenGroupMaxSizeInstructionDataEncoder().encode(
+            args as UpdateTokenGroupMaxSizeInstructionDataArgs,
+        ),
+        programAddress,
+    } as UpdateTokenGroupMaxSizeInstruction<TProgramAddress, TAccountGroup, TAccountUpdateAuthority>);
 }
 
 export type ParsedUpdateTokenGroupMaxSizeInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    group: TAccountMetas[0];
-    updateAuthority: TAccountMetas[1];
-  };
-  data: UpdateTokenGroupMaxSizeInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        group: TAccountMetas[0];
+        updateAuthority: TAccountMetas[1];
+    };
+    data: UpdateTokenGroupMaxSizeInstructionData;
 };
 
 export function parseUpdateTokenGroupMaxSizeInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+    TProgram extends string,
+    TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedUpdateTokenGroupMaxSizeInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: { group: getNextAccount(), updateAuthority: getNextAccount() },
-    data: getUpdateTokenGroupMaxSizeInstructionDataDecoder().decode(
-      instruction.data
-    ),
-  };
+    if (instruction.accounts.length < 2) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { group: getNextAccount(), updateAuthority: getNextAccount() },
+        data: getUpdateTokenGroupMaxSizeInstructionDataDecoder().decode(instruction.data),
+    };
 }

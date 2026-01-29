@@ -7,212 +7,182 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
-  combineCodec,
-  getBytesDecoder,
-  getBytesEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU32Decoder,
-  getU32Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type AccountSignerMeta,
-  type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type ReadonlySignerAccount,
-  type ReadonlyUint8Array,
-  type TransactionSigner,
-  type WritableAccount,
+    addDecoderSizePrefix,
+    addEncoderSizePrefix,
+    combineCodec,
+    getBytesDecoder,
+    getBytesEncoder,
+    getStructDecoder,
+    getStructEncoder,
+    getU32Decoder,
+    getU32Encoder,
+    getUtf8Decoder,
+    getUtf8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type AccountSignerMeta,
+    type Address,
+    type Codec,
+    type Decoder,
+    type Encoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type ReadonlySignerAccount,
+    type ReadonlyUint8Array,
+    type TransactionSigner,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import {
-  getTokenMetadataFieldDecoder,
-  getTokenMetadataFieldEncoder,
-  type TokenMetadataField,
-  type TokenMetadataFieldArgs,
+    getTokenMetadataFieldDecoder,
+    getTokenMetadataFieldEncoder,
+    type TokenMetadataField,
+    type TokenMetadataFieldArgs,
 } from '../types';
 
-export const UPDATE_TOKEN_METADATA_FIELD_DISCRIMINATOR = new Uint8Array([
-  221, 233, 49, 45, 181, 202, 220, 200,
-]);
+export const UPDATE_TOKEN_METADATA_FIELD_DISCRIMINATOR = new Uint8Array([221, 233, 49, 45, 181, 202, 220, 200]);
 
 export function getUpdateTokenMetadataFieldDiscriminatorBytes() {
-  return getBytesEncoder().encode(UPDATE_TOKEN_METADATA_FIELD_DISCRIMINATOR);
+    return getBytesEncoder().encode(UPDATE_TOKEN_METADATA_FIELD_DISCRIMINATOR);
 }
 
 export type UpdateTokenMetadataFieldInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetadata extends string | AccountMeta<string> = string,
-  TAccountUpdateAuthority extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetadata extends string | AccountMeta<string> = string,
+    TAccountUpdateAuthority extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountMetadata extends string
-        ? WritableAccount<TAccountMetadata>
-        : TAccountMetadata,
-      TAccountUpdateAuthority extends string
-        ? ReadonlySignerAccount<TAccountUpdateAuthority> &
-            AccountSignerMeta<TAccountUpdateAuthority>
-        : TAccountUpdateAuthority,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [
+            TAccountMetadata extends string ? WritableAccount<TAccountMetadata> : TAccountMetadata,
+            TAccountUpdateAuthority extends string
+                ? ReadonlySignerAccount<TAccountUpdateAuthority> & AccountSignerMeta<TAccountUpdateAuthority>
+                : TAccountUpdateAuthority,
+            ...TRemainingAccounts,
+        ]
+    >;
 
 export type UpdateTokenMetadataFieldInstructionData = {
-  discriminator: ReadonlyUint8Array;
-  /** Field to update in the metadata. */
-  field: TokenMetadataField;
-  /** Value to write for the field. */
-  value: string;
+    discriminator: ReadonlyUint8Array;
+    /** Field to update in the metadata. */
+    field: TokenMetadataField;
+    /** Value to write for the field. */
+    value: string;
 };
 
 export type UpdateTokenMetadataFieldInstructionDataArgs = {
-  /** Field to update in the metadata. */
-  field: TokenMetadataFieldArgs;
-  /** Value to write for the field. */
-  value: string;
+    /** Field to update in the metadata. */
+    field: TokenMetadataFieldArgs;
+    /** Value to write for the field. */
+    value: string;
 };
 
 export function getUpdateTokenMetadataFieldInstructionDataEncoder(): Encoder<UpdateTokenMetadataFieldInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getBytesEncoder()],
-      ['field', getTokenMetadataFieldEncoder()],
-      ['value', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator: UPDATE_TOKEN_METADATA_FIELD_DISCRIMINATOR,
-    })
-  );
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getBytesEncoder()],
+            ['field', getTokenMetadataFieldEncoder()],
+            ['value', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+        ]),
+        value => ({ ...value, discriminator: UPDATE_TOKEN_METADATA_FIELD_DISCRIMINATOR }),
+    );
 }
 
 export function getUpdateTokenMetadataFieldInstructionDataDecoder(): Decoder<UpdateTokenMetadataFieldInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getBytesDecoder()],
-    ['field', getTokenMetadataFieldDecoder()],
-    ['value', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getBytesDecoder()],
+        ['field', getTokenMetadataFieldDecoder()],
+        ['value', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+    ]);
 }
 
 export function getUpdateTokenMetadataFieldInstructionDataCodec(): Codec<
-  UpdateTokenMetadataFieldInstructionDataArgs,
-  UpdateTokenMetadataFieldInstructionData
+    UpdateTokenMetadataFieldInstructionDataArgs,
+    UpdateTokenMetadataFieldInstructionData
 > {
-  return combineCodec(
-    getUpdateTokenMetadataFieldInstructionDataEncoder(),
-    getUpdateTokenMetadataFieldInstructionDataDecoder()
-  );
+    return combineCodec(
+        getUpdateTokenMetadataFieldInstructionDataEncoder(),
+        getUpdateTokenMetadataFieldInstructionDataDecoder(),
+    );
 }
 
 export type UpdateTokenMetadataFieldInput<
-  TAccountMetadata extends string = string,
-  TAccountUpdateAuthority extends string = string,
+    TAccountMetadata extends string = string,
+    TAccountUpdateAuthority extends string = string,
 > = {
-  metadata: Address<TAccountMetadata>;
-  updateAuthority: TransactionSigner<TAccountUpdateAuthority>;
-  field: UpdateTokenMetadataFieldInstructionDataArgs['field'];
-  value: UpdateTokenMetadataFieldInstructionDataArgs['value'];
+    metadata: Address<TAccountMetadata>;
+    updateAuthority: TransactionSigner<TAccountUpdateAuthority>;
+    field: UpdateTokenMetadataFieldInstructionDataArgs['field'];
+    value: UpdateTokenMetadataFieldInstructionDataArgs['value'];
 };
 
 export function getUpdateTokenMetadataFieldInstruction<
-  TAccountMetadata extends string,
-  TAccountUpdateAuthority extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetadata extends string,
+    TAccountUpdateAuthority extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: UpdateTokenMetadataFieldInput<
-    TAccountMetadata,
-    TAccountUpdateAuthority
-  >,
-  config?: { programAddress?: TProgramAddress }
-): UpdateTokenMetadataFieldInstruction<
-  TProgramAddress,
-  TAccountMetadata,
-  TAccountUpdateAuthority
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    input: UpdateTokenMetadataFieldInput<TAccountMetadata, TAccountUpdateAuthority>,
+    config?: { programAddress?: TProgramAddress },
+): UpdateTokenMetadataFieldInstruction<TProgramAddress, TAccountMetadata, TAccountUpdateAuthority> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
-  // Original accounts.
-  const originalAccounts = {
-    metadata: { value: input.metadata ?? null, isWritable: true },
-    updateAuthority: {
-      value: input.updateAuthority ?? null,
-      isWritable: false,
-    },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
+    // Original accounts.
+    const originalAccounts = {
+        metadata: { value: input.metadata ?? null, isWritable: true },
+        updateAuthority: { value: input.updateAuthority ?? null, isWritable: false },
+    };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
 
-  // Original args.
-  const args = { ...input };
+    // Original args.
+    const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [
-      getAccountMeta(accounts.metadata),
-      getAccountMeta(accounts.updateAuthority),
-    ],
-    data: getUpdateTokenMetadataFieldInstructionDataEncoder().encode(
-      args as UpdateTokenMetadataFieldInstructionDataArgs
-    ),
-    programAddress,
-  } as UpdateTokenMetadataFieldInstruction<
-    TProgramAddress,
-    TAccountMetadata,
-    TAccountUpdateAuthority
-  >);
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [getAccountMeta(accounts.metadata), getAccountMeta(accounts.updateAuthority)],
+        data: getUpdateTokenMetadataFieldInstructionDataEncoder().encode(
+            args as UpdateTokenMetadataFieldInstructionDataArgs,
+        ),
+        programAddress,
+    } as UpdateTokenMetadataFieldInstruction<TProgramAddress, TAccountMetadata, TAccountUpdateAuthority>);
 }
 
 export type ParsedUpdateTokenMetadataFieldInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    metadata: TAccountMetas[0];
-    updateAuthority: TAccountMetas[1];
-  };
-  data: UpdateTokenMetadataFieldInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        metadata: TAccountMetas[0];
+        updateAuthority: TAccountMetas[1];
+    };
+    data: UpdateTokenMetadataFieldInstructionData;
 };
 
 export function parseUpdateTokenMetadataFieldInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+    TProgram extends string,
+    TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedUpdateTokenMetadataFieldInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: { metadata: getNextAccount(), updateAuthority: getNextAccount() },
-    data: getUpdateTokenMetadataFieldInstructionDataDecoder().decode(
-      instruction.data
-    ),
-  };
+    if (instruction.accounts.length < 2) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { metadata: getNextAccount(), updateAuthority: getNextAccount() },
+        data: getUpdateTokenMetadataFieldInstructionDataDecoder().decode(instruction.data),
+    };
 }

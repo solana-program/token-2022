@@ -7,27 +7,27 @@
  */
 
 import {
-  AccountRole,
-  combineCodec,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type AccountMeta,
-  type AccountSignerMeta,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
-  type Instruction,
-  type InstructionWithAccounts,
-  type InstructionWithData,
-  type ReadonlyAccount,
-  type ReadonlySignerAccount,
-  type ReadonlyUint8Array,
-  type TransactionSigner,
-  type WritableAccount,
+    AccountRole,
+    combineCodec,
+    getStructDecoder,
+    getStructEncoder,
+    getU8Decoder,
+    getU8Encoder,
+    transformEncoder,
+    type AccountMeta,
+    type AccountSignerMeta,
+    type Address,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
+    type Instruction,
+    type InstructionWithAccounts,
+    type InstructionWithData,
+    type ReadonlyAccount,
+    type ReadonlySignerAccount,
+    type ReadonlyUint8Array,
+    type TransactionSigner,
+    type WritableAccount,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -35,175 +35,150 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export const ENABLE_CPI_GUARD_DISCRIMINATOR = 34;
 
 export function getEnableCpiGuardDiscriminatorBytes() {
-  return getU8Encoder().encode(ENABLE_CPI_GUARD_DISCRIMINATOR);
+    return getU8Encoder().encode(ENABLE_CPI_GUARD_DISCRIMINATOR);
 }
 
 export const ENABLE_CPI_GUARD_CPI_GUARD_DISCRIMINATOR = 0;
 
 export function getEnableCpiGuardCpiGuardDiscriminatorBytes() {
-  return getU8Encoder().encode(ENABLE_CPI_GUARD_CPI_GUARD_DISCRIMINATOR);
+    return getU8Encoder().encode(ENABLE_CPI_GUARD_CPI_GUARD_DISCRIMINATOR);
 }
 
 export type EnableCpiGuardInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountToken extends string | AccountMeta<string> = string,
-  TAccountOwner extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountToken extends string | AccountMeta<string> = string,
+    TAccountOwner extends string | AccountMeta<string> = string,
+    TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
-  InstructionWithData<ReadonlyUint8Array> &
-  InstructionWithAccounts<
-    [
-      TAccountToken extends string
-        ? WritableAccount<TAccountToken>
-        : TAccountToken,
-      TAccountOwner extends string
-        ? ReadonlyAccount<TAccountOwner>
-        : TAccountOwner,
-      ...TRemainingAccounts,
-    ]
-  >;
+    InstructionWithData<ReadonlyUint8Array> &
+    InstructionWithAccounts<
+        [
+            TAccountToken extends string ? WritableAccount<TAccountToken> : TAccountToken,
+            TAccountOwner extends string ? ReadonlyAccount<TAccountOwner> : TAccountOwner,
+            ...TRemainingAccounts,
+        ]
+    >;
 
-export type EnableCpiGuardInstructionData = {
-  discriminator: number;
-  cpiGuardDiscriminator: number;
-};
+export type EnableCpiGuardInstructionData = { discriminator: number; cpiGuardDiscriminator: number };
 
 export type EnableCpiGuardInstructionDataArgs = {};
 
 export function getEnableCpiGuardInstructionDataEncoder(): FixedSizeEncoder<EnableCpiGuardInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['cpiGuardDiscriminator', getU8Encoder()],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator: ENABLE_CPI_GUARD_DISCRIMINATOR,
-      cpiGuardDiscriminator: ENABLE_CPI_GUARD_CPI_GUARD_DISCRIMINATOR,
-    })
-  );
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getU8Encoder()],
+            ['cpiGuardDiscriminator', getU8Encoder()],
+        ]),
+        value => ({
+            ...value,
+            discriminator: ENABLE_CPI_GUARD_DISCRIMINATOR,
+            cpiGuardDiscriminator: ENABLE_CPI_GUARD_CPI_GUARD_DISCRIMINATOR,
+        }),
+    );
 }
 
 export function getEnableCpiGuardInstructionDataDecoder(): FixedSizeDecoder<EnableCpiGuardInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['cpiGuardDiscriminator', getU8Decoder()],
-  ]);
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['cpiGuardDiscriminator', getU8Decoder()],
+    ]);
 }
 
 export function getEnableCpiGuardInstructionDataCodec(): FixedSizeCodec<
-  EnableCpiGuardInstructionDataArgs,
-  EnableCpiGuardInstructionData
+    EnableCpiGuardInstructionDataArgs,
+    EnableCpiGuardInstructionData
 > {
-  return combineCodec(
-    getEnableCpiGuardInstructionDataEncoder(),
-    getEnableCpiGuardInstructionDataDecoder()
-  );
+    return combineCodec(getEnableCpiGuardInstructionDataEncoder(), getEnableCpiGuardInstructionDataDecoder());
 }
 
-export type EnableCpiGuardInput<
-  TAccountToken extends string = string,
-  TAccountOwner extends string = string,
-> = {
-  /** The token account to update. */
-  token: Address<TAccountToken>;
-  /** The account's owner/delegate or its multisignature account. */
-  owner: Address<TAccountOwner> | TransactionSigner<TAccountOwner>;
-  multiSigners?: Array<TransactionSigner>;
+export type EnableCpiGuardInput<TAccountToken extends string = string, TAccountOwner extends string = string> = {
+    /** The token account to update. */
+    token: Address<TAccountToken>;
+    /** The account's owner/delegate or its multisignature account. */
+    owner: Address<TAccountOwner> | TransactionSigner<TAccountOwner>;
+    multiSigners?: Array<TransactionSigner>;
 };
 
 export function getEnableCpiGuardInstruction<
-  TAccountToken extends string,
-  TAccountOwner extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountToken extends string,
+    TAccountOwner extends string,
+    TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-  input: EnableCpiGuardInput<TAccountToken, TAccountOwner>,
-  config?: { programAddress?: TProgramAddress }
+    input: EnableCpiGuardInput<TAccountToken, TAccountOwner>,
+    config?: { programAddress?: TProgramAddress },
 ): EnableCpiGuardInstruction<
-  TProgramAddress,
-  TAccountToken,
-  (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-    ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
-    : TAccountOwner
-> {
-  // Program address.
-  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
-
-  // Original accounts.
-  const originalAccounts = {
-    token: { value: input.token ?? null, isWritable: true },
-    owner: { value: input.owner ?? null, isWritable: false },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
-
-  // Original args.
-  const args = { ...input };
-
-  // Remaining accounts.
-  const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(
-    (signer) => ({
-      address: signer.address,
-      role: AccountRole.READONLY_SIGNER,
-      signer,
-    })
-  );
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  return Object.freeze({
-    accounts: [
-      getAccountMeta(accounts.token),
-      getAccountMeta(accounts.owner),
-      ...remainingAccounts,
-    ],
-    data: getEnableCpiGuardInstructionDataEncoder().encode({}),
-    programAddress,
-  } as EnableCpiGuardInstruction<
     TProgramAddress,
     TAccountToken,
     (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-      ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
-      : TAccountOwner
-  >);
+        ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
+        : TAccountOwner
+> {
+    // Program address.
+    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+
+    // Original accounts.
+    const originalAccounts = {
+        token: { value: input.token ?? null, isWritable: true },
+        owner: { value: input.owner ?? null, isWritable: false },
+    };
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+
+    // Original args.
+    const args = { ...input };
+
+    // Remaining accounts.
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
+        address: signer.address,
+        role: AccountRole.READONLY_SIGNER,
+        signer,
+    }));
+
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    return Object.freeze({
+        accounts: [getAccountMeta(accounts.token), getAccountMeta(accounts.owner), ...remainingAccounts],
+        data: getEnableCpiGuardInstructionDataEncoder().encode({}),
+        programAddress,
+    } as EnableCpiGuardInstruction<
+        TProgramAddress,
+        TAccountToken,
+        (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
+            ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
+            : TAccountOwner
+    >);
 }
 
 export type ParsedEnableCpiGuardInstruction<
-  TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+    TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
+    TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** The token account to update. */
-    token: TAccountMetas[0];
-    /** The account's owner/delegate or its multisignature account. */
-    owner: TAccountMetas[1];
-  };
-  data: EnableCpiGuardInstructionData;
+    programAddress: Address<TProgram>;
+    accounts: {
+        /** The token account to update. */
+        token: TAccountMetas[0];
+        /** The account's owner/delegate or its multisignature account. */
+        owner: TAccountMetas[1];
+    };
+    data: EnableCpiGuardInstructionData;
 };
 
-export function parseEnableCpiGuardInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
->(
-  instruction: Instruction<TProgram> &
-    InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+export function parseEnableCpiGuardInstruction<TProgram extends string, TAccountMetas extends readonly AccountMeta[]>(
+    instruction: Instruction<TProgram> &
+        InstructionWithAccounts<TAccountMetas> &
+        InstructionWithData<ReadonlyUint8Array>,
 ): ParsedEnableCpiGuardInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: { token: getNextAccount(), owner: getNextAccount() },
-    data: getEnableCpiGuardInstructionDataDecoder().decode(instruction.data),
-  };
+    if (instruction.accounts.length < 2) {
+        // TODO: Coded error.
+        throw new Error('Not enough accounts');
+    }
+    let accountIndex = 0;
+    const getNextAccount = () => {
+        const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
+        accountIndex += 1;
+        return accountMeta;
+    };
+    return {
+        programAddress: instruction.programAddress,
+        accounts: { token: getNextAccount(), owner: getNextAccount() },
+        data: getEnableCpiGuardInstructionDataDecoder().decode(instruction.data),
+    };
 }
