@@ -9957,8 +9957,20 @@
                             }
                         },
                         {
-                            "kind": "enumEmptyVariantTypeNode",
-                            "name": "confidentialMintBurn"
+                            "kind": "enumStructVariantTypeNode",
+                            "name": "confidentialMintBurn",
+                            "struct": {
+                                "kind": "sizePrefixTypeNode",
+                                "type": {
+                                    "kind": "structTypeNode",
+                                    "fields": []
+                                },
+                                "prefix": {
+                                    "kind": "numberTypeNode",
+                                    "format": "u16",
+                                    "endian": "le"
+                                }
+                            }
                         },
                         {
                             "kind": "enumStructVariantTypeNode",
@@ -10057,8 +10069,20 @@
                             }
                         },
                         {
-                            "kind": "enumEmptyVariantTypeNode",
-                            "name": "pausableAccount"
+                            "kind": "enumStructVariantTypeNode",
+                            "name": "pausableAccount",
+                            "struct": {
+                                "kind": "sizePrefixTypeNode",
+                                "type": {
+                                    "kind": "structTypeNode",
+                                    "fields": []
+                                },
+                                "prefix": {
+                                    "kind": "numberTypeNode",
+                                    "format": "u16",
+                                    "endian": "le"
+                                }
+                            }
                         },
                         {
                             "kind": "enumStructVariantTypeNode",
