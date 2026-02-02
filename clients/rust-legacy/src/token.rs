@@ -676,22 +676,22 @@ where
             instructions.push(ComputeBudgetInstruction::set_compute_unit_price(
                 compute_unit_price,
             ));
-        }
 
-        // The simulation to find out the compute unit usage must be run after
-        // all instructions have been added to the transaction, so be sure to
-        // keep this instruction as the last one before creating and sending the
-        // transaction.
-        match self.compute_unit_limit {
-            ComputeUnitLimit::Default => {}
-            ComputeUnitLimit::Simulated => {
-                self.add_compute_unit_limit_from_simulation(&mut instructions, &blockhash)
-                    .await?;
-            }
-            ComputeUnitLimit::Static(compute_unit_limit) => {
-                instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(
-                    compute_unit_limit,
-                ));
+            // The simulation to find out the compute unit usage must be run after
+            // all instructions have been added to the transaction, so be sure to
+            // keep this instruction as the last one before creating and sending the
+            // transaction.
+            match self.compute_unit_limit {
+                ComputeUnitLimit::Default => {}
+                ComputeUnitLimit::Simulated => {
+                    self.add_compute_unit_limit_from_simulation(&mut instructions, &blockhash)
+                        .await?;
+                }
+                ComputeUnitLimit::Static(compute_unit_limit) => {
+                    instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(
+                        compute_unit_limit,
+                    ));
+                }
             }
         }
 
