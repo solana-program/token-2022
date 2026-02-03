@@ -2118,6 +2118,7 @@ async fn confidential_transfer_transfer_with_fee_with_option(option: Confidentia
         decimals,
         ..
     } = context.token_context.unwrap();
+    let token = token.with_compute_unit_price(0);
 
     let alice_meta = ConfidentialTokenAccountMeta::new_with_tokens(
         &token,
@@ -2506,6 +2507,7 @@ async fn confidential_transfer_transfer_with_fee_and_memo_option(
         decimals,
         ..
     } = context.token_context.unwrap();
+    let token = token.with_compute_unit_price(0);
 
     let alice_meta = ConfidentialTokenAccountMeta::new_with_tokens(
         &token,
