@@ -6,7 +6,7 @@
 
 #[cfg(feature = "serde")]
 use {
-    crate::serialization::{batch_fromstr, coption_u64_fromval, coption_fromstr},
+    crate::serialization::{batch_fromstr, coption_fromstr, coption_u64_fromval},
     serde::{Deserialize, Serialize},
     serde_with::{As, DisplayFromStr},
 };
@@ -788,7 +788,7 @@ pub enum TokenInstruction<'a> {
 impl<'a> TokenInstruction<'a> {
     /// Unpacks a byte buffer into a
     /// [`TokenInstruction`](enum.TokenInstruction.html).
-     pub fn unpack(input: &'a [u8]) -> Result<Self, ProgramError> {
+    pub fn unpack(input: &'a [u8]) -> Result<Self, ProgramError> {
         Self::unpack_with_rest(input).map(|(token_instruction, _)| token_instruction)
     }
 
@@ -968,7 +968,7 @@ impl<'a> TokenInstruction<'a> {
             &Self::PausableExtension => {
                 buf.push(44);
             }
-           &Self::UnwrapLamports { amount } => {
+            &Self::UnwrapLamports { amount } => {
                 buf.push(45);
                 Self::pack_u64_option(&amount, &mut buf);
             }
@@ -1145,7 +1145,7 @@ impl<'a> TokenInstruction<'a> {
                 Self::Batch {
                     data: rest.to_vec(),
                 },
-                rest,
+                &[],
             ),
             _ => return Err(TokenError::InvalidInstruction.into()),
         })
