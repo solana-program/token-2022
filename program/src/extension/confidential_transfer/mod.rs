@@ -1,6 +1,3 @@
-/// Maximum bit length of any deposit or transfer amount
-///
-/// Any deposit or transfer amount must be less than `2^48`
 #[deprecated(
     since = "9.1.0",
     note = "Use spl_token_2022_interface instead and remove spl_token_2022 as a dependency"
