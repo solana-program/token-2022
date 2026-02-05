@@ -138,6 +138,96 @@ pub mod coption_u64_fromval {
     }
 }
 
+/// Helper function to serialize / deserialize the data for the `Batch` variant of the
+/// `TokenInstruction`
+pub mod batch_fromstr {
+    use {
+        crate::{error::TokenError, instruction::TokenInstruction},
+        serde::{
+            de::Error as deError,
+            ser::{Error as seError, SerializeSeq},
+            Deserialize, Deserializer, Serialize, Serializer,
+        },
+    };
+
+    #[derive(Serialize, Deserialize)]
+    #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+    struct BatchItem<'a> {
+        account_count: u8,
+        data_length: u8,
+        #[serde(borrow)]
+        token_instruction: TokenInstruction<'a>,
+    }
+
+    /// Serialize the data for the Batch variant of the `TokenInstruction`
+    pub fn serialize<S>(mut x: &[u8], s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = s.serialize_seq(None)?;
+
+        loop {
+            let (header, rest) = x
+                .split_at_checked(2)
+                .ok_or(<S as Serializer>::Error::custom(
+                    TokenError::InvalidInstruction,
+                ))?;
+
+            let (token_instruction, rest) = TokenInstruction::unpack_with_rest(rest)
+                .map_err(<S as Serializer>::Error::custom)?;
+
+            if let TokenInstruction::Batch { .. } = token_instruction {
+                return Err(<S as Serializer>::Error::custom(
+                    TokenError::InvalidInstruction,
+                ));
+            }
+
+            let batch_item = BatchItem {
+                account_count: header[0],
+                data_length: header[1],
+                token_instruction,
+            };
+
+            s.serialize_element(&batch_item)?;
+
+            x = rest;
+
+            if x.is_empty() {
+                break;
+            }
+        }
+
+        s.end()
+    }
+
+    /// Deserialize the data for the Batch variant of the `TokenInstruction`
+    pub fn deserialize<'de, D>(d: D) -> Result<Vec<u8>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let items: Vec<BatchItem<'de>> = Vec::deserialize(d)?;
+
+        let mut out = Vec::new();
+
+        for item in items {
+            if let TokenInstruction::Batch { .. } = item.token_instruction {
+                return Err(<D as Deserializer>::Error::custom(
+                    TokenError::InvalidInstruction,
+                ));
+            }
+
+            out.push(item.account_count);
+            out.push(item.data_length);
+
+            let mut instr_data = item.token_instruction.pack();
+
+            out.append(&mut instr_data);
+        }
+
+        Ok(out)
+    }
+}
+
 /// Helper to serialize / deserialize `PodAeCiphertext` values
 pub mod aeciphertext_fromstr {
     use {
