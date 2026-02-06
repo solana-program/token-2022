@@ -87,6 +87,6 @@ export function parseAssociatedTokenInstruction<TProgram extends string>(
             };
         }
         default:
-            throw new Error('Unrecognized instruction type: ' + instructionType);
+            throw new Error(`Unrecognized instruction type: ${instructionType as string}`);
     }
 }

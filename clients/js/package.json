@@ -42,14 +42,14 @@
     },
     "homepage": "https://github.com/solana-program/token-2022#readme",
     "peerDependencies": {
-        "@solana/kit": "^5.0",
+        "@solana/kit": "^6.0.0",
         "@solana/sysvars": "^5.0"
     },
     "devDependencies": {
         "@ava/typescript": "^6.0.0",
-        "@solana-program/system": "^0.10.0",
+        "@solana-program/system": "^0.11.0",
         "@solana/eslint-config-solana": "^3.0.3",
-        "@solana/kit": "^5.0",
+        "@solana/kit": "^6.0.0",
         "@types/node": "^25",
         "@typescript-eslint/eslint-plugin": "^7.16.1",
         "@typescript-eslint/parser": "^7.16.1",
@@ -59,7 +59,7 @@
         "rimraf": "^6.0.1",
         "tsup": "^8.1.2",
         "typedoc": "^0.28.0",
-        "typescript": "^5.5.3"
+        "typescript": "^5.9.3"
     },
     "ava": {
         "nodeArguments": [
@@ -71,6 +71,5 @@
                 "test/": "dist/test/"
             }
         }
-    },
-    "packageManager": "pnpm@9.1.0"
+    }
 }

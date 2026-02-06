@@ -1,6 +1,6 @@
 {
-  "entryPoints": ["src/index.ts"],
-  "includeVersion": true,
-  "readme": "none",
-  "out": "docs"
+    "entryPoints": ["src/index.ts"],
+    "includeVersion": true,
+    "readme": "none",
+    "out": "docs"
 }
