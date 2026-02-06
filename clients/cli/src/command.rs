@@ -789,13 +789,14 @@ async fn command_set_transfer_fee(
         let mint_state = StateWithExtensionsOwned::<Mint>::unpack(mint_account.data)
             .map_err(|_| format!("Could not deserialize token mint {}", token_pubkey))?;
 
-        if mint_decimals.is_some() && mint_decimals != Some(mint_state.base.decimals) {
-            return Err(format!(
-                "Decimals {} was provided, but actual value is {}",
-                mint_decimals.unwrap(),
-                mint_state.base.decimals
-            )
-            .into());
+        if let Some(decimals) = mint_decimals {
+            if decimals != mint_state.base.decimals {
+                return Err(format!(
+                    "Decimals {} was provided, but actual value is {}",
+                    decimals, mint_state.base.decimals
+                )
+                .into());
+            }
         }
 
         if let Ok(transfer_fee_config) = mint_state.get_extension::<TransferFeeConfig>() {
@@ -1299,13 +1300,14 @@ async fn command_transfer(
     // if the user got the decimals wrong, they may well have calculated the
     // transfer amount wrong we only check in online mode, because in offline,
     // mint_info.decimals is always 9
-    if !config.sign_only && mint_decimals.is_some() && mint_decimals != Some(mint_info.decimals) {
-        return Err(format!(
-            "Decimals {} was provided, but actual value is {}",
-            mint_decimals.unwrap(),
-            mint_info.decimals
-        )
-        .into());
+    if let Some(decimals) = mint_decimals {
+        if !config.sign_only && decimals != mint_info.decimals {
+            return Err(format!(
+                "Decimals {} was provided, but actual value is {}",
+                decimals, mint_info.decimals
+            )
+            .into());
+        }
     }
 
     // decimals determines whether transfer_checked is used or not
@@ -1575,18 +1577,18 @@ async fn command_transfer(
                 // mint if auditor ElGamal pubkey is not provided, then use the
                 // expected one from the   mint, which could also be `None` if
                 // auditing is disabled
-                if args.auditor_elgamal_pubkey.is_some()
-                    && expected_auditor_elgamal_pubkey != args.auditor_elgamal_pubkey
-                {
-                    return Err(format!(
-                        "Mint {} has confidential transfer auditor {}, but {} was provided",
-                        token_pubkey,
-                        expected_auditor_elgamal_pubkey
-                            .map(|pubkey| pubkey.to_string())
-                            .unwrap_or_else(|| "disabled".to_string()),
-                        args.auditor_elgamal_pubkey.unwrap(),
-                    )
-                    .into());
+                if let Some(auditor_elgamal_pubkey) = args.auditor_elgamal_pubkey {
+                    if expected_auditor_elgamal_pubkey != Some(auditor_elgamal_pubkey) {
+                        return Err(format!(
+                            "Mint {} has confidential transfer auditor {}, but {} was provided",
+                            token_pubkey,
+                            expected_auditor_elgamal_pubkey
+                                .map(|pubkey| pubkey.to_string())
+                                .unwrap_or_else(|| "disabled".to_string()),
+                            auditor_elgamal_pubkey,
+                        )
+                        .into());
+                    }
                 }
 
                 expected_auditor_elgamal_pubkey
@@ -3460,13 +3462,14 @@ async fn command_deposit_withdraw_confidential_tokens(
     // check if mint decimals provided is consistent
     let mint_info = config.get_mint_info(&token_pubkey, mint_decimals).await?;
 
-    if !config.sign_only && mint_decimals.is_some() && mint_decimals != Some(mint_info.decimals) {
-        return Err(format!(
-            "Decimals {} was provided, but actual value is {}",
-            mint_decimals.unwrap(),
-            mint_info.decimals
-        )
-        .into());
+    if let Some(decimals) = mint_decimals {
+        if !config.sign_only && decimals != mint_info.decimals {
+            return Err(format!(
+                "Decimals {} was provided, but actual value is {}",
+                decimals, mint_info.decimals
+            )
+            .into());
+        }
     }
 
     let decimals = if let Some(decimals) = mint_decimals {

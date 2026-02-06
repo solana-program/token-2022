@@ -568,15 +568,12 @@ where
             num_retries += 1;
         }
 
-        Err(TokenError::Client(Box::new(io::Error::new(
-            io::ErrorKind::Other,
-            format!(
-                "Unable to get new blockhash after {}ms (retried {} times), stuck at {}",
-                start.elapsed().as_millis(),
-                num_retries,
-                blockhash
-            ),
-        ))))
+        Err(TokenError::Client(Box::new(io::Error::other(format!(
+            "Unable to get new blockhash after {}ms (retried {} times), stuck at {}",
+            start.elapsed().as_millis(),
+            num_retries,
+            blockhash
+        )))))
     }
 
     fn get_multisig_signers<'a>(

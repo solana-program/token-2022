@@ -437,11 +437,7 @@ pub(crate) mod test {
             let fee = transfer_fee.calculate_fee(amount_in).unwrap();
             let amount_out = amount_in.checked_sub(fee).unwrap();
             let fee_exact_out = transfer_fee.calculate_inverse_fee(amount_out).unwrap();
-            let diff = if fee > fee_exact_out {
-                fee - fee_exact_out
-            } else {
-                fee_exact_out - fee
-            };
+            let diff = fee.abs_diff(fee_exact_out);
             // We lose precision with every division by 10000, so for huge amounts,
             // the difference can be in the hundreds. This comes out to less than
             // 1 / 10^15
