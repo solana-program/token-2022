@@ -356,16 +356,8 @@ impl VerboseDisplay for CliTokenAccounts {
         let mut close_authority_padding = 15;
         for accounts_list in self.accounts.iter() {
             for account in accounts_list {
-                if account.account.delegated_amount.is_some() {
-                    delegate_padding = delegate_padding.max(
-                        account
-                            .account
-                            .delegated_amount
-                            .as_ref()
-                            .unwrap()
-                            .amount
-                            .len(),
-                    );
+                if let Some(delegated_amount) = &account.account.delegated_amount {
+                    delegate_padding = delegate_padding.max(delegated_amount.amount.len());
                 }
 
                 if account.account.close_authority.is_some() {

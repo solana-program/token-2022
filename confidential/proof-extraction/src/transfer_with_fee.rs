@@ -196,7 +196,7 @@ impl TransferWithFeeProofContext {
         // (`zip` will not be short-circuited)
         if !range_proof_commitments
             .iter()
-            .zip(expected_commitments.into_iter())
+            .zip(expected_commitments)
             .all(|(proof_commitment, expected_commitment)| {
                 bytes_of(proof_commitment) == expected_commitment
             })

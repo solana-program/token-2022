@@ -42,15 +42,6 @@ check-cfg = [
     'cfg(feature, values("frozen-abi", "no-entrypoint", "custom-heap", "custom-panic"))',
 ]
 
-[workspace.metadata.cli]
-solana = "3.0.0"
-
-# Specify Rust toolchains for rustfmt, clippy, and build.
-# Any unprovided toolchains default to stable.
-[workspace.metadata.toolchains]
-format = "nightly-2025-02-16"
-lint = "nightly-2025-02-16"
-
 [workspace.metadata.spellcheck]
 config = "scripts/spellcheck.toml"
 
