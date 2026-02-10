@@ -17,7 +17,7 @@ solana-account-info = "3.0.0"
 solana-cpi = "3.1.0"
 solana-instruction = "3.0.0"
 solana-msg = "3.0.0"
-solana-program-entrypoint = "3.1.0"
+solana-program-entrypoint = "3.1.1"
 solana-program-error = "3.0.0"
 solana-pubkey = { version = "4.0.0", features = ["curve25519"] }
 solana-rent = "3.0.0"
