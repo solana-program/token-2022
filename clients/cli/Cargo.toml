@@ -30,7 +30,7 @@ solana-commitment-config = "3.0.0"
 solana-logger = "3.0.0"
 solana-remote-wallet = { version = "3.1.0", features = ["agave-unstable-api"] }
 solana-sdk = "3.0.0"
-solana-system-interface = "2"
+solana-system-interface = "3.0.0"
 solana-transaction-status = "3.0.0"
 spl-associated-token-account-interface = { version = "2.0.0" }
 spl-pod = { version = "0.7.1" }

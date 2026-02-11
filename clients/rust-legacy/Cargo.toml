@@ -30,19 +30,19 @@ solana-banks-client = { version = "3.0.0", optional = true }
 solana-banks-interface = { version = "3.0.0", optional = true }
 solana-compute-budget-interface = "3.0.0"
 solana-cli-output = { version = "3.1.0", features = ["agave-unstable-api"], optional = true }
-solana-hash = "3.0.0"
+solana-hash = "4.0.1"
 solana-instruction = "3.0.0"
 solana-message = "3.0.0"
 solana-packet = "3.0.0"
 solana-program-error = "3.0.0"
 solana-program-pack = "3.0.0"
 solana-program-test = { version = "3.0.0", optional = true }
-solana-pubkey = "3.0.0"
+solana-pubkey = "4.0.0"
 solana-rpc-client = "3.0.0"
 solana-rpc-client-api = "3.0.0"
 solana-signature = "3.0.0"
 solana-signer = "3.0.0"
-solana-system-interface = "2"
+solana-system-interface = "3.0.0"
 solana-transaction = "3.0.0"
 spl-associated-token-account-interface = { version = "2.0.0" }
 spl-elgamal-registry = { version = "0.4.0", path = "../../confidential/elgamal-registry", features = ["no-entrypoint"] }
@@ -55,7 +55,7 @@ spl-token-2022-interface = { version = "2.0.0", path = "../../interface" }
 spl-token-2022 = { version = "10.0.0", path = "../../program", features = ["no-entrypoint"] }
 spl-token-group-interface = { version = "0.7.0" }
 spl-token-metadata-interface = { version = "0.8.0" }
-spl-transfer-hook-interface = { version = "2.0.0" }
+spl-transfer-hook-interface = { version = "2.1.0" }
 tokio = "1"
 thiserror = "2.0"
 
