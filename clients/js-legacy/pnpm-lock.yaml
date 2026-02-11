@@ -28,8 +28,8 @@ importers:
         specifier: 6.0.1
         version: 6.0.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
       '@solana/prettier-config-solana':
-        specifier: 0.0.5
-        version: 0.0.5(prettier@3.8.1)
+        specifier: 0.0.6
+        version: 0.0.6(prettier@3.8.1)
       '@solana/spl-memo':
         specifier: 0.2.5
         version: 0.2.5(@solana/web3.js@1.98.4(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10))
@@ -315,10 +315,10 @@ packages:
     peerDependencies:
       typescript: '>=5'
 
-  '@solana/prettier-config-solana@0.0.5':
-    resolution: {integrity: sha512-igtLH1QaX5xzSLlqteexRIg9X1QKA03xKYQc2qY1TrMDDhxKXoRZOStQPWdita2FVJzxTGz/tdMGC1vS0biRcg==}
+  '@solana/prettier-config-solana@0.0.6':
+    resolution: {integrity: sha512-/s55hDoAyh5QyltQh/jjNK3AgACEq885+DnC6lYhrmYZiV6I0iHITWYnKd8d23KRKs/RBjlaQH54MiafeoI9hw==}
     peerDependencies:
-      prettier: ^3.2.0
+      prettier: ^3.7.4
 
   '@solana/spl-memo@0.2.5':
     resolution: {integrity: sha512-0Zx5t3gAdcHlRTt2O3RgGlni1x7vV7Xq7j4z9q8kKOMgU03PyoTbFQ/BSYCcICHzkaqD7ZxAiaJ6dlXolg01oA==}
@@ -1910,7 +1910,7 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/prettier-config-solana@0.0.5(prettier@3.8.1)':
+  '@solana/prettier-config-solana@0.0.6(prettier@3.8.1)':
     dependencies:
       prettier: 3.8.1
 
