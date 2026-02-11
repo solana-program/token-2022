@@ -78,7 +78,7 @@ async fn permissioned_burn_enforced() {
 
     // Mint some supply
     token
-        .mint_to(&account, &mint_authority.pubkey(), 2, &[&mint_authority])
+        .mint_to(&account, &mint_authority.pubkey(), 3, &[&mint_authority])
         .await
         .unwrap();
 
@@ -131,9 +131,9 @@ async fn permissioned_burn_enforced() {
         .unwrap();
 
     let account_after = token.get_account_info(&account).await.unwrap();
-    assert_eq!(account_after.base.amount, 1);
+    assert_eq!(account_after.base.amount, 2);
     let mint_after = token.get_mint_info().await.unwrap();
-    assert_eq!(mint_after.base.supply, 1);
+    assert_eq!(mint_after.base.supply, 2);
 
     // Update permissioned burn authority and ensure new authority is enforced.
     token
@@ -155,7 +155,7 @@ async fn permissioned_burn_enforced() {
         &authority.pubkey(),
         &account_owner.pubkey(),
         &[],
-        1,
+        2,
         decimals,
     )
     .unwrap();
