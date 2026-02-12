@@ -44,7 +44,7 @@ spl-token-group-interface = { version = "0.7.0" }
 spl-memo-interface = "2.0.0"
 strum = "0.27"
 strum_macros = "0.27"
-tokio = "1.48"
+tokio = "1.49"
 
 [dev-dependencies]
 solana-nonce = "3.0.0"
