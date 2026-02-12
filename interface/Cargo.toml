@@ -19,7 +19,7 @@ bytemuck = { version = "1.24.0", features = ["derive"] }
 num-derive = "0.4"
 num-traits = "0.2"
 num_enum = "0.7.5"
-solana-account-info = "3.0.0"
+solana-account-info = "3.1.0"
 solana-instruction = "3.0.0"
 solana-program-error = "3.0.0"
 solana-program-option = "3.0.0"
