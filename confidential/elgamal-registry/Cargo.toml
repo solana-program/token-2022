@@ -21,7 +21,7 @@ solana-program-entrypoint = "3.1.1"
 solana-program-error = "3.0.0"
 solana-pubkey = { version = "4.0.0", features = ["curve25519"] }
 solana-rent = "3.0.0"
-solana-sdk-ids = "3.0.0"
+solana-sdk-ids = "3.1.0"
 solana-security-txt = "1.1.1"
 solana-system-interface = { version = "3.0.0", features = ["bincode"] }
 solana-sysvar = { version = "3.0.0", features = ["bincode"] }
