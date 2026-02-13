@@ -61,7 +61,7 @@ thiserror = "2.0"
 
 [dev-dependencies]
 async-trait = "0.1"
-borsh = "1.5.7"
+borsh = "1.6.0"
 bytemuck = "1.24.0"
 futures-util = "0.3"
 solana-program-test = { version = "3.1.0", features = ["agave-unstable-api"] }
