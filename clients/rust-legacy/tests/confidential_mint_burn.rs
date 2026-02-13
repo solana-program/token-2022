@@ -20,6 +20,7 @@ use {
             confidential_transfer::ConfidentialTransferAccount, BaseStateWithExtensions,
             ExtensionType,
         },
+        instruction::AuthorityType,
         solana_zk_sdk::encryption::{
             auth_encryption::*, elgamal::*, pod::elgamal::PodElGamalCiphertext,
         },
@@ -345,6 +346,7 @@ async fn confidential_mint_burn_rotate_supply_elgamal_pubkey_with_option(
         &token,
         &alice.pubkey(),
         &alice_meta.token_account,
+        None,
         mint_amount,
         &alice_meta.elgamal_keypair,
         new_supply_elgamal_keypair.pubkey(),
@@ -588,6 +590,7 @@ async fn burn_with_option<S: Signers>(
     token: &Token<ProgramBanksClientProcessTransaction>,
     authority: &Pubkey,
     source_account: &Pubkey,
+    maybe_permissioned_burn_authority: Option<&Pubkey>,
     burn_amount: u64,
     source_elgamal_keypair: &ElGamalKeypair,
     supply_elgamal_pubkey: &ElGamalPubkey,
@@ -598,22 +601,42 @@ async fn burn_with_option<S: Signers>(
 ) -> TokenResult<()> {
     match option {
         ConfidentialTransferOption::InstructionData => {
-            token
-                .confidential_transfer_burn(
-                    authority,
-                    source_account,
-                    None,
-                    None,
-                    None,
-                    burn_amount,
-                    source_elgamal_keypair,
-                    supply_elgamal_pubkey,
-                    auditor_elgamal_pubkey,
-                    aes_key,
-                    None,
-                    signing_keypairs,
-                )
-                .await
+            if let Some(permissioned_burn_authority) = maybe_permissioned_burn_authority {
+                token
+                    .confidential_transfer_permissioned_burn(
+                        authority,
+                        source_account,
+                        permissioned_burn_authority,
+                        None,
+                        None,
+                        None,
+                        burn_amount,
+                        source_elgamal_keypair,
+                        supply_elgamal_pubkey,
+                        auditor_elgamal_pubkey,
+                        aes_key,
+                        None,
+                        signing_keypairs,
+                    )
+                    .await
+            } else {
+                token
+                    .confidential_transfer_burn(
+                        authority,
+                        source_account,
+                        None,
+                        None,
+                        None,
+                        burn_amount,
+                        source_elgamal_keypair,
+                        supply_elgamal_pubkey,
+                        auditor_elgamal_pubkey,
+                        aes_key,
+                        None,
+                        signing_keypairs,
+                    )
+                    .await
+            }
         }
         ConfidentialTransferOption::ContextStateAccount => {
             let state = token.get_account_info(source_account).await.unwrap();
@@ -685,22 +708,43 @@ async fn burn_with_option<S: Signers>(
                 ciphertext_hi: burn_amount_auditor_ciphertext_hi,
             };
 
-            let result = token
-                .confidential_transfer_burn(
-                    authority,
-                    source_account,
-                    Some(&equality_proof_context_account.pubkey()),
-                    Some(&ciphertext_validity_proof_account_with_ciphertext),
-                    Some(&range_proof_context_account.pubkey()),
-                    burn_amount,
-                    source_elgamal_keypair,
-                    supply_elgamal_pubkey,
-                    auditor_elgamal_pubkey,
-                    aes_key,
-                    None,
-                    signing_keypairs,
-                )
-                .await;
+            let result =
+                if let Some(permissioned_burn_authority) = maybe_permissioned_burn_authority {
+                    token
+                        .confidential_transfer_permissioned_burn(
+                            authority,
+                            source_account,
+                            permissioned_burn_authority,
+                            Some(&equality_proof_context_account.pubkey()),
+                            Some(&ciphertext_validity_proof_account_with_ciphertext),
+                            Some(&range_proof_context_account.pubkey()),
+                            burn_amount,
+                            source_elgamal_keypair,
+                            supply_elgamal_pubkey,
+                            auditor_elgamal_pubkey,
+                            aes_key,
+                            None,
+                            signing_keypairs,
+                        )
+                        .await
+                } else {
+                    token
+                        .confidential_transfer_burn(
+                            authority,
+                            source_account,
+                            Some(&equality_proof_context_account.pubkey()),
+                            Some(&ciphertext_validity_proof_account_with_ciphertext),
+                            Some(&range_proof_context_account.pubkey()),
+                            burn_amount,
+                            source_elgamal_keypair,
+                            supply_elgamal_pubkey,
+                            auditor_elgamal_pubkey,
+                            aes_key,
+                            None,
+                            signing_keypairs,
+                        )
+                        .await
+                };
 
             let lamport_destination_account = Keypair::new().pubkey();
             token
@@ -739,7 +783,7 @@ async fn burn_with_option<S: Signers>(
 }
 
 #[tokio::test]
-async fn confidential_mint_burn() {
+async fn confidential_mint_burn_all() {
     confidential_mint_burn_with_option(ConfidentialTransferOption::InstructionData).await;
     confidential_mint_burn_with_option(ConfidentialTransferOption::ContextStateAccount).await;
 }
@@ -755,6 +799,8 @@ async fn confidential_mint_burn_with_option(option: ConfidentialTransferOption) 
     let supply_aes_key = AeKey::new_rand();
     let decryptable_supply = supply_aes_key.encrypt(0).into();
 
+    let permissioned_burn_authority = Keypair::new();
+
     let mut context = TestContext::new().await;
     context
         .init_token_with_mint(vec![
@@ -766,6 +812,9 @@ async fn confidential_mint_burn_with_option(option: ConfidentialTransferOption) 
             ExtensionInitializationParams::ConfidentialMintBurn {
                 supply_elgamal_pubkey,
                 decryptable_supply,
+            },
+            ExtensionInitializationParams::PermissionedBurnConfig {
+                authority: permissioned_burn_authority.pubkey(),
             },
         ])
         .await
@@ -851,11 +900,68 @@ async fn confidential_mint_burn_with_option(option: ConfidentialTransferOption) 
         .await
         .unwrap();
 
+    // Check that burn fails without authority
+    let error = burn_with_option(
+        &token,
+        &alice.pubkey(),
+        &alice_meta.token_account,
+        None,
+        mint_amount,
+        &alice_meta.elgamal_keypair,
+        supply_elgamal_keypair.pubkey(),
+        Some(auditor_elgamal_keypair.pubkey()),
+        &alice_meta.aes_key,
+        &[&alice],
+        option,
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(
+        error,
+        TokenClientError::Client(Box::new(TransportError::TransactionError(
+            TransactionError::InstructionError(
+                0,
+                InstructionError::Custom(TokenError::InvalidInstruction as u32)
+            )
+        )))
+    );
+
+    // Check that it works with authority
     burn_with_option(
         &token,
         &alice.pubkey(),
         &alice_meta.token_account,
-        mint_amount,
+        Some(&permissioned_burn_authority.pubkey()),
+        mint_amount / 2,
+        &alice_meta.elgamal_keypair,
+        supply_elgamal_keypair.pubkey(),
+        Some(auditor_elgamal_keypair.pubkey()),
+        &alice_meta.aes_key,
+        &[&alice, &permissioned_burn_authority],
+        option,
+    )
+    .await
+    .unwrap();
+
+    // Unset authority
+    token
+        .set_authority(
+            token.get_address(),
+            &permissioned_burn_authority.pubkey(),
+            None,
+            AuthorityType::PermissionedBurn,
+            &[&permissioned_burn_authority],
+        )
+        .await
+        .unwrap();
+
+    // Check normal burn
+    burn_with_option(
+        &token,
+        &alice.pubkey(),
+        &alice_meta.token_account,
+        None,
+        mint_amount / 2,
         &alice_meta.elgamal_keypair,
         supply_elgamal_keypair.pubkey(),
         Some(auditor_elgamal_keypair.pubkey()),

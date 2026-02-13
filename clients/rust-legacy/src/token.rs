@@ -3499,12 +3499,84 @@ where
         .await
     }
 
+    /// Confidentially burn tokens with permissioned burn authority
+    #[allow(clippy::too_many_arguments)]
+    pub async fn confidential_transfer_permissioned_burn<S: Signers>(
+        &self,
+        authority: &Pubkey,
+        source_account: &Pubkey,
+        permissioned_burn_authority: &Pubkey,
+        equality_proof_account: Option<&Pubkey>,
+        ciphertext_validity_proof_account_with_ciphertext: Option<&ProofAccountWithCiphertext>,
+        range_proof_account: Option<&Pubkey>,
+        burn_amount: u64,
+        source_elgamal_keypair: &ElGamalKeypair,
+        supply_elgamal_pubkey: &ElGamalPubkey,
+        auditor_elgamal_pubkey: Option<&ElGamalPubkey>,
+        aes_key: &AeKey,
+        account_info: Option<BurnAccountInfo>,
+        signing_keypairs: &S,
+    ) -> TokenResult<T::Output> {
+        self.confidential_transfer_burn_inner(
+            authority,
+            source_account,
+            Some(permissioned_burn_authority),
+            equality_proof_account,
+            ciphertext_validity_proof_account_with_ciphertext,
+            range_proof_account,
+            burn_amount,
+            source_elgamal_keypair,
+            supply_elgamal_pubkey,
+            auditor_elgamal_pubkey,
+            aes_key,
+            account_info,
+            signing_keypairs,
+        )
+        .await
+    }
+
     /// Confidentially burn tokens
     #[allow(clippy::too_many_arguments)]
     pub async fn confidential_transfer_burn<S: Signers>(
         &self,
         authority: &Pubkey,
         source_account: &Pubkey,
+        equality_proof_account: Option<&Pubkey>,
+        ciphertext_validity_proof_account_with_ciphertext: Option<&ProofAccountWithCiphertext>,
+        range_proof_account: Option<&Pubkey>,
+        burn_amount: u64,
+        source_elgamal_keypair: &ElGamalKeypair,
+        supply_elgamal_pubkey: &ElGamalPubkey,
+        auditor_elgamal_pubkey: Option<&ElGamalPubkey>,
+        aes_key: &AeKey,
+        account_info: Option<BurnAccountInfo>,
+        signing_keypairs: &S,
+    ) -> TokenResult<T::Output> {
+        self.confidential_transfer_burn_inner(
+            authority,
+            source_account,
+            None,
+            equality_proof_account,
+            ciphertext_validity_proof_account_with_ciphertext,
+            range_proof_account,
+            burn_amount,
+            source_elgamal_keypair,
+            supply_elgamal_pubkey,
+            auditor_elgamal_pubkey,
+            aes_key,
+            account_info,
+            signing_keypairs,
+        )
+        .await
+    }
+
+    /// Confidentially burn tokens
+    #[allow(clippy::too_many_arguments)]
+    async fn confidential_transfer_burn_inner<S: Signers>(
+        &self,
+        authority: &Pubkey,
+        source_account: &Pubkey,
+        maybe_permissioned_burn_authority: Option<&Pubkey>,
         equality_proof_account: Option<&Pubkey>,
         ciphertext_validity_proof_account_with_ciphertext: Option<&ProofAccountWithCiphertext>,
         range_proof_account: Option<&Pubkey>,
@@ -3618,23 +3690,38 @@ where
             .map_err(|_| TokenError::AccountDecryption)?
             .into();
 
-        self.process_ixs(
-            &confidential_mint_burn::instruction::confidential_burn_with_split_proofs(
-                &self.program_id,
-                source_account,
-                &self.pubkey,
-                &new_decryptable_balance,
-                &burn_amount_auditor_ciphertext_lo,
-                &burn_amount_auditor_ciphertext_hi,
-                authority,
-                &multisig_signers,
-                equality_proof_location,
-                ciphertext_validity_proof_location,
-                range_proof_location,
-            )?,
-            signing_keypairs,
-        )
-        .await
+        let instructions =
+            if let Some(permissioned_burn_authority) = maybe_permissioned_burn_authority {
+                permissioned_burn::instruction::confidential_burn_with_split_proofs(
+                    &self.program_id,
+                    source_account,
+                    &self.pubkey,
+                    permissioned_burn_authority,
+                    &new_decryptable_balance,
+                    &burn_amount_auditor_ciphertext_lo,
+                    &burn_amount_auditor_ciphertext_hi,
+                    authority,
+                    &multisig_signers,
+                    equality_proof_location,
+                    ciphertext_validity_proof_location,
+                    range_proof_location,
+                )?
+            } else {
+                confidential_mint_burn::instruction::confidential_burn_with_split_proofs(
+                    &self.program_id,
+                    source_account,
+                    &self.pubkey,
+                    &new_decryptable_balance,
+                    &burn_amount_auditor_ciphertext_lo,
+                    &burn_amount_auditor_ciphertext_hi,
+                    authority,
+                    &multisig_signers,
+                    equality_proof_location,
+                    ciphertext_validity_proof_location,
+                    range_proof_location,
+                )?
+            };
+        self.process_ixs(&instructions, signing_keypairs).await
     }
 
     /// Apply pending burn amount to the confidential supply amount
