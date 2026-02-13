@@ -10,7 +10,7 @@ edition = { workspace = true }
 
 [dependencies]
 base64 = "0.22.1"
-bytemuck = "1.24.0"
+bytemuck = "1.25.0"
 solana-curve25519 = { version = "3.0.7", features = ["agave-unstable-api"] }
 solana-zk-sdk = "4.0.0"
 
