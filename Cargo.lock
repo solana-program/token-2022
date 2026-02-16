@@ -4170,15 +4170,14 @@ dependencies = [
 
 [[package]]
 name = "mollusk-svm"
-version = "0.8.0"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2698156e05139dc6fb55e9388e885ce35064e778457a38d20af4b6e984d6408"
+checksum = "3cac6d1c886dc3f907f615e80b66de6400a45d5f8f13f99c0b1c962ef614a5b0"
 dependencies = [
  "agave-feature-set",
  "agave-syscalls",
  "bincode",
  "mollusk-svm-error",
- "mollusk-svm-keys",
  "mollusk-svm-result",
  "solana-account",
  "solana-bpf-loader-program",
@@ -4193,6 +4192,7 @@ dependencies = [
  "solana-loader-v3-interface",
  "solana-loader-v4-interface",
  "solana-logger",
+ "solana-message",
  "solana-precompile-error",
  "solana-program-error",
  "solana-program-runtime",
@@ -4204,46 +4204,36 @@ dependencies = [
  "solana-svm-callback",
  "solana-svm-log-collector",
  "solana-svm-timings",
+ "solana-svm-transaction",
  "solana-system-program",
  "solana-sysvar",
  "solana-sysvar-id",
  "solana-transaction-context",
+ "solana-transaction-error",
 ]
 
 [[package]]
 name = "mollusk-svm-error"
-version = "0.8.0"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fee80a85011f0de7adafbf6f98f47d49d309038fd4a1e381cbfb824afb28f1d"
+checksum = "8d23fa709c14bfe0d8266508eedc2138aa7e6417d6f860d88cdc5cfa5346b357"
 dependencies = [
  "solana-pubkey 4.0.0",
  "thiserror 1.0.69",
 ]
 
 [[package]]
-name = "mollusk-svm-keys"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a15c993cef3808db2078f393ca10d8cce6417b7bc87773abec0c7fc0f124a0aa"
-dependencies = [
- "mollusk-svm-error",
- "solana-account",
- "solana-instruction",
- "solana-pubkey 4.0.0",
- "solana-transaction-context",
-]
-
-[[package]]
 name = "mollusk-svm-result"
-version = "0.8.0"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f12668487bd6bed2d0549f22a319d9cde8ac9b18b2952e48ced6db318e69415"
+checksum = "088825f3c0c1f820eafd1f10efd3606c58a5edec4accdb68eb1d9ce357d2ecac"
 dependencies = [
  "solana-account",
  "solana-instruction",
  "solana-program-error",
  "solana-pubkey 4.0.0",
  "solana-rent",
+ "solana-transaction-error",
 ]
 
 [[package]]
