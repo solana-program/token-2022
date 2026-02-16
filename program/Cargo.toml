@@ -64,7 +64,7 @@ mollusk-svm = "0.8"
 proptest = "1.10"
 serial_test = "3.3.1"
 solana-account = "3.2.0"
-solana-hash = "4.0.1"
+solana-hash = "4.1.0"
 solana-keypair = "3.0.0"
 solana-signer = "3.0.0"
 solana-transaction = { version = "3.0.0", features = ["bincode"] }
