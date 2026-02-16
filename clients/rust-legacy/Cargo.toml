@@ -33,7 +33,7 @@ solana-cli-output = { version = "3.1.0", features = ["agave-unstable-api"], opti
 solana-hash = "4.1.0"
 solana-instruction = "3.0.0"
 solana-message = "3.0.0"
-solana-packet = "3.0.0"
+solana-packet = "4.0.0"
 solana-program-error = "3.0.0"
 solana-program-pack = "3.0.0"
 solana-program-test = { version = "3.0.0", optional = true }
