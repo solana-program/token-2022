@@ -94,7 +94,9 @@ pub enum PermissionedBurnInstruction {
     ///      pre-verified `VerifyBatchedGroupedCiphertext3HandlesValidity` proof
     ///   5. `[]` (Optional) The context state account containing the
     ///      pre-verified `VerifyBatchedRangeProofU128`
-    ///   6. `[signer]` The single account owner.
+    ///   6. `[signer]` The permissioned burn authority configured on the mint,
+    ///      if any.
+    ///   7. `[signer]` The single account owner.
     ///
     ///   * Multisignature authority
     ///   0. `[writable]` The SPL Token mint.
@@ -109,8 +111,10 @@ pub enum PermissionedBurnInstruction {
     ///      pre-verified `VerifyBatchedGroupedCiphertext3HandlesValidity` proof
     ///   5. `[]` (Optional) The context state account containing the
     ///      pre-verified `VerifyBatchedRangeProofU128`
-    ///   6. `[]` The multisig account owner.
-    ///   7. ..`[signer]` Required M signer accounts for the SPL Token Multisig
+    ///   6. `[signer]` The permissioned burn authority configured on the mint,
+    ///      if any.
+    ///   7. `[]` The multisig account owner.
+    ///   8. ..`[signer]` Required M signer accounts for the SPL Token Multisig
     ///
     /// Data expected by this instruction:
     ///   `crate::extension::confidential_mint_burn::instruction::BurnInstructionData`
