@@ -26,7 +26,7 @@ solana-clap-v3-utils = { version = "3.1.0", features = ["agave-unstable-api"] }
 solana-cli-config = { version = "3.1.0", features = ["agave-unstable-api"] }
 solana-cli-output = { version = "3.1.0", features = ["agave-unstable-api"] }
 solana-client = { version = "3.1.0", features = ["agave-unstable-api"] }
-solana-commitment-config = "3.1.0"
+solana-commitment-config = "3.1.1"
 solana-logger = "3.0.0"
 solana-remote-wallet = { version = "3.1.0", features = ["agave-unstable-api"] }
 solana-sdk = "3.0.0"
