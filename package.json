@@ -1,7 +1,7 @@
 {
     "private": true,
     "devDependencies": {
-        "@codama/renderers-js": "^1.7.0",
+        "@codama/renderers-js": "^2.0.2",
         "@codama/renderers-rust": "^2.0.0",
         "@solana/prettier-config-solana": "0.0.6",
         "codama": "^1.5.1",
