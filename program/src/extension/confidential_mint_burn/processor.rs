@@ -3,7 +3,9 @@ use {
     crate::{
         check_auditor_ciphertext,
         extension::confidential_mint_burn::verify_proof::{verify_burn_proof, verify_mint_proof},
+        processor::BurnInstructionVariant,
     },
+    spl_token_2022_interface::extension::permissioned_burn::PermissionedBurnConfig,
     spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic,
 };
 use {
@@ -291,10 +293,11 @@ fn process_confidential_mint(
 
 /// Processes a [`ConfidentialBurn`] instruction.
 #[cfg(feature = "zk-ops")]
-fn process_confidential_burn(
+pub(crate) fn process_confidential_burn(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     data: &BurnInstructionData,
+    burn_variant: BurnInstructionVariant,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let token_account_info = next_account_info(account_info_iter)?;
@@ -312,7 +315,6 @@ fn process_confidential_burn(
             return Err(TokenError::MintPaused.into());
         }
     }
-    let mint_burn_extension = mint.get_extension_mut::<ConfidentialMintBurn>()?;
 
     let proof_context = verify_burn_proof(
         account_info_iter,
@@ -321,11 +323,56 @@ fn process_confidential_burn(
         data.range_proof_instruction_offset,
     )?;
 
+    let (permissioned_burn_authority_info, authority_info) = match burn_variant {
+        BurnInstructionVariant::Permissioned => {
+            let permissioned_burn_authority_info = next_account_info(account_info_iter)?;
+            let authority_info = next_account_info(account_info_iter)?;
+            (Some(permissioned_burn_authority_info), authority_info)
+        }
+        BurnInstructionVariant::Standard => (None, next_account_info(account_info_iter)?),
+    };
+
+    let permissioned_ext = mint.get_extension::<PermissionedBurnConfig>();
+    let maybe_permissioned_burn_authority = permissioned_ext
+        .as_ref()
+        .ok()
+        .and_then(|ext| Option::<Pubkey>::from(ext.authority));
+    match burn_variant {
+        BurnInstructionVariant::Standard => {
+            // Standard burns cannot be used when the permissioned burn
+            // extension is present.
+            if maybe_permissioned_burn_authority.is_some() {
+                return Err(TokenError::InvalidInstruction.into());
+            }
+        }
+        BurnInstructionVariant::Permissioned => {
+            permissioned_ext.map_err(|_| TokenError::InvalidInstruction)?;
+
+            let expected_burn_authority = maybe_permissioned_burn_authority.ok_or_else(|| {
+                msg!("Permissioned burn authority is None; use the standard burn");
+                TokenError::InvalidInstruction
+            })?;
+
+            // Pull the required extra signer from the accounts
+            let approver_ai =
+                permissioned_burn_authority_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
+
+            if !approver_ai.is_signer {
+                return Err(ProgramError::MissingRequiredSignature);
+            }
+
+            if *approver_ai.key != expected_burn_authority {
+                return Err(ProgramError::InvalidAccountData);
+            }
+        }
+    }
+
+    let mint_burn_extension = mint.get_extension_mut::<ConfidentialMintBurn>()?;
+
     check_program_account(token_account_info.owner)?;
     let token_account_data = &mut token_account_info.data.borrow_mut();
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
 
-    let authority_info = next_account_info(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
 
     Processor::validate_owner(
@@ -513,7 +560,12 @@ pub(crate) fn process_instruction(
             #[cfg(feature = "zk-ops")]
             {
                 let data = decode_instruction_data::<BurnInstructionData>(input)?;
-                process_confidential_burn(program_id, accounts, data)
+                process_confidential_burn(
+                    program_id,
+                    accounts,
+                    data,
+                    BurnInstructionVariant::Standard,
+                )
             }
             #[cfg(not(feature = "zk-ops"))]
             Err(ProgramError::InvalidInstructionData)
