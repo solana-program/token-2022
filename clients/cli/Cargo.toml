@@ -43,7 +43,7 @@ spl-token-metadata-interface = { version = "0.8.0" }
 spl-token-group-interface = { version = "0.7.0" }
 spl-memo-interface = "2.0.0"
 strum = "0.28"
-strum_macros = "0.27"
+strum_macros = "0.28"
 tokio = "1.49"
 
 [dev-dependencies]
