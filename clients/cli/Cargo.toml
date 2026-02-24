@@ -53,7 +53,7 @@ solana-test-validator = { version = "3.1.0", features = ["agave-unstable-api"] }
 assert_cmd = "2.1.2"
 libtest-mimic = "0.8"
 serial_test = "3.4.0"
-tempfile = "3.25.0"
+tempfile = "3.26.0"
 
 [[bin]]
 name = "spl-token"
