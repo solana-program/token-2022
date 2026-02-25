@@ -59,6 +59,7 @@ use {
             AccountType, BaseStateWithExtensions, BaseStateWithExtensionsMut, ExtensionType,
             PodStateWithExtensions, PodStateWithExtensionsMut,
         },
+        inline_spl_token,
         instruction::{
             decode_instruction_data, decode_instruction_type, is_valid_signer_index, AuthorityType,
             MAX_SIGNERS,
@@ -2126,8 +2127,9 @@ impl Processor {
             return Err(TokenError::OwnerMismatch.into());
         }
 
-        if program_id == owner_account_info.owner && owner_account_data_len == PodMultisig::SIZE_OF
-        {
+        let owned_by_token_program = program_id == owner_account_info.owner
+            || owner_account_info.owner == &inline_spl_token::id();
+        if owned_by_token_program && owner_account_data_len == PodMultisig::SIZE_OF {
             let multisig_data = &owner_account_info.data.borrow();
             let multisig = pod_from_bytes::<PodMultisig>(multisig_data)?;
             let mut num_signers = 0;
@@ -7115,6 +7117,36 @@ mod tests {
             &signers,
         )
         .unwrap();
+
+        // full 11 of 11, multisig owned by tokenkeg (legacy spl-token program)
+        {
+            let tokenkeg_id = inline_spl_token::id();
+            let mut lamports = 0;
+            let mut data = vec![0; Multisig::get_packed_len()];
+            let mut multisig = Multisig::unpack_unchecked(&data).unwrap();
+            multisig.m = MAX_SIGNERS as u8;
+            multisig.n = MAX_SIGNERS as u8;
+            multisig.signers = signer_keys;
+            multisig.is_initialized = true;
+            Multisig::pack(multisig, &mut data).unwrap();
+            let tokenkeg_multisig_info = AccountInfo::new(
+                &owner_key,
+                false,
+                false,
+                &mut lamports,
+                &mut data,
+                &tokenkeg_id,
+                false,
+            );
+            Processor::validate_owner(
+                &program_id,
+                &owner_key,
+                &tokenkeg_multisig_info,
+                tokenkeg_multisig_info.data_len(),
+                &signers,
+            )
+            .unwrap();
+        }
 
         // 1 of 11
         {
