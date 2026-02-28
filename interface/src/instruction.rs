@@ -6,7 +6,7 @@
 
 #[cfg(feature = "serde")]
 use {
-    crate::serialization::{coption_fromstr, coption_u64_fromval},
+    crate::serialization::{batch_fromstr, coption_fromstr, coption_u64_fromval},
     serde::{Deserialize, Serialize},
     serde_with::{As, DisplayFromStr},
 };
@@ -751,155 +751,39 @@ pub enum TokenInstruction<'a> {
     },
     /// Instruction prefix for instructions to the permissioned burn extension
     PermissionedBurnExtension,
+    // 255
+    /// Executes a batch of instructions. The instructions to be executed are
+    /// specified in sequence on the instruction data. Each instruction
+    /// provides:
+    ///   - `u8`: number of accounts
+    ///   - `u8`: instruction data length (includes the discriminator)
+    ///   - `u8`: instruction discriminator
+    ///   - `[u8]`: instruction data
+    ///
+    /// Accounts follow a similar pattern, where accounts for each instruction
+    /// are specified in sequence. Therefore, the number of accounts
+    /// expected by this instruction is variable, i.e., it depends on the
+    /// instructions provided.
+    ///
+    /// Both the number of accounts and instruction data length are used to
+    /// identify the slice of accounts and instruction data for each
+    /// instruction.
+    ///
+    /// Note that it is not sound to have a `batch` instruction that contains
+    /// other `batch` instruction; an error will be raised when this is
+    /// detected.
+    Batch {
+        /// Data for the instructions in the batch, contains sequentially for
+        /// each instruction Account count-Data length-Variant-Instruction data
+        #[cfg_attr(feature = "serde", serde(with = "batch_fromstr"))]
+        data: Vec<u8>,
+    },
 }
 impl<'a> TokenInstruction<'a> {
     /// Unpacks a byte buffer into a
     /// [`TokenInstruction`](enum.TokenInstruction.html).
     pub fn unpack(input: &'a [u8]) -> Result<Self, ProgramError> {
-        use TokenError::InvalidInstruction;
-
-        let (&tag, rest) = input.split_first().ok_or(InvalidInstruction)?;
-        Ok(match tag {
-            0 => {
-                let (&decimals, rest) = rest.split_first().ok_or(InvalidInstruction)?;
-                let (mint_authority, rest) = Self::unpack_pubkey(rest)?;
-                let (freeze_authority, _rest) = Self::unpack_pubkey_option(rest)?;
-                Self::InitializeMint {
-                    mint_authority,
-                    freeze_authority,
-                    decimals,
-                }
-            }
-            1 => Self::InitializeAccount,
-            2 => {
-                let &m = rest.first().ok_or(InvalidInstruction)?;
-                Self::InitializeMultisig { m }
-            }
-            3 | 4 | 7 | 8 => {
-                let amount = rest
-                    .get(..U64_BYTES)
-                    .and_then(|slice| slice.try_into().ok())
-                    .map(u64::from_le_bytes)
-                    .ok_or(InvalidInstruction)?;
-                match tag {
-                    #[allow(deprecated)]
-                    3 => Self::Transfer { amount },
-                    4 => Self::Approve { amount },
-                    7 => Self::MintTo { amount },
-                    8 => Self::Burn { amount },
-                    _ => unreachable!(),
-                }
-            }
-            5 => Self::Revoke,
-            6 => {
-                let (authority_type, rest) = rest
-                    .split_first()
-                    .ok_or_else(|| ProgramError::from(InvalidInstruction))
-                    .and_then(|(&t, rest)| Ok((AuthorityType::from(t)?, rest)))?;
-                let (new_authority, _rest) = Self::unpack_pubkey_option(rest)?;
-
-                Self::SetAuthority {
-                    authority_type,
-                    new_authority,
-                }
-            }
-            9 => Self::CloseAccount,
-            10 => Self::FreezeAccount,
-            11 => Self::ThawAccount,
-            12 => {
-                let (amount, decimals, _rest) = Self::unpack_amount_decimals(rest)?;
-                Self::TransferChecked { amount, decimals }
-            }
-            13 => {
-                let (amount, decimals, _rest) = Self::unpack_amount_decimals(rest)?;
-                Self::ApproveChecked { amount, decimals }
-            }
-            14 => {
-                let (amount, decimals, _rest) = Self::unpack_amount_decimals(rest)?;
-                Self::MintToChecked { amount, decimals }
-            }
-            15 => {
-                let (amount, decimals, _rest) = Self::unpack_amount_decimals(rest)?;
-                Self::BurnChecked { amount, decimals }
-            }
-            16 => {
-                let (owner, _rest) = Self::unpack_pubkey(rest)?;
-                Self::InitializeAccount2 { owner }
-            }
-            17 => Self::SyncNative,
-            18 => {
-                let (owner, _rest) = Self::unpack_pubkey(rest)?;
-                Self::InitializeAccount3 { owner }
-            }
-            19 => {
-                let &m = rest.first().ok_or(InvalidInstruction)?;
-                Self::InitializeMultisig2 { m }
-            }
-            20 => {
-                let (&decimals, rest) = rest.split_first().ok_or(InvalidInstruction)?;
-                let (mint_authority, rest) = Self::unpack_pubkey(rest)?;
-                let (freeze_authority, _rest) = Self::unpack_pubkey_option(rest)?;
-                Self::InitializeMint2 {
-                    mint_authority,
-                    freeze_authority,
-                    decimals,
-                }
-            }
-            21 => {
-                let mut extension_types = vec![];
-                for chunk in rest.chunks(size_of::<ExtensionType>()) {
-                    extension_types.push(chunk.try_into()?);
-                }
-                Self::GetAccountDataSize { extension_types }
-            }
-            22 => Self::InitializeImmutableOwner,
-            23 => {
-                let (amount, _rest) = Self::unpack_u64(rest)?;
-                Self::AmountToUiAmount { amount }
-            }
-            24 => {
-                let ui_amount = std::str::from_utf8(rest).map_err(|_| InvalidInstruction)?;
-                Self::UiAmountToAmount { ui_amount }
-            }
-            25 => {
-                let (close_authority, _rest) = Self::unpack_pubkey_option(rest)?;
-                Self::InitializeMintCloseAuthority { close_authority }
-            }
-            26 => Self::TransferFeeExtension,
-            27 => Self::ConfidentialTransferExtension,
-            28 => Self::DefaultAccountStateExtension,
-            29 => {
-                let mut extension_types = vec![];
-                for chunk in rest.chunks(size_of::<ExtensionType>()) {
-                    extension_types.push(chunk.try_into()?);
-                }
-                Self::Reallocate { extension_types }
-            }
-            30 => Self::MemoTransferExtension,
-            31 => Self::CreateNativeMint,
-            32 => Self::InitializeNonTransferableMint,
-            33 => Self::InterestBearingMintExtension,
-            34 => Self::CpiGuardExtension,
-            35 => {
-                let (delegate, _rest) = Self::unpack_pubkey(rest)?;
-                Self::InitializePermanentDelegate { delegate }
-            }
-            36 => Self::TransferHookExtension,
-            37 => Self::ConfidentialTransferFeeExtension,
-            38 => Self::WithdrawExcessLamports,
-            39 => Self::MetadataPointerExtension,
-            40 => Self::GroupPointerExtension,
-            41 => Self::GroupMemberPointerExtension,
-            42 => Self::ConfidentialMintBurnExtension,
-            43 => Self::ScaledUiAmountExtension,
-            44 => Self::PausableExtension,
-            45 => {
-                let (amount, _rest) = Self::unpack_u64_option(rest)?;
-                Self::UnwrapLamports { amount }
-            }
-            46 => Self::PermissionedBurnExtension,
-            _ => return Err(TokenError::InvalidInstruction.into()),
-        })
+        Self::unpack_with_rest(input).map(|(token_instruction, _)| token_instruction)
     }
 
     /// Packs a [`TokenInstruction`](enum.TokenInstruction.html) into a byte
@@ -1085,8 +969,180 @@ impl<'a> TokenInstruction<'a> {
             &Self::PermissionedBurnExtension => {
                 buf.push(46);
             }
+            Self::Batch { data } => {
+                buf.push(255);
+                buf.extend_from_slice(data);
+            }
         };
         buf
+    }
+
+    pub(crate) fn unpack_with_rest(input: &'a [u8]) -> Result<(Self, &'a [u8]), ProgramError> {
+        use TokenError::InvalidInstruction;
+
+        let (&tag, rest) = input.split_first().ok_or(InvalidInstruction)?;
+        Ok(match tag {
+            0 => {
+                let (&decimals, rest) = rest.split_first().ok_or(InvalidInstruction)?;
+                let (mint_authority, rest) = Self::unpack_pubkey(rest)?;
+                let (freeze_authority, rest) = Self::unpack_pubkey_option(rest)?;
+                (
+                    Self::InitializeMint {
+                        mint_authority,
+                        freeze_authority,
+                        decimals,
+                    },
+                    rest,
+                )
+            }
+            1 => (Self::InitializeAccount, rest),
+            2 => {
+                let (&m, rest) = rest.split_first().ok_or(InvalidInstruction)?;
+                (Self::InitializeMultisig { m }, rest)
+            }
+            3 | 4 | 7 | 8 => {
+                let (amount, rest) = rest
+                    .split_at_checked(U64_BYTES)
+                    .and_then(|(bytes, rest)| {
+                        let amount = u64::from_le_bytes(bytes.try_into().ok()?);
+                        Some((amount, rest))
+                    })
+                    .ok_or(InvalidInstruction)?;
+
+                (
+                    match tag {
+                        #[allow(deprecated)]
+                        3 => Self::Transfer { amount },
+                        4 => Self::Approve { amount },
+                        7 => Self::MintTo { amount },
+                        8 => Self::Burn { amount },
+                        _ => unreachable!(),
+                    },
+                    rest,
+                )
+            }
+            5 => (Self::Revoke, rest),
+            6 => {
+                let (authority_type, rest) = rest
+                    .split_first()
+                    .ok_or_else(|| ProgramError::from(InvalidInstruction))
+                    .and_then(|(&t, rest)| Ok((AuthorityType::from(t)?, rest)))?;
+                let (new_authority, rest) = Self::unpack_pubkey_option(rest)?;
+
+                (
+                    Self::SetAuthority {
+                        authority_type,
+                        new_authority,
+                    },
+                    rest,
+                )
+            }
+            9 => (Self::CloseAccount, rest),
+            10 => (Self::FreezeAccount, rest),
+            11 => (Self::ThawAccount, rest),
+            12 => {
+                let (amount, decimals, rest) = Self::unpack_amount_decimals(rest)?;
+                (Self::TransferChecked { amount, decimals }, rest)
+            }
+            13 => {
+                let (amount, decimals, rest) = Self::unpack_amount_decimals(rest)?;
+                (Self::ApproveChecked { amount, decimals }, rest)
+            }
+            14 => {
+                let (amount, decimals, rest) = Self::unpack_amount_decimals(rest)?;
+                (Self::MintToChecked { amount, decimals }, rest)
+            }
+            15 => {
+                let (amount, decimals, rest) = Self::unpack_amount_decimals(rest)?;
+                (Self::BurnChecked { amount, decimals }, rest)
+            }
+            16 => {
+                let (owner, rest) = Self::unpack_pubkey(rest)?;
+                (Self::InitializeAccount2 { owner }, rest)
+            }
+            17 => (Self::SyncNative, rest),
+            18 => {
+                let (owner, rest) = Self::unpack_pubkey(rest)?;
+                (Self::InitializeAccount3 { owner }, rest)
+            }
+            19 => {
+                let (&m, rest) = rest.split_first().ok_or(InvalidInstruction)?;
+                (Self::InitializeMultisig2 { m }, rest)
+            }
+            20 => {
+                let (&decimals, rest) = rest.split_first().ok_or(InvalidInstruction)?;
+                let (mint_authority, rest) = Self::unpack_pubkey(rest)?;
+                let (freeze_authority, rest) = Self::unpack_pubkey_option(rest)?;
+                (
+                    Self::InitializeMint2 {
+                        mint_authority,
+                        freeze_authority,
+                        decimals,
+                    },
+                    rest,
+                )
+            }
+            21 => {
+                let mut extension_types = vec![];
+                for chunk in rest.chunks(size_of::<ExtensionType>()) {
+                    extension_types.push(chunk.try_into()?);
+                }
+                (Self::GetAccountDataSize { extension_types }, &[])
+            }
+            22 => (Self::InitializeImmutableOwner, rest),
+            23 => {
+                let (amount, rest) = Self::unpack_u64(rest)?;
+                (Self::AmountToUiAmount { amount }, rest)
+            }
+            24 => {
+                let ui_amount = std::str::from_utf8(rest).map_err(|_| InvalidInstruction)?;
+                (Self::UiAmountToAmount { ui_amount }, &[])
+            }
+            25 => {
+                let (close_authority, rest) = Self::unpack_pubkey_option(rest)?;
+                (Self::InitializeMintCloseAuthority { close_authority }, rest)
+            }
+            26 => (Self::TransferFeeExtension, rest),
+            27 => (Self::ConfidentialTransferExtension, rest),
+            28 => (Self::DefaultAccountStateExtension, rest),
+            29 => {
+                let mut extension_types = vec![];
+                for chunk in rest.chunks(size_of::<ExtensionType>()) {
+                    extension_types.push(chunk.try_into()?);
+                }
+                (Self::Reallocate { extension_types }, &[])
+            }
+            30 => (Self::MemoTransferExtension, rest),
+            31 => (Self::CreateNativeMint, rest),
+            32 => (Self::InitializeNonTransferableMint, rest),
+            33 => (Self::InterestBearingMintExtension, rest),
+            34 => (Self::CpiGuardExtension, rest),
+            35 => {
+                let (delegate, rest) = Self::unpack_pubkey(rest)?;
+                (Self::InitializePermanentDelegate { delegate }, rest)
+            }
+            36 => (Self::TransferHookExtension, rest),
+            37 => (Self::ConfidentialTransferFeeExtension, rest),
+            38 => (Self::WithdrawExcessLamports, rest),
+            39 => (Self::MetadataPointerExtension, rest),
+            40 => (Self::GroupPointerExtension, rest),
+            41 => (Self::GroupMemberPointerExtension, rest),
+            42 => (Self::ConfidentialMintBurnExtension, rest),
+            43 => (Self::ScaledUiAmountExtension, rest),
+            44 => (Self::PausableExtension, rest),
+            45 => {
+                let (amount, rest) = Self::unpack_u64_option(rest)?;
+                (Self::UnwrapLamports { amount }, rest)
+            }
+            46 => (Self::PermissionedBurnExtension, rest),
+            255 => (
+                Self::Batch {
+                    data: rest.to_vec(),
+                },
+                &[],
+            ),
+            _ => return Err(TokenError::InvalidInstruction.into()),
+        })
     }
 
     pub(crate) fn unpack_pubkey(input: &[u8]) -> Result<(Pubkey, &[u8]), ProgramError> {
