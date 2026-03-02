@@ -2128,7 +2128,8 @@ impl Processor {
         }
 
         let owned_by_token_program = program_id == owner_account_info.owner
-            || owner_account_info.owner == &inline_spl_token::id();
+            || owner_account_info.owner == &inline_spl_token::id()
+            || owner_account_info.owner == &spl_token_2022_interface::id();
         if owned_by_token_program && owner_account_data_len == PodMultisig::SIZE_OF {
             let multisig_data = &owner_account_info.data.borrow();
             let multisig = pod_from_bytes::<PodMultisig>(multisig_data)?;
