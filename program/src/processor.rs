@@ -2133,6 +2133,9 @@ impl Processor {
         if owned_by_token_program && owner_account_data_len == PodMultisig::SIZE_OF {
             let multisig_data = &owner_account_info.data.borrow();
             let multisig = pod_from_bytes::<PodMultisig>(multisig_data)?;
+            if !bool::from(multisig.is_initialized) {
+                return Err(ProgramError::UninitializedAccount);
+            }
             let mut num_signers = 0;
             let mut matched = [false; MAX_SIGNERS];
             for signer in signers.iter() {
@@ -6538,6 +6541,8 @@ mod tests {
         let mut owner_account = SolanaAccount::default();
         let multisig_key = Pubkey::new_unique();
         let mut multisig_account = SolanaAccount::new(42, Multisig::get_packed_len(), &program_id);
+        let mut empty_multisig_account =
+            SolanaAccount::new(42, Multisig::get_packed_len(), &program_id);
         let multisig_delegate_key = Pubkey::new_unique();
         let mut multisig_delegate_account = SolanaAccount::new(
             multisig_minimum_balance(),
@@ -6671,6 +6676,30 @@ mod tests {
             ],
         )
         .unwrap();
+
+        // fail with uninitialized multisig
+        let account_info_iter = &mut signer_accounts.iter_mut();
+        assert_eq!(
+            ProgramError::UninitializedAccount,
+            do_process_instruction(
+                approve(
+                    &program_id,
+                    &account_key,
+                    &multisig_delegate_key,
+                    &multisig_key,
+                    &[],
+                    100,
+                )
+                .unwrap(),
+                vec![
+                    &mut account,
+                    &mut multisig_delegate_account,
+                    &mut empty_multisig_account,
+                    account_info_iter.next().unwrap(),
+                ],
+            )
+            .unwrap_err(),
+        );
 
         // approve
         let account_info_iter = &mut signer_accounts.iter_mut();
