@@ -450,15 +450,13 @@ pub(crate) fn process_confidential_burn(
         return Err(TokenError::ConfidentialTransferBalanceMismatch.into());
     }
 
+    if !auditor_elgamal_pubkey.equals(&proof_context.burn_pubkeys.auditor) {
+        return Err(TokenError::ConfidentialTransferElGamalPubkeyMismatch.into());
+    }
+
     confidential_transfer_account.available_balance = new_source_available_balance;
     confidential_transfer_account.decryptable_available_balance =
         data.new_decryptable_available_balance;
-
-    if let Some(auditor_pubkey) = Option::<PodElGamalPubkey>::from(auditor_elgamal_pubkey) {
-        if auditor_pubkey != proof_context.burn_pubkeys.auditor {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-    }
 
     // update supply
     if mint_burn_extension.supply_elgamal_pubkey != proof_context.burn_pubkeys.supply {
