@@ -116,7 +116,7 @@ export function decodeSetAuthorityInstruction(
     programId = TOKEN_PROGRAM_ID,
 ): DecodedSetAuthorityInstruction {
     if (!instruction.programId.equals(programId)) throw new TokenInvalidInstructionProgramError();
-    if (instruction.data.length !== setAuthorityInstructionData.getSpan(instruction.data))
+    if (instruction.data.length < setAuthorityInstructionData.getSpan(instruction.data))
         throw new TokenInvalidInstructionDataError();
 
     const {

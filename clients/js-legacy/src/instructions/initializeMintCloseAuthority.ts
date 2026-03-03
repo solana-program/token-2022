@@ -84,7 +84,7 @@ export function decodeInitializeMintCloseAuthorityInstruction(
     programId: PublicKey,
 ): DecodedInitializeMintCloseAuthorityInstruction {
     if (!instruction.programId.equals(programId)) throw new TokenInvalidInstructionProgramError();
-    if (instruction.data.length !== initializeMintCloseAuthorityInstructionData.getSpan(instruction.data))
+    if (instruction.data.length < initializeMintCloseAuthorityInstructionData.getSpan(instruction.data))
         throw new TokenInvalidInstructionDataError();
 
     const {

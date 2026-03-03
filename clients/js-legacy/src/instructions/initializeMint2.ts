@@ -93,7 +93,7 @@ export function decodeInitializeMint2Instruction(
     programId = TOKEN_PROGRAM_ID,
 ): DecodedInitializeMint2Instruction {
     if (!instruction.programId.equals(programId)) throw new TokenInvalidInstructionProgramError();
-    if (instruction.data.length !== initializeMint2InstructionData.getSpan(instruction.data))
+    if (instruction.data.length < initializeMint2InstructionData.getSpan(instruction.data))
         throw new TokenInvalidInstructionDataError();
 
     const {

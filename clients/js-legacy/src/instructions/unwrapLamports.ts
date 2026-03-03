@@ -92,7 +92,7 @@ export function decodeUnwrapLamportsInstruction(
     programId: PublicKey,
 ): DecodedUnwrapLamportsInstruction {
     if (!instruction.programId.equals(programId)) throw new TokenInvalidInstructionProgramError();
-    if (instruction.data.length !== unwrapLamportsInstructionData.getSpan(instruction.data))
+    if (instruction.data.length < unwrapLamportsInstructionData.getSpan(instruction.data))
         throw new TokenInvalidInstructionDataError();
 
     const {
