@@ -1422,6 +1422,9 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
         let native_account_info = next_account_info(account_info_iter)?;
 
+        let rent = Rent::get()?;
+        let rent_exempt_reserve = rent.minimum_balance(native_account_info.data_len());
+
         check_program_account(native_account_info.owner)?;
         let mut native_account_data = native_account_info.data.borrow_mut();
         let native_account =
@@ -1430,15 +1433,13 @@ impl Processor {
         match native_account.base.is_native {
             PodCOption {
                 option: PodCOption::<PodU64>::SOME,
-                value: amount,
+                ..
             } => {
                 let new_amount = native_account_info
                     .lamports()
-                    .checked_sub(u64::from(amount))
+                    .checked_sub(rent_exempt_reserve)
                     .ok_or(TokenError::Overflow)?;
-                if new_amount < u64::from(native_account.base.amount) {
-                    return Err(TokenError::InvalidState.into());
-                }
+                native_account.base.is_native = PodCOption::some(rent_exempt_reserve.into());
                 native_account.base.amount = new_amount.into();
             }
             _ => return Err(TokenError::NonNativeNotSupported.into()),
@@ -8730,14 +8731,14 @@ mod tests {
         // reduce sol
         native_account.lamports -= 1;
 
-        // fail sync
-        assert_eq!(
-            Err(TokenError::InvalidState.into()),
-            do_process_instruction(
-                sync_native(&program_id, &native_account_key,).unwrap(),
-                vec![&mut native_account],
-            )
-        );
+        // succeed sync with reduced value
+        do_process_instruction(
+            sync_native(&program_id, &native_account_key).unwrap(),
+            vec![&mut native_account],
+        )
+        .unwrap();
+        let account = Account::unpack_unchecked(&native_account.data).unwrap();
+        assert_eq!(account.amount, new_lamports - 1);
     }
 
     #[test]
