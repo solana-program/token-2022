@@ -1422,10 +1422,16 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
         let native_account_info = next_account_info(account_info_iter)?;
 
-        let rent = Rent::get()?;
-        let rent_exempt_reserve = rent.minimum_balance(native_account_info.data_len());
-
         check_program_account(native_account_info.owner)?;
+
+        let rent_exempt_reserve = if let Ok(rent_sysvar_info) = next_account_info(account_info_iter)
+        {
+            let rent = Rent::from_account_info(rent_sysvar_info)?;
+            rent.minimum_balance(native_account_info.data_len())
+        } else {
+            Rent::get()?.minimum_balance(native_account_info.data_len())
+        };
+
         let mut native_account_data = native_account_info.data.borrow_mut();
         let native_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut native_account_data)?;
