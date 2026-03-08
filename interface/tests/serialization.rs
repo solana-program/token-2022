@@ -65,6 +65,38 @@ fn serde_instruction_coption_u64_with_none() {
 }
 
 #[test]
+fn serde_instruction_batch() {
+    let create_account_instr_data = instruction::TokenInstruction::InitializeAccount {}.pack();
+    let mint_to_instr_data = instruction::TokenInstruction::MintTo { amount: 100 }.pack();
+    let transfer_instr_data = instruction::TokenInstruction::TransferChecked {
+        amount: 500,
+        decimals: 9,
+    }
+    .pack();
+
+    let mut batch_data = Vec::new();
+    batch_data.push(4);
+    batch_data.push(create_account_instr_data.len() as u8);
+    batch_data.extend_from_slice(&create_account_instr_data);
+    batch_data.push(3);
+    batch_data.push(mint_to_instr_data.len() as u8);
+    batch_data.extend_from_slice(&mint_to_instr_data);
+    batch_data.push(4);
+    batch_data.push(transfer_instr_data.len() as u8);
+    batch_data.extend_from_slice(&transfer_instr_data);
+
+    let batch_instr = instruction::TokenInstruction::Batch { data: batch_data };
+
+    let serialized = serde_json::to_string(&batch_instr).unwrap();
+    assert_eq!(
+        &serialized,
+        "{\"batch\":{\"data\":[{\"accountCount\":4,\"dataLength\":1,\"tokenInstruction\":\"initializeAccount\"},{\"accountCount\":3,\"dataLength\":9,\"tokenInstruction\":{\"mintTo\":{\"amount\":100}}},{\"accountCount\":4,\"dataLength\":10,\"tokenInstruction\":{\"transferChecked\":{\"amount\":500,\"decimals\":9}}}]}}"
+    );
+
+    serde_json::from_str::<instruction::TokenInstruction>(&serialized).unwrap();
+}
+
+#[test]
 fn serde_instruction_optional_nonzero_pubkeys_podbool() {
     // tests serde of ix containing OptionalNonZeroPubkey, PodBool and
     // OptionalNonZeroElGamalPubkey
