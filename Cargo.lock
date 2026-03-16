@@ -1665,13 +1665,12 @@ dependencies = [
 
 [[package]]
 name = "console"
-version = "0.16.2"
+version = "0.16.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03e45a4a8926227e4197636ba97a9fc9b00477e9f4bd711395687c5f0734bec4"
+checksum = "d64e8af5551369d19cf50138de61f1c42074ab970f74e99be916646777f8fc87"
 dependencies = [
  "encode_unicode",
  "libc",
- "once_cell",
  "unicode-width 0.2.0",
  "windows-sys 0.61.2",
 ]
@@ -3492,7 +3491,7 @@ version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70a646d946d06bedbbc4cac4c218acf4bbf2d87757a784857025f4d447e4e1cd"
 dependencies = [
- "console 0.16.2",
+ "console 0.16.3",
  "portable-atomic",
  "unicode-width 0.2.0",
  "unit-prefix",
@@ -6814,7 +6813,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "clap 2.34.0",
- "console 0.16.2",
+ "console 0.16.3",
  "humantime",
  "indicatif 0.18.0",
  "pretty-hex",
@@ -8555,7 +8554,7 @@ version = "3.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a0274c954121d3e36adca285dd2af7a355b35a4d01d72de8d05f56462be8c169"
 dependencies = [
- "console 0.16.2",
+ "console 0.16.3",
  "dialoguer",
  "hidapi",
  "log",
@@ -10597,7 +10596,7 @@ dependencies = [
  "assert_cmd",
  "base64 0.22.1",
  "clap 3.2.25",
- "console 0.16.2",
+ "console 0.16.3",
  "futures 0.3.32",
  "libtest-mimic",
  "serde",
