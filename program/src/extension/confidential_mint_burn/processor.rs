@@ -669,10 +669,9 @@ mod tests {
 
     /// Calling `process_confidential_mint` on a non-transferable mint when the
     /// destination account lacks `ImmutableOwner` must be rejected with
-    /// `NonTransferableNeedsImmutableOwnership`.  The exploit path would be:
-    ///   mint (NonTransferable) → account without ImmutableOwner
-    ///   → confidential mint succeeds → SetAuthority to new owner
-    ///   → non-transferable tokens now controlled by attacker.
+    /// `NonTransferableNeedsImmutableOwnership`.  Without this guard an
+    /// attacker could confidential-mint into a mutable-owner account and then
+    /// call `SetAuthority` to take control of the non-transferable tokens.
     #[test]
     fn test_confidential_mint_non_transferable_requires_immutable_owner() {
         let program_id = crate::id();
