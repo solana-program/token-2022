@@ -37,6 +37,8 @@ use {
             },
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
             cpi_guard::CpiGuard,
+            immutable_owner::ImmutableOwner,
+            non_transferable::{NonTransferable, NonTransferableAccount},
             pausable::PausableConfig,
             BaseStateWithExtensions, BaseStateWithExtensionsMut, PodStateWithExtensionsMut,
         },
@@ -178,6 +180,19 @@ fn process_confidential_mint(
             return Err(TokenError::MintPaused.into());
         }
     }
+    check_program_account(token_account_info.owner)?;
+    let token_account_data = &mut token_account_info.data.borrow_mut();
+    let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
+    // If the mint is non-transferable, the destination account must have
+    // immutable ownership, consistent with `process_mint_to`.
+    if mint.get_extension::<NonTransferable>().is_ok()
+        && (token_account.get_extension::<ImmutableOwner>().is_err()
+            || token_account
+                .get_extension::<NonTransferableAccount>()
+                .is_err())
+    {
+        return Err(TokenError::NonTransferableNeedsImmutableOwnership.into());
+    }
     let mint_burn_extension = mint.get_extension_mut::<ConfidentialMintBurn>()?;
 
     let proof_context = verify_mint_proof(
@@ -186,10 +201,6 @@ fn process_confidential_mint(
         data.ciphertext_validity_proof_instruction_offset,
         data.range_proof_instruction_offset,
     )?;
-
-    check_program_account(token_account_info.owner)?;
-    let token_account_data = &mut token_account_info.data.borrow_mut();
-    let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
 
     let authority_info = next_account_info(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
@@ -577,5 +588,197 @@ pub(crate) fn process_instruction(
             #[cfg(not(feature = "zk-ops"))]
             Err(ProgramError::InvalidInstructionData)
         }
+    }
+}
+#[cfg(all(test, feature = "zk-ops"))]
+mod tests {
+    use {
+        super::*,
+        solana_pubkey::Pubkey,
+        spl_token_2022_interface::{
+            extension::{
+                non_transferable::NonTransferableAccount, BaseStateWithExtensionsMut,
+                ExtensionType, PodStateWithExtensionsMut,
+            },
+            pod::{PodAccount, PodCOption, PodMint},
+            state::AccountState,
+        },
+    };
+
+    /// Build a minimal, initialized `PodMint` account buffer that has
+    /// `ConfidentialTransferMint` and `NonTransferable` extensions.
+    /// `ConfidentialMintBurn` is intentionally absent so the negative test
+    /// returns our guard error before reaching the extension-not-found error.
+    fn make_non_transferable_mint(owner_key: &Pubkey) -> (Pubkey, Vec<u8>) {
+        let mint_key = Pubkey::new_unique();
+        let mint_size = ExtensionType::try_calculate_account_len::<PodMint>(&[
+            ExtensionType::NonTransferable,
+            ExtensionType::ConfidentialTransferMint,
+            ExtensionType::ConfidentialMintBurn,
+        ])
+        .unwrap();
+        let mut data = vec![0u8; mint_size];
+        {
+            let mut state =
+                PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut data).unwrap();
+            state.init_extension::<NonTransferable>(true).unwrap();
+            // ConfidentialTransferMint must exist for `process_confidential_mint`
+            // to proceed past the auditor-pubkey read.
+            state
+                .init_extension::<ConfidentialTransferMint>(true)
+                .unwrap();
+            state.init_extension::<ConfidentialMintBurn>(true).unwrap();
+            state.base.decimals = 2;
+            state.base.mint_authority = PodCOption::some(*owner_key);
+            state.base.is_initialized = true.into();
+            state.init_account_type().unwrap();
+        }
+        (mint_key, data)
+    }
+
+    /// Build a `PodAccount` buffer with optional `ImmutableOwner` extension.
+    fn make_token_account(
+        mint_key: &Pubkey,
+        owner_key: &Pubkey,
+        with_immutable_owner: bool,
+    ) -> (Pubkey, Vec<u8>) {
+        let token_account_key = Pubkey::new_unique();
+        let mut extension_types = vec![ExtensionType::NonTransferableAccount];
+        if with_immutable_owner {
+            extension_types.push(ExtensionType::ImmutableOwner);
+        }
+        let account_size =
+            ExtensionType::try_calculate_account_len::<PodAccount>(&extension_types).unwrap();
+        let mut data = vec![0u8; account_size];
+        {
+            let mut state =
+                PodStateWithExtensionsMut::<PodAccount>::unpack_uninitialized(&mut data).unwrap();
+            state
+                .init_extension::<NonTransferableAccount>(true)
+                .unwrap();
+            if with_immutable_owner {
+                state.init_extension::<ImmutableOwner>(true).unwrap();
+            }
+            state.base.mint = *mint_key;
+            state.base.owner = *owner_key;
+            state.base.state = AccountState::Initialized as u8;
+            state.init_account_type().unwrap();
+        }
+        (token_account_key, data)
+    }
+
+    /// Calling `process_confidential_mint` on a non-transferable mint when the
+    /// destination account lacks `ImmutableOwner` must be rejected with
+    /// `NonTransferableNeedsImmutableOwnership`.  Without this guard an
+    /// attacker could confidential-mint into a mutable-owner account and then
+    /// call `SetAuthority` to take control of the non-transferable tokens.
+    #[test]
+    fn test_confidential_mint_non_transferable_requires_immutable_owner() {
+        let program_id = crate::id();
+        let owner_key = Pubkey::new_unique();
+
+        let (mint_key, mut mint_data) = make_non_transferable_mint(&owner_key);
+        let (token_account_key, mut token_account_data) =
+            make_token_account(&mint_key, &owner_key, false /* no ImmutableOwner */);
+
+        let mut mint_lamports = 0u64;
+        let mut token_lamports = 0u64;
+
+        let mint_info = AccountInfo::new(
+            &mint_key,
+            false,
+            true,
+            &mut mint_lamports,
+            &mut mint_data,
+            &program_id,
+            false,
+        );
+        let token_account_info = AccountInfo::new(
+            &token_account_key,
+            false,
+            true,
+            &mut token_lamports,
+            &mut token_account_data,
+            &program_id,
+            false,
+        );
+
+        // Encode a minimal ConfidentialMint instruction data (all-zero proof
+        // fields; the guard fires before proof verification so the values do
+        // not matter for this test).
+        let data = MintInstructionData {
+            new_decryptable_supply: PodAeCiphertext::default(),
+            mint_amount_auditor_ciphertext_lo: PodElGamalCiphertext::default(),
+            mint_amount_auditor_ciphertext_hi: PodElGamalCiphertext::default(),
+            equality_proof_instruction_offset: 0,
+            ciphertext_validity_proof_instruction_offset: 0,
+            range_proof_instruction_offset: 0,
+        };
+
+        // Only the token-account and mint accounts are needed; the guard
+        // returns before the authority or proof accounts are accessed.
+        let accounts = [token_account_info, mint_info];
+
+        assert_eq!(
+            process_confidential_mint(&program_id, &accounts, &data),
+            Err(TokenError::NonTransferableNeedsImmutableOwnership.into()),
+        );
+    }
+
+    /// When the destination account *does* carry `ImmutableOwner`, the guard
+    /// must not block the instruction.  The instruction will still fail
+    /// further along (proof verification), but the
+    /// `NonTransferableNeedsImmutableOwnership` error must never be returned.
+    #[test]
+    fn test_confidential_mint_non_transferable_with_immutable_owner_passes_guard() {
+        let program_id = crate::id();
+        let owner_key = Pubkey::new_unique();
+
+        let (mint_key, mut mint_data) = make_non_transferable_mint(&owner_key);
+        let (token_account_key, mut token_account_data) =
+            make_token_account(&mint_key, &owner_key, true /* with ImmutableOwner */);
+
+        let mut mint_lamports = 0u64;
+        let mut token_lamports = 0u64;
+
+        let mint_info = AccountInfo::new(
+            &mint_key,
+            false,
+            true,
+            &mut mint_lamports,
+            &mut mint_data,
+            &program_id,
+            false,
+        );
+        let token_account_info = AccountInfo::new(
+            &token_account_key,
+            false,
+            true,
+            &mut token_lamports,
+            &mut token_account_data,
+            &program_id,
+            false,
+        );
+
+        let data = MintInstructionData {
+            new_decryptable_supply: PodAeCiphertext::default(),
+            mint_amount_auditor_ciphertext_lo: PodElGamalCiphertext::default(),
+            mint_amount_auditor_ciphertext_hi: PodElGamalCiphertext::default(),
+            equality_proof_instruction_offset: 0,
+            ciphertext_validity_proof_instruction_offset: 0,
+            range_proof_instruction_offset: 0,
+        };
+
+        let accounts = [token_account_info, mint_info];
+
+        let result = process_confidential_mint(&program_id, &accounts, &data);
+
+        // The guard must not trigger: `NonTransferableNeedsImmutableOwnership`
+        // must not be returned.  The instruction will fail later (missing proof
+        // context accounts), but that is expected and unrelated to this guard.
+        assert_ne!(
+            result,
+            Err(TokenError::NonTransferableNeedsImmutableOwnership.into()),
+        );
     }
 }
