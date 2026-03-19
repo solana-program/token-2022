@@ -1035,9 +1035,12 @@ impl Processor {
         // If the mint if non-transferable, only allow minting to accounts
         // with immutable ownership.
         if mint.get_extension::<NonTransferable>().is_ok()
-            && destination_account
+            && (destination_account
                 .get_extension::<ImmutableOwner>()
                 .is_err()
+                || destination_account
+                    .get_extension::<NonTransferableAccount>()
+                    .is_err())
         {
             return Err(TokenError::NonTransferableNeedsImmutableOwnership.into());
         }

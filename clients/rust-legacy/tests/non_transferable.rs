@@ -1,7 +1,8 @@
 mod program_test;
 use {
-    program_test::{TestContext, TokenContext},
+    program_test::{keypair_clone, TestContext, TokenContext},
     solana_program_test::tokio,
+    solana_pubkey::Pubkey,
     solana_sdk::{
         instruction::InstructionError, signature::Signer, signer::keypair::Keypair,
         transaction::TransactionError, transport::TransportError,
@@ -15,6 +16,81 @@ use {
     },
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
 };
+
+#[tokio::test]
+async fn mint_to() {
+    let amount = 100;
+
+    // Create mint and account, then close
+    let close_authority = Keypair::new();
+    let mut context = TestContext::new().await;
+    let mint_keypair = Keypair::new();
+    context
+        .init_token_with_mint_keypair_and_freeze_authority(
+            keypair_clone(&mint_keypair),
+            vec![ExtensionInitializationParams::MintCloseAuthority {
+                close_authority: Some(close_authority.pubkey()),
+            }],
+            None,
+        )
+        .await
+        .unwrap();
+    let TokenContext { token, alice, .. } = context.token_context.as_ref().unwrap();
+    token
+        .create_auxiliary_token_account(&alice, &alice.pubkey())
+        .await
+        .unwrap();
+    let alice_account = alice.pubkey();
+
+    let destination = Pubkey::new_unique();
+    token
+        .close_account(
+            token.get_address(),
+            &destination,
+            &close_authority.pubkey(),
+            &[&close_authority],
+        )
+        .await
+        .unwrap();
+
+    // Re-create as non-transferable
+    context
+        .init_token_with_mint_keypair_and_freeze_authority(
+            mint_keypair,
+            vec![ExtensionInitializationParams::NonTransferable],
+            None,
+        )
+        .await
+        .unwrap();
+
+    let TokenContext {
+        mint_authority,
+        token,
+        ..
+    } = context.token_context.unwrap();
+
+    // create token accounts
+
+    // mint to alice fails
+    let error = token
+        .mint_to(
+            &alice_account,
+            &mint_authority.pubkey(),
+            amount,
+            &[&mint_authority],
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error,
+        TokenClientError::Client(Box::new(TransportError::TransactionError(
+            TransactionError::InstructionError(
+                0,
+                InstructionError::Custom(TokenError::NonTransferableNeedsImmutableOwnership as u32)
+            )
+        )))
+    );
+}
 
 #[tokio::test]
 async fn transfer() {
