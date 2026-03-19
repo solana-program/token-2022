@@ -180,15 +180,12 @@ fn process_confidential_mint(
             return Err(TokenError::MintPaused.into());
         }
     }
-    let is_non_transferable = mint.get_extension::<NonTransferable>().is_ok();
-    let mint_burn_extension = mint.get_extension_mut::<ConfidentialMintBurn>()?;
-
     check_program_account(token_account_info.owner)?;
     let token_account_data = &mut token_account_info.data.borrow_mut();
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
     // If the mint is non-transferable, the destination account must have
     // immutable ownership, consistent with `process_mint_to`.
-    if is_non_transferable
+    if mint.get_extension::<NonTransferable>().is_ok()
         && (token_account.get_extension::<ImmutableOwner>().is_err()
             || token_account
                 .get_extension::<NonTransferableAccount>()
@@ -196,6 +193,7 @@ fn process_confidential_mint(
     {
         return Err(TokenError::NonTransferableNeedsImmutableOwnership.into());
     }
+    let mint_burn_extension = mint.get_extension_mut::<ConfidentialMintBurn>()?;
 
     let proof_context = verify_mint_proof(
         account_info_iter,
