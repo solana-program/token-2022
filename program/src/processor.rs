@@ -1033,12 +1033,19 @@ impl Processor {
         let mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
 
         // If the mint if non-transferable, only allow minting to accounts
-        // with immutable ownership.
+        // with immutable ownership and the non-transferable extension.
         if mint.get_extension::<NonTransferable>().is_ok()
-            && destination_account
+            && (destination_account
                 .get_extension::<ImmutableOwner>()
                 .is_err()
+                || destination_account
+                    .get_extension::<NonTransferableAccount>()
+                    .is_err())
         {
+            // This error name isn't totally correct since we also require the
+            // non-transferable account extension, but that case only happens in
+            // the case of a mint recreated with the extension, which should be
+            // very rare. We leave the error name as it was.
             return Err(TokenError::NonTransferableNeedsImmutableOwnership.into());
         }
 
