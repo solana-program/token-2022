@@ -37,7 +37,11 @@ async fn mint_to() {
         .unwrap();
     let TokenContext { token, alice, .. } = context.token_context.as_ref().unwrap();
     token
-        .create_auxiliary_token_account(&alice, &alice.pubkey())
+        .create_auxiliary_token_account_with_extension_space(
+            &alice,
+            &alice.pubkey(),
+            vec![ExtensionType::ImmutableOwner],
+        )
         .await
         .unwrap();
     let alice_account = alice.pubkey();
@@ -69,8 +73,6 @@ async fn mint_to() {
         ..
     } = context.token_context.unwrap();
 
-    // create token accounts
-
     // mint to alice fails
     let error = token
         .mint_to(
@@ -81,6 +83,11 @@ async fn mint_to() {
         )
         .await
         .unwrap_err();
+
+    // Although the error describes needing immutable ownership, it also needs
+    // the non-transferable account extension. This case only happens with mints
+    // that are re-created with a different extension set, so we keep the same
+    // error variant.
     assert_eq!(
         error,
         TokenClientError::Client(Box::new(TransportError::TransactionError(
