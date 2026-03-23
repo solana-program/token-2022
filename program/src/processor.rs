@@ -486,9 +486,6 @@ impl Processor {
             }
         }
 
-        // Revisit this later to see if it's worth adding a check to reduce
-        // compute costs, ie:
-        // if self_transfer || amount == 0
         check_program_account(source_account_info.owner)?;
         check_program_account(destination_account_info.owner)?;
 
@@ -1072,9 +1069,6 @@ impl Processor {
             _ => return Err(TokenError::FixedSupply.into()),
         }
 
-        // Revisit this later to see if it's worth adding a check to reduce
-        // compute costs, ie:
-        // if amount == 0
         check_program_account(mint_info.owner)?;
         check_program_account(destination_account_info.owner)?;
 
@@ -1248,9 +1242,6 @@ impl Processor {
             }
         }
 
-        // Revisit this later to see if it's worth adding a check to reduce
-        // compute costs, ie:
-        // if amount == 0
         check_program_account(source_account_info.owner)?;
         check_program_account(mint_info.owner)?;
 
@@ -1802,6 +1793,52 @@ impl Processor {
     /// * number of the accounts
     /// * length of the instruction data
     const IX_HEADER_SIZE: usize = 2;
+
+    fn check_batch_account_owner(ix_accounts: &[AccountInfo], index: usize) -> ProgramResult {
+        let account = ix_accounts
+            .get(index)
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        check_program_account(account.owner)
+    }
+
+    fn process_batch_owner_checks(ix_accounts: &[AccountInfo], ix_data: &[u8]) -> ProgramResult {
+        let Ok(instruction_type) = decode_instruction_type(ix_data) else {
+            return Ok(());
+        };
+
+        match instruction_type {
+            PodTokenInstruction::InitializeAccount
+            | PodTokenInstruction::InitializeAccount2
+            | PodTokenInstruction::InitializeAccount3
+            | PodTokenInstruction::FreezeAccount
+            | PodTokenInstruction::ThawAccount => {
+                Self::check_batch_account_owner(ix_accounts, 0)?;
+                Self::check_batch_account_owner(ix_accounts, 1)?;
+            }
+            PodTokenInstruction::InitializeMint
+            | PodTokenInstruction::InitializeMint2
+            | PodTokenInstruction::InitializeMultisig
+            | PodTokenInstruction::InitializeMultisig2
+            | PodTokenInstruction::Approve
+            | PodTokenInstruction::ApproveChecked
+            | PodTokenInstruction::Revoke
+            | PodTokenInstruction::SetAuthority
+            | PodTokenInstruction::CloseAccount
+            | PodTokenInstruction::Reallocate
+            | PodTokenInstruction::InitializeMintCloseAuthority
+            | PodTokenInstruction::InitializeImmutableOwner
+            | PodTokenInstruction::InitializeNonTransferableMint
+            | PodTokenInstruction::InitializePermanentDelegate
+            | PodTokenInstruction::WithdrawExcessLamports
+            | PodTokenInstruction::UnwrapLamports => {
+                Self::check_batch_account_owner(ix_accounts, 0)?;
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+
     /// Processes an [`Batch`](enum.TokenInstruction.html)
     /// instruction
     pub fn process_batch(
@@ -1823,6 +1860,8 @@ impl Processor {
             let ix_data = data
                 .get(Self::IX_HEADER_SIZE..data_offset)
                 .ok_or(TokenError::InvalidInstruction)?;
+
+            Self::process_batch_owner_checks(ix_accounts, ix_data)?;
 
             Self::_process_inner(program_id, ix_accounts, ix_data)?;
 
@@ -2283,7 +2322,6 @@ mod tests {
                 ExtensionType,
             },
             instruction::*,
-            pod::PodMint,
             state::Multisig,
         },
         std::sync::{Arc, RwLock},
@@ -2366,6 +2404,15 @@ mod tests {
         instruction: Instruction,
         account_infos: Vec<AccountInfo>,
     ) -> ProgramResult {
+        {
+            use std::sync::Once;
+            static ONCE: Once = Once::new();
+
+            ONCE.call_once(|| {
+                solana_sysvar::program_stubs::set_syscall_stubs(Box::new(SyscallStubs {}));
+            });
+        }
+
         Processor::process(&instruction.program_id, &account_infos, &instruction.data)
     }
 
@@ -2389,7 +2436,7 @@ mod tests {
         Rent::default().minimum_balance(Multisig::get_packed_len())
     }
 
-    fn batch_instruction(instructions: Vec<&Instruction>) -> Result<Instruction, ProgramError> {
+    fn batch_instruction(instructions: &[&Instruction]) -> Result<Instruction, ProgramError> {
         // Create a `Vec` of ordered `AccountMeta`s
         let mut accounts: Vec<AccountMeta> = vec![];
         // Start with the batch discriminator
@@ -6152,7 +6199,7 @@ mod tests {
         )
         .unwrap();
 
-        let mut batch_instr = batch_instruction(vec![
+        let mut batch_instr = batch_instruction(&[
             &initialize_mint_instruction,
             &initialize_account_instruction,
             &close_account_instruction,
@@ -6191,7 +6238,7 @@ mod tests {
             .borrow_mut()
             .copy_from_slice(&temp_account_data);
 
-        let batch_instr = batch_instruction(vec![
+        let batch_instr = batch_instruction(&[
             &initialize_mint_instruction,
             &initialize_account_instruction,
             &close_account_instruction,
@@ -6220,7 +6267,7 @@ mod tests {
             .borrow_mut()
             .copy_from_slice(&temp_account_data);
 
-        let batch_instruction = batch_instruction(vec![
+        let batch_instruction = batch_instruction(&[
             &initialize_mint_instruction,
             &initialize_account_instruction,
             &close_account_instruction,
@@ -6276,10 +6323,10 @@ mod tests {
         )
         .unwrap();
 
-        let batch_instr = batch_instruction(vec![&set_authority_instruction]).unwrap();
+        let batch_instr = batch_instruction(&[&set_authority_instruction]).unwrap();
 
         let batch_in_batch_instruction =
-            batch_instruction(vec![&batch_instr, &initialize_mint_instruction]).unwrap();
+            batch_instruction(&[&batch_instr, &initialize_mint_instruction]).unwrap();
 
         let temp_mint_account_data = mint_account_info.data.borrow().to_vec();
 
@@ -6465,7 +6512,7 @@ mod tests {
         )
         .unwrap();
 
-        let batch_1_instruction = batch_instruction(vec![&initialize_mint_1_instruction]).unwrap();
+        let batch_1_instruction = batch_instruction(&[&initialize_mint_1_instruction]).unwrap();
 
         do_process_instruction_dups(
             batch_1_instruction,
@@ -6478,7 +6525,7 @@ mod tests {
         let temp_account2_data = account2_info.data.borrow().to_vec();
 
         // fails with incorrect program id(caused by `initialize_account_2_instr`)
-        let batch_2_fail_instruction = batch_instruction(vec![
+        let batch_2_fail_instruction = batch_instruction(&[
             &initialize_mint_2_instruction,
             &initialize_account_1_instruction,
             &initialize_account_2_instruction,
@@ -6526,7 +6573,7 @@ mod tests {
         let mint_account2_info: AccountInfo = (&mint_account2_key, true, &mut mint2_account).into();
 
         // with correct owner
-        let batch_2_success_instruction = batch_instruction(vec![
+        let batch_2_success_instruction = batch_instruction(&[
             &initialize_mint_2_instruction,
             &initialize_account_1_instruction,
             &initialize_account_2_instruction,
@@ -6558,7 +6605,7 @@ mod tests {
         let temp_account2_data = account2_info.data.borrow().to_vec();
 
         // with decimals mismatch
-        let batch_3_fail_instruction = batch_instruction(vec![
+        let batch_3_fail_instruction = batch_instruction(&[
             &mint_to_1_instruction,
             &mint_to_2_instruction,
             &mint_to_2_with_invalid_decimals,
@@ -6603,7 +6650,7 @@ mod tests {
 
         // without the invalid decimals instruction
         let batch_3_success_instruction =
-            batch_instruction(vec![&mint_to_1_instruction, &mint_to_2_instruction]).unwrap();
+            batch_instruction(&[&mint_to_1_instruction, &mint_to_2_instruction]).unwrap();
 
         do_process_instruction_dups(
             batch_3_success_instruction,
@@ -6623,7 +6670,7 @@ mod tests {
         let temp_account2_data = account2_info.data.borrow().to_vec();
         let temp_account4_data = account4_info.data.borrow().to_vec();
 
-        let batch_4_fail_instruction = batch_instruction(vec![
+        let batch_4_fail_instruction = batch_instruction(&[
             &transfer_to_3_instruction,
             &transfer_to_3_with_invalid_amount,
             &transfer_4_instruction,
@@ -6669,7 +6716,7 @@ mod tests {
 
         // with valid amount
         let batch_4_success_instruction =
-            batch_instruction(vec![&transfer_to_3_instruction, &transfer_4_instruction]).unwrap();
+            batch_instruction(&[&transfer_to_3_instruction, &transfer_4_instruction]).unwrap();
 
         do_process_instruction_dups(
             batch_4_success_instruction,

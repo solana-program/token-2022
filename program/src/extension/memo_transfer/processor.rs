@@ -26,6 +26,7 @@ fn process_toggle_required_memo_transfers(
     let token_account_info = next_account_info(account_info_iter)?;
     let owner_info = next_account_info(account_info_iter)?;
     let owner_info_data_len = owner_info.data_len();
+    check_program_account(token_account_info.owner)?;
 
     let mut account_data = token_account_info.data.borrow_mut();
     let mut account = PodStateWithExtensionsMut::<PodAccount>::unpack(&mut account_data)?;

@@ -156,7 +156,7 @@ pub mod batch_fromstr {
         account_count: u8,
         data_length: u8,
         #[serde(borrow)]
-        token_instruction: TokenInstruction<'a>,
+        instruction: TokenInstruction<'a>,
     }
 
     /// Serialize the data for the Batch variant of the `TokenInstruction`
@@ -173,10 +173,21 @@ pub mod batch_fromstr {
                     TokenError::InvalidInstruction,
                 ))?;
 
-            let (token_instruction, rest) = TokenInstruction::unpack_with_rest(rest)
-                .map_err(<S as Serializer>::Error::custom)?;
+            let (instruction_data, rest) = rest.split_at_checked(header[1] as usize).ok_or(
+                <S as Serializer>::Error::custom(TokenError::InvalidInstruction),
+            )?;
 
-            if let TokenInstruction::Batch { .. } = token_instruction {
+            let (instruction, instruction_rest) =
+                TokenInstruction::unpack_with_rest(instruction_data)
+                    .map_err(<S as Serializer>::Error::custom)?;
+
+            if !instruction_rest.is_empty() {
+                return Err(<S as Serializer>::Error::custom(
+                    TokenError::InvalidInstruction,
+                ));
+            }
+
+            if let TokenInstruction::Batch { .. } = instruction {
                 return Err(<S as Serializer>::Error::custom(
                     TokenError::InvalidInstruction,
                 ));
@@ -185,7 +196,7 @@ pub mod batch_fromstr {
             let batch_item = BatchItem {
                 account_count: header[0],
                 data_length: header[1],
-                token_instruction,
+                instruction,
             };
 
             s.serialize_element(&batch_item)?;
@@ -210,7 +221,7 @@ pub mod batch_fromstr {
         let mut out = Vec::new();
 
         for item in items {
-            if let TokenInstruction::Batch { .. } = item.token_instruction {
+            if let TokenInstruction::Batch { .. } = item.instruction {
                 return Err(<D as Deserializer>::Error::custom(
                     TokenError::InvalidInstruction,
                 ));
@@ -219,7 +230,7 @@ pub mod batch_fromstr {
             out.push(item.account_count);
             out.push(item.data_length);
 
-            let mut instr_data = item.token_instruction.pack();
+            let mut instr_data = item.instruction.pack();
 
             out.append(&mut instr_data);
         }

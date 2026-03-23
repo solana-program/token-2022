@@ -32,6 +32,7 @@ fn process_initialize_transfer_fee_config(
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_account_info = next_account_info(account_info_iter)?;
+    check_program_account(mint_account_info.owner)?;
 
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
@@ -67,6 +68,7 @@ fn process_set_transfer_fee(
     let mint_account_info = next_account_info(account_info_iter)?;
     let authority_info = next_account_info(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
+    check_program_account(mint_account_info.owner)?;
 
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
@@ -121,6 +123,7 @@ fn process_withdraw_withheld_tokens_from_mint(
 
     // unnecessary check, but helps for clarity
     check_program_account(mint_account_info.owner)?;
+    check_program_account(destination_account_info.owner)?;
 
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
@@ -179,6 +182,7 @@ fn process_harvest_withheld_tokens_to_mint(accounts: &[AccountInfo]) -> ProgramR
     let account_info_iter = &mut accounts.iter();
     let mint_account_info = next_account_info(account_info_iter)?;
     let token_account_infos = account_info_iter.as_slice();
+    check_program_account(mint_account_info.owner)?;
 
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
@@ -218,6 +222,7 @@ fn process_withdraw_withheld_tokens_from_accounts(
 
     // unnecessary check, but helps for clarity
     check_program_account(mint_account_info.owner)?;
+    check_program_account(destination_account_info.owner)?;
 
     let mint_data = mint_account_info.data.borrow();
     let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;

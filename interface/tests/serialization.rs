@@ -90,7 +90,7 @@ fn serde_instruction_batch() {
     let serialized = serde_json::to_string(&batch_instr).unwrap();
     assert_eq!(
         &serialized,
-        "{\"batch\":{\"data\":[{\"accountCount\":4,\"dataLength\":1,\"tokenInstruction\":\"initializeAccount\"},{\"accountCount\":3,\"dataLength\":9,\"tokenInstruction\":{\"mintTo\":{\"amount\":100}}},{\"accountCount\":4,\"dataLength\":10,\"tokenInstruction\":{\"transferChecked\":{\"amount\":500,\"decimals\":9}}}]}}"
+        "{\"batch\":{\"data\":[{\"accountCount\":4,\"dataLength\":1,\"instruction\":\"initializeAccount\"},{\"accountCount\":3,\"dataLength\":9,\"instruction\":{\"mintTo\":{\"amount\":100}}},{\"accountCount\":4,\"dataLength\":10,\"instruction\":{\"transferChecked\":{\"amount\":500,\"decimals\":9}}}]}}"
     );
 
     serde_json::from_str::<instruction::TokenInstruction>(&serialized).unwrap();
