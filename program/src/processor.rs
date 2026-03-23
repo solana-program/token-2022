@@ -2205,7 +2205,7 @@ impl Processor {
                     let (_, amount) = decode_instruction_data_with_coption_u64::<()>(input)?;
                     Self::process_unwrap_lamports(program_id, accounts, amount)
                 }
-                _ => Err(TokenError::InvalidInstruction.into()),
+                PodTokenInstruction::Batch => Err(TokenError::InvalidInstruction.into()),
             }
         } else if let Ok(instruction) = TokenMetadataInstruction::unpack(input) {
             token_metadata::processor::process_instruction(program_id, accounts, instruction)
