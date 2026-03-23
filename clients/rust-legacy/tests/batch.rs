@@ -1297,7 +1297,7 @@ async fn batch_initialize_account_variants_owner_checks() {
         )))
     );
 
-    set_account_owner(&context, &token.get_address(), invalid_owner).await;
+    set_account_owner(&context, token.get_address(), invalid_owner).await;
 
     assert_eq!(
         process_batch_ix(
@@ -1318,7 +1318,7 @@ async fn batch_initialize_account_variants_owner_checks() {
         )))
     );
 
-    set_account_owner(&context, &token.get_address(), id()).await;
+    set_account_owner(&context, token.get_address(), id()).await;
 
     process_batch_ix(
         &token,
@@ -1353,7 +1353,7 @@ async fn batch_initialize_account_variants_owner_checks() {
         )))
     );
 
-    set_account_owner(&context, &token.get_address(), invalid_owner).await;
+    set_account_owner(&context, token.get_address(), invalid_owner).await;
 
     assert_eq!(
         process_batch_ix(
@@ -1374,7 +1374,7 @@ async fn batch_initialize_account_variants_owner_checks() {
         )))
     );
 
-    set_account_owner(&context, &token.get_address(), id()).await;
+    set_account_owner(&context, token.get_address(), id()).await;
 
     process_batch_ix(
         &token,
@@ -1409,7 +1409,7 @@ async fn batch_initialize_account_variants_owner_checks() {
         )))
     );
 
-    set_account_owner(&context, &token.get_address(), invalid_owner).await;
+    set_account_owner(&context, token.get_address(), invalid_owner).await;
 
     assert_eq!(
         process_batch_ix(
@@ -1430,7 +1430,7 @@ async fn batch_initialize_account_variants_owner_checks() {
         )))
     );
 
-    set_account_owner(&context, &token.get_address(), id()).await;
+    set_account_owner(&context, token.get_address(), id()).await;
 
     process_batch_ix(
         &token,
