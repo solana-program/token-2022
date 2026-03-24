@@ -1117,6 +1117,10 @@ impl Processor {
 
         let source_account_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
+
+        check_program_account(source_account_info.owner)?;
+        check_program_account(mint_info.owner)?;
+
         let (permissioned_burn_authority_info, authority_info) = match burn_variant {
             BurnInstructionVariant::Permissioned => {
                 let permissioned_burn_authority_info = next_account_info(account_info_iter)?;
@@ -1261,9 +1265,6 @@ impl Processor {
                 }
             }
         }
-
-        check_program_account(source_account_info.owner)?;
-        check_program_account(mint_info.owner)?;
 
         source_account.base.amount = u64::from(source_account.base.amount)
             .checked_sub(amount)
@@ -1806,17 +1807,20 @@ impl Processor {
             }
         }
 
-        source_account.base.amount = remaining_amount.into();
-        if source_account_info.key != destination_account_info.key {
-            let source_starting_lamports = source_account_info.lamports();
-            **source_account_info.lamports.borrow_mut() = source_starting_lamports
-                .checked_sub(amount)
-                .ok_or(TokenError::Overflow)?;
+        if amount != 0 {
+            source_account.base.amount = remaining_amount.into();
 
-            let destination_starting_lamports = destination_account_info.lamports();
-            **destination_account_info.lamports.borrow_mut() = destination_starting_lamports
-                .checked_add(amount)
-                .ok_or(TokenError::Overflow)?;
+            if source_account_info.key != destination_account_info.key {
+                let source_starting_lamports = source_account_info.lamports();
+                **source_account_info.lamports.borrow_mut() = source_starting_lamports
+                    .checked_sub(amount)
+                    .ok_or(TokenError::Overflow)?;
+
+                let destination_starting_lamports = destination_account_info.lamports();
+                **destination_account_info.lamports.borrow_mut() = destination_starting_lamports
+                    .checked_add(amount)
+                    .ok_or(TokenError::Overflow)?;
+            }
         }
 
         Ok(())
