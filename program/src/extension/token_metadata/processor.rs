@@ -188,13 +188,10 @@ pub fn process_update_authority(
 }
 
 /// Processes an [`Emit`](enum.TokenMetadataInstruction.html) instruction.
-pub fn process_emit(program_id: &Pubkey, accounts: &[AccountInfo], data: Emit) -> ProgramResult {
+pub fn process_emit(_program_id: &Pubkey, accounts: &[AccountInfo], data: Emit) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let metadata_info = next_account_info(account_info_iter)?;
-
-    if metadata_info.owner != program_id {
-        return Err(ProgramError::IllegalOwner);
-    }
+    check_program_account(metadata_info.owner)?;
 
     let buffer = metadata_info.try_borrow_data()?;
     let state = PodStateWithExtensions::<PodMint>::unpack(&buffer)?;

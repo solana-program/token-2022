@@ -107,6 +107,9 @@ impl Processor {
         let mint_info = next_account_info(account_info_iter)?;
         let mint_data_len = mint_info.data_len();
         let mut mint_data = mint_info.data.borrow_mut();
+
+        check_program_account(mint_info.owner)?;
+
         let rent = if rent_sysvar_account {
             Rent::from_account_info(next_account_info(account_info_iter)?)?
         } else {
@@ -170,6 +173,10 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
         let new_account_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
+
+        check_program_account(new_account_info.owner)?;
+        check_program_account(mint_info.owner)?;
+
         let owner = if let Some(owner) = owner {
             owner
         } else {
@@ -270,6 +277,9 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let multisig_info = next_account_info(account_info_iter)?;
+
+        check_program_account(multisig_info.owner)?;
+
         let multisig_info_data_len = multisig_info.data_len();
         let rent = if rent_sysvar_account {
             Rent::from_account_info(next_account_info(account_info_iter)?)?
@@ -339,6 +349,9 @@ impl Processor {
         let authority_info = next_account_info(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
+        check_program_account(source_account_info.owner)?;
+        check_program_account(destination_account_info.owner)?;
+
         let mut source_account_data = source_account_info.data.borrow_mut();
         let mut source_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
@@ -358,6 +371,8 @@ impl Processor {
 
         let (calculated_fee, maybe_permanent_delegate, maybe_transfer_hook_program_id) =
             if let Some((mint_info, expected_decimals)) = expected_mint_info {
+                check_program_account(mint_info.owner)?;
+
                 if &source_account.base.mint != mint_info.key {
                     return Err(TokenError::MintMismatch.into());
                 }
@@ -486,9 +501,6 @@ impl Processor {
             }
         }
 
-        check_program_account(source_account_info.owner)?;
-        check_program_account(destination_account_info.owner)?;
-
         // This check MUST occur just before the amounts are manipulated
         // to ensure self-transfers are fully validated
         if self_transfer {
@@ -598,6 +610,8 @@ impl Processor {
 
         let source_account_info = next_account_info(account_info_iter)?;
 
+        check_program_account(source_account_info.owner)?;
+
         let expected_mint_info =
             if let InstructionVariant::Checked { decimals } = instruction_variant {
                 Some((next_account_info(account_info_iter)?, decimals))
@@ -617,6 +631,8 @@ impl Processor {
         }
 
         if let Some((mint_info, expected_decimals)) = expected_mint_info {
+            check_program_account(mint_info.owner)?;
+
             if &source_account.base.mint != mint_info.key {
                 return Err(TokenError::MintMismatch.into());
             }
@@ -654,6 +670,8 @@ impl Processor {
         let source_account_info = next_account_info(account_info_iter)?;
         let authority_info = next_account_info(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
+
+        check_program_account(source_account_info.owner)?;
 
         let mut source_account_data = source_account_info.data.borrow_mut();
         let source_account =
@@ -693,6 +711,8 @@ impl Processor {
         let account_info = next_account_info(account_info_iter)?;
         let authority_info = next_account_info(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
+
+        check_program_account(account_info.owner)?;
 
         let mut account_data = account_info.data.borrow_mut();
         if let Ok(mut account) = PodStateWithExtensionsMut::<PodAccount>::unpack(&mut account_data)
@@ -1012,6 +1032,9 @@ impl Processor {
         let owner_info = next_account_info(account_info_iter)?;
         let owner_info_data_len = owner_info.data_len();
 
+        check_program_account(mint_info.owner)?;
+        check_program_account(destination_account_info.owner)?;
+
         let mut destination_account_data = destination_account_info.data.borrow_mut();
         let destination_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut destination_account_data)?;
@@ -1068,9 +1091,6 @@ impl Processor {
             )?,
             _ => return Err(TokenError::FixedSupply.into()),
         }
-
-        check_program_account(mint_info.owner)?;
-        check_program_account(destination_account_info.owner)?;
 
         destination_account.base.amount = u64::from(destination_account.base.amount)
             .checked_add(amount)
@@ -1265,6 +1285,8 @@ impl Processor {
         let authority_info = next_account_info(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
+        check_program_account(source_account_info.owner)?;
+
         if source_account_info.key == destination_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -1369,6 +1391,9 @@ impl Processor {
         let authority_info = next_account_info(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
+        check_program_account(source_account_info.owner)?;
+        check_program_account(mint_info.owner)?;
+
         let mut source_account_data = source_account_info.data.borrow_mut();
         let source_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
@@ -1455,6 +1480,8 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
         let mint_account_info = next_account_info(account_info_iter)?;
 
+        check_program_account(mint_account_info.owner)?;
+
         let mut mint_data = mint_account_info.data.borrow_mut();
         let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
         let extension = mint.init_extension::<MintCloseAuthority>(true)?;
@@ -1479,6 +1506,8 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
         let mint_account_info = next_account_info(account_info_iter)?;
 
+        check_program_account(mint_account_info.owner)?;
+
         let mut account_extensions = Self::get_required_account_extensions(mint_account_info)?;
         // ExtensionType::try_calculate_account_len() dedupes types, so just a dumb
         // concatenation is fine here
@@ -1495,6 +1524,9 @@ impl Processor {
     pub fn process_initialize_immutable_owner(accounts: &[AccountInfo]) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let token_account_info = next_account_info(account_info_iter)?;
+
+        check_program_account(token_account_info.owner)?;
+
         let token_account_data = &mut token_account_info.data.borrow_mut();
         let mut token_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack_uninitialized(token_account_data)?;
@@ -1606,6 +1638,7 @@ impl Processor {
     pub fn process_initialize_non_transferable_mint(accounts: &[AccountInfo]) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let mint_account_info = next_account_info(account_info_iter)?;
+        check_program_account(mint_account_info.owner)?;
 
         let mut mint_data = mint_account_info.data.borrow_mut();
         let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
@@ -1622,6 +1655,7 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let mint_account_info = next_account_info(account_info_iter)?;
+        check_program_account(mint_account_info.owner)?;
 
         let mut mint_data = mint_account_info.data.borrow_mut();
         let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
@@ -1643,6 +1677,8 @@ impl Processor {
         let source_info = next_account_info(account_info_iter)?;
         let destination_info = next_account_info(account_info_iter)?;
         let authority_info = next_account_info(account_info_iter)?;
+
+        check_program_account(source_info.owner)?;
 
         let source_data = source_info.data.borrow();
 
@@ -1729,6 +1765,8 @@ impl Processor {
         let authority_info = next_account_info(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
+        check_program_account(source_account_info.owner)?;
+
         let mut source_account_data = source_account_info.data.borrow_mut();
         let source_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
@@ -1768,23 +1806,20 @@ impl Processor {
             }
         }
 
-        if amount == 0 {
-            check_program_account(source_account_info.owner)
-        } else {
-            source_account.base.amount = remaining_amount.into();
-            if source_account_info.key != destination_account_info.key {
-                let source_starting_lamports = source_account_info.lamports();
-                **source_account_info.lamports.borrow_mut() = source_starting_lamports
-                    .checked_sub(amount)
-                    .ok_or(TokenError::Overflow)?;
+        source_account.base.amount = remaining_amount.into();
+        if source_account_info.key != destination_account_info.key {
+            let source_starting_lamports = source_account_info.lamports();
+            **source_account_info.lamports.borrow_mut() = source_starting_lamports
+                .checked_sub(amount)
+                .ok_or(TokenError::Overflow)?;
 
-                let destination_starting_lamports = destination_account_info.lamports();
-                **destination_account_info.lamports.borrow_mut() = destination_starting_lamports
-                    .checked_add(amount)
-                    .ok_or(TokenError::Overflow)?;
-            }
-            Ok(())
+            let destination_starting_lamports = destination_account_info.lamports();
+            **destination_account_info.lamports.borrow_mut() = destination_starting_lamports
+                .checked_add(amount)
+                .ok_or(TokenError::Overflow)?;
         }
+
+        Ok(())
     }
 
     /// The size of the batch instruction header.
@@ -1793,51 +1828,6 @@ impl Processor {
     /// * number of the accounts
     /// * length of the instruction data
     const IX_HEADER_SIZE: usize = 2;
-
-    fn check_batch_account_owner(ix_accounts: &[AccountInfo], index: usize) -> ProgramResult {
-        let account = ix_accounts
-            .get(index)
-            .ok_or(ProgramError::NotEnoughAccountKeys)?;
-        check_program_account(account.owner)
-    }
-
-    fn process_batch_owner_checks(ix_accounts: &[AccountInfo], ix_data: &[u8]) -> ProgramResult {
-        let Ok(instruction_type) = decode_instruction_type(ix_data) else {
-            return Ok(());
-        };
-
-        match instruction_type {
-            PodTokenInstruction::InitializeAccount
-            | PodTokenInstruction::InitializeAccount2
-            | PodTokenInstruction::InitializeAccount3
-            | PodTokenInstruction::FreezeAccount
-            | PodTokenInstruction::ThawAccount => {
-                Self::check_batch_account_owner(ix_accounts, 0)?;
-                Self::check_batch_account_owner(ix_accounts, 1)?;
-            }
-            PodTokenInstruction::InitializeMint
-            | PodTokenInstruction::InitializeMint2
-            | PodTokenInstruction::InitializeMultisig
-            | PodTokenInstruction::InitializeMultisig2
-            | PodTokenInstruction::Approve
-            | PodTokenInstruction::ApproveChecked
-            | PodTokenInstruction::Revoke
-            | PodTokenInstruction::SetAuthority
-            | PodTokenInstruction::CloseAccount
-            | PodTokenInstruction::Reallocate
-            | PodTokenInstruction::InitializeMintCloseAuthority
-            | PodTokenInstruction::InitializeImmutableOwner
-            | PodTokenInstruction::InitializeNonTransferableMint
-            | PodTokenInstruction::InitializePermanentDelegate
-            | PodTokenInstruction::WithdrawExcessLamports
-            | PodTokenInstruction::UnwrapLamports => {
-                Self::check_batch_account_owner(ix_accounts, 0)?;
-            }
-            _ => {}
-        }
-
-        Ok(())
-    }
 
     /// Processes an [`Batch`](enum.TokenInstruction.html)
     /// instruction
@@ -1860,8 +1850,6 @@ impl Processor {
             let ix_data = data
                 .get(Self::IX_HEADER_SIZE..data_offset)
                 .ok_or(TokenError::InvalidInstruction)?;
-
-            Self::process_batch_owner_checks(ix_accounts, ix_data)?;
 
             Self::_process_inner(program_id, ix_accounts, ix_data)?;
 
@@ -9591,11 +9579,8 @@ mod tests {
 
         // Invalid mint owner
         let invalid_program_id = Pubkey::new_unique();
-        let mut invalid_mint_account = SolanaAccount::new(
-            mint_minimum_balance(),
-            Mint::get_packed_len(),
-            &invalid_program_id,
-        );
+        let mut invalid_mint_account =
+            SolanaAccount::new(mint_minimum_balance(), Mint::get_packed_len(), &program_id);
         let invalid_mint_key = Pubkey::new_unique();
         let mut instruction =
             initialize_mint(&program_id, &invalid_mint_key, &owner_key, None, 2).unwrap();
@@ -9605,6 +9590,8 @@ mod tests {
             vec![&mut invalid_mint_account, &mut rent_sysvar],
         )
         .unwrap();
+
+        invalid_mint_account.owner = invalid_program_id;
 
         assert_eq!(
             do_process_instruction(
