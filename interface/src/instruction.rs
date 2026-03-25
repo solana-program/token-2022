@@ -742,12 +742,16 @@ pub enum TokenInstruction<'a> {
     ///
     /// This is useful to unwrap lamports from a wrapped SOL account.
     ///
-    /// Accounts expected by this instruction:
-    ///
+    ///   * Single owner/delegate
     ///   0. `[writable]` The source account.
     ///   1. `[writable]` The destination account.
     ///   2. `[signer]` The source account's owner/delegate.
     ///
+    ///   * Multisignature owner/delegate
+    ///   0. `[writable]` The source account.
+    ///   1. `[writable]` The destination account.
+    ///   2. `[]` The source account's multisignature owner/delegate.
+    ///   3. `..+M` `[signer]` M signer accounts.
     UnwrapLamports {
         /// The amount of lamports to transfer. When an amount is
         /// not specified, the entire balance of the source account will be
