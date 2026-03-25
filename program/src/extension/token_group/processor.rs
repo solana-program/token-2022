@@ -62,8 +62,6 @@ pub fn process_initialize_group(
 
     // scope the mint authority check, since the mint is in the same account!
     {
-        // This check isn't really needed since we'll be writing into the account,
-        // but auditors like it
         check_program_account(mint_info.owner)?;
         let mint_data = mint_info.try_borrow_data()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
@@ -104,6 +102,7 @@ pub fn process_update_group_max_size(
 
     let group_info = next_account_info(account_info_iter)?;
     let update_authority_info = next_account_info(account_info_iter)?;
+    check_program_account(group_info.owner)?;
 
     let mut buffer = group_info.try_borrow_mut_data()?;
     let mut state = PodStateWithExtensionsMut::<PodMint>::unpack(&mut buffer)?;
@@ -128,6 +127,7 @@ pub fn process_update_group_authority(
 
     let group_info = next_account_info(account_info_iter)?;
     let update_authority_info = next_account_info(account_info_iter)?;
+    check_program_account(group_info.owner)?;
 
     let mut buffer = group_info.try_borrow_mut_data()?;
     let mut state = PodStateWithExtensionsMut::<PodMint>::unpack(&mut buffer)?;
@@ -150,6 +150,7 @@ pub fn process_initialize_member(_program_id: &Pubkey, accounts: &[AccountInfo])
     let member_mint_authority_info = next_account_info(account_info_iter)?;
     let group_info = next_account_info(account_info_iter)?;
     let group_update_authority_info = next_account_info(account_info_iter)?;
+    check_program_account(group_info.owner)?;
 
     // check that the mint and member accounts are the same, since the member
     // extension should only describe itself
@@ -160,8 +161,6 @@ pub fn process_initialize_member(_program_id: &Pubkey, accounts: &[AccountInfo])
 
     // scope the mint authority check, since the mint is in the same account!
     {
-        // This check isn't really needed since we'll be writing into the account,
-        // but auditors like it
         check_program_account(member_mint_info.owner)?;
         let member_mint_data = member_mint_info.try_borrow_data()?;
         let member_mint = PodStateWithExtensions::<PodMint>::unpack(&member_mint_data)?;

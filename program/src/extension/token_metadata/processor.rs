@@ -62,8 +62,6 @@ pub fn process_initialize(
 
     // scope the mint authority check, since the mint is in the same account!
     {
-        // This check isn't really needed since we'll be writing into the account,
-        // but auditors like it
         check_program_account(mint_info.owner)?;
         let mint_data = mint_info.try_borrow_data()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
@@ -113,6 +111,7 @@ pub fn process_update_field(
     let account_info_iter = &mut accounts.iter();
     let metadata_info = next_account_info(account_info_iter)?;
     let update_authority_info = next_account_info(account_info_iter)?;
+    check_program_account(metadata_info.owner)?;
 
     // deserialize the metadata, but scope the data borrow since we'll probably
     // realloc the account
@@ -142,6 +141,7 @@ pub fn process_remove_key(
     let account_info_iter = &mut accounts.iter();
     let metadata_info = next_account_info(account_info_iter)?;
     let update_authority_info = next_account_info(account_info_iter)?;
+    check_program_account(metadata_info.owner)?;
 
     // deserialize the metadata, but scope the data borrow since we'll probably
     // realloc the account
@@ -169,6 +169,7 @@ pub fn process_update_authority(
     let account_info_iter = &mut accounts.iter();
     let metadata_info = next_account_info(account_info_iter)?;
     let update_authority_info = next_account_info(account_info_iter)?;
+    check_program_account(metadata_info.owner)?;
 
     // deserialize the metadata, but scope the data borrow since we'll write
     // to the account later
@@ -187,13 +188,10 @@ pub fn process_update_authority(
 }
 
 /// Processes an [`Emit`](enum.TokenMetadataInstruction.html) instruction.
-pub fn process_emit(program_id: &Pubkey, accounts: &[AccountInfo], data: Emit) -> ProgramResult {
+pub fn process_emit(_program_id: &Pubkey, accounts: &[AccountInfo], data: Emit) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let metadata_info = next_account_info(account_info_iter)?;
-
-    if metadata_info.owner != program_id {
-        return Err(ProgramError::IllegalOwner);
-    }
+    check_program_account(metadata_info.owner)?;
 
     let buffer = metadata_info.try_borrow_data()?;
     let state = PodStateWithExtensions::<PodMint>::unpack(&buffer)?;

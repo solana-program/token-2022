@@ -107,6 +107,9 @@ impl Processor {
         let mint_info = next_account_info(account_info_iter)?;
         let mint_data_len = mint_info.data_len();
         let mut mint_data = mint_info.data.borrow_mut();
+
+        check_program_account(mint_info.owner)?;
+
         let rent = if rent_sysvar_account {
             Rent::from_account_info(next_account_info(account_info_iter)?)?
         } else {
@@ -170,6 +173,10 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
         let new_account_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
+
+        check_program_account(new_account_info.owner)?;
+        check_program_account(mint_info.owner)?;
+
         let owner = if let Some(owner) = owner {
             owner
         } else {
@@ -270,6 +277,9 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let multisig_info = next_account_info(account_info_iter)?;
+
+        check_program_account(multisig_info.owner)?;
+
         let multisig_info_data_len = multisig_info.data_len();
         let rent = if rent_sysvar_account {
             Rent::from_account_info(next_account_info(account_info_iter)?)?
@@ -339,6 +349,9 @@ impl Processor {
         let authority_info = next_account_info(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
+        check_program_account(source_account_info.owner)?;
+        check_program_account(destination_account_info.owner)?;
+
         let mut source_account_data = source_account_info.data.borrow_mut();
         let mut source_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
@@ -358,6 +371,8 @@ impl Processor {
 
         let (calculated_fee, maybe_permanent_delegate, maybe_transfer_hook_program_id) =
             if let Some((mint_info, expected_decimals)) = expected_mint_info {
+                check_program_account(mint_info.owner)?;
+
                 if &source_account.base.mint != mint_info.key {
                     return Err(TokenError::MintMismatch.into());
                 }
@@ -486,12 +501,6 @@ impl Processor {
             }
         }
 
-        // Revisit this later to see if it's worth adding a check to reduce
-        // compute costs, ie:
-        // if self_transfer || amount == 0
-        check_program_account(source_account_info.owner)?;
-        check_program_account(destination_account_info.owner)?;
-
         // This check MUST occur just before the amounts are manipulated
         // to ensure self-transfers are fully validated
         if self_transfer {
@@ -601,6 +610,8 @@ impl Processor {
 
         let source_account_info = next_account_info(account_info_iter)?;
 
+        check_program_account(source_account_info.owner)?;
+
         let expected_mint_info =
             if let InstructionVariant::Checked { decimals } = instruction_variant {
                 Some((next_account_info(account_info_iter)?, decimals))
@@ -620,6 +631,8 @@ impl Processor {
         }
 
         if let Some((mint_info, expected_decimals)) = expected_mint_info {
+            check_program_account(mint_info.owner)?;
+
             if &source_account.base.mint != mint_info.key {
                 return Err(TokenError::MintMismatch.into());
             }
@@ -657,6 +670,8 @@ impl Processor {
         let source_account_info = next_account_info(account_info_iter)?;
         let authority_info = next_account_info(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
+
+        check_program_account(source_account_info.owner)?;
 
         let mut source_account_data = source_account_info.data.borrow_mut();
         let source_account =
@@ -696,6 +711,8 @@ impl Processor {
         let account_info = next_account_info(account_info_iter)?;
         let authority_info = next_account_info(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
+
+        check_program_account(account_info.owner)?;
 
         let mut account_data = account_info.data.borrow_mut();
         if let Ok(mut account) = PodStateWithExtensionsMut::<PodAccount>::unpack(&mut account_data)
@@ -1015,6 +1032,9 @@ impl Processor {
         let owner_info = next_account_info(account_info_iter)?;
         let owner_info_data_len = owner_info.data_len();
 
+        check_program_account(mint_info.owner)?;
+        check_program_account(destination_account_info.owner)?;
+
         let mut destination_account_data = destination_account_info.data.borrow_mut();
         let destination_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut destination_account_data)?;
@@ -1079,12 +1099,6 @@ impl Processor {
             _ => return Err(TokenError::FixedSupply.into()),
         }
 
-        // Revisit this later to see if it's worth adding a check to reduce
-        // compute costs, ie:
-        // if amount == 0
-        check_program_account(mint_info.owner)?;
-        check_program_account(destination_account_info.owner)?;
-
         destination_account.base.amount = u64::from(destination_account.base.amount)
             .checked_add(amount)
             .ok_or(TokenError::Overflow)?
@@ -1110,6 +1124,10 @@ impl Processor {
 
         let source_account_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
+
+        check_program_account(source_account_info.owner)?;
+        check_program_account(mint_info.owner)?;
+
         let (permissioned_burn_authority_info, authority_info) = match burn_variant {
             BurnInstructionVariant::Permissioned => {
                 let permissioned_burn_authority_info = next_account_info(account_info_iter)?;
@@ -1255,12 +1273,6 @@ impl Processor {
             }
         }
 
-        // Revisit this later to see if it's worth adding a check to reduce
-        // compute costs, ie:
-        // if amount == 0
-        check_program_account(source_account_info.owner)?;
-        check_program_account(mint_info.owner)?;
-
         source_account.base.amount = u64::from(source_account.base.amount)
             .checked_sub(amount)
             .ok_or(TokenError::Overflow)?
@@ -1280,6 +1292,8 @@ impl Processor {
         let destination_account_info = next_account_info(account_info_iter)?;
         let authority_info = next_account_info(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
+
+        check_program_account(source_account_info.owner)?;
 
         if source_account_info.key == destination_account_info.key {
             return Err(ProgramError::InvalidAccountData);
@@ -1385,6 +1399,9 @@ impl Processor {
         let authority_info = next_account_info(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
+        check_program_account(source_account_info.owner)?;
+        check_program_account(mint_info.owner)?;
+
         let mut source_account_data = source_account_info.data.borrow_mut();
         let source_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
@@ -1471,6 +1488,8 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
         let mint_account_info = next_account_info(account_info_iter)?;
 
+        check_program_account(mint_account_info.owner)?;
+
         let mut mint_data = mint_account_info.data.borrow_mut();
         let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
         let extension = mint.init_extension::<MintCloseAuthority>(true)?;
@@ -1495,6 +1514,8 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
         let mint_account_info = next_account_info(account_info_iter)?;
 
+        check_program_account(mint_account_info.owner)?;
+
         let mut account_extensions = Self::get_required_account_extensions(mint_account_info)?;
         // ExtensionType::try_calculate_account_len() dedupes types, so just a dumb
         // concatenation is fine here
@@ -1511,6 +1532,9 @@ impl Processor {
     pub fn process_initialize_immutable_owner(accounts: &[AccountInfo]) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let token_account_info = next_account_info(account_info_iter)?;
+
+        check_program_account(token_account_info.owner)?;
+
         let token_account_data = &mut token_account_info.data.borrow_mut();
         let mut token_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack_uninitialized(token_account_data)?;
@@ -1622,6 +1646,7 @@ impl Processor {
     pub fn process_initialize_non_transferable_mint(accounts: &[AccountInfo]) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let mint_account_info = next_account_info(account_info_iter)?;
+        check_program_account(mint_account_info.owner)?;
 
         let mut mint_data = mint_account_info.data.borrow_mut();
         let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
@@ -1638,6 +1663,7 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let mint_account_info = next_account_info(account_info_iter)?;
+        check_program_account(mint_account_info.owner)?;
 
         let mut mint_data = mint_account_info.data.borrow_mut();
         let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
@@ -1659,6 +1685,8 @@ impl Processor {
         let source_info = next_account_info(account_info_iter)?;
         let destination_info = next_account_info(account_info_iter)?;
         let authority_info = next_account_info(account_info_iter)?;
+
+        check_program_account(source_info.owner)?;
 
         let source_data = source_info.data.borrow();
 
@@ -1745,6 +1773,8 @@ impl Processor {
         let authority_info = next_account_info(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
+        check_program_account(source_account_info.owner)?;
+
         let mut source_account_data = source_account_info.data.borrow_mut();
         let source_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
@@ -1784,10 +1814,9 @@ impl Processor {
             }
         }
 
-        if amount == 0 {
-            check_program_account(source_account_info.owner)
-        } else {
+        if amount != 0 {
             source_account.base.amount = remaining_amount.into();
+
             if source_account_info.key != destination_account_info.key {
                 let source_starting_lamports = source_account_info.lamports();
                 **source_account_info.lamports.borrow_mut() = source_starting_lamports
@@ -1799,12 +1828,68 @@ impl Processor {
                     .checked_add(amount)
                     .ok_or(TokenError::Overflow)?;
             }
-            Ok(())
         }
+
+        Ok(())
+    }
+
+    /// The size of the batch instruction header.
+    ///
+    /// The header of each instruction consists of two `u8` values:
+    /// * number of the accounts
+    /// * length of the instruction data
+    const IX_HEADER_SIZE: usize = 2;
+
+    /// Processes an [`Batch`](enum.TokenInstruction.html)
+    /// instruction
+    pub fn process_batch(
+        program_id: &Pubkey,
+        mut accounts: &[AccountInfo],
+        mut data: &[u8],
+    ) -> ProgramResult {
+        loop {
+            let header = data
+                .get(..Self::IX_HEADER_SIZE)
+                .ok_or(TokenError::InvalidInstruction)?;
+
+            let expected_accounts = header[0] as usize;
+            let data_offset = Self::IX_HEADER_SIZE + header[1] as usize;
+
+            let ix_accounts = accounts
+                .get(..expected_accounts)
+                .ok_or(ProgramError::NotEnoughAccountKeys)?;
+            let ix_data = data
+                .get(Self::IX_HEADER_SIZE..data_offset)
+                .ok_or(TokenError::InvalidInstruction)?;
+
+            Self::_process_inner(program_id, ix_accounts, ix_data)?;
+
+            if data_offset == data.len() {
+                break;
+            }
+
+            accounts = &accounts[expected_accounts..];
+            data = &data[data_offset..];
+        }
+
+        Ok(())
     }
 
     /// Processes an [`Instruction`](enum.Instruction.html).
     pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
+        if let Ok(PodTokenInstruction::Batch) = decode_instruction_type(input) {
+            msg!("Instruction: Batch");
+            Self::process_batch(program_id, accounts, &input[1..])
+        } else {
+            Self::_process_inner(program_id, accounts, input)
+        }
+    }
+
+    fn _process_inner(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        input: &[u8],
+    ) -> ProgramResult {
         if let Ok(instruction_type) = decode_instruction_type(input) {
             match instruction_type {
                 PodTokenInstruction::InitializeMint => {
@@ -2119,6 +2204,7 @@ impl Processor {
                     let (_, amount) = decode_instruction_data_with_coption_u64::<()>(input)?;
                     Self::process_unwrap_lamports(program_id, accounts, amount)
                 }
+                PodTokenInstruction::Batch => Err(TokenError::InvalidInstruction.into()),
             }
         } else if let Ok(instruction) = TokenMetadataInstruction::unpack(input) {
             token_metadata::processor::process_instruction(program_id, accounts, instruction)
@@ -2226,7 +2312,7 @@ mod tests {
         },
         solana_account_info::IntoAccountInfo,
         solana_clock::Clock,
-        solana_instruction::Instruction,
+        solana_instruction::{AccountMeta, Instruction},
         solana_program_option::COption,
         solana_sdk_ids::sysvar::rent,
         spl_token_2022_interface::{
@@ -2235,7 +2321,6 @@ mod tests {
                 ExtensionType,
             },
             instruction::*,
-            pod::PodMint,
             state::Multisig,
         },
         std::sync::{Arc, RwLock},
@@ -2318,6 +2403,15 @@ mod tests {
         instruction: Instruction,
         account_infos: Vec<AccountInfo>,
     ) -> ProgramResult {
+        {
+            use std::sync::Once;
+            static ONCE: Once = Once::new();
+
+            ONCE.call_once(|| {
+                solana_sysvar::program_stubs::set_syscall_stubs(Box::new(SyscallStubs {}));
+            });
+        }
+
         Processor::process(&instruction.program_id, &account_infos, &instruction.data)
     }
 
@@ -2339,6 +2433,32 @@ mod tests {
 
     fn multisig_minimum_balance() -> u64 {
         Rent::default().minimum_balance(Multisig::get_packed_len())
+    }
+
+    fn batch_instruction(instructions: &[&Instruction]) -> Result<Instruction, ProgramError> {
+        // Create a `Vec` of ordered `AccountMeta`s
+        let mut accounts: Vec<AccountMeta> = vec![];
+        // Start with the batch discriminator
+        let mut data: Vec<u8> = vec![0xff];
+
+        for instruction in instructions {
+            // Error out on non-token IX.
+            if instruction.program_id.ne(&crate::ID) {
+                return Err(ProgramError::IncorrectProgramId);
+            }
+
+            data.push(instruction.accounts.len() as u8);
+            data.push(instruction.data.len() as u8);
+
+            data.extend_from_slice(&instruction.data);
+            accounts.extend_from_slice(&instruction.accounts);
+        }
+
+        Ok(Instruction {
+            program_id: crate::ID,
+            data,
+            accounts,
+        })
     }
 
     fn native_mint() -> SolanaAccount {
@@ -6040,6 +6160,579 @@ mod tests {
     }
 
     #[test]
+    fn test_batch_with_invalid_count() {
+        let program_id = crate::id();
+        let account_key = Pubkey::new_unique();
+        let mut account_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let mint_account_key = Pubkey::new_unique();
+        let mut mint_account =
+            SolanaAccount::new(mint_minimum_balance(), Mint::get_packed_len(), &program_id);
+        let mint_owner = Pubkey::new_unique();
+        let account_owner = Pubkey::new_unique();
+        let mut account_owner_account = SolanaAccount::default();
+        let rent_key = rent::id();
+        let mut rent_sysvar = rent_sysvar();
+        let account_info: AccountInfo = (&account_key, true, &mut account_account).into();
+        let mint_account_info: AccountInfo = (&mint_account_key, true, &mut mint_account).into();
+        let account_owner_info: AccountInfo =
+            (&account_owner, true, &mut account_owner_account).into();
+        let rent_info: AccountInfo = (&rent_key, false, &mut rent_sysvar).into();
+
+        let initialize_mint_instruction =
+            initialize_mint(&program_id, &mint_account_key, &mint_owner, None, 9).unwrap();
+
+        let initialize_account_instruction =
+            initialize_account3(&program_id, &account_key, &mint_account_key, &account_owner)
+                .unwrap();
+
+        let close_account_instruction = close_account(
+            &program_id,
+            &account_key,
+            &account_owner,
+            &account_owner,
+            &[],
+        )
+        .unwrap();
+
+        let mut batch_instr = batch_instruction(&[
+            &initialize_mint_instruction,
+            &initialize_account_instruction,
+            &close_account_instruction,
+        ])
+        .unwrap();
+
+        // clear the close discriminator
+        batch_instr.data.pop();
+
+        let temp_mint_data = mint_account_info.data.borrow().to_vec();
+        let temp_account_data = account_info.data.borrow().to_vec();
+
+        assert_eq!(
+            Err(TokenError::InvalidInstruction.into()),
+            do_process_instruction_dups(
+                batch_instr,
+                vec![
+                    mint_account_info.clone(),
+                    rent_info.clone(),
+                    account_info.clone(),
+                    mint_account_info.clone(),
+                    account_info.clone(),
+                    account_owner_info.clone(),
+                    account_owner_info.clone(),
+                ]
+            )
+        );
+
+        // reset the accounts
+        mint_account_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_mint_data);
+        account_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_account_data);
+
+        let batch_instr = batch_instruction(&[
+            &initialize_mint_instruction,
+            &initialize_account_instruction,
+            &close_account_instruction,
+        ])
+        .unwrap();
+
+        assert_eq!(
+            Err(ProgramError::NotEnoughAccountKeys),
+            do_process_instruction_dups(
+                batch_instr,
+                vec![
+                    mint_account_info.clone(),
+                    rent_info.clone(),
+                    account_info.clone(),
+                ] // leave out the `initialize_account3` accounts and `close_account` accounts
+            )
+        );
+
+        // reset the accounts
+        mint_account_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_mint_data);
+        account_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_account_data);
+
+        let batch_instruction = batch_instruction(&[
+            &initialize_mint_instruction,
+            &initialize_account_instruction,
+            &close_account_instruction,
+        ])
+        .unwrap();
+
+        do_process_instruction_dups(
+            batch_instruction,
+            vec![
+                mint_account_info.clone(),
+                rent_info.clone(),
+                account_info.clone(),
+                mint_account_info.clone(),
+                account_info.clone(),
+                account_owner_info.clone(),
+                account_owner_info.clone(),
+            ],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_batch_in_batch() {
+        let program_id = crate::id();
+        let mint_account_key = Pubkey::new_unique();
+        let mut mint_account =
+            SolanaAccount::new(mint_minimum_balance(), Mint::get_packed_len(), &program_id);
+        let mint_owner = Pubkey::new_unique();
+        let mut mint_owner_account = SolanaAccount::default();
+        let rent_key = rent::id();
+        let mut rent_sysvar = rent_sysvar();
+
+        let mint_account_info: AccountInfo = (&mint_account_key, true, &mut mint_account).into();
+        let mint_owner_info: AccountInfo = (&mint_owner, true, &mut mint_owner_account).into();
+        let rent_info: AccountInfo = (&rent_key, false, &mut rent_sysvar).into();
+
+        let initialize_mint_instruction = initialize_mint(
+            &program_id,
+            &mint_account_key,
+            &mint_owner,
+            Some(&mint_owner),
+            9,
+        )
+        .unwrap();
+
+        let set_authority_instruction = set_authority(
+            &program_id,
+            &mint_account_key,
+            None,
+            AuthorityType::FreezeAccount,
+            &mint_owner,
+            &[],
+        )
+        .unwrap();
+
+        let batch_instr = batch_instruction(&[&set_authority_instruction]).unwrap();
+
+        let batch_in_batch_instruction =
+            batch_instruction(&[&batch_instr, &initialize_mint_instruction]).unwrap();
+
+        let temp_mint_account_data = mint_account_info.data.borrow().to_vec();
+
+        assert_eq!(
+            Err(TokenError::InvalidInstruction.into()),
+            do_process_instruction_dups(
+                batch_in_batch_instruction,
+                vec![
+                    mint_account_info.clone(),
+                    rent_info.clone(),
+                    mint_account_info.clone(),
+                    mint_owner_info.clone(),
+                ]
+            )
+        );
+
+        // reset account
+        mint_account_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_mint_account_data);
+
+        do_process_instruction_dups(
+            initialize_mint_instruction,
+            vec![mint_account_info.clone(), rent_info.clone()],
+        )
+        .unwrap();
+
+        do_process_instruction_dups(
+            batch_instr,
+            vec![mint_account_info.clone(), mint_owner_info.clone()],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn test_batch_initialize_mint_swap() {
+        let program_id = crate::id();
+        let account1_key = Pubkey::new_unique();
+        let mut account1_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let account2_key = Pubkey::new_unique();
+        let mut account2_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let account3_key = Pubkey::new_unique();
+        let mut account3_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let account4_key = Pubkey::new_unique();
+        let mut account4_account = SolanaAccount::new(
+            account_minimum_balance(),
+            Account::get_packed_len(),
+            &program_id,
+        );
+        let mint_account1_key = Pubkey::new_unique();
+        let mut mint1_account =
+            SolanaAccount::new(mint_minimum_balance(), Mint::get_packed_len(), &program_id);
+        let mint_account2_key = Pubkey::new_unique();
+        let mut mint2_account = SolanaAccount::new(
+            mint_minimum_balance(),
+            Mint::get_packed_len(),
+            &Pubkey::new_unique(),
+        );
+        let mint_owner = Pubkey::new_unique();
+        let mut mint_owner_account = SolanaAccount::default();
+        let account_owner = Pubkey::new_unique();
+        let mut account_owner_account = SolanaAccount::default();
+        let rent_key = rent::id();
+        let mut rent_sysvar = rent_sysvar();
+
+        let account1_info: AccountInfo = (&account1_key, true, &mut account1_account).into();
+        let account2_info: AccountInfo = (&account2_key, true, &mut account2_account).into();
+        let account3_info: AccountInfo = (&account3_key, true, &mut account3_account).into();
+        let account4_info: AccountInfo = (&account4_key, true, &mut account4_account).into();
+        let mint_account1_info: AccountInfo = (&mint_account1_key, true, &mut mint1_account).into();
+        let mint_account2_info: AccountInfo = (&mint_account2_key, true, &mut mint2_account).into();
+        let mint_owner_info: AccountInfo = (&mint_owner, true, &mut mint_owner_account).into();
+        let account_owner_info: AccountInfo =
+            (&account_owner, true, &mut account_owner_account).into();
+        let rent_info: AccountInfo = (&rent_key, false, &mut rent_sysvar).into();
+
+        let initialize_mint_1_instruction =
+            initialize_mint(&program_id, &mint_account1_key, &mint_owner, None, 9).unwrap();
+        let initialize_mint_2_instruction =
+            initialize_mint(&program_id, &mint_account2_key, &mint_owner, None, 9).unwrap();
+
+        let initialize_account_1_instruction = initialize_account3(
+            &program_id,
+            &account1_key,
+            &mint_account1_key,
+            &account_owner,
+        )
+        .unwrap();
+        let initialize_account_2_instruction = initialize_account3(
+            &program_id,
+            &account2_key,
+            &mint_account2_key,
+            &account_owner,
+        )
+        .unwrap();
+
+        let initialize_account_3_instruction = initialize_account3(
+            &program_id,
+            &account3_key,
+            &mint_account1_key,
+            &account_owner,
+        )
+        .unwrap();
+        let initialize_account_4_instruction = initialize_account3(
+            &program_id,
+            &account4_key,
+            &mint_account2_key,
+            &account_owner,
+        )
+        .unwrap();
+
+        let mint_to_1_instruction = mint_to(
+            &program_id,
+            &mint_account1_key,
+            &account1_key,
+            &mint_owner,
+            &[],
+            1000,
+        )
+        .unwrap();
+        let mint_to_2_instruction = mint_to_checked(
+            &program_id,
+            &mint_account2_key,
+            &account2_key,
+            &mint_owner,
+            &[],
+            1000,
+            9,
+        )
+        .unwrap();
+        let mint_to_2_with_invalid_decimals = mint_to_checked(
+            &program_id,
+            &mint_account2_key,
+            &account2_key,
+            &mint_owner,
+            &[],
+            1000,
+            8,
+        )
+        .unwrap();
+
+        let transfer_to_3_instruction = transfer(
+            &program_id,
+            &account1_key,
+            &account3_key,
+            &account_owner,
+            &[],
+            500,
+        )
+        .unwrap();
+        let transfer_to_3_with_invalid_amount = transfer(
+            &program_id,
+            &account1_key,
+            &account3_key,
+            &account_owner,
+            &[],
+            501,
+        )
+        .unwrap();
+        let transfer_4_instruction = transfer_checked(
+            &program_id,
+            &account2_key,
+            &mint_account2_key,
+            &account4_key,
+            &account_owner,
+            &[],
+            500,
+            9,
+        )
+        .unwrap();
+
+        let batch_1_instruction = batch_instruction(&[&initialize_mint_1_instruction]).unwrap();
+
+        do_process_instruction_dups(
+            batch_1_instruction,
+            vec![mint_account1_info.clone(), rent_info.clone()],
+        )
+        .unwrap();
+
+        let temp_mint1_data = mint_account1_info.data.borrow().to_vec();
+        let temp_account1_data = account1_info.data.borrow().to_vec();
+        let temp_account2_data = account2_info.data.borrow().to_vec();
+
+        // fails with incorrect program id(caused by `initialize_account_2_instr`)
+        let batch_2_fail_instruction = batch_instruction(&[
+            &initialize_mint_2_instruction,
+            &initialize_account_1_instruction,
+            &initialize_account_2_instruction,
+            &initialize_account_3_instruction,
+            &initialize_account_4_instruction,
+        ])
+        .unwrap();
+
+        assert_eq!(
+            Err(ProgramError::IncorrectProgramId),
+            do_process_instruction_dups(
+                batch_2_fail_instruction,
+                vec![
+                    mint_account2_info.clone(),
+                    rent_info.clone(),
+                    account1_info.clone(),
+                    mint_account1_info.clone(),
+                    account2_info.clone(),
+                    mint_account2_info.clone(),
+                    account3_info.clone(),
+                    mint_account1_info.clone(),
+                    account4_info.clone(),
+                    mint_account2_info.clone(),
+                ],
+            )
+        );
+
+        // reset accounts
+        mint_account1_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_mint1_data);
+        account1_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_account1_data);
+        account2_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_account2_data);
+
+        // correct the owner
+        let mut mint2_account =
+            SolanaAccount::new(mint_minimum_balance(), Mint::get_packed_len(), &program_id);
+        let mint_account2_info: AccountInfo = (&mint_account2_key, true, &mut mint2_account).into();
+
+        // with correct owner
+        let batch_2_success_instruction = batch_instruction(&[
+            &initialize_mint_2_instruction,
+            &initialize_account_1_instruction,
+            &initialize_account_2_instruction,
+            &initialize_account_3_instruction,
+            &initialize_account_4_instruction,
+        ])
+        .unwrap();
+
+        do_process_instruction_dups(
+            batch_2_success_instruction,
+            vec![
+                mint_account2_info.clone(),
+                rent_info.clone(),
+                account1_info.clone(),
+                mint_account1_info.clone(),
+                account2_info.clone(),
+                mint_account2_info.clone(),
+                account3_info.clone(),
+                mint_account1_info.clone(),
+                account4_info.clone(),
+                mint_account2_info.clone(),
+            ],
+        )
+        .unwrap();
+
+        let temp_mint1_data = mint_account1_info.data.borrow().to_vec();
+        let temp_account1_data = account1_info.data.borrow().to_vec();
+        let temp_mint2_data = mint_account2_info.data.borrow().to_vec();
+        let temp_account2_data = account2_info.data.borrow().to_vec();
+
+        // with decimals mismatch
+        let batch_3_fail_instruction = batch_instruction(&[
+            &mint_to_1_instruction,
+            &mint_to_2_instruction,
+            &mint_to_2_with_invalid_decimals,
+        ])
+        .unwrap();
+
+        assert_eq!(
+            Err(TokenError::MintDecimalsMismatch.into()),
+            do_process_instruction_dups(
+                batch_3_fail_instruction,
+                vec![
+                    mint_account1_info.clone(),
+                    account1_info.clone(),
+                    mint_owner_info.clone(),
+                    mint_account2_info.clone(),
+                    account2_info.clone(),
+                    mint_owner_info.clone(),
+                    mint_account2_info.clone(),
+                    account2_info.clone(),
+                    mint_owner_info.clone(),
+                ],
+            )
+        );
+
+        // reset accounts
+        mint_account1_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_mint1_data);
+        account1_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_account1_data);
+        mint_account2_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_mint2_data);
+        account2_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_account2_data);
+
+        // without the invalid decimals instruction
+        let batch_3_success_instruction =
+            batch_instruction(&[&mint_to_1_instruction, &mint_to_2_instruction]).unwrap();
+
+        do_process_instruction_dups(
+            batch_3_success_instruction,
+            vec![
+                mint_account1_info.clone(),
+                account1_info.clone(),
+                mint_owner_info.clone(),
+                mint_account2_info.clone(),
+                account2_info.clone(),
+                mint_owner_info.clone(),
+            ],
+        )
+        .unwrap();
+
+        let temp_account1_data = account1_info.data.borrow().to_vec();
+        let temp_account3_data = account3_info.data.borrow().to_vec();
+        let temp_account2_data = account2_info.data.borrow().to_vec();
+        let temp_account4_data = account4_info.data.borrow().to_vec();
+
+        let batch_4_fail_instruction = batch_instruction(&[
+            &transfer_to_3_instruction,
+            &transfer_to_3_with_invalid_amount,
+            &transfer_4_instruction,
+        ])
+        .unwrap();
+
+        assert_eq!(
+            Err(TokenError::InsufficientFunds.into()),
+            do_process_instruction_dups(
+                batch_4_fail_instruction,
+                vec![
+                    account1_info.clone(),
+                    account3_info.clone(),
+                    account_owner_info.clone(),
+                    account1_info.clone(),
+                    account3_info.clone(),
+                    account_owner_info.clone(),
+                    account2_info.clone(),
+                    mint_account2_info.clone(),
+                    account4_info.clone(),
+                    account_owner_info.clone(),
+                ],
+            )
+        );
+
+        // reset accounts
+        account1_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_account1_data);
+        account3_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_account3_data);
+        account2_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_account2_data);
+        account4_info
+            .data
+            .borrow_mut()
+            .copy_from_slice(&temp_account4_data);
+
+        // with valid amount
+        let batch_4_success_instruction =
+            batch_instruction(&[&transfer_to_3_instruction, &transfer_4_instruction]).unwrap();
+
+        do_process_instruction_dups(
+            batch_4_success_instruction,
+            vec![
+                account1_info.clone(),
+                account3_info.clone(),
+                account_owner_info.clone(),
+                account2_info.clone(),
+                mint_account2_info.clone(),
+                account4_info.clone(),
+                account_owner_info.clone(),
+            ],
+        )
+        .unwrap();
+    }
+
+    #[test]
     fn test_burn_dups() {
         let program_id = crate::id();
         let account1_key = Pubkey::new_unique();
@@ -8897,11 +9590,8 @@ mod tests {
 
         // Invalid mint owner
         let invalid_program_id = Pubkey::new_unique();
-        let mut invalid_mint_account = SolanaAccount::new(
-            mint_minimum_balance(),
-            Mint::get_packed_len(),
-            &invalid_program_id,
-        );
+        let mut invalid_mint_account =
+            SolanaAccount::new(mint_minimum_balance(), Mint::get_packed_len(), &program_id);
         let invalid_mint_key = Pubkey::new_unique();
         let mut instruction =
             initialize_mint(&program_id, &invalid_mint_key, &owner_key, None, 2).unwrap();
@@ -8911,6 +9601,8 @@ mod tests {
             vec![&mut invalid_mint_account, &mut rent_sysvar],
         )
         .unwrap();
+
+        invalid_mint_account.owner = invalid_program_id;
 
         assert_eq!(
             do_process_instruction(
