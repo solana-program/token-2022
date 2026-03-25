@@ -1782,15 +1782,14 @@ impl Processor {
                     authority_info_data_len,
                     account_info_iter.as_slice(),
                 )?;
+
                 let delegated_amount = u64::from(source_account.base.delegated_amount);
-                if delegated_amount < amount {
-                    return Err(TokenError::InsufficientFunds.into());
-                }
 
                 source_account.base.delegated_amount = delegated_amount
                     .checked_sub(amount)
-                    .ok_or(TokenError::Overflow)?
+                    .ok_or(TokenError::InsufficientFunds)?
                     .into();
+
                 if u64::from(source_account.base.delegated_amount) == 0 {
                     source_account.base.delegate = PodCOption::none();
                 }
