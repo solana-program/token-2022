@@ -15,7 +15,7 @@ solana-curve25519 = { version = "3.0.7", features = ["agave-unstable-api"] }
 solana-instruction = "3.0.0"
 solana-instructions-sysvar = "3.0.0"
 solana-msg = "3.1.0"
-solana-program-error = "3.0.0"
+solana-program-error = "3.0.1"
 solana-pubkey = "4.0.0"
 solana-sdk-ids = "3.1.0"
 solana-zk-sdk = "4.0.0"

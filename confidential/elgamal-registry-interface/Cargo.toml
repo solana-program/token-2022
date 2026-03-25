@@ -11,7 +11,7 @@ edition = { workspace = true }
 [dependencies]
 bytemuck = { version = "1.25.0", features = ["derive"] }
 solana-instruction = "3.0.0"
-solana-program-error = "3.0.0"
+solana-program-error = "3.0.1"
 solana-pubkey = { version = "4.0.0", features = ["curve25519"] }
 solana-sdk-ids = "3.1.0"
 solana-zk-sdk = "4.0.0"
