@@ -1770,13 +1770,41 @@ impl Processor {
             return Err(TokenError::NonNativeNotSupported.into());
         }
 
-        Self::validate_owner(
-            program_id,
-            &source_account.base.owner,
-            authority_info,
-            authority_info_data_len,
-            account_info_iter.as_slice(),
-        )?;
+        match source_account.base.delegate {
+            PodCOption {
+                option: PodCOption::<Pubkey>::SOME,
+                value: delegate,
+            } if authority_info.key == &delegate => {
+                Self::validate_owner(
+                    program_id,
+                    &delegate,
+                    authority_info,
+                    authority_info_data_len,
+                    account_info_iter.as_slice(),
+                )?;
+                let delegated_amount = u64::from(source_account.base.delegated_amount);
+                if delegated_amount < amount {
+                    return Err(TokenError::InsufficientFunds.into());
+                }
+
+                source_account.base.delegated_amount = delegated_amount
+                    .checked_sub(amount)
+                    .ok_or(TokenError::Overflow)?
+                    .into();
+                if u64::from(source_account.base.delegated_amount) == 0 {
+                    source_account.base.delegate = PodCOption::none();
+                }
+            }
+            _ => {
+                Self::validate_owner(
+                    program_id,
+                    &source_account.base.owner,
+                    authority_info,
+                    authority_info_data_len,
+                    account_info_iter.as_slice(),
+                )?;
+            }
+        }
 
         if let Ok(cpi_guard) = source_account.get_extension::<CpiGuard>() {
             if cpi_guard.lock_cpi.into() && in_cpi() {
