@@ -4,11 +4,11 @@
 use {
     bytemuck::Pod,
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_instructions_sysvar::get_instruction_relative,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
     solana_zk_sdk::zk_elgamal_proof_program::{
         self,
         instruction::ProofInstruction,
@@ -22,7 +22,7 @@ use {
 /// Checks that the supplied program ID is correct for the ZK ElGamal proof
 /// program
 pub fn check_zk_elgamal_proof_program_account(
-    zk_elgamal_proof_program_id: &Pubkey,
+    zk_elgamal_proof_program_id: &Address,
 ) -> ProgramResult {
     if zk_elgamal_proof_program_id != &solana_zk_sdk::zk_elgamal_proof_program::id() {
         return Err(ProgramError::IncorrectProgramId);
@@ -55,7 +55,7 @@ pub enum ProofLocation<'a, T> {
     /// token-2022 instruction.
     InstructionOffset(NonZeroI8, &'a T),
     /// The proof is pre-verified into a context state account.
-    ContextStateAccount(&'a Pubkey),
+    ContextStateAccount(&'a Address),
 }
 
 impl<T> ProofLocation<'_, T> {

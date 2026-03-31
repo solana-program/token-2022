@@ -2,8 +2,8 @@
 
 use {
     base64::{engine::general_purpose::STANDARD, Engine},
+    solana_address::Address,
     solana_program_option::COption,
-    solana_pubkey::Pubkey,
     spl_pod::optional_keys::{OptionalNonZeroElGamalPubkey, OptionalNonZeroPubkey},
     spl_token_2022_interface::{extension::confidential_transfer, instruction},
     std::str::FromStr,
@@ -13,9 +13,9 @@ use {
 fn serde_instruction_coption_pubkey() {
     let inst = instruction::TokenInstruction::InitializeMint2 {
         decimals: 0,
-        mint_authority: Pubkey::from_str("4uQeVj5tqViQh7yWWGStvkEG1Zmhx6uasJtWCJziofM").unwrap(),
+        mint_authority: Address::from_str("4uQeVj5tqViQh7yWWGStvkEG1Zmhx6uasJtWCJziofM").unwrap(),
         freeze_authority: COption::Some(
-            Pubkey::from_str("8opHzTAnfzRpPEx21XtnrVTX28YQuCpAjcn1PczScKh").unwrap(),
+            Address::from_str("8opHzTAnfzRpPEx21XtnrVTX28YQuCpAjcn1PczScKh").unwrap(),
         ),
     };
 
@@ -100,8 +100,8 @@ fn serde_instruction_batch() {
 fn serde_instruction_optional_nonzero_pubkeys_podbool() {
     // tests serde of ix containing OptionalNonZeroPubkey, PodBool and
     // OptionalNonZeroElGamalPubkey
-    let authority_option: Option<Pubkey> =
-        Some(Pubkey::from_str("4uQeVj5tqViQh7yWWGStvkEG1Zmhx6uasJtWCJziofM").unwrap());
+    let authority_option: Option<Address> =
+        Some(Address::from_str("4uQeVj5tqViQh7yWWGStvkEG1Zmhx6uasJtWCJziofM").unwrap());
     let authority: OptionalNonZeroPubkey = authority_option.try_into().unwrap();
 
     let pubkey_string = STANDARD.encode([

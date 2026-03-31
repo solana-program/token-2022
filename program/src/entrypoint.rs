@@ -1,14 +1,14 @@
 //! Program entrypoint
 
 use {
-    crate::processor::Processor, solana_account_info::AccountInfo, solana_msg::msg,
-    solana_program_error::ProgramResult, solana_pubkey::Pubkey, solana_security_txt::security_txt,
+    crate::processor::Processor, solana_account_info::AccountInfo, solana_address::Address,
+    solana_msg::msg, solana_program_error::ProgramResult, solana_security_txt::security_txt,
     spl_token_2022_interface::error::TokenError,
 };
 
 solana_program_entrypoint::entrypoint!(process_instruction);
 fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {

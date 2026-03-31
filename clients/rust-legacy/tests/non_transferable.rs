@@ -1,8 +1,8 @@
 mod program_test;
 use {
     program_test::{keypair_clone, TestContext, TokenContext},
+    solana_address::Address,
     solana_program_test::tokio,
-    solana_pubkey::Pubkey,
     solana_sdk::{
         instruction::InstructionError, signature::Signer, signer::keypair::Keypair,
         transaction::TransactionError, transport::TransportError,
@@ -46,7 +46,7 @@ async fn mint_to() {
         .unwrap();
     let alice_account = alice.pubkey();
 
-    let destination = Pubkey::new_unique();
+    let destination = Address::new_unique();
     token
         .close_account(
             token.get_address(),

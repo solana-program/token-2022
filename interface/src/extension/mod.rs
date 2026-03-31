@@ -1565,7 +1565,7 @@ mod test {
         solana_account_info::{
             Account as GetAccount, IntoAccountInfo, MAX_PERMITTED_DATA_INCREASE,
         },
-        solana_pubkey::Pubkey,
+        solana_address::Address,
         spl_pod::{
             bytemuck::pod_bytes_of,
             optional_keys::OptionalNonZeroPubkey,
@@ -1670,7 +1670,7 @@ mod test {
         assert_eq!(state.base, &TEST_POD_MINT);
         let extension = state.get_extension::<MintCloseAuthority>().unwrap();
         let close_authority =
-            OptionalNonZeroPubkey::try_from(Some(Pubkey::new_from_array([1; 32]))).unwrap();
+            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([1; 32]))).unwrap();
         assert_eq!(extension.close_authority, close_authority);
         assert_eq!(
             state.get_extension::<TransferFeeConfig>(),
@@ -1920,7 +1920,7 @@ mod test {
 
         // success write extension
         let close_authority =
-            OptionalNonZeroPubkey::try_from(Some(Pubkey::new_from_array([1; 32]))).unwrap();
+            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([1; 32]))).unwrap();
         let extension = state.init_extension::<MintCloseAuthority>(true).unwrap();
         extension.close_authority = close_authority;
         assert_eq!(
@@ -2071,7 +2071,7 @@ mod test {
             PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut buffer).unwrap();
         // write extensions
         let close_authority =
-            OptionalNonZeroPubkey::try_from(Some(Pubkey::new_from_array([1; 32]))).unwrap();
+            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([1; 32]))).unwrap();
         let extension = state.init_extension::<MintCloseAuthority>(true).unwrap();
         extension.close_authority = close_authority;
 
@@ -2115,7 +2115,7 @@ mod test {
         extension.newer_transfer_fee = mint_transfer_fee.newer_transfer_fee;
 
         let close_authority =
-            OptionalNonZeroPubkey::try_from(Some(Pubkey::new_from_array([1; 32]))).unwrap();
+            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([1; 32]))).unwrap();
         let extension = state.init_extension::<MintCloseAuthority>(true).unwrap();
         extension.close_authority = close_authority;
 
@@ -2677,7 +2677,7 @@ mod test {
             .init_variable_len_extension(&base_variable_len, false)
             .unwrap();
         let max_pubkey =
-            OptionalNonZeroPubkey::try_from(Some(Pubkey::new_from_array([255; 32]))).unwrap();
+            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([255; 32]))).unwrap();
         let extension = state.init_extension::<MetadataPointer>(false).unwrap();
         extension.authority = max_pubkey;
         extension.metadata_address = max_pubkey;
@@ -2789,7 +2789,7 @@ mod test {
     struct SolanaAccountData {
         data: Vec<u8>,
         lamports: u64,
-        owner: Pubkey,
+        owner: Address,
     }
     impl SolanaAccountData {
         /// Create a new fake solana account data. The underlying vector is
@@ -2802,7 +2802,7 @@ mod test {
             Self {
                 data,
                 lamports: 10,
-                owner: Pubkey::new_unique(),
+                owner: Address::new_unique(),
             }
         }
 
@@ -2824,7 +2824,7 @@ mod test {
         }
     }
     impl GetAccount for SolanaAccountData {
-        fn get(&mut self) -> (&mut u64, &mut [u8], &Pubkey, bool) {
+        fn get(&mut self) -> (&mut u64, &mut [u8], &Address, bool) {
             // need to pull out the data here to avoid a double-mutable borrow
             let start = size_of::<u64>();
             let len = self.len();
@@ -2850,7 +2850,7 @@ mod test {
         *state.base = TEST_POD_MINT;
 
         let mut data = SolanaAccountData::new(&buffer);
-        let key = Pubkey::new_unique();
+        let key = Address::new_unique();
         let account_info = (&key, &mut data).into_account_info();
 
         alloc_and_serialize::<PodMint, _>(&account_info, &fixed_len, false).unwrap();
@@ -2885,7 +2885,7 @@ mod test {
         *state.base = TEST_POD_MINT;
 
         let mut data = SolanaAccountData::new(&buffer);
-        let key = Pubkey::new_unique();
+        let key = Address::new_unique();
         let account_info = (&key, &mut data).into_account_info();
 
         alloc_and_serialize_variable_len_extension::<PodMint, _>(
@@ -2943,13 +2943,13 @@ mod test {
         state.init_account_type().unwrap();
 
         let test_key =
-            OptionalNonZeroPubkey::try_from(Some(Pubkey::new_from_array([20; 32]))).unwrap();
+            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([20; 32]))).unwrap();
         let extension = state.init_extension::<GroupPointer>(false).unwrap();
         extension.authority = test_key;
         extension.group_address = test_key;
 
         let mut data = SolanaAccountData::new(&buffer);
-        let key = Pubkey::new_unique();
+        let key = Address::new_unique();
         let account_info = (&key, &mut data).into_account_info();
 
         alloc_and_serialize::<PodMint, _>(&account_info, &fixed_len, false).unwrap();
@@ -2993,13 +2993,13 @@ mod test {
         state.init_account_type().unwrap();
 
         let test_key =
-            OptionalNonZeroPubkey::try_from(Some(Pubkey::new_from_array([20; 32]))).unwrap();
+            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([20; 32]))).unwrap();
         let extension = state.init_extension::<MetadataPointer>(false).unwrap();
         extension.authority = test_key;
         extension.metadata_address = test_key;
 
         let mut data = SolanaAccountData::new(&buffer);
-        let key = Pubkey::new_unique();
+        let key = Address::new_unique();
         let account_info = (&key, &mut data).into_account_info();
 
         alloc_and_serialize_variable_len_extension::<PodMint, _>(
@@ -3066,14 +3066,14 @@ mod test {
             .init_variable_len_extension(&variable_len, false)
             .unwrap();
         let max_pubkey =
-            OptionalNonZeroPubkey::try_from(Some(Pubkey::new_from_array([255; 32]))).unwrap();
+            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([255; 32]))).unwrap();
         let extension = state.init_extension::<MetadataPointer>(false).unwrap();
         extension.authority = max_pubkey;
         extension.metadata_address = max_pubkey;
 
         // reallocate to smaller, make sure existing extension is fine
         let mut data = SolanaAccountData::new(&buffer);
-        let key = Pubkey::new_unique();
+        let key = Address::new_unique();
         let account_info = (&key, &mut data).into_account_info();
         let variable_len = VariableLenMintTest { data: vec![1, 2] };
         alloc_and_serialize_variable_len_extension::<PodMint, _>(

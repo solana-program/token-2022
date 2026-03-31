@@ -10,8 +10,8 @@ use {
     },
     bytemuck::{Pod, Zeroable},
     solana_account_info::AccountInfo,
+    solana_address::Address,
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
     spl_pod::{optional_keys::OptionalNonZeroPubkey, primitives::PodBool},
 };
 
@@ -53,11 +53,11 @@ impl Extension for TransferHookAccount {
 /// None if the extension is not found
 pub fn get_program_id<S: BaseState, BSE: BaseStateWithExtensions<S>>(
     state: &BSE,
-) -> Option<Pubkey> {
+) -> Option<Address> {
     state
         .get_extension::<TransferHook>()
         .ok()
-        .and_then(|e| Option::<Pubkey>::from(e.program_id))
+        .and_then(|e| Option::<Address>::from(e.program_id))
 }
 
 /// Helper function to set the transferring flag before calling into transfer

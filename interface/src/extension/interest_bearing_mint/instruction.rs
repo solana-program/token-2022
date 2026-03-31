@@ -8,9 +8,9 @@ use {
     },
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
     std::convert::TryInto,
 };
@@ -70,9 +70,9 @@ pub struct InitializeInstructionData {
 
 /// Create an `Initialize` instruction
 pub fn initialize(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    rate_authority: Option<Pubkey>,
+    token_program_id: &Address,
+    mint: &Address,
+    rate_authority: Option<Address>,
     rate: i16,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
@@ -91,10 +91,10 @@ pub fn initialize(
 
 /// Create an `UpdateRate` instruction
 pub fn update_rate(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    rate_authority: &Pubkey,
-    signers: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    rate_authority: &Address,
+    signers: &[&Address],
     rate: i16,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;

@@ -3,8 +3,8 @@
 use {
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::{Address, ADDRESS_BYTES},
     solana_program_error::ProgramError,
-    solana_pubkey::{Pubkey, PUBKEY_BYTES},
     spl_pod::{
         bytemuck::{pod_from_bytes, pod_get_packed_len},
         primitives::PodU64,
@@ -18,7 +18,7 @@ pub(crate) struct InitializeMintData {
     /// Number of base 10 digits to the right of the decimal place.
     pub(crate) decimals: u8,
     /// The authority/multisignature to mint tokens.
-    pub(crate) mint_authority: Pubkey,
+    pub(crate) mint_authority: Address,
     // The freeze authority option comes later, but cannot be included as
     // plain old data in this struct
 }
@@ -81,9 +81,9 @@ pub(crate) enum PodTokenInstruction {
     MintToChecked,   // AmountCheckedData
     // 15
     BurnChecked,        // AmountCheckedData
-    InitializeAccount2, // Pubkey
+    InitializeAccount2, // Address
     SyncNative,
-    InitializeAccount3,  // Pubkey
+    InitializeAccount3,  // Address
     InitializeMultisig2, // InitializeMultisigData
     // 20
     InitializeMint2,    // InitializeMintData
@@ -92,7 +92,7 @@ pub(crate) enum PodTokenInstruction {
     AmountToUiAmount, // AmountData
     UiAmountToAmount, // &str
     // 25
-    InitializeMintCloseAuthority, // COption<Pubkey>
+    InitializeMintCloseAuthority, // COption<Address>
     TransferFeeExtension,
     ConfidentialTransferExtension,
     DefaultAccountStateExtension,
@@ -104,7 +104,7 @@ pub(crate) enum PodTokenInstruction {
     InterestBearingMintExtension,
     CpiGuardExtension,
     // 35
-    InitializePermanentDelegate, // Pubkey
+    InitializePermanentDelegate, // Address
     TransferHookExtension,
     ConfidentialTransferFeeExtension,
     WithdrawExcessLamports,
@@ -122,13 +122,13 @@ pub(crate) enum PodTokenInstruction {
     Batch = 255,
 }
 
-fn unpack_pubkey_option(input: &[u8]) -> Result<PodCOption<Pubkey>, ProgramError> {
+fn unpack_pubkey_option(input: &[u8]) -> Result<PodCOption<Address>, ProgramError> {
     match input.split_first() {
         Option::Some((&0, _)) => Ok(PodCOption::none()),
         Option::Some((&1, rest)) => {
             let pk = rest
-                .get(..PUBKEY_BYTES)
-                .and_then(|x| Pubkey::try_from(x).ok())
+                .get(..ADDRESS_BYTES)
+                .and_then(|x| Address::try_from(x).ok())
                 .ok_or(ProgramError::InvalidInstructionData)?;
             Ok(PodCOption::some(pk))
         }
@@ -151,13 +151,13 @@ fn unpack_u64_option(input: &[u8]) -> Result<PodCOption<u64>, ProgramError> {
     }
 }
 
-/// Specialty function for deserializing `Pod` data and a `COption<Pubkey>`
+/// Specialty function for deserializing `Pod` data and a `COption<Address>`
 ///
 /// `COption<T>` is not `Pod` compatible when serialized in an instruction, but
 /// since it is always at the end of an instruction, so we can do this safely
 pub(crate) fn decode_instruction_data_with_coption_pubkey<T: Pod>(
     input_with_type: &[u8],
-) -> Result<(&T, PodCOption<Pubkey>), ProgramError> {
+) -> Result<(&T, PodCOption<Address>), ProgramError> {
     let end_of_t = pod_get_packed_len::<T>().saturating_add(1);
     let value = input_with_type
         .get(1..end_of_t)
@@ -209,7 +209,7 @@ mod tests {
                 PodTokenInstruction::InitializeAccount2
                 | PodTokenInstruction::InitializeAccount3
                 | PodTokenInstruction::InitializePermanentDelegate => {
-                    let _ = decode_instruction_data::<Pubkey>(input)?;
+                    let _ = decode_instruction_data::<Address>(input)?;
                 }
                 PodTokenInstruction::InitializeMultisig
                 | PodTokenInstruction::InitializeMultisig2 => {
@@ -268,7 +268,7 @@ mod tests {
     #[test]
     fn test_initialize_mint_packing() {
         let decimals = 2;
-        let mint_authority = Pubkey::new_from_array([1u8; 32]);
+        let mint_authority = Address::new_from_array([1u8; 32]);
         let freeze_authority = COption::None;
         let check = TokenInstruction::InitializeMint {
             decimals,
@@ -284,8 +284,8 @@ mod tests {
         assert_eq!(pod.mint_authority, mint_authority);
         assert_eq!(pod_freeze_authority, freeze_authority.into());
 
-        let mint_authority = Pubkey::new_from_array([2u8; 32]);
-        let freeze_authority = COption::Some(Pubkey::new_from_array([3u8; 32]));
+        let mint_authority = Address::new_from_array([2u8; 32]);
+        let freeze_authority = COption::Some(Address::new_from_array([3u8; 32]));
         let check = TokenInstruction::InitializeMint {
             decimals,
             mint_authority,
@@ -357,7 +357,7 @@ mod tests {
     #[test]
     fn test_set_authority_packing() {
         let authority_type = AuthorityType::FreezeAccount;
-        let new_authority = COption::Some(Pubkey::new_from_array([4u8; 32]));
+        let new_authority = COption::Some(Address::new_from_array([4u8; 32]));
         let check = TokenInstruction::SetAuthority {
             authority_type: authority_type.clone(),
             new_authority,
@@ -481,13 +481,13 @@ mod tests {
 
     #[test]
     fn test_initialize_account2_packing() {
-        let owner = Pubkey::new_from_array([2u8; 32]);
+        let owner = Address::new_from_array([2u8; 32]);
         let check = TokenInstruction::InitializeAccount2 { owner };
         let packed = check.pack();
 
         let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
         assert_eq!(instruction_type, PodTokenInstruction::InitializeAccount2);
-        let pod_owner = decode_instruction_data::<Pubkey>(&packed).unwrap();
+        let pod_owner = decode_instruction_data::<Address>(&packed).unwrap();
         assert_eq!(*pod_owner, owner);
     }
 
@@ -502,13 +502,13 @@ mod tests {
 
     #[test]
     fn test_initialize_account3_packing() {
-        let owner = Pubkey::new_from_array([2u8; 32]);
+        let owner = Address::new_from_array([2u8; 32]);
         let check = TokenInstruction::InitializeAccount3 { owner };
         let packed = check.pack();
 
         let instruction_type = decode_instruction_type::<PodTokenInstruction>(&packed).unwrap();
         assert_eq!(instruction_type, PodTokenInstruction::InitializeAccount3);
-        let pod_owner = decode_instruction_data::<Pubkey>(&packed).unwrap();
+        let pod_owner = decode_instruction_data::<Address>(&packed).unwrap();
         assert_eq!(*pod_owner, owner);
     }
 
@@ -527,7 +527,7 @@ mod tests {
     #[test]
     fn test_initialize_mint2_packing() {
         let decimals = 2;
-        let mint_authority = Pubkey::new_from_array([1u8; 32]);
+        let mint_authority = Address::new_from_array([1u8; 32]);
         let freeze_authority = COption::None;
         let check = TokenInstruction::InitializeMint2 {
             decimals,
@@ -545,8 +545,8 @@ mod tests {
         assert_eq!(pod_freeze_authority, freeze_authority.into());
 
         let decimals = 2;
-        let mint_authority = Pubkey::new_from_array([2u8; 32]);
-        let freeze_authority = COption::Some(Pubkey::new_from_array([3u8; 32]));
+        let mint_authority = Address::new_from_array([2u8; 32]);
+        let freeze_authority = COption::Some(Address::new_from_array([3u8; 32]));
         let check = TokenInstruction::InitializeMint2 {
             decimals,
             mint_authority,
@@ -652,7 +652,7 @@ mod tests {
 
     #[test]
     fn test_initialize_mint_close_authority_packing() {
-        let close_authority = COption::Some(Pubkey::new_from_array([10u8; 32]));
+        let close_authority = COption::Some(Address::new_from_array([10u8; 32]));
         let check = TokenInstruction::InitializeMintCloseAuthority { close_authority };
         let packed = check.pack();
 
@@ -689,7 +689,7 @@ mod tests {
 
     #[test]
     fn test_initialize_permanent_delegate_packing() {
-        let delegate = Pubkey::new_from_array([11u8; 32]);
+        let delegate = Address::new_from_array([11u8; 32]);
         let check = TokenInstruction::InitializePermanentDelegate { delegate };
         let packed = check.pack();
 
@@ -698,7 +698,7 @@ mod tests {
             instruction_type,
             PodTokenInstruction::InitializePermanentDelegate
         );
-        let pod_delegate = decode_instruction_data::<Pubkey>(&packed).unwrap();
+        let pod_delegate = decode_instruction_data::<Address>(&packed).unwrap();
         assert_eq!(*pod_delegate, delegate);
     }
 }

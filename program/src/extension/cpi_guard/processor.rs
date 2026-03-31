@@ -1,9 +1,9 @@
 use {
     crate::{extension::cpi_guard::in_cpi, processor::Processor},
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_msg::msg,
     solana_program_error::ProgramResult,
-    solana_pubkey::Pubkey,
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -19,7 +19,7 @@ use {
 /// Toggle the `CpiGuard` extension, initializing the extension if not already
 /// present.
 fn process_toggle_cpi_guard(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     enable: bool,
 ) -> ProgramResult {
@@ -54,7 +54,7 @@ fn process_toggle_cpi_guard(
 }
 
 pub(crate) fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     input: &[u8],
 ) -> ProgramResult {

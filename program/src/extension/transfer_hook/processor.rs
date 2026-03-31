@@ -1,9 +1,9 @@
 use {
     crate::processor::Processor,
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::{
         check_program_account,
@@ -23,7 +23,7 @@ use {
 };
 
 fn process_initialize(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     authority: &OptionalNonZeroPubkey,
     transfer_hook_program_id: &OptionalNonZeroPubkey,
@@ -38,11 +38,11 @@ fn process_initialize(
     let extension = mint.init_extension::<TransferHook>(true)?;
     extension.authority = *authority;
 
-    if let Some(transfer_hook_program_id) = Option::<Pubkey>::from(*transfer_hook_program_id) {
+    if let Some(transfer_hook_program_id) = Option::<Address>::from(*transfer_hook_program_id) {
         if transfer_hook_program_id == *program_id {
             return Err(ProgramError::IncorrectProgramId);
         }
-    } else if Option::<Pubkey>::from(*authority).is_none() {
+    } else if Option::<Address>::from(*authority).is_none() {
         msg!("The transfer hook extension requires at least an authority or a program id for initialization, neither was provided");
         Err(TokenError::InvalidInstruction)?;
     }
@@ -51,7 +51,7 @@ fn process_initialize(
 }
 
 fn process_update(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     new_program_id: &OptionalNonZeroPubkey,
 ) -> ProgramResult {
@@ -65,7 +65,7 @@ fn process_update(
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
     let extension = mint.get_extension_mut::<TransferHook>()?;
     let authority =
-        Option::<Pubkey>::from(extension.authority).ok_or(TokenError::NoAuthorityExists)?;
+        Option::<Address>::from(extension.authority).ok_or(TokenError::NoAuthorityExists)?;
 
     Processor::validate_owner(
         program_id,
@@ -75,7 +75,7 @@ fn process_update(
         account_info_iter.as_slice(),
     )?;
 
-    if let Some(new_program_id) = Option::<Pubkey>::from(*new_program_id) {
+    if let Some(new_program_id) = Option::<Address>::from(*new_program_id) {
         if new_program_id == *program_id {
             return Err(ProgramError::IncorrectProgramId);
         }
@@ -86,7 +86,7 @@ fn process_update(
 }
 
 pub(crate) fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     input: &[u8],
 ) -> ProgramResult {

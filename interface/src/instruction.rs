@@ -16,10 +16,10 @@ use {
         extension::ExtensionType,
     },
     bytemuck::Pod,
+    solana_address::{Address, ADDRESS_BYTES},
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
     solana_program_option::COption,
-    solana_pubkey::{Pubkey, PUBKEY_BYTES},
     solana_sdk_ids::{system_program, sysvar},
     spl_pod::bytemuck::{pod_from_bytes, pod_get_packed_len},
     std::{
@@ -67,10 +67,10 @@ pub enum TokenInstruction<'a> {
         decimals: u8,
         /// The authority/multisignature to mint tokens.
         #[cfg_attr(feature = "serde", serde(with = "As::<DisplayFromStr>"))]
-        mint_authority: Pubkey,
+        mint_authority: Address,
         /// The freeze authority/multisignature of the mint.
         #[cfg_attr(feature = "serde", serde(with = "coption_fromstr"))]
-        freeze_authority: COption<Pubkey>,
+        freeze_authority: COption<Address>,
     },
     /// Initializes a new account to hold tokens.  If this account is associated
     /// with the native mint then the token balance of the initialized account
@@ -197,7 +197,7 @@ pub enum TokenInstruction<'a> {
         authority_type: AuthorityType,
         /// The new authority
         #[cfg_attr(feature = "serde", serde(with = "coption_fromstr"))]
-        new_authority: COption<Pubkey>,
+        new_authority: COption<Address>,
     },
     /// Mints new tokens to an account.  The native mint does not support
     /// minting.
@@ -429,7 +429,7 @@ pub enum TokenInstruction<'a> {
     InitializeAccount2 {
         /// The new account's owner/multisignature.
         #[cfg_attr(feature = "serde", serde(with = "As::<DisplayFromStr>"))]
-        owner: Pubkey,
+        owner: Address,
     },
     /// Given a wrapped / native token account (a token account containing SOL)
     /// updates its amount field based on the account's underlying `lamports`.
@@ -458,7 +458,7 @@ pub enum TokenInstruction<'a> {
     InitializeAccount3 {
         /// The new account's owner/multisignature.
         #[cfg_attr(feature = "serde", serde(with = "As::<DisplayFromStr>"))]
-        owner: Pubkey,
+        owner: Address,
     },
     /// Like `InitializeMultisig`, but does not require the Rent sysvar to be
     /// provided
@@ -485,10 +485,10 @@ pub enum TokenInstruction<'a> {
         decimals: u8,
         /// The authority/multisignature to mint tokens.
         #[cfg_attr(feature = "serde", serde(with = "As::<DisplayFromStr>"))]
-        mint_authority: Pubkey,
+        mint_authority: Address,
         /// The freeze authority/multisignature of the mint.
         #[cfg_attr(feature = "serde", serde(with = "coption_fromstr"))]
-        freeze_authority: COption<Pubkey>,
+        freeze_authority: COption<Address>,
     },
     /// Gets the required size of an account for the given mint as a
     /// little-endian `u64`.
@@ -575,7 +575,7 @@ pub enum TokenInstruction<'a> {
     InitializeMintCloseAuthority {
         /// Authority that must sign the `CloseAccount` instruction on a mint
         #[cfg_attr(feature = "serde", serde(with = "coption_fromstr"))]
-        close_authority: COption<Pubkey>,
+        close_authority: COption<Address>,
     },
     /// The common instruction prefix for Transfer Fee extension instructions.
     ///
@@ -680,11 +680,11 @@ pub enum TokenInstruction<'a> {
     ///   0. `[writable]` The mint to initialize.
     ///
     /// Data expected by this instruction:
-    ///   Pubkey for the permanent delegate
+    ///   Address for the permanent delegate
     InitializePermanentDelegate {
         /// Authority that may sign for `Transfer`s and `Burn`s on any account
         #[cfg_attr(feature = "serde", serde(with = "As::<DisplayFromStr>"))]
-        delegate: Pubkey,
+        delegate: Address,
     },
     /// The common instruction prefix for transfer hook extension instructions.
     ///
@@ -1155,17 +1155,17 @@ impl<'a> TokenInstruction<'a> {
         })
     }
 
-    pub(crate) fn unpack_pubkey(input: &[u8]) -> Result<(Pubkey, &[u8]), ProgramError> {
+    pub(crate) fn unpack_pubkey(input: &[u8]) -> Result<(Address, &[u8]), ProgramError> {
         let pk = input
-            .get(..PUBKEY_BYTES)
-            .and_then(|x| Pubkey::try_from(x).ok())
+            .get(..ADDRESS_BYTES)
+            .and_then(|x| Address::try_from(x).ok())
             .ok_or(TokenError::InvalidInstruction)?;
-        Ok((pk, &input[PUBKEY_BYTES..]))
+        Ok((pk, &input[ADDRESS_BYTES..]))
     }
 
     pub(crate) fn unpack_pubkey_option(
         input: &[u8],
-    ) -> Result<(COption<Pubkey>, &[u8]), ProgramError> {
+    ) -> Result<(COption<Address>, &[u8]), ProgramError> {
         match input.split_first() {
             Option::Some((&0, rest)) => Ok((COption::None, rest)),
             Option::Some((&1, rest)) => {
@@ -1176,7 +1176,7 @@ impl<'a> TokenInstruction<'a> {
         }
     }
 
-    pub(crate) fn pack_pubkey_option(value: &COption<Pubkey>, buf: &mut Vec<u8>) {
+    pub(crate) fn pack_pubkey_option(value: &COption<Address>, buf: &mut Vec<u8>) {
         match *value {
             COption::Some(ref key) => {
                 buf.push(1);
@@ -1329,10 +1329,10 @@ impl AuthorityType {
 
 /// Creates a `InitializeMint` instruction.
 pub fn initialize_mint(
-    token_program_id: &Pubkey,
-    mint_pubkey: &Pubkey,
-    mint_authority_pubkey: &Pubkey,
-    freeze_authority_pubkey: Option<&Pubkey>,
+    token_program_id: &Address,
+    mint_pubkey: &Address,
+    mint_authority_pubkey: &Address,
+    freeze_authority_pubkey: Option<&Address>,
     decimals: u8,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
@@ -1358,10 +1358,10 @@ pub fn initialize_mint(
 
 /// Creates a `InitializeMint2` instruction.
 pub fn initialize_mint2(
-    token_program_id: &Pubkey,
-    mint_pubkey: &Pubkey,
-    mint_authority_pubkey: &Pubkey,
-    freeze_authority_pubkey: Option<&Pubkey>,
+    token_program_id: &Address,
+    mint_pubkey: &Address,
+    mint_authority_pubkey: &Address,
+    freeze_authority_pubkey: Option<&Address>,
     decimals: u8,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
@@ -1384,10 +1384,10 @@ pub fn initialize_mint2(
 
 /// Creates a `InitializeAccount` instruction.
 pub fn initialize_account(
-    token_program_id: &Pubkey,
-    account_pubkey: &Pubkey,
-    mint_pubkey: &Pubkey,
-    owner_pubkey: &Pubkey,
+    token_program_id: &Address,
+    account_pubkey: &Address,
+    mint_pubkey: &Address,
+    owner_pubkey: &Address,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
     let data = TokenInstruction::InitializeAccount.pack();
@@ -1408,10 +1408,10 @@ pub fn initialize_account(
 
 /// Creates a `InitializeAccount2` instruction.
 pub fn initialize_account2(
-    token_program_id: &Pubkey,
-    account_pubkey: &Pubkey,
-    mint_pubkey: &Pubkey,
-    owner_pubkey: &Pubkey,
+    token_program_id: &Address,
+    account_pubkey: &Address,
+    mint_pubkey: &Address,
+    owner_pubkey: &Address,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
     let data = TokenInstruction::InitializeAccount2 {
@@ -1434,10 +1434,10 @@ pub fn initialize_account2(
 
 /// Creates a `InitializeAccount3` instruction.
 pub fn initialize_account3(
-    token_program_id: &Pubkey,
-    account_pubkey: &Pubkey,
-    mint_pubkey: &Pubkey,
-    owner_pubkey: &Pubkey,
+    token_program_id: &Address,
+    account_pubkey: &Address,
+    mint_pubkey: &Address,
+    owner_pubkey: &Address,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
     let data = TokenInstruction::InitializeAccount3 {
@@ -1459,9 +1459,9 @@ pub fn initialize_account3(
 
 /// Creates a `InitializeMultisig` instruction.
 pub fn initialize_multisig(
-    token_program_id: &Pubkey,
-    multisig_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    multisig_pubkey: &Address,
+    signer_pubkeys: &[&Address],
     m: u8,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
@@ -1489,9 +1489,9 @@ pub fn initialize_multisig(
 
 /// Creates a `InitializeMultisig2` instruction.
 pub fn initialize_multisig2(
-    token_program_id: &Pubkey,
-    multisig_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    multisig_pubkey: &Address,
+    signer_pubkeys: &[&Address],
     m: u8,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
@@ -1522,11 +1522,11 @@ pub fn initialize_multisig2(
     note = "please use `transfer_checked` or `transfer_checked_with_fee` instead"
 )]
 pub fn transfer(
-    token_program_id: &Pubkey,
-    source_pubkey: &Pubkey,
-    destination_pubkey: &Pubkey,
-    authority_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    source_pubkey: &Address,
+    destination_pubkey: &Address,
+    authority_pubkey: &Address,
+    signer_pubkeys: &[&Address],
     amount: u64,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
@@ -1553,11 +1553,11 @@ pub fn transfer(
 
 /// Creates an `Approve` instruction.
 pub fn approve(
-    token_program_id: &Pubkey,
-    source_pubkey: &Pubkey,
-    delegate_pubkey: &Pubkey,
-    owner_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    source_pubkey: &Address,
+    delegate_pubkey: &Address,
+    owner_pubkey: &Address,
+    signer_pubkeys: &[&Address],
     amount: u64,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
@@ -1583,10 +1583,10 @@ pub fn approve(
 
 /// Creates a `Revoke` instruction.
 pub fn revoke(
-    token_program_id: &Pubkey,
-    source_pubkey: &Pubkey,
-    owner_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    source_pubkey: &Address,
+    owner_pubkey: &Address,
+    signer_pubkeys: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
     let data = TokenInstruction::Revoke.pack();
@@ -1610,12 +1610,12 @@ pub fn revoke(
 
 /// Creates a `SetAuthority` instruction.
 pub fn set_authority(
-    token_program_id: &Pubkey,
-    owned_pubkey: &Pubkey,
-    new_authority_pubkey: Option<&Pubkey>,
+    token_program_id: &Address,
+    owned_pubkey: &Address,
+    new_authority_pubkey: Option<&Address>,
     authority_type: AuthorityType,
-    owner_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    owner_pubkey: &Address,
+    signer_pubkeys: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
     let new_authority = new_authority_pubkey.cloned().into();
@@ -1644,11 +1644,11 @@ pub fn set_authority(
 
 /// Creates a `MintTo` instruction.
 pub fn mint_to(
-    token_program_id: &Pubkey,
-    mint_pubkey: &Pubkey,
-    account_pubkey: &Pubkey,
-    mint_authority_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    mint_pubkey: &Address,
+    account_pubkey: &Address,
+    mint_authority_pubkey: &Address,
+    signer_pubkeys: &[&Address],
     amount: u64,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
@@ -1674,11 +1674,11 @@ pub fn mint_to(
 
 /// Creates a `Burn` instruction.
 pub fn burn(
-    token_program_id: &Pubkey,
-    account_pubkey: &Pubkey,
-    mint_pubkey: &Pubkey,
-    authority_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    account_pubkey: &Address,
+    mint_pubkey: &Address,
+    authority_pubkey: &Address,
+    signer_pubkeys: &[&Address],
     amount: u64,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
@@ -1704,11 +1704,11 @@ pub fn burn(
 
 /// Creates a `CloseAccount` instruction.
 pub fn close_account(
-    token_program_id: &Pubkey,
-    account_pubkey: &Pubkey,
-    destination_pubkey: &Pubkey,
-    owner_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    account_pubkey: &Address,
+    destination_pubkey: &Address,
+    owner_pubkey: &Address,
+    signer_pubkeys: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
     let data = TokenInstruction::CloseAccount.pack();
@@ -1733,11 +1733,11 @@ pub fn close_account(
 
 /// Creates a `FreezeAccount` instruction.
 pub fn freeze_account(
-    token_program_id: &Pubkey,
-    account_pubkey: &Pubkey,
-    mint_pubkey: &Pubkey,
-    freeze_authority_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    account_pubkey: &Address,
+    mint_pubkey: &Address,
+    freeze_authority_pubkey: &Address,
+    signer_pubkeys: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
     let data = TokenInstruction::FreezeAccount.pack();
@@ -1762,11 +1762,11 @@ pub fn freeze_account(
 
 /// Creates a `ThawAccount` instruction.
 pub fn thaw_account(
-    token_program_id: &Pubkey,
-    account_pubkey: &Pubkey,
-    mint_pubkey: &Pubkey,
-    freeze_authority_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    account_pubkey: &Address,
+    mint_pubkey: &Address,
+    freeze_authority_pubkey: &Address,
+    signer_pubkeys: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
     let data = TokenInstruction::ThawAccount.pack();
@@ -1792,12 +1792,12 @@ pub fn thaw_account(
 /// Creates a `TransferChecked` instruction.
 #[allow(clippy::too_many_arguments)]
 pub fn transfer_checked(
-    token_program_id: &Pubkey,
-    source_pubkey: &Pubkey,
-    mint_pubkey: &Pubkey,
-    destination_pubkey: &Pubkey,
-    authority_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    source_pubkey: &Address,
+    mint_pubkey: &Address,
+    destination_pubkey: &Address,
+    authority_pubkey: &Address,
+    signer_pubkeys: &[&Address],
     amount: u64,
     decimals: u8,
 ) -> Result<Instruction, ProgramError> {
@@ -1826,12 +1826,12 @@ pub fn transfer_checked(
 /// Creates an `ApproveChecked` instruction.
 #[allow(clippy::too_many_arguments)]
 pub fn approve_checked(
-    token_program_id: &Pubkey,
-    source_pubkey: &Pubkey,
-    mint_pubkey: &Pubkey,
-    delegate_pubkey: &Pubkey,
-    owner_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    source_pubkey: &Address,
+    mint_pubkey: &Address,
+    delegate_pubkey: &Address,
+    owner_pubkey: &Address,
+    signer_pubkeys: &[&Address],
     amount: u64,
     decimals: u8,
 ) -> Result<Instruction, ProgramError> {
@@ -1859,11 +1859,11 @@ pub fn approve_checked(
 
 /// Creates a `MintToChecked` instruction.
 pub fn mint_to_checked(
-    token_program_id: &Pubkey,
-    mint_pubkey: &Pubkey,
-    account_pubkey: &Pubkey,
-    mint_authority_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    mint_pubkey: &Address,
+    account_pubkey: &Address,
+    mint_authority_pubkey: &Address,
+    signer_pubkeys: &[&Address],
     amount: u64,
     decimals: u8,
 ) -> Result<Instruction, ProgramError> {
@@ -1890,11 +1890,11 @@ pub fn mint_to_checked(
 
 /// Creates a `BurnChecked` instruction.
 pub fn burn_checked(
-    token_program_id: &Pubkey,
-    account_pubkey: &Pubkey,
-    mint_pubkey: &Pubkey,
-    authority_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    account_pubkey: &Address,
+    mint_pubkey: &Address,
+    authority_pubkey: &Address,
+    signer_pubkeys: &[&Address],
     amount: u64,
     decimals: u8,
 ) -> Result<Instruction, ProgramError> {
@@ -1921,8 +1921,8 @@ pub fn burn_checked(
 
 /// Creates a `SyncNative` instruction
 pub fn sync_native(
-    token_program_id: &Pubkey,
-    account_pubkey: &Pubkey,
+    token_program_id: &Address,
+    account_pubkey: &Address,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
 
@@ -1936,8 +1936,8 @@ pub fn sync_native(
 /// Creates a `SyncNative` instruction with the Rent sysvar account
 /// added to the accounts list.
 pub fn sync_native_with_rent_sysvar(
-    token_program_id: &Pubkey,
-    account_pubkey: &Pubkey,
+    token_program_id: &Address,
+    account_pubkey: &Address,
 ) -> Result<Instruction, ProgramError> {
     let mut instruction = sync_native(token_program_id, account_pubkey)?;
     instruction
@@ -1949,8 +1949,8 @@ pub fn sync_native_with_rent_sysvar(
 
 /// Creates a `GetAccountDataSize` instruction
 pub fn get_account_data_size(
-    token_program_id: &Pubkey,
-    mint_pubkey: &Pubkey,
+    token_program_id: &Address,
+    mint_pubkey: &Address,
     extension_types: &[ExtensionType],
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
@@ -1966,9 +1966,9 @@ pub fn get_account_data_size(
 
 /// Creates an `InitializeMintCloseAuthority` instruction
 pub fn initialize_mint_close_authority(
-    token_program_id: &Pubkey,
-    mint_pubkey: &Pubkey,
-    close_authority: Option<&Pubkey>,
+    token_program_id: &Address,
+    mint_pubkey: &Address,
+    close_authority: Option<&Address>,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let close_authority = close_authority.cloned().into();
@@ -1981,8 +1981,8 @@ pub fn initialize_mint_close_authority(
 
 /// Create an `InitializeImmutableOwner` instruction
 pub fn initialize_immutable_owner(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
+    token_program_id: &Address,
+    token_account: &Address,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
     Ok(Instruction {
@@ -1994,8 +1994,8 @@ pub fn initialize_immutable_owner(
 
 /// Creates an `AmountToUiAmount` instruction
 pub fn amount_to_ui_amount(
-    token_program_id: &Pubkey,
-    mint_pubkey: &Pubkey,
+    token_program_id: &Address,
+    mint_pubkey: &Address,
     amount: u64,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
@@ -2009,8 +2009,8 @@ pub fn amount_to_ui_amount(
 
 /// Creates a `UiAmountToAmount` instruction
 pub fn ui_amount_to_amount(
-    token_program_id: &Pubkey,
-    mint_pubkey: &Pubkey,
+    token_program_id: &Address,
+    mint_pubkey: &Address,
     ui_amount: &str,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
@@ -2024,11 +2024,11 @@ pub fn ui_amount_to_amount(
 
 /// Creates a `Reallocate` instruction
 pub fn reallocate(
-    token_program_id: &Pubkey,
-    account_pubkey: &Pubkey,
-    payer: &Pubkey,
-    owner_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    account_pubkey: &Address,
+    payer: &Address,
+    owner_pubkey: &Address,
+    signer_pubkeys: &[&Address],
     extension_types: &[ExtensionType],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
@@ -2057,8 +2057,8 @@ pub fn reallocate(
 
 /// Creates a `CreateNativeMint` instruction
 pub fn create_native_mint(
-    token_program_id: &Pubkey,
-    payer: &Pubkey,
+    token_program_id: &Address,
+    payer: &Address,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
 
@@ -2075,8 +2075,8 @@ pub fn create_native_mint(
 
 /// Creates an `InitializeNonTransferableMint` instruction
 pub fn initialize_non_transferable_mint(
-    token_program_id: &Pubkey,
-    mint_pubkey: &Pubkey,
+    token_program_id: &Address,
+    mint_pubkey: &Address,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     Ok(Instruction {
@@ -2088,9 +2088,9 @@ pub fn initialize_non_transferable_mint(
 
 /// Creates an `InitializePermanentDelegate` instruction
 pub fn initialize_permanent_delegate(
-    token_program_id: &Pubkey,
-    mint_pubkey: &Pubkey,
-    delegate: &Pubkey,
+    token_program_id: &Address,
+    mint_pubkey: &Address,
+    delegate: &Address,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     Ok(Instruction {
@@ -2157,7 +2157,7 @@ pub fn decode_instruction_data<T: Pod>(input_with_type: &[u8]) -> Result<&T, Pro
 
 /// Utility function for encoding instruction data
 pub(crate) fn encode_instruction<T: Into<u8>, D: Pod>(
-    token_program_id: &Pubkey,
+    token_program_id: &Address,
     accounts: Vec<AccountMeta>,
     token_instruction_type: TokenInstruction,
     instruction_type: T,
@@ -2175,11 +2175,11 @@ pub(crate) fn encode_instruction<T: Into<u8>, D: Pod>(
 
 /// Creates a `WithdrawExcessLamports` Instruction
 pub fn withdraw_excess_lamports(
-    token_program_id: &Pubkey,
-    source_account: &Pubkey,
-    destination_account: &Pubkey,
-    authority: &Pubkey,
-    signers: &[&Pubkey],
+    token_program_id: &Address,
+    source_account: &Address,
+    destination_account: &Address,
+    authority: &Address,
+    signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
 
@@ -2202,11 +2202,11 @@ pub fn withdraw_excess_lamports(
 
 /// Creates an `UnwrapLamports` instruction
 pub fn unwrap_lamports(
-    token_program_id: &Pubkey,
-    source_pubkey: &Pubkey,
-    destination_pubkey: &Pubkey,
-    authority_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    source_pubkey: &Address,
+    destination_pubkey: &Address,
+    authority_pubkey: &Address,
+    signer_pubkeys: &[&Address],
     amount: Option<u64>,
 ) -> Result<Instruction, ProgramError> {
     check_spl_token_program_account(token_program_id)?;
@@ -2238,7 +2238,7 @@ mod test {
     #[test]
     fn test_initialize_mint_packing() {
         let decimals = 2;
-        let mint_authority = Pubkey::new_from_array([1u8; 32]);
+        let mint_authority = Address::new_from_array([1u8; 32]);
         let freeze_authority = COption::None;
         let check = TokenInstruction::InitializeMint {
             decimals,
@@ -2253,8 +2253,8 @@ mod test {
         let unpacked = TokenInstruction::unpack(&expect).unwrap();
         assert_eq!(unpacked, check);
 
-        let mint_authority = Pubkey::new_from_array([2u8; 32]);
-        let freeze_authority = COption::Some(Pubkey::new_from_array([3u8; 32]));
+        let mint_authority = Address::new_from_array([2u8; 32]);
+        let freeze_authority = COption::Some(Address::new_from_array([3u8; 32]));
         let check = TokenInstruction::InitializeMint {
             decimals,
             mint_authority,
@@ -2327,7 +2327,7 @@ mod test {
     #[test]
     fn test_set_authority_packing() {
         let authority_type = AuthorityType::FreezeAccount;
-        let new_authority = COption::Some(Pubkey::new_from_array([4u8; 32]));
+        let new_authority = COption::Some(Address::new_from_array([4u8; 32]));
         let check = TokenInstruction::SetAuthority {
             authority_type: authority_type.clone(),
             new_authority,
@@ -2444,7 +2444,7 @@ mod test {
 
     #[test]
     fn test_initialize_account2_packing() {
-        let owner = Pubkey::new_from_array([2u8; 32]);
+        let owner = Address::new_from_array([2u8; 32]);
         let check = TokenInstruction::InitializeAccount2 { owner };
         let packed = check.pack();
         let mut expect = vec![16u8];
@@ -2466,7 +2466,7 @@ mod test {
 
     #[test]
     fn test_initialize_account3_packing() {
-        let owner = Pubkey::new_from_array([2u8; 32]);
+        let owner = Address::new_from_array([2u8; 32]);
         let check = TokenInstruction::InitializeAccount3 { owner };
         let packed = check.pack();
         let mut expect = vec![18u8];
@@ -2490,7 +2490,7 @@ mod test {
     #[test]
     fn test_initialize_mint2_packing() {
         let decimals = 2;
-        let mint_authority = Pubkey::new_from_array([1u8; 32]);
+        let mint_authority = Address::new_from_array([1u8; 32]);
         let freeze_authority = COption::None;
         let check = TokenInstruction::InitializeMint2 {
             decimals,
@@ -2506,8 +2506,8 @@ mod test {
         assert_eq!(unpacked, check);
 
         let decimals = 2;
-        let mint_authority = Pubkey::new_from_array([2u8; 32]);
-        let freeze_authority = COption::Some(Pubkey::new_from_array([3u8; 32]));
+        let mint_authority = Address::new_from_array([2u8; 32]);
+        let freeze_authority = COption::Some(Address::new_from_array([3u8; 32]));
         let check = TokenInstruction::InitializeMint2 {
             decimals,
             mint_authority,
@@ -2573,7 +2573,7 @@ mod test {
 
     #[test]
     fn test_initialize_mint_close_authority_packing() {
-        let close_authority = COption::Some(Pubkey::new_from_array([10u8; 32]));
+        let close_authority = COption::Some(Address::new_from_array([10u8; 32]));
         let check = TokenInstruction::InitializeMintCloseAuthority { close_authority };
         let packed = check.pack();
         let mut expect = vec![25u8, 1];
@@ -2595,7 +2595,7 @@ mod test {
 
     #[test]
     fn test_initialize_permanent_delegate_packing() {
-        let delegate = Pubkey::new_from_array([11u8; 32]);
+        let delegate = Address::new_from_array([11u8; 32]);
         let check = TokenInstruction::InitializePermanentDelegate { delegate };
         let packed = check.pack();
         let mut expect = vec![35u8];
@@ -2635,27 +2635,27 @@ mod test {
     #[test]
     fn test_v3_compatibility() {
         let token_program_id = spl_token_interface::id();
-        let mint_pubkey = Pubkey::new_unique();
-        let mint_authority_pubkey = Pubkey::new_unique();
-        let freeze_authority_pubkey = Pubkey::new_unique();
+        let mint_pubkey = Address::new_unique();
+        let mint_authority_pubkey = Address::new_unique();
+        let freeze_authority_pubkey = Address::new_unique();
         let decimals = 9u8;
 
-        let account_pubkey = Pubkey::new_unique();
-        let owner_pubkey = Pubkey::new_unique();
+        let account_pubkey = Address::new_unique();
+        let owner_pubkey = Address::new_unique();
 
-        let multisig_pubkey = Pubkey::new_unique();
-        let signer_pubkeys_vec = vec![Pubkey::new_unique(); MAX_SIGNERS];
+        let multisig_pubkey = Address::new_unique();
+        let signer_pubkeys_vec = vec![Address::new_unique(); MAX_SIGNERS];
         let signer_pubkeys = signer_pubkeys_vec.iter().collect::<Vec<_>>();
         let m = 10u8;
 
-        let source_pubkey = Pubkey::new_unique();
-        let destination_pubkey = Pubkey::new_unique();
-        let authority_pubkey = Pubkey::new_unique();
+        let source_pubkey = Address::new_unique();
+        let destination_pubkey = Address::new_unique();
+        let authority_pubkey = Address::new_unique();
         let amount = 1_000_000_000_000;
 
-        let delegate_pubkey = Pubkey::new_unique();
-        let owned_pubkey = Pubkey::new_unique();
-        let new_authority_pubkey = Pubkey::new_unique();
+        let delegate_pubkey = Address::new_unique();
+        let owned_pubkey = Address::new_unique();
+        let new_authority_pubkey = Address::new_unique();
 
         let ui_amount = "100000.00";
 

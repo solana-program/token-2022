@@ -9,10 +9,10 @@ edition = "2021"
 publish = false
 
 [dependencies]
-solana-account-info = "2.2.1"
-solana-program-entrypoint = "2.2.1"
-solana-program-error = "2.2.1"
-solana-pubkey = "2.2.1"
+solana-account-info = "3.1.0"
+solana-address = "2.5.0"
+solana-program-entrypoint = "3.1.1"
+solana-program-error = "3.0.1"
 
 [lib]
 crate-type = ["cdylib", "lib"]

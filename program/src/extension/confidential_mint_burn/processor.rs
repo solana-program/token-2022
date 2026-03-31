@@ -11,9 +11,9 @@ use {
 use {
     crate::{extension::cpi_guard::in_cpi, processor::Processor},
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
     solana_zk_sdk::{
         encryption::pod::{
             auth_encryption::PodAeCiphertext,
@@ -68,7 +68,7 @@ fn process_initialize_mint(accounts: &[AccountInfo], data: &InitializeMintData) 
 /// Processes an [`RotateSupplyElGamal`] instruction.
 #[cfg(feature = "zk-ops")]
 fn process_rotate_supply_elgamal_pubkey(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     data: &RotateSupplyElGamalPubkeyData,
 ) -> ProgramResult {
@@ -126,7 +126,7 @@ fn process_rotate_supply_elgamal_pubkey(
 
 /// Processes an [`UpdateDecryptableSupply`] instruction.
 fn process_update_decryptable_supply(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     new_decryptable_supply: PodAeCiphertext,
 ) -> ProgramResult {
@@ -159,7 +159,7 @@ fn process_update_decryptable_supply(
 /// Processes a [`ConfidentialMint`] instruction.
 #[cfg(feature = "zk-ops")]
 fn process_confidential_mint(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     data: &MintInstructionData,
 ) -> ProgramResult {
@@ -305,7 +305,7 @@ fn process_confidential_mint(
 /// Processes a [`ConfidentialBurn`] instruction.
 #[cfg(feature = "zk-ops")]
 pub(crate) fn process_confidential_burn(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     data: &BurnInstructionData,
     burn_variant: BurnInstructionVariant,
@@ -347,7 +347,7 @@ pub(crate) fn process_confidential_burn(
     let maybe_permissioned_burn_authority = permissioned_ext
         .as_ref()
         .ok()
-        .and_then(|ext| Option::<Pubkey>::from(ext.authority));
+        .and_then(|ext| Option::<Address>::from(ext.authority));
     match burn_variant {
         BurnInstructionVariant::Standard => {
             // Standard burns cannot be used when the permissioned burn
@@ -492,7 +492,7 @@ pub(crate) fn process_confidential_burn(
 
 /// Processes a [`ApplyPendingBurn`] instruction.
 #[cfg(feature = "zk-ops")]
-fn process_apply_pending_burn(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+fn process_apply_pending_burn(program_id: &Address, accounts: &[AccountInfo]) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_info = next_account_info(account_info_iter)?;
 
@@ -527,7 +527,7 @@ fn process_apply_pending_burn(program_id: &Pubkey, accounts: &[AccountInfo]) -> 
 
 #[allow(dead_code)]
 pub(crate) fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     input: &[u8],
 ) -> ProgramResult {
@@ -594,7 +594,7 @@ pub(crate) fn process_instruction(
 mod tests {
     use {
         super::*,
-        solana_pubkey::Pubkey,
+        solana_address::Address,
         spl_token_2022_interface::{
             extension::{
                 non_transferable::NonTransferableAccount, BaseStateWithExtensionsMut,
@@ -609,8 +609,8 @@ mod tests {
     /// `ConfidentialTransferMint` and `NonTransferable` extensions.
     /// `ConfidentialMintBurn` is intentionally absent so the negative test
     /// returns our guard error before reaching the extension-not-found error.
-    fn make_non_transferable_mint(owner_key: &Pubkey) -> (Pubkey, Vec<u8>) {
-        let mint_key = Pubkey::new_unique();
+    fn make_non_transferable_mint(owner_key: &Address) -> (Address, Vec<u8>) {
+        let mint_key = Address::new_unique();
         let mint_size = ExtensionType::try_calculate_account_len::<PodMint>(&[
             ExtensionType::NonTransferable,
             ExtensionType::ConfidentialTransferMint,
@@ -638,11 +638,11 @@ mod tests {
 
     /// Build a `PodAccount` buffer with optional `ImmutableOwner` extension.
     fn make_token_account(
-        mint_key: &Pubkey,
-        owner_key: &Pubkey,
+        mint_key: &Address,
+        owner_key: &Address,
         with_immutable_owner: bool,
-    ) -> (Pubkey, Vec<u8>) {
-        let token_account_key = Pubkey::new_unique();
+    ) -> (Address, Vec<u8>) {
+        let token_account_key = Address::new_unique();
         let mut extension_types = vec![ExtensionType::NonTransferableAccount];
         if with_immutable_owner {
             extension_types.push(ExtensionType::ImmutableOwner);
@@ -675,7 +675,7 @@ mod tests {
     #[test]
     fn test_confidential_mint_non_transferable_requires_immutable_owner() {
         let program_id = crate::id();
-        let owner_key = Pubkey::new_unique();
+        let owner_key = Address::new_unique();
 
         let (mint_key, mut mint_data) = make_non_transferable_mint(&owner_key);
         let (token_account_key, mut token_account_data) =
@@ -732,7 +732,7 @@ mod tests {
     #[test]
     fn test_confidential_mint_non_transferable_with_immutable_owner_passes_guard() {
         let program_id = crate::id();
-        let owner_key = Pubkey::new_unique();
+        let owner_key = Address::new_unique();
 
         let (mint_key, mut mint_data) = make_non_transferable_mint(&owner_key);
         let (token_account_key, mut token_account_data) =

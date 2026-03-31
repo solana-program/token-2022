@@ -8,10 +8,10 @@ use {
     },
     arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs},
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::Address,
     solana_program_error::ProgramError,
     solana_program_option::COption,
     solana_program_pack::{IsInitialized, Pack, Sealed},
-    solana_pubkey::Pubkey,
 };
 
 /// Simplified version of the `Pack` trait which only gives the size of the
@@ -30,7 +30,7 @@ pub struct Mint {
     /// be provided during mint creation. If no mint authority is present
     /// then the mint has a fixed supply and no further tokens may be
     /// minted.
-    pub mint_authority: COption<Pubkey>,
+    pub mint_authority: COption<Address>,
     /// Total supply of tokens.
     pub supply: u64,
     /// Number of base 10 digits to the right of the decimal place.
@@ -38,7 +38,7 @@ pub struct Mint {
     /// Is `true` if this structure has been initialized
     pub is_initialized: bool,
     /// Optional authority to freeze token accounts.
-    pub freeze_authority: COption<Pubkey>,
+    pub freeze_authority: COption<Address>,
 }
 impl Sealed for Mint {}
 impl IsInitialized for Mint {
@@ -101,14 +101,14 @@ impl PackedSizeOf for Mint {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Account {
     /// The mint associated with this account
-    pub mint: Pubkey,
+    pub mint: Address,
     /// The owner of this account.
-    pub owner: Pubkey,
+    pub owner: Address,
     /// The amount of tokens this account holds.
     pub amount: u64,
     /// If `delegate` is `Some` then `delegated_amount` represents
     /// the amount authorized by the delegate
-    pub delegate: COption<Pubkey>,
+    pub delegate: COption<Address>,
     /// The account's state
     pub state: AccountState,
     /// If `is_some`, this is a native token, and the value logs the rent-exempt
@@ -119,7 +119,7 @@ pub struct Account {
     /// The amount delegated
     pub delegated_amount: u64,
     /// Optional authority to close the account.
-    pub close_authority: COption<Pubkey>,
+    pub close_authority: COption<Address>,
 }
 impl Account {
     /// Checks if account is frozen
@@ -150,8 +150,8 @@ impl Pack for Account {
         let (mint, owner, amount, delegate, state, is_native, delegated_amount, close_authority) =
             array_refs![src, 32, 32, 8, 36, 1, 12, 8, 36];
         Ok(Account {
-            mint: Pubkey::new_from_array(*mint),
-            owner: Pubkey::new_from_array(*owner),
+            mint: Address::new_from_array(*mint),
+            owner: Address::new_from_array(*owner),
             amount: u64::from_le_bytes(*amount),
             delegate: unpack_coption_key(delegate)?,
             state: AccountState::try_from_primitive(state[0])
@@ -224,7 +224,7 @@ pub struct Multisig {
     /// Is `true` if this structure has been initialized
     pub is_initialized: bool,
     /// Signer public keys
-    pub signers: [Pubkey; MAX_SIGNERS],
+    pub signers: [Address; MAX_SIGNERS],
 }
 impl Sealed for Multisig {}
 impl IsInitialized for Multisig {
@@ -246,10 +246,10 @@ impl Pack for Multisig {
                 [1] => true,
                 _ => return Err(ProgramError::InvalidAccountData),
             },
-            signers: [Pubkey::new_from_array([0u8; 32]); MAX_SIGNERS],
+            signers: [Address::new_from_array([0u8; 32]); MAX_SIGNERS],
         };
         for (src, dst) in signers_flat.chunks(32).zip(result.signers.iter_mut()) {
-            *dst = Pubkey::try_from(src).map_err(|_| ProgramError::InvalidAccountData)?;
+            *dst = Address::try_from(src).map_err(|_| ProgramError::InvalidAccountData)?;
         }
         Ok(result)
     }
@@ -271,7 +271,7 @@ impl PackedSizeOf for Multisig {
 }
 
 // Helpers
-pub(crate) fn pack_coption_key(src: &COption<Pubkey>, dst: &mut [u8; 36]) {
+pub(crate) fn pack_coption_key(src: &COption<Address>, dst: &mut [u8; 36]) {
     let (tag, body) = mut_array_refs![dst, 4, 32];
     match src {
         COption::Some(key) => {
@@ -283,11 +283,11 @@ pub(crate) fn pack_coption_key(src: &COption<Pubkey>, dst: &mut [u8; 36]) {
         }
     }
 }
-pub(crate) fn unpack_coption_key(src: &[u8; 36]) -> Result<COption<Pubkey>, ProgramError> {
+pub(crate) fn unpack_coption_key(src: &[u8; 36]) -> Result<COption<Address>, ProgramError> {
     let (tag, body) = array_refs![src, 4, 32];
     match *tag {
         [0, 0, 0, 0] => Ok(COption::None),
-        [1, 0, 0, 0] => Ok(COption::Some(Pubkey::new_from_array(*body))),
+        [1, 0, 0, 0] => Ok(COption::Some(Address::new_from_array(*body))),
         _ => Err(ProgramError::InvalidAccountData),
     }
 }
@@ -330,11 +330,11 @@ pub(crate) mod test {
     use {super::*, crate::generic_token_account::ACCOUNT_INITIALIZED_INDEX};
 
     pub const TEST_MINT: Mint = Mint {
-        mint_authority: COption::Some(Pubkey::new_from_array([1; 32])),
+        mint_authority: COption::Some(Address::new_from_array([1; 32])),
         supply: 42,
         decimals: 7,
         is_initialized: true,
-        freeze_authority: COption::Some(Pubkey::new_from_array([2; 32])),
+        freeze_authority: COption::Some(Address::new_from_array([2; 32])),
     };
     pub const TEST_MINT_SLICE: &[u8] = &[
         1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -343,14 +343,14 @@ pub(crate) mod test {
     ];
 
     pub const TEST_ACCOUNT: Account = Account {
-        mint: Pubkey::new_from_array([1; 32]),
-        owner: Pubkey::new_from_array([2; 32]),
+        mint: Address::new_from_array([1; 32]),
+        owner: Address::new_from_array([2; 32]),
         amount: 3,
-        delegate: COption::Some(Pubkey::new_from_array([4; 32])),
+        delegate: COption::Some(Address::new_from_array([4; 32])),
         state: AccountState::Frozen,
         is_native: COption::Some(5),
         delegated_amount: 6,
-        close_authority: COption::Some(Pubkey::new_from_array([7; 32])),
+        close_authority: COption::Some(Address::new_from_array([7; 32])),
     };
     pub const TEST_ACCOUNT_SLICE: &[u8] = &[
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -365,17 +365,17 @@ pub(crate) mod test {
         n: 11,
         is_initialized: true,
         signers: [
-            Pubkey::new_from_array([1; 32]),
-            Pubkey::new_from_array([2; 32]),
-            Pubkey::new_from_array([3; 32]),
-            Pubkey::new_from_array([4; 32]),
-            Pubkey::new_from_array([5; 32]),
-            Pubkey::new_from_array([6; 32]),
-            Pubkey::new_from_array([7; 32]),
-            Pubkey::new_from_array([8; 32]),
-            Pubkey::new_from_array([9; 32]),
-            Pubkey::new_from_array([10; 32]),
-            Pubkey::new_from_array([11; 32]),
+            Address::new_from_array([1; 32]),
+            Address::new_from_array([2; 32]),
+            Address::new_from_array([3; 32]),
+            Address::new_from_array([4; 32]),
+            Address::new_from_array([5; 32]),
+            Address::new_from_array([6; 32]),
+            Address::new_from_array([7; 32]),
+            Address::new_from_array([8; 32]),
+            Address::new_from_array([9; 32]),
+            Address::new_from_array([10; 32]),
+            Address::new_from_array([11; 32]),
         ],
     };
     pub const TEST_MULTISIG_SLICE: &[u8] = &[

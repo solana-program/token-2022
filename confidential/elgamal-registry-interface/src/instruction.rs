@@ -1,8 +1,8 @@
 use {
     crate::{get_elgamal_registry_address, id},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
     solana_zk_sdk::zk_elgamal_proof_program::{
         instruction::ProofInstruction, proof_data::PubkeyValidityProofData,
     },
@@ -93,7 +93,7 @@ impl RegistryInstruction {
 
 /// Create a `RegistryInstruction::CreateRegistry` instruction
 pub fn create_registry(
-    owner_address: &Pubkey,
+    owner_address: &Address,
     proof_location: ProofLocation<PubkeyValidityProofData>,
 ) -> Result<Vec<Instruction>, ProgramError> {
     let elgamal_registry_address = get_elgamal_registry_address(owner_address, &id());
@@ -119,7 +119,7 @@ pub fn create_registry(
 
 /// Create a `RegistryInstruction::UpdateRegistry` instruction
 pub fn update_registry(
-    owner_address: &Pubkey,
+    owner_address: &Address,
     proof_location: ProofLocation<PubkeyValidityProofData>,
 ) -> Result<Vec<Instruction>, ProgramError> {
     let elgamal_registry_address = get_elgamal_registry_address(owner_address, &id());

@@ -8,10 +8,10 @@ use {
         state::{AccountState, PackedSizeOf},
     },
     bytemuck::{Pod, Zeroable},
+    solana_address::Address,
     solana_program_error::ProgramError,
     solana_program_option::COption,
     solana_program_pack::IsInitialized,
-    solana_pubkey::Pubkey,
     spl_pod::{
         bytemuck::pod_get_packed_len,
         optional_keys::OptionalNonZeroPubkey,
@@ -27,7 +27,7 @@ pub struct PodMint {
     /// be provided during mint creation. If no mint authority is present
     /// then the mint has a fixed supply and no further tokens may be
     /// minted.
-    pub mint_authority: PodCOption<Pubkey>,
+    pub mint_authority: PodCOption<Address>,
     /// Total supply of tokens.
     pub supply: PodU64,
     /// Number of base 10 digits to the right of the decimal place.
@@ -35,7 +35,7 @@ pub struct PodMint {
     /// If `true`, this structure has been initialized
     pub is_initialized: PodBool,
     /// Optional authority to freeze token accounts.
-    pub freeze_authority: PodCOption<Pubkey>,
+    pub freeze_authority: PodCOption<Address>,
 }
 impl IsInitialized for PodMint {
     fn is_initialized(&self) -> bool {
@@ -63,14 +63,14 @@ impl From<Mint> for PodMint {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct PodAccount {
     /// The mint associated with this account
-    pub mint: Pubkey,
+    pub mint: Address,
     /// The owner of this account.
-    pub owner: Pubkey,
+    pub owner: Address,
     /// The amount of tokens this account holds.
     pub amount: PodU64,
     /// If `delegate` is `Some` then `delegated_amount` represents
     /// the amount authorized by the delegate
-    pub delegate: PodCOption<Pubkey>,
+    pub delegate: PodCOption<Address>,
     /// The account's [`AccountState`], stored as a `u8`
     pub state: u8,
     /// If `is_some`, this is a native token, and the value logs the rent-exempt
@@ -81,7 +81,7 @@ pub struct PodAccount {
     /// The amount delegated
     pub delegated_amount: PodU64,
     /// Optional authority to close the account.
-    pub close_authority: PodCOption<Pubkey>,
+    pub close_authority: PodCOption<Address>,
 }
 impl PodAccount {
     /// Checks if account is frozen
@@ -134,7 +134,7 @@ pub struct PodMultisig {
     /// If `true`, this structure has been initialized
     pub is_initialized: PodBool,
     /// Signer public keys
-    pub signers: [Pubkey; MAX_SIGNERS],
+    pub signers: [Address; MAX_SIGNERS],
 }
 impl IsInitialized for PodMultisig {
     fn is_initialized(&self) -> bool {
@@ -242,22 +242,22 @@ impl<T: Pod + Default> From<COption<T>> for PodCOption<T> {
         }
     }
 }
-impl TryFrom<PodCOption<Pubkey>> for OptionalNonZeroPubkey {
+impl TryFrom<PodCOption<Address>> for OptionalNonZeroPubkey {
     type Error = ProgramError;
-    fn try_from(p: PodCOption<Pubkey>) -> Result<Self, Self::Error> {
+    fn try_from(p: PodCOption<Address>) -> Result<Self, Self::Error> {
         match p {
             PodCOption {
-                option: PodCOption::<Pubkey>::SOME,
+                option: PodCOption::<Address>::SOME,
                 value,
-            } if value == Pubkey::default() => Err(ProgramError::InvalidArgument),
+            } if value == Address::default() => Err(ProgramError::InvalidArgument),
             PodCOption {
-                option: PodCOption::<Pubkey>::SOME,
+                option: PodCOption::<Address>::SOME,
                 value,
             } => Ok(Self(value)),
             PodCOption {
-                option: PodCOption::<Pubkey>::NONE,
+                option: PodCOption::<Address>::NONE,
                 value: _,
-            } => Ok(Self(Pubkey::default())),
+            } => Ok(Self(Address::default())),
             _ => unreachable!(),
         }
     }
@@ -278,21 +278,21 @@ pub(crate) mod test {
     };
 
     pub const TEST_POD_MINT: PodMint = PodMint {
-        mint_authority: PodCOption::some(Pubkey::new_from_array([1; 32])),
+        mint_authority: PodCOption::some(Address::new_from_array([1; 32])),
         supply: PodU64::from_primitive(42),
         decimals: 7,
         is_initialized: PodBool::from_bool(true),
-        freeze_authority: PodCOption::some(Pubkey::new_from_array([2; 32])),
+        freeze_authority: PodCOption::some(Address::new_from_array([2; 32])),
     };
     pub const TEST_POD_ACCOUNT: PodAccount = PodAccount {
-        mint: Pubkey::new_from_array([1; 32]),
-        owner: Pubkey::new_from_array([2; 32]),
+        mint: Address::new_from_array([1; 32]),
+        owner: Address::new_from_array([2; 32]),
         amount: PodU64::from_primitive(3),
-        delegate: PodCOption::some(Pubkey::new_from_array([4; 32])),
+        delegate: PodCOption::some(Address::new_from_array([4; 32])),
         state: AccountState::Frozen as u8,
         is_native: PodCOption::some(PodU64::from_primitive(5)),
         delegated_amount: PodU64::from_primitive(6),
-        close_authority: PodCOption::some(Pubkey::new_from_array([7; 32])),
+        close_authority: PodCOption::some(Address::new_from_array([7; 32])),
     };
 
     #[test]

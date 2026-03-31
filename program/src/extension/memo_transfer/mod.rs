@@ -1,5 +1,5 @@
 use {
-    solana_instruction::Instruction, solana_program_error::ProgramError, solana_pubkey::Pubkey,
+    solana_address::Address, solana_instruction::Instruction, solana_program_error::ProgramError,
     spl_token_2022_interface::error::TokenError,
 };
 
@@ -17,7 +17,7 @@ pub use spl_token_2022_interface::extension::memo_transfer::{memo_required, Memo
 
 /// Check if the previous sibling instruction is a memo
 pub fn check_previous_sibling_instruction_is_memo() -> Result<(), ProgramError> {
-    let is_memo_program = |program_id: &Pubkey| -> bool {
+    let is_memo_program = |program_id: &Address| -> bool {
         program_id == &spl_memo_interface::v3::id() || program_id == &spl_memo_interface::v1::id()
     };
     let previous_instruction = get_processed_sibling_instruction();
@@ -38,7 +38,7 @@ fn get_processed_sibling_instruction() -> Option<Instruction> {
     {
         use solana_instruction::{syscalls, AccountMeta, ProcessedSiblingInstruction};
         let mut meta = ProcessedSiblingInstruction::default();
-        let mut program_id = Pubkey::default();
+        let mut program_id = Address::default();
 
         if 1 == unsafe {
             syscalls::sol_get_processed_sibling_instruction(

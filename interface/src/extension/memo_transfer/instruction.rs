@@ -6,9 +6,9 @@ use {
         instruction::{encode_instruction, TokenInstruction},
     },
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
 };
 
 /// Required Memo Transfers extension instructions
@@ -49,10 +49,10 @@ pub enum RequiredMemoTransfersInstruction {
 
 /// Create an `Enable` instruction
 pub fn enable_required_transfer_memos(
-    token_program_id: &Pubkey,
-    account: &Pubkey,
-    owner: &Pubkey,
-    signers: &[&Pubkey],
+    token_program_id: &Address,
+    account: &Address,
+    owner: &Address,
+    signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![
@@ -73,10 +73,10 @@ pub fn enable_required_transfer_memos(
 
 /// Create a `Disable` instruction
 pub fn disable_required_transfer_memos(
-    token_program_id: &Pubkey,
-    account: &Pubkey,
-    owner: &Pubkey,
-    signers: &[&Pubkey],
+    token_program_id: &Address,
+    account: &Address,
+    owner: &Address,
+    signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![

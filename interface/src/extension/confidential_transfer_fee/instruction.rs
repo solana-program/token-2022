@@ -18,9 +18,9 @@ use {
     },
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
     solana_sdk_ids::sysvar,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_confidential_transfer_proof_extraction::instruction::ProofLocation,
@@ -262,9 +262,9 @@ pub struct WithdrawWithheldTokensFromAccountsData {
 
 /// Create a `InitializeConfidentialTransferFeeConfig` instruction
 pub fn initialize_confidential_transfer_fee_config(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: Option<Pubkey>,
+    token_program_id: &Address,
+    mint: &Address,
+    authority: Option<Address>,
     withdraw_withheld_authority_elgamal_pubkey: &PodElGamalPubkey,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
@@ -286,12 +286,12 @@ pub fn initialize_confidential_transfer_fee_config(
 ///
 /// This instruction is suitable for use with a cross-program `invoke`
 pub fn inner_withdraw_withheld_tokens_from_mint(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    destination: &Pubkey,
+    token_program_id: &Address,
+    mint: &Address,
+    destination: &Address,
     new_decryptable_available_balance: &DecryptableBalance,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
     proof_data_location: ProofLocation<CiphertextCiphertextEqualityProofData>,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
@@ -334,12 +334,12 @@ pub fn inner_withdraw_withheld_tokens_from_mint(
 
 /// Create an `WithdrawWithheldTokensFromMint` instruction
 pub fn withdraw_withheld_tokens_from_mint(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    destination: &Pubkey,
+    token_program_id: &Address,
+    mint: &Address,
+    destination: &Address,
     new_decryptable_available_balance: &DecryptableBalance,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
     proof_data_location: ProofLocation<CiphertextCiphertextEqualityProofData>,
 ) -> Result<Vec<Instruction>, ProgramError> {
     let mut instructions = vec![inner_withdraw_withheld_tokens_from_mint(
@@ -378,13 +378,13 @@ pub fn withdraw_withheld_tokens_from_mint(
 /// This instruction is suitable for use with a cross-program `invoke`
 #[allow(clippy::too_many_arguments)]
 pub fn inner_withdraw_withheld_tokens_from_accounts(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    destination: &Pubkey,
+    token_program_id: &Address,
+    mint: &Address,
+    destination: &Address,
     new_decryptable_available_balance: &DecryptableBalance,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
-    sources: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
+    sources: &[&Address],
     proof_data_location: ProofLocation<CiphertextCiphertextEqualityProofData>,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
@@ -435,13 +435,13 @@ pub fn inner_withdraw_withheld_tokens_from_accounts(
 /// Create a `WithdrawWithheldTokensFromAccounts` instruction
 #[allow(clippy::too_many_arguments)]
 pub fn withdraw_withheld_tokens_from_accounts(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    destination: &Pubkey,
+    token_program_id: &Address,
+    mint: &Address,
+    destination: &Address,
     new_decryptable_available_balance: &DecryptableBalance,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
-    sources: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
+    sources: &[&Address],
     proof_data_location: ProofLocation<CiphertextCiphertextEqualityProofData>,
 ) -> Result<Vec<Instruction>, ProgramError> {
     let mut instructions = vec![inner_withdraw_withheld_tokens_from_accounts(
@@ -478,9 +478,9 @@ pub fn withdraw_withheld_tokens_from_accounts(
 
 /// Creates a `HarvestWithheldTokensToMint` instruction
 pub fn harvest_withheld_tokens_to_mint(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    sources: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    sources: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![AccountMeta::new(*mint, false)];
@@ -500,10 +500,10 @@ pub fn harvest_withheld_tokens_to_mint(
 
 /// Create an `EnableHarvestToMint` instruction
 pub fn enable_harvest_to_mint(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    authority: &Address,
+    multisig_signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![
@@ -526,10 +526,10 @@ pub fn enable_harvest_to_mint(
 
 /// Create a `DisableHarvestToMint` instruction
 pub fn disable_harvest_to_mint(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    authority: &Address,
+    multisig_signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![
