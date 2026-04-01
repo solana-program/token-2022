@@ -36,10 +36,7 @@ use {
     solana_account_info::AccountInfo,
     solana_program_error::ProgramError,
     solana_program_pack::{IsInitialized, Pack},
-    spl_pod::{
-        bytemuck::{pod_from_bytes, pod_from_bytes_mut, pod_get_packed_len},
-        primitives::PodU16,
-    },
+    solana_zero_copy::unaligned::U16,
     spl_token_group_interface::state::{TokenGroup, TokenGroupMember},
     spl_type_length_value::variable_len_pack::VariableLenPack,
     std::{
@@ -96,7 +93,7 @@ pub mod confidential_mint_burn;
 /// Length in TLV structure
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 #[repr(transparent)]
-pub struct Length(PodU16);
+pub struct Length(U16);
 impl From<Length> for usize {
     fn from(n: Length) -> Self {
         Self::from(u16::from(n.0))
@@ -106,7 +103,7 @@ impl TryFrom<usize> for Length {
     type Error = ProgramError;
     fn try_from(n: usize) -> Result<Self, Self::Error> {
         u16::try_from(n)
-            .map(|v| Self(PodU16::from(v)))
+            .map(|v| Self(U16::from(v)))
             .map_err(|_| ProgramError::AccountDataTooSmall)
     }
 }
@@ -114,7 +111,7 @@ impl TryFrom<usize> for Length {
 /// Helper function to get the current `TlvIndices` from the current spot
 fn get_tlv_indices(type_start: usize) -> TlvIndices {
     let length_start = type_start.saturating_add(size_of::<ExtensionType>());
-    let value_start = length_start.saturating_add(pod_get_packed_len::<Length>());
+    let value_start = length_start.saturating_add(size_of::<Length>());
     TlvIndices {
         type_start,
         length_start,
@@ -137,7 +134,7 @@ const fn adjust_len_for_multisig(account_len: usize) -> usize {
 const fn add_type_and_length_to_len(value_len: usize) -> usize {
     value_len
         .saturating_add(size_of::<ExtensionType>())
-        .saturating_add(pod_get_packed_len::<Length>())
+        .saturating_add(size_of::<Length>())
 }
 
 /// Helper struct for returning the indices of the type, length, and value in
@@ -175,9 +172,10 @@ fn get_extension_indices<V: Extension>(
                 return Err(TokenError::ExtensionNotFound.into());
             }
         } else {
-            let length = pod_from_bytes::<Length>(
+            let length = bytemuck::try_from_bytes::<Length>(
                 &tlv_data[tlv_indices.length_start..tlv_indices.value_start],
-            )?;
+            )
+            .map_err(|_| ProgramError::InvalidArgument)?;
             let value_end_index = tlv_indices.value_start.saturating_add(usize::from(*length));
             start_index = value_end_index;
         }
@@ -226,9 +224,10 @@ fn get_tlv_data_info(tlv_data: &[u8]) -> Result<TlvDataInfo, ProgramError> {
                 return Err(ProgramError::InvalidAccountData);
             }
             extension_types.push(extension_type);
-            let length = pod_from_bytes::<Length>(
+            let length = bytemuck::try_from_bytes::<Length>(
                 &tlv_data[tlv_indices.length_start..tlv_indices.value_start],
-            )?;
+            )
+            .map_err(|_| ProgramError::InvalidArgument)?;
 
             let value_end_index = tlv_indices.value_start.saturating_add(usize::from(*length));
             if value_end_index > tlv_data.len() {
@@ -345,7 +344,8 @@ fn get_extension_bytes<S: BaseState, V: Extension>(tlv_data: &[u8]) -> Result<&[
     } = get_extension_indices::<V>(tlv_data, false)?;
     // get_extension_indices has checked that tlv_data is long enough to include
     // these indices
-    let length = pod_from_bytes::<Length>(&tlv_data[length_start..value_start])?;
+    let length = bytemuck::try_from_bytes::<Length>(&tlv_data[length_start..value_start])
+        .map_err(|_| ProgramError::InvalidArgument)?;
     let value_end = value_start.saturating_add(usize::from(*length));
     if tlv_data.len() < value_end {
         return Err(ProgramError::InvalidAccountData);
@@ -366,7 +366,8 @@ fn get_extension_bytes_mut<S: BaseState, V: Extension>(
     } = get_extension_indices::<V>(tlv_data, false)?;
     // get_extension_indices has checked that tlv_data is long enough to include
     // these indices
-    let length = pod_from_bytes::<Length>(&tlv_data[length_start..value_start])?;
+    let length = bytemuck::try_from_bytes::<Length>(&tlv_data[length_start..value_start])
+        .map_err(|_| ProgramError::InvalidArgument)?;
     let value_end = value_start.saturating_add(usize::from(*length));
     if tlv_data.len() < value_end {
         return Err(ProgramError::InvalidAccountData);
@@ -413,7 +414,8 @@ pub trait BaseStateWithExtensions<S: BaseState> {
 
     /// Unpack a portion of the TLV data as the desired type
     fn get_extension<V: Extension + Pod>(&self) -> Result<&V, ProgramError> {
-        pod_from_bytes::<V>(self.get_extension_bytes::<V>()?)
+        bytemuck::try_from_bytes::<V>(self.get_extension_bytes::<V>()?)
+            .map_err(|_| ProgramError::InvalidArgument)
     }
 
     /// Unpacks a portion of the TLV data as the desired variable-length type
@@ -451,10 +453,7 @@ pub trait BaseStateWithExtensions<S: BaseState> {
     /// If the state already has the extension, the resulting account length
     /// will be unchanged.
     fn try_get_new_account_len<V: Extension + Pod>(&self) -> Result<usize, ProgramError> {
-        try_get_new_account_len_for_extension_len::<S, V>(
-            self.get_tlv_data(),
-            pod_get_packed_len::<V>(),
-        )
+        try_get_new_account_len_for_extension_len::<S, V>(self.get_tlv_data(), size_of::<V>())
     }
 
     /// Calculate the new expected size if the state allocates the given
@@ -552,7 +551,8 @@ impl<'data, S: BaseState + Pod> PodStateWithExtensions<'data, S> {
     pub fn unpack(input: &'data [u8]) -> Result<Self, ProgramError> {
         check_min_len_and_not_multisig(input, S::SIZE_OF)?;
         let (base_data, rest) = input.split_at(S::SIZE_OF);
-        let base = pod_from_bytes::<S>(base_data)?;
+        let base =
+            bytemuck::try_from_bytes::<S>(base_data).map_err(|_| ProgramError::InvalidArgument)?;
         if !base.is_initialized() {
             Err(ProgramError::UninitializedAccount)
         } else {
@@ -583,7 +583,8 @@ pub trait BaseStateWithExtensionsMut<S: BaseState>: BaseStateWithExtensions<S> {
     /// Unpack a portion of the TLV data as the desired type that allows
     /// modifying the type
     fn get_extension_mut<V: Extension + Pod>(&mut self) -> Result<&mut V, ProgramError> {
-        pod_from_bytes_mut::<V>(self.get_extension_bytes_mut::<V>()?)
+        bytemuck::try_from_bytes_mut::<V>(self.get_extension_bytes_mut::<V>()?)
+            .map_err(|_| ProgramError::InvalidArgument)
     }
 
     /// Packs a variable-length extension into its appropriate data segment.
@@ -607,9 +608,10 @@ pub trait BaseStateWithExtensionsMut<S: BaseState>: BaseStateWithExtensions<S> {
         &mut self,
         overwrite: bool,
     ) -> Result<&mut V, ProgramError> {
-        let length = pod_get_packed_len::<V>();
+        let length = size_of::<V>();
         let buffer = self.alloc::<V>(length, overwrite)?;
-        let extension_ref = pod_from_bytes_mut::<V>(buffer)?;
+        let extension_ref =
+            bytemuck::try_from_bytes_mut::<V>(buffer).map_err(|_| ProgramError::InvalidArgument)?;
         *extension_ref = V::default();
         Ok(extension_ref)
     }
@@ -649,7 +651,9 @@ pub trait BaseStateWithExtensionsMut<S: BaseState>: BaseStateWithExtensions<S> {
         let tlv_len = get_tlv_data_info(tlv_data).map(|x| x.used_len)?;
         let data_len = tlv_data.len();
 
-        let length_ref = pod_from_bytes_mut::<Length>(&mut tlv_data[length_start..value_start])?;
+        let length_ref =
+            bytemuck::try_from_bytes_mut::<Length>(&mut tlv_data[length_start..value_start])
+                .map_err(|_| ProgramError::InvalidArgument)?;
         let old_length = usize::from(*length_ref);
 
         // Length check to avoid a panic later in `copy_within`
@@ -725,7 +729,8 @@ pub trait BaseStateWithExtensionsMut<S: BaseState>: BaseStateWithExtensions<S> {
             extension_type_ref.copy_from_slice(&extension_type_array);
             // write length
             let length_ref =
-                pod_from_bytes_mut::<Length>(&mut tlv_data[length_start..value_start])?;
+                bytemuck::try_from_bytes_mut::<Length>(&mut tlv_data[length_start..value_start])
+                    .map_err(|_| ProgramError::InvalidArgument)?;
 
             // check that the length is the same if we're doing an alloc
             // with overwrite, otherwise a realloc should be done
@@ -904,7 +909,8 @@ impl<'data, S: BaseState + Pod> PodStateWithExtensionsMut<'data, S> {
     pub fn unpack(input: &'data mut [u8]) -> Result<Self, ProgramError> {
         check_min_len_and_not_multisig(input, S::SIZE_OF)?;
         let (base_data, rest) = input.split_at_mut(S::SIZE_OF);
-        let base = pod_from_bytes_mut::<S>(base_data)?;
+        let base = bytemuck::try_from_bytes_mut::<S>(base_data)
+            .map_err(|_| ProgramError::InvalidArgument)?;
         if !base.is_initialized() {
             Err(ProgramError::UninitializedAccount)
         } else {
@@ -924,7 +930,8 @@ impl<'data, S: BaseState + Pod> PodStateWithExtensionsMut<'data, S> {
     pub fn unpack_uninitialized(input: &'data mut [u8]) -> Result<Self, ProgramError> {
         check_min_len_and_not_multisig(input, S::SIZE_OF)?;
         let (base_data, rest) = input.split_at_mut(S::SIZE_OF);
-        let base = pod_from_bytes_mut::<S>(base_data)?;
+        let base = bytemuck::try_from_bytes_mut::<S>(base_data)
+            .map_err(|_| ProgramError::InvalidArgument)?;
         if base.is_initialized() {
             return Err(TokenError::AlreadyInUse.into());
         }
@@ -1170,46 +1177,42 @@ impl ExtensionType {
         }
         Ok(match self {
             ExtensionType::Uninitialized => 0,
-            ExtensionType::TransferFeeConfig => pod_get_packed_len::<TransferFeeConfig>(),
-            ExtensionType::TransferFeeAmount => pod_get_packed_len::<TransferFeeAmount>(),
-            ExtensionType::MintCloseAuthority => pod_get_packed_len::<MintCloseAuthority>(),
-            ExtensionType::ImmutableOwner => pod_get_packed_len::<ImmutableOwner>(),
-            ExtensionType::ConfidentialTransferMint => {
-                pod_get_packed_len::<ConfidentialTransferMint>()
-            }
-            ExtensionType::ConfidentialTransferAccount => {
-                pod_get_packed_len::<ConfidentialTransferAccount>()
-            }
-            ExtensionType::DefaultAccountState => pod_get_packed_len::<DefaultAccountState>(),
-            ExtensionType::MemoTransfer => pod_get_packed_len::<MemoTransfer>(),
-            ExtensionType::NonTransferable => pod_get_packed_len::<NonTransferable>(),
-            ExtensionType::InterestBearingConfig => pod_get_packed_len::<InterestBearingConfig>(),
-            ExtensionType::CpiGuard => pod_get_packed_len::<CpiGuard>(),
-            ExtensionType::PermanentDelegate => pod_get_packed_len::<PermanentDelegate>(),
-            ExtensionType::NonTransferableAccount => pod_get_packed_len::<NonTransferableAccount>(),
-            ExtensionType::TransferHook => pod_get_packed_len::<TransferHook>(),
-            ExtensionType::TransferHookAccount => pod_get_packed_len::<TransferHookAccount>(),
+            ExtensionType::TransferFeeConfig => size_of::<TransferFeeConfig>(),
+            ExtensionType::TransferFeeAmount => size_of::<TransferFeeAmount>(),
+            ExtensionType::MintCloseAuthority => size_of::<MintCloseAuthority>(),
+            ExtensionType::ImmutableOwner => size_of::<ImmutableOwner>(),
+            ExtensionType::ConfidentialTransferMint => size_of::<ConfidentialTransferMint>(),
+            ExtensionType::ConfidentialTransferAccount => size_of::<ConfidentialTransferAccount>(),
+            ExtensionType::DefaultAccountState => size_of::<DefaultAccountState>(),
+            ExtensionType::MemoTransfer => size_of::<MemoTransfer>(),
+            ExtensionType::NonTransferable => size_of::<NonTransferable>(),
+            ExtensionType::InterestBearingConfig => size_of::<InterestBearingConfig>(),
+            ExtensionType::CpiGuard => size_of::<CpiGuard>(),
+            ExtensionType::PermanentDelegate => size_of::<PermanentDelegate>(),
+            ExtensionType::NonTransferableAccount => size_of::<NonTransferableAccount>(),
+            ExtensionType::TransferHook => size_of::<TransferHook>(),
+            ExtensionType::TransferHookAccount => size_of::<TransferHookAccount>(),
             ExtensionType::ConfidentialTransferFeeConfig => {
-                pod_get_packed_len::<ConfidentialTransferFeeConfig>()
+                size_of::<ConfidentialTransferFeeConfig>()
             }
             ExtensionType::ConfidentialTransferFeeAmount => {
-                pod_get_packed_len::<ConfidentialTransferFeeAmount>()
+                size_of::<ConfidentialTransferFeeAmount>()
             }
-            ExtensionType::MetadataPointer => pod_get_packed_len::<MetadataPointer>(),
+            ExtensionType::MetadataPointer => size_of::<MetadataPointer>(),
             ExtensionType::TokenMetadata => unreachable!(),
-            ExtensionType::GroupPointer => pod_get_packed_len::<GroupPointer>(),
-            ExtensionType::TokenGroup => pod_get_packed_len::<TokenGroup>(),
-            ExtensionType::GroupMemberPointer => pod_get_packed_len::<GroupMemberPointer>(),
-            ExtensionType::TokenGroupMember => pod_get_packed_len::<TokenGroupMember>(),
-            ExtensionType::ConfidentialMintBurn => pod_get_packed_len::<ConfidentialMintBurn>(),
-            ExtensionType::ScaledUiAmount => pod_get_packed_len::<ScaledUiAmountConfig>(),
-            ExtensionType::Pausable => pod_get_packed_len::<PausableConfig>(),
-            ExtensionType::PausableAccount => pod_get_packed_len::<PausableAccount>(),
-            ExtensionType::PermissionedBurn => pod_get_packed_len::<PermissionedBurnConfig>(),
+            ExtensionType::GroupPointer => size_of::<GroupPointer>(),
+            ExtensionType::TokenGroup => size_of::<TokenGroup>(),
+            ExtensionType::GroupMemberPointer => size_of::<GroupMemberPointer>(),
+            ExtensionType::TokenGroupMember => size_of::<TokenGroupMember>(),
+            ExtensionType::ConfidentialMintBurn => size_of::<ConfidentialMintBurn>(),
+            ExtensionType::ScaledUiAmount => size_of::<ScaledUiAmountConfig>(),
+            ExtensionType::Pausable => size_of::<PausableConfig>(),
+            ExtensionType::PausableAccount => size_of::<PausableAccount>(),
+            ExtensionType::PermissionedBurn => size_of::<PermissionedBurnConfig>(),
             #[cfg(test)]
-            ExtensionType::AccountPaddingTest => pod_get_packed_len::<AccountPaddingTest>(),
+            ExtensionType::AccountPaddingTest => size_of::<AccountPaddingTest>(),
             #[cfg(test)]
-            ExtensionType::MintPaddingTest => pod_get_packed_len::<MintPaddingTest>(),
+            ExtensionType::MintPaddingTest => size_of::<MintPaddingTest>(),
             #[cfg(test)]
             ExtensionType::VariableLenMintTest => unreachable!(),
         })
@@ -1566,11 +1569,8 @@ mod test {
             Account as GetAccount, IntoAccountInfo, MAX_PERMITTED_DATA_INCREASE,
         },
         solana_address::Address,
-        spl_pod::{
-            bytemuck::pod_bytes_of,
-            optional_keys::OptionalNonZeroPubkey,
-            primitives::{PodBool, PodU64},
-        },
+        solana_nullable::MaybeNull,
+        solana_zero_copy::unaligned::{Bool, U64},
         transfer_fee::test::test_transfer_fee_config,
     };
 
@@ -1669,8 +1669,8 @@ mod test {
         let state = PodStateWithExtensions::<PodMint>::unpack(MINT_WITH_EXTENSION).unwrap();
         assert_eq!(state.base, &TEST_POD_MINT);
         let extension = state.get_extension::<MintCloseAuthority>().unwrap();
-        let close_authority =
-            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([1; 32]))).unwrap();
+        let close_authority: MaybeNull<Address> =
+            Some(Address::new_from_array([1; 32])).try_into().unwrap();
         assert_eq!(extension.close_authority, close_authority);
         assert_eq!(
             state.get_extension::<TransferFeeConfig>(),
@@ -1692,7 +1692,7 @@ mod test {
         let state = PodStateWithExtensions::<PodAccount>::unpack(ACCOUNT_WITH_EXTENSION).unwrap();
         assert_eq!(state.base, &TEST_POD_ACCOUNT);
         let extension = state.get_extension::<TransferHookAccount>().unwrap();
-        let transferring = PodBool::from(true);
+        let transferring = Bool::from(true);
         assert_eq!(extension.transferring, transferring);
         assert_eq!(
             PodStateWithExtensions::<PodMint>::unpack(ACCOUNT_WITH_EXTENSION),
@@ -1919,8 +1919,8 @@ mod test {
         );
 
         // success write extension
-        let close_authority =
-            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([1; 32]))).unwrap();
+        let close_authority: MaybeNull<Address> =
+            Some(Address::new_from_array([1; 32])).try_into().unwrap();
         let extension = state.init_extension::<MintCloseAuthority>(true).unwrap();
         extension.close_authority = close_authority;
         assert_eq!(
@@ -1961,8 +1961,7 @@ mod test {
         expect.extend_from_slice(&[0; BASE_ACCOUNT_LENGTH - PodMint::SIZE_OF]); // padding
         expect.push(AccountType::Mint.into());
         expect.extend_from_slice(&(ExtensionType::MintCloseAuthority as u16).to_le_bytes());
-        expect
-            .extend_from_slice(&(pod_get_packed_len::<MintCloseAuthority>() as u16).to_le_bytes());
+        expect.extend_from_slice(&(size_of::<MintCloseAuthority>() as u16).to_le_bytes());
         expect.extend_from_slice(&[1; 32]); // data
         expect.extend_from_slice(&[0; size_of::<ExtensionType>()]);
         expect.extend_from_slice(&[0; size_of::<Length>()]);
@@ -1987,7 +1986,7 @@ mod test {
         assert_eq!(*unpacked_extension, MintCloseAuthority { close_authority });
 
         // update extension
-        let close_authority = OptionalNonZeroPubkey::try_from(None).unwrap();
+        let close_authority: MaybeNull<Address> = None.try_into().unwrap();
         unpacked_extension.close_authority = close_authority;
 
         // check updates are propagated
@@ -2003,8 +2002,7 @@ mod test {
         expect.extend_from_slice(&[0; BASE_ACCOUNT_LENGTH - PodMint::SIZE_OF]); // padding
         expect.push(AccountType::Mint.into());
         expect.extend_from_slice(&(ExtensionType::MintCloseAuthority as u16).to_le_bytes());
-        expect
-            .extend_from_slice(&(pod_get_packed_len::<MintCloseAuthority>() as u16).to_le_bytes());
+        expect.extend_from_slice(&(size_of::<MintCloseAuthority>() as u16).to_le_bytes());
         expect.extend_from_slice(&[0; 32]);
         expect.extend_from_slice(&[0; size_of::<ExtensionType>()]);
         expect.extend_from_slice(&[0; size_of::<Length>()]);
@@ -2038,16 +2036,15 @@ mod test {
 
         // check raw buffer
         let mut expect = vec![];
-        expect.extend_from_slice(pod_bytes_of(&base));
+        expect.extend_from_slice(bytemuck::bytes_of(&base));
         expect.extend_from_slice(&[0; BASE_ACCOUNT_LENGTH - PodMint::SIZE_OF]); // padding
         expect.push(AccountType::Mint.into());
         expect.extend_from_slice(&(ExtensionType::MintCloseAuthority as u16).to_le_bytes());
-        expect
-            .extend_from_slice(&(pod_get_packed_len::<MintCloseAuthority>() as u16).to_le_bytes());
+        expect.extend_from_slice(&(size_of::<MintCloseAuthority>() as u16).to_le_bytes());
         expect.extend_from_slice(&[0; 32]); // data
         expect.extend_from_slice(&(ExtensionType::TransferFeeConfig as u16).to_le_bytes());
-        expect.extend_from_slice(&(pod_get_packed_len::<TransferFeeConfig>() as u16).to_le_bytes());
-        expect.extend_from_slice(pod_bytes_of(&mint_transfer_fee));
+        expect.extend_from_slice(&(size_of::<TransferFeeConfig>() as u16).to_le_bytes());
+        expect.extend_from_slice(bytemuck::bytes_of(&mint_transfer_fee));
         assert_eq!(expect, buffer);
 
         // fail to init one more extension that does not fit
@@ -2070,8 +2067,8 @@ mod test {
         let mut state =
             PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut buffer).unwrap();
         // write extensions
-        let close_authority =
-            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([1; 32]))).unwrap();
+        let close_authority: MaybeNull<Address> =
+            Some(Address::new_from_array([1; 32])).try_into().unwrap();
         let extension = state.init_extension::<MintCloseAuthority>(true).unwrap();
         extension.close_authority = close_authority;
 
@@ -2114,8 +2111,8 @@ mod test {
         extension.older_transfer_fee = mint_transfer_fee.older_transfer_fee;
         extension.newer_transfer_fee = mint_transfer_fee.newer_transfer_fee;
 
-        let close_authority =
-            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([1; 32]))).unwrap();
+        let close_authority: MaybeNull<Address> =
+            Some(Address::new_from_array([1; 32])).try_into().unwrap();
         let extension = state.init_extension::<MintCloseAuthority>(true).unwrap();
         extension.close_authority = close_authority;
 
@@ -2179,8 +2176,8 @@ mod test {
         expect.extend_from_slice(&[0; BASE_ACCOUNT_LENGTH - PodMint::SIZE_OF]); // padding
         expect.push(AccountType::Mint.into());
         expect.extend_from_slice(&(ExtensionType::MintPaddingTest as u16).to_le_bytes());
-        expect.extend_from_slice(&(pod_get_packed_len::<MintPaddingTest>() as u16).to_le_bytes());
-        expect.extend_from_slice(&vec![1; pod_get_packed_len::<MintPaddingTest>()]);
+        expect.extend_from_slice(&(size_of::<MintPaddingTest>() as u16).to_le_bytes());
+        expect.extend_from_slice(&vec![1; size_of::<MintPaddingTest>()]);
         expect.extend_from_slice(&(ExtensionType::Uninitialized as u16).to_le_bytes());
         assert_eq!(expect, buffer);
     }
@@ -2207,7 +2204,7 @@ mod test {
             Err(ProgramError::InvalidAccountData),
         );
         // success write extension
-        let withheld_amount = PodU64::from(u64::MAX);
+        let withheld_amount = U64::from(u64::MAX);
         let extension = state.init_extension::<TransferFeeAmount>(true).unwrap();
         extension.withheld_amount = withheld_amount;
 
@@ -2233,7 +2230,7 @@ mod test {
         let mut expect = TEST_ACCOUNT_SLICE.to_vec();
         expect.push(AccountType::Account.into());
         expect.extend_from_slice(&(ExtensionType::TransferFeeAmount as u16).to_le_bytes());
-        expect.extend_from_slice(&(pod_get_packed_len::<TransferFeeAmount>() as u16).to_le_bytes());
+        expect.extend_from_slice(&(size_of::<TransferFeeAmount>() as u16).to_le_bytes());
         expect.extend_from_slice(&u64::from(withheld_amount).to_le_bytes());
         assert_eq!(expect, buffer);
 
@@ -2254,7 +2251,7 @@ mod test {
         assert_eq!(*unpacked_extension, TransferFeeAmount { withheld_amount });
 
         // update extension
-        let withheld_amount = PodU64::from(u32::MAX as u64);
+        let withheld_amount = U64::from(u32::MAX as u64);
         unpacked_extension.withheld_amount = withheld_amount;
 
         // check updates are propagated
@@ -2266,10 +2263,10 @@ mod test {
 
         // check raw buffer
         let mut expect = vec![];
-        expect.extend_from_slice(pod_bytes_of(&base));
+        expect.extend_from_slice(bytemuck::bytes_of(&base));
         expect.push(AccountType::Account.into());
         expect.extend_from_slice(&(ExtensionType::TransferFeeAmount as u16).to_le_bytes());
-        expect.extend_from_slice(&(pod_get_packed_len::<TransferFeeAmount>() as u16).to_le_bytes());
+        expect.extend_from_slice(&(size_of::<TransferFeeAmount>() as u16).to_le_bytes());
         expect.extend_from_slice(&u64::from(withheld_amount).to_le_bytes());
         assert_eq!(expect, buffer);
 
@@ -2315,9 +2312,8 @@ mod test {
         let mut expect = TEST_ACCOUNT_SLICE.to_vec();
         expect.push(AccountType::Account.into());
         expect.extend_from_slice(&(ExtensionType::AccountPaddingTest as u16).to_le_bytes());
-        expect
-            .extend_from_slice(&(pod_get_packed_len::<AccountPaddingTest>() as u16).to_le_bytes());
-        expect.extend_from_slice(&vec![2; pod_get_packed_len::<AccountPaddingTest>()]);
+        expect.extend_from_slice(&(size_of::<AccountPaddingTest>() as u16).to_le_bytes());
+        expect.extend_from_slice(&vec![2; size_of::<AccountPaddingTest>()]);
         expect.extend_from_slice(&(ExtensionType::Uninitialized as u16).to_le_bytes());
         assert_eq!(expect, buffer);
     }
@@ -2676,8 +2672,8 @@ mod test {
         state
             .init_variable_len_extension(&base_variable_len, false)
             .unwrap();
-        let max_pubkey =
-            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([255; 32]))).unwrap();
+        let max_pubkey: MaybeNull<Address> =
+            Some(Address::new_from_array([255; 32])).try_into().unwrap();
         let extension = state.init_extension::<MetadataPointer>(false).unwrap();
         extension.authority = max_pubkey;
         extension.metadata_address = max_pubkey;
@@ -2842,7 +2838,7 @@ mod test {
         let fixed_len = FixedLenMintTest {
             data: [1, 2, 3, 4, 5, 6, 7, 8],
         };
-        let value_len = pod_get_packed_len::<FixedLenMintTest>();
+        let value_len = size_of::<FixedLenMintTest>();
         let base_account_size = PodMint::SIZE_OF;
         let mut buffer = vec![0; base_account_size];
         let state =
@@ -2931,7 +2927,7 @@ mod test {
         let fixed_len = FixedLenMintTest {
             data: [1, 2, 3, 4, 5, 6, 7, 8],
         };
-        let value_len = pod_get_packed_len::<FixedLenMintTest>();
+        let value_len = size_of::<FixedLenMintTest>();
         let account_size =
             ExtensionType::try_calculate_account_len::<PodMint>(&[ExtensionType::GroupPointer])
                 .unwrap()
@@ -2942,8 +2938,8 @@ mod test {
         *state.base = TEST_POD_MINT;
         state.init_account_type().unwrap();
 
-        let test_key =
-            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([20; 32]))).unwrap();
+        let test_key: MaybeNull<Address> =
+            Some(Address::new_from_array([20; 32])).try_into().unwrap();
         let extension = state.init_extension::<GroupPointer>(false).unwrap();
         extension.authority = test_key;
         extension.group_address = test_key;
@@ -2992,8 +2988,8 @@ mod test {
         *state.base = TEST_POD_MINT;
         state.init_account_type().unwrap();
 
-        let test_key =
-            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([20; 32]))).unwrap();
+        let test_key: MaybeNull<Address> =
+            Some(Address::new_from_array([20; 32])).try_into().unwrap();
         let extension = state.init_extension::<MetadataPointer>(false).unwrap();
         extension.authority = test_key;
         extension.metadata_address = test_key;
@@ -3065,8 +3061,8 @@ mod test {
         state
             .init_variable_len_extension(&variable_len, false)
             .unwrap();
-        let max_pubkey =
-            OptionalNonZeroPubkey::try_from(Some(Address::new_from_array([255; 32]))).unwrap();
+        let max_pubkey: MaybeNull<Address> =
+            Some(Address::new_from_array([255; 32])).try_into().unwrap();
         let extension = state.init_extension::<MetadataPointer>(false).unwrap();
         extension.authority = max_pubkey;
         extension.metadata_address = max_pubkey;

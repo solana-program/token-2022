@@ -4,15 +4,13 @@ use {
         extension::{Extension, ExtensionType},
     },
     bytemuck::{Pod, Zeroable},
+    solana_address::Address,
     solana_nullable::MaybeNull,
     solana_program_error::ProgramResult,
+    solana_zero_copy::unaligned::{Bool, U64},
     solana_zk_sdk_pod::encryption::{
         auth_encryption::PodAeCiphertext,
         elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
-    },
-    spl_pod::{
-        optional_keys::OptionalNonZeroPubkey,
-        primitives::{PodBool, PodU64},
     },
 };
 
@@ -43,7 +41,7 @@ pub struct ConfidentialTransferMint {
     /// approve new accounts (if `auto_approve_new_accounts` is true)
     ///
     /// The legacy Token Multisig account is not supported as the authority
-    pub authority: OptionalNonZeroPubkey,
+    pub authority: MaybeNull<Address>,
 
     /// Indicate if newly configured accounts must be approved by the
     /// `authority` before they may be used by the user.
@@ -52,7 +50,7 @@ pub struct ConfidentialTransferMint {
     ///   immediately
     /// * If `false`, the authority must approve newly configured accounts (see
     ///   `ConfidentialTransferInstruction::ConfigureAccount`)
-    pub auto_approve_new_accounts: PodBool,
+    pub auto_approve_new_accounts: Bool,
 
     /// Authority to decode any transfer amount in a confidential transfer.
     pub auditor_elgamal_pubkey: MaybeNull<PodElGamalPubkey>,
@@ -69,7 +67,7 @@ pub struct ConfidentialTransferAccount {
     /// `true` if this account has been approved for use. All confidential
     /// transfer operations for the account will fail until approval is
     /// granted.
-    pub approved: PodBool,
+    pub approved: Bool,
 
     /// The public key associated with ElGamal encryption
     pub elgamal_pubkey: PodElGamalPubkey,
@@ -88,27 +86,27 @@ pub struct ConfidentialTransferAccount {
 
     /// If `false`, the extended account rejects any incoming confidential
     /// transfers
-    pub allow_confidential_credits: PodBool,
+    pub allow_confidential_credits: Bool,
 
     /// If `false`, the base account rejects any incoming transfers
-    pub allow_non_confidential_credits: PodBool,
+    pub allow_non_confidential_credits: Bool,
 
     /// The total number of `Deposit` and `Transfer` instructions that have
     /// credited `pending_balance`
-    pub pending_balance_credit_counter: PodU64,
+    pub pending_balance_credit_counter: U64,
 
     /// The maximum number of `Deposit` and `Transfer` instructions that can
     /// credit `pending_balance` before the `ApplyPendingBalance`
     /// instruction is executed
-    pub maximum_pending_balance_credit_counter: PodU64,
+    pub maximum_pending_balance_credit_counter: U64,
 
     /// The `expected_pending_balance_credit_counter` value that was included in
     /// the last `ApplyPendingBalance` instruction
-    pub expected_pending_balance_credit_counter: PodU64,
+    pub expected_pending_balance_credit_counter: U64,
 
     /// The actual `pending_balance_credit_counter` when the last
     /// `ApplyPendingBalance` instruction was executed
-    pub actual_pending_balance_credit_counter: PodU64,
+    pub actual_pending_balance_credit_counter: U64,
 }
 
 impl Extension for ConfidentialTransferAccount {

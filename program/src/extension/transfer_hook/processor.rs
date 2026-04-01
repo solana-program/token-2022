@@ -3,8 +3,8 @@ use {
     solana_account_info::{next_account_info, AccountInfo},
     solana_address::Address,
     solana_msg::msg,
+    solana_nullable::MaybeNull,
     solana_program_error::{ProgramError, ProgramResult},
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -25,8 +25,8 @@ use {
 fn process_initialize(
     program_id: &Address,
     accounts: &[AccountInfo],
-    authority: &OptionalNonZeroPubkey,
-    transfer_hook_program_id: &OptionalNonZeroPubkey,
+    authority: &MaybeNull<Address>,
+    transfer_hook_program_id: &MaybeNull<Address>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_account_info = next_account_info(account_info_iter)?;
@@ -53,7 +53,7 @@ fn process_initialize(
 fn process_update(
     program_id: &Address,
     accounts: &[AccountInfo],
-    new_program_id: &OptionalNonZeroPubkey,
+    new_program_id: &MaybeNull<Address>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_account_info = next_account_info(account_info_iter)?;

@@ -2,6 +2,7 @@
 use {
     crate::serialization::{aeciphertext_fromstr, elgamalpubkey_fromstr},
     serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 use {
     crate::{
@@ -16,11 +17,11 @@ use {
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
     solana_sdk_ids::sysvar,
     solana_zk_elgamal_proof_interface::instruction::ProofInstruction,
     solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_confidential_transfer_proof_extraction::instruction::ProofLocation,
     std::convert::TryFrom,
 };
@@ -215,7 +216,8 @@ pub enum ConfidentialTransferFeeInstruction {
 #[repr(C)]
 pub struct InitializeConfidentialTransferFeeConfigData {
     /// confidential transfer fee authority
-    pub authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub authority: MaybeNull<Address>,
 
     /// ElGamal public key used to encrypt withheld fees.
     #[cfg_attr(feature = "serde", serde(with = "elgamalpubkey_fromstr"))]
@@ -274,7 +276,9 @@ pub fn initialize_confidential_transfer_fee_config(
         TokenInstruction::ConfidentialTransferFeeExtension,
         ConfidentialTransferFeeInstruction::InitializeConfidentialTransferFeeConfig,
         &InitializeConfidentialTransferFeeConfigData {
-            authority: authority.try_into()?,
+            authority: authority
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
             withdraw_withheld_authority_elgamal_pubkey: *withdraw_withheld_authority_elgamal_pubkey,
         },
     ))

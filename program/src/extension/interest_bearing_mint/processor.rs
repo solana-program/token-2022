@@ -4,9 +4,9 @@ use {
     solana_address::Address,
     solana_clock::Clock,
     solana_msg::msg,
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramResult,
     solana_sysvar::Sysvar,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -25,7 +25,7 @@ use {
 fn process_initialize(
     _program_id: &Address,
     accounts: &[AccountInfo],
-    rate_authority: &OptionalNonZeroPubkey,
+    rate_authority: &MaybeNull<Address>,
     rate: &BasisPoints,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();

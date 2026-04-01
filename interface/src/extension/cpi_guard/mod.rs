@@ -6,7 +6,7 @@ use {
         state::Account,
     },
     bytemuck::{Pod, Zeroable},
-    spl_pod::primitives::PodBool,
+    solana_zero_copy::unaligned::Bool,
 };
 
 /// CPI Guard extension instructions
@@ -19,7 +19,7 @@ pub mod instruction;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct CpiGuard {
     /// Lock privileged token operations from happening via CPI
-    pub lock_cpi: PodBool,
+    pub lock_cpi: Bool,
 }
 impl Extension for CpiGuard {
     const TYPE: ExtensionType = ExtensionType::CpiGuard;

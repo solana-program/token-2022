@@ -21,7 +21,6 @@ use {
     solana_program_error::ProgramError,
     solana_program_option::COption,
     solana_sdk_ids::{system_program, sysvar},
-    spl_pod::bytemuck::{pod_from_bytes, pod_get_packed_len},
     std::{
         convert::{TryFrom, TryInto},
         mem::size_of,
@@ -2148,10 +2147,10 @@ pub fn decode_instruction_type<T: TryFrom<u8>>(input: &[u8]) -> Result<T, Progra
 /// }
 /// ```
 pub fn decode_instruction_data<T: Pod>(input_with_type: &[u8]) -> Result<&T, ProgramError> {
-    if input_with_type.len() != pod_get_packed_len::<T>().saturating_add(1) {
+    if input_with_type.len() != size_of::<T>().saturating_add(1) {
         Err(ProgramError::InvalidInstructionData)
     } else {
-        pod_from_bytes(&input_with_type[1..])
+        bytemuck::try_from_bytes(&input_with_type[1..]).map_err(|_| ProgramError::InvalidArgument)
     }
 }
 

@@ -15,5 +15,8 @@ solana-zk-sdk-pod = "0.1.1"
 solana-zk-elgamal-proof-interface = "0.1.2"
 thiserror = "2.0.18"
 
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
 [lints]
 workspace = true

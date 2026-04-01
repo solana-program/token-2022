@@ -5,6 +5,7 @@ pub use solana_zk_elgamal_proof_interface::{
 use {
     crate::serialization::{aeciphertext_fromstr, elgamalciphertext_fromstr},
     serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 use {
     crate::{
@@ -19,6 +20,8 @@ use {
     solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
     solana_sdk_ids::{system_program, sysvar},
+    solana_zero_copy::unaligned::{Bool, U64},
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
     spl_token_confidential_transfer_proof_extraction::instruction::ProofLocation,
 };
 
@@ -500,10 +503,11 @@ pub enum ConfidentialTransferInstruction {
 pub struct InitializeMintData {
     /// Authority to modify the `ConfidentialTransferMint` configuration and to
     /// approve new accounts.
-    pub authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub authority: MaybeNull<Address>,
     /// Determines if newly configured accounts must be approved by the
     /// `authority` before they may be used by the user.
-    pub auto_approve_new_accounts: PodBool,
+    pub auto_approve_new_accounts: Bool,
     /// New authority to decode any transfer amount in a confidential transfer.
     pub auditor_elgamal_pubkey: MaybeNull<PodElGamalPubkey>,
 }
@@ -516,7 +520,7 @@ pub struct InitializeMintData {
 pub struct UpdateMintData {
     /// Determines if newly configured accounts must be approved by the
     /// `authority` before they may be used by the user.
-    pub auto_approve_new_accounts: PodBool,
+    pub auto_approve_new_accounts: Bool,
     /// New authority to decode any transfer amount in a confidential transfer.
     pub auditor_elgamal_pubkey: MaybeNull<PodElGamalPubkey>,
 }
@@ -532,7 +536,7 @@ pub struct ConfigureAccountInstructionData {
     pub decryptable_zero_balance: DecryptableBalance,
     /// The maximum number of deposits and transfers that an account can receive
     /// before the `ApplyPendingBalance` is executed
-    pub maximum_pending_balance_credit_counter: PodU64,
+    pub maximum_pending_balance_credit_counter: U64,
     /// Relative location of the `ProofInstruction::ZeroCiphertextProof`
     /// instruction to the `ConfigureAccount` instruction in the
     /// transaction. If the offset is `0`, then use a context state account
@@ -559,7 +563,7 @@ pub struct EmptyAccountInstructionData {
 #[repr(C)]
 pub struct DepositInstructionData {
     /// The amount of tokens to deposit
-    pub amount: PodU64,
+    pub amount: U64,
     /// Expected number of base 10 digits to the right of the decimal place
     pub decimals: u8,
 }
@@ -571,7 +575,7 @@ pub struct DepositInstructionData {
 #[repr(C)]
 pub struct WithdrawInstructionData {
     /// The amount of tokens to withdraw
-    pub amount: PodU64,
+    pub amount: U64,
     /// Expected number of base 10 digits to the right of the decimal place
     pub decimals: u8,
     /// The new decryptable balance if the withdrawal succeeds
@@ -627,7 +631,7 @@ pub struct TransferInstructionData {
 pub struct ApplyPendingBalanceData {
     /// The expected number of pending balance credits since the last successful
     /// `ApplyPendingBalance` instruction
-    pub expected_pending_balance_credit_counter: PodU64,
+    pub expected_pending_balance_credit_counter: U64,
     /// The new decryptable balance if the pending balance is applied
     /// successfully
     #[cfg_attr(feature = "serde", serde(with = "aeciphertext_fromstr"))]
@@ -694,7 +698,9 @@ pub fn initialize_mint(
         TokenInstruction::ConfidentialTransferExtension,
         ConfidentialTransferInstruction::InitializeMint,
         &InitializeMintData {
-            authority: authority.try_into()?,
+            authority: authority
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
             auto_approve_new_accounts: auto_approve_new_accounts.into(),
             auditor_elgamal_pubkey: auditor_elgamal_pubkey
                 .try_into()

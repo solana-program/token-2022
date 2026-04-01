@@ -4,7 +4,7 @@ use {
     solana_address::Address,
     solana_clock::Clock,
     solana_msg::msg,
-    solana_program_error::ProgramResult,
+    solana_program_error::{ProgramError, ProgramResult},
     solana_program_option::COption,
     solana_sysvar::Sysvar,
     spl_token_2022_interface::{
@@ -20,7 +20,6 @@ use {
         },
         pod::{PodAccount, PodMint},
     },
-    std::convert::TryInto,
 };
 
 fn process_initialize_transfer_fee_config(
@@ -37,8 +36,12 @@ fn process_initialize_transfer_fee_config(
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
     let extension = mint.init_extension::<TransferFeeConfig>(true)?;
-    extension.transfer_fee_config_authority = transfer_fee_config_authority.try_into()?;
-    extension.withdraw_withheld_authority = withdraw_withheld_authority.try_into()?;
+    extension.transfer_fee_config_authority = transfer_fee_config_authority
+        .try_into()
+        .map_err(|_| ProgramError::InvalidArgument)?;
+    extension.withdraw_withheld_authority = withdraw_withheld_authority
+        .try_into()
+        .map_err(|_| ProgramError::InvalidArgument)?;
     extension.withheld_amount = 0u64.into();
 
     if transfer_fee_basis_points > MAX_FEE_BASIS_POINTS {

@@ -1,12 +1,12 @@
 mod program_test;
 use {
+    bytemuck::try_from_bytes,
     program_test::TestContext,
     solana_program_test::{tokio, ProgramTest},
     solana_sdk::{
         instruction::InstructionError, pubkey::Pubkey, signature::Signer, signer::keypair::Keypair,
         transaction::TransactionError, transport::TransportError,
     },
-    spl_pod::bytemuck::pod_from_bytes,
     spl_token_2022_interface::{error::TokenError, extension::BaseStateWithExtensions},
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
     spl_token_group_interface::{error::TokenGroupError, state::TokenGroupMember},
@@ -235,7 +235,7 @@ async fn success_initialize() {
     // check that the data is correct
     let mint_info = member1_token_context.token.get_mint_info().await.unwrap();
     let member_bytes = mint_info.get_extension_bytes::<TokenGroupMember>().unwrap();
-    let fetched_member = pod_from_bytes::<TokenGroupMember>(member_bytes).unwrap();
+    let fetched_member = try_from_bytes::<TokenGroupMember>(member_bytes).unwrap();
     assert_eq!(
         fetched_member,
         &TokenGroupMember {
@@ -286,7 +286,7 @@ async fn success_initialize() {
         .unwrap();
     let mint_info = member2_token_context.token.get_mint_info().await.unwrap();
     let member_bytes = mint_info.get_extension_bytes::<TokenGroupMember>().unwrap();
-    let fetched_member = pod_from_bytes::<TokenGroupMember>(member_bytes).unwrap();
+    let fetched_member = try_from_bytes::<TokenGroupMember>(member_bytes).unwrap();
     assert_eq!(
         fetched_member,
         &TokenGroupMember {
