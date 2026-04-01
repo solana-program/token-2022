@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use {
     crate::extension::{BaseState, BaseStateWithExtensions, Extension, ExtensionType},
     bytemuck::{Pod, Zeroable},
-    solana_pubkey::Pubkey,
+    solana_address::Address,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
 };
 
@@ -24,9 +24,9 @@ impl Extension for PermanentDelegate {
 /// if the extension is not found
 pub fn get_permanent_delegate<S: BaseState, BSE: BaseStateWithExtensions<S>>(
     state: &BSE,
-) -> Option<Pubkey> {
+) -> Option<Address> {
     state
         .get_extension::<PermanentDelegate>()
         .ok()
-        .and_then(|e| Option::<Pubkey>::from(e.delegate))
+        .and_then(|e| Option::<Address>::from(e.delegate))
 }

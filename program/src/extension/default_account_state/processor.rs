@@ -1,9 +1,9 @@
 use {
     crate::processor::Processor,
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_msg::msg,
     solana_program_error::ProgramResult,
-    solana_pubkey::Pubkey,
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -43,7 +43,7 @@ fn process_initialize_default_account_state(
 }
 
 fn process_update_default_account_state(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     state: AccountState,
 ) -> ProgramResult {
@@ -59,7 +59,7 @@ fn process_update_default_account_state(
 
     match &mint.base.freeze_authority {
         PodCOption {
-            option: PodCOption::<Pubkey>::SOME,
+            option: PodCOption::<Address>::SOME,
             value: freeze_authority,
         } => Processor::validate_owner(
             program_id,
@@ -77,7 +77,7 @@ fn process_update_default_account_state(
 }
 
 pub(crate) fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     input: &[u8],
 ) -> ProgramResult {

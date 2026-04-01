@@ -8,9 +8,9 @@ use {
     },
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
     std::convert::TryInto,
 };
@@ -92,9 +92,9 @@ pub struct UpdateMultiplierInstructionData {
 
 /// Create an `Initialize` instruction
 pub fn initialize(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: Option<Pubkey>,
+    token_program_id: &Address,
+    mint: &Address,
+    authority: Option<Address>,
     multiplier: f64,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
@@ -113,10 +113,10 @@ pub fn initialize(
 
 /// Create an `UpdateMultiplier` instruction
 pub fn update_multiplier(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-    signers: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    authority: &Address,
+    signers: &[&Address],
     multiplier: f64,
     effective_timestamp: i64,
 ) -> Result<Instruction, ProgramError> {

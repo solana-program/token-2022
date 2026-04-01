@@ -1,9 +1,9 @@
 use {
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_cpi::invoke_signed,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
     solana_rent::Rent,
     solana_system_interface::instruction::{allocate, assign},
     solana_sysvar::Sysvar,
@@ -22,7 +22,7 @@ use {
 
 /// Processes `CreateRegistry` instruction
 pub fn process_create_registry_account(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     proof_instruction_offset: i64,
 ) -> ProgramResult {
@@ -75,7 +75,7 @@ pub fn process_create_registry_account(
 
 /// Processes `UpdateRegistry` instruction
 pub fn process_update_registry_account(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     proof_instruction_offset: i64,
 ) -> ProgramResult {
@@ -101,7 +101,7 @@ pub fn process_update_registry_account(
 
 /// Instruction processor
 pub fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     input: &[u8],
 ) -> ProgramResult {
@@ -122,7 +122,7 @@ pub fn process_instruction(
     }
 }
 
-fn validate_registry_owner(owner_info: &AccountInfo, expected_owner: &Pubkey) -> ProgramResult {
+fn validate_registry_owner(owner_info: &AccountInfo, expected_owner: &Address) -> ProgramResult {
     if expected_owner != owner_info.key {
         return Err(ProgramError::InvalidAccountOwner);
     }
@@ -132,7 +132,7 @@ fn validate_registry_owner(owner_info: &AccountInfo, expected_owner: &Pubkey) ->
     Ok(())
 }
 
-fn validate_program_owner(registry_info: &AccountInfo, program_id: &Pubkey) -> ProgramResult {
+fn validate_program_owner(registry_info: &AccountInfo, program_id: &Address) -> ProgramResult {
     if registry_info.owner != program_id {
         return Err(ProgramError::InvalidAccountOwner);
     }
@@ -144,7 +144,7 @@ fn validate_program_owner(registry_info: &AccountInfo, program_id: &Pubkey) -> P
 pub fn create_pda_account<'a>(
     rent: &Rent,
     space: usize,
-    owner: &Pubkey,
+    owner: &Address,
     system_program: &AccountInfo<'a>,
     new_pda_account: &AccountInfo<'a>,
     new_pda_signer_seeds: &[&[u8]],

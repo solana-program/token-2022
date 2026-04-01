@@ -191,7 +191,7 @@ impl Extension for TransferFeeAmount {
 
 #[cfg(test)]
 pub(crate) mod test {
-    use {super::*, proptest::prelude::*, solana_pubkey::Pubkey, std::convert::TryFrom};
+    use {super::*, proptest::prelude::*, solana_address::Address, std::convert::TryFrom};
 
     const NEWER_EPOCH: u64 = 100;
     const OLDER_EPOCH: u64 = 1;
@@ -199,11 +199,11 @@ pub(crate) mod test {
     pub(crate) fn test_transfer_fee_config() -> TransferFeeConfig {
         TransferFeeConfig {
             transfer_fee_config_authority: OptionalNonZeroPubkey::try_from(Some(
-                Pubkey::new_from_array([10; 32]),
+                Address::new_from_array([10; 32]),
             ))
             .unwrap(),
             withdraw_withheld_authority: OptionalNonZeroPubkey::try_from(Some(
-                Pubkey::new_from_array([11; 32]),
+                Address::new_from_array([11; 32]),
             ))
             .unwrap(),
             withheld_amount: PodU64::from(u64::MAX),

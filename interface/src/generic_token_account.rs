@@ -2,7 +2,7 @@
 // Remove all of this and use spl-token's version once token 3.4.0 is released
 use {
     crate::state::AccountState,
-    solana_pubkey::{Pubkey, PUBKEY_BYTES},
+    solana_address::{Address, ADDRESS_BYTES},
 };
 
 const SPL_TOKEN_ACCOUNT_MINT_OFFSET: usize = 0;
@@ -16,25 +16,25 @@ pub trait GenericTokenAccount {
 
     /// Call after account length has already been verified to unpack the
     /// account owner
-    fn unpack_account_owner_unchecked(account_data: &[u8]) -> &Pubkey {
+    fn unpack_account_owner_unchecked(account_data: &[u8]) -> &Address {
         Self::unpack_pubkey_unchecked(account_data, SPL_TOKEN_ACCOUNT_OWNER_OFFSET)
     }
 
     /// Call after account length has already been verified to unpack the
     /// account mint
-    fn unpack_account_mint_unchecked(account_data: &[u8]) -> &Pubkey {
+    fn unpack_account_mint_unchecked(account_data: &[u8]) -> &Address {
         Self::unpack_pubkey_unchecked(account_data, SPL_TOKEN_ACCOUNT_MINT_OFFSET)
     }
 
-    /// Call after account length has already been verified to unpack a Pubkey
+    /// Call after account length has already been verified to unpack a Address
     /// at the specified offset. Panics if `account_data.len()` is less than
-    /// `PUBKEY_BYTES`
-    fn unpack_pubkey_unchecked(account_data: &[u8], offset: usize) -> &Pubkey {
-        bytemuck::from_bytes(&account_data[offset..offset + PUBKEY_BYTES])
+    /// `ADDRESS_BYTES`
+    fn unpack_pubkey_unchecked(account_data: &[u8], offset: usize) -> &Address {
+        bytemuck::from_bytes(&account_data[offset..offset + ADDRESS_BYTES])
     }
 
     /// Unpacks an account's owner from opaque account data.
-    fn unpack_account_owner(account_data: &[u8]) -> Option<&Pubkey> {
+    fn unpack_account_owner(account_data: &[u8]) -> Option<&Address> {
         if Self::valid_account_data(account_data) {
             Some(Self::unpack_account_owner_unchecked(account_data))
         } else {
@@ -43,7 +43,7 @@ pub trait GenericTokenAccount {
     }
 
     /// Unpacks an account's mint from opaque account data.
-    fn unpack_account_mint(account_data: &[u8]) -> Option<&Pubkey> {
+    fn unpack_account_mint(account_data: &[u8]) -> Option<&Address> {
         if Self::valid_account_data(account_data) {
             Some(Self::unpack_account_mint_unchecked(account_data))
         } else {

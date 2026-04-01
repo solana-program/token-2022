@@ -2,9 +2,9 @@
 
 use {
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::{
         check_program_account,
@@ -32,7 +32,7 @@ fn check_update_authority(
     if !update_authority_info.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
-    let update_authority = Option::<Pubkey>::from(*expected_update_authority)
+    let update_authority = Option::<Address>::from(*expected_update_authority)
         .ok_or(TokenGroupError::ImmutableGroup)?;
     if update_authority != *update_authority_info.key {
         return Err(TokenGroupError::IncorrectUpdateAuthority.into());
@@ -43,7 +43,7 @@ fn check_update_authority(
 /// Processes a [`InitializeGroup`](enum.TokenGroupInstruction.html)
 /// instruction.
 pub fn process_initialize_group(
-    _program_id: &Pubkey,
+    _program_id: &Address,
     accounts: &[AccountInfo],
     data: InitializeGroup,
 ) -> ProgramResult {
@@ -94,7 +94,7 @@ pub fn process_initialize_group(
 /// [`UpdateGroupMaxSize`](enum.TokenGroupInstruction.html)
 /// instruction
 pub fn process_update_group_max_size(
-    _program_id: &Pubkey,
+    _program_id: &Address,
     accounts: &[AccountInfo],
     data: UpdateGroupMaxSize,
 ) -> ProgramResult {
@@ -119,7 +119,7 @@ pub fn process_update_group_max_size(
 /// [`UpdateGroupAuthority`](enum.TokenGroupInstruction.html)
 /// instruction
 pub fn process_update_group_authority(
-    _program_id: &Pubkey,
+    _program_id: &Address,
     accounts: &[AccountInfo],
     data: UpdateGroupAuthority,
 ) -> ProgramResult {
@@ -142,7 +142,7 @@ pub fn process_update_group_authority(
 
 /// Processes an [`InitializeMember`](enum.TokenGroupInstruction.html)
 /// instruction
-pub fn process_initialize_member(_program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+pub fn process_initialize_member(_program_id: &Address, accounts: &[AccountInfo]) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
 
     let member_info = next_account_info(account_info_iter)?;
@@ -203,7 +203,7 @@ pub fn process_initialize_member(_program_id: &Pubkey, accounts: &[AccountInfo])
 
 /// Processes an [`Instruction`](enum.Instruction.html).
 pub fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     instruction: TokenGroupInstruction,
 ) -> ProgramResult {

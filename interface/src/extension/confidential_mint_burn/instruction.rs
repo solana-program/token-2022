@@ -13,9 +13,9 @@ use {
     },
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
     solana_zk_sdk::encryption::pod::{
         auth_encryption::PodAeCiphertext,
         elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
@@ -298,8 +298,8 @@ pub struct BurnInstructionData {
 
 /// Create a `InitializeMint` instruction
 pub fn initialize_mint(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
+    token_program_id: &Address,
+    mint: &Address,
     supply_elgamal_pubkey: &PodElGamalPubkey,
     decryptable_supply: &DecryptableBalance,
 ) -> Result<Instruction, ProgramError> {
@@ -322,10 +322,10 @@ pub fn initialize_mint(
 #[allow(clippy::too_many_arguments)]
 #[cfg(not(target_os = "solana"))]
 pub fn rotate_supply_elgamal_pubkey(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    authority: &Address,
+    multisig_signers: &[&Address],
     new_supply_elgamal_pubkey: &PodElGamalPubkey,
     ciphertext_equality_proof: ProofLocation<CiphertextCiphertextEqualityProofData>,
 ) -> Result<Vec<Instruction>, ProgramError> {
@@ -371,10 +371,10 @@ pub fn rotate_supply_elgamal_pubkey(
 /// Create a `UpdateDecryptableSupply` instruction
 #[cfg(not(target_os = "solana"))]
 pub fn update_decryptable_supply(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    authority: &Address,
+    multisig_signers: &[&Address],
     new_decryptable_supply: &DecryptableBalance,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
@@ -400,26 +400,26 @@ pub fn update_decryptable_supply(
 #[derive(Clone, Copy)]
 pub struct MintSplitContextStateAccounts<'a> {
     /// Location of equality proof
-    pub equality_proof: &'a Pubkey,
+    pub equality_proof: &'a Address,
     /// Location of ciphertext validity proof
-    pub ciphertext_validity_proof: &'a Pubkey,
+    pub ciphertext_validity_proof: &'a Address,
     /// Location of range proof
-    pub range_proof: &'a Pubkey,
+    pub range_proof: &'a Address,
     /// Authority able to close proof accounts
-    pub authority: &'a Pubkey,
+    pub authority: &'a Address,
 }
 
 /// Create a `ConfidentialMint` instruction
 #[allow(clippy::too_many_arguments)]
 #[cfg(not(target_os = "solana"))]
 pub fn confidential_mint_with_split_proofs(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    mint: &Pubkey,
+    token_program_id: &Address,
+    token_account: &Address,
+    mint: &Address,
     mint_amount_auditor_ciphertext_lo: &PodElGamalCiphertext,
     mint_amount_auditor_ciphertext_hi: &PodElGamalCiphertext,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
     equality_proof_location: ProofLocation<CiphertextCommitmentEqualityProofData>,
     ciphertext_validity_proof_location: ProofLocation<
         BatchedGroupedCiphertext3HandlesValidityProofData,
@@ -495,14 +495,14 @@ pub fn confidential_mint_with_split_proofs(
 #[allow(clippy::too_many_arguments)]
 #[cfg(not(target_os = "solana"))]
 pub fn confidential_burn_with_split_proofs(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    mint: &Pubkey,
+    token_program_id: &Address,
+    token_account: &Address,
+    mint: &Address,
     new_decryptable_available_balance: &DecryptableBalance,
     burn_amount_auditor_ciphertext_lo: &PodElGamalCiphertext,
     burn_amount_auditor_ciphertext_hi: &PodElGamalCiphertext,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
     equality_proof_location: ProofLocation<CiphertextCommitmentEqualityProofData>,
     ciphertext_validity_proof_location: ProofLocation<
         BatchedGroupedCiphertext3HandlesValidityProofData,
@@ -576,10 +576,10 @@ pub fn confidential_burn_with_split_proofs(
 
 /// Create a `ApplyPendingBurn` instruction
 pub fn apply_pending_burn(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    authority: &Address,
+    multisig_signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![

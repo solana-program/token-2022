@@ -3,10 +3,10 @@
 
 use {
     solana_account_info::AccountInfo,
+    solana_address::Address,
     solana_cpi::invoke_signed,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
     spl_pod::bytemuck::pod_from_bytes,
     spl_token_2022_interface::inline_spl_token,
     spl_token_2022_interface::{
@@ -50,7 +50,7 @@ pub fn extract_multisig_accounts<'a, 'b>(
 /// Internal function to gather account infos and create instruction
 #[allow(clippy::too_many_arguments)]
 fn transfer_instruction_and_account_infos<'a>(
-    token_program_id: &Pubkey,
+    token_program_id: &Address,
     source_info: AccountInfo<'a>,
     mint_info: AccountInfo<'a>,
     destination_info: AccountInfo<'a>,
@@ -138,7 +138,7 @@ fn transfer_instruction_and_account_infos<'a>(
 /// Internal function to reduce redundancy between the callers
 #[allow(clippy::too_many_arguments)]
 fn invoke_transfer_internal<'a>(
-    token_program_id: &Pubkey,
+    token_program_id: &Address,
     source_info: AccountInfo<'a>,
     mint_info: AccountInfo<'a>,
     destination_info: AccountInfo<'a>,
@@ -168,7 +168,7 @@ fn invoke_transfer_internal<'a>(
 /// account infos to create the proper instruction with the proper account infos
 #[allow(clippy::too_many_arguments)]
 pub fn invoke_transfer_checked<'a>(
-    token_program_id: &Pubkey,
+    token_program_id: &Address,
     source_info: AccountInfo<'a>,
     mint_info: AccountInfo<'a>,
     destination_info: AccountInfo<'a>,
@@ -197,7 +197,7 @@ pub fn invoke_transfer_checked<'a>(
 /// and proper account infos
 #[allow(clippy::too_many_arguments)]
 pub fn invoke_transfer_checked_with_fee<'a>(
-    token_program_id: &Pubkey,
+    token_program_id: &Address,
     source_info: AccountInfo<'a>,
     mint_info: AccountInfo<'a>,
     destination_info: AccountInfo<'a>,
@@ -250,7 +250,7 @@ mod tests {
             decimals: 10,
             is_initialized: true,
             supply: 100_000,
-            mint_authority: COption::Some(Pubkey::new_unique()),
+            mint_authority: COption::Some(Address::new_unique()),
             freeze_authority: COption::None,
         };
         let mut data = vec![0u8; Mint::LEN];
@@ -258,7 +258,7 @@ mod tests {
         data
     }
 
-    fn setup_mint_with_transfer_hook(hook_program_id: Pubkey) -> Vec<u8> {
+    fn setup_mint_with_transfer_hook(hook_program_id: Address) -> Vec<u8> {
         let mint_len =
             ExtensionType::try_calculate_account_len::<Mint>(&[ExtensionType::TransferHook])
                 .unwrap();
@@ -269,7 +269,7 @@ mod tests {
         let extension = mint.init_extension::<TransferHook>(true).unwrap();
         extension.program_id = OptionalNonZeroPubkey(hook_program_id);
 
-        mint.base.mint_authority = PodCOption::some(Pubkey::new_unique());
+        mint.base.mint_authority = PodCOption::some(Address::new_unique());
         mint.base.decimals = 6;
         mint.base.supply = 100_000_000.into();
         mint.base.freeze_authority = PodCOption::none();
@@ -281,10 +281,10 @@ mod tests {
     }
 
     fn setup_validation_state(
-        mint_key: &Pubkey,
-        program_id: &Pubkey,
+        mint_key: &Address,
+        program_id: &Address,
         extra_accounts: &[AccountMeta],
-    ) -> (Pubkey, Vec<u8>) {
+    ) -> (Address, Vec<u8>) {
         let validation_key = get_extra_account_metas_address(mint_key, program_id);
 
         let extra_metas: Vec<ExtraAccountMeta> = extra_accounts
@@ -316,15 +316,15 @@ mod tests {
         with_transfer_hook: bool,
     ) {
         let token_program_id = crate::id();
-        let source_key = Pubkey::new_unique();
-        let mint_key = Pubkey::new_unique();
-        let destination_key = Pubkey::new_unique();
-        let authority_key = Pubkey::new_unique();
+        let source_key = Address::new_unique();
+        let mint_key = Address::new_unique();
+        let destination_key = Address::new_unique();
+        let authority_key = Address::new_unique();
 
-        let transfer_hook_program_id = Pubkey::new_unique();
-        let extra_account1_key = Pubkey::new_unique();
-        let extra_account2_key = Pubkey::new_unique();
-        let extra_account3_key = Pubkey::new_unique();
+        let transfer_hook_program_id = Address::new_unique();
+        let extra_account1_key = Address::new_unique();
+        let extra_account2_key = Address::new_unique();
+        let extra_account3_key = Address::new_unique();
         let extra_hook_account_metas = vec![
             AccountMeta::new(extra_account1_key, false),
             AccountMeta::new(extra_account2_key, false),
@@ -339,7 +339,7 @@ mod tests {
         // Setup base account infos
 
         let mut source_lamports = 0;
-        let source_owner = Pubkey::new_unique();
+        let source_owner = Address::new_unique();
         let source_info = AccountInfo::new(
             &source_key,
             false,
@@ -351,7 +351,7 @@ mod tests {
         );
 
         let mut mint_lamports = 100;
-        let mint_owner = Pubkey::new_unique();
+        let mint_owner = Address::new_unique();
         let mut mint_data = if with_transfer_hook {
             setup_mint_with_transfer_hook(transfer_hook_program_id)
         } else {
@@ -368,7 +368,7 @@ mod tests {
         );
 
         let mut destination_lamports = 100;
-        let destination_owner = Pubkey::new_unique();
+        let destination_owner = Address::new_unique();
         let destination_info = AccountInfo::new(
             &destination_key,
             false,
@@ -381,10 +381,10 @@ mod tests {
 
         let authority_is_signer = !with_multisig; // Authority signs only if not multisig
         let mut authority_lamports = 100;
-        let authority_owner = Pubkey::new_unique();
-        let signer1_key = Pubkey::new_unique();
-        let signer2_key = Pubkey::new_unique();
-        let signer3_key = Pubkey::new_unique();
+        let authority_owner = Address::new_unique();
+        let signer1_key = Address::new_unique();
+        let signer2_key = Address::new_unique();
+        let signer3_key = Address::new_unique();
         let signer_keys = [signer1_key, signer2_key, signer3_key];
         let mut multisig_data = vec![0; Multisig::LEN];
 
@@ -410,14 +410,14 @@ mod tests {
                     signer1_key,
                     signer2_key,
                     signer3_key,
-                    Pubkey::default(),
-                    Pubkey::default(),
-                    Pubkey::default(),
-                    Pubkey::default(),
-                    Pubkey::default(),
-                    Pubkey::default(),
-                    Pubkey::default(),
-                    Pubkey::default(),
+                    Address::default(),
+                    Address::default(),
+                    Address::default(),
+                    Address::default(),
+                    Address::default(),
+                    Address::default(),
+                    Address::default(),
+                    Address::default(),
                 ],
             };
             Multisig::pack(multisig_state, &mut multisig_data).unwrap();
@@ -435,9 +435,9 @@ mod tests {
 
         let mut additional_accounts = vec![];
 
-        let signer1_owner = Pubkey::new_unique();
-        let signer2_owner = Pubkey::new_unique();
-        let signer3_owner = Pubkey::new_unique();
+        let signer1_owner = Address::new_unique();
+        let signer2_owner = Address::new_unique();
+        let signer3_owner = Address::new_unique();
 
         let mut signer1_lamports = 100;
         let mut signer2_lamports = 100;
@@ -479,10 +479,10 @@ mod tests {
 
         // If with_transfer_hook passed, add account info related to transfer hooks
 
-        let hook_program_owner = Pubkey::new_unique();
-        let extra_account1_owner = Pubkey::new_unique();
-        let extra_account2_owner = Pubkey::new_unique();
-        let extra_account3_owner = Pubkey::new_unique();
+        let hook_program_owner = Address::new_unique();
+        let extra_account1_owner = Address::new_unique();
+        let extra_account2_owner = Address::new_unique();
+        let extra_account3_owner = Address::new_unique();
 
         let mut validation_lamports = 100;
         let mut hook_program_lamports = 100;
@@ -672,8 +672,8 @@ mod tests {
 
     #[test]
     fn test_extract_multisig_when_account_not_owned_by_token_program() {
-        let key = Pubkey::new_unique();
-        let wrong_owner = Pubkey::new_unique();
+        let key = Address::new_unique();
+        let wrong_owner = Address::new_unique();
         let mut lamports = 100;
         let mut data = vec![0; Multisig::LEN];
 
@@ -695,7 +695,7 @@ mod tests {
 
     #[test]
     fn test_extract_multisig_when_account_not_multisig() {
-        let key = Pubkey::new_unique();
+        let key = Address::new_unique();
         let owner = crate::id();
         let mut lamports = 100;
         let mut data = vec![0; 10]; // Wrong size for a multisig account
@@ -711,10 +711,10 @@ mod tests {
 
     #[test]
     fn test_extract_multisig_success() {
-        let multisig_key = Pubkey::new_unique();
+        let multisig_key = Address::new_unique();
         let owner = crate::id();
-        let signer1_key = Pubkey::new_unique();
-        let signer2_key = Pubkey::new_unique();
+        let signer1_key = Address::new_unique();
+        let signer2_key = Address::new_unique();
         let mut multisig_data = vec![0; Multisig::LEN];
         let multisig_state = Multisig {
             m: 2,
@@ -723,15 +723,15 @@ mod tests {
             signers: [
                 signer1_key,
                 signer2_key,
-                Pubkey::default(),
-                Pubkey::default(),
-                Pubkey::default(),
-                Pubkey::default(),
-                Pubkey::default(),
-                Pubkey::default(),
-                Pubkey::default(),
-                Pubkey::default(),
-                Pubkey::default(),
+                Address::default(),
+                Address::default(),
+                Address::default(),
+                Address::default(),
+                Address::default(),
+                Address::default(),
+                Address::default(),
+                Address::default(),
+                Address::default(),
             ],
         };
         Multisig::pack(multisig_state, &mut multisig_data).unwrap();
@@ -747,8 +747,8 @@ mod tests {
             false,
         );
 
-        let signer1_owner = Pubkey::new_unique();
-        let signer2_owner = Pubkey::new_unique();
+        let signer1_owner = Address::new_unique();
+        let signer2_owner = Address::new_unique();
 
         let mut signer1_lamports = 100;
         let mut signer2_lamports = 100;
@@ -775,11 +775,11 @@ mod tests {
 
         // Accounts that should not be included
 
-        let extra_account1_key = Pubkey::new_unique();
-        let extra_account2_key = Pubkey::new_unique();
+        let extra_account1_key = Address::new_unique();
+        let extra_account2_key = Address::new_unique();
 
-        let extra_account1_owner = Pubkey::new_unique();
-        let extra_account2_owner = Pubkey::new_unique();
+        let extra_account1_owner = Address::new_unique();
+        let extra_account2_owner = Address::new_unique();
 
         let mut extra_account1_lamports = 100;
         let mut extra_account2_lamports = 100;
@@ -804,8 +804,8 @@ mod tests {
             false,
         );
 
-        let system_program_key = Pubkey::default(); // System program has default pubkey
-        let system_program_owner = Pubkey::new_unique();
+        let system_program_key = Address::default(); // System program has default pubkey
+        let system_program_owner = Address::new_unique();
         let mut system_program_lamports = 100;
         let system_program_info = AccountInfo::new(
             &system_program_key,

@@ -7,9 +7,9 @@ use {
     },
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
     std::convert::TryInto,
 };
@@ -79,10 +79,10 @@ pub struct UpdateInstructionData {
 
 /// Create an `Initialize` instruction
 pub fn initialize(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: Option<Pubkey>,
-    transfer_hook_program_id: Option<Pubkey>,
+    token_program_id: &Address,
+    mint: &Address,
+    authority: Option<Address>,
+    transfer_hook_program_id: Option<Address>,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let accounts = vec![AccountMeta::new(*mint, false)];
@@ -100,11 +100,11 @@ pub fn initialize(
 
 /// Create an `Update` instruction
 pub fn update(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-    signers: &[&Pubkey],
-    transfer_hook_program_id: Option<Pubkey>,
+    token_program_id: &Address,
+    mint: &Address,
+    authority: &Address,
+    signers: &[&Address],
+    transfer_hook_program_id: Option<Address>,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![

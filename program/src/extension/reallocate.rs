@@ -1,11 +1,11 @@
 use {
     crate::processor::Processor,
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_cpi::invoke,
     solana_msg::msg,
     solana_program_error::ProgramResult,
     solana_program_option::COption,
-    solana_pubkey::Pubkey,
     solana_rent::Rent,
     solana_system_interface::instruction as system_instruction,
     solana_sysvar::Sysvar,
@@ -22,7 +22,7 @@ use {
 
 /// Processes a [Reallocate](enum.TokenInstruction.html) instruction
 pub fn process_reallocate(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     new_extension_types: Vec<ExtensionType>,
 ) -> ProgramResult {

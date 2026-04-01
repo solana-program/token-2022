@@ -1,8 +1,8 @@
 use {
     async_trait::async_trait,
     solana_account::Account,
+    solana_address::Address,
     solana_hash::Hash,
-    solana_pubkey::Pubkey,
     solana_rpc_client::nonblocking::rpc_client::RpcClient,
     solana_rpc_client_api::response::RpcSimulateTransactionResult,
     solana_signature::Signature,
@@ -219,7 +219,7 @@ where
 
     async fn send_transaction(&self, transaction: &Transaction) -> ProgramClientResult<ST::Output>;
 
-    async fn get_account(&self, address: Pubkey) -> ProgramClientResult<Option<Account>>;
+    async fn get_account(&self, address: Address) -> ProgramClientResult<Option<Account>>;
 
     async fn simulate_transaction(
         &self,
@@ -323,7 +323,7 @@ where
         .await
     }
 
-    async fn get_account(&self, address: Pubkey) -> ProgramClientResult<Option<Account>> {
+    async fn get_account(&self, address: Address) -> ProgramClientResult<Option<Account>> {
         self.run_in_lock(|client| {
             Box::pin(async move { client.get_account(address).await.map_err(Into::into) })
         })
@@ -379,7 +379,7 @@ where
         self.send.simulate(&self.client, transaction).await
     }
 
-    async fn get_account(&self, address: Pubkey) -> ProgramClientResult<Option<Account>> {
+    async fn get_account(&self, address: Address) -> ProgramClientResult<Option<Account>> {
         Ok(self
             .client
             .get_account_with_commitment(&address, self.client.commitment())
@@ -439,7 +439,7 @@ where
         Ok(RpcClientResponse::Transaction(transaction.clone()))
     }
 
-    async fn get_account(&self, _address: Pubkey) -> ProgramClientResult<Option<Account>> {
+    async fn get_account(&self, _address: Address) -> ProgramClientResult<Option<Account>> {
         Err("Unable to fetch account in offline mode".into())
     }
 }

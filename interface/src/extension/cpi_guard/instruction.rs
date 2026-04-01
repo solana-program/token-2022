@@ -6,9 +6,9 @@ use {
         instruction::{encode_instruction, TokenInstruction},
     },
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
 };
 
 /// CPI Guard extension instructions
@@ -55,10 +55,10 @@ pub enum CpiGuardInstruction {
 
 /// Create an `Enable` instruction
 pub fn enable_cpi_guard(
-    token_program_id: &Pubkey,
-    account: &Pubkey,
-    owner: &Pubkey,
-    signers: &[&Pubkey],
+    token_program_id: &Address,
+    account: &Address,
+    owner: &Address,
+    signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![
@@ -79,10 +79,10 @@ pub fn enable_cpi_guard(
 
 /// Create a `Disable` instruction
 pub fn disable_cpi_guard(
-    token_program_id: &Pubkey,
-    account: &Pubkey,
-    owner: &Pubkey,
-    signers: &[&Pubkey],
+    token_program_id: &Address,
+    account: &Address,
+    owner: &Address,
+    signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![

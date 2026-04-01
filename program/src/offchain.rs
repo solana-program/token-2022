@@ -2,9 +2,9 @@
 
 pub use spl_transfer_hook_interface::offchain::{AccountDataResult, AccountFetchError};
 use {
+    solana_address::Address,
     solana_instruction::Instruction,
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
     spl_token_2022_interface::{
         extension::{transfer_fee, transfer_hook, StateWithExtensions},
         state::Mint,
@@ -37,18 +37,18 @@ use {
 /// ```
 #[allow(clippy::too_many_arguments)]
 pub async fn create_transfer_checked_instruction_with_extra_metas<F, Fut>(
-    token_program_id: &Pubkey,
-    source_pubkey: &Pubkey,
-    mint_pubkey: &Pubkey,
-    destination_pubkey: &Pubkey,
-    authority_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    source_pubkey: &Address,
+    mint_pubkey: &Address,
+    destination_pubkey: &Address,
+    authority_pubkey: &Address,
+    signer_pubkeys: &[&Address],
     amount: u64,
     decimals: u8,
     fetch_account_data_fn: F,
 ) -> Result<Instruction, AccountFetchError>
 where
-    F: Fn(Pubkey) -> Fut,
+    F: Fn(Address) -> Fut,
     Fut: Future<Output = AccountDataResult>,
 {
     let mut transfer_instruction = crate::instruction::transfer_checked(
@@ -101,19 +101,19 @@ where
 /// ```
 #[allow(clippy::too_many_arguments)]
 pub async fn create_transfer_checked_with_fee_instruction_with_extra_metas<F, Fut>(
-    token_program_id: &Pubkey,
-    source_pubkey: &Pubkey,
-    mint_pubkey: &Pubkey,
-    destination_pubkey: &Pubkey,
-    authority_pubkey: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    source_pubkey: &Address,
+    mint_pubkey: &Address,
+    destination_pubkey: &Address,
+    authority_pubkey: &Address,
+    signer_pubkeys: &[&Address],
     amount: u64,
     decimals: u8,
     fee: u64,
     fetch_account_data_fn: F,
 ) -> Result<Instruction, AccountFetchError>
 where
-    F: Fn(Pubkey) -> Fut,
+    F: Fn(Address) -> Fut,
     Fut: Future<Output = AccountDataResult>,
 {
     let mut transfer_instruction = transfer_fee::instruction::transfer_checked_with_fee(
@@ -172,15 +172,15 @@ where
 /// ```
 pub async fn add_extra_account_metas<F, Fut>(
     instruction: &mut Instruction,
-    source_pubkey: &Pubkey,
-    mint_pubkey: &Pubkey,
-    destination_pubkey: &Pubkey,
-    authority_pubkey: &Pubkey,
+    source_pubkey: &Address,
+    mint_pubkey: &Address,
+    destination_pubkey: &Address,
+    authority_pubkey: &Address,
     amount: u64,
     fetch_account_data_fn: F,
 ) -> Result<(), AccountFetchError>
 where
-    F: Fn(Pubkey) -> Fut,
+    F: Fn(Address) -> Fut,
     Fut: Future<Output = AccountDataResult>,
 {
     let mint_data = fetch_account_data_fn(*mint_pubkey)
@@ -225,13 +225,13 @@ mod tests {
     };
 
     const DECIMALS: u8 = 0;
-    const MINT_PUBKEY: Pubkey = Pubkey::new_from_array([1u8; 32]);
-    const TRANSFER_HOOK_PROGRAM_ID: Pubkey = Pubkey::new_from_array([2u8; 32]);
-    const EXTRA_META_1: Pubkey = Pubkey::new_from_array([3u8; 32]);
-    const EXTRA_META_2: Pubkey = Pubkey::new_from_array([4u8; 32]);
+    const MINT_PUBKEY: Address = Address::new_from_array([1u8; 32]);
+    const TRANSFER_HOOK_PROGRAM_ID: Address = Address::new_from_array([2u8; 32]);
+    const EXTRA_META_1: Address = Address::new_from_array([3u8; 32]);
+    const EXTRA_META_2: Address = Address::new_from_array([4u8; 32]);
 
     // Mock to return the mint data or the validation state account data
-    async fn mock_fetch_account_data_fn(address: Pubkey) -> AccountDataResult {
+    async fn mock_fetch_account_data_fn(address: Address) -> AccountDataResult {
         if address == MINT_PUBKEY {
             let mint_len =
                 ExtensionType::try_calculate_account_len::<Mint>(&[ExtensionType::TransferHook])
@@ -243,7 +243,7 @@ mod tests {
             extension.program_id =
                 OptionalNonZeroPubkey::try_from(Some(TRANSFER_HOOK_PROGRAM_ID)).unwrap();
 
-            mint.base.mint_authority = COption::Some(Pubkey::new_unique());
+            mint.base.mint_authority = COption::Some(Address::new_unique());
             mint.base.decimals = DECIMALS;
             mint.base.is_initialized = true;
             mint.base.freeze_authority = COption::None;
@@ -293,14 +293,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_transfer_checked_instruction_with_extra_metas() {
-        let source = Pubkey::new_unique();
-        let destination = Pubkey::new_unique();
-        let authority = Pubkey::new_unique();
+        let source = Address::new_unique();
+        let destination = Address::new_unique();
+        let authority = Address::new_unique();
         let amount = 100u64;
 
         let validate_state_pubkey =
             get_extra_account_metas_address(&MINT_PUBKEY, &TRANSFER_HOOK_PROGRAM_ID);
-        let extra_meta_3_pubkey = Pubkey::find_program_address(
+        let extra_meta_3_pubkey = Address::find_program_address(
             &[
                 source.as_ref(),
                 destination.as_ref(),
@@ -309,7 +309,7 @@ mod tests {
             &TRANSFER_HOOK_PROGRAM_ID,
         )
         .0;
-        let extra_meta_4_pubkey = Pubkey::find_program_address(
+        let extra_meta_4_pubkey = Address::find_program_address(
             &[
                 amount.to_le_bytes().as_ref(),
                 destination.as_ref(),
@@ -350,9 +350,9 @@ mod tests {
         assert_eq!(instruction.accounts, check_metas);
 
         // With additional signers
-        let signer_1 = Pubkey::new_unique();
-        let signer_2 = Pubkey::new_unique();
-        let signer_3 = Pubkey::new_unique();
+        let signer_1 = Address::new_unique();
+        let signer_2 = Address::new_unique();
+        let signer_3 = Address::new_unique();
 
         let instruction = create_transfer_checked_instruction_with_extra_metas(
             &crate::id(),
@@ -389,15 +389,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_transfer_checked_with_fee_instruction_with_extra_metas() {
-        let source = Pubkey::new_unique();
-        let destination = Pubkey::new_unique();
-        let authority = Pubkey::new_unique();
+        let source = Address::new_unique();
+        let destination = Address::new_unique();
+        let authority = Address::new_unique();
         let amount = 100u64;
         let fee = 1u64;
 
         let validate_state_pubkey =
             get_extra_account_metas_address(&MINT_PUBKEY, &TRANSFER_HOOK_PROGRAM_ID);
-        let extra_meta_3_pubkey = Pubkey::find_program_address(
+        let extra_meta_3_pubkey = Address::find_program_address(
             &[
                 source.as_ref(),
                 destination.as_ref(),
@@ -406,7 +406,7 @@ mod tests {
             &TRANSFER_HOOK_PROGRAM_ID,
         )
         .0;
-        let extra_meta_4_pubkey = Pubkey::find_program_address(
+        let extra_meta_4_pubkey = Address::find_program_address(
             &[
                 amount.to_le_bytes().as_ref(),
                 destination.as_ref(),
@@ -448,9 +448,9 @@ mod tests {
         assert_eq!(instruction.accounts, check_metas);
 
         // With additional signers
-        let signer_1 = Pubkey::new_unique();
-        let signer_2 = Pubkey::new_unique();
-        let signer_3 = Pubkey::new_unique();
+        let signer_1 = Address::new_unique();
+        let signer_2 = Address::new_unique();
+        let signer_3 = Address::new_unique();
 
         let instruction = create_transfer_checked_with_fee_instruction_with_extra_metas(
             &crate::id(),

@@ -7,9 +7,9 @@ use {
     },
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
 };
 
 /// Pausable extension instructions
@@ -63,14 +63,14 @@ pub enum PausableInstruction {
 #[repr(C)]
 pub struct InitializeInstructionData {
     /// The public key for the account that can pause the mint
-    pub authority: Pubkey,
+    pub authority: Address,
 }
 
 /// Create an `Initialize` instruction
 pub fn initialize(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
+    token_program_id: &Address,
+    mint: &Address,
+    authority: &Address,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let accounts = vec![AccountMeta::new(*mint, false)];
@@ -87,10 +87,10 @@ pub fn initialize(
 
 /// Create a `Pause` instruction
 pub fn pause(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-    signers: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    authority: &Address,
+    signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![
@@ -111,10 +111,10 @@ pub fn pause(
 
 /// Create a `Resume` instruction
 pub fn resume(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-    signers: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    authority: &Address,
+    signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![

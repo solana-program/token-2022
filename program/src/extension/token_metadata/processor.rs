@@ -2,10 +2,10 @@
 
 use {
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_cpi::set_return_data,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::{
         check_program_account,
@@ -32,7 +32,7 @@ fn check_update_authority(
     if !update_authority_info.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
-    let update_authority = Option::<Pubkey>::from(*expected_update_authority)
+    let update_authority = Option::<Address>::from(*expected_update_authority)
         .ok_or(TokenMetadataError::ImmutableMetadata)?;
     if update_authority != *update_authority_info.key {
         return Err(TokenMetadataError::IncorrectUpdateAuthority.into());
@@ -42,7 +42,7 @@ fn check_update_authority(
 
 /// Processes a [`Initialize`](enum.TokenMetadataInstruction.html) instruction.
 pub fn process_initialize(
-    _program_id: &Pubkey,
+    _program_id: &Address,
     accounts: &[AccountInfo],
     data: Initialize,
 ) -> ProgramResult {
@@ -104,7 +104,7 @@ pub fn process_initialize(
 /// Processes an [`UpdateField`](enum.TokenMetadataInstruction.html)
 /// instruction.
 pub fn process_update_field(
-    _program_id: &Pubkey,
+    _program_id: &Address,
     accounts: &[AccountInfo],
     data: UpdateField,
 ) -> ProgramResult {
@@ -134,7 +134,7 @@ pub fn process_update_field(
 
 /// Processes a [`RemoveKey`](enum.TokenMetadataInstruction.html) instruction.
 pub fn process_remove_key(
-    _program_id: &Pubkey,
+    _program_id: &Address,
     accounts: &[AccountInfo],
     data: RemoveKey,
 ) -> ProgramResult {
@@ -162,7 +162,7 @@ pub fn process_remove_key(
 /// Processes a [`UpdateAuthority`](enum.TokenMetadataInstruction.html)
 /// instruction.
 pub fn process_update_authority(
-    _program_id: &Pubkey,
+    _program_id: &Address,
     accounts: &[AccountInfo],
     data: UpdateAuthority,
 ) -> ProgramResult {
@@ -188,7 +188,7 @@ pub fn process_update_authority(
 }
 
 /// Processes an [`Emit`](enum.TokenMetadataInstruction.html) instruction.
-pub fn process_emit(_program_id: &Pubkey, accounts: &[AccountInfo], data: Emit) -> ProgramResult {
+pub fn process_emit(_program_id: &Address, accounts: &[AccountInfo], data: Emit) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let metadata_info = next_account_info(account_info_iter)?;
     check_program_account(metadata_info.owner)?;
@@ -205,7 +205,7 @@ pub fn process_emit(_program_id: &Pubkey, accounts: &[AccountInfo], data: Emit) 
 
 /// Processes an [`Instruction`](enum.Instruction.html).
 pub fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     instruction: TokenMetadataInstruction,
 ) -> ProgramResult {

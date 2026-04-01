@@ -27,8 +27,8 @@ pub use solana_zk_sdk;
 )]
 pub use spl_token_2022_interface::{check_id, check_program_account, id, ID};
 use {
+    solana_address::Address,
     solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
     solana_sdk_ids::system_program,
     solana_zk_sdk::encryption::pod::elgamal::PodElGamalCiphertext,
     spl_token_2022_interface::error::TokenError,
@@ -106,7 +106,7 @@ pub fn try_ui_amount_into_amount(ui_amount: String, decimals: u8) -> Result<u64,
 /// Checks that the supplied program ID is correct for the ZK ElGamal proof
 /// program
 pub fn check_zk_elgamal_proof_program_account(
-    zk_elgamal_proof_program_id: &Pubkey,
+    zk_elgamal_proof_program_id: &Address,
 ) -> ProgramResult {
     if zk_elgamal_proof_program_id != &solana_zk_sdk::zk_elgamal_proof_program::id() {
         return Err(ProgramError::IncorrectProgramId);
@@ -115,7 +115,7 @@ pub fn check_zk_elgamal_proof_program_account(
 }
 
 /// Checks if the supplied program ID is that of the system program
-pub fn check_system_program_account(system_program_id: &Pubkey) -> ProgramResult {
+pub fn check_system_program_account(system_program_id: &Address) -> ProgramResult {
     if system_program_id != &system_program::id() {
         return Err(ProgramError::IncorrectProgramId);
     }
@@ -124,7 +124,7 @@ pub fn check_system_program_account(system_program_id: &Pubkey) -> ProgramResult
 
 /// Checks if the supplied program ID is that of the ElGamal registry program
 pub(crate) fn check_elgamal_registry_program_account(
-    elgamal_registry_account_program_id: &Pubkey,
+    elgamal_registry_account_program_id: &Address,
 ) -> ProgramResult {
     if elgamal_registry_account_program_id != &spl_elgamal_registry_interface::id() {
         return Err(ProgramError::IncorrectProgramId);

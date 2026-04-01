@@ -1,10 +1,10 @@
 use {
     crate::processor::Processor,
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_clock::Clock,
     solana_msg::msg,
     solana_program_error::ProgramResult,
-    solana_pubkey::Pubkey,
     solana_sysvar::Sysvar,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::{
@@ -35,7 +35,7 @@ fn try_validate_multiplier(multiplier: &PodF64) -> ProgramResult {
 }
 
 fn process_initialize(
-    _program_id: &Pubkey,
+    _program_id: &Address,
     accounts: &[AccountInfo],
     authority: &OptionalNonZeroPubkey,
     multiplier: &PodF64,
@@ -57,7 +57,7 @@ fn process_initialize(
 }
 
 fn process_update_multiplier(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     new_multiplier: &PodF64,
     effective_timestamp: &UnixTimestamp,
@@ -72,7 +72,7 @@ fn process_update_multiplier(
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
     let extension = mint.get_extension_mut::<ScaledUiAmountConfig>()?;
     let authority =
-        Option::<Pubkey>::from(extension.authority).ok_or(TokenError::NoAuthorityExists)?;
+        Option::<Address>::from(extension.authority).ok_or(TokenError::NoAuthorityExists)?;
 
     Processor::validate_owner(
         program_id,
@@ -108,7 +108,7 @@ fn process_update_multiplier(
 }
 
 pub(crate) fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     input: &[u8],
 ) -> ProgramResult {

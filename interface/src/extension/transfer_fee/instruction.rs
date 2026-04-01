@@ -5,10 +5,10 @@ use {
 };
 use {
     crate::{check_program_account, error::TokenError, instruction::TokenInstruction},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
     solana_program_option::COption,
-    solana_pubkey::Pubkey,
     std::convert::TryFrom,
 };
 
@@ -34,12 +34,12 @@ pub enum TransferFeeInstruction {
     ///
     ///   0. `[writable]` The mint to initialize.
     InitializeTransferFeeConfig {
-        /// Pubkey that may update the fees
+        /// Address that may update the fees
         #[cfg_attr(feature = "serde", serde(with = "coption_fromstr"))]
-        transfer_fee_config_authority: COption<Pubkey>,
+        transfer_fee_config_authority: COption<Address>,
         /// Withdraw instructions must be signed by this key
         #[cfg_attr(feature = "serde", serde(with = "coption_fromstr"))]
-        withdraw_withheld_authority: COption<Pubkey>,
+        withdraw_withheld_authority: COption<Address>,
         /// Amount of transfer collected as fees, expressed as basis points of
         /// the transfer amount
         transfer_fee_basis_points: u16,
@@ -256,10 +256,10 @@ fn encode_instruction_data(transfer_fee_instruction: TransferFeeInstruction) -> 
 
 /// Create a `InitializeTransferFeeConfig` instruction
 pub fn initialize_transfer_fee_config(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    transfer_fee_config_authority: Option<&Pubkey>,
-    withdraw_withheld_authority: Option<&Pubkey>,
+    token_program_id: &Address,
+    mint: &Address,
+    transfer_fee_config_authority: Option<&Address>,
+    withdraw_withheld_authority: Option<&Address>,
     transfer_fee_basis_points: u16,
     maximum_fee: u64,
 ) -> Result<Instruction, ProgramError> {
@@ -283,12 +283,12 @@ pub fn initialize_transfer_fee_config(
 /// Create a `TransferCheckedWithFee` instruction
 #[allow(clippy::too_many_arguments)]
 pub fn transfer_checked_with_fee(
-    token_program_id: &Pubkey,
-    source: &Pubkey,
-    mint: &Pubkey,
-    destination: &Pubkey,
-    authority: &Pubkey,
-    signers: &[&Pubkey],
+    token_program_id: &Address,
+    source: &Address,
+    mint: &Address,
+    destination: &Address,
+    authority: &Address,
+    signers: &[&Address],
     amount: u64,
     decimals: u8,
     fee: u64,
@@ -318,11 +318,11 @@ pub fn transfer_checked_with_fee(
 
 /// Creates a `WithdrawWithheldTokensFromMint` instruction
 pub fn withdraw_withheld_tokens_from_mint(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    destination: &Pubkey,
-    authority: &Pubkey,
-    signers: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    destination: &Address,
+    authority: &Address,
+    signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = Vec::with_capacity(3 + signers.len());
@@ -342,12 +342,12 @@ pub fn withdraw_withheld_tokens_from_mint(
 
 /// Creates a `WithdrawWithheldTokensFromAccounts` instruction
 pub fn withdraw_withheld_tokens_from_accounts(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    destination: &Pubkey,
-    authority: &Pubkey,
-    signers: &[&Pubkey],
-    sources: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    destination: &Address,
+    authority: &Address,
+    signers: &[&Address],
+    sources: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let num_token_accounts =
@@ -374,9 +374,9 @@ pub fn withdraw_withheld_tokens_from_accounts(
 
 /// Creates a `HarvestWithheldTokensToMint` instruction
 pub fn harvest_withheld_tokens_to_mint(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    sources: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    sources: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = Vec::with_capacity(1 + sources.len());
@@ -393,10 +393,10 @@ pub fn harvest_withheld_tokens_to_mint(
 
 /// Creates a `SetTransferFee` instruction
 pub fn set_transfer_fee(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-    signers: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    authority: &Address,
+    signers: &[&Address],
     transfer_fee_basis_points: u16,
     maximum_fee: u64,
 ) -> Result<Instruction, ProgramError> {
@@ -425,7 +425,7 @@ mod test {
     #[test]
     fn test_instruction_packing() {
         let check = TransferFeeInstruction::InitializeTransferFeeConfig {
-            transfer_fee_config_authority: COption::Some(Pubkey::new_from_array([11u8; 32])),
+            transfer_fee_config_authority: COption::Some(Address::new_from_array([11u8; 32])),
             withdraw_withheld_authority: COption::None,
             transfer_fee_basis_points: 111,
             maximum_fee: u64::MAX,

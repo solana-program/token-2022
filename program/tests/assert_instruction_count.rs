@@ -3,8 +3,8 @@ mod setup;
 use {
     mollusk_svm::{result::Check, Mollusk},
     solana_account::{Account as SolanaAccount, ReadableAccount},
+    solana_address::Address,
     solana_program_pack::Pack,
-    solana_pubkey::Pubkey,
     spl_token_2022_interface::{
         id, instruction,
         state::{Account, Mint},
@@ -18,8 +18,8 @@ fn initialize_mint() {
     let mut mollusk = Mollusk::new(&id(), "spl_token_2022");
     mollusk.compute_budget.compute_unit_limit = 5_000; // last known 1322
 
-    let owner = Pubkey::new_unique();
-    let mint = Pubkey::new_unique();
+    let owner = Address::new_unique();
+    let mint = Address::new_unique();
     let decimals = 9;
 
     let mint_account = {
@@ -48,9 +48,9 @@ fn initialize_account() {
     let mut mollusk = Mollusk::new(&id(), "spl_token_2022");
     mollusk.compute_budget.compute_unit_limit = 6_000; // last known 1781
 
-    let owner = Pubkey::new_unique();
-    let mint = Pubkey::new_unique();
-    let account = Pubkey::new_unique();
+    let owner = Address::new_unique();
+    let mint = Address::new_unique();
+    let account = Address::new_unique();
     let decimals = 9;
 
     let mint_account = setup::setup_mint_account(None, None, 0, decimals);
@@ -82,9 +82,9 @@ fn mint_to() {
     let mut mollusk = Mollusk::new(&id(), "spl_token_2022");
     mollusk.compute_budget.compute_unit_limit = 6_000; // last known 1230
 
-    let owner = Pubkey::new_unique();
-    let mint = Pubkey::new_unique();
-    let account = Pubkey::new_unique();
+    let owner = Address::new_unique();
+    let mint = Address::new_unique();
+    let account = Address::new_unique();
     let decimals = 9;
 
     let mint_account = setup::setup_mint_account(Some(&owner), None, 0, decimals);
@@ -116,10 +116,10 @@ fn transfer() {
     let mut mollusk = Mollusk::new(&id(), "spl_token_2022");
     mollusk.compute_budget.compute_unit_limit = 7_000; // last known 1416
 
-    let owner = Pubkey::new_unique();
-    let mint = Pubkey::new_unique();
-    let source = Pubkey::new_unique();
-    let destination = Pubkey::new_unique();
+    let owner = Address::new_unique();
+    let mint = Address::new_unique();
+    let source = Address::new_unique();
+    let destination = Address::new_unique();
 
     let source_token_account = setup::setup_token_account(&mint, &owner, TRANSFER_AMOUNT);
     let destination_token_account = setup::setup_token_account(&mint, &owner, 0);
@@ -149,10 +149,10 @@ fn transfer_checked() {
     let mut mollusk = Mollusk::new(&id(), "spl_token_2022");
     mollusk.compute_budget.compute_unit_limit = 7_000; // last known 1720
 
-    let owner = Pubkey::new_unique();
-    let mint = Pubkey::new_unique();
-    let source = Pubkey::new_unique();
-    let destination = Pubkey::new_unique();
+    let owner = Address::new_unique();
+    let mint = Address::new_unique();
+    let source = Address::new_unique();
+    let destination = Address::new_unique();
     let decimals = 9;
 
     let source_token_account = setup::setup_token_account(&mint, &owner, TRANSFER_AMOUNT);
@@ -194,9 +194,9 @@ fn burn() {
     let mut mollusk = Mollusk::new(&id(), "spl_token_2022");
     mollusk.compute_budget.compute_unit_limit = 6_000; // last known 1235
 
-    let owner = Pubkey::new_unique();
-    let mint = Pubkey::new_unique();
-    let account = Pubkey::new_unique();
+    let owner = Address::new_unique();
+    let mint = Address::new_unique();
+    let account = Address::new_unique();
     let decimals = 9;
 
     let mint_account = setup::setup_mint_account(None, None, TRANSFER_AMOUNT, decimals);
@@ -223,9 +223,9 @@ fn close_account() {
     let mut mollusk = Mollusk::new(&id(), "spl_token_2022");
     mollusk.compute_budget.compute_unit_limit = 6_000; // last known 1154
 
-    let owner = Pubkey::new_unique();
-    let mint = Pubkey::new_unique();
-    let account = Pubkey::new_unique();
+    let owner = Address::new_unique();
+    let mint = Address::new_unique();
+    let account = Address::new_unique();
     let decimals = 9;
 
     let mint_account = setup::setup_mint_account(None, None, 0, decimals);
