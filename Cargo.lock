@@ -4254,7 +4254,7 @@ dependencies = [
  "solana-precompile-error",
  "solana-program-error",
  "solana-program-runtime",
- "solana-pubkey 4.0.0",
+ "solana-pubkey 4.1.0",
  "solana-rent",
  "solana-sdk-ids",
  "solana-slot-hashes",
@@ -4276,7 +4276,7 @@ version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e315980684803972f443b2d8dd765e3def7e4e20bb67d5125bb80639e858a040"
 dependencies = [
- "solana-pubkey 4.0.0",
+ "solana-pubkey 4.1.0",
  "thiserror 1.0.69",
 ]
 
@@ -4289,7 +4289,7 @@ dependencies = [
  "solana-account",
  "solana-instruction",
  "solana-program-error",
- "solana-pubkey 4.0.0",
+ "solana-pubkey 4.1.0",
  "solana-rent",
  "solana-transaction-error",
 ]
@@ -7288,7 +7288,7 @@ dependencies = [
  "solana-define-syscall 4.0.1",
  "solana-instruction",
  "solana-program-error",
- "solana-pubkey 4.0.0",
+ "solana-pubkey 4.1.0",
  "solana-stable-layout",
 ]
 
@@ -8191,12 +8191,12 @@ dependencies = [
 
 [[package]]
 name = "solana-packet"
-version = "4.0.0"
+version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d84c0811f3a9ee1d89050d538fcff77445f54449d2e09380a5aeeafe7425e7cc"
+checksum = "0ad62e1045c2347a0c0e219a6ceb0abfe904be622920996bfcac8d116fabe3c7"
 dependencies = [
  "bitflags 2.10.0",
- "solana-pubkey 4.0.0",
+ "solana-pubkey 4.1.0",
 ]
 
 [[package]]
@@ -8373,7 +8373,7 @@ dependencies = [
  "solana-account-info",
  "solana-define-syscall 4.0.1",
  "solana-program-error",
- "solana-pubkey 4.0.0",
+ "solana-pubkey 4.1.0",
 ]
 
 [[package]]
@@ -8533,9 +8533,9 @@ dependencies = [
 
 [[package]]
 name = "solana-pubkey"
-version = "4.0.0"
+version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6f7104d456b58e1418c21a8581e89810278d1190f70f27ece7fc0b2c9282a57"
+checksum = "1b06bd918d60111ee1f97de817113e2040ca0cedb740099ee8d646233f6b906c"
 dependencies = [
  "solana-address 2.5.0",
 ]
@@ -10720,7 +10720,7 @@ dependencies = [
  "solana-hash 4.2.0",
  "solana-instruction",
  "solana-message",
- "solana-packet 4.0.0",
+ "solana-packet 4.1.0",
  "solana-program-error",
  "solana-program-pack",
  "solana-program-test",
