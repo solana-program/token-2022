@@ -35,9 +35,6 @@ use {
     solana_system_interface::program as system_program,
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
-    spl_token_2022::extension::confidential_transfer::account_info::{
-        ApplyPendingBalanceAccountInfo, TransferAccountInfo, WithdrawAccountInfo,
-    },
     spl_token_2022_interface::{
         extension::{
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
@@ -69,6 +66,9 @@ use {
         client::{ProgramRpcClientSendTransaction, RpcClientResponse},
         token::{
             ComputeUnitLimit, ExtensionInitializationParams, ProofAccountWithCiphertext, Token,
+        },
+        zk_proofs::confidential_transfer::{
+            ApplyPendingBalanceAccountInfo, TransferAccountInfo, WithdrawAccountInfo,
         },
     },
     spl_token_confidential_transfer_proof_generation::{
