@@ -1,5 +1,4 @@
 use {
-    bytemuck::{Pod, Zeroable},
     solana_zk_sdk::{
         encryption::{
             auth_encryption::{AeCiphertext, AeKey},
@@ -30,7 +29,7 @@ use {
 /// Confidential Mint Burn extension information needed to construct a
 /// `RotateSupplyElgamalPubkey` instruction.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SupplyAccountInfo {
     /// The available balance (encrypted by `supply_elgamal_pubkey`)
     pub current_supply: PodElGamalCiphertext,
@@ -160,7 +159,7 @@ impl SupplyAccountInfo {
 /// Confidential Mint Burn extension information needed to construct a
 /// `Burn` instruction.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BurnAccountInfo {
     /// The available balance (encrypted by `encryption_pubkey`)
     pub available_balance: EncryptedBalance,

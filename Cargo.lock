@@ -10732,6 +10732,7 @@ dependencies = [
  "solana-signer",
  "solana-system-interface 3.0.0",
  "solana-transaction",
+ "solana-zk-sdk",
  "spl-associated-token-account-interface",
  "spl-elgamal-registry",
  "spl-instruction-padding-interface",

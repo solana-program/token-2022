@@ -1,6 +1,17 @@
 use {
-    crate::client::{
-        ProgramClient, ProgramClientError, SendTransaction, SimulateTransaction, SimulationResult,
+    crate::{
+        client::{
+            ProgramClient, ProgramClientError, SendTransaction, SimulateTransaction,
+            SimulationResult,
+        },
+        zk_proofs::{
+            confidential_mint_burn::{BurnAccountInfo, SupplyAccountInfo},
+            confidential_transfer::{
+                ApplyPendingBalanceAccountInfo, EmptyAccountAccountInfo, TransferAccountInfo,
+                WithdrawAccountInfo,
+            },
+            confidential_transfer_fee::WithheldTokensInfo,
+        },
     },
     bytemuck::{bytes_of, Pod},
     futures::future::join_all,
@@ -25,17 +36,7 @@ use {
         },
     },
     spl_record::state::RecordData,
-    spl_token_2022::{
-        extension::{
-            confidential_mint_burn::account_info::{BurnAccountInfo, SupplyAccountInfo},
-            confidential_transfer::account_info::{
-                ApplyPendingBalanceAccountInfo, EmptyAccountAccountInfo, TransferAccountInfo,
-                WithdrawAccountInfo,
-            },
-            confidential_transfer_fee::account_info::WithheldTokensInfo,
-        },
-        offchain,
-    },
+    spl_token_2022::offchain,
     spl_token_2022_interface::{
         extension::{
             confidential_mint_burn::{self, ConfidentialMintBurn},

@@ -1,5 +1,4 @@
 use {
-    bytemuck::{Pod, Zeroable},
     solana_zk_sdk::{
         encryption::{
             elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey},
@@ -16,7 +15,7 @@ use {
 /// `WithdrawWithheldTokensFromMint` or `WithdrawWithheldTokensFromAccounts`
 /// instruction.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct WithheldTokensInfo {
     /// The available balance
     pub(crate) withheld_amount: EncryptedWithheldAmount,
