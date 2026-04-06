@@ -16,9 +16,6 @@ use {
     },
     solana_system_interface::instruction as system_instruction,
     spl_elgamal_registry::state::ELGAMAL_REGISTRY_ACCOUNT_LEN,
-    spl_token_2022::extension::confidential_transfer::account_info::{
-        EmptyAccountAccountInfo, TransferAccountInfo, WithdrawAccountInfo,
-    },
     spl_token_2022_interface::{
         error::TokenError,
         extension::{
@@ -37,6 +34,9 @@ use {
         token::{
             ExtensionInitializationParams, ProofAccountWithCiphertext, Token,
             TokenError as TokenClientError, TokenResult,
+        },
+        zk_proofs::confidential_transfer::{
+            EmptyAccountAccountInfo, TransferAccountInfo, WithdrawAccountInfo,
         },
     },
     spl_token_confidential_transfer_proof_extraction::instruction::ProofLocation,
@@ -3404,8 +3404,8 @@ async fn fail_initialize_non_transferable_confidential_mint_without_mint_burn() 
 mod unit_tests {
 
     use {
-        spl_token_2022::extension::confidential_transfer::account_info::combine_balances,
         spl_token_2022_interface::extension::confidential_transfer::PENDING_BALANCE_LO_BIT_LENGTH,
+        spl_token_client::zk_proofs::confidential_transfer::combine_balances,
     };
 
     #[test]
