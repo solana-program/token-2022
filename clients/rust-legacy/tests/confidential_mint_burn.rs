@@ -10,9 +10,6 @@ use {
         transaction::TransactionError,
         transport::TransportError,
     },
-    spl_token_2022::extension::confidential_mint_burn::account_info::{
-        BurnAccountInfo, SupplyAccountInfo,
-    },
     spl_token_2022_interface::{
         error::TokenError,
         extension::{
@@ -31,6 +28,7 @@ use {
             ExtensionInitializationParams, ProofAccountWithCiphertext, Token,
             TokenError as TokenClientError, TokenResult,
         },
+        zk_proofs::confidential_mint_burn::{BurnAccountInfo, SupplyAccountInfo},
     },
     spl_token_confidential_transfer_proof_generation::{burn::BurnProofData, mint::MintProofData},
     std::convert::TryInto,

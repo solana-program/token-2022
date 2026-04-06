@@ -13,7 +13,6 @@ use {
     },
     solana_system_interface::instruction as system_instruction,
     spl_elgamal_registry::state::ELGAMAL_REGISTRY_ACCOUNT_LEN,
-    spl_token_2022::extension::confidential_transfer_fee::account_info::WithheldTokensInfo,
     spl_token_2022_interface::{
         error::TokenError,
         extension::{
@@ -36,6 +35,7 @@ use {
         token::{
             ExtensionInitializationParams, Token, TokenError as TokenClientError, TokenResult,
         },
+        zk_proofs::confidential_transfer_fee::WithheldTokensInfo,
     },
     spl_token_confidential_transfer_proof_extraction::instruction::ProofLocation,
     std::convert::TryInto,
