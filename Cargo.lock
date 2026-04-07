@@ -5147,7 +5147,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash 2.1.1",
  "rustls 0.23.35",
- "socket2 0.5.10",
+ "socket2 0.6.3",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -6412,7 +6412,7 @@ checksum = "a9cf16495d9eb53e3d04e72366a33bb1c20c24e78c171d8b8f5978357b63ae95"
 dependencies = [
  "bincode",
  "serde_core",
- "solana-address 2.5.0",
+ "solana-address 2.6.0",
  "solana-program-error",
  "solana-program-memory",
 ]
@@ -6482,14 +6482,14 @@ version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2ecac8e1b7f74c2baa9e774c42817e3e75b20787134b76cc4d45e8a604488f5"
 dependencies = [
- "solana-address 2.5.0",
+ "solana-address 2.6.0",
 ]
 
 [[package]]
 name = "solana-address"
-version = "2.5.0"
+version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f08236dacd0e6dc8234becef58e27c8567856644ef509d7e97957d55a91dc72"
+checksum = "f1384b52c435a750cc9c538760fc7bb472fd78e65a9900a2d07312c5bb335b72"
 dependencies = [
  "borsh",
  "bytemuck",
@@ -6506,7 +6506,7 @@ dependencies = [
  "solana-program-error",
  "solana-sanitize",
  "solana-sha256-hasher",
- "wincode 0.4.9",
+ "wincode 0.5.1",
 ]
 
 [[package]]
@@ -8537,7 +8537,7 @@ version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b06bd918d60111ee1f97de817113e2040ca0cedb740099ee8d646233f6b906c"
 dependencies = [
- "solana-address 2.5.0",
+ "solana-address 2.6.0",
 ]
 
 [[package]]
@@ -9079,7 +9079,7 @@ version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "def234c1956ff616d46c9dd953f251fa7096ddbaa6d52b165218de97882b7280"
 dependencies = [
- "solana-address 2.5.0",
+ "solana-address 2.6.0",
 ]
 
 [[package]]
@@ -9588,7 +9588,7 @@ dependencies = [
  "num-traits",
  "serde",
  "serde_derive",
- "solana-address 2.5.0",
+ "solana-address 2.6.0",
  "solana-instruction",
  "solana-msg",
  "solana-program-error",
@@ -9820,7 +9820,7 @@ dependencies = [
  "bincode",
  "serde",
  "serde_derive",
- "solana-address 2.5.0",
+ "solana-address 2.6.0",
  "solana-hash 4.2.0",
  "solana-instruction",
  "solana-instruction-error",
@@ -10399,7 +10399,7 @@ version = "0.4.0"
 dependencies = [
  "bytemuck",
  "solana-account-info",
- "solana-address 2.5.0",
+ "solana-address 2.6.0",
  "solana-cpi",
  "solana-instruction",
  "solana-msg",
@@ -10421,7 +10421,7 @@ name = "spl-elgamal-registry-interface"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
- "solana-address 2.5.0",
+ "solana-address 2.6.0",
  "solana-instruction",
  "solana-program-error",
  "solana-sdk-ids",
@@ -10570,7 +10570,7 @@ dependencies = [
  "serial_test",
  "solana-account",
  "solana-account-info",
- "solana-address 2.5.0",
+ "solana-address 2.6.0",
  "solana-clock",
  "solana-cpi",
  "solana-hash 4.2.0",
@@ -10622,7 +10622,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "solana-account-info",
- "solana-address 2.5.0",
+ "solana-address 2.6.0",
  "solana-instruction",
  "solana-program-error",
  "solana-program-option",
@@ -10726,7 +10726,7 @@ dependencies = [
  "futures 0.3.32",
  "futures-util",
  "solana-account",
- "solana-address 2.5.0",
+ "solana-address 2.6.0",
  "solana-banks-client",
  "solana-banks-interface",
  "solana-cli-output",
@@ -10786,7 +10786,7 @@ version = "0.5.1"
 dependencies = [
  "bytemuck",
  "solana-account-info",
- "solana-address 2.5.0",
+ "solana-address 2.6.0",
  "solana-curve25519",
  "solana-instruction",
  "solana-instructions-sysvar",
@@ -12222,6 +12222,19 @@ name = "wincode"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "657690780ce23e6f66576a782ffd88eb353512381817029cc1d7a99154bb6d1f"
+dependencies = [
+ "pastey",
+ "proc-macro2",
+ "quote",
+ "thiserror 2.0.18",
+ "wincode-derive 0.4.3",
+]
+
+[[package]]
+name = "wincode"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a61f8f0a55eb6cae5d7b7ad2eca536a944deb9722a948525181069064ecd1abc"
 dependencies = [
  "pastey",
  "proc-macro2",
