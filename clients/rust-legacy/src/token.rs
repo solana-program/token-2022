@@ -29,6 +29,23 @@ use {
     solana_signer::{signers::Signers, Signer, SignerError},
     solana_system_interface::instruction as system_instruction,
     solana_transaction::Transaction,
+    solana_zk_elgamal_proof_interface::{
+        self as zk_elgamal_proof_program,
+        instruction::{close_context_state, ContextStateInfo},
+        proof_data::*,
+        state::ProofContextState,
+    },
+    solana_zk_sdk::{
+        encryption::{
+            auth_encryption::AeKey,
+            elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey, ElGamalSecretKey},
+        },
+        zk_elgamal_proof_program::build_pubkey_validity_proof_data,
+    },
+    solana_zk_sdk_pod::encryption::{
+        auth_encryption::PodAeCiphertext,
+        elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
+    },
     spl_associated_token_account_interface::{
         address::get_associated_token_address_with_program_id,
         instruction::{
@@ -50,22 +67,22 @@ use {
             ExtensionType, StateWithExtensionsOwned,
         },
         instruction,
-        solana_zk_sdk::{
-            encryption::{
-                auth_encryption::AeKey,
-                elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey, ElGamalSecretKey},
-                pod::{
-                    auth_encryption::PodAeCiphertext,
-                    elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
-                },
-            },
-            zk_elgamal_proof_program::{
-                self,
-                instruction::{close_context_state, ContextStateInfo},
-                proof_data::*,
-                state::ProofContextState,
-            },
-        },
+        // solana_zk_sdk::{
+        //     encryption::{
+        //         auth_encryption::AeKey,
+        //         elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey, ElGamalSecretKey},
+        //         pod::{
+        //             auth_encryption::PodAeCiphertext,
+        //             elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
+        //         },
+        //     },
+        //     zk_elgamal_proof_program::{
+        //         self,
+        //         instruction::{close_context_state, ContextStateInfo},
+        //         proof_data::*,
+        //         state::ProofContextState,
+        //     },
+        // },
         state::{Account, AccountState, Mint, Multisig},
     },
     spl_token_confidential_transfer_proof_extraction::instruction::{
@@ -2083,7 +2100,7 @@ where
             None
         } else {
             Some(
-                confidential_transfer::instruction::PubkeyValidityProofData::new(elgamal_keypair)
+                build_pubkey_validity_proof_data(elgamal_keypair)
                     .map_err(|_| TokenError::ProofGeneration)?,
             )
         };

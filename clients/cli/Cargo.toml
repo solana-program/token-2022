@@ -30,6 +30,8 @@ solana-commitment-config = "3.1.1"
 solana-logger = "3.0.0"
 solana-remote-wallet = { version = "3.1.0", features = ["agave-unstable-api"] }
 solana-sdk = "3.0.0"
+solana-zk-sdk = "6.0.0"
+solana-zk-sdk-pod = "0.1.1"
 solana-system-interface = "3.0.0"
 solana-transaction-status = "3.0.0"
 spl-associated-token-account-interface = { version = "2.0.0" }
@@ -38,7 +40,7 @@ spl-token-interface = "2.0.0"
 spl-token-2022-interface = { version = "2.0.0", path = "../../interface" }
 spl-token-2022 = { version = "10.0.0", path = "../../program", features = ["no-entrypoint"] }
 spl-token-client = { version = "0.18.0", path = "../rust-legacy" }
-spl-token-confidential-transfer-proof-generation = { version = "0.5.0", path = "../../confidential/proof-generation" }
+spl-token-confidential-transfer-proof-generation = { version = "0.6.0", path = "../../confidential/proof-generation" }
 spl-token-metadata-interface = { version = "0.8.0" }
 spl-token-group-interface = { version = "0.7.0" }
 spl-memo-interface = "2.0.0"

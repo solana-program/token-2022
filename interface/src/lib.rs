@@ -16,7 +16,7 @@ pub mod state;
 
 // Export current sdk types for downstream users building with a different sdk
 // version
-pub use solana_zk_sdk;
+pub use solana_zk_elgamal_proof_interface;
 use {
     solana_address::Address,
     solana_program_error::{ProgramError, ProgramResult},

@@ -7,7 +7,7 @@ use {
     solana_rent::Rent,
     solana_system_interface::instruction::{allocate, assign},
     solana_sysvar::Sysvar,
-    solana_zk_sdk::zk_elgamal_proof_program::proof_data::pubkey_validity::{
+    solana_zk_elgamal_proof_interface::proof_data::pubkey_validity::{
         PubkeyValidityProofContext, PubkeyValidityProofData,
     },
     spl_elgamal_registry_interface::{

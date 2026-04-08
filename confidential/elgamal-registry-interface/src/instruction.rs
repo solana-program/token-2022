@@ -3,7 +3,7 @@ use {
     solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    solana_zk_sdk::zk_elgamal_proof_program::{
+    solana_zk_elgamal_proof_interface::{
         instruction::ProofInstruction, proof_data::PubkeyValidityProofData,
     },
     spl_token_confidential_transfer_proof_extraction::instruction::ProofLocation,

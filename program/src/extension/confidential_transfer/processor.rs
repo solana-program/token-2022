@@ -22,17 +22,19 @@ use {
     solana_clock::Clock,
     solana_cpi::invoke,
     solana_msg::msg,
+    solana_nullable::MaybeNull,
     solana_program_error::{ProgramError, ProgramResult},
     solana_rent::Rent,
     solana_system_interface::instruction as system_instruction,
     solana_sysvar::Sysvar,
-    solana_zk_sdk::encryption::pod::{
-        auth_encryption::PodAeCiphertext, elgamal::PodElGamalCiphertext,
+    solana_zk_sdk_pod::encryption::{
+        auth_encryption::PodAeCiphertext,
+        elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
     },
     spl_elgamal_registry_interface::state::ElGamalRegistry,
     spl_pod::{
         bytemuck::pod_from_bytes,
-        optional_keys::{OptionalNonZeroElGamalPubkey, OptionalNonZeroPubkey},
+        optional_keys::OptionalNonZeroPubkey,
         primitives::{PodBool, PodU64},
     },
     spl_token_2022_interface::{
@@ -67,7 +69,7 @@ fn process_initialize_mint(
     accounts: &[AccountInfo],
     authority: &OptionalNonZeroPubkey,
     auto_approve_new_account: PodBool,
-    auditor_encryption_pubkey: &OptionalNonZeroElGamalPubkey,
+    auditor_encryption_pubkey: &MaybeNull<PodElGamalPubkey>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_info = next_account_info(account_info_iter)?;
@@ -88,7 +90,7 @@ fn process_initialize_mint(
 fn process_update_mint(
     accounts: &[AccountInfo],
     auto_approve_new_account: PodBool,
-    auditor_encryption_pubkey: &OptionalNonZeroElGamalPubkey,
+    auditor_encryption_pubkey: &MaybeNull<PodElGamalPubkey>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_info = next_account_info(account_info_iter)?;
@@ -680,9 +682,8 @@ fn process_transfer(
 
         // Check that the auditor encryption public key associated wth the confidential
         // mint is consistent with what was actually used to generate the zkp.
-        if !confidential_transfer_mint
-            .auditor_elgamal_pubkey
-            .equals(&proof_context.transfer_pubkeys.auditor)
+        if confidential_transfer_mint.auditor_elgamal_pubkey.get()
+            != Some(proof_context.transfer_pubkeys.auditor)
         {
             return Err(TokenError::ConfidentialTransferElGamalPubkeyMismatch.into());
         }
@@ -748,9 +749,8 @@ fn process_transfer(
         // Check that the encryption public keys associated with the mint confidential
         // transfer and confidential transfer fee extensions are consistent with
         // the keys that were used to generate the zkp.
-        if !confidential_transfer_mint
-            .auditor_elgamal_pubkey
-            .equals(&proof_context.transfer_with_fee_pubkeys.auditor)
+        if confidential_transfer_mint.auditor_elgamal_pubkey.get()
+            != Some(proof_context.transfer_with_fee_pubkeys.auditor)
         {
             return Err(TokenError::ConfidentialTransferElGamalPubkeyMismatch.into());
         }

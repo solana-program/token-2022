@@ -18,9 +18,6 @@ pub mod state;
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;
 
-// Export current sdk types for downstream users building with a different sdk
-// version
-pub use solana_zk_sdk;
 #[deprecated(
     since = "9.1.0",
     note = "Use spl_token_2022_interface instead and remove spl_token_2022 as a dependency"
@@ -30,7 +27,7 @@ use {
     solana_address::Address,
     solana_program_error::{ProgramError, ProgramResult},
     solana_sdk_ids::system_program,
-    solana_zk_sdk::encryption::pod::elgamal::PodElGamalCiphertext,
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
     spl_token_2022_interface::error::TokenError,
 };
 
@@ -108,7 +105,7 @@ pub fn try_ui_amount_into_amount(ui_amount: String, decimals: u8) -> Result<u64,
 pub fn check_zk_elgamal_proof_program_account(
     zk_elgamal_proof_program_id: &Address,
 ) -> ProgramResult {
-    if zk_elgamal_proof_program_id != &solana_zk_sdk::zk_elgamal_proof_program::id() {
+    if zk_elgamal_proof_program_id != &solana_zk_elgamal_proof_interface::id() {
         return Err(ProgramError::IncorrectProgramId);
     }
     Ok(())

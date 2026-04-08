@@ -1,7 +1,7 @@
 use {
     bytemuck::{Pod, Zeroable},
     solana_address::Address,
-    solana_zk_sdk::encryption::pod::elgamal::PodElGamalPubkey,
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
 };
 
 pub const ELGAMAL_REGISTRY_ACCOUNT_LEN: usize = 64;

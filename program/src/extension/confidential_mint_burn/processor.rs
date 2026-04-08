@@ -14,14 +14,12 @@ use {
     solana_address::Address,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
-    solana_zk_sdk::{
-        encryption::pod::{
-            auth_encryption::PodAeCiphertext,
-            elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
-        },
-        zk_elgamal_proof_program::proof_data::{
-            CiphertextCiphertextEqualityProofContext, CiphertextCiphertextEqualityProofData,
-        },
+    solana_zk_elgamal_proof_interface::proof_data::{
+        CiphertextCiphertextEqualityProofContext, CiphertextCiphertextEqualityProofData,
+    },
+    solana_zk_sdk_pod::encryption::{
+        auth_encryption::PodAeCiphertext,
+        elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
     },
     spl_token_2022_interface::{
         check_program_account,
@@ -234,7 +232,7 @@ fn process_confidential_mint(
         return Err(ProgramError::InvalidInstructionData);
     }
 
-    if !auditor_elgamal_pubkey.equals(&proof_context.mint_pubkeys.auditor) {
+    if auditor_elgamal_pubkey.get() != Some(proof_context.mint_pubkeys.auditor) {
         return Err(TokenError::ConfidentialTransferElGamalPubkeyMismatch.into());
     }
 
@@ -461,7 +459,7 @@ pub(crate) fn process_confidential_burn(
         return Err(TokenError::ConfidentialTransferBalanceMismatch.into());
     }
 
-    if !auditor_elgamal_pubkey.equals(&proof_context.burn_pubkeys.auditor) {
+    if auditor_elgamal_pubkey.get() != Some(proof_context.burn_pubkeys.auditor) {
         return Err(TokenError::ConfidentialTransferElGamalPubkeyMismatch.into());
     }
 

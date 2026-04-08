@@ -3,10 +3,12 @@
 use spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic;
 use {
     crate::processor::Processor,
+    bytemuck::Zeroable,
     solana_account_info::{next_account_info, AccountInfo},
     solana_address::Address,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
     spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::{
         check_program_account,
@@ -32,13 +34,9 @@ use {
         },
         instruction::{decode_instruction_data, decode_instruction_type},
         pod::{PodAccount, PodMint},
-        solana_zk_sdk::encryption::pod::elgamal::PodElGamalPubkey,
     },
     spl_token_confidential_transfer_proof_extraction::instruction::verify_and_extract_context,
 };
-
-#[cfg(not(target_arch = "wasm32"))]
-use bytemuck::Zeroable;
 
 /// Processes an [`InitializeConfidentialTransferFeeConfig`] instruction.
 fn process_initialize_confidential_transfer_fee_config(

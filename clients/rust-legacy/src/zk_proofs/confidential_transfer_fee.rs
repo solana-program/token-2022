@@ -1,10 +1,11 @@
 use {
+    solana_zk_elgamal_proof_interface::proof_data::ciphertext_ciphertext_equality::CiphertextCiphertextEqualityProofData,
     solana_zk_sdk::{
         encryption::{
             elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey},
             pedersen::PedersenOpening,
         },
-        zk_elgamal_proof_program::proof_data::ciphertext_ciphertext_equality::CiphertextCiphertextEqualityProofData,
+        zk_elgamal_proof_program::build_ciphertext_ciphertext_equality_proof_data,
     },
     spl_token_2022_interface::{
         error::TokenError, extension::confidential_transfer_fee::EncryptedWithheldAmount,
@@ -48,7 +49,7 @@ impl WithheldTokensInfo {
         let destination_ciphertext = destination_elgamal_pubkey
             .encrypt_with(decrypted_withheld_amount_in_mint, &destination_opening);
 
-        CiphertextCiphertextEqualityProofData::new(
+        build_ciphertext_ciphertext_equality_proof_data(
             withdraw_withheld_authority_elgamal_keypair,
             destination_elgamal_pubkey,
             &withheld_amount_in_mint,

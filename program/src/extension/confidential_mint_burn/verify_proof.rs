@@ -3,7 +3,7 @@ use spl_token_2022_interface::error::TokenError;
 use {
     solana_account_info::{next_account_info, AccountInfo},
     solana_program_error::ProgramError,
-    solana_zk_sdk::zk_elgamal_proof_program::proof_data::{
+    solana_zk_elgamal_proof_interface::proof_data::{
         BatchedGroupedCiphertext3HandlesValidityProofContext,
         BatchedGroupedCiphertext3HandlesValidityProofData, BatchedRangeProofContext,
         BatchedRangeProofU128Data, CiphertextCommitmentEqualityProofContext,

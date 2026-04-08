@@ -4,7 +4,7 @@ use {
         ristretto::{add_ristretto, multiply_ristretto, subtract_ristretto, PodRistrettoPoint},
         scalar::PodScalar,
     },
-    solana_zk_sdk::encryption::pod::elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
+    solana_zk_sdk_pod::encryption::elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
 };
 
 const SHIFT_BITS: usize = 16;
@@ -223,7 +223,9 @@ mod tests {
         solana_zk_sdk::encryption::{
             elgamal::{ElGamalCiphertext, ElGamalKeypair},
             pedersen::{Pedersen, PedersenOpening},
-            pod::{elgamal::PodDecryptHandle, pedersen::PodPedersenCommitment},
+        },
+        solana_zk_sdk_pod::encryption::{
+            elgamal::PodDecryptHandle, pedersen::PodPedersenCommitment,
         },
         spl_token_confidential_transfer_proof_generation::try_split_u64,
     };

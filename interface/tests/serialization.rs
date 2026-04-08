@@ -3,8 +3,9 @@
 use {
     base64::{engine::general_purpose::STANDARD, Engine},
     solana_address::Address,
+    solana_nullable::MaybeNull,
     solana_program_option::COption,
-    spl_pod::optional_keys::{OptionalNonZeroElGamalPubkey, OptionalNonZeroPubkey},
+    spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::{extension::confidential_transfer, instruction},
     std::str::FromStr,
 };
@@ -99,7 +100,7 @@ fn serde_instruction_batch() {
 #[test]
 fn serde_instruction_optional_nonzero_pubkeys_podbool() {
     // tests serde of ix containing OptionalNonZeroPubkey, PodBool and
-    // OptionalNonZeroElGamalPubkey
+    // MaybeNull<PodElGamalPubkey>
     let authority_option: Option<Address> =
         Some(Address::from_str("4uQeVj5tqViQh7yWWGStvkEG1Zmhx6uasJtWCJziofM").unwrap());
     let authority: OptionalNonZeroPubkey = authority_option.try_into().unwrap();
@@ -110,13 +111,10 @@ fn serde_instruction_optional_nonzero_pubkeys_podbool() {
     ]);
     let elgamal_pubkey_pod_option = Some(FromStr::from_str(&pubkey_string).unwrap());
 
-    let auditor_elgamal_pubkey: OptionalNonZeroElGamalPubkey =
-        elgamal_pubkey_pod_option.try_into().unwrap();
-
     let inst = confidential_transfer::instruction::InitializeMintData {
         authority,
         auto_approve_new_accounts: false.into(),
-        auditor_elgamal_pubkey,
+        auditor_elgamal_pubkey: elgamal_pubkey_pod_option.try_into().unwrap(),
     };
 
     let serialized = serde_json::to_string(&inst).unwrap();
@@ -132,11 +130,10 @@ fn serde_instruction_optional_nonzero_pubkeys_podbool() {
 #[test]
 fn serde_instruction_optional_nonzero_pubkeys_podbool_with_none() {
     // tests serde of ix containing OptionalNonZeroPubkey, PodBool and
-    // OptionalNonZeroElGamalPubkey with null values
+    // MaybeNull<PodElGamalPubkey> with null values
     let authority: OptionalNonZeroPubkey = None.try_into().unwrap();
 
-    let auditor_elgamal_pubkey: OptionalNonZeroElGamalPubkey =
-        OptionalNonZeroElGamalPubkey::default();
+    let auditor_elgamal_pubkey = MaybeNull::default();
 
     let inst = confidential_transfer::instruction::InitializeMintData {
         authority,

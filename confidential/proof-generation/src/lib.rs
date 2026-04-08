@@ -1,13 +1,11 @@
 use {
     curve25519_dalek::scalar::Scalar,
-    solana_zk_sdk::{
-        encryption::{
-            elgamal::ElGamalCiphertext,
-            pedersen::{PedersenCommitment, PedersenOpening},
-            pod::elgamal::PodElGamalCiphertext,
-        },
-        zk_elgamal_proof_program::proof_data::BatchedGroupedCiphertext3HandlesValidityProofData,
+    solana_zk_elgamal_proof_interface::proof_data::BatchedGroupedCiphertext3HandlesValidityProofData,
+    solana_zk_sdk::encryption::{
+        elgamal::ElGamalCiphertext,
+        pedersen::{PedersenCommitment, PedersenOpening},
     },
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
 };
 
 pub mod burn;

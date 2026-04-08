@@ -9,7 +9,7 @@ use {
     solana_instructions_sysvar::get_instruction_relative,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
-    solana_zk_sdk::zk_elgamal_proof_program::{
+    solana_zk_elgamal_proof_interface::{
         self,
         instruction::ProofInstruction,
         proof_data::{ProofType, ZkProofData},
@@ -24,7 +24,7 @@ use {
 pub fn check_zk_elgamal_proof_program_account(
     zk_elgamal_proof_program_id: &Address,
 ) -> ProgramResult {
-    if zk_elgamal_proof_program_id != &solana_zk_sdk::zk_elgamal_proof_program::id() {
+    if zk_elgamal_proof_program_id != &solana_zk_elgamal_proof_interface::id() {
         return Err(ProgramError::IncorrectProgramId);
     }
     Ok(())
@@ -36,7 +36,7 @@ pub fn decode_proof_instruction_context<T: Pod + ZkProofData<U>, U: Pod>(
     expected: ProofInstruction,
     instruction: &Instruction,
 ) -> Result<U, ProgramError> {
-    if instruction.program_id != zk_elgamal_proof_program::id()
+    if instruction.program_id != solana_zk_elgamal_proof_interface::id()
         || ProofInstruction::instruction_type(&instruction.data) != Some(expected)
     {
         msg!("Unexpected proof instruction");
