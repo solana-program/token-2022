@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@noble/curves':
+        specifier: ^1.9.7
+        version: 1.9.7
+      '@solana-program/system':
+        specifier: ^0.12.0
+        version: 0.12.0(@solana/kit@6.7.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))
       '@solana/sysvars':
         specifier: ^5.0
         version: 5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
@@ -15,15 +21,15 @@ importers:
       '@ava/typescript':
         specifier: ^6.0.0
         version: 6.0.0
-      '@solana-program/system':
-        specifier: ^0.12.0
-        version: 0.12.0(@solana/kit@6.7.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))
       '@solana/eslint-config-solana':
         specifier: ^3.0.3
         version: 3.0.6(@typescript-eslint/eslint-plugin@7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3))(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint-plugin-jest@27.9.0(@typescript-eslint/eslint-plugin@7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3))(eslint-plugin-react-hooks@4.6.2(eslint@8.57.1))(eslint-plugin-simple-import-sort@12.1.1(eslint@8.57.1))(eslint-plugin-sort-keys-fix@1.1.2)(eslint-plugin-typescript-sort-keys@3.3.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
       '@solana/kit':
         specifier: ^6.0.0
         version: 6.7.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/zk-sdk':
+        specifier: ^0.3.1
+        version: 0.3.1
       '@types/node':
         specifier: ^25
         version: 25.5.2
@@ -282,6 +288,14 @@ packages:
     resolution: {integrity: sha512-uwPAhccfFJlsfCxMYTwOdVfOz3xqyj8xYL3zJj8f0pb30tLohnnFPhLuqp4/qoEz8sNxe4SESZedcBojRefIzg==}
     engines: {node: '>=18'}
     hasBin: true
+
+  '@noble/curves@1.9.7':
+    resolution: {integrity: sha512-gbKGcRUYIjA3/zCCNaWDciTMFI0dCkvou3TL8Zmy5Nc7sJ47a0jtOeZoTaMxkuqRo9cRhjOdZJXegxYE5FN/xw==}
+    engines: {node: ^14.21.3 || >=16}
+
+  '@noble/hashes@1.8.0':
+    resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
+    engines: {node: ^14.21.3 || >=16}
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -922,6 +936,9 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  '@solana/zk-sdk@0.3.1':
+    resolution: {integrity: sha512-5Ynl4kwETtboiyqHPwCgQF/iHxPOimTd/geUOj5O2a8hkqsVyROu00nB9JRDX+ft11LRw8sn9fkLJQLpabRASA==}
 
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
@@ -2495,6 +2512,12 @@ snapshots:
       - encoding
       - supports-color
 
+  '@noble/curves@1.9.7':
+    dependencies:
+      '@noble/hashes': 1.8.0
+
+  '@noble/hashes@1.8.0': {}
+
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
       '@nodelib/fs.stat': 2.0.5
@@ -3200,6 +3223,8 @@ snapshots:
       typescript: 5.9.3
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
+
+  '@solana/zk-sdk@0.3.1': {}
 
   '@types/estree@1.0.8': {}
 
