@@ -100,6 +100,11 @@ export type ConfidentialTransferZkElGamalKeypair = {
     secret(): ConfidentialTransferZkElGamalSecretKey;
 };
 
+/**
+ * Interface that any JS/WASM-backed ZK client must satisfy to be used with
+ * the confidential transfer helpers. This decouples the helpers from a
+ * specific `@solana/zk-sdk` version — callers provide their own client.
+ */
 export type ConfidentialTransferZkClient = {
     AeCiphertext: {
         fromBytes(bytes: Uint8Array): ConfidentialTransferZkAeCiphertext | undefined;
@@ -175,6 +180,12 @@ type ContextStateProofMode = {
     rpc: GetMinimumBalanceForRentExemptionRpc;
 };
 
+/**
+ * Multi-transaction instruction plan returned by the withdraw and transfer
+ * helpers. Context-state proof accounts must be created before and closed
+ * after the main instruction, so this plan separates setup, execution, and
+ * cleanup steps that each need their own transaction.
+ */
 export type ConfidentialTransferInstructionPlan = {
     setupInstructions: Instruction[][];
     instructions: Instruction[];
@@ -238,7 +249,7 @@ type GetConfidentialTransferInstructionsBaseInput = {
     programAddress?: Address;
 } & (
     | { destinationTokenAccount: Token; destinationElgamalPubkey?: Address }
-    | { destinationElgamalPubkey: Address; destinationTokenAccount?: undefined }
+    | { destinationElgamalPubkey: Address; destinationTokenAccount?: never }
 );
 
 export type GetConfidentialTransferInstructionsInput = GetConfidentialTransferInstructionsBaseInput &
@@ -628,6 +639,17 @@ function getConfidentialTransferInstructionWithAuditorCiphertexts(input: {
     } as Instruction);
 }
 
+/**
+ * Returns the instructions needed to create and configure a confidential
+ * transfer account for the given mint and owner. This is a convenience
+ * helper scoped to the ATA-owner flow: the token account is derived as
+ * the associated token address, and `authority` (if provided) must match
+ * `owner`.
+ *
+ * The returned array contains four instructions that must be submitted
+ * in a single transaction: create ATA, reallocate, configure account,
+ * and a ZK ElGamal pubkey-validity proof.
+ */
 export async function getCreateConfidentialTransferAccountInstructions(
     input: GetCreateConfidentialTransferAccountInstructionsInput,
 ): Promise<Instruction[]> {
@@ -682,6 +704,12 @@ export async function getCreateConfidentialTransferAccountInstructions(
     ];
 }
 
+/**
+ * Builds an `ApplyPendingBalance` instruction from a decoded token account.
+ * Decrypts the pending balance (lo/hi) and the current available balance,
+ * computes the new available balance, and re-encrypts it so the caller
+ * does not need to perform any cryptographic operations.
+ */
 export function getApplyConfidentialPendingBalanceInstructionFromToken(
     input: GetApplyConfidentialPendingBalanceInstructionFromTokenInput,
 ) {
@@ -711,6 +739,17 @@ export function getApplyConfidentialPendingBalanceInstructionFromToken(
     );
 }
 
+/**
+ * Generates the full instruction plan for a confidential withdraw — moving
+ * tokens from the encrypted available balance back to the plaintext balance.
+ *
+ * Two ZK proofs are generated and verified via context-state accounts:
+ *   1. Ciphertext-commitment equality proof for the remaining balance.
+ *   2. Batched 64-bit range proof proving the remaining balance is non-negative.
+ *
+ * The returned plan must be executed in order: setup transactions first,
+ * then the withdraw instruction, then cleanup to close the proof accounts.
+ */
 export async function getConfidentialWithdrawInstructions(
     input: GetConfidentialWithdrawInstructionsInput,
 ): Promise<ConfidentialTransferInstructionPlan> {
@@ -784,6 +823,23 @@ export async function getConfidentialWithdrawInstructions(
     };
 }
 
+/**
+ * Generates the full instruction plan for a confidential transfer between
+ * two token accounts. The transfer amount is split into lo (16-bit) and
+ * hi (32-bit) halves and encrypted as 3-handle grouped ciphertexts for
+ * the source, destination, and auditor.
+ *
+ * Three ZK proofs are generated and verified via context-state accounts:
+ *   1. Ciphertext-commitment equality proof for the new source balance.
+ *   2. Batched grouped-ciphertext 3-handles validity proof for the
+ *      transfer amount ciphertexts.
+ *   3. Batched 128-bit range proof covering: remaining balance (64 bits),
+ *      transfer amount lo (16 bits), transfer amount hi (32 bits), and
+ *      padding (16 bits).
+ *
+ * The returned plan must be executed in order: setup transactions first,
+ * then the transfer instruction, then cleanup to close the proof accounts.
+ */
 export async function getConfidentialTransferInstructions(
     input: GetConfidentialTransferInstructionsInput,
 ): Promise<ConfidentialTransferInstructionPlan> {

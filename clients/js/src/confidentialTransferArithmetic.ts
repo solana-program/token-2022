@@ -3,7 +3,7 @@ import { type ReadonlyUint8Array } from '@solana/kit';
 
 const { Point: RistrettoPoint } = ristretto255;
 
-// Standard ristretto255 basepoint (Pedersen generator G) — hardcoded to match the on-chain program.
+// Standard ristretto255 basepoint (Pedersen generator G) — hardcoded to match the onchain program.
 const RISTRETTO_BASEPOINT = RistrettoPoint.fromHex(
     Uint8Array.from([
         226, 242, 174, 10, 106, 188, 78, 113, 168, 132, 169, 97, 197, 0, 81, 95, 88, 227, 11, 106, 165, 130, 221, 141,
@@ -33,6 +33,11 @@ function pointsToCiphertext(commitment: ReturnType<typeof pointFromBytes>, handl
     return ciphertext;
 }
 
+/**
+ * Extracts a single ElGamal ciphertext (commitment + one handle) from a
+ * grouped ciphertext. The grouped layout is: 32-byte commitment followed
+ * by N 32-byte handles. The returned 64-byte array is [commitment, handle].
+ */
 export function extractCiphertextFromGroupedBytes(groupedCiphertext: ReadonlyUint8Array, handleIndex: number) {
     const start = 32 + handleIndex * 32;
     const end = start + 32;
@@ -65,6 +70,11 @@ function combineLoHiCiphertexts(ciphertextLo: ReadonlyUint8Array, ciphertextHi: 
     );
 }
 
+/**
+ * Combines lo/hi ciphertext halves (hi << bitLength + lo) and subtracts the
+ * result from `left`. Used to compute the new available-balance ciphertext
+ * after a confidential transfer.
+ */
 export function subtractWithLoHiCiphertexts(
     left: ReadonlyUint8Array,
     ciphertextLo: ReadonlyUint8Array,
@@ -74,6 +84,11 @@ export function subtractWithLoHiCiphertexts(
     return subtractCiphertexts(left, combineLoHiCiphertexts(ciphertextLo, ciphertextHi, bitLength));
 }
 
+/**
+ * Subtracts a plaintext amount from an ElGamal ciphertext by removing
+ * `amount * G` from the commitment. Used to compute the expected
+ * remaining-balance ciphertext after a confidential withdraw.
+ */
 export function subtractAmountFromCiphertext(ciphertext: ReadonlyUint8Array, amount: bigint) {
     const { commitment, handle } = ciphertextToPoints(ciphertext);
     return pointsToCiphertext(commitment.subtract(RISTRETTO_BASEPOINT.multiply(amount)), handle);
