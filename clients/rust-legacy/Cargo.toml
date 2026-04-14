@@ -37,7 +37,7 @@ solana-message = "3.0.0"
 solana-packet = "4.1.0"
 solana-program-error = "3.0.1"
 solana-program-pack = "3.1.0"
-solana-program-test = { version = "3.0.0", optional = true }
+solana-program-test = { version = "4.0.0-beta.7", optional = true }
 solana-rpc-client = "3.0.0"
 solana-rpc-client-api = "3.0.0"
 solana-signature = "3.0.0"
@@ -65,7 +65,7 @@ async-trait = "0.1"
 borsh = "1.6.1"
 bytemuck = "1.25.0"
 futures-util = "0.3"
-solana-program-test = { version = "3.1.0", features = ["agave-unstable-api"] }
+solana-program-test = { version = "4.0.0-beta.7", features = ["agave-unstable-api"] }
 solana-sdk = "3.0.0"
 solana-sdk-ids = "3.1.0"
 spl-pod = { version = "0.7.3" }
