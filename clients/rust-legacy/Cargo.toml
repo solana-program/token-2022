@@ -37,7 +37,7 @@ solana-message = "3.0.0"
 solana-packet = "4.1.0"
 solana-program-error = "3.0.1"
 solana-program-pack = "3.1.0"
-solana-program-test = { version = "4.0.0-beta.7", optional = true }
+solana-program-test = { version = "4.0.0-beta.7", optional = true, features = ["agave-unstable-api"] }
 solana-rpc-client = "4.0.0-beta.7"
 solana-rpc-client-api = "4.0.0-beta.7"
 solana-signature = "3.0.0"
