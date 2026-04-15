@@ -21,11 +21,11 @@ futures = "0.3"
 serde = "1.0.219"
 serde_derive = "1.0.103"
 serde_json = "1.0.149"
-solana-account-decoder = "3.0.0"
+solana-account-decoder = "4.0.0-beta.7"
 solana-clap-v3-utils = { version = "3.1.0", features = ["agave-unstable-api"] }
-solana-cli-config = { version = "3.1.0", features = ["agave-unstable-api"] }
-solana-cli-output = { version = "3.1.0", features = ["agave-unstable-api"] }
-solana-client = { version = "3.1.0", features = ["agave-unstable-api"] }
+solana-cli-config = { version = "4.0.0-beta.7", features = ["agave-unstable-api"] }
+solana-cli-output = { version = "4.0.0-beta.7", features = ["agave-unstable-api"] }
+solana-client = { version = "4.0.0-beta.7", features = ["agave-unstable-api"] }
 solana-commitment-config = "3.1.1"
 solana-logger = "3.0.0"
 solana-remote-wallet = { version = "3.1.0", features = ["agave-unstable-api"] }
@@ -49,9 +49,9 @@ strum_macros = "0.28"
 tokio = "1.52"
 
 [dev-dependencies]
-solana-nonce = "3.2.0"
+solana-nonce = "3.1.0"
 solana-sdk-ids = "3.1.0"
-solana-test-validator = { version = "3.1.0", features = ["agave-unstable-api"] }
+solana-test-validator = { version = "4.0.0-beta.7", features = ["agave-unstable-api"] }
 assert_cmd = "2.2.1"
 libtest-mimic = "0.8"
 serial_test = "3.4.0"
