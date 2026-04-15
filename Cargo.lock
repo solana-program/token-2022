@@ -6872,34 +6872,6 @@ dependencies = [
 
 [[package]]
 name = "solana-banks-client"
-version = "3.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be5f24528974dbe5989c868108c0416f31b8cee4bb9f8e024ddb9f0aeccfcbdf"
-dependencies = [
- "borsh",
- "futures 0.3.32",
- "solana-account",
- "solana-banks-interface 3.1.4",
- "solana-clock",
- "solana-commitment-config",
- "solana-hash 3.1.0",
- "solana-message",
- "solana-program-pack",
- "solana-pubkey 3.0.0",
- "solana-rent 3.0.0",
- "solana-signature",
- "solana-sysvar",
- "solana-transaction",
- "solana-transaction-context 3.1.4",
- "solana-transaction-error",
- "tarpc",
- "thiserror 2.0.18",
- "tokio",
- "tokio-serde",
-]
-
-[[package]]
-name = "solana-banks-client"
 version = "4.0.0-beta.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c07675a5a07b4019c4aed8c79f352bac35c10a0b2b08c0cec2d92a6d2e817243"
@@ -6907,7 +6879,7 @@ dependencies = [
  "borsh",
  "futures 0.3.32",
  "solana-account",
- "solana-banks-interface 4.0.0-beta.7",
+ "solana-banks-interface",
  "solana-clock",
  "solana-commitment-config",
  "solana-hash 4.2.0",
@@ -6924,26 +6896,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-serde",
-]
-
-[[package]]
-name = "solana-banks-interface"
-version = "3.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed14c628b044a9a3172e2a1133badc0cdc2820c5f4c360b87ec35df4a368e9f7"
-dependencies = [
- "serde",
- "solana-account",
- "solana-clock",
- "solana-commitment-config",
- "solana-hash 3.1.0",
- "solana-message",
- "solana-pubkey 3.0.0",
- "solana-signature",
- "solana-transaction",
- "solana-transaction-context 3.1.4",
- "solana-transaction-error",
- "tarpc",
 ]
 
 [[package]]
@@ -6977,7 +6929,7 @@ dependencies = [
  "crossbeam-channel",
  "futures 0.3.32",
  "solana-account",
- "solana-banks-interface 4.0.0-beta.7",
+ "solana-banks-interface",
  "solana-client 4.0.0-beta.7",
  "solana-clock",
  "solana-commitment-config",
@@ -9253,8 +9205,8 @@ dependencies = [
  "solana-account-info",
  "solana-accounts-db",
  "solana-address 2.6.0",
- "solana-banks-client 4.0.0-beta.7",
- "solana-banks-interface 4.0.0-beta.7",
+ "solana-banks-client",
+ "solana-banks-interface",
  "solana-banks-server",
  "solana-clock",
  "solana-cluster-type",
@@ -12076,8 +12028,8 @@ dependencies = [
  "futures-util",
  "solana-account",
  "solana-address 2.6.0",
- "solana-banks-client 3.1.4",
- "solana-banks-interface 3.1.4",
+ "solana-banks-client",
+ "solana-banks-interface",
  "solana-cli-output 3.1.4",
  "solana-compute-budget-interface",
  "solana-hash 4.2.0",

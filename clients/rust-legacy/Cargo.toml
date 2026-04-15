@@ -27,8 +27,8 @@ futures = "0.3.32"
 futures-util = "0.3"
 solana-account = "3.2.0"
 solana-address = "2.6.0"
-solana-banks-client = { version = "3.0.0", optional = true }
-solana-banks-interface = { version = "3.0.0", optional = true }
+solana-banks-client = { version = "4.0.0-beta.7", optional = true }
+solana-banks-interface = { version = "4.0.0-beta.7", optional = true }
 solana-compute-budget-interface = "3.0.0"
 solana-cli-output = { version = "3.1.0", features = ["agave-unstable-api"], optional = true }
 solana-hash = "4.2.0"
