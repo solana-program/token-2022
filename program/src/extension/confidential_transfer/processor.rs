@@ -474,22 +474,22 @@ fn process_deposit(
     // A deposit amount must be a 48-bit number
     let (amount_lo, amount_hi) = verify_and_split_deposit_amount(amount)?;
 
-    // Prevent unnecessary ciphertext arithmetic syscalls if `amount_lo` or
-    // `amount_hi` is zero
-    if amount_lo > 0 {
-        confidential_transfer_account.pending_balance_lo = ciphertext_arithmetic::add_to(
-            &confidential_transfer_account.pending_balance_lo,
-            amount_lo,
-        )
-        .ok_or(TokenError::CiphertextArithmeticFailed)?;
-    }
-    if amount_hi > 0 {
-        confidential_transfer_account.pending_balance_hi = ciphertext_arithmetic::add_to(
-            &confidential_transfer_account.pending_balance_hi,
-            amount_hi,
-        )
-        .ok_or(TokenError::CiphertextArithmeticFailed)?;
-    }
+    // The ZK ElGamal Proof program does not accept all-zero ciphertext
+    // on ciphertext-commitment equality proof.
+    // Use ciphertext arithmetic with offset to prevent all-zero ciphertext
+    // from ocurring when a balance is deposited and immediately withdrawn
+    confidential_transfer_account.pending_balance_lo = ciphertext_arithmetic::add_to_with_offset(
+        &confidential_transfer_account.elgamal_pubkey,
+        &confidential_transfer_account.pending_balance_lo,
+        amount_lo,
+    )
+    .ok_or(TokenError::CiphertextArithmeticFailed)?;
+    confidential_transfer_account.pending_balance_hi = ciphertext_arithmetic::add_to_with_offset(
+        &confidential_transfer_account.elgamal_pubkey,
+        &confidential_transfer_account.pending_balance_hi,
+        amount_hi,
+    )
+    .ok_or(TokenError::CiphertextArithmeticFailed)?;
 
     confidential_transfer_account.increment_pending_balance_credit_counter()?;
 
