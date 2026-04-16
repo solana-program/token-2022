@@ -134,7 +134,8 @@ pub enum ConfidentialTransferInstruction {
     /// instruction is not required prior to account closing if no
     /// instructions beyond
     /// `ConfidentialTransferInstruction::ConfigureAccount` have affected the
-    /// token account.
+    /// token account. Furthermore, if the available balance is already
+    /// empty, attempting to execute this instruction will fail.
     ///
     /// In order for this instruction to be successfully processed, it must be
     /// accompanied by the `VerifyZeroCiphertext` instruction of the
