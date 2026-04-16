@@ -1207,6 +1207,10 @@ impl Processor {
             }
         }
 
+        if mint.get_extension::<ConfidentialMintBurn>().is_ok() {
+            return Err(TokenError::IllegalMintBurnConversion.into());
+        }
+
         let maybe_permanent_delegate = get_permanent_delegate(&mint);
 
         if let Ok(cpi_guard) = source_account.get_extension::<CpiGuard>() {
