@@ -621,8 +621,36 @@ async fn confidential_transfer_empty_account_with_option(option: ConfidentialTra
         .await
         .unwrap();
 
-    let TokenContext { token, alice, .. } = context.token_context.unwrap();
+    let TokenContext {
+        token,
+        alice,
+        decimals,
+        ..
+    } = context.token_context.unwrap();
     let alice_meta = ConfidentialTokenAccountMeta::new(&token, &alice, None, false, false).await;
+
+    token
+        .confidential_transfer_deposit(
+            &alice_meta.token_account,
+            &alice.pubkey(),
+            0,
+            decimals,
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    token
+        .confidential_transfer_apply_pending_balance(
+            &alice_meta.token_account,
+            &alice.pubkey(),
+            None,
+            alice_meta.elgamal_keypair.secret(),
+            &alice_meta.aes_key,
+            &[&alice],
+        )
+        .await
+        .unwrap();
 
     empty_account_with_option(
         &token,
