@@ -682,8 +682,8 @@ fn process_transfer(
 
         // Check that the auditor encryption public key associated wth the confidential
         // mint is consistent with what was actually used to generate the zkp.
-        if confidential_transfer_mint.auditor_elgamal_pubkey.get()
-            != Some(proof_context.transfer_pubkeys.auditor)
+        if confidential_transfer_mint.auditor_elgamal_pubkey
+            != proof_context.transfer_pubkeys.auditor.into()
         {
             return Err(TokenError::ConfidentialTransferElGamalPubkeyMismatch.into());
         }
@@ -749,8 +749,8 @@ fn process_transfer(
         // Check that the encryption public keys associated with the mint confidential
         // transfer and confidential transfer fee extensions are consistent with
         // the keys that were used to generate the zkp.
-        if confidential_transfer_mint.auditor_elgamal_pubkey.get()
-            != Some(proof_context.transfer_with_fee_pubkeys.auditor)
+        if confidential_transfer_mint.auditor_elgamal_pubkey
+            != proof_context.transfer_with_fee_pubkeys.auditor.into()
         {
             return Err(TokenError::ConfidentialTransferElGamalPubkeyMismatch.into());
         }

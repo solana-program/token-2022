@@ -232,7 +232,7 @@ fn process_confidential_mint(
         return Err(ProgramError::InvalidInstructionData);
     }
 
-    if auditor_elgamal_pubkey.get() != Some(proof_context.mint_pubkeys.auditor) {
+    if auditor_elgamal_pubkey != proof_context.mint_pubkeys.auditor.into() {
         return Err(TokenError::ConfidentialTransferElGamalPubkeyMismatch.into());
     }
 
@@ -459,7 +459,7 @@ pub(crate) fn process_confidential_burn(
         return Err(TokenError::ConfidentialTransferBalanceMismatch.into());
     }
 
-    if auditor_elgamal_pubkey.get() != Some(proof_context.burn_pubkeys.auditor) {
+    if auditor_elgamal_pubkey != proof_context.burn_pubkeys.auditor.into() {
         return Err(TokenError::ConfidentialTransferElGamalPubkeyMismatch.into());
     }
 
