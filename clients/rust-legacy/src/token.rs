@@ -67,22 +67,6 @@ use {
             ExtensionType, StateWithExtensionsOwned,
         },
         instruction,
-        // solana_zk_sdk::{
-        //     encryption::{
-        //         auth_encryption::AeKey,
-        //         elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey, ElGamalSecretKey},
-        //         pod::{
-        //             auth_encryption::PodAeCiphertext,
-        //             elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
-        //         },
-        //     },
-        //     zk_elgamal_proof_program::{
-        //         self,
-        //         instruction::{close_context_state, ContextStateInfo},
-        //         proof_data::*,
-        //         state::ProofContextState,
-        //     },
-        // },
         state::{Account, AccountState, Mint, Multisig},
     },
     spl_token_confidential_transfer_proof_extraction::instruction::{
