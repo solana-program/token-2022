@@ -10853,9 +10853,9 @@ dependencies = [
 
 [[package]]
 name = "solana-zk-sdk"
-version = "6.0.0"
+version = "6.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0ef611edeb2a2c8f414a973b6ab98424c620e9fbe12f7e61d6d0130f715546b"
+checksum = "9664f023aac0b5976cb036684cd3d5ab3c4f12beadafafdcf87c3ba19f868887"
 dependencies = [
  "aes-gcm-siv",
  "base64 0.22.1",
@@ -11278,7 +11278,7 @@ dependencies = [
  "solana-system-interface 3.0.0",
  "solana-test-validator",
  "solana-transaction-status 3.1.4",
- "solana-zk-sdk 6.0.0",
+ "solana-zk-sdk 6.0.1",
  "solana-zk-sdk-pod",
  "spl-associated-token-account-interface",
  "spl-memo-interface",
@@ -11329,7 +11329,7 @@ dependencies = [
  "solana-system-interface 3.0.0",
  "solana-transaction",
  "solana-zk-elgamal-proof-interface",
- "solana-zk-sdk 6.0.0",
+ "solana-zk-sdk 6.0.1",
  "solana-zk-sdk-pod",
  "spl-associated-token-account-interface",
  "spl-elgamal-registry",
@@ -11360,7 +11360,7 @@ dependencies = [
  "bytemuck",
  "curve25519-dalek 4.1.3",
  "solana-curve25519 3.1.4",
- "solana-zk-sdk 6.0.0",
+ "solana-zk-sdk 6.0.1",
  "solana-zk-sdk-pod",
  "spl-token-confidential-transfer-proof-generation 0.6.0",
 ]
@@ -11421,7 +11421,7 @@ version = "0.6.0"
 dependencies = [
  "curve25519-dalek 4.1.3",
  "solana-zk-elgamal-proof-interface",
- "solana-zk-sdk 6.0.0",
+ "solana-zk-sdk 6.0.1",
  "solana-zk-sdk-pod",
  "thiserror 2.0.18",
 ]
@@ -11432,7 +11432,7 @@ version = "0.0.1"
 dependencies = [
  "curve25519-dalek 4.1.3",
  "solana-zk-elgamal-proof-interface",
- "solana-zk-sdk 6.0.0",
+ "solana-zk-sdk 6.0.1",
  "spl-token-confidential-transfer-proof-extraction 0.6.0",
  "spl-token-confidential-transfer-proof-generation 0.6.0",
  "thiserror 2.0.18",
