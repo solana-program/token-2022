@@ -34,13 +34,16 @@
 
 use {
     crate::errors::TokenProofGenerationError,
+    solana_zk_elgamal_proof_interface::proof_data::{
+        BatchedRangeProofU64Data, CiphertextCommitmentEqualityProofData,
+    },
     solana_zk_sdk::{
         encryption::{
-            elgamal::{ElGamal, ElGamalCiphertext, ElGamalKeypair},
+            elgamal::{ElGamalCiphertext, ElGamalKeypair},
             pedersen::Pedersen,
         },
-        zk_elgamal_proof_program::proof_data::{
-            BatchedRangeProofU64Data, CiphertextCommitmentEqualityProofData,
+        zk_elgamal_proof_program::{
+            build_batched_range_proof_u64_data, build_ciphertext_commitment_equality_proof_data,
         },
     },
 };
@@ -70,10 +73,10 @@ pub fn withdraw_proof_data(
 
     // Compute the remaining balance ciphertext
     #[allow(clippy::arithmetic_side_effects)]
-    let remaining_balance_ciphertext = current_available_balance - ElGamal::encode(withdraw_amount);
+    let remaining_balance_ciphertext = current_available_balance.subtract_amount(withdraw_amount);
 
     // Generate proof data
-    let equality_proof_data = CiphertextCommitmentEqualityProofData::new(
+    let equality_proof_data = build_ciphertext_commitment_equality_proof_data(
         elgamal_keypair,
         &remaining_balance_ciphertext,
         &remaining_balance_commitment,
@@ -82,7 +85,7 @@ pub fn withdraw_proof_data(
     )
     .map_err(TokenProofGenerationError::from)?;
 
-    let range_proof_data = BatchedRangeProofU64Data::new(
+    let range_proof_data = build_batched_range_proof_u64_data(
         vec![&remaining_balance_commitment],
         vec![remaining_balance],
         vec![REMAINING_BALANCE_BIT_LENGTH],

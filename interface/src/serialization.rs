@@ -246,7 +246,7 @@ pub mod aeciphertext_fromstr {
             de::{Error, Visitor},
             Deserializer, Serializer,
         },
-        solana_zk_sdk::encryption::pod::auth_encryption::PodAeCiphertext,
+        solana_zk_sdk_pod::encryption::auth_encryption::PodAeCiphertext,
         std::{fmt, str::FromStr},
     };
 
@@ -291,7 +291,7 @@ pub mod elgamalpubkey_fromstr {
             de::{Error, Visitor},
             Deserializer, Serializer,
         },
-        solana_zk_sdk::encryption::pod::elgamal::PodElGamalPubkey,
+        solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
         std::{fmt, str::FromStr},
     };
 
@@ -336,7 +336,7 @@ pub mod elgamalciphertext_fromstr {
             de::{Error, Visitor},
             Deserializer, Serializer,
         },
-        solana_zk_sdk::encryption::pod::elgamal::PodElGamalCiphertext,
+        solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
         std::{fmt, str::FromStr},
     };
 

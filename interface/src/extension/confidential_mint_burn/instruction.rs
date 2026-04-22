@@ -16,14 +16,14 @@ use {
     solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    solana_zk_sdk::encryption::pod::{
+    solana_zk_sdk_pod::encryption::{
         auth_encryption::PodAeCiphertext,
         elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
     },
 };
 #[cfg(not(target_os = "solana"))]
 use {
-    solana_zk_sdk::zk_elgamal_proof_program::{
+    solana_zk_elgamal_proof_interface::{
         instruction::ProofInstruction,
         proof_data::{
             BatchedGroupedCiphertext3HandlesValidityProofData, BatchedRangeProofU128Data,

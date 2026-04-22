@@ -1,4 +1,4 @@
-pub use solana_zk_sdk::zk_elgamal_proof_program::{
+pub use solana_zk_elgamal_proof_interface::{
     instruction::ProofInstruction, proof_data::*, state::ProofContextState,
 };
 #[cfg(feature = "serde")]
@@ -16,6 +16,7 @@ use {
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
     solana_sdk_ids::{system_program, sysvar},
     spl_token_confidential_transfer_proof_extraction::instruction::ProofLocation,
@@ -504,7 +505,7 @@ pub struct InitializeMintData {
     /// `authority` before they may be used by the user.
     pub auto_approve_new_accounts: PodBool,
     /// New authority to decode any transfer amount in a confidential transfer.
-    pub auditor_elgamal_pubkey: OptionalNonZeroElGamalPubkey,
+    pub auditor_elgamal_pubkey: MaybeNull<PodElGamalPubkey>,
 }
 
 /// Data expected by `ConfidentialTransferInstruction::UpdateMint`
@@ -517,7 +518,7 @@ pub struct UpdateMintData {
     /// `authority` before they may be used by the user.
     pub auto_approve_new_accounts: PodBool,
     /// New authority to decode any transfer amount in a confidential transfer.
-    pub auditor_elgamal_pubkey: OptionalNonZeroElGamalPubkey,
+    pub auditor_elgamal_pubkey: MaybeNull<PodElGamalPubkey>,
 }
 
 /// Data expected by `ConfidentialTransferInstruction::ConfigureAccount`
@@ -695,7 +696,9 @@ pub fn initialize_mint(
         &InitializeMintData {
             authority: authority.try_into()?,
             auto_approve_new_accounts: auto_approve_new_accounts.into(),
-            auditor_elgamal_pubkey: auditor_elgamal_pubkey.try_into()?,
+            auditor_elgamal_pubkey: auditor_elgamal_pubkey
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
         },
     ))
 }
@@ -724,7 +727,9 @@ pub fn update_mint(
         ConfidentialTransferInstruction::UpdateMint,
         &UpdateMintData {
             auto_approve_new_accounts: auto_approve_new_accounts.into(),
-            auditor_elgamal_pubkey: auditor_elgamal_pubkey.try_into()?,
+            auditor_elgamal_pubkey: auditor_elgamal_pubkey
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
         },
     ))
 }

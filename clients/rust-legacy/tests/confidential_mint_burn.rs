@@ -10,6 +10,8 @@ use {
         transaction::TransactionError,
         transport::TransportError,
     },
+    solana_zk_sdk::encryption::{auth_encryption::*, elgamal::*},
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
     spl_token_2022_interface::{
         error::TokenError,
         extension::{
@@ -18,9 +20,6 @@ use {
             ExtensionType,
         },
         instruction::AuthorityType,
-        solana_zk_sdk::encryption::{
-            auth_encryption::*, elgamal::*, pod::elgamal::PodElGamalCiphertext,
-        },
     },
     spl_token_client::{
         client::{ProgramBanksClientProcessTransaction, SendTransaction, SimulateTransaction},

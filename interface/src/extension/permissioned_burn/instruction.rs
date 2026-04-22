@@ -6,14 +6,14 @@ use {
         confidential_mint_burn::instruction::BurnInstructionData as ConfidentialBurnInstructionData,
         confidential_transfer::DecryptableBalance,
     },
-    solana_zk_sdk::encryption::pod::elgamal::PodElGamalCiphertext,
-    solana_zk_sdk::zk_elgamal_proof_program::{
+    solana_zk_elgamal_proof_interface::{
         instruction::ProofInstruction,
         proof_data::{
             BatchedGroupedCiphertext3HandlesValidityProofData, BatchedRangeProofU128Data,
             CiphertextCommitmentEqualityProofData,
         },
     },
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
     spl_token_confidential_transfer_proof_extraction::instruction::{
         process_proof_location, ProofLocation,
     },

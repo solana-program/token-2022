@@ -4,13 +4,14 @@ use {
         extension::{Extension, ExtensionType},
     },
     bytemuck::{Pod, Zeroable},
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramResult,
-    solana_zk_sdk::encryption::pod::{
+    solana_zk_sdk_pod::encryption::{
         auth_encryption::PodAeCiphertext,
         elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
     },
     spl_pod::{
-        optional_keys::{OptionalNonZeroElGamalPubkey, OptionalNonZeroPubkey},
+        optional_keys::OptionalNonZeroPubkey,
         primitives::{PodBool, PodU64},
     },
 };
@@ -54,7 +55,7 @@ pub struct ConfidentialTransferMint {
     pub auto_approve_new_accounts: PodBool,
 
     /// Authority to decode any transfer amount in a confidential transfer.
-    pub auditor_elgamal_pubkey: OptionalNonZeroElGamalPubkey,
+    pub auditor_elgamal_pubkey: MaybeNull<PodElGamalPubkey>,
 }
 
 impl Extension for ConfidentialTransferMint {

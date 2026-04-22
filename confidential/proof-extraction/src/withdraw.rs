@@ -1,11 +1,9 @@
 use {
     crate::errors::TokenProofExtractionError,
-    solana_zk_sdk::{
-        encryption::pod::elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
-        zk_elgamal_proof_program::proof_data::{
-            BatchedRangeProofContext, CiphertextCommitmentEqualityProofContext,
-        },
+    solana_zk_elgamal_proof_interface::proof_data::{
+        BatchedRangeProofContext, CiphertextCommitmentEqualityProofContext,
     },
+    solana_zk_sdk_pod::encryption::elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
 };
 
 const REMAINING_BALANCE_BIT_LENGTH: u8 = 64;

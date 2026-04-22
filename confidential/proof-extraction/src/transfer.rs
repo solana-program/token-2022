@@ -1,12 +1,10 @@
 use {
     crate::{encryption::PodTransferAmountCiphertext, errors::TokenProofExtractionError},
-    solana_zk_sdk::{
-        encryption::pod::elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
-        zk_elgamal_proof_program::proof_data::{
-            BatchedGroupedCiphertext3HandlesValidityProofContext, BatchedRangeProofContext,
-            CiphertextCommitmentEqualityProofContext,
-        },
+    solana_zk_elgamal_proof_interface::proof_data::{
+        BatchedGroupedCiphertext3HandlesValidityProofContext, BatchedRangeProofContext,
+        CiphertextCommitmentEqualityProofContext,
     },
+    solana_zk_sdk_pod::encryption::elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
 };
 
 /// The transfer public keys associated with a transfer.

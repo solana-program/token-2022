@@ -30,6 +30,7 @@ solana-clock = "3.0.0"
 solana-cpi = "3.1.0"
 solana-instruction = "3.0.0"
 solana-msg = "3.1.0"
+solana-nullable = "1.1.0"
 solana-program-entrypoint = "3.1.1"
 solana-program-error = "3.0.1"
 solana-program-memory = "3.1.0"
@@ -40,12 +41,13 @@ solana-sdk-ids = "3.1.0"
 solana-security-txt = "1.1.2"
 solana-sysvar = { version = "3.0.0", features = ["bincode"] }
 solana-system-interface = { version = "3.0.0", features = ["bincode"] }
-solana-zk-sdk = "4.0.0"
+solana-zk-sdk-pod = "0.1.1"
+solana-zk-elgamal-proof-interface = "0.1.2"
 spl-elgamal-registry-interface = { version = "0.1.0", path = "../confidential/elgamal-registry-interface" }
 spl-memo-interface = { version = "2.0" }
 spl-token-2022-interface = { version = "2.1.0", path = "../interface" }
 spl-token-confidential-transfer-ciphertext-arithmetic = { version = "0.4.1", path = "../confidential/ciphertext-arithmetic" }
-spl-token-confidential-transfer-proof-extraction = { version = "0.5.1", path = "../confidential/proof-extraction" }
+spl-token-confidential-transfer-proof-extraction = { version = "0.6.0", path = "../confidential/proof-extraction" }
 spl-token-group-interface = { version = "0.7.1" }
 spl-token-metadata-interface = { version = "0.8.0" }
 spl-transfer-hook-interface = { version = "2.1.0" }
@@ -56,7 +58,7 @@ serde_with = { version = "3.18.0", optional = true }
 base64 = { version = "0.22.1", optional = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
-spl-token-confidential-transfer-proof-generation = { version = "0.5.1", path = "../confidential/proof-generation" }
+spl-token-confidential-transfer-proof-generation = { version = "0.6.0", path = "../confidential/proof-generation" }
 
 [dev-dependencies]
 lazy_static = "1.5.0"
@@ -64,7 +66,7 @@ mollusk-svm = "0.11"
 proptest = "1.11"
 serial_test = "3.4.0"
 solana-account = "3.2.0"
-solana-hash = "4.3.0"
+solana-hash = "4.2.0"
 solana-keypair = "3.0.0"
 solana-signer = "3.0.0"
 solana-transaction = { version = "3.0.0", features = ["bincode"] }

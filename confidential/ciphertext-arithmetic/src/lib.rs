@@ -4,16 +4,23 @@ use {
         ristretto::{add_ristretto, multiply_ristretto, subtract_ristretto, PodRistrettoPoint},
         scalar::PodScalar,
     },
-    solana_zk_sdk::encryption::pod::elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
+    solana_zk_sdk_pod::encryption::elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
 };
 
 const SHIFT_BITS: usize = 16;
 
+/// `G` is the Ristretto base point used to encode the amount in a Pedersen
+/// commitment. A Pedersen commitment to an `amount` with randomness `r` is computed
+/// as `amount * G + r * H`.
 const G: PodRistrettoPoint = PodRistrettoPoint([
     226, 242, 174, 10, 106, 188, 78, 113, 168, 132, 169, 97, 197, 0, 81, 95, 88, 227, 11, 106, 165,
     130, 221, 141, 182, 166, 89, 69, 224, 141, 45, 118,
 ]);
 
+/// `H` is the Ristretto base point used to encode the randomness (opening) in
+/// a Pedersen commitment. It is also used as the base point for Twisted ElGamal
+/// public keys. Because `H` is a valid curve point, adding `1 * H` to a ciphertext
+/// ensures the resulting commitment is not the identity point (all zeros).
 const H: PodRistrettoPoint = PodRistrettoPoint([
     140, 146, 64, 180, 86, 169, 230, 220, 101, 195, 119, 161, 4, 141, 116, 95, 148, 160, 140, 219,
     127, 68, 203, 205, 123, 70, 243, 64, 72, 135, 17, 52,
@@ -223,7 +230,9 @@ mod tests {
         solana_zk_sdk::encryption::{
             elgamal::{ElGamalCiphertext, ElGamalKeypair},
             pedersen::{Pedersen, PedersenOpening},
-            pod::{elgamal::PodDecryptHandle, pedersen::PodPedersenCommitment},
+        },
+        solana_zk_sdk_pod::encryption::{
+            elgamal::PodDecryptHandle, pedersen::PodPedersenCommitment,
         },
         spl_token_confidential_transfer_proof_generation::try_split_u64,
     };
