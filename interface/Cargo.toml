@@ -30,7 +30,7 @@ solana-sdk-ids = "3.1.0"
 solana-zk-sdk-pod = { version = "0.1.1", features = ["serde"] }
 solana-zk-elgamal-proof-interface = "0.1.2"
 spl-token-confidential-transfer-proof-extraction = { version = "0.6.0", path = "../confidential/proof-extraction" }
-spl-token-group-interface = { version = "0.7.1" }
+spl-token-group-interface = { version = "0.7.2" }
 spl-token-metadata-interface = { version = "0.8.0" }
 spl-type-length-value = { version = "0.9.1" }
 spl-pod = { version = "0.7.3" }

@@ -54,7 +54,7 @@ spl-token-confidential-transfer-proof-extraction = { path = "../../confidential/
 spl-token-confidential-transfer-proof-generation = { path = "../../confidential/proof-generation", version = "0.6.0" }
 spl-token-2022-interface = { version = "2.0.0", path = "../../interface" }
 spl-token-2022 = { version = "10.0.0", path = "../../program", features = ["no-entrypoint"] }
-spl-token-group-interface = { version = "0.7.0" }
+spl-token-group-interface = { version = "0.7.2" }
 spl-token-metadata-interface = { version = "0.8.0" }
 spl-transfer-hook-interface = { version = "2.1.0" }
 solana-zk-sdk-pod = "0.1.1"
