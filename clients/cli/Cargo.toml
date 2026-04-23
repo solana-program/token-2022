@@ -29,7 +29,7 @@ solana-client = { version = "4.0.0-beta.7", features = ["agave-unstable-api"] }
 solana-commitment-config = "3.1.1"
 solana-logger = "3.0.0"
 solana-remote-wallet = { version = "3.1.0", features = ["agave-unstable-api"] }
-solana-sdk = "3.0.0"
+solana-sdk = "4.0.1"
 solana-system-interface = "3.2.0"
 solana-transaction-status = "3.0.0"
 solana-zk-sdk = "6.0.1"
