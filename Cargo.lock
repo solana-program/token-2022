@@ -6485,7 +6485,7 @@ dependencies = [
  "spl-token-2022-interface 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "spl-token-group-interface",
  "spl-token-interface",
- "spl-token-metadata-interface",
+ "spl-token-metadata-interface 0.8.0",
  "thiserror 2.0.18",
  "zstd",
 ]
@@ -6527,7 +6527,7 @@ dependencies = [
  "spl-token-2022-interface 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "spl-token-group-interface",
  "spl-token-interface",
- "spl-token-metadata-interface",
+ "spl-token-metadata-interface 0.8.0",
  "thiserror 2.0.18",
  "zstd",
 ]
@@ -6661,6 +6661,7 @@ dependencies = [
  "sha2-const-stable",
  "solana-atomic-u64",
  "solana-define-syscall 5.0.0",
+ "solana-nullable",
  "solana-program-error",
  "solana-sanitize",
  "solana-sha256-hasher",
@@ -8397,6 +8398,7 @@ version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da028344c595c7416769ff648d206de7962571291a4cea24c38a60b6f40d53bb"
 dependencies = [
+ "borsh",
  "bytemuck",
  "serde",
 ]
@@ -10390,7 +10392,7 @@ dependencies = [
  "spl-token-2022-interface 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "spl-token-group-interface",
  "spl-token-interface",
- "spl-token-metadata-interface",
+ "spl-token-metadata-interface 0.8.0",
  "thiserror 2.0.18",
 ]
 
@@ -10433,7 +10435,7 @@ dependencies = [
  "spl-token-2022-interface 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "spl-token-group-interface",
  "spl-token-interface",
- "spl-token-metadata-interface",
+ "spl-token-metadata-interface 0.8.0",
  "thiserror 2.0.18",
 ]
 
@@ -10934,9 +10936,9 @@ dependencies = [
 
 [[package]]
 name = "spl-discriminator"
-version = "0.5.1"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d48cc11459e265d5b501534144266620289720b4c44522a47bc6b63cd295d2f3"
+checksum = "e597c5ff9ed7c74a54dbc47bae2f06e4db8c98f4356ad280200dc11878266db1"
 dependencies = [
  "bytemuck",
  "solana-program-error",
@@ -11178,7 +11180,7 @@ dependencies = [
  "spl-token-confidential-transfer-proof-extraction 0.6.0",
  "spl-token-confidential-transfer-proof-generation 0.6.0",
  "spl-token-group-interface",
- "spl-token-metadata-interface",
+ "spl-token-metadata-interface 1.0.0",
  "spl-transfer-hook-interface",
  "test-case",
  "thiserror 2.0.18",
@@ -11215,7 +11217,7 @@ dependencies = [
  "spl-token-confidential-transfer-proof-generation 0.6.0",
  "spl-token-group-interface",
  "spl-token-interface",
- "spl-token-metadata-interface",
+ "spl-token-metadata-interface 1.0.0",
  "spl-type-length-value",
  "strum 0.28.0",
  "strum_macros 0.28.0",
@@ -11245,7 +11247,7 @@ dependencies = [
  "spl-token-confidential-transfer-proof-extraction 0.5.1",
  "spl-token-confidential-transfer-proof-generation 0.5.1",
  "spl-token-group-interface",
- "spl-token-metadata-interface",
+ "spl-token-metadata-interface 0.8.0",
  "spl-type-length-value",
  "thiserror 2.0.18",
 ]
@@ -11289,7 +11291,7 @@ dependencies = [
  "spl-token-confidential-transfer-proof-generation 0.6.0",
  "spl-token-group-interface",
  "spl-token-interface",
- "spl-token-metadata-interface",
+ "spl-token-metadata-interface 1.0.0",
  "strum 0.28.0",
  "strum_macros 0.28.0",
  "tempfile",
@@ -11345,7 +11347,7 @@ dependencies = [
  "spl-token-confidential-transfer-proof-generation 0.6.0",
  "spl-token-group-interface",
  "spl-token-interface",
- "spl-token-metadata-interface",
+ "spl-token-metadata-interface 1.0.0",
  "spl-transfer-hook-interface",
  "test-case",
  "thiserror 2.0.18",
@@ -11491,6 +11493,26 @@ dependencies = [
  "solana-pubkey 3.0.0",
  "spl-discriminator",
  "spl-pod",
+ "spl-type-length-value",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "spl-token-metadata-interface"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10347d7a9b8179cb9c238f7f19419495e872ec107b4c7594eb26454ce14fe2fc"
+dependencies = [
+ "borsh",
+ "num-derive",
+ "num-traits",
+ "num_enum",
+ "solana-address 2.6.0",
+ "solana-borsh",
+ "solana-instruction",
+ "solana-nullable",
+ "solana-program-error",
+ "spl-discriminator",
  "spl-type-length-value",
  "thiserror 2.0.18",
 ]

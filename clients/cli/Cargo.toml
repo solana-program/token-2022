@@ -41,7 +41,7 @@ spl-token-2022-interface = { version = "2.0.0", path = "../../interface" }
 spl-token-2022 = { version = "10.0.0", path = "../../program", features = ["no-entrypoint"] }
 spl-token-client = { version = "0.18.0", path = "../rust-legacy" }
 spl-token-confidential-transfer-proof-generation = { version = "0.6.0", path = "../../confidential/proof-generation" }
-spl-token-metadata-interface = { version = "0.8.0" }
+spl-token-metadata-interface = { version = "1.0.0" }
 spl-token-group-interface = { version = "0.7.0" }
 spl-memo-interface = "2.0.0"
 strum = "0.28"
