@@ -250,13 +250,11 @@ impl TryFrom<PodCOption<Address>> for MaybeNull<Address> {
             PodCOption {
                 option: PodCOption::<Address>::SOME,
                 value,
-            } => Some(value)
-                .try_into()
-                .map_err(|_| ProgramError::InvalidArgument),
+            } => Ok(Self::from(value)),
             PodCOption {
                 option: PodCOption::<Address>::NONE,
                 value: _,
-            } => None.try_into().map_err(|_| ProgramError::InvalidArgument),
+            } => Ok(Self::default()),
             _ => unreachable!(),
         }
     }
