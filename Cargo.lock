@@ -11183,6 +11183,7 @@ dependencies = [
  "arrayref",
  "base64 0.22.1",
  "bytemuck",
+ "getrandom 0.2.15",
  "num-derive",
  "num-traits",
  "num_enum",
@@ -11408,7 +11409,6 @@ name = "spl-token-confidential-transfer-proof-generation"
 version = "0.6.0"
 dependencies = [
  "curve25519-dalek 4.1.3",
- "getrandom 0.2.15",
  "solana-zk-elgamal-proof-interface",
  "solana-zk-sdk 6.0.1",
  "solana-zk-sdk-pod",
