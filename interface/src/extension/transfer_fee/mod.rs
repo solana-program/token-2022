@@ -1,20 +1,22 @@
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use {
     crate::{
         error::TokenError,
         extension::{Extension, ExtensionType},
     },
     bytemuck::{Pod, Zeroable},
+    solana_address::Address,
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramResult,
-    spl_pod::{
-        optional_keys::OptionalNonZeroPubkey,
-        primitives::{PodU16, PodU64},
-    },
+    solana_zero_copy::unaligned::{U16, U64},
     std::{
         cmp,
         convert::{TryFrom, TryInto},
     },
+};
+#[cfg(feature = "serde")]
+use {
+    serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 
 /// Transfer fee extension instructions
@@ -31,12 +33,12 @@ const ONE_IN_BASIS_POINTS: u128 = MAX_FEE_BASIS_POINTS as u128;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct TransferFee {
     /// First epoch where the transfer fee takes effect
-    pub epoch: PodU64, // Epoch,
+    pub epoch: U64, // Epoch,
     /// Maximum fee assessed on transfers, expressed as an amount of tokens
-    pub maximum_fee: PodU64,
+    pub maximum_fee: U64,
     /// Amount of transfer collected as fees, expressed as basis points of the
     /// transfer amount (increments of `0.01%`)
-    pub transfer_fee_basis_points: PodU16,
+    pub transfer_fee_basis_points: U16,
 }
 impl TransferFee {
     /// Calculate ceiling-division
@@ -132,12 +134,14 @@ impl TransferFee {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct TransferFeeConfig {
     /// Optional authority to set the fee
-    pub transfer_fee_config_authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub transfer_fee_config_authority: MaybeNull<Address>,
     /// Withdraw from mint instructions must be signed by this key
-    pub withdraw_withheld_authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub withdraw_withheld_authority: MaybeNull<Address>,
     /// Withheld transfer fee tokens that have been moved to the mint for
     /// withdrawal
-    pub withheld_amount: PodU64,
+    pub withheld_amount: U64,
     /// Older transfer fee, used if `current epoch < new_transfer_fee.epoch`
     pub older_transfer_fee: TransferFee,
     /// Newer transfer fee, used if `current epoch >= new_transfer_fee.epoch`
@@ -173,7 +177,7 @@ impl Extension for TransferFeeConfig {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct TransferFeeAmount {
     /// Amount withheld during transfers, to be harvested to the mint
-    pub withheld_amount: PodU64,
+    pub withheld_amount: U64,
 }
 impl TransferFeeAmount {
     /// Check if the extension is in a closable state
@@ -198,24 +202,22 @@ pub(crate) mod test {
 
     pub(crate) fn test_transfer_fee_config() -> TransferFeeConfig {
         TransferFeeConfig {
-            transfer_fee_config_authority: OptionalNonZeroPubkey::try_from(Some(
-                Address::new_from_array([10; 32]),
-            ))
-            .unwrap(),
-            withdraw_withheld_authority: OptionalNonZeroPubkey::try_from(Some(
-                Address::new_from_array([11; 32]),
-            ))
-            .unwrap(),
-            withheld_amount: PodU64::from(u64::MAX),
+            transfer_fee_config_authority: Some(Address::new_from_array([10; 32]))
+                .try_into()
+                .unwrap(),
+            withdraw_withheld_authority: Some(Address::new_from_array([11; 32]))
+                .try_into()
+                .unwrap(),
+            withheld_amount: U64::from(u64::MAX),
             older_transfer_fee: TransferFee {
-                epoch: PodU64::from(OLDER_EPOCH),
-                maximum_fee: PodU64::from(10),
-                transfer_fee_basis_points: PodU16::from(100),
+                epoch: U64::from(OLDER_EPOCH),
+                maximum_fee: U64::from(10),
+                transfer_fee_basis_points: U16::from(100),
             },
             newer_transfer_fee: TransferFee {
-                epoch: PodU64::from(NEWER_EPOCH),
-                maximum_fee: PodU64::from(5_000),
-                transfer_fee_basis_points: PodU16::from(1),
+                epoch: U64::from(NEWER_EPOCH),
+                maximum_fee: U64::from(5_000),
+                transfer_fee_basis_points: U16::from(1),
             },
         }
     }
@@ -255,9 +257,9 @@ pub(crate) mod test {
     fn calculate_fee_max() {
         let one = u64::try_from(ONE_IN_BASIS_POINTS).unwrap();
         let transfer_fee = TransferFee {
-            epoch: PodU64::from(0),
-            maximum_fee: PodU64::from(5_000),
-            transfer_fee_basis_points: PodU16::from(1),
+            epoch: U64::from(0),
+            maximum_fee: U64::from(5_000),
+            transfer_fee_basis_points: U16::from(1),
         };
         let maximum_fee = u64::from(transfer_fee.maximum_fee);
         // hit maximum fee
@@ -283,9 +285,9 @@ pub(crate) mod test {
     fn calculate_fee_min() {
         let one = u64::try_from(ONE_IN_BASIS_POINTS).unwrap();
         let transfer_fee = TransferFee {
-            epoch: PodU64::from(0),
-            maximum_fee: PodU64::from(5_000),
-            transfer_fee_basis_points: PodU16::from(1),
+            epoch: U64::from(0),
+            maximum_fee: U64::from(5_000),
+            transfer_fee_basis_points: U16::from(1),
         };
         let minimum_fee = 1;
         // hit minimum fee even with 1 token
@@ -307,9 +309,9 @@ pub(crate) mod test {
     fn calculate_fee_zero() {
         let one = u64::try_from(ONE_IN_BASIS_POINTS).unwrap();
         let transfer_fee = TransferFee {
-            epoch: PodU64::from(0),
-            maximum_fee: PodU64::from(u64::MAX),
-            transfer_fee_basis_points: PodU16::from(0),
+            epoch: U64::from(0),
+            maximum_fee: U64::from(u64::MAX),
+            transfer_fee_basis_points: U16::from(0),
         };
         // always zero fee
         assert_eq!(0, transfer_fee.calculate_fee(0).unwrap());
@@ -318,9 +320,9 @@ pub(crate) mod test {
         assert_eq!(0, transfer_fee.calculate_fee(one).unwrap());
 
         let transfer_fee = TransferFee {
-            epoch: PodU64::from(0),
-            maximum_fee: PodU64::from(0),
-            transfer_fee_basis_points: PodU16::from(MAX_FEE_BASIS_POINTS),
+            epoch: U64::from(0),
+            maximum_fee: U64::from(0),
+            transfer_fee_basis_points: U16::from(MAX_FEE_BASIS_POINTS),
         };
         // always zero fee
         assert_eq!(0, transfer_fee.calculate_fee(0).unwrap());
@@ -333,9 +335,9 @@ pub(crate) mod test {
     fn calculate_fee_exact_out_max() {
         let one = u64::try_from(ONE_IN_BASIS_POINTS).unwrap();
         let transfer_fee = TransferFee {
-            epoch: PodU64::from(0),
-            maximum_fee: PodU64::from(5_000),
-            transfer_fee_basis_points: PodU16::from(1),
+            epoch: U64::from(0),
+            maximum_fee: U64::from(5_000),
+            transfer_fee_basis_points: U16::from(1),
         };
         let maximum_fee = u64::from(transfer_fee.maximum_fee);
         // hit maximum fee
@@ -372,9 +374,9 @@ pub(crate) mod test {
     fn calculate_pre_fee_amount_edge_cases() {
         let maximum_fee = 5_000;
         let transfer_fee = TransferFee {
-            epoch: PodU64::from(0),
-            maximum_fee: PodU64::from(maximum_fee),
-            transfer_fee_basis_points: PodU16::from(u16::try_from(ONE_IN_BASIS_POINTS).unwrap()),
+            epoch: U64::from(0),
+            maximum_fee: U64::from(maximum_fee),
+            transfer_fee_basis_points: U16::from(u16::try_from(ONE_IN_BASIS_POINTS).unwrap()),
         };
 
         // 0 zero out, 0 in
@@ -388,9 +390,9 @@ pub(crate) mod test {
 
         // no fee same amount
         let transfer_fee = TransferFee {
-            epoch: PodU64::from(0),
-            maximum_fee: PodU64::from(maximum_fee),
-            transfer_fee_basis_points: PodU16::from(0),
+            epoch: U64::from(0),
+            maximum_fee: U64::from(maximum_fee),
+            transfer_fee_basis_points: U16::from(0),
         };
         assert_eq!(1, transfer_fee.calculate_pre_fee_amount(1).unwrap());
     }
@@ -399,9 +401,9 @@ pub(crate) mod test {
     fn calculate_fee_exact_out_min() {
         let one = u64::try_from(ONE_IN_BASIS_POINTS).unwrap();
         let transfer_fee = TransferFee {
-            epoch: PodU64::from(0),
-            maximum_fee: PodU64::from(5_000),
-            transfer_fee_basis_points: PodU16::from(1),
+            epoch: U64::from(0),
+            maximum_fee: U64::from(5_000),
+            transfer_fee_basis_points: U16::from(1),
         };
         let minimum_fee = 1;
         // hit minimum fee even with 1 token
@@ -430,9 +432,9 @@ pub(crate) mod test {
             amount_in in 0..=u64::MAX
         ) {
             let transfer_fee = TransferFee {
-                epoch: PodU64::from(0),
-                maximum_fee: PodU64::from(maximum_fee),
-                transfer_fee_basis_points: PodU16::from(transfer_fee_basis_points),
+                epoch: U64::from(0),
+                maximum_fee: U64::from(maximum_fee),
+                transfer_fee_basis_points: U16::from(transfer_fee_basis_points),
             };
             let fee = transfer_fee.calculate_fee(amount_in).unwrap();
             let amount_out = amount_in.checked_sub(fee).unwrap();
@@ -455,9 +457,9 @@ pub(crate) mod test {
             amount_in in 0..=u64::MAX
         ) {
             let transfer_fee = TransferFee {
-                epoch: PodU64::from(0),
-                maximum_fee: PodU64::from(maximum_fee),
-                transfer_fee_basis_points: PodU16::from(transfer_fee_basis_points),
+                epoch: U64::from(0),
+                maximum_fee: U64::from(maximum_fee),
+                transfer_fee_basis_points: U16::from(transfer_fee_basis_points),
             };
             let fee = transfer_fee.calculate_fee(amount_in).unwrap();
             let amount_out = amount_in.checked_sub(fee).unwrap();

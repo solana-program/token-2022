@@ -77,7 +77,10 @@ use {
         transfer_with_fee::TransferWithFeeProofData, withdraw::WithdrawProofData,
     },
     spl_token_group_interface::state::{TokenGroup, TokenGroupMember},
-    spl_token_metadata_interface::state::{Field, TokenMetadata},
+    spl_token_metadata_interface::{
+        solana_nullable::MaybeNull,
+        state::{Field, TokenMetadata},
+    },
     std::{
         fmt, io,
         mem::size_of,
@@ -3963,7 +3966,7 @@ where
                 &self.program_id,
                 &self.pubkey,
                 current_authority,
-                new_authority.try_into()?,
+                MaybeNull::try_from(new_authority).map_err(|_| ProgramError::InvalidArgument)?,
             )],
             signing_keypairs,
         )

@@ -1,10 +1,13 @@
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use {
     crate::extension::{BaseState, BaseStateWithExtensions, Extension, ExtensionType},
     bytemuck::{Pod, Zeroable},
     solana_address::Address,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
+    solana_nullable::MaybeNull,
+};
+#[cfg(feature = "serde")]
+use {
+    serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 
 /// Permanent delegate extension data for mints.
@@ -14,7 +17,8 @@ use {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct PermanentDelegate {
     /// Optional permanent delegate for transferring or burning tokens
-    pub delegate: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub delegate: MaybeNull<Address>,
 }
 impl Extension for PermanentDelegate {
     const TYPE: ExtensionType = ExtensionType::PermanentDelegate;

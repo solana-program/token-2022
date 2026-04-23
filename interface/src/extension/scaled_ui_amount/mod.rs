@@ -1,20 +1,25 @@
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use {
     crate::{
         extension::{Extension, ExtensionType},
         trim_ui_amount_string,
     },
     bytemuck::{Pod, Zeroable},
+    solana_address::Address,
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
-    spl_pod::{optional_keys::OptionalNonZeroPubkey, primitives::PodI64},
+    solana_zero_copy::unaligned::I64,
+};
+#[cfg(feature = "serde")]
+use {
+    serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 
 /// Scaled UI amount extension instructions
 pub mod instruction;
 
 /// `UnixTimestamp` expressed with an alignment-independent type
-pub type UnixTimestamp = PodI64;
+pub type UnixTimestamp = I64;
 
 /// `f64` type that can be used in `Pod`s
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -45,7 +50,8 @@ impl From<PodF64> for f64 {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct ScaledUiAmountConfig {
     /// Authority that can set the scaling amount and authority
-    pub authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub authority: MaybeNull<Address>,
     /// Amount to multiply raw amounts by, outside of the decimal
     pub multiplier: PodF64,
     /// Unix timestamp at which `new_multiplier` comes into effective

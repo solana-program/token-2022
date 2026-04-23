@@ -15,7 +15,6 @@ use {
         proof_data::{ProofType, ZkProofData},
         state::ProofContextState,
     },
-    spl_pod::bytemuck::pod_from_bytes,
     std::{num::NonZeroI8, slice::Iter},
 };
 
@@ -79,7 +78,9 @@ pub fn verify_and_extract_context<'a, T: Pod + ZkProofData<U>, U: Pod>(
         let context_state_account_info = next_account_info(account_info_iter)?;
         check_zk_elgamal_proof_program_account(context_state_account_info.owner)?;
         let context_state_account_data = context_state_account_info.data.borrow();
-        let context_state = pod_from_bytes::<ProofContextState<U>>(&context_state_account_data)?;
+        let context_state =
+            bytemuck::try_from_bytes::<ProofContextState<U>>(&context_state_account_data)
+                .map_err(|_| ProgramError::InvalidArgument)?;
 
         if context_state.proof_type != T::PROOF_TYPE.into() {
             return Err(ProgramError::InvalidInstructionData);

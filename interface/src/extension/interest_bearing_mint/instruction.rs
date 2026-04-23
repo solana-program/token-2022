@@ -1,5 +1,3 @@
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use {
     crate::{
         check_program_account,
@@ -10,9 +8,13 @@ use {
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
-    std::convert::TryInto,
+};
+#[cfg(feature = "serde")]
+use {
+    serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 
 /// Interest-bearing mint extension instructions
@@ -63,7 +65,8 @@ pub enum InterestBearingMintInstruction {
 #[repr(C)]
 pub struct InitializeInstructionData {
     /// The public key for the account that can update the rate
-    pub rate_authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub rate_authority: MaybeNull<Address>,
     /// The initial interest rate
     pub rate: BasisPoints,
 }
@@ -83,7 +86,9 @@ pub fn initialize(
         TokenInstruction::InterestBearingMintExtension,
         InterestBearingMintInstruction::Initialize,
         &InitializeInstructionData {
-            rate_authority: rate_authority.try_into()?,
+            rate_authority: rate_authority
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
             rate: rate.into(),
         },
     ))

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use {
     crate::extension::{BaseState, BaseStateWithExtensions, Extension, ExtensionType},
     bytemuck::{Pod, Zeroable},
-    spl_pod::primitives::PodBool,
+    solana_zero_copy::unaligned::Bool,
 };
 
 /// Memo Transfer extension instructions
@@ -16,7 +16,7 @@ pub mod instruction;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct MemoTransfer {
     /// Require transfers into this account to be accompanied by a memo
-    pub require_incoming_transfer_memos: PodBool,
+    pub require_incoming_transfer_memos: Bool,
 }
 impl Extension for MemoTransfer {
     const TYPE: ExtensionType = ExtensionType::MemoTransfer;

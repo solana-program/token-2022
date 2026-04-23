@@ -11,7 +11,7 @@ use {
     solana_account_info::{next_account_info, AccountInfo},
     solana_address::Address,
     solana_msg::msg,
-    solana_program_error::ProgramResult,
+    solana_program_error::{ProgramError, ProgramResult},
     spl_token_2022_interface::{
         check_program_account,
         extension::{
@@ -39,7 +39,9 @@ fn process_initialize(
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
 
     let extension = mint.init_extension::<PermissionedBurnConfig>(true)?;
-    extension.authority = Some(*authority).try_into()?;
+    extension.authority = Some(*authority)
+        .try_into()
+        .map_err(|_| ProgramError::InvalidArgument)?;
 
     Ok(())
 }

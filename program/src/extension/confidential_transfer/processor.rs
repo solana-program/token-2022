@@ -27,16 +27,15 @@ use {
     solana_rent::Rent,
     solana_system_interface::instruction as system_instruction,
     solana_sysvar::Sysvar,
+    solana_zero_copy::unaligned::{Bool, U64},
+    solana_zk_elgamal_proof_interface::proof_data::{
+        PubkeyValidityProofContext, ZeroCiphertextProofContext,
+    },
     solana_zk_sdk_pod::encryption::{
         auth_encryption::PodAeCiphertext,
         elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
     },
     spl_elgamal_registry_interface::state::ElGamalRegistry,
-    spl_pod::{
-        bytemuck::pod_from_bytes,
-        optional_keys::OptionalNonZeroPubkey,
-        primitives::{PodBool, PodU64},
-    },
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -67,8 +66,8 @@ use {
 /// Processes an [`InitializeMint`] instruction.
 fn process_initialize_mint(
     accounts: &[AccountInfo],
-    authority: &OptionalNonZeroPubkey,
-    auto_approve_new_account: PodBool,
+    authority: &MaybeNull<Address>,
+    auto_approve_new_account: Bool,
     auditor_encryption_pubkey: &MaybeNull<PodElGamalPubkey>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
@@ -89,7 +88,7 @@ fn process_initialize_mint(
 /// Processes an [`UpdateMint`] instruction.
 fn process_update_mint(
     accounts: &[AccountInfo],
-    auto_approve_new_account: PodBool,
+    auto_approve_new_account: Bool,
     auditor_encryption_pubkey: &MaybeNull<PodElGamalPubkey>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
@@ -147,7 +146,8 @@ fn process_configure_account_with_registry(
 
     let elgamal_registry_account_data = &elgamal_registry_account.data.borrow();
     let elgamal_registry_account =
-        pod_from_bytes::<ElGamalRegistry>(elgamal_registry_account_data)?;
+        bytemuck::try_from_bytes::<ElGamalRegistry>(elgamal_registry_account_data)
+            .map_err(|_| ProgramError::InvalidArgument)?;
 
     let decryptable_zero_balance = PodAeCiphertext::default();
     let maximum_pending_balance_credit_counter =
@@ -222,7 +222,7 @@ fn process_configure_account(
     program_id: &Address,
     accounts: &[AccountInfo],
     decryptable_zero_balance: &DecryptableBalance,
-    maximum_pending_balance_credit_counter: &PodU64,
+    maximum_pending_balance_credit_counter: &U64,
     elgamal_pubkey_source: ElGamalPubkeySource,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();

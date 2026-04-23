@@ -4,9 +4,9 @@ use {
     solana_address::Address,
     solana_clock::Clock,
     solana_msg::msg,
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramResult,
     solana_sysvar::Sysvar,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -37,7 +37,7 @@ fn try_validate_multiplier(multiplier: &PodF64) -> ProgramResult {
 fn process_initialize(
     _program_id: &Address,
     accounts: &[AccountInfo],
-    authority: &OptionalNonZeroPubkey,
+    authority: &MaybeNull<Address>,
     multiplier: &PodF64,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();

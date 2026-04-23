@@ -7,7 +7,6 @@ use {
     solana_cpi::invoke_signed,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::{ProgramError, ProgramResult},
-    spl_pod::bytemuck::pod_from_bytes,
     spl_token_2022_interface::inline_spl_token,
     spl_token_2022_interface::{
         extension::{transfer_fee, transfer_hook, StateWithExtensions},
@@ -35,7 +34,8 @@ pub fn extract_multisig_accounts<'a, 'b>(
     }
 
     let multisig_data = &multisig_account.data.borrow();
-    let multisig = pod_from_bytes::<PodMultisig>(multisig_data)?;
+    let multisig = bytemuck::try_from_bytes::<PodMultisig>(multisig_data)
+        .map_err(|_| ProgramError::InvalidArgument)?;
 
     let mut multisig_accounts = Vec::with_capacity(multisig.n as usize);
     for account in accounts {
@@ -100,7 +100,8 @@ fn transfer_instruction_and_account_infos<'a>(
         // Redundant to extract_multisig_accounts() but in-lines the logic
         // to prevent allocating an extra Vec
         let multisig_data = authority_info.data.borrow();
-        let multisig = pod_from_bytes::<PodMultisig>(&multisig_data)?;
+        let multisig = bytemuck::try_from_bytes::<PodMultisig>(&multisig_data)
+            .map_err(|_| ProgramError::InvalidArgument)?;
         let signers = &multisig.signers[..multisig.n as usize];
 
         additional_accounts
@@ -237,7 +238,6 @@ mod tests {
         solana_instruction::AccountMeta,
         solana_program_option::COption,
         solana_program_pack::Pack,
-        spl_pod::{optional_keys::OptionalNonZeroPubkey, primitives::PodBool},
         spl_tlv_account_resolution::{account::ExtraAccountMeta, state::ExtraAccountMetaList},
         spl_transfer_hook_interface::{
             get_extra_account_metas_address, instruction::ExecuteInstruction,
@@ -267,13 +267,13 @@ mod tests {
             PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut data).unwrap();
 
         let extension = mint.init_extension::<TransferHook>(true).unwrap();
-        extension.program_id = OptionalNonZeroPubkey(hook_program_id);
+        extension.program_id = Some(hook_program_id).try_into().unwrap();
 
         mint.base.mint_authority = PodCOption::some(Address::new_unique());
         mint.base.decimals = 6;
         mint.base.supply = 100_000_000.into();
         mint.base.freeze_authority = PodCOption::none();
-        mint.base.is_initialized = PodBool::from_bool(true);
+        mint.base.is_initialized = true.into();
 
         mint.init_account_type().unwrap();
 

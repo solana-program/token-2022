@@ -1,5 +1,3 @@
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use {
     crate::{
         check_program_account,
@@ -10,9 +8,13 @@ use {
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
-    std::convert::TryInto,
+};
+#[cfg(feature = "serde")]
+use {
+    serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 
 /// Interesting-bearing mint extension instructions
@@ -73,7 +75,8 @@ pub enum ScaledUiAmountMintInstruction {
 #[repr(C)]
 pub struct InitializeInstructionData {
     /// The public key for the account that can update the multiplier
-    pub authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub authority: MaybeNull<Address>,
     /// The initial multiplier
     pub multiplier: PodF64,
 }
@@ -105,7 +108,9 @@ pub fn initialize(
         TokenInstruction::ScaledUiAmountExtension,
         ScaledUiAmountMintInstruction::Initialize,
         &InitializeInstructionData {
-            authority: authority.try_into()?,
+            authority: authority
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
             multiplier: multiplier.into(),
         },
     ))

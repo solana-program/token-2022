@@ -215,7 +215,6 @@ mod tests {
         },
         solana_instruction::AccountMeta,
         solana_program_option::COption,
-        spl_pod::optional_keys::OptionalNonZeroPubkey,
         spl_tlv_account_resolution::{
             account::ExtraAccountMeta, seeds::Seed, state::ExtraAccountMetaList,
         },
@@ -240,8 +239,7 @@ mod tests {
             let mut mint = StateWithExtensionsMut::<Mint>::unpack_uninitialized(&mut data).unwrap();
 
             let extension = mint.init_extension::<TransferHook>(true).unwrap();
-            extension.program_id =
-                OptionalNonZeroPubkey::try_from(Some(TRANSFER_HOOK_PROGRAM_ID)).unwrap();
+            extension.program_id = Some(TRANSFER_HOOK_PROGRAM_ID).try_into().unwrap();
 
             mint.base.mint_authority = COption::Some(Address::new_unique());
             mint.base.decimals = DECIMALS;
