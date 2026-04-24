@@ -7019,9 +7019,9 @@ dependencies = [
 
 [[package]]
 name = "solana-clap-v3-utils"
-version = "3.1.4"
+version = "3.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4ee3732e0c9069f3a58fbc0a5885412bd1edecfc6af13b447e68aafc8305ad8"
+checksum = "517b5ea8c2e1d3b984f093470813fee1f9c063b5271a0132cf1db013786f524d"
 dependencies = [
  "chrono",
  "clap 3.2.25",
@@ -7036,7 +7036,7 @@ dependencies = [
  "solana-native-token",
  "solana-presigner",
  "solana-pubkey 3.0.0",
- "solana-remote-wallet 3.1.4",
+ "solana-remote-wallet 3.1.13",
  "solana-seed-derivable",
  "solana-seed-phrase",
  "solana-signature",
@@ -8919,9 +8919,9 @@ dependencies = [
 
 [[package]]
 name = "solana-remote-wallet"
-version = "3.1.4"
+version = "3.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0274c954121d3e36adca285dd2af7a355b35a4d01d72de8d05f56462be8c169"
+checksum = "eb1bfe5e27b4bc39cb82169c17fcad581c058011087798e5ea12415f7c361719"
 dependencies = [
  "console 0.16.3",
  "dialoguer 0.10.4",
@@ -11264,7 +11264,7 @@ dependencies = [
  "solana-commitment-config",
  "solana-logger",
  "solana-nonce",
- "solana-remote-wallet 3.1.4",
+ "solana-remote-wallet 3.1.13",
  "solana-sdk",
  "solana-sdk-ids",
  "solana-system-interface 3.2.0",
