@@ -13,7 +13,6 @@ edition = { workspace = true }
 [features]
 no-entrypoint = []
 test-sbf = []
-serde = ["spl-token-2022-interface/serde"]
 default = ["zk-ops"]
 # Remove this feature once the underlying syscalls are released on all networks
 zk-ops = []
