@@ -1,7 +1,5 @@
 //! Error types
 
-#[cfg(not(target_os = "solana"))]
-use spl_token_confidential_transfer_proof_generation::errors::TokenProofGenerationError;
 use {
     num_derive::FromPrimitive,
     solana_program_error::{ProgramError, ToStr},
@@ -467,19 +465,6 @@ impl ToStr for TokenError {
             TokenError::PendingBalanceNonZero => {
                 "Key rotation attempted while pending balance is not zero"
             }
-        }
-    }
-}
-
-#[cfg(not(target_os = "solana"))]
-impl From<TokenProofGenerationError> for TokenError {
-    fn from(e: TokenProofGenerationError) -> Self {
-        match e {
-            TokenProofGenerationError::ProofGeneration(_) => TokenError::ProofGeneration,
-            TokenProofGenerationError::NotEnoughFunds => TokenError::InsufficientFunds,
-            TokenProofGenerationError::IllegalAmountBitLength => TokenError::IllegalBitLength,
-            TokenProofGenerationError::FeeCalculation => TokenError::FeeCalculation,
-            TokenProofGenerationError::CiphertextExtraction => TokenError::MalformedCiphertext,
         }
     }
 }
