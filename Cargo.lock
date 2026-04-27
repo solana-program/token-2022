@@ -9613,9 +9613,9 @@ dependencies = [
 
 [[package]]
 name = "solana-signature"
-version = "3.3.0"
+version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "132a93134f1262aa832f1849b83bec6c9945669b866da18661a427943b9e801e"
+checksum = "e7a73c6e97cc2108be0adf6a6ea326434f8398df9d7eed81da2a4548b69e971c"
 dependencies = [
  "ed25519-dalek 2.2.0",
  "five8",
@@ -9624,7 +9624,7 @@ dependencies = [
  "serde-big-array",
  "serde_derive",
  "solana-sanitize",
- "wincode 0.4.9",
+ "wincode 0.5.3",
 ]
 
 [[package]]

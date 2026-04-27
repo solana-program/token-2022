@@ -40,7 +40,7 @@ solana-program-pack = "3.1.0"
 solana-program-test = { version = "4.0.0-beta.7", optional = true, features = ["agave-unstable-api"] }
 solana-rpc-client = "4.0.0-beta.7"
 solana-rpc-client-api = "4.0.0-beta.7"
-solana-signature = "3.0.0"
+solana-signature = "3.4.0"
 solana-signer = "3.0.0"
 solana-system-interface = "3.2.0"
 solana-transaction = "3.0.0"
