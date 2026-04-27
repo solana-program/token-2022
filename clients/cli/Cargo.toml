@@ -48,7 +48,7 @@ strum_macros = "0.28"
 tokio = "1.52"
 
 [dev-dependencies]
-solana-nonce = "3.1.0"
+solana-nonce = "3.2.0"
 solana-sdk-ids = "3.1.0"
 solana-test-validator = { version = "4.0.0-beta.7", features = ["agave-unstable-api"] }
 assert_cmd = "2.2.1"
