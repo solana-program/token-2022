@@ -33,8 +33,12 @@ use {
         signature::{Keypair, Signer},
     },
     solana_system_interface::program as system_program,
+    solana_zk_sdk::encryption::{
+        auth_encryption::AeKey,
+        elgamal::{self, ElGamalKeypair},
+    },
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::{
         extension::{
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
@@ -54,11 +58,6 @@ use {
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::TransferHook,
             BaseStateWithExtensions, ExtensionType, StateWithExtensionsOwned,
-        },
-        solana_zk_sdk::encryption::{
-            auth_encryption::AeKey,
-            elgamal::{self, ElGamalKeypair},
-            pod::elgamal::PodElGamalPubkey,
         },
         state::{Account, AccountState, Mint},
     },
@@ -351,12 +350,9 @@ async fn command_create_token(
     }
 
     if transfer_hook_program_id.is_some() || enable_transfer_hook {
-        let program_id = transfer_hook_program_id
-            .map(OptionalNonZeroPubkey)
-            .unwrap_or_default();
         extensions.push(ExtensionInitializationParams::TransferHook {
             authority: Some(authority),
-            program_id: program_id.into(),
+            program_id: transfer_hook_program_id,
         });
     }
 

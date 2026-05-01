@@ -7,7 +7,7 @@ use {
     solana_rent::Rent,
     solana_system_interface::instruction::{allocate, assign},
     solana_sysvar::Sysvar,
-    solana_zk_sdk::zk_elgamal_proof_program::proof_data::pubkey_validity::{
+    solana_zk_elgamal_proof_interface::proof_data::pubkey_validity::{
         PubkeyValidityProofContext, PubkeyValidityProofData,
     },
     spl_elgamal_registry_interface::{
@@ -16,7 +16,6 @@ use {
         state::{ElGamalRegistry, ELGAMAL_REGISTRY_ACCOUNT_LEN},
         REGISTRY_ADDRESS_SEED,
     },
-    spl_pod::bytemuck::pod_from_bytes_mut,
     spl_token_confidential_transfer_proof_extraction::instruction::verify_and_extract_context,
 };
 
@@ -66,7 +65,8 @@ pub fn process_create_registry_account(
 
     let elgamal_registry_account_data = &mut elgamal_registry_account_info.data.borrow_mut();
     let elgamal_registry_account =
-        pod_from_bytes_mut::<ElGamalRegistry>(elgamal_registry_account_data)?;
+        bytemuck::try_from_bytes_mut::<ElGamalRegistry>(elgamal_registry_account_data)
+            .map_err(|_| ProgramError::InvalidArgument)?;
     elgamal_registry_account.owner = *wallet_account_info.key;
     elgamal_registry_account.elgamal_pubkey = proof_context.pubkey;
 
@@ -83,7 +83,8 @@ pub fn process_update_registry_account(
     let elgamal_registry_account_info = next_account_info(account_info_iter)?;
     let elgamal_registry_account_data = &mut elgamal_registry_account_info.data.borrow_mut();
     let elgamal_registry_account =
-        pod_from_bytes_mut::<ElGamalRegistry>(elgamal_registry_account_data)?;
+        bytemuck::try_from_bytes_mut::<ElGamalRegistry>(elgamal_registry_account_data)
+            .map_err(|_| ProgramError::InvalidArgument)?;
 
     // zero-knowledge proof certifies that the supplied ElGamal public key is valid
     let proof_context = verify_and_extract_context::<

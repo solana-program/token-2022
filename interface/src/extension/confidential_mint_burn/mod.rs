@@ -5,7 +5,7 @@ use {
     },
     bytemuck::{Pod, Zeroable},
     solana_program_error::ProgramResult,
-    solana_zk_sdk::encryption::pod::{
+    solana_zk_sdk_pod::encryption::{
         auth_encryption::PodAeCiphertext,
         elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
     },

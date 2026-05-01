@@ -1,5 +1,3 @@
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use {
     crate::{
         check_program_account,
@@ -9,9 +7,13 @@ use {
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
-    std::convert::TryInto,
+};
+#[cfg(feature = "serde")]
+use {
+    serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 
 /// Metadata pointer extension instructions
@@ -62,9 +64,11 @@ pub enum MetadataPointerInstruction {
 #[repr(C)]
 pub struct InitializeInstructionData {
     /// The public key for the account that can update the metadata address
-    pub authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub authority: MaybeNull<Address>,
     /// The account address that holds the metadata
-    pub metadata_address: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub metadata_address: MaybeNull<Address>,
 }
 
 /// Data expected by `Update`
@@ -74,7 +78,8 @@ pub struct InitializeInstructionData {
 #[repr(C)]
 pub struct UpdateInstructionData {
     /// The new account address that holds the metadata
-    pub metadata_address: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub metadata_address: MaybeNull<Address>,
 }
 
 /// Create an `Initialize` instruction
@@ -92,8 +97,12 @@ pub fn initialize(
         TokenInstruction::MetadataPointerExtension,
         MetadataPointerInstruction::Initialize,
         &InitializeInstructionData {
-            authority: authority.try_into()?,
-            metadata_address: metadata_address.try_into()?,
+            authority: authority
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
+            metadata_address: metadata_address
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
         },
     ))
 }
@@ -120,7 +129,9 @@ pub fn update(
         TokenInstruction::MetadataPointerExtension,
         MetadataPointerInstruction::Update,
         &UpdateInstructionData {
-            metadata_address: metadata_address.try_into()?,
+            metadata_address: metadata_address
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
         },
     ))
 }

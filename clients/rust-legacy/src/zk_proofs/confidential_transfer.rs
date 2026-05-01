@@ -1,10 +1,11 @@
 use {
+    solana_zk_elgamal_proof_interface::proof_data::ZeroCiphertextProofData,
     solana_zk_sdk::{
         encryption::{
             auth_encryption::{AeCiphertext, AeKey},
             elgamal::{ElGamalKeypair, ElGamalPubkey, ElGamalSecretKey},
         },
-        zk_elgamal_proof_program::proof_data::ZeroCiphertextProofData,
+        zk_elgamal_proof_program::build_zero_ciphertext_proof_data,
     },
     spl_token_2022_interface::{
         error::TokenError,
@@ -47,7 +48,7 @@ impl EmptyAccountAccountInfo {
             .try_into()
             .map_err(|_| TokenError::MalformedCiphertext)?;
 
-        ZeroCiphertextProofData::new(elgamal_keypair, &available_balance)
+        build_zero_ciphertext_proof_data(elgamal_keypair, &available_balance)
             .map_err(|_| TokenError::ProofGeneration)
     }
 }

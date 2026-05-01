@@ -1,5 +1,3 @@
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use {
     crate::{
         extension::{
@@ -11,8 +9,14 @@ use {
     bytemuck::{Pod, Zeroable},
     solana_account_info::AccountInfo,
     solana_address::Address,
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
-    spl_pod::{optional_keys::OptionalNonZeroPubkey, primitives::PodBool},
+    solana_zero_copy::unaligned::Bool,
+};
+#[cfg(feature = "serde")]
+use {
+    serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 
 /// Instructions for the `TransferHook` extension
@@ -25,9 +29,11 @@ pub mod instruction;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct TransferHook {
     /// Authority that can set the transfer hook program id
-    pub authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub authority: MaybeNull<Address>,
     /// Program that authorizes the transfer
-    pub program_id: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub program_id: MaybeNull<Address>,
 }
 
 /// Indicates that the tokens from this account belong to a mint with a transfer
@@ -38,7 +44,7 @@ pub struct TransferHook {
 #[repr(transparent)]
 pub struct TransferHookAccount {
     /// Flag to indicate that the account is in the middle of a transfer
-    pub transferring: PodBool,
+    pub transferring: Bool,
 }
 
 impl Extension for TransferHook {

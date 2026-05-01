@@ -6,13 +6,13 @@ use {
         pubkey::Pubkey,
         signer::{keypair::Keypair, Signer},
     },
+    solana_zk_sdk::encryption::{auth_encryption::*, elgamal::*},
     spl_token_2022_interface::{
         extension::{
             confidential_transfer::ConfidentialTransferAccount, BaseStateWithExtensions,
             ExtensionType,
         },
         id, native_mint,
-        solana_zk_sdk::encryption::{auth_encryption::*, elgamal::*},
     },
     spl_token_client::{
         client::{

@@ -4,8 +4,8 @@ use {
     solana_account_info::{next_account_info, AccountInfo},
     solana_address::Address,
     solana_msg::msg,
+    solana_nullable::MaybeNull,
     solana_program_error::{ProgramError, ProgramResult},
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -27,7 +27,7 @@ use {
 
 fn check_update_authority(
     update_authority_info: &AccountInfo,
-    expected_update_authority: &OptionalNonZeroPubkey,
+    expected_update_authority: &MaybeNull<Address>,
 ) -> Result<(), ProgramError> {
     if !update_authority_info.is_signer {
         return Err(ProgramError::MissingRequiredSignature);

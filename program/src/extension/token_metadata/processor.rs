@@ -5,8 +5,8 @@ use {
     solana_address::Address,
     solana_cpi::set_return_data,
     solana_msg::msg,
+    solana_nullable::MaybeNull,
     solana_program_error::{ProgramError, ProgramResult},
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -27,7 +27,7 @@ use {
 
 fn check_update_authority(
     update_authority_info: &AccountInfo,
-    expected_update_authority: &OptionalNonZeroPubkey,
+    expected_update_authority: &MaybeNull<Address>,
 ) -> Result<(), ProgramError> {
     if !update_authority_info.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
@@ -80,7 +80,9 @@ pub fn process_initialize(
     }
 
     // Create the token metadata
-    let update_authority = OptionalNonZeroPubkey::try_from(Some(*update_authority_info.key))?;
+    let update_authority = Some(*update_authority_info.key)
+        .try_into()
+        .map_err(|_| ProgramError::InvalidArgument)?;
     let token_metadata = TokenMetadata {
         name: data.name,
         symbol: data.symbol,

@@ -15,18 +15,17 @@ use {
         transport::TransportError,
     },
     solana_system_interface::instruction as system_instruction,
+    solana_zk_sdk::{
+        encryption::{auth_encryption::*, elgamal::*},
+        zk_elgamal_proof_program::build_pubkey_validity_proof_data,
+    },
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
     spl_elgamal_registry::state::ELGAMAL_REGISTRY_ACCOUNT_LEN,
     spl_token_2022_interface::{
         error::TokenError,
         extension::{
-            confidential_transfer::{
-                self, ConfidentialTransferAccount, MAXIMUM_DEPOSIT_TRANSFER_AMOUNT,
-            },
+            confidential_transfer::{ConfidentialTransferAccount, MAXIMUM_DEPOSIT_TRANSFER_AMOUNT},
             BaseStateWithExtensions, ExtensionType,
-        },
-        solana_zk_sdk::{
-            encryption::{auth_encryption::*, elgamal::*, pod::elgamal::PodElGamalCiphertext},
-            zk_elgamal_proof_program::proof_data::*,
         },
     },
     spl_token_client::{
@@ -74,7 +73,8 @@ async fn configure_account_with_option<S: Signers>(
                 .await
         }
         ConfidentialTransferOption::ContextStateAccount => {
-            let pubkey_validity_proof_data = PubkeyValidityProofData::new(elgamal_keypair).unwrap();
+            let pubkey_validity_proof_data =
+                build_pubkey_validity_proof_data(elgamal_keypair).unwrap();
 
             let pubkey_validity_proof_context_account = Keypair::new();
             let context_account_authority = Keypair::new();
@@ -621,8 +621,36 @@ async fn confidential_transfer_empty_account_with_option(option: ConfidentialTra
         .await
         .unwrap();
 
-    let TokenContext { token, alice, .. } = context.token_context.unwrap();
+    let TokenContext {
+        token,
+        alice,
+        decimals,
+        ..
+    } = context.token_context.unwrap();
     let alice_meta = ConfidentialTokenAccountMeta::new(&token, &alice, None, false, false).await;
+
+    token
+        .confidential_transfer_deposit(
+            &alice_meta.token_account,
+            &alice.pubkey(),
+            0,
+            decimals,
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    token
+        .confidential_transfer_apply_pending_balance(
+            &alice_meta.token_account,
+            &alice.pubkey(),
+            None,
+            alice_meta.elgamal_keypair.secret(),
+            &alice_meta.aes_key,
+            &[&alice],
+        )
+        .await
+        .unwrap();
 
     empty_account_with_option(
         &token,
@@ -2623,8 +2651,7 @@ async fn confidential_transfer_configure_token_account_with_registry() {
 
     // create ElGamal registry
     let ctx = context.context.lock().await;
-    let proof_data =
-        confidential_transfer::instruction::PubkeyValidityProofData::new(&elgamal_keypair).unwrap();
+    let proof_data = build_pubkey_validity_proof_data(&elgamal_keypair).unwrap();
     let proof_location = ProofLocation::InstructionOffset(1.try_into().unwrap(), &proof_data);
 
     let elgamal_registry_address = spl_elgamal_registry::get_elgamal_registry_address(
@@ -2656,9 +2683,7 @@ async fn confidential_transfer_configure_token_account_with_registry() {
     let new_elgamal_keypair =
         ElGamalKeypair::new_from_signer(&alice, &alice_account_keypair.pubkey().to_bytes())
             .unwrap();
-    let proof_data =
-        confidential_transfer::instruction::PubkeyValidityProofData::new(&new_elgamal_keypair)
-            .unwrap();
+    let proof_data = build_pubkey_validity_proof_data(&new_elgamal_keypair).unwrap();
     let proof_location = ProofLocation::InstructionOffset(1.try_into().unwrap(), &proof_data);
 
     let payer_pubkey = ctx.payer.pubkey();

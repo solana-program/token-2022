@@ -2,13 +2,11 @@
 
 use {
     bytemuck::{Pod, Zeroable},
+    core::mem::size_of,
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_address::{Address, ADDRESS_BYTES},
     solana_program_error::ProgramError,
-    spl_pod::{
-        bytemuck::{pod_from_bytes, pod_get_packed_len},
-        primitives::PodU64,
-    },
+    solana_zero_copy::unaligned::U64,
     spl_token_2022_interface::pod::PodCOption,
 };
 
@@ -33,13 +31,13 @@ pub(crate) struct InitializeMultisigData {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub(crate) struct AmountData {
     /// The amount of tokens to transfer.
-    pub(crate) amount: PodU64,
+    pub(crate) amount: U64,
 }
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub(crate) struct AmountCheckedData {
     /// The amount of tokens to transfer.
-    pub(crate) amount: PodU64,
+    pub(crate) amount: U64,
     /// Decimals of the mint
     pub(crate) decimals: u8,
 }
@@ -158,11 +156,13 @@ fn unpack_u64_option(input: &[u8]) -> Result<PodCOption<u64>, ProgramError> {
 pub(crate) fn decode_instruction_data_with_coption_pubkey<T: Pod>(
     input_with_type: &[u8],
 ) -> Result<(&T, PodCOption<Address>), ProgramError> {
-    let end_of_t = pod_get_packed_len::<T>().saturating_add(1);
+    let end_of_t = size_of::<T>().saturating_add(1);
     let value = input_with_type
         .get(1..end_of_t)
         .ok_or(ProgramError::InvalidInstructionData)
-        .and_then(pod_from_bytes)?;
+        .and_then(|bytes| {
+            bytemuck::try_from_bytes(bytes).map_err(|_| ProgramError::InvalidArgument)
+        })?;
     let pubkey = unpack_pubkey_option(&input_with_type[end_of_t..])?;
     Ok((value, pubkey))
 }
@@ -174,11 +174,13 @@ pub(crate) fn decode_instruction_data_with_coption_pubkey<T: Pod>(
 pub(crate) fn decode_instruction_data_with_coption_u64<T: Pod>(
     input_with_type: &[u8],
 ) -> Result<(&T, PodCOption<u64>), ProgramError> {
-    let end_of_t = pod_get_packed_len::<T>().saturating_add(1);
+    let end_of_t = size_of::<T>().saturating_add(1);
     let value = input_with_type
         .get(1..end_of_t)
         .ok_or(ProgramError::InvalidInstructionData)
-        .and_then(pod_from_bytes)?;
+        .and_then(|bytes| {
+            bytemuck::try_from_bytes(bytes).map_err(|_| ProgramError::InvalidArgument)
+        })?;
     let amount = unpack_u64_option(&input_with_type[end_of_t..])?;
     Ok((value, amount))
 }

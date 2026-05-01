@@ -27,10 +27,7 @@ use {
     solana_sdk_ids::system_program,
     solana_system_interface::instruction as system_instruction,
     solana_sysvar::{Sysvar, SysvarSerialize},
-    spl_pod::{
-        bytemuck::{pod_from_bytes, pod_from_bytes_mut},
-        primitives::{PodBool, PodU64},
-    },
+    solana_zero_copy::unaligned::U64,
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -137,7 +134,7 @@ impl Processor {
 
         mint.base.mint_authority = PodCOption::some(*mint_authority);
         mint.base.decimals = decimals;
-        mint.base.is_initialized = PodBool::from_bool(true);
+        mint.base.is_initialized = true.into();
         mint.base.freeze_authority = freeze_authority;
         mint.init_account_type()?;
 
@@ -288,7 +285,8 @@ impl Processor {
         };
 
         let mut multisig_data = multisig_info.data.borrow_mut();
-        let multisig = pod_from_bytes_mut::<PodMultisig>(&mut multisig_data)?;
+        let multisig = bytemuck::try_from_bytes_mut::<PodMultisig>(&mut multisig_data)
+            .map_err(|_| ProgramError::InvalidArgument)?;
         if bool::from(multisig.is_initialized) {
             return Err(TokenError::AlreadyInUse.into());
         }
@@ -1207,6 +1205,10 @@ impl Processor {
             }
         }
 
+        if mint.get_extension::<ConfidentialMintBurn>().is_ok() {
+            return Err(TokenError::IllegalMintBurnConversion.into());
+        }
+
         let maybe_permanent_delegate = get_permanent_delegate(&mint);
 
         if let Ok(cpi_guard) = source_account.get_extension::<CpiGuard>() {
@@ -1462,7 +1464,7 @@ impl Processor {
 
         match native_account.base.is_native {
             PodCOption {
-                option: PodCOption::<PodU64>::SOME,
+                option: PodCOption::<U64>::SOME,
                 ..
             } => {
                 let new_amount = native_account_info
@@ -1668,7 +1670,9 @@ impl Processor {
         let mut mint_data = mint_account_info.data.borrow_mut();
         let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
         let extension = mint.init_extension::<PermanentDelegate>(true)?;
-        extension.delegate = Some(*delegate).try_into()?;
+        extension.delegate = Some(*delegate)
+            .try_into()
+            .map_err(|_| ProgramError::InvalidArgument)?;
 
         Ok(())
     }
@@ -2259,7 +2263,8 @@ impl Processor {
             || owner_account_info.owner == &spl_token_2022_interface::id();
         if owned_by_token_program && owner_account_data_len == PodMultisig::SIZE_OF {
             let multisig_data = &owner_account_info.data.borrow();
-            let multisig = pod_from_bytes::<PodMultisig>(multisig_data)?;
+            let multisig = bytemuck::try_from_bytes::<PodMultisig>(multisig_data)
+                .map_err(|_| ProgramError::InvalidArgument)?;
             if !bool::from(multisig.is_initialized) {
                 return Err(ProgramError::UninitializedAccount);
             }

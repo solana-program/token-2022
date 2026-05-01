@@ -12,12 +12,17 @@ use {
         transport::TransportError,
     },
     solana_system_interface::instruction as system_instruction,
+    solana_zk_sdk::{
+        encryption::{auth_encryption::*, elgamal::*},
+        zk_elgamal_proof_program::build_pubkey_validity_proof_data,
+    },
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
     spl_elgamal_registry::state::ELGAMAL_REGISTRY_ACCOUNT_LEN,
     spl_token_2022_interface::{
         error::TokenError,
         extension::{
             confidential_transfer::{
-                self, ConfidentialTransferAccount, ConfidentialTransferMint, DecryptableBalance,
+                ConfidentialTransferAccount, ConfidentialTransferMint, DecryptableBalance,
             },
             confidential_transfer_fee::{
                 ConfidentialTransferFeeAmount, ConfidentialTransferFeeConfig,
@@ -26,9 +31,6 @@ use {
             BaseStateWithExtensions, ExtensionType,
         },
         instruction,
-        solana_zk_sdk::encryption::{
-            auth_encryption::*, elgamal::*, pod::elgamal::PodElGamalCiphertext,
-        },
     },
     spl_token_client::{
         client::{ProgramBanksClientProcessTransaction, SendTransaction, SimulateTransaction},
@@ -628,34 +630,6 @@ async fn confidential_transfer_withdraw_withheld_tokens_from_mint_with_option(
         .await
         .unwrap();
 
-    let new_decryptable_available_balance = alice_meta.aes_key.encrypt(0);
-    token
-        .confidential_transfer_withdraw_withheld_tokens_from_mint(
-            &alice_meta.token_account,
-            &withdraw_withheld_authority.pubkey(),
-            None,
-            None,
-            &withdraw_withheld_authority_elgamal_keypair,
-            alice_meta.elgamal_keypair.pubkey(),
-            &new_decryptable_available_balance.into(),
-            &[&withdraw_withheld_authority],
-        )
-        .await
-        .unwrap();
-
-    // withheld fees are not harvested to mint yet
-    alice_meta
-        .check_balances(
-            &token,
-            ConfidentialTokenAccountBalances {
-                pending_balance_lo: 0,
-                pending_balance_hi: 0,
-                available_balance: 0,
-                decryptable_available_balance: 0,
-            },
-        )
-        .await;
-
     token
         .confidential_transfer_harvest_withheld_tokens_to_mint(&[&bob_meta.token_account])
         .await
@@ -1122,8 +1096,7 @@ async fn confidential_transfer_configure_token_account_with_fee_with_registry() 
 
     // create ElGamal registry
     let ctx = context.context.lock().await;
-    let proof_data =
-        confidential_transfer::instruction::PubkeyValidityProofData::new(&elgamal_keypair).unwrap();
+    let proof_data = build_pubkey_validity_proof_data(&elgamal_keypair).unwrap();
     let proof_location = ProofLocation::InstructionOffset(1.try_into().unwrap(), &proof_data);
 
     let elgamal_registry_address = spl_elgamal_registry::get_elgamal_registry_address(

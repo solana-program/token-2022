@@ -3,8 +3,9 @@
 use {
     base64::{engine::general_purpose::STANDARD, Engine},
     solana_address::Address,
+    solana_nullable::MaybeNull,
     solana_program_option::COption,
-    spl_pod::optional_keys::{OptionalNonZeroElGamalPubkey, OptionalNonZeroPubkey},
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
     spl_token_2022_interface::{extension::confidential_transfer, instruction},
     std::str::FromStr,
 };
@@ -98,19 +99,19 @@ fn serde_instruction_batch() {
 
 #[test]
 fn serde_instruction_optional_nonzero_pubkeys_podbool() {
-    // tests serde of ix containing OptionalNonZeroPubkey, PodBool and
-    // OptionalNonZeroElGamalPubkey
+    // tests serde of ix containing MaybeNull<Address>, Bool and
+    // MaybeNull<PodElGamalPubkey>
     let authority_option: Option<Address> =
         Some(Address::from_str("4uQeVj5tqViQh7yWWGStvkEG1Zmhx6uasJtWCJziofM").unwrap());
-    let authority: OptionalNonZeroPubkey = authority_option.try_into().unwrap();
+    let authority: MaybeNull<Address> = authority_option.try_into().unwrap();
 
     let pubkey_string = STANDARD.encode([
         162, 23, 108, 36, 130, 143, 18, 219, 196, 134, 242, 145, 179, 49, 229, 193, 74, 64, 3, 158,
         68, 235, 124, 88, 247, 144, 164, 254, 228, 12, 173, 85,
     ]);
-    let elgamal_pubkey_pod_option = Some(FromStr::from_str(&pubkey_string).unwrap());
+    let elgamal_pubkey_pod_option = Some(PodElGamalPubkey::from_str(&pubkey_string).unwrap());
 
-    let auditor_elgamal_pubkey: OptionalNonZeroElGamalPubkey =
+    let auditor_elgamal_pubkey: MaybeNull<PodElGamalPubkey> =
         elgamal_pubkey_pod_option.try_into().unwrap();
 
     let inst = confidential_transfer::instruction::InitializeMintData {
@@ -131,12 +132,12 @@ fn serde_instruction_optional_nonzero_pubkeys_podbool() {
 
 #[test]
 fn serde_instruction_optional_nonzero_pubkeys_podbool_with_none() {
-    // tests serde of ix containing OptionalNonZeroPubkey, PodBool and
-    // OptionalNonZeroElGamalPubkey with null values
-    let authority: OptionalNonZeroPubkey = None.try_into().unwrap();
+    // tests serde of ix containing MaybeNull<Address>, Bool and
+    // MaybeNull<PodElGamalPubkey> with null values
+    let authority: MaybeNull<Address> = None.try_into().unwrap();
 
-    let auditor_elgamal_pubkey: OptionalNonZeroElGamalPubkey =
-        OptionalNonZeroElGamalPubkey::default();
+    let auditor_elgamal_pubkey: MaybeNull<PodElGamalPubkey> =
+        MaybeNull::<PodElGamalPubkey>::default();
 
     let inst = confidential_transfer::instruction::InitializeMintData {
         authority,
@@ -193,7 +194,7 @@ fn serde_instruction_elgamal_pubkey() {
     let withdraw_withheld_authority_elgamal_pubkey = FromStr::from_str(&pubkey_string).unwrap();
 
     let inst = InitializeConfidentialTransferFeeConfigData {
-        authority: OptionalNonZeroPubkey::default(),
+        authority: MaybeNull::<Address>::default(),
         withdraw_withheld_authority_elgamal_pubkey,
     };
 
@@ -212,7 +213,7 @@ fn serde_instruction_basis_points() {
     use spl_token_2022_interface::extension::interest_bearing_mint::instruction::InitializeInstructionData;
 
     let inst = InitializeInstructionData {
-        rate_authority: OptionalNonZeroPubkey::default(),
+        rate_authority: MaybeNull::<Address>::default(),
         rate: 127.into(),
     };
 

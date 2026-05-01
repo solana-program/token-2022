@@ -10,7 +10,7 @@ publish = false
 
 [dependencies]
 solana-account-info = "3.1.0"
-solana-address = "2.5.0"
+solana-address = "2.6.0"
 solana-program-entrypoint = "3.1.1"
 solana-program-error = "3.0.1"
 spl-token-2022 = { path = "../../../../program", features = ["no-entrypoint"] }

@@ -6,14 +6,14 @@ use {
         confidential_mint_burn::instruction::BurnInstructionData as ConfidentialBurnInstructionData,
         confidential_transfer::DecryptableBalance,
     },
-    solana_zk_sdk::encryption::pod::elgamal::PodElGamalCiphertext,
-    solana_zk_sdk::zk_elgamal_proof_program::{
+    solana_zk_elgamal_proof_interface::{
         instruction::ProofInstruction,
         proof_data::{
             BatchedGroupedCiphertext3HandlesValidityProofData, BatchedRangeProofU128Data,
             CiphertextCommitmentEqualityProofData,
         },
     },
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
     spl_token_confidential_transfer_proof_extraction::instruction::{
         process_proof_location, ProofLocation,
     },
@@ -28,7 +28,7 @@ use {
     solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    spl_pod::primitives::PodU64,
+    solana_zero_copy::unaligned::U64,
 };
 
 /// Permissioned Burn extension instructions
@@ -138,7 +138,7 @@ pub struct InitializeInstructionData {
 #[repr(C)]
 pub struct BurnInstructionData {
     /// The amount of tokens to burn.
-    pub amount: PodU64,
+    pub amount: U64,
 }
 
 /// Data expected by `PermissionedBurnInstruction::BurnChecked`
@@ -148,7 +148,7 @@ pub struct BurnInstructionData {
 #[repr(C)]
 pub struct BurnCheckedInstructionData {
     /// The amount of tokens to burn.
-    pub amount: PodU64,
+    pub amount: U64,
     /// Expected number of base 10 digits to the right of the decimal place.
     pub decimals: u8,
 }

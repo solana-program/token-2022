@@ -51,14 +51,14 @@
         "@noble/curves": "^1.9.7"
     },
     "devDependencies": {
-        "@ava/typescript": "^6.0.0",
+        "@ava/typescript": "^7.0.0",
         "@solana/eslint-config-solana": "^3.0.3",
         "@solana/kit": "^6.0.0",
         "@solana/zk-sdk": "^0.4.2",
         "@types/node": "^25",
         "@typescript-eslint/eslint-plugin": "^7.16.1",
         "@typescript-eslint/parser": "^7.16.1",
-        "ava": "^7.0.0",
+        "ava": "^8.0.0",
         "eslint": "^8.57.0",
         "prettier": "^3.8.1",
         "rimraf": "^6.0.1",
