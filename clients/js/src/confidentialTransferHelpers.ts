@@ -79,12 +79,12 @@ export type ConfidentialTransferZkProofData = BytesLike & {
     context(): ConfidentialTransferZkProofContext;
 };
 
-export type ConfidentialTransferZkAeKey = {
+export type ConfidentialTransferZkAeKey = BytesLike & {
     decrypt(ciphertext: ConfidentialTransferZkAeCiphertext): bigint;
     encrypt(amount: bigint): ConfidentialTransferZkAeCiphertext;
 };
 
-export type ConfidentialTransferZkElGamalSecretKey = {
+export type ConfidentialTransferZkElGamalSecretKey = BytesLike & {
     decrypt(ciphertext: ConfidentialTransferZkElGamalCiphertext): bigint;
 };
 
@@ -160,6 +160,14 @@ export type ConfidentialTransferZkClient = {
         openingLo: ConfidentialTransferZkPedersenOpening,
         openingHi: ConfidentialTransferZkPedersenOpening,
     ) => ConfidentialTransferZkProofData;
+    AeKey: {
+        signerMessage(publicSeed: Uint8Array): Uint8Array;
+        fromSignature(signature: Uint8Array): ConfidentialTransferZkAeKey;
+    };
+    ElGamalKeypair: {
+        signerMessage(publicSeed: Uint8Array): Uint8Array;
+        fromSignature(signature: Uint8Array): ConfidentialTransferZkElGamalKeypair;
+    };
 };
 
 type ConfidentialTransferAccountExtension = Extract<Extension, { __kind: 'ConfidentialTransferAccount' }>;

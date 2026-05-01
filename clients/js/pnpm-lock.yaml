@@ -28,8 +28,8 @@ importers:
         specifier: ^6.0.0
         version: 6.7.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
       '@solana/zk-sdk':
-        specifier: ^0.3.1
-        version: 0.3.1
+        specifier: ^0.4.2
+        version: 0.4.2
       '@types/node':
         specifier: ^25
         version: 25.6.0
@@ -937,8 +937,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/zk-sdk@0.3.1':
-    resolution: {integrity: sha512-5Ynl4kwETtboiyqHPwCgQF/iHxPOimTd/geUOj5O2a8hkqsVyROu00nB9JRDX+ft11LRw8sn9fkLJQLpabRASA==}
+  '@solana/zk-sdk@0.4.2':
+    resolution: {integrity: sha512-lTc3lvg2b14oP7XURa6jmI2m7CLyJR5otf6TVdzw+xo/A9aYvXEQxCqaK7qpfu2JYuzNxRGqP3RnjAvdOSOEUQ==}
 
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
@@ -3224,7 +3224,7 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/zk-sdk@0.3.1': {}
+  '@solana/zk-sdk@0.4.2': {}
 
   '@types/estree@1.0.8': {}
 
