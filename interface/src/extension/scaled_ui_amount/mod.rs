@@ -3,6 +3,7 @@ use {
         extension::{Extension, ExtensionType},
         trim_ui_amount_string,
     },
+    alloc::{format, string::String},
     bytemuck::{Pod, Zeroable},
     solana_address::Address,
     solana_nullable::MaybeNull,

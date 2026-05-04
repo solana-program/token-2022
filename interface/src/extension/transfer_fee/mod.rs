@@ -4,14 +4,14 @@ use {
         extension::{Extension, ExtensionType},
     },
     bytemuck::{Pod, Zeroable},
+    core::{
+        cmp,
+        convert::{TryFrom, TryInto},
+    },
     solana_address::Address,
     solana_nullable::MaybeNull,
     solana_program_error::ProgramResult,
     solana_zero_copy::unaligned::{U16, U64},
-    std::{
-        cmp,
-        convert::{TryFrom, TryInto},
-    },
 };
 #[cfg(feature = "serde")]
 use {
@@ -195,7 +195,7 @@ impl Extension for TransferFeeAmount {
 
 #[cfg(test)]
 pub(crate) mod test {
-    use {super::*, proptest::prelude::*, solana_address::Address, std::convert::TryFrom};
+    use {super::*, core::convert::TryFrom, proptest::prelude::*, solana_address::Address};
 
     const NEWER_EPOCH: u64 = 100;
     const OLDER_EPOCH: u64 = 1;

@@ -5,11 +5,12 @@ use {
         check_program_account, error::TokenError, instruction::TokenInstruction,
         state::AccountState,
     },
+    alloc::{vec, vec::Vec},
+    core::convert::TryFrom,
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    std::convert::TryFrom,
 };
 
 /// Default Account State extension instructions
