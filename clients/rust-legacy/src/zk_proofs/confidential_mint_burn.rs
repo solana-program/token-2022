@@ -1,4 +1,5 @@
 use {
+    crate::zk_proofs::IntoTokenError,
     solana_zk_elgamal_proof_interface::proof_data::CiphertextCiphertextEqualityProofData,
     solana_zk_sdk::{
         encryption::{
@@ -138,7 +139,7 @@ impl SupplyAccountInfo {
             destination_elgamal_pubkey,
             auditor_elgamal_pubkey,
         )
-        .map_err(|e| -> TokenError { e.into() })
+        .map_err(|e| -> TokenError { e.into_token_error() })
     }
 
     /// Compute the new decryptable supply.
@@ -206,7 +207,7 @@ impl BurnAccountInfo {
             supply_elgamal_pubkey,
             auditor_elgamal_pubkey,
         )
-        .map_err(|e| -> TokenError { e.into() })
+        .map_err(|e| -> TokenError { e.into_token_error() })
     }
 
     /// Compute the new decryptable supply.

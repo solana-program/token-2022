@@ -1,4 +1,5 @@
 use {
+    crate::zk_proofs::IntoTokenError,
     solana_zk_elgamal_proof_interface::proof_data::ZeroCiphertextProofData,
     solana_zk_sdk::{
         encryption::{
@@ -225,7 +226,7 @@ impl WithdrawAccountInfo {
             withdraw_amount,
             elgamal_keypair,
         )
-        .map_err(|e| -> TokenError { e.into() })
+        .map_err(|e| -> TokenError { e.into_token_error() })
     }
 
     /// Update the decryptable available balance.
@@ -301,7 +302,7 @@ impl TransferAccountInfo {
             destination_elgamal_pubkey,
             auditor_elgamal_pubkey,
         )
-        .map_err(|e| -> TokenError { e.into() })
+        .map_err(|e| -> TokenError { e.into_token_error() })
     }
 
     /// Create a transfer proof data that is split into equality, ciphertext
@@ -340,7 +341,7 @@ impl TransferAccountInfo {
             fee_rate_basis_points,
             maximum_fee,
         )
-        .map_err(|e| -> TokenError { e.into() })
+        .map_err(|e| -> TokenError { e.into_token_error() })
     }
 
     /// Update the decryptable available balance.

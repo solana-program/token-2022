@@ -11204,7 +11204,6 @@ dependencies = [
  "solana-zk-sdk-pod",
  "spl-token-2022-interface 2.1.0",
  "spl-token-confidential-transfer-proof-extraction 0.6.0",
- "spl-token-confidential-transfer-proof-generation 0.6.0",
  "spl-token-group-interface",
  "spl-token-interface",
  "spl-token-metadata-interface 1.0.0",
