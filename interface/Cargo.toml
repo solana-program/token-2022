@@ -11,17 +11,17 @@ license = { workspace = true }
 edition = { workspace = true }
 
 [features]
-serde = ["dep:serde", "dep:serde_with", "dep:base64", "solana-address/serde", "solana-address/decode", "solana-nullable/serde", "solana-nullable/serde-with", "solana-zero-copy/serde", "solana-zk-sdk-pod/serde"]
+serde = ["dep:serde", "dep:serde_with", "solana-address/serde", "solana-address/decode", "solana-nullable/serde", "solana-nullable/serde-with", "solana-zero-copy/serde", "solana-zk-sdk-pod/serde"]
 
 [dependencies]
 arrayref = "0.3.9"
 bytemuck = { version = "1.25.0", features = ["derive"] }
 num-derive = "0.4"
-num-traits = "0.2"
-num_enum = "0.7.6"
+num-traits = { version = "0.2", default-features = false }
+num_enum = { version = "0.7.6", default-features = false }
 solana-account-info = "3.1.1"
 solana-address = { version = "2.6.0", features = ["bytemuck", "nullable"] }
-solana-instruction = "3.0.0"
+solana-instruction = { version = "3.0.0", default-features = false }
 solana-nullable = { version = "1.1.0", features = ["bytemuck"] }
 solana-program-error = "3.0.1"
 solana-program-option = "3.1.0"
@@ -34,15 +34,15 @@ spl-token-confidential-transfer-proof-extraction = { version = "0.6.0", path = "
 spl-token-group-interface = "0.7.2"
 spl-token-metadata-interface = "1.0.0"
 spl-type-length-value = { version = "0.9.1" }
-thiserror = "2.0"
-serde = { version = "1.0.219", optional = true }
-serde_with = { version = "3.19.0", optional = true }
-base64 = { version = "0.22.1", optional = true }
+thiserror = { version = "2.0", default-features = false }
+serde = { version = "1.0.219", optional = true, default-features = false }
+serde_with = { version = "3.19.0", optional = true, default-features = false }
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
+base64 = "0.22.1"
 proptest = "1.11"
 serde_json = "1.0.149"
 solana-address = { version = "2.6.0", features = ["curve25519"] }
