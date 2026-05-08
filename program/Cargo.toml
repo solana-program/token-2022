@@ -40,7 +40,7 @@ solana-system-interface = { version = "3.2.0", features = ["bincode"] }
 solana-zero-copy = { version = "1.0.1", features = ["bytemuck"] }
 solana-zk-sdk-pod = "0.1.1"
 solana-zk-elgamal-proof-interface = "0.1.2"
-spl-elgamal-registry-interface = { version = "0.1.0", path = "../confidential/elgamal-registry-interface" }
+spl-elgamal-registry-interface = { version = "0.2.0", path = "../confidential/elgamal-registry-interface" }
 spl-memo-interface = { version = "2.0" }
 spl-token-2022-interface = { version = "3.0.0", path = "../interface" }
 spl-token-confidential-transfer-ciphertext-arithmetic = { version = "0.4.1", path = "../confidential/ciphertext-arithmetic" }
