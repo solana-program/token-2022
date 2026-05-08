@@ -49,9 +49,6 @@ spl-token-group-interface = "0.7.2"
 spl-token-metadata-interface = "1.0.0"
 spl-transfer-hook-interface = { version = "2.1.0" }
 
-[target.'cfg(not(target_os = "solana"))'.dependencies]
-spl-token-confidential-transfer-proof-generation = { version = "0.6.0", path = "../confidential/proof-generation" }
-
 [dev-dependencies]
 lazy_static = "1.5.0"
 mollusk-svm = "0.12"
