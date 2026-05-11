@@ -1,15 +1,12 @@
+// We depend on @noble/curves because the Web Crypto API does not expose
+// Ristretto255 point arithmetic, and `@solana/zk-sdk` (the WASM SDK) does
+// not currently expose `ElGamalCiphertext` arithmetic (subtract / multiply
+// by scalar / lo-hi combination) over its public API. Once the WASM SDK
+// adds those methods, delete this file and call into the SDK directly.
 import { ristretto255 } from '@noble/curves/ed25519';
 import { type ReadonlyUint8Array } from '@solana/kit';
 
-const { Point: RistrettoPoint } = ristretto255;
-
-// Standard ristretto255 basepoint (Pedersen generator G) — hardcoded to match the onchain program.
-const RISTRETTO_BASEPOINT = RistrettoPoint.fromHex(
-    Uint8Array.from([
-        226, 242, 174, 10, 106, 188, 78, 113, 168, 132, 169, 97, 197, 0, 81, 95, 88, 227, 11, 106, 165, 130, 221, 141,
-        182, 166, 89, 69, 224, 141, 45, 118,
-    ]),
-);
+const { Point: RistrettoPoint } = /* @__PURE__ */ ristretto255;
 
 function pointFromBytes(bytes: ReadonlyUint8Array) {
     return RistrettoPoint.fromHex(new Uint8Array(bytes));
@@ -91,5 +88,5 @@ export function subtractWithLoHiCiphertexts(
  */
 export function subtractAmountFromCiphertext(ciphertext: ReadonlyUint8Array, amount: bigint) {
     const { commitment, handle } = ciphertextToPoints(ciphertext);
-    return pointsToCiphertext(commitment.subtract(RISTRETTO_BASEPOINT.multiply(amount)), handle);
+    return pointsToCiphertext(commitment.subtract(RistrettoPoint.BASE.multiply(amount)), handle);
 }

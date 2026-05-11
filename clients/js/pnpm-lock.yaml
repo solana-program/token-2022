@@ -14,6 +14,9 @@ importers:
       '@solana-program/system':
         specifier: ^0.12.0
         version: 0.12.0(@solana/kit@6.9.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))
+      '@solana-program/zk-elgamal-proof':
+        specifier: ^0.1.0
+        version: 0.1.0(@solana/kit@6.9.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))
       '@solana/sysvars':
         specifier: ^5.0
         version: 5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
@@ -458,6 +461,11 @@ packages:
     resolution: {integrity: sha512-ZnAAWeGVMWNtJhw3GdifI2HnhZ0A0H0qs8tBkcFvxp/8wIavvO+GOM4Jd0N22u2+Lni2zcwvcrxrsxj6Mjphng==}
     peerDependencies:
       '@solana/kit': ^6.1.0
+
+  '@solana-program/zk-elgamal-proof@0.1.0':
+    resolution: {integrity: sha512-MKyeapz8P7SqkkC7h53ARFLoanb59ylVzokSMyINDH7hxY3JyiZs92/VfPa/qedhLAEHLd8jcc8sQ3pr3GyXtw==}
+    peerDependencies:
+      '@solana/kit': ^5.0
 
   '@solana/accounts@5.0.0':
     resolution: {integrity: sha512-0JzBdEobgp8NBdhhu+GgwNDh7e8KkHDsSTVZAnNQgvT3taOz0Mwv5E48MuEeDhW6DLFwWVAx/FO3pvibG/NGwA==}
@@ -2643,6 +2651,11 @@ snapshots:
 
   '@solana-program/system@0.12.0(@solana/kit@6.9.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))':
     dependencies:
+      '@solana/kit': 6.9.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+
+  '@solana-program/zk-elgamal-proof@0.1.0(@solana/kit@6.9.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))':
+    dependencies:
+      '@solana-program/system': 0.12.0(@solana/kit@6.9.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))
       '@solana/kit': 6.9.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
 
   '@solana/accounts@5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':

@@ -2,15 +2,17 @@ import {
     Address,
     generateKeyPairSigner,
     getAddressDecoder,
+    isSequentialInstructionPlan,
+    isSingleInstructionPlan,
     isSome,
     none,
     some,
+    type InstructionPlan,
     type ReadonlyUint8Array,
 } from '@solana/kit';
 import * as zk from '@solana/zk-sdk/node';
 import test from 'ava';
 import {
-    type ConfidentialTransferInstructionPlan,
     type ConfidentialTransferZkClient,
     TOKEN_2022_PROGRAM_ADDRESS,
     extension,
@@ -80,18 +82,45 @@ function decryptPendingBalance(tokenAccount: Token, secretKey: zk.ElGamalSecretK
     return (balanceHi << 16n) + balanceLo;
 }
 
-async function sendAndConfirmInstructionPlan(
+// Walks an InstructionPlan tree and submits transactions in order.
+// `nonDivisible` plans must share one transaction; divisible sequential and
+// parallel plans send each child in its own transaction (in order, for tests).
+async function sendInstructionPlan(
     client: ReturnType<typeof createDefaultSolanaClient>,
     payer: Awaited<ReturnType<typeof generateKeyPairSignerWithSol>>,
-    plan: ConfidentialTransferInstructionPlan,
-) {
-    for (const instructions of plan.setupInstructions) {
-        await sendAndConfirmInstructions(client, payer, instructions);
+    plan: InstructionPlan,
+): Promise<void> {
+    if (isSingleInstructionPlan(plan)) {
+        await sendAndConfirmInstructions(client, payer, [plan.instruction]);
+        return;
     }
-    await sendAndConfirmInstructions(client, payer, plan.instructions);
-    for (const instructions of plan.cleanupInstructions) {
-        await sendAndConfirmInstructions(client, payer, instructions);
+    if (isSequentialInstructionPlan(plan)) {
+        if (plan.divisible === false) {
+            await sendAndConfirmInstructions(client, payer, flattenPlanInstructions(plan));
+            return;
+        }
+        for (const child of plan.plans) {
+            await sendInstructionPlan(client, payer, child);
+        }
+        return;
     }
+    if (plan.kind === 'parallel') {
+        for (const child of plan.plans) {
+            await sendInstructionPlan(client, payer, child);
+        }
+        return;
+    }
+    throw new Error(`Unsupported instruction-plan kind in test runner: ${plan.kind}`);
+}
+
+function flattenPlanInstructions(plan: InstructionPlan): Parameters<typeof sendAndConfirmInstructions>[2] {
+    if (isSingleInstructionPlan(plan)) {
+        return [plan.instruction];
+    }
+    if (plan.kind === 'messagePacker') {
+        throw new Error('messagePacker instruction plans are not supported in this test runner.');
+    }
+    return plan.plans.flatMap(child => flattenPlanInstructions(child));
 }
 
 async function createConfidentialTransferMint(authority: Awaited<ReturnType<typeof generateKeyPairSignerWithSol>>) {
@@ -127,15 +156,16 @@ async function createConfiguredConfidentialAccount(input: {
         })
     )[0];
 
-    const instructions = await getCreateConfidentialTransferAccountInstructions({
+    const createPlan = await getCreateConfidentialTransferAccountInstructions({
         payer: input.payer,
         owner: input.owner,
         mint: input.mint,
+        rpc: client.rpc,
         zk: zkClient,
         elgamalKeypair: input.elgamalKeypair,
         aesKey: input.aesKey,
     });
-    await sendAndConfirmInstructions(client, input.payer, instructions);
+    await sendInstructionPlan(client, input.payer, createPlan);
 
     return token;
 }
@@ -167,7 +197,9 @@ async function mintAndApplyConfidentialBalance(input: {
     ]);
 
     const depositedAccount = await fetchToken(client.rpc, input.token);
-    await sendAndConfirmInstructions(client, input.payer, [
+    await sendInstructionPlan(
+        client,
+        input.payer,
         getApplyConfidentialPendingBalanceInstructionFromToken({
             token: input.token,
             tokenAccount: depositedAccount.data,
@@ -176,7 +208,7 @@ async function mintAndApplyConfidentialBalance(input: {
             elgamalSecretKey: input.elgamalKeypair.secret(),
             aesKey: input.aesKey,
         }),
-    ]);
+    );
 }
 
 test.serial('it creates and configures a confidential transfer account', async t => {
@@ -222,6 +254,7 @@ test.serial('it rejects create helper authority that does not match the owner AT
                 owner,
                 authority: delegatedAuthority,
                 mint: payer.address,
+                rpc: createDefaultSolanaClient().rpc,
                 zk: zkClient,
                 elgamalKeypair,
                 aesKey,
@@ -269,7 +302,9 @@ test.serial('it applies a pending confidential balance from decoded token state'
     const depositedAccount = await fetchToken(client.rpc, token);
     t.is(decryptPendingBalance(depositedAccount.data, elgamalKeypair.secret()), 42n);
 
-    await sendAndConfirmInstructions(client, payer, [
+    await sendInstructionPlan(
+        client,
+        payer,
         getApplyConfidentialPendingBalanceInstructionFromToken({
             token,
             tokenAccount: depositedAccount.data,
@@ -278,7 +313,7 @@ test.serial('it applies a pending confidential balance from decoded token state'
             elgamalSecretKey: elgamalKeypair.secret(),
             aesKey,
         }),
-    ]);
+    );
 
     const appliedAccount = await fetchToken(client.rpc, token);
     t.is(appliedAccount.data.amount, 0n);
@@ -327,7 +362,7 @@ test.serial('it withdraws a confidential balance with helper-generated proofs', 
         elgamalKeypair,
         aesKey,
     });
-    await sendAndConfirmInstructionPlan(client, payer, withdrawPlan);
+    await sendInstructionPlan(client, payer, withdrawPlan);
 
     const withdrawnAccount = await fetchToken(client.rpc, token);
     t.is(withdrawnAccount.data.amount, 25n);
@@ -419,12 +454,14 @@ test.serial('it transfers confidential balance with helper-generated proofs', as
         sourceElgamalKeypair,
         aesKey: sourceAeKey,
     });
-    await sendAndConfirmInstructionPlan(client, payer, transferPlan);
+    await sendInstructionPlan(client, payer, transferPlan);
 
     const destinationAfterTransfer = await fetchToken(client.rpc, destinationToken);
     t.is(decryptPendingBalance(destinationAfterTransfer.data, destinationElgamalKeypair.secret()), 35n);
 
-    await sendAndConfirmInstructions(client, payer, [
+    await sendInstructionPlan(
+        client,
+        payer,
         getApplyConfidentialPendingBalanceInstructionFromToken({
             token: destinationToken,
             tokenAccount: destinationAfterTransfer.data,
@@ -433,7 +470,7 @@ test.serial('it transfers confidential balance with helper-generated proofs', as
             elgamalSecretKey: destinationElgamalKeypair.secret(),
             aesKey: destinationAeKey,
         }),
-    ]);
+    );
 
     const [sourceAfterTransfer, destinationAfterApply] = await Promise.all([
         fetchToken(client.rpc, sourceToken),

@@ -1,44 +1,53 @@
-import { getCreateAccountInstruction } from '@solana-program/system';
+import {
+    closeContextStateProof,
+    verifyBatchedGroupedCiphertext3HandlesValidity,
+    verifyBatchedRangeProofU128,
+    verifyBatchedRangeProofU64,
+    verifyCiphertextCommitmentEquality,
+    verifyPubkeyValidity,
+} from '@solana-program/zk-elgamal-proof';
 import {
     AccountRole,
     Address,
     Instruction,
     TransactionSigner,
-    appendTransactionMessageInstructions,
-    createTransactionMessage,
     generateKeyPairSigner,
     getAddressEncoder,
     getI8Encoder,
     getStructEncoder,
-    getTransactionMessageSize,
-    getU64Encoder,
     getU8Encoder,
     isSome,
-    setTransactionMessageFeePayerSigner,
-    setTransactionMessageLifetimeUsingBlockhash,
+    nonDivisibleSequentialInstructionPlan,
+    parallelInstructionPlan,
+    sequentialInstructionPlan,
+    singleInstructionPlan,
     type AccountMeta,
+    type GetMinimumBalanceForRentExemptionApi,
+    type InstructionPlan,
     type ReadonlyUint8Array,
+    type Rpc,
 } from '@solana/kit';
 import {
+    CONFIDENTIAL_TRANSFER_CONFIDENTIAL_TRANSFER_DISCRIMINATOR,
+    CONFIDENTIAL_TRANSFER_DISCRIMINATOR,
     ExtensionType,
     Extension,
     TOKEN_2022_PROGRAM_ADDRESS,
     Token,
     findAssociatedTokenPda,
     getApplyConfidentialPendingBalanceInstruction,
+    getConfidentialWithdrawInstructionDataEncoder,
+    getConfigureConfidentialTransferAccountInstructionDataEncoder,
     getCreateAssociatedTokenIdempotentInstruction,
     getDecryptableBalanceEncoder,
     getEncryptedBalanceEncoder,
     getReallocateInstruction,
 } from './generated';
-import { expectAddress, isTransactionSigner } from './generated/shared';
 import {
     extractCiphertextFromGroupedBytes,
     subtractAmountFromCiphertext,
     subtractWithLoHiCiphertexts,
 } from './confidentialTransferArithmetic';
-
-const ADDRESS_ENCODER = getAddressEncoder();
 
 const DEFAULT_MAXIMUM_PENDING_BALANCE_CREDIT_COUNTER = 1n << 16n;
 const PENDING_BALANCE_LO_BIT_LENGTH = 16n;
@@ -49,25 +58,8 @@ const RANGE_PROOF_PADDING_BIT_LENGTH = 16;
 
 const INSTRUCTIONS_SYSVAR_ADDRESS =
     'Sysvar1nstructions1111111111111111111111111' as Address<'Sysvar1nstructions1111111111111111111111111'>;
-const ZK_ELGAMAL_PROOF_PROGRAM_ADDRESS =
-    'ZkE1Gama1Proof11111111111111111111111111111' as Address<'ZkE1Gama1Proof11111111111111111111111111111'>;
-const DUMMY_BLOCKHASH = '11111111111111111111111111111111' as Parameters<
-    typeof setTransactionMessageLifetimeUsingBlockhash
->[0]['blockhash'];
-const TRANSACTION_SIZE_LIMIT = 1232;
-
-const VERIFY_CIPHERTEXT_COMMITMENT_EQUALITY_INSTRUCTION = 3;
-const VERIFY_PUBKEY_VALIDITY_INSTRUCTION = 4;
-const VERIFY_BATCHED_RANGE_PROOF_U64_INSTRUCTION = 6;
-const VERIFY_BATCHED_RANGE_PROOF_U128_INSTRUCTION = 7;
-const VERIFY_BATCHED_GROUPED_CIPHERTEXT_3_HANDLES_VALIDITY_INSTRUCTION = 12;
 
 type BytesLike = { toBytes(): Uint8Array };
-type GetMinimumBalanceForRentExemptionRpc = {
-    getMinimumBalanceForRentExemption(space: bigint): {
-        send(): Promise<bigint>;
-    };
-};
 
 export type ConfidentialTransferZkAeCiphertext = BytesLike;
 export type ConfidentialTransferZkElGamalCiphertext = BytesLike;
@@ -185,19 +177,7 @@ type ConfidentialTransferProofDataLocation =
 type ContextStateProofMode = {
     proofMode?: 'context-state';
     payer: TransactionSigner;
-    rpc: GetMinimumBalanceForRentExemptionRpc;
-};
-
-/**
- * Multi-transaction instruction plan returned by the withdraw and transfer
- * helpers. Context-state proof accounts must be created before and closed
- * after the main instruction, so this plan separates setup, execution, and
- * cleanup steps that each need their own transaction.
- */
-export type ConfidentialTransferInstructionPlan = {
-    setupInstructions: Instruction[][];
-    instructions: Instruction[];
-    cleanupInstructions: Instruction[][];
+    rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
 };
 
 export type GetCreateConfidentialTransferAccountInstructionsInput = {
@@ -206,6 +186,7 @@ export type GetCreateConfidentialTransferAccountInstructionsInput = {
     mint: Address;
     token?: Address;
     authority?: Address | TransactionSigner;
+    rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
     zk: ConfidentialTransferZkClient;
     elgamalKeypair: ConfidentialTransferZkElGamalKeypair;
     aesKey: ConfidentialTransferZkAeKey;
@@ -263,37 +244,33 @@ type GetConfidentialTransferInstructionsBaseInput = {
 export type GetConfidentialTransferInstructionsInput = GetConfidentialTransferInstructionsBaseInput &
     ContextStateProofMode;
 
-const CONFIDENTIAL_TRANSFER_INSTRUCTION_DATA_ENCODER = getStructEncoder([
-    ['discriminator', getU8Encoder()],
-    ['confidentialTransferDiscriminator', getU8Encoder()],
-    ['newSourceDecryptableAvailableBalance', getDecryptableBalanceEncoder()],
-    ['transferAmountAuditorCiphertextLo', getEncryptedBalanceEncoder()],
-    ['transferAmountAuditorCiphertextHi', getEncryptedBalanceEncoder()],
-    ['equalityProofInstructionOffset', getI8Encoder()],
-    ['ciphertextValidityProofInstructionOffset', getI8Encoder()],
-    ['rangeProofInstructionOffset', getI8Encoder()],
-]);
-
-const CONFIGURE_CONFIDENTIAL_TRANSFER_ACCOUNT_INSTRUCTION_DATA_ENCODER = getStructEncoder([
-    ['discriminator', getU8Encoder()],
-    ['confidentialTransferDiscriminator', getU8Encoder()],
-    ['decryptableZeroBalance', getDecryptableBalanceEncoder()],
-    ['maximumPendingBalanceCreditCounter', getU64Encoder()],
-    ['proofInstructionOffset', getI8Encoder()],
-]);
-
-const CONFIDENTIAL_WITHDRAW_INSTRUCTION_DATA_ENCODER = getStructEncoder([
-    ['discriminator', getU8Encoder()],
-    ['confidentialTransferDiscriminator', getU8Encoder()],
-    ['amount', getU64Encoder()],
-    ['decimals', getU8Encoder()],
-    ['newDecryptableAvailableBalance', getDecryptableBalanceEncoder()],
-    ['equalityProofInstructionOffset', getI8Encoder()],
-    ['rangeProofInstructionOffset', getI8Encoder()],
-]);
+// codama bug: the generated ConfidentialTransfer encoder is missing
+// `transferAmountAuditorCiphertextLo` and `transferAmountAuditorCiphertextHi`,
+// which the on-chain program reads from the instruction data. Wrapped in a
+// function so the encoder is not constructed at import time.
+function getConfidentialTransferWithAuditorCiphertextsEncoder() {
+    return getStructEncoder([
+        ['discriminator', getU8Encoder()],
+        ['confidentialTransferDiscriminator', getU8Encoder()],
+        ['newSourceDecryptableAvailableBalance', getDecryptableBalanceEncoder()],
+        ['transferAmountAuditorCiphertextLo', getEncryptedBalanceEncoder()],
+        ['transferAmountAuditorCiphertextHi', getEncryptedBalanceEncoder()],
+        ['equalityProofInstructionOffset', getI8Encoder()],
+        ['ciphertextValidityProofInstructionOffset', getI8Encoder()],
+        ['rangeProofInstructionOffset', getI8Encoder()],
+    ]);
+}
 
 function getTokenProgramAddress(programAddress?: Address) {
     return programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+}
+
+function addressOf(value: Address | TransactionSigner): Address {
+    return isSigner(value) ? value.address : value;
+}
+
+function isSigner(value: Address | TransactionSigner): value is TransactionSigner {
+    return typeof value !== 'string';
 }
 
 function getRequiredConfidentialTransferAccountExtension(tokenAccount: Token): ConfidentialTransferAccountExtension {
@@ -328,7 +305,7 @@ function parseElGamalCiphertext(zk: ConfidentialTransferZkClient, bytes: Readonl
 }
 
 function getElGamalPubkeyFromAddress(zk: ConfidentialTransferZkClient, value: Address) {
-    return zk.ElGamalPubkey.fromBytes(new Uint8Array(ADDRESS_ENCODER.encode(value)));
+    return zk.ElGamalPubkey.fromBytes(new Uint8Array(getAddressEncoder().encode(value)));
 }
 
 function getDefaultAuditorElGamalPubkey(zk: ConfidentialTransferZkClient) {
@@ -374,59 +351,6 @@ function hasInstructionOffset(proofLocations: ConfidentialTransferProofDataLocat
     return proofLocations.some(proofLocation => proofLocation.instructionOffset !== undefined);
 }
 
-function getVerifyProofInstruction(
-    instructionDiscriminator: number,
-    proofData: ReadonlyUint8Array,
-    contextStateAccount?: Address,
-    contextStateAuthority?: Address,
-): Instruction {
-    const data = new Uint8Array(1 + proofData.length);
-    data[0] = instructionDiscriminator;
-    data.set(new Uint8Array(proofData), 1);
-
-    return Object.freeze({
-        accounts:
-            contextStateAccount && contextStateAuthority
-                ? [
-                      { address: contextStateAccount, role: AccountRole.WRITABLE },
-                      { address: contextStateAuthority, role: AccountRole.READONLY },
-                  ]
-                : [],
-        data,
-        programAddress: ZK_ELGAMAL_PROOF_PROGRAM_ADDRESS,
-    });
-}
-
-function getCloseContextStateInstruction(input: {
-    contextStateAccount: Address;
-    lamportDestinationAccount: Address;
-    contextStateAuthority: Address | TransactionSigner;
-}) {
-    return Object.freeze({
-        accounts: [
-            { address: input.contextStateAccount, role: AccountRole.WRITABLE },
-            { address: input.lamportDestinationAccount, role: AccountRole.WRITABLE },
-            getReadonlyAuthorityAccountMeta(input.contextStateAuthority),
-        ],
-        data: Uint8Array.from([0]),
-        programAddress: ZK_ELGAMAL_PROOF_PROGRAM_ADDRESS,
-    } as Instruction);
-}
-
-function canFitInSingleVersionZeroTransaction(payer: TransactionSigner, instructions: Instruction[]) {
-    const transactionMessage = appendTransactionMessageInstructions(
-        instructions,
-        setTransactionMessageLifetimeUsingBlockhash(
-            {
-                blockhash: DUMMY_BLOCKHASH,
-                lastValidBlockHeight: 0n,
-            },
-            setTransactionMessageFeePayerSigner(payer, createTransactionMessage({ version: 0 })),
-        ),
-    );
-    return getTransactionMessageSize(transactionMessage) <= TRANSACTION_SIZE_LIMIT;
-}
-
 function assertInstructionDataProofModeIsUnsupported(input: { proofMode?: string }) {
     if (input.proofMode === 'instruction-data') {
         throw new Error(
@@ -439,64 +363,68 @@ function assertCreateHelperOwnerMatchesAuthority(
     owner: Address | TransactionSigner,
     authority: Address | TransactionSigner,
 ) {
-    if (expectAddress(owner) !== expectAddress(authority)) {
+    if (addressOf(owner) !== addressOf(authority)) {
         throw new Error(
             'This helper is scoped to the token-account owner. For the ATA convenience flow, authority must match owner.',
         );
     }
 }
 
-async function createProofContextStateAccountInstructions(input: {
-    payer: TransactionSigner;
-    rpc: GetMinimumBalanceForRentExemptionRpc;
-    contextStateAuthority: TransactionSigner;
-    lamportDestinationAccount: Address;
-    instructionDiscriminator: number;
-    proofData: ConfidentialTransferZkProofData;
-}) {
-    const contextStateAccount = await generateKeyPairSigner();
-    const space = 33n + BigInt(input.proofData.context().toBytes().length);
-    const lamports = await input.rpc.getMinimumBalanceForRentExemption(space).send();
-    const createAccountInstruction = getCreateAccountInstruction({
-        payer: input.payer,
-        newAccount: contextStateAccount,
-        lamports,
-        space,
-        programAddress: ZK_ELGAMAL_PROOF_PROGRAM_ADDRESS,
-    });
-    const verifyProofInstruction = getVerifyProofInstruction(
-        input.instructionDiscriminator,
-        input.proofData.toBytes(),
-        contextStateAccount.address,
-        input.contextStateAuthority.address,
-    );
-    const canCombineSetup = canFitInSingleVersionZeroTransaction(input.payer, [
-        createAccountInstruction,
-        verifyProofInstruction,
-    ]);
+/**
+ * Builds the setup-and-cleanup instruction plans for a single proof's
+ * context-state account. The setup plan creates the context-state account
+ * and verifies the proof into it (these two instructions must share a
+ * transaction). The cleanup plan closes the context-state account to recover
+ * its rent.
+ */
+function computeNewAvailableBalance(currentBalance: bigint, amount: bigint): bigint {
+    const newBalance = currentBalance - amount;
+    if (newBalance < 0n) {
+        throw new Error('Insufficient funds.');
+    }
+    return newBalance;
+}
 
+async function buildContextStateProofPlan(
+    proofData: ReadonlyUint8Array,
+    verifyAction: (args: {
+        rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
+        payer: TransactionSigner;
+        proofData: Uint8Array;
+        contextState: { contextAccount: Awaited<ReturnType<typeof generateKeyPairSigner>>; authority: Address };
+    }) => Promise<Instruction[]>,
+    payer: TransactionSigner,
+    rpc: Rpc<GetMinimumBalanceForRentExemptionApi>,
+    contextStateAuthority: TransactionSigner = payer,
+): Promise<{ address: Address; setup: InstructionPlan; cleanup: Instruction }> {
+    const contextAccount = await generateKeyPairSigner();
+    const setupInstructions = await verifyAction({
+        rpc,
+        payer,
+        proofData: new Uint8Array(proofData),
+        contextState: { contextAccount, authority: contextStateAuthority.address },
+    });
     return {
-        address: contextStateAccount.address,
-        setupInstructions: canCombineSetup
-            ? ([[createAccountInstruction, verifyProofInstruction]] satisfies Instruction[][])
-            : ([[createAccountInstruction], [verifyProofInstruction]] satisfies Instruction[][]),
-        cleanupInstructions: [
-            [
-                getCloseContextStateInstruction({
-                    contextStateAccount: contextStateAccount.address,
-                    lamportDestinationAccount: input.lamportDestinationAccount,
-                    contextStateAuthority: input.contextStateAuthority,
-                }),
-            ],
-        ] satisfies Instruction[][],
+        address: contextAccount.address,
+        // Divisible: the create-account and verify-proof instructions can fit
+        // in one transaction for small proofs (e.g. PubkeyValidity) but exceed
+        // the size limit for larger proofs (e.g. BatchedRangeProofU128). A
+        // transaction planner decides how to pack them; the verify only needs
+        // the account to exist, which is true once create-account is confirmed.
+        setup: sequentialInstructionPlan(setupInstructions),
+        cleanup: closeContextStateProof({
+            contextState: contextAccount.address,
+            authority: contextStateAuthority,
+            destination: payer.address,
+        }),
     };
 }
 
 function getReadonlyAuthorityAccountMeta(authority: Address | TransactionSigner) {
     return Object.freeze({
-        address: expectAddress(authority),
-        role: isTransactionSigner(authority) ? AccountRole.READONLY_SIGNER : AccountRole.READONLY,
-        ...(isTransactionSigner(authority) ? { signer: authority } : {}),
+        address: addressOf(authority),
+        role: isSigner(authority) ? AccountRole.READONLY_SIGNER : AccountRole.READONLY,
+        ...(isSigner(authority) ? { signer: authority } : {}),
     });
 }
 
@@ -511,6 +439,12 @@ function getRemainingReadonlySignerAccounts(multiSigners?: Array<TransactionSign
     );
 }
 
+// codama bug: the generated `getConfigureConfidentialTransferAccountInstruction`
+// emits a 5-account layout (with a `record` slot) that only matches the
+// `ConfigureAccountWithRegistry` on-chain path. In `ProofInstructionOffset`
+// mode the on-chain handler reads 4 accounts, so the program-ID-padded
+// `record` slot ends up in the authority position. Hand-build the
+// 4-account form until the IDL splits the two configure variants.
 function getConfigureConfidentialTransferAccountInstructionWithProof(input: {
     token: Address;
     mint: Address;
@@ -529,9 +463,7 @@ function getConfigureConfidentialTransferAccountInstructionWithProof(input: {
             getReadonlyAuthorityAccountMeta(input.authority),
             ...getRemainingReadonlySignerAccounts(input.multiSigners),
         ],
-        data: CONFIGURE_CONFIDENTIAL_TRANSFER_ACCOUNT_INSTRUCTION_DATA_ENCODER.encode({
-            discriminator: 27,
-            confidentialTransferDiscriminator: 2,
+        data: getConfigureConfidentialTransferAccountInstructionDataEncoder().encode({
             decryptableZeroBalance: input.decryptableZeroBalance,
             maximumPendingBalanceCreditCounter: input.maximumPendingBalanceCreditCounter,
             proofInstructionOffset: input.proofInstructionOffset,
@@ -540,6 +472,11 @@ function getConfigureConfidentialTransferAccountInstructionWithProof(input: {
     } as Instruction);
 }
 
+// codama bug: same shape as the configure helper above. The on-chain
+// `verify_withdraw_proof` consumes 0–3 conditional accounts between mint
+// and authority (sysvar when either offset != 0; one context-state account
+// per offset == 0). The generated builder always emits a fixed 6-account
+// layout with program-ID placeholders, putting accounts in the wrong slots.
 function getConfidentialWithdrawInstructionWithProof(input: {
     token: Address;
     mint: Address;
@@ -572,9 +509,7 @@ function getConfidentialWithdrawInstructionWithProof(input: {
 
     return Object.freeze({
         accounts,
-        data: CONFIDENTIAL_WITHDRAW_INSTRUCTION_DATA_ENCODER.encode({
-            discriminator: 27,
-            confidentialTransferDiscriminator: 6,
+        data: getConfidentialWithdrawInstructionDataEncoder().encode({
             amount: input.amount,
             decimals: input.decimals,
             newDecryptableAvailableBalance: input.newDecryptableAvailableBalance,
@@ -633,9 +568,9 @@ function getConfidentialTransferInstructionWithAuditorCiphertexts(input: {
 
     return Object.freeze({
         accounts,
-        data: CONFIDENTIAL_TRANSFER_INSTRUCTION_DATA_ENCODER.encode({
-            discriminator: 27,
-            confidentialTransferDiscriminator: 7,
+        data: getConfidentialTransferWithAuditorCiphertextsEncoder().encode({
+            discriminator: CONFIDENTIAL_TRANSFER_DISCRIMINATOR,
+            confidentialTransferDiscriminator: CONFIDENTIAL_TRANSFER_CONFIDENTIAL_TRANSFER_DISCRIMINATOR,
             newSourceDecryptableAvailableBalance: input.newSourceDecryptableAvailableBalance,
             transferAmountAuditorCiphertextLo: input.transferAmountAuditorCiphertextLo,
             transferAmountAuditorCiphertextHi: input.transferAmountAuditorCiphertextHi,
@@ -648,24 +583,18 @@ function getConfidentialTransferInstructionWithAuditorCiphertexts(input: {
 }
 
 /**
- * Returns the instructions needed to create and configure a confidential
- * transfer account for the given mint and owner. This is a convenience
- * helper scoped to the ATA-owner flow: the token account is derived as
- * the associated token address, and `authority` (if provided) must match
- * `owner`.
- *
- * The returned array contains four instructions that must be submitted
- * in a single transaction: create ATA, reallocate, configure account,
- * and a ZK ElGamal pubkey-validity proof.
+ * Returns a single-transaction plan that creates the ATA, reallocates it
+ * for the confidential-transfer extension, configures the account, and
+ * verifies the ZK pubkey-validity proof.
  */
 export async function getCreateConfidentialTransferAccountInstructions(
     input: GetCreateConfidentialTransferAccountInstructionsInput,
-): Promise<Instruction[]> {
+): Promise<InstructionPlan> {
     const programAddress = getTokenProgramAddress(input.programAddress);
     const authority = input.authority ?? input.owner;
     assertCreateHelperOwnerMatchesAuthority(input.owner, authority);
 
-    const ownerAddress = expectAddress(input.owner);
+    const ownerAddress = addressOf(input.owner);
     const token =
         input.token ??
         (
@@ -676,17 +605,21 @@ export async function getCreateConfidentialTransferAccountInstructions(
             })
         )[0];
 
-    const createTokenInstruction = getCreateAssociatedTokenIdempotentInstruction({
-        ata: token,
-        mint: input.mint,
-        owner: ownerAddress,
-        payer: input.payer,
-        tokenProgram: programAddress,
-    });
     const pubkeyValidityProofData = new input.zk.PubkeyValidityProofData(input.elgamalKeypair);
+    const [verifyProofInstruction] = await verifyPubkeyValidity({
+        rpc: input.rpc,
+        payer: input.payer,
+        proofData: new Uint8Array(pubkeyValidityProofData.toBytes()),
+    });
 
-    return [
-        createTokenInstruction,
+    return nonDivisibleSequentialInstructionPlan([
+        getCreateAssociatedTokenIdempotentInstruction({
+            ata: token,
+            mint: input.mint,
+            owner: ownerAddress,
+            payer: input.payer,
+            tokenProgram: programAddress,
+        }),
         getReallocateInstruction(
             {
                 token,
@@ -708,19 +641,18 @@ export async function getCreateConfidentialTransferAccountInstructions(
             multiSigners: input.multiSigners,
             programAddress,
         }),
-        getVerifyProofInstruction(VERIFY_PUBKEY_VALIDITY_INSTRUCTION, pubkeyValidityProofData.toBytes()),
-    ];
+        verifyProofInstruction,
+    ]);
 }
 
 /**
- * Builds an `ApplyPendingBalance` instruction from a decoded token account.
- * Decrypts the pending balance (lo/hi) and the current available balance,
- * computes the new available balance, and re-encrypts it so the caller
- * does not need to perform any cryptographic operations.
+ * Builds an `ApplyPendingBalance` instruction plan from a decoded token
+ * account, decrypting the pending balance and re-encrypting the new
+ * available balance locally.
  */
 export function getApplyConfidentialPendingBalanceInstructionFromToken(
     input: GetApplyConfidentialPendingBalanceInstructionFromTokenInput,
-) {
+): InstructionPlan {
     const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
     const pendingBalanceLo = input.elgamalSecretKey.decrypt(
         parseElGamalCiphertext(input.zk, account.pendingBalanceLow),
@@ -735,40 +667,35 @@ export function getApplyConfidentialPendingBalanceInstructionFromToken(
         )
         .toBytes();
 
-    return getApplyConfidentialPendingBalanceInstruction(
-        {
-            token: input.token,
-            authority: input.authority,
-            expectedPendingBalanceCreditCounter: account.pendingBalanceCreditCounter,
-            newDecryptableAvailableBalance,
-            multiSigners: input.multiSigners,
-        },
-        { programAddress: getTokenProgramAddress(input.programAddress) },
+    return singleInstructionPlan(
+        getApplyConfidentialPendingBalanceInstruction(
+            {
+                token: input.token,
+                authority: input.authority,
+                expectedPendingBalanceCreditCounter: account.pendingBalanceCreditCounter,
+                newDecryptableAvailableBalance,
+                multiSigners: input.multiSigners,
+            },
+            { programAddress: getTokenProgramAddress(input.programAddress) },
+        ),
     );
 }
 
 /**
- * Generates the full instruction plan for a confidential withdraw — moving
- * tokens from the encrypted available balance back to the plaintext balance.
- *
- * Two ZK proofs are generated and verified via context-state accounts:
- *   1. Ciphertext-commitment equality proof for the remaining balance.
- *   2. Batched 64-bit range proof proving the remaining balance is non-negative.
- *
- * The returned plan must be executed in order: setup transactions first,
- * then the withdraw instruction, then cleanup to close the proof accounts.
+ * Returns an instruction plan that moves tokens from the encrypted
+ * available balance back to the plaintext balance. Generates and verifies
+ * the equality and batched range proofs via context-state accounts.
  */
 export async function getConfidentialWithdrawInstructions(
     input: GetConfidentialWithdrawInstructionsInput,
-): Promise<ConfidentialTransferInstructionPlan> {
+): Promise<InstructionPlan> {
     assertInstructionDataProofModeIsUnsupported(input as { proofMode?: string });
     const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
     const amount = toBigIntAmount(input.amount);
-    const currentAvailableBalance = decryptAvailableBalance(input.zk, account, input.aesKey);
-    const newAvailableBalance = currentAvailableBalance - amount;
-    if (newAvailableBalance < 0n) {
-        throw new Error('Insufficient funds.');
-    }
+    const newAvailableBalance = computeNewAvailableBalance(
+        decryptAvailableBalance(input.zk, account, input.aesKey),
+        amount,
+    );
 
     const remainingBalanceOpening = new input.zk.PedersenOpening();
     const remainingBalanceCommitment = input.zk.PedersenCommitment.from(newAvailableBalance, remainingBalanceOpening);
@@ -791,66 +718,43 @@ export async function getConfidentialWithdrawInstructions(
         [remainingBalanceOpening],
     );
 
-    const contextStateAuthority = input.payer;
     const [equalityProofPlan, rangeProofPlan] = await Promise.all([
-        createProofContextStateAccountInstructions({
-            payer: input.payer,
-            rpc: input.rpc,
-            contextStateAuthority,
-            lamportDestinationAccount: input.payer.address,
-            instructionDiscriminator: VERIFY_CIPHERTEXT_COMMITMENT_EQUALITY_INSTRUCTION,
-            proofData: equalityProofData,
-        }),
-        createProofContextStateAccountInstructions({
-            payer: input.payer,
-            rpc: input.rpc,
-            contextStateAuthority,
-            lamportDestinationAccount: input.payer.address,
-            instructionDiscriminator: VERIFY_BATCHED_RANGE_PROOF_U64_INSTRUCTION,
-            proofData: rangeProofData,
-        }),
+        buildContextStateProofPlan(
+            equalityProofData.toBytes(),
+            verifyCiphertextCommitmentEquality,
+            input.payer,
+            input.rpc,
+        ),
+        buildContextStateProofPlan(rangeProofData.toBytes(), verifyBatchedRangeProofU64, input.payer, input.rpc),
     ]);
 
-    return {
-        setupInstructions: [...equalityProofPlan.setupInstructions, ...rangeProofPlan.setupInstructions],
-        instructions: [
-            getConfidentialWithdrawInstructionWithProof({
-                token: input.token,
-                mint: input.mint,
-                authority: input.authority,
-                amount,
-                decimals: input.decimals,
-                newDecryptableAvailableBalance: input.aesKey.encrypt(newAvailableBalance).toBytes(),
-                equalityProofLocation: { contextStateAccount: equalityProofPlan.address },
-                rangeProofLocation: { contextStateAccount: rangeProofPlan.address },
-                multiSigners: input.multiSigners,
-                programAddress: input.programAddress,
-            }),
-        ],
-        cleanupInstructions: [...equalityProofPlan.cleanupInstructions, ...rangeProofPlan.cleanupInstructions],
-    };
+    return sequentialInstructionPlan([
+        parallelInstructionPlan([equalityProofPlan.setup, rangeProofPlan.setup]),
+        getConfidentialWithdrawInstructionWithProof({
+            token: input.token,
+            mint: input.mint,
+            authority: input.authority,
+            amount,
+            decimals: input.decimals,
+            newDecryptableAvailableBalance: input.aesKey.encrypt(newAvailableBalance).toBytes(),
+            equalityProofLocation: { contextStateAccount: equalityProofPlan.address },
+            rangeProofLocation: { contextStateAccount: rangeProofPlan.address },
+            multiSigners: input.multiSigners,
+            programAddress: input.programAddress,
+        }),
+        parallelInstructionPlan([equalityProofPlan.cleanup, rangeProofPlan.cleanup]),
+    ]);
 }
 
 /**
- * Generates the full instruction plan for a confidential transfer between
- * two token accounts. The transfer amount is split into lo (16-bit) and
- * hi (32-bit) halves and encrypted as 3-handle grouped ciphertexts for
- * the source, destination, and auditor.
- *
- * Three ZK proofs are generated and verified via context-state accounts:
- *   1. Ciphertext-commitment equality proof for the new source balance.
- *   2. Batched grouped-ciphertext 3-handles validity proof for the
- *      transfer amount ciphertexts.
- *   3. Batched 128-bit range proof covering: remaining balance (64 bits),
- *      transfer amount lo (16 bits), transfer amount hi (32 bits), and
- *      padding (16 bits).
- *
- * The returned plan must be executed in order: setup transactions first,
- * then the transfer instruction, then cleanup to close the proof accounts.
+ * Returns an instruction plan that confidentially transfers tokens between
+ * two accounts. Splits the amount into lo/hi halves and verifies the three
+ * required proofs (equality, grouped-ciphertext validity, batched range)
+ * via context-state accounts.
  */
 export async function getConfidentialTransferInstructions(
     input: GetConfidentialTransferInstructionsInput,
-): Promise<ConfidentialTransferInstructionPlan> {
+): Promise<InstructionPlan> {
     assertInstructionDataProofModeIsUnsupported(input as { proofMode?: string });
     const sourceAccount = getRequiredConfidentialTransferAccountExtension(input.sourceTokenAccount);
     const amount = toBigIntAmount(input.amount);
@@ -886,11 +790,10 @@ export async function getConfidentialTransferInstructions(
     const transferAmountAuditorCiphertextLo = extractCiphertextFromGroupedBytes(groupedCiphertextLoBytes, 2);
     const transferAmountAuditorCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 2);
 
-    const currentAvailableBalance = decryptAvailableBalance(input.zk, sourceAccount, input.aesKey);
-    const newAvailableBalance = currentAvailableBalance - amount;
-    if (newAvailableBalance < 0n) {
-        throw new Error('Insufficient funds.');
-    }
+    const newAvailableBalance = computeNewAvailableBalance(
+        decryptAvailableBalance(input.zk, sourceAccount, input.aesKey),
+        amount,
+    );
     const newAvailableBalanceOpening = new input.zk.PedersenOpening();
     const newAvailableBalanceCommitment = input.zk.PedersenCommitment.from(
         newAvailableBalance,
@@ -941,60 +844,42 @@ export async function getConfidentialTransferInstructions(
         [newAvailableBalanceOpening, openingLo, openingHi, paddingOpening],
     );
 
-    const contextStateAuthority = input.payer;
     const [equalityProofPlan, ciphertextValidityProofPlan, rangeProofPlan] = await Promise.all([
-        createProofContextStateAccountInstructions({
-            payer: input.payer,
-            rpc: input.rpc,
-            contextStateAuthority,
-            lamportDestinationAccount: input.payer.address,
-            instructionDiscriminator: VERIFY_CIPHERTEXT_COMMITMENT_EQUALITY_INSTRUCTION,
-            proofData: equalityProofData,
-        }),
-        createProofContextStateAccountInstructions({
-            payer: input.payer,
-            rpc: input.rpc,
-            contextStateAuthority,
-            lamportDestinationAccount: input.payer.address,
-            instructionDiscriminator: VERIFY_BATCHED_GROUPED_CIPHERTEXT_3_HANDLES_VALIDITY_INSTRUCTION,
-            proofData: ciphertextValidityProofData,
-        }),
-        createProofContextStateAccountInstructions({
-            payer: input.payer,
-            rpc: input.rpc,
-            contextStateAuthority,
-            lamportDestinationAccount: input.payer.address,
-            instructionDiscriminator: VERIFY_BATCHED_RANGE_PROOF_U128_INSTRUCTION,
-            proofData: rangeProofData,
-        }),
+        buildContextStateProofPlan(
+            equalityProofData.toBytes(),
+            verifyCiphertextCommitmentEquality,
+            input.payer,
+            input.rpc,
+        ),
+        buildContextStateProofPlan(
+            ciphertextValidityProofData.toBytes(),
+            verifyBatchedGroupedCiphertext3HandlesValidity,
+            input.payer,
+            input.rpc,
+        ),
+        buildContextStateProofPlan(rangeProofData.toBytes(), verifyBatchedRangeProofU128, input.payer, input.rpc),
     ]);
 
-    return {
-        setupInstructions: [
-            ...equalityProofPlan.setupInstructions,
-            ...ciphertextValidityProofPlan.setupInstructions,
-            ...rangeProofPlan.setupInstructions,
-        ],
-        instructions: [
-            getConfidentialTransferInstructionWithAuditorCiphertexts({
-                sourceToken: input.sourceToken,
-                mint: input.mint,
-                destinationToken: input.destinationToken,
-                authority: input.authority,
-                newSourceDecryptableAvailableBalance: input.aesKey.encrypt(newAvailableBalance).toBytes(),
-                transferAmountAuditorCiphertextLo,
-                transferAmountAuditorCiphertextHi,
-                equalityProofLocation: { contextStateAccount: equalityProofPlan.address },
-                ciphertextValidityProofLocation: { contextStateAccount: ciphertextValidityProofPlan.address },
-                rangeProofLocation: { contextStateAccount: rangeProofPlan.address },
-                multiSigners: input.multiSigners,
-                programAddress: input.programAddress,
-            }),
-        ],
-        cleanupInstructions: [
-            ...equalityProofPlan.cleanupInstructions,
-            ...ciphertextValidityProofPlan.cleanupInstructions,
-            ...rangeProofPlan.cleanupInstructions,
-        ],
-    };
+    return sequentialInstructionPlan([
+        parallelInstructionPlan([equalityProofPlan.setup, ciphertextValidityProofPlan.setup, rangeProofPlan.setup]),
+        getConfidentialTransferInstructionWithAuditorCiphertexts({
+            sourceToken: input.sourceToken,
+            mint: input.mint,
+            destinationToken: input.destinationToken,
+            authority: input.authority,
+            newSourceDecryptableAvailableBalance: input.aesKey.encrypt(newAvailableBalance).toBytes(),
+            transferAmountAuditorCiphertextLo,
+            transferAmountAuditorCiphertextHi,
+            equalityProofLocation: { contextStateAccount: equalityProofPlan.address },
+            ciphertextValidityProofLocation: { contextStateAccount: ciphertextValidityProofPlan.address },
+            rangeProofLocation: { contextStateAccount: rangeProofPlan.address },
+            multiSigners: input.multiSigners,
+            programAddress: input.programAddress,
+        }),
+        parallelInstructionPlan([
+            equalityProofPlan.cleanup,
+            ciphertextValidityProofPlan.cleanup,
+            rangeProofPlan.cleanup,
+        ]),
+    ]);
 }

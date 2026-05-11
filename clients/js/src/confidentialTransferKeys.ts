@@ -8,13 +8,8 @@ import {
 } from '@solana/kit';
 import type { ConfidentialTransferZkClient } from './confidentialTransferHelpers';
 
-const EMPTY_BYTES = new Uint8Array();
-const ADDRESS_DECODER = getAddressDecoder();
-const ADDRESS_ENCODER = getAddressEncoder();
-
 export type DerivedElGamalKeypair = Readonly<{
     elgamalPubkey: Address;
-    pubkeyBytes: Uint8Array;
     secretKey: Uint8Array;
 }>;
 
@@ -27,36 +22,24 @@ async function signDerivationMessage(signer: MessagePartialSigner, message: Uint
     return new Uint8Array(signature);
 }
 
-function addressSeedFromAddress(seedAddress: Address): Uint8Array {
-    return new Uint8Array(ADDRESS_ENCODER.encode(seedAddress));
+function ownerMintSeed(owner: Address, mint: Address): Uint8Array {
+    const addressEncoder = getAddressEncoder();
+    const ownerBytes = addressEncoder.encode(owner);
+    const mintBytes = addressEncoder.encode(mint);
+    const seed = new Uint8Array(ownerBytes.length + mintBytes.length);
+    seed.set(ownerBytes, 0);
+    seed.set(mintBytes, ownerBytes.length);
+    return seed;
 }
 
 /**
- * Derives an ElGamal keypair from a `MessagePartialSigner` by delegating to
- * the WASM ZK SDK. The signer signs the domain-separated message returned
- * by `zk.ElGamalKeypair.signerMessage(publicSeed)`, and the resulting
- * Ed25519 signature is fed into `zk.ElGamalKeypair.fromSignature` to
- * produce a deterministic keypair.
- *
- * @param signer     - A `MessagePartialSigner` whose `signMessages`
- *                     implementation produces the entropy source.
- * @param zk         - A `ConfidentialTransferZkClient` that provides the
- *                     ZK ElGamal Proof primitives. Pass `@solana/zk-sdk`
- *                     (v0.4.2+) or any equivalent implementation.
- * @param publicSeed - Optional additional seed bytes appended to the
- *                     signing message. Defaults to an empty array, which
- *                     matches the current Solana CLI convention. Prefer
- *                     `deriveElGamalKeypairForAddress` when you want
- *                     account-scoped keys.
- * @returns An object containing `secretKey` (32-byte scalar), `pubkeyBytes`
- *          (32-byte compressed Ristretto point), and `elgamalPubkey`
- *          (base58-encoded 32-byte representation for use with this
- *          package's generated instruction builders).
+ * Derives an ElGamal keypair by having the signer sign a domain-separated
+ * message and feeding the resulting Ed25519 signature into the WASM ZK SDK.
  */
 export async function deriveElGamalKeypair({
     signer,
     zk,
-    publicSeed = EMPTY_BYTES,
+    publicSeed = new Uint8Array(0),
 }: {
     signer: MessagePartialSigner;
     zk: ConfidentialTransferZkClient;
@@ -65,51 +48,39 @@ export async function deriveElGamalKeypair({
     const message = zk.ElGamalKeypair.signerMessage(new Uint8Array(publicSeed));
     const signature = await signDerivationMessage(signer, message);
     const keypair = zk.ElGamalKeypair.fromSignature(signature);
-    const pubkeyBytes = new Uint8Array(keypair.pubkey().toBytes());
     const secretKey = new Uint8Array(keypair.secret().toBytes());
-    const elgamalPubkey = ADDRESS_DECODER.decode(pubkeyBytes);
-    return { elgamalPubkey, pubkeyBytes, secretKey };
+    const elgamalPubkey = getAddressDecoder().decode(new Uint8Array(keypair.pubkey().toBytes()));
+    return { elgamalPubkey, secretKey };
 }
 
 /**
- * Derives an ElGamal keypair scoped to an `Address` seed.
- *
- * This is the ergonomic path for confidential token accounts, where the
- * token-account address is typically used as the public seed in Rust.
+ * Derives an ElGamal keypair bound to an `(owner, mint)` pair. The seed
+ * is `concat(ownerBytes, mintBytes)`, which is stable across token-account
+ * close-and-reopen and prevents key reuse across mints.
  */
-export async function deriveElGamalKeypairForAddress({
+export async function deriveElGamalKeypairForOwnerMint({
     signer,
     zk,
-    seedAddress,
+    owner,
+    mint,
 }: {
     signer: MessagePartialSigner;
     zk: ConfidentialTransferZkClient;
-    seedAddress: Address;
+    owner: Address;
+    mint: Address;
 }): Promise<DerivedElGamalKeypair> {
-    return await deriveElGamalKeypair({ signer, zk, publicSeed: addressSeedFromAddress(seedAddress) });
+    return await deriveElGamalKeypair({ signer, zk, publicSeed: ownerMintSeed(owner, mint) });
 }
 
 /**
- * Derives an AES-128 authenticated-encryption key from a
- * `MessagePartialSigner` by delegating to the WASM ZK SDK. The signer
- * signs the domain-separated message returned by
- * `zk.AeKey.signerMessage(publicSeed)`, and the resulting signature is
- * fed into `zk.AeKey.fromSignature` to produce a deterministic key.
- *
- * @param signer     - A `MessagePartialSigner` whose `signMessages`
- *                     implementation produces the entropy source.
- * @param zk         - A `ConfidentialTransferZkClient` that provides the
- *                     ZK ElGamal Proof primitives.
- * @param publicSeed - Optional additional seed bytes appended to the
- *                     signing message. Defaults to an empty array. Prefer
- *                     `deriveAeKeyForAddress` when you want account-scoped
- *                     keys.
- * @returns A 16-byte AES-128 key.
+ * Derives an AES-128 authenticated-encryption key by having the signer
+ * sign a domain-separated message and feeding the signature into the
+ * WASM ZK SDK.
  */
 export async function deriveAeKey({
     signer,
     zk,
-    publicSeed = EMPTY_BYTES,
+    publicSeed = new Uint8Array(0),
 }: {
     signer: MessagePartialSigner;
     zk: ConfidentialTransferZkClient;
@@ -122,19 +93,21 @@ export async function deriveAeKey({
 }
 
 /**
- * Derives an AES key scoped to an `Address` seed.
+ * Derives an AES key scoped to an `(owner, mint)` pair.
  *
- * This is the ergonomic path for confidential token accounts, where the
- * token-account address is typically used as the public seed in Rust.
+ * See `deriveElGamalKeypairForOwnerMint` for why this is the right binding
+ * for confidential token accounts.
  */
-export async function deriveAeKeyForAddress({
+export async function deriveAeKeyForOwnerMint({
     signer,
     zk,
-    seedAddress,
+    owner,
+    mint,
 }: {
     signer: MessagePartialSigner;
     zk: ConfidentialTransferZkClient;
-    seedAddress: Address;
+    owner: Address;
+    mint: Address;
 }): Promise<Uint8Array> {
-    return await deriveAeKey({ signer, zk, publicSeed: addressSeedFromAddress(seedAddress) });
+    return await deriveAeKey({ signer, zk, publicSeed: ownerMintSeed(owner, mint) });
 }
