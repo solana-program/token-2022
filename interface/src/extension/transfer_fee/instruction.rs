@@ -5,11 +5,12 @@ use {
 };
 use {
     crate::{check_program_account, error::TokenError, instruction::TokenInstruction},
+    alloc::{vec, vec::Vec},
+    core::convert::TryFrom,
     solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
     solana_program_option::COption,
-    std::convert::TryFrom,
 };
 
 /// Transfer Fee extension instructions

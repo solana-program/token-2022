@@ -23,6 +23,7 @@ use {
         check_program_account,
         instruction::{encode_instruction, TokenInstruction},
     },
+    alloc::{vec, vec::Vec},
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_address::Address,

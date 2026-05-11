@@ -327,7 +327,7 @@ impl GenericTokenAccount for Account {
 
 #[cfg(test)]
 pub(crate) mod test {
-    use {super::*, crate::generic_token_account::ACCOUNT_INITIALIZED_INDEX};
+    use {super::*, crate::generic_token_account::ACCOUNT_INITIALIZED_INDEX, alloc::vec};
 
     pub const TEST_MINT: Mint = Mint {
         mint_authority: COption::Some(Address::new_from_array([1; 32])),

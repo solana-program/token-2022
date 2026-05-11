@@ -1,5 +1,5 @@
 RUST_TOOLCHAIN_NIGHTLY = nightly-2026-01-22
-SOLANA_CLI_VERSION = 3.1.8
+SOLANA_CLI_VERSION = $(shell toml get ./Cargo.toml workspace.metadata.cli.solana)
 
 nightly = +${RUST_TOOLCHAIN_NIGHTLY}
 

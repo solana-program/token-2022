@@ -15,16 +15,17 @@ use {
         check_program_account, check_spl_token_program_account, error::TokenError,
         extension::ExtensionType,
     },
+    alloc::{vec, vec::Vec},
     bytemuck::Pod,
+    core::{
+        convert::{TryFrom, TryInto},
+        mem::size_of,
+    },
     solana_address::{Address, ADDRESS_BYTES},
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
     solana_program_option::COption,
     solana_sdk_ids::{system_program, sysvar},
-    std::{
-        convert::{TryFrom, TryInto},
-        mem::size_of,
-    },
 };
 
 /// Minimum number of multisignature signers (min N)
@@ -1104,7 +1105,7 @@ impl<'a> TokenInstruction<'a> {
                 (Self::AmountToUiAmount { amount }, rest)
             }
             24 => {
-                let ui_amount = std::str::from_utf8(rest).map_err(|_| InvalidInstruction)?;
+                let ui_amount = core::str::from_utf8(rest).map_err(|_| InvalidInstruction)?;
                 (Self::UiAmountToAmount { ui_amount }, &[])
             }
             25 => {

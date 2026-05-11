@@ -4,6 +4,7 @@ use {
         extension::scaled_ui_amount::{PodF64, UnixTimestamp},
         instruction::{encode_instruction, TokenInstruction},
     },
+    alloc::vec,
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_address::Address,

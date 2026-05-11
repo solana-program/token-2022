@@ -1,8 +1,11 @@
 #![allow(clippy::arithmetic_side_effects)]
 #![deny(missing_docs)]
+#![no_std]
 #![cfg_attr(not(test), warn(unsafe_code))]
 
 //! An ERC20-like Token program for the Solana blockchain
+
+extern crate alloc;
 
 pub mod error;
 pub mod extension;
@@ -18,6 +21,7 @@ pub mod state;
 // version
 pub use solana_zk_elgamal_proof_interface;
 use {
+    alloc::string::{String, ToString},
     solana_address::Address,
     solana_program_error::{ProgramError, ProgramResult},
 };

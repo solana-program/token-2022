@@ -4,16 +4,17 @@
 /// Helper function to serialize / deserialize `COption` wrapped values
 pub mod coption_fromstr {
     use {
+        alloc::string::ToString,
+        core::{
+            fmt::{self, Display},
+            marker::PhantomData,
+            str::FromStr,
+        },
         serde::{
             de::{Error, Unexpected, Visitor},
             Deserializer, Serializer,
         },
         solana_program_option::COption,
-        std::{
-            fmt::{self, Display},
-            marker::PhantomData,
-            str::FromStr,
-        },
     };
 
     /// Serialize values supporting `Display` trait wrapped in `COption`
@@ -79,12 +80,12 @@ pub mod coption_fromstr {
 /// Helper function to serialize / deserialize a `COption` u64 value
 pub mod coption_u64_fromval {
     use {
+        core::fmt,
         serde::{
             de::{Error, Visitor},
             Deserializer, Serializer,
         },
         solana_program_option::COption,
-        std::fmt,
     };
 
     /// Serialize u64 wrapped in `COption`
@@ -143,6 +144,7 @@ pub mod coption_u64_fromval {
 pub mod batch_fromstr {
     use {
         crate::{error::TokenError, instruction::TokenInstruction},
+        alloc::vec::Vec,
         serde::{
             de::Error as deError,
             ser::{Error as seError, SerializeSeq},
@@ -242,12 +244,13 @@ pub mod batch_fromstr {
 /// Helper to serialize / deserialize `PodAeCiphertext` values
 pub mod aeciphertext_fromstr {
     use {
+        alloc::string::ToString,
+        core::{fmt, str::FromStr},
         serde::{
             de::{Error, Visitor},
             Deserializer, Serializer,
         },
         solana_zk_sdk_pod::encryption::auth_encryption::PodAeCiphertext,
-        std::{fmt, str::FromStr},
     };
 
     /// Serialize `AeCiphertext` values supporting `Display` trait
@@ -287,12 +290,13 @@ pub mod aeciphertext_fromstr {
 /// Helper to serialize / deserialize `PodElGamalPubkey` values
 pub mod elgamalpubkey_fromstr {
     use {
+        alloc::string::ToString,
+        core::{fmt, str::FromStr},
         serde::{
             de::{Error, Visitor},
             Deserializer, Serializer,
         },
         solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
-        std::{fmt, str::FromStr},
     };
 
     /// Serialize `ElGamalPubkey` values supporting `Display` trait
@@ -332,12 +336,13 @@ pub mod elgamalpubkey_fromstr {
 /// Helper to serialize / deserialize `PodElGamalCiphertext` values
 pub mod elgamalciphertext_fromstr {
     use {
+        alloc::string::ToString,
+        core::{fmt, str::FromStr},
         serde::{
             de::{Error, Visitor},
             Deserializer, Serializer,
         },
         solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
-        std::{fmt, str::FromStr},
     };
 
     /// Serialize `ElGamalCiphertext` values supporting `Display` trait

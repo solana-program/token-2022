@@ -3,12 +3,13 @@ use {
         extension::{Extension, ExtensionType},
         trim_ui_amount_string,
     },
+    alloc::{format, string::String},
     bytemuck::{Pod, Zeroable},
+    core::convert::TryInto,
     solana_address::Address,
     solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
     solana_zero_copy::unaligned::{I16, I64},
-    std::convert::TryInto,
 };
 #[cfg(feature = "serde")]
 use {

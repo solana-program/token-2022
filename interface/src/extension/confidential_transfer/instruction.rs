@@ -13,6 +13,7 @@ use {
         extension::confidential_transfer::*,
         instruction::{encode_instruction, TokenInstruction},
     },
+    alloc::{vec, vec::Vec},
     bytemuck::Zeroable,
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_address::Address,

@@ -31,7 +31,13 @@ use {
         pod::{PodAccount, PodMint},
         state::{Account, Mint, Multisig, PackedSizeOf},
     },
+    alloc::{vec, vec::Vec},
     bytemuck::{Pod, Zeroable},
+    core::{
+        cmp::Ordering,
+        convert::{TryFrom, TryInto},
+        mem::size_of,
+    },
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_account_info::AccountInfo,
     solana_program_error::ProgramError,
@@ -39,11 +45,6 @@ use {
     solana_zero_copy::unaligned::U16,
     spl_token_group_interface::state::{TokenGroup, TokenGroupMember},
     spl_type_length_value::variable_len_pack::VariableLenPack,
-    std::{
-        cmp::Ordering,
-        convert::{TryFrom, TryInto},
-        mem::size_of,
-    },
 };
 
 /// Confidential Transfer extension

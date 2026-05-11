@@ -4,6 +4,7 @@ use {
         extension::interest_bearing_mint::BasisPoints,
         instruction::{encode_instruction, TokenInstruction},
     },
+    alloc::vec,
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_address::Address,
