@@ -27,6 +27,11 @@ jobs:
       - name: Git Checkout
         uses: actions/checkout@v4
 
+      - name: Install toml-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: toml-cli
+
       - name: Compute variables
         id: compute
         shell: bash
