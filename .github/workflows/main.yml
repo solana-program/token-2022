@@ -27,6 +27,9 @@ jobs:
       - name: Git Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Environment
+        uses: solana-program/actions/setup-ubuntu@main
+
       - name: Compute variables
         id: compute
         shell: bash
