@@ -5,6 +5,7 @@ use {
     },
     alloc::{format, string::String},
     bytemuck::{Pod, Zeroable},
+    num_traits::{pow, Float},
     solana_address::Address,
     solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
@@ -70,7 +71,7 @@ impl ScaledUiAmountConfig {
     }
 
     fn total_multiplier(&self, decimals: u8, unix_timestamp: i64) -> f64 {
-        self.current_multiplier(unix_timestamp) / 10_f64.powi(decimals as i32)
+        self.current_multiplier(unix_timestamp) / pow(10_f64, decimals as usize)
     }
 
     /// Convert a raw amount to its UI representation using the given decimals
@@ -85,7 +86,7 @@ impl ScaledUiAmountConfig {
         unix_timestamp: i64,
     ) -> Option<String> {
         let scaled_amount = (amount as f64) * self.current_multiplier(unix_timestamp);
-        let truncated_amount = scaled_amount.trunc() / 10_f64.powi(decimals as i32);
+        let truncated_amount = Float::trunc(scaled_amount) / pow(10_f64, decimals as usize);
         let ui_amount = format!("{truncated_amount:.*}", decimals as usize);
         Some(trim_ui_amount_string(ui_amount, decimals))
     }
@@ -110,7 +111,7 @@ impl ScaledUiAmountConfig {
         } else {
             // this is important, if you truncate earlier, you'll get wrong "inf"
             // answers
-            Ok(amount.trunc() as u64)
+            Ok(Float::trunc(amount) as u64)
         }
     }
 }
