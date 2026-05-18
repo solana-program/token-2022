@@ -6,6 +6,7 @@ use {
     alloc::{format, string::String},
     bytemuck::{Pod, Zeroable},
     core::convert::TryInto,
+    num_traits::{pow, Float},
     solana_address::Address,
     solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
@@ -62,7 +63,7 @@ impl InterestBearingConfig {
         let numerator = (i16::from(self.pre_update_average_rate) as i128)
             .checked_mul(self.pre_update_timespan()? as i128)? as f64;
         let exponent = numerator / SECONDS_PER_YEAR / ONE_IN_BASIS_POINTS;
-        Some(exponent.exp())
+        Some(Float::exp(exponent))
     }
 
     fn post_update_timespan(&self, unix_timestamp: i64) -> Option<i64> {
@@ -74,13 +75,13 @@ impl InterestBearingConfig {
             .checked_mul(self.post_update_timespan(unix_timestamp)? as i128)?
             as f64;
         let exponent = numerator / SECONDS_PER_YEAR / ONE_IN_BASIS_POINTS;
-        Some(exponent.exp())
+        Some(Float::exp(exponent))
     }
 
     fn total_scale(&self, decimals: u8, unix_timestamp: i64) -> Option<f64> {
         Some(
             self.pre_update_exp()? * self.post_update_exp(unix_timestamp)?
-                / 10_f64.powi(decimals as i32),
+                / pow(10_f64, decimals as usize),
         )
     }
 
@@ -118,7 +119,7 @@ impl InterestBearingConfig {
         } else {
             // this is important, if you round earlier, you'll get wrong "inf"
             // answers
-            Ok(amount.round() as u64)
+            Ok(Float::round(amount) as u64)
         }
     }
 

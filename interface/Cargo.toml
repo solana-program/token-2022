@@ -17,7 +17,7 @@ serde = ["dep:serde", "dep:serde_with", "solana-address/serde", "solana-address/
 arrayref = "0.3.9"
 bytemuck = { version = "1.25.0", features = ["derive"] }
 num-derive = "0.4"
-num-traits = { version = "0.2", default-features = false }
+num-traits = { version = "0.2", features = ["libm"], default-features = false }
 num_enum = { version = "0.7.6", default-features = false }
 solana-account-info = "3.1.1"
 solana-address = { version = "2.6.0", features = ["bytemuck", "nullable"] }
