@@ -120,3 +120,11 @@ publish-rust-%:
 
 publish-rust-dry-run-%:
 	cd "$(call make-path,$*)" && cargo release $(LEVEL) --tag-name "$(call tag-name,$*)@v{{version}}"
+
+check-no-std-alloc-%:
+	cargo $(nightly) hack check \
+		--target bpfel-unknown-none \
+		--each-feature \
+		--manifest-path $(call make-path,$*)/Cargo.toml \
+		-Zbuild-std=alloc,core \
+		$(ARGS)

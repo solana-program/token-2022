@@ -1,3 +1,7 @@
+#![no_std]
+
+extern crate alloc;
+
 pub mod burn;
 pub mod encryption;
 pub mod errors;
