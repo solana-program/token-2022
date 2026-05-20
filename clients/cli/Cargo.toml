@@ -33,7 +33,7 @@ solana-system-interface = "3.2.0"
 solana-zk-sdk = "6.0.1"
 solana-zk-sdk-pod = "0.1.1"
 spl-associated-token-account-interface = { version = "2.0.0" }
-spl-token-interface = "2.0.0"
+spl-token-interface = "3.0.0"
 spl-token-2022-interface = { version = "3.0.0", path = "../../interface" }
 spl-token-2022 = { version = "11.0.0", path = "../../program", features = ["no-entrypoint"] }
 spl-token-client = { version = "0.18.0", path = "../rust-legacy" }
