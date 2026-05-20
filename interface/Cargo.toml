@@ -11,7 +11,7 @@ license = { workspace = true }
 edition = { workspace = true }
 
 [features]
-serde = ["dep:serde", "dep:serde_with", "solana-address/serde", "solana-address/decode", "solana-nullable/serde", "solana-nullable/serde-with", "solana-zero-copy/serde", "solana-zk-sdk-pod/serde"]
+serde = ["dep:serde", "dep:serde_with", "serde/alloc", "solana-address/serde", "solana-address/decode", "solana-nullable/serde", "solana-nullable/serde-with", "solana-zero-copy/serde", "solana-zk-sdk-pod/serde"]
 
 [dependencies]
 arrayref = "0.3.9"
@@ -28,7 +28,7 @@ solana-program-option = "3.1.0"
 solana-program-pack = "3.1.0"
 solana-sdk-ids = "3.1.0"
 solana-zero-copy = { version = "1.0.1", features = ["bytemuck"] }
-solana-zk-sdk-pod = "0.1.1"
+solana-zk-sdk-pod = "0.1.2"
 solana-zk-elgamal-proof-interface = "0.1.2"
 spl-token-confidential-transfer-proof-extraction = { version = "0.6.0", path = "../confidential/proof-extraction" }
 spl-token-group-interface = "0.7.2"
