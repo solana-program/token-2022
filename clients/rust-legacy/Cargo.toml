@@ -57,7 +57,7 @@ spl-token-2022 = { version = "11.0.0", path = "../../program", features = ["no-e
 spl-token-group-interface = "0.7.2"
 spl-token-metadata-interface = "1.0.0"
 spl-transfer-hook-interface = { version = "2.1.0" }
-solana-zk-sdk-pod = "0.1.1"
+solana-zk-sdk-pod = "0.1.2"
 solana-zk-elgamal-proof-interface = "0.1.2"
 tokio = "1"
 thiserror = "2.0"

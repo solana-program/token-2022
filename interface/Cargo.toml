@@ -28,7 +28,7 @@ solana-program-option = "3.1.0"
 solana-program-pack = "3.1.0"
 solana-sdk-ids = "3.1.0"
 solana-zero-copy = { version = "1.0.1", features = ["bytemuck"] }
-solana-zk-sdk-pod = "0.1.1"
+solana-zk-sdk-pod = "0.1.2"
 solana-zk-elgamal-proof-interface = "0.1.2"
 spl-token-confidential-transfer-proof-extraction = { version = "0.6.0", path = "../confidential/proof-extraction" }
 spl-token-group-interface = "0.7.2"

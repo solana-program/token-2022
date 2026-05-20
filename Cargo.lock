@@ -10660,9 +10660,9 @@ dependencies = [
 
 [[package]]
 name = "solana-zk-sdk-pod"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6fbe65da9e6d1bfb747723211517d91ead9ce66cd69516f47fa44569cff151a"
+checksum = "a800583b7a4cea3e851686af162cc6e4712eef97fa91dfa9aca2459b95c84777"
 dependencies = [
  "base64 0.22.1",
  "bytemuck",
