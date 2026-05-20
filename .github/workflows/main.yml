@@ -11,7 +11,7 @@ env:
   SBPF_PROGRAM_PACKAGES: "['confidential-elgamal-registry', 'program']"
   RUST_PACKAGES: "['clients-cli', 'clients-rust-legacy', 'interface', 'program', 'confidential-ciphertext-arithmetic', 'confidential-elgamal-registry', 'confidential-elgamal-registry-interface', 'confidential-proof-extraction', 'confidential-proof-generation', 'confidential-proof-tests']"
   WASM_PACKAGES: "['confidential-elgamal-registry-interface', 'interface', 'program']"
-  NO_STD_ALLOC_PACKAGES: "['confidential-proof-extraction', 'interface']"
+  NO_STD_ALLOC_PACKAGES: "['confidential-ciphertext-arithmetic', 'confidential-elgamal-registry-interface', 'confidential-proof-extraction', 'interface']"
 
 jobs:
   set_env:
