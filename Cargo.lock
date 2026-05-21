@@ -10934,7 +10934,7 @@ dependencies = [
  "spl-elgamal-registry-interface",
  "spl-memo-interface",
  "spl-tlv-account-resolution",
- "spl-token-2022-interface 3.0.0",
+ "spl-token-2022-interface 3.0.1",
  "spl-token-confidential-transfer-ciphertext-arithmetic",
  "spl-token-confidential-transfer-proof-extraction 0.6.1",
  "spl-token-group-interface",
@@ -10974,7 +10974,7 @@ dependencies = [
 
 [[package]]
 name = "spl-token-2022-interface"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "arrayref",
  "base64 0.22.1",
@@ -10998,7 +10998,7 @@ dependencies = [
  "solana-zero-copy",
  "solana-zk-elgamal-proof-interface",
  "solana-zk-sdk-pod",
- "spl-token-2022-interface 3.0.0",
+ "spl-token-2022-interface 3.0.1",
  "spl-token-confidential-transfer-proof-extraction 0.6.1",
  "spl-token-group-interface",
  "spl-token-interface 3.0.0",
@@ -11039,7 +11039,7 @@ dependencies = [
  "solana-zk-sdk-pod",
  "spl-associated-token-account-interface",
  "spl-token-2022",
- "spl-token-2022-interface 3.0.0",
+ "spl-token-2022-interface 3.0.1",
  "spl-token-client",
  "spl-token-confidential-transfer-proof-generation 0.6.0",
  "spl-token-group-interface",
@@ -11093,7 +11093,7 @@ dependencies = [
  "spl-record",
  "spl-tlv-account-resolution",
  "spl-token-2022",
- "spl-token-2022-interface 3.0.0",
+ "spl-token-2022-interface 3.0.1",
  "spl-token-client",
  "spl-token-confidential-transfer-proof-extraction 0.6.1",
  "spl-token-confidential-transfer-proof-generation 0.6.0",
