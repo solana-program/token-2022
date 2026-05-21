@@ -2,7 +2,9 @@
 //! instruction data in SPL crates
 
 use {
+    alloc::vec::Vec,
     bytemuck::Pod,
+    core::{num::NonZeroI8, slice::Iter},
     solana_account_info::{next_account_info, AccountInfo},
     solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
@@ -15,7 +17,6 @@ use {
         proof_data::{ProofType, ZkProofData},
         state::ProofContextState,
     },
-    std::{num::NonZeroI8, slice::Iter},
 };
 
 /// Checks that the supplied program ID is correct for the ZK ElGamal proof

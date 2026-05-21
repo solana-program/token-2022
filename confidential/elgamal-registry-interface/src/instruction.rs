@@ -1,5 +1,6 @@
 use {
     crate::{get_elgamal_registry_address, id},
+    alloc::{vec, vec::Vec},
     solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,

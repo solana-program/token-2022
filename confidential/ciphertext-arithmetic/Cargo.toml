@@ -9,9 +9,8 @@ license = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-base64 = "0.22.1"
 bytemuck = "1.25.0"
-solana-curve25519 = { version = "3.0.7", features = ["agave-unstable-api"] }
+solana-curve25519 = "4.0.1"
 solana-zk-sdk-pod = "0.1.2"
 
 [dev-dependencies]

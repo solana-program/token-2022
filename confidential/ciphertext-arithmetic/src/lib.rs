@@ -1,3 +1,5 @@
+#![no_std]
+
 use {
     bytemuck::bytes_of,
     solana_curve25519::{
