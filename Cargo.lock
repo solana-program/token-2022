@@ -11108,7 +11108,7 @@ dependencies = [
 
 [[package]]
 name = "spl-token-confidential-transfer-ciphertext-arithmetic"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bytemuck",
  "curve25519-dalek 4.1.3",
