@@ -1,6 +1,6 @@
 [package]
 name = "spl-elgamal-registry-interface"
-version = "0.2.0"
+version = "0.2.1"
 description = "SPL ElGamal Registry Interface"
 authors = { workspace = true }
 repository = { workspace = true }
