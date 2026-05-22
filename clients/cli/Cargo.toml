@@ -19,7 +19,7 @@ clap = "3.2.23"
 console = "0.16.3"
 futures = "0.3"
 serde = "1.0.219"
-serde_json = "1.0.149"
+serde_json = "1.0.150"
 solana-account-decoder = "4.0.0-beta.7"
 solana-clap-v3-utils = { version = "3.1.14", features = ["agave-unstable-api"] }
 solana-cli-config = { version = "4.0.0-beta.7", features = ["agave-unstable-api"] }

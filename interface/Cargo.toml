@@ -44,7 +44,7 @@ getrandom = { version = "0.2", features = ["js"] }
 [dev-dependencies]
 base64 = "0.22.1"
 proptest = "1.11"
-serde_json = "1.0.149"
+serde_json = "1.0.150"
 solana-address = { version = "2.6.0", features = ["curve25519"] }
 spl-token-2022-interface = { path = ".", features = ["serde"] }
 spl-token-interface = { version = "3.0" }
