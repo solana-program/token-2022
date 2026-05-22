@@ -159,7 +159,7 @@ impl Processor {
     fn validate_token_metadata_update_field_payload(input: &[u8]) -> ProgramResult {
         let mut cursor = 0;
         match Self::read_u8(input, &mut cursor)? {
-            0 | 1 | 2 => {}
+            0..=2 => {}
             3 => Self::skip_borsh_string(input, &mut cursor)?,
             _ => return Err(ProgramError::InvalidInstructionData),
         }
@@ -2215,8 +2215,8 @@ impl Processor {
                 }
             }
         } else if Self::validate_affected_token_metadata_instruction(input)? {
-            let instruction =
-                TokenMetadataInstruction::unpack(input).map_err(|_| ProgramError::InvalidInstructionData)?;
+            let instruction = TokenMetadataInstruction::unpack(input)
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
             token_metadata::processor::process_instruction(program_id, accounts, instruction)
         } else if let Ok(instruction) = TokenMetadataInstruction::unpack(input) {
             token_metadata::processor::process_instruction(program_id, accounts, instruction)

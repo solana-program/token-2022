@@ -10,9 +10,7 @@ use {
     spl_token_2022_interface::{error::TokenError, extension::BaseStateWithExtensions},
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
     spl_token_metadata_interface::{
-        error::TokenMetadataError,
-        instruction::Initialize,
-        state::TokenMetadata,
+        error::TokenMetadataError, instruction::Initialize, state::TokenMetadata,
     },
     std::{convert::TryInto, sync::Arc},
 };
