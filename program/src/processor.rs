@@ -73,6 +73,15 @@ use {
     std::convert::{TryFrom, TryInto},
 };
 
+const TOKEN_METADATA_DISCRIMINATOR_LENGTH: usize = 8;
+const U32_BYTES: usize = 4;
+const TOKEN_METADATA_INITIALIZE_DISCRIMINATOR: [u8; TOKEN_METADATA_DISCRIMINATOR_LENGTH] =
+    [0xd2, 0xe1, 0x1e, 0xa2, 0x58, 0xb8, 0x4d, 0x8d];
+const TOKEN_METADATA_UPDATE_FIELD_DISCRIMINATOR: [u8; TOKEN_METADATA_DISCRIMINATOR_LENGTH] =
+    [0xdd, 0xe9, 0x31, 0x2d, 0xb5, 0xca, 0xdc, 0xc8];
+const TOKEN_METADATA_REMOVE_KEY_DISCRIMINATOR: [u8; TOKEN_METADATA_DISCRIMINATOR_LENGTH] =
+    [0xea, 0x12, 0x20, 0x38, 0x59, 0x8d, 0x25, 0xb5];
+
 pub(crate) enum TransferInstruction {
     Unchecked,
     Checked { decimals: u8 },
@@ -96,6 +105,98 @@ pub(crate) enum BurnInstructionVariant {
 /// Program state handler.
 pub struct Processor {}
 impl Processor {
+    fn read_u8(input: &[u8], cursor: &mut usize) -> Result<u8, ProgramError> {
+        let value = *input
+            .get(*cursor)
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        *cursor = cursor
+            .checked_add(1)
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        Ok(value)
+    }
+
+    fn read_u32(input: &[u8], cursor: &mut usize) -> Result<u32, ProgramError> {
+        let end = cursor
+            .checked_add(U32_BYTES)
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        let bytes = input
+            .get(*cursor..end)
+            .and_then(|slice| slice.try_into().ok())
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        *cursor = end;
+        Ok(u32::from_le_bytes(bytes))
+    }
+
+    fn skip_borsh_string(input: &[u8], cursor: &mut usize) -> ProgramResult {
+        let length = usize::try_from(Self::read_u32(input, cursor)?)
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
+        let end = cursor
+            .checked_add(length)
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        input
+            .get(*cursor..end)
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        *cursor = end;
+        Ok(())
+    }
+
+    fn validate_no_remaining_bytes(input: &[u8], cursor: usize) -> ProgramResult {
+        if cursor == input.len() {
+            Ok(())
+        } else {
+            Err(ProgramError::InvalidInstructionData)
+        }
+    }
+
+    fn validate_token_metadata_initialize_payload(input: &[u8]) -> ProgramResult {
+        let mut cursor = 0;
+        Self::skip_borsh_string(input, &mut cursor)?;
+        Self::skip_borsh_string(input, &mut cursor)?;
+        Self::skip_borsh_string(input, &mut cursor)?;
+        Self::validate_no_remaining_bytes(input, cursor)
+    }
+
+    fn validate_token_metadata_update_field_payload(input: &[u8]) -> ProgramResult {
+        let mut cursor = 0;
+        match Self::read_u8(input, &mut cursor)? {
+            0 | 1 | 2 => {}
+            3 => Self::skip_borsh_string(input, &mut cursor)?,
+            _ => return Err(ProgramError::InvalidInstructionData),
+        }
+        Self::skip_borsh_string(input, &mut cursor)?;
+        Self::validate_no_remaining_bytes(input, cursor)
+    }
+
+    fn validate_token_metadata_remove_key_payload(input: &[u8]) -> ProgramResult {
+        let mut cursor = 0;
+        match Self::read_u8(input, &mut cursor)? {
+            0 | 1 => {}
+            _ => return Err(ProgramError::InvalidInstructionData),
+        }
+        Self::skip_borsh_string(input, &mut cursor)?;
+        Self::validate_no_remaining_bytes(input, cursor)
+    }
+
+    fn validate_affected_token_metadata_instruction(input: &[u8]) -> Result<bool, ProgramError> {
+        if input.len() < TOKEN_METADATA_DISCRIMINATOR_LENGTH {
+            return Ok(false);
+        }
+
+        let (discriminator, rest) = input.split_at(TOKEN_METADATA_DISCRIMINATOR_LENGTH);
+        if discriminator == TOKEN_METADATA_INITIALIZE_DISCRIMINATOR.as_slice() {
+            Self::validate_token_metadata_initialize_payload(rest)?;
+            Ok(true)
+        } else if discriminator == TOKEN_METADATA_UPDATE_FIELD_DISCRIMINATOR.as_slice() {
+            Self::validate_token_metadata_update_field_payload(rest)?;
+            Ok(true)
+        } else if discriminator == TOKEN_METADATA_REMOVE_KEY_DISCRIMINATOR.as_slice() {
+            Self::validate_token_metadata_remove_key_payload(rest)?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     fn _process_initialize_mint(
         accounts: &[AccountInfo],
         decimals: u8,
@@ -2113,6 +2214,10 @@ impl Processor {
                     Self::process_unwrap_lamports(program_id, accounts, amount)
                 }
             }
+        } else if Self::validate_affected_token_metadata_instruction(input)? {
+            let instruction =
+                TokenMetadataInstruction::unpack(input).map_err(|_| ProgramError::InvalidInstructionData)?;
+            token_metadata::processor::process_instruction(program_id, accounts, instruction)
         } else if let Ok(instruction) = TokenMetadataInstruction::unpack(input) {
             token_metadata::processor::process_instruction(program_id, accounts, instruction)
         } else if let Ok(instruction) = TokenGroupInstruction::unpack(input) {
