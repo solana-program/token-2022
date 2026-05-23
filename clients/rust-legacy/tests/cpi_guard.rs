@@ -9,7 +9,9 @@ use {
     solana_sdk::{
         instruction::InstructionError, pubkey::Pubkey, rent::Rent, signature::Signer,
         signer::keypair::Keypair, transaction::TransactionError, transport::TransportError,
+        transaction::Transaction,
     },
+    solana_system_interface::instruction as system_instruction,
     spl_instruction_padding_interface::instruction::wrap_instruction,
     spl_token_2022_interface::{
         error::TokenError,
@@ -683,6 +685,57 @@ async fn test_cpi_guard_unwrap_lamports() {
 
     let alice_state = token.get_account_info(&alice.pubkey()).await.unwrap();
     assert_eq!(alice_state.base.amount, amount);
+}
+
+#[tokio::test]
+async fn test_cpi_guard_withdraw_excess_lamports() {
+    let context = make_context_with_new_mint().await;
+    let program_context = context.context.clone();
+    let TokenContext {
+        token, alice, bob, ..
+    } = context.token_context.unwrap();
+
+    let withdraw_excess_lamports = [wrap_instruction(
+        spl_instruction_padding_interface::id(),
+        instruction::withdraw_excess_lamports(
+            &spl_token_2022_interface::id(),
+            &alice.pubkey(),
+            &bob.pubkey(),
+            &alice.pubkey(),
+            &[],
+        )
+        .unwrap(),
+        vec![],
+        0,
+    )
+    .unwrap()];
+
+    token
+        .enable_cpi_guard(&alice.pubkey(), &alice.pubkey(), &[&alice])
+        .await
+        .unwrap();
+
+    {
+        let context = program_context.lock().await;
+        let instructions = vec![system_instruction::transfer(
+            &context.payer.pubkey(),
+            &alice.pubkey(),
+            1,
+        )];
+        let tx = Transaction::new_signed_with_payer(
+            &instructions,
+            Some(&context.payer.pubkey()),
+            &[&context.payer],
+            context.last_blockhash,
+        );
+        context.banks_client.process_transaction(tx).await.unwrap();
+    }
+
+    let error = token
+        .process_ixs(&withdraw_excess_lamports, &[&alice])
+        .await
+        .expect_err("expected CPI withdraw_excess_lamports to be blocked by CPI Guard");
+    assert_eq!(error, client_error(TokenError::CpiGuardTransferBlocked));
 }
 
 async fn make_close_test_account<S: Signer>(
