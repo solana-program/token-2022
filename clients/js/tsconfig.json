@@ -1,7 +1,6 @@
 {
     "$schema": "https://json.schemastore.org/tsconfig",
     "compilerOptions": {
-        "baseUrl": ".",
         "composite": false,
         "declaration": true,
         "declarationMap": true,
@@ -10,14 +9,11 @@
         "inlineSources": false,
         "isolatedModules": true,
         "module": "ESNext",
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
         "noFallthroughCasesInSwitch": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "outDir": "./dist",
-        "paths": {
-            "@solana/zk-sdk/node": ["./node_modules/@solana/zk-sdk/dist/node/index.d.ts"]
-        },
         "preserveWatchOutput": true,
         "skipLibCheck": true,
         "strict": true,

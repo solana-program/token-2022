@@ -44,7 +44,8 @@
     "homepage": "https://github.com/solana-program/token-2022#readme",
     "peerDependencies": {
         "@solana/kit": "^6.0.0",
-        "@solana/sysvars": "^5.0"
+        "@solana/sysvars": "^5.0",
+        "@solana/zk-sdk": "^0.4.2"
     },
     "dependencies": {
         "@noble/curves": "^1.9.7",

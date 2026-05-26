@@ -47,108 +47,10 @@ const TRANSFER_AMOUNT_HI_BIT_LENGTH = 32n;
 const REMAINING_BALANCE_BIT_LENGTH = 64;
 const RANGE_PROOF_PADDING_BIT_LENGTH = 16;
 
-type BytesLike = { toBytes(): Uint8Array };
+import type * as ZkSdk from '@solana/zk-sdk/node';
 
-export type ConfidentialTransferZkAeCiphertext = BytesLike;
-export type ConfidentialTransferZkElGamalCiphertext = BytesLike;
-export type ConfidentialTransferZkPedersenCommitment = BytesLike;
-export type ConfidentialTransferZkPedersenOpening = object;
-export type ConfidentialTransferZkGroupedElGamalCiphertext3Handles = BytesLike;
-export type ConfidentialTransferZkProofContext = BytesLike;
-export type ConfidentialTransferZkProofData = BytesLike & {
-    context(): ConfidentialTransferZkProofContext;
-};
-
-export type ConfidentialTransferZkAeKey = BytesLike & {
-    decrypt(ciphertext: ConfidentialTransferZkAeCiphertext): bigint;
-    encrypt(amount: bigint): ConfidentialTransferZkAeCiphertext;
-};
-
-export type ConfidentialTransferZkElGamalSecretKey = BytesLike & {
-    decrypt(ciphertext: ConfidentialTransferZkElGamalCiphertext): bigint;
-};
-
-export type ConfidentialTransferZkElGamalPubkey = BytesLike & {
-    encryptWith(
-        amount: bigint,
-        opening: ConfidentialTransferZkPedersenOpening,
-    ): ConfidentialTransferZkElGamalCiphertext;
-};
-
-export type ConfidentialTransferZkElGamalKeypair = {
-    pubkey(): ConfidentialTransferZkElGamalPubkey;
-    secret(): ConfidentialTransferZkElGamalSecretKey;
-};
-
-/**
- * Interface that any JS/WASM-backed ZK client must satisfy to be used with
- * the confidential transfer helpers. This decouples the helpers from a
- * specific `@solana/zk-sdk` version — callers provide their own client.
- */
-export type ConfidentialTransferZkClient = {
-    AeCiphertext: {
-        fromBytes(bytes: Uint8Array): ConfidentialTransferZkAeCiphertext | undefined;
-    };
-    ElGamalCiphertext: {
-        fromBytes(bytes: Uint8Array): ConfidentialTransferZkElGamalCiphertext | undefined;
-    };
-    ElGamalPubkey: {
-        fromBytes(bytes: Uint8Array): ConfidentialTransferZkElGamalPubkey;
-    };
-    GroupedElGamalCiphertext3Handles: {
-        encryptWith(
-            firstPubkey: ConfidentialTransferZkElGamalPubkey,
-            secondPubkey: ConfidentialTransferZkElGamalPubkey,
-            thirdPubkey: ConfidentialTransferZkElGamalPubkey,
-            amount: bigint,
-            opening: ConfidentialTransferZkPedersenOpening,
-        ): ConfidentialTransferZkGroupedElGamalCiphertext3Handles;
-    };
-    PedersenCommitment: {
-        from(amount: bigint, opening: ConfidentialTransferZkPedersenOpening): ConfidentialTransferZkPedersenCommitment;
-        fromBytes(bytes: Uint8Array): ConfidentialTransferZkPedersenCommitment;
-    };
-    PedersenOpening: new () => ConfidentialTransferZkPedersenOpening;
-    PubkeyValidityProofData: new (keypair: ConfidentialTransferZkElGamalKeypair) => ConfidentialTransferZkProofData;
-    CiphertextCommitmentEqualityProofData: new (
-        keypair: ConfidentialTransferZkElGamalKeypair,
-        ciphertext: ConfidentialTransferZkElGamalCiphertext,
-        commitment: ConfidentialTransferZkPedersenCommitment,
-        opening: ConfidentialTransferZkPedersenOpening,
-        amount: bigint,
-    ) => ConfidentialTransferZkProofData;
-    BatchedRangeProofU64Data: new (
-        commitments: ConfidentialTransferZkPedersenCommitment[],
-        amounts: BigUint64Array,
-        bitLengths: Uint8Array,
-        openings: ConfidentialTransferZkPedersenOpening[],
-    ) => ConfidentialTransferZkProofData;
-    BatchedRangeProofU128Data: new (
-        commitments: ConfidentialTransferZkPedersenCommitment[],
-        amounts: BigUint64Array,
-        bitLengths: Uint8Array,
-        openings: ConfidentialTransferZkPedersenOpening[],
-    ) => ConfidentialTransferZkProofData;
-    BatchedGroupedCiphertext3HandlesValidityProofData: new (
-        firstPubkey: ConfidentialTransferZkElGamalPubkey,
-        secondPubkey: ConfidentialTransferZkElGamalPubkey,
-        thirdPubkey: ConfidentialTransferZkElGamalPubkey,
-        groupedCiphertextLo: ConfidentialTransferZkGroupedElGamalCiphertext3Handles,
-        groupedCiphertextHi: ConfidentialTransferZkGroupedElGamalCiphertext3Handles,
-        amountLo: bigint,
-        amountHi: bigint,
-        openingLo: ConfidentialTransferZkPedersenOpening,
-        openingHi: ConfidentialTransferZkPedersenOpening,
-    ) => ConfidentialTransferZkProofData;
-    AeKey: {
-        signerMessage(publicSeed: Uint8Array): Uint8Array;
-        fromSignature(signature: Uint8Array): ConfidentialTransferZkAeKey;
-    };
-    ElGamalKeypair: {
-        signerMessage(publicSeed: Uint8Array): Uint8Array;
-        fromSignature(signature: Uint8Array): ConfidentialTransferZkElGamalKeypair;
-    };
-};
+/** The runtime shape of `@solana/zk-sdk/node` — pass it as the `zk` parameter to every helper. */
+export type ConfidentialTransferZkClient = typeof ZkSdk;
 
 type ConfidentialTransferAccountExtension = Extract<Extension, { __kind: 'ConfidentialTransferAccount' }>;
 
@@ -166,8 +68,8 @@ export type GetCreateConfidentialTransferAccountInstructionPlanInput = {
     authority?: Address | TransactionSigner;
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
     zk: ConfidentialTransferZkClient;
-    elgamalKeypair: ConfidentialTransferZkElGamalKeypair;
-    aesKey: ConfidentialTransferZkAeKey;
+    elgamalKeypair: ZkSdk.ElGamalKeypair;
+    aesKey: ZkSdk.AeKey;
     maximumPendingBalanceCreditCounter?: number | bigint;
     multiSigners?: Array<TransactionSigner>;
     programAddress?: Address;
@@ -178,8 +80,8 @@ export type GetApplyConfidentialPendingBalanceInstructionFromTokenInput = {
     tokenAccount: Token;
     authority: Address | TransactionSigner;
     zk: ConfidentialTransferZkClient;
-    elgamalSecretKey: ConfidentialTransferZkElGamalSecretKey;
-    aesKey: ConfidentialTransferZkAeKey;
+    elgamalSecretKey: ZkSdk.ElGamalSecretKey;
+    aesKey: ZkSdk.AeKey;
     multiSigners?: Array<TransactionSigner>;
     programAddress?: Address;
 };
@@ -192,8 +94,8 @@ type GetConfidentialWithdrawInstructionPlanBaseInput = {
     amount: number | bigint;
     decimals: number;
     zk: ConfidentialTransferZkClient;
-    elgamalKeypair: ConfidentialTransferZkElGamalKeypair;
-    aesKey: ConfidentialTransferZkAeKey;
+    elgamalKeypair: ZkSdk.ElGamalKeypair;
+    aesKey: ZkSdk.AeKey;
     multiSigners?: Array<TransactionSigner>;
     programAddress?: Address;
 };
@@ -210,8 +112,8 @@ type GetConfidentialTransferInstructionPlanBaseInput = {
     authority: Address | TransactionSigner;
     amount: number | bigint;
     zk: ConfidentialTransferZkClient;
-    sourceElgamalKeypair: ConfidentialTransferZkElGamalKeypair;
-    aesKey: ConfidentialTransferZkAeKey;
+    sourceElgamalKeypair: ZkSdk.ElGamalKeypair;
+    aesKey: ZkSdk.AeKey;
     multiSigners?: Array<TransactionSigner>;
     programAddress?: Address;
 } & (
@@ -299,7 +201,7 @@ function combineBalances(balanceLo: bigint, balanceHi: bigint) {
 function decryptAvailableBalance(
     zk: ConfidentialTransferZkClient,
     account: ConfidentialTransferAccountExtension,
-    aesKey: ConfidentialTransferZkAeKey,
+    aesKey: ZkSdk.AeKey,
 ) {
     return aesKey.decrypt(parseAeCiphertext(zk, account.decryptableAvailableBalance));
 }
@@ -484,7 +386,7 @@ export function getApplyConfidentialPendingBalanceInstructionFromToken(
  * available balance back to the plaintext balance. Generates and verifies
  * the equality and batched range proofs via context-state accounts.
  */
-export async function getConfidentialWithdrawInstructions(
+export async function getConfidentialWithdrawInstructionPlan(
     input: GetConfidentialWithdrawInstructionPlanInput,
 ): Promise<InstructionPlan> {
     assertInstructionDataProofModeIsUnsupported(input as { proofMode?: string });
@@ -555,7 +457,7 @@ export async function getConfidentialWithdrawInstructions(
  * required proofs (equality, grouped-ciphertext validity, batched range)
  * via context-state accounts.
  */
-export async function getConfidentialTransferInstructions(
+export async function getConfidentialTransferInstructionPlan(
     input: GetConfidentialTransferInstructionPlanInput,
 ): Promise<InstructionPlan> {
     assertInstructionDataProofModeIsUnsupported(input as { proofMode?: string });

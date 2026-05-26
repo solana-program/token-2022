@@ -6,10 +6,9 @@ import {
     some,
     type MessagePartialSigner,
 } from '@solana/kit';
-import * as zkSdk from '@solana/zk-sdk/node';
+import * as zk from '@solana/zk-sdk/node';
 import test from 'ava';
 import {
-    type ConfidentialTransferZkClient,
     deriveAeKey,
     deriveAeKeyForOwnerMint,
     deriveElGamalKeypair,
@@ -18,7 +17,6 @@ import {
     parseInitializeConfidentialTransferMintInstruction,
 } from '../src';
 
-const zk = zkSdk as unknown as ConfidentialTransferZkClient;
 const ADDRESS_DECODER = getAddressDecoder();
 const ADDRESS_ENCODER = getAddressEncoder();
 

@@ -2,15 +2,12 @@ import { generateKeyPairSigner } from '@solana/kit';
 import * as zk from '@solana/zk-sdk/node';
 import test from 'ava';
 import {
-    type ConfidentialTransferZkClient,
-    getConfidentialTransferInstructions,
-    getConfidentialWithdrawInstructions,
+    getConfidentialTransferInstructionPlan,
+    getConfidentialWithdrawInstructionPlan,
     getCreateConfidentialTransferAccountInstructionPlan,
     type Token,
 } from '../../../src';
 import { createDefaultSolanaClient } from '../../_setup';
-
-const zkClient = zk as unknown as ConfidentialTransferZkClient;
 
 test('it rejects create helper authority that does not match the owner ATA flow', async t => {
     const [payer, owner, delegatedAuthority] = await Promise.all([
@@ -29,7 +26,7 @@ test('it rejects create helper authority that does not match the owner ATA flow'
                 authority: delegatedAuthority,
                 mint: payer.address,
                 rpc: createDefaultSolanaClient().rpc,
-                zk: zkClient,
+                zk,
                 elgamalKeypair,
                 aesKey,
             }),
@@ -46,7 +43,7 @@ test('it rejects instruction-data proof mode for confidential withdraw', async t
 
     await t.throwsAsync(
         () =>
-            getConfidentialWithdrawInstructions({
+            getConfidentialWithdrawInstructionPlan({
                 payer,
                 rpc: createDefaultSolanaClient().rpc,
                 token: payer.address,
@@ -55,11 +52,11 @@ test('it rejects instruction-data proof mode for confidential withdraw', async t
                 authority: owner,
                 amount: 1n,
                 decimals: 0,
-                zk: zkClient,
+                zk,
                 elgamalKeypair,
                 aesKey,
                 proofMode: 'instruction-data',
-            } as unknown as Parameters<typeof getConfidentialWithdrawInstructions>[0]),
+            } as unknown as Parameters<typeof getConfidentialWithdrawInstructionPlan>[0]),
         {
             message: /instruction-data proof mode is unsupported/i,
         },
@@ -73,7 +70,7 @@ test('it rejects instruction-data proof mode for confidential transfer', async t
 
     await t.throwsAsync(
         () =>
-            getConfidentialTransferInstructions({
+            getConfidentialTransferInstructionPlan({
                 payer,
                 rpc: createDefaultSolanaClient().rpc,
                 sourceToken: payer.address,
@@ -82,11 +79,11 @@ test('it rejects instruction-data proof mode for confidential transfer', async t
                 sourceTokenAccount: {} as Token,
                 authority: owner,
                 amount: 1n,
-                zk: zkClient,
+                zk,
                 sourceElgamalKeypair,
                 aesKey,
                 proofMode: 'instruction-data',
-            } as unknown as Parameters<typeof getConfidentialTransferInstructions>[0]),
+            } as unknown as Parameters<typeof getConfidentialTransferInstructionPlan>[0]),
         {
             message: /instruction-data proof mode is unsupported/i,
         },
