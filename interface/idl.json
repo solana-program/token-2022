@@ -3230,16 +3230,6 @@
                     },
                     {
                         "kind": "instructionAccountNode",
-                        "name": "record",
-                        "isWritable": false,
-                        "isSigner": false,
-                        "isOptional": true,
-                        "docs": [
-                            "(Optional) Record account if the accompanying proof is to be read from a record account."
-                        ]
-                    },
-                    {
-                        "kind": "instructionAccountNode",
                         "name": "authority",
                         "isWritable": false,
                         "isSigner": "either",
@@ -3325,6 +3315,112 @@
                         "value": {
                             "kind": "argumentValueNode",
                             "name": "multiSigners"
+                        }
+                    }
+                ],
+                "discriminators": [
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "discriminator",
+                        "offset": 0
+                    },
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "confidentialTransferDiscriminator",
+                        "offset": 1
+                    }
+                ]
+            },
+            {
+                "kind": "instructionNode",
+                "name": "configureConfidentialTransferAccountWithRegistry",
+                "docs": [
+                    "Configures confidential transfers for a token account using an",
+                    "ElGamal registry account that supplies the encryption pubkey.",
+                    "",
+                    "Unlike `ConfigureAccount`, this instruction does not require a",
+                    "`VerifyPubkeyValidity` proof: the registry already attests to the",
+                    "validity of the ElGamal public key.",
+                    "",
+                    "If the token account does not yet have room for the",
+                    "`ConfidentialTransferAccount` extension, pass `payer` and",
+                    "`systemProgram` so the instruction can fund the required reallocation."
+                ],
+                "optionalAccountStrategy": "omitted",
+                "accounts": [
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "token",
+                        "isWritable": true,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The SPL Token account to configure."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "mint",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The corresponding SPL Token mint."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "elgamalRegistry",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The ElGamal registry account that provides the encryption pubkey for the owner."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "payer",
+                        "isWritable": true,
+                        "isSigner": true,
+                        "isOptional": true,
+                        "docs": [
+                            "(Optional) Payer that funds the rent required to reallocate the token",
+                            "account when it does not yet have the `ConfidentialTransferAccount` extension."
+                        ]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "systemProgram",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": true,
+                        "docs": ["(Optional) System program, required when `payer` is provided."]
+                    }
+                ],
+                "arguments": [
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "discriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 27
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "confidentialTransferDiscriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 14
                         }
                     }
                 ],

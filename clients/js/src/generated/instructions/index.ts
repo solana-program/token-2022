@@ -19,6 +19,7 @@ export * from './confidentialTransfer';
 export * from './confidentialTransferWithFee';
 export * from './confidentialWithdraw';
 export * from './configureConfidentialTransferAccount';
+export * from './configureConfidentialTransferAccountWithRegistry';
 export * from './createAssociatedToken';
 export * from './createAssociatedTokenIdempotent';
 export * from './createNativeMint';
