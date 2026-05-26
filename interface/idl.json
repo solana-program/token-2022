@@ -3703,7 +3703,7 @@
                     "Fails if the source or destination accounts are frozen.",
                     "Fails if the associated mint is extended as `NonTransferable`."
                 ],
-                "optionalAccountStrategy": "programId",
+                "optionalAccountStrategy": "omitted",
                 "accounts": [
                     {
                         "kind": "instructionAccountNode",
@@ -3891,7 +3891,7 @@
                     "",
                     "Fails if the associated mint is extended as `NonTransferable`."
                 ],
-                "optionalAccountStrategy": "programId",
+                "optionalAccountStrategy": "omitted",
                 "accounts": [
                     {
                         "kind": "instructionAccountNode",
