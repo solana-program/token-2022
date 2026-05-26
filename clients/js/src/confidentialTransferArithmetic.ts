@@ -36,6 +36,9 @@ function pointsToCiphertext(commitment: ReturnType<typeof pointFromBytes>, handl
  * by N 32-byte handles. The returned 64-byte array is [commitment, handle].
  */
 export function extractCiphertextFromGroupedBytes(groupedCiphertext: ReadonlyUint8Array, handleIndex: number) {
+    if (!Number.isInteger(handleIndex) || handleIndex < 0) {
+        throw new Error(`handleIndex must be a non-negative integer, got ${handleIndex}.`);
+    }
     const start = 32 + handleIndex * 32;
     const end = start + 32;
     if (groupedCiphertext.length < end) {

@@ -330,7 +330,14 @@ function assertCreateHelperOwnerMatchesAuthority(
  * transaction). The cleanup plan closes the context-state account to recover
  * its rent.
  */
+function assertNonNegativeAmount(amount: bigint): void {
+    if (amount < 0n) {
+        throw new Error('Amount must be non-negative.');
+    }
+}
+
 function computeNewAvailableBalance(currentBalance: bigint, amount: bigint): bigint {
+    assertNonNegativeAmount(amount);
     const newBalance = currentBalance - amount;
     if (newBalance < 0n) {
         throw new Error('Insufficient funds.');
@@ -483,6 +490,7 @@ export async function getConfidentialWithdrawInstructions(
     assertInstructionDataProofModeIsUnsupported(input as { proofMode?: string });
     const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
     const amount = BigInt(input.amount);
+    assertNonNegativeAmount(amount);
     const newAvailableBalance = computeNewAvailableBalance(
         decryptAvailableBalance(input.zk, account, input.aesKey),
         amount,
@@ -553,6 +561,7 @@ export async function getConfidentialTransferInstructions(
     assertInstructionDataProofModeIsUnsupported(input as { proofMode?: string });
     const sourceAccount = getRequiredConfidentialTransferAccountExtension(input.sourceTokenAccount);
     const amount = BigInt(input.amount);
+    assertNonNegativeAmount(amount);
     const [transferAmountLo, transferAmountHi] = splitAmount(amount, TRANSFER_AMOUNT_LO_BIT_LENGTH);
 
     const sourcePubkey = input.sourceElgamalKeypair.pubkey();
