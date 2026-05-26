@@ -61,10 +61,10 @@ export type ConfidentialTransferInstruction<
     TAccountSourceToken extends string | AccountMeta<string> = string,
     TAccountMint extends string | AccountMeta<string> = string,
     TAccountDestinationToken extends string | AccountMeta<string> = string,
-    TAccountInstructionsSysvar extends string | AccountMeta<string> = string,
-    TAccountEqualityRecord extends string | AccountMeta<string> = string,
-    TAccountCiphertextValidityRecord extends string | AccountMeta<string> = string,
-    TAccountRangeRecord extends string | AccountMeta<string> = string,
+    TAccountInstructionsSysvar extends string | AccountMeta<string> | undefined = undefined,
+    TAccountEqualityRecord extends string | AccountMeta<string> | undefined = undefined,
+    TAccountCiphertextValidityRecord extends string | AccountMeta<string> | undefined = undefined,
+    TAccountRangeRecord extends string | AccountMeta<string> | undefined = undefined,
     TAccountAuthority extends string | AccountMeta<string> = string,
     TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
@@ -76,14 +76,30 @@ export type ConfidentialTransferInstruction<
             TAccountDestinationToken extends string
                 ? WritableAccount<TAccountDestinationToken>
                 : TAccountDestinationToken,
-            TAccountInstructionsSysvar extends string
-                ? ReadonlyAccount<TAccountInstructionsSysvar>
-                : TAccountInstructionsSysvar,
-            TAccountEqualityRecord extends string ? ReadonlyAccount<TAccountEqualityRecord> : TAccountEqualityRecord,
-            TAccountCiphertextValidityRecord extends string
-                ? ReadonlyAccount<TAccountCiphertextValidityRecord>
-                : TAccountCiphertextValidityRecord,
-            TAccountRangeRecord extends string ? ReadonlyAccount<TAccountRangeRecord> : TAccountRangeRecord,
+            ...(TAccountInstructionsSysvar extends undefined
+                ? []
+                : [
+                      TAccountInstructionsSysvar extends string
+                          ? ReadonlyAccount<TAccountInstructionsSysvar>
+                          : TAccountInstructionsSysvar,
+                  ]),
+            ...(TAccountEqualityRecord extends undefined
+                ? []
+                : [
+                      TAccountEqualityRecord extends string
+                          ? ReadonlyAccount<TAccountEqualityRecord>
+                          : TAccountEqualityRecord,
+                  ]),
+            ...(TAccountCiphertextValidityRecord extends undefined
+                ? []
+                : [
+                      TAccountCiphertextValidityRecord extends string
+                          ? ReadonlyAccount<TAccountCiphertextValidityRecord>
+                          : TAccountCiphertextValidityRecord,
+                  ]),
+            ...(TAccountRangeRecord extends undefined
+                ? []
+                : [TAccountRangeRecord extends string ? ReadonlyAccount<TAccountRangeRecord> : TAccountRangeRecord]),
             TAccountAuthority extends string ? ReadonlyAccount<TAccountAuthority> : TAccountAuthority,
             ...TRemainingAccounts,
         ]
@@ -304,7 +320,7 @@ export function getConfidentialTransferInstruction<
         signer,
     }));
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'omitted');
     return Object.freeze({
         accounts: [
             getAccountMeta(accounts.sourceToken),
@@ -316,7 +332,7 @@ export function getConfidentialTransferInstruction<
             getAccountMeta(accounts.rangeRecord),
             getAccountMeta(accounts.authority),
             ...remainingAccounts,
-        ],
+        ].filter(<T>(x: T | undefined): x is T => x !== undefined),
         data: getConfidentialTransferInstructionDataEncoder().encode(args as ConfidentialTransferInstructionDataArgs),
         programAddress,
     } as ConfidentialTransferInstruction<
@@ -372,7 +388,7 @@ export function parseConfidentialTransferInstruction<
         InstructionWithAccounts<TAccountMetas> &
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedConfidentialTransferInstruction<TProgram, TAccountMetas> {
-    if (instruction.accounts.length < 8) {
+    if (instruction.accounts.length < 4) {
         // TODO: Coded error.
         throw new Error('Not enough accounts');
     }
@@ -382,9 +398,11 @@ export function parseConfidentialTransferInstruction<
         accountIndex += 1;
         return accountMeta;
     };
+    let optionalAccountsRemaining = instruction.accounts.length - 4;
     const getNextOptionalAccount = () => {
-        const accountMeta = getNextAccount();
-        return accountMeta.address === TOKEN_2022_PROGRAM_ADDRESS ? undefined : accountMeta;
+        if (optionalAccountsRemaining === 0) return undefined;
+        optionalAccountsRemaining -= 1;
+        return getNextAccount();
     };
     return {
         programAddress: instruction.programAddress,

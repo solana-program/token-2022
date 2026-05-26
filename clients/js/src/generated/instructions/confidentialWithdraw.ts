@@ -58,9 +58,9 @@ export type ConfidentialWithdrawInstruction<
     TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
     TAccountToken extends string | AccountMeta<string> = string,
     TAccountMint extends string | AccountMeta<string> = string,
-    TAccountInstructionsSysvar extends string | AccountMeta<string> = string,
-    TAccountEqualityRecord extends string | AccountMeta<string> = string,
-    TAccountRangeRecord extends string | AccountMeta<string> = string,
+    TAccountInstructionsSysvar extends string | AccountMeta<string> | undefined = undefined,
+    TAccountEqualityRecord extends string | AccountMeta<string> | undefined = undefined,
+    TAccountRangeRecord extends string | AccountMeta<string> | undefined = undefined,
     TAccountAuthority extends string | AccountMeta<string> = string,
     TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
@@ -69,11 +69,23 @@ export type ConfidentialWithdrawInstruction<
         [
             TAccountToken extends string ? WritableAccount<TAccountToken> : TAccountToken,
             TAccountMint extends string ? ReadonlyAccount<TAccountMint> : TAccountMint,
-            TAccountInstructionsSysvar extends string
-                ? ReadonlyAccount<TAccountInstructionsSysvar>
-                : TAccountInstructionsSysvar,
-            TAccountEqualityRecord extends string ? ReadonlyAccount<TAccountEqualityRecord> : TAccountEqualityRecord,
-            TAccountRangeRecord extends string ? ReadonlyAccount<TAccountRangeRecord> : TAccountRangeRecord,
+            ...(TAccountInstructionsSysvar extends undefined
+                ? []
+                : [
+                      TAccountInstructionsSysvar extends string
+                          ? ReadonlyAccount<TAccountInstructionsSysvar>
+                          : TAccountInstructionsSysvar,
+                  ]),
+            ...(TAccountEqualityRecord extends undefined
+                ? []
+                : [
+                      TAccountEqualityRecord extends string
+                          ? ReadonlyAccount<TAccountEqualityRecord>
+                          : TAccountEqualityRecord,
+                  ]),
+            ...(TAccountRangeRecord extends undefined
+                ? []
+                : [TAccountRangeRecord extends string ? ReadonlyAccount<TAccountRangeRecord> : TAccountRangeRecord]),
             TAccountAuthority extends string ? ReadonlyAccount<TAccountAuthority> : TAccountAuthority,
             ...TRemainingAccounts,
         ]
@@ -251,7 +263,7 @@ export function getConfidentialWithdrawInstruction<
         signer,
     }));
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'omitted');
     return Object.freeze({
         accounts: [
             getAccountMeta(accounts.token),
@@ -261,7 +273,7 @@ export function getConfidentialWithdrawInstruction<
             getAccountMeta(accounts.rangeRecord),
             getAccountMeta(accounts.authority),
             ...remainingAccounts,
-        ],
+        ].filter(<T>(x: T | undefined): x is T => x !== undefined),
         data: getConfidentialWithdrawInstructionDataEncoder().encode(args as ConfidentialWithdrawInstructionDataArgs),
         programAddress,
     } as ConfidentialWithdrawInstruction<
@@ -311,7 +323,7 @@ export function parseConfidentialWithdrawInstruction<
         InstructionWithAccounts<TAccountMetas> &
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedConfidentialWithdrawInstruction<TProgram, TAccountMetas> {
-    if (instruction.accounts.length < 6) {
+    if (instruction.accounts.length < 3) {
         // TODO: Coded error.
         throw new Error('Not enough accounts');
     }
@@ -321,9 +333,11 @@ export function parseConfidentialWithdrawInstruction<
         accountIndex += 1;
         return accountMeta;
     };
+    let optionalAccountsRemaining = instruction.accounts.length - 3;
     const getNextOptionalAccount = () => {
-        const accountMeta = getNextAccount();
-        return accountMeta.address === TOKEN_2022_PROGRAM_ADDRESS ? undefined : accountMeta;
+        if (optionalAccountsRemaining === 0) return undefined;
+        optionalAccountsRemaining -= 1;
+        return getNextAccount();
     };
     return {
         programAddress: instruction.programAddress,
