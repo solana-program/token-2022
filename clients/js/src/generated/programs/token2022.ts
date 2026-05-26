@@ -29,6 +29,7 @@ import {
     parseConfidentialTransferWithFeeInstruction,
     parseConfidentialWithdrawInstruction,
     parseConfigureConfidentialTransferAccountInstruction,
+    parseConfigureConfidentialTransferAccountWithRegistryInstruction,
     parseCreateNativeMintInstruction,
     parseDisableConfidentialCreditsInstruction,
     parseDisableCpiGuardInstruction,
@@ -120,6 +121,7 @@ import {
     type ParsedConfidentialTransferWithFeeInstruction,
     type ParsedConfidentialWithdrawInstruction,
     type ParsedConfigureConfidentialTransferAccountInstruction,
+    type ParsedConfigureConfidentialTransferAccountWithRegistryInstruction,
     type ParsedCreateNativeMintInstruction,
     type ParsedDisableConfidentialCreditsInstruction,
     type ParsedDisableCpiGuardInstruction,
@@ -259,6 +261,7 @@ export enum Token2022Instruction {
     InitializeConfidentialTransferMint,
     UpdateConfidentialTransferMint,
     ConfigureConfidentialTransferAccount,
+    ConfigureConfidentialTransferAccountWithRegistry,
     ApproveConfidentialTransferAccount,
     EmptyConfidentialTransferAccount,
     ConfidentialDeposit,
@@ -425,6 +428,9 @@ export function identifyToken2022Instruction(
     }
     if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(2), 1)) {
         return Token2022Instruction.ConfigureConfidentialTransferAccount;
+    }
+    if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(14), 1)) {
+        return Token2022Instruction.ConfigureConfidentialTransferAccountWithRegistry;
     }
     if (containsBytes(data, getU8Encoder().encode(27), 0) && containsBytes(data, getU8Encoder().encode(3), 1)) {
         return Token2022Instruction.ApproveConfidentialTransferAccount;
@@ -653,6 +659,9 @@ export type ParsedToken2022Instruction<TProgram extends string = 'TokenzQdBNbLqP
     | ({
           instructionType: Token2022Instruction.ConfigureConfidentialTransferAccount;
       } & ParsedConfigureConfidentialTransferAccountInstruction<TProgram>)
+    | ({
+          instructionType: Token2022Instruction.ConfigureConfidentialTransferAccountWithRegistry;
+      } & ParsedConfigureConfidentialTransferAccountWithRegistryInstruction<TProgram>)
     | ({
           instructionType: Token2022Instruction.ApproveConfidentialTransferAccount;
       } & ParsedApproveConfidentialTransferAccountInstruction<TProgram>)
@@ -1002,6 +1011,13 @@ export function parseToken2022Instruction<TProgram extends string>(
             return {
                 instructionType: Token2022Instruction.ConfigureConfidentialTransferAccount,
                 ...parseConfigureConfidentialTransferAccountInstruction(instruction),
+            };
+        }
+        case Token2022Instruction.ConfigureConfidentialTransferAccountWithRegistry: {
+            assertIsInstructionWithAccounts(instruction);
+            return {
+                instructionType: Token2022Instruction.ConfigureConfidentialTransferAccountWithRegistry,
+                ...parseConfigureConfidentialTransferAccountWithRegistryInstruction(instruction),
             };
         }
         case Token2022Instruction.ApproveConfidentialTransferAccount: {
