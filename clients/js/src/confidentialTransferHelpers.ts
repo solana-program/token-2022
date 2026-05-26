@@ -16,7 +16,6 @@ import {
     nonDivisibleSequentialInstructionPlan,
     parallelInstructionPlan,
     sequentialInstructionPlan,
-    singleInstructionPlan,
     type GetMinimumBalanceForRentExemptionApi,
     type InstructionPlan,
     type ReadonlyUint8Array,
@@ -159,7 +158,7 @@ type ContextStateProofMode = {
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
 };
 
-export type GetCreateConfidentialTransferAccountInstructionsInput = {
+export type GetCreateConfidentialTransferAccountInstructionPlanInput = {
     payer: TransactionSigner;
     owner: Address | TransactionSigner;
     mint: Address;
@@ -185,7 +184,7 @@ export type GetApplyConfidentialPendingBalanceInstructionFromTokenInput = {
     programAddress?: Address;
 };
 
-type GetConfidentialWithdrawInstructionsBaseInput = {
+type GetConfidentialWithdrawInstructionPlanBaseInput = {
     token: Address;
     mint: Address;
     tokenAccount: Token;
@@ -199,10 +198,10 @@ type GetConfidentialWithdrawInstructionsBaseInput = {
     programAddress?: Address;
 };
 
-export type GetConfidentialWithdrawInstructionsInput = GetConfidentialWithdrawInstructionsBaseInput &
+export type GetConfidentialWithdrawInstructionPlanInput = GetConfidentialWithdrawInstructionPlanBaseInput &
     ContextStateProofMode;
 
-type GetConfidentialTransferInstructionsBaseInput = {
+type GetConfidentialTransferInstructionPlanBaseInput = {
     sourceToken: Address;
     mint: Address;
     destinationToken: Address;
@@ -220,7 +219,7 @@ type GetConfidentialTransferInstructionsBaseInput = {
     | { destinationElgamalPubkey: Address; destinationTokenAccount?: never }
 );
 
-export type GetConfidentialTransferInstructionsInput = GetConfidentialTransferInstructionsBaseInput &
+export type GetConfidentialTransferInstructionPlanInput = GetConfidentialTransferInstructionPlanBaseInput &
     ContextStateProofMode;
 
 function getTokenProgramAddress(programAddress?: Address) {
@@ -274,7 +273,7 @@ function getDefaultAuditorElGamalPubkey(zk: ConfidentialTransferZkClient) {
     return zk.ElGamalPubkey.fromBytes(new Uint8Array(32));
 }
 
-function getDestinationElGamalPubkey(input: GetConfidentialTransferInstructionsInput) {
+function getDestinationElGamalPubkey(input: GetConfidentialTransferInstructionPlanInput) {
     if (input.destinationElgamalPubkey) {
         return getElGamalPubkeyFromAddress(input.zk, input.destinationElgamalPubkey);
     }
@@ -383,8 +382,8 @@ async function buildContextStateProofPlan(
  * for the confidential-transfer extension, configures the account, and
  * verifies the ZK pubkey-validity proof.
  */
-export async function getCreateConfidentialTransferAccountInstructions(
-    input: GetCreateConfidentialTransferAccountInstructionsInput,
+export async function getCreateConfidentialTransferAccountInstructionPlan(
+    input: GetCreateConfidentialTransferAccountInstructionPlanInput,
 ): Promise<InstructionPlan> {
     const programAddress = getTokenProgramAddress(input.programAddress);
     const authority = input.authority ?? input.owner;
@@ -450,7 +449,7 @@ export async function getCreateConfidentialTransferAccountInstructions(
  */
 export function getApplyConfidentialPendingBalanceInstructionFromToken(
     input: GetApplyConfidentialPendingBalanceInstructionFromTokenInput,
-): InstructionPlan {
+): Instruction {
     const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
     const pendingBalanceLo = input.elgamalSecretKey.decrypt(
         parseElGamalCiphertext(input.zk, account.pendingBalanceLow),
@@ -465,17 +464,15 @@ export function getApplyConfidentialPendingBalanceInstructionFromToken(
         )
         .toBytes();
 
-    return singleInstructionPlan(
-        getApplyConfidentialPendingBalanceInstruction(
-            {
-                token: input.token,
-                authority: input.authority,
-                expectedPendingBalanceCreditCounter: account.pendingBalanceCreditCounter,
-                newDecryptableAvailableBalance,
-                multiSigners: input.multiSigners,
-            },
-            { programAddress: getTokenProgramAddress(input.programAddress) },
-        ),
+    return getApplyConfidentialPendingBalanceInstruction(
+        {
+            token: input.token,
+            authority: input.authority,
+            expectedPendingBalanceCreditCounter: account.pendingBalanceCreditCounter,
+            newDecryptableAvailableBalance,
+            multiSigners: input.multiSigners,
+        },
+        { programAddress: getTokenProgramAddress(input.programAddress) },
     );
 }
 
@@ -485,7 +482,7 @@ export function getApplyConfidentialPendingBalanceInstructionFromToken(
  * the equality and batched range proofs via context-state accounts.
  */
 export async function getConfidentialWithdrawInstructions(
-    input: GetConfidentialWithdrawInstructionsInput,
+    input: GetConfidentialWithdrawInstructionPlanInput,
 ): Promise<InstructionPlan> {
     assertInstructionDataProofModeIsUnsupported(input as { proofMode?: string });
     const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
@@ -555,7 +552,7 @@ export async function getConfidentialWithdrawInstructions(
  * via context-state accounts.
  */
 export async function getConfidentialTransferInstructions(
-    input: GetConfidentialTransferInstructionsInput,
+    input: GetConfidentialTransferInstructionPlanInput,
 ): Promise<InstructionPlan> {
     assertInstructionDataProofModeIsUnsupported(input as { proofMode?: string });
     const sourceAccount = getRequiredConfidentialTransferAccountExtension(input.sourceTokenAccount);

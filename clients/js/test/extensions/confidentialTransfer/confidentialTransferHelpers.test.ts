@@ -5,7 +5,7 @@ import {
     type ConfidentialTransferZkClient,
     getConfidentialTransferInstructions,
     getConfidentialWithdrawInstructions,
-    getCreateConfidentialTransferAccountInstructions,
+    getCreateConfidentialTransferAccountInstructionPlan,
     type Token,
 } from '../../../src';
 import { createDefaultSolanaClient } from '../../_setup';
@@ -23,7 +23,7 @@ test('it rejects create helper authority that does not match the owner ATA flow'
 
     await t.throwsAsync(
         () =>
-            getCreateConfidentialTransferAccountInstructions({
+            getCreateConfidentialTransferAccountInstructionPlan({
                 payer,
                 owner,
                 authority: delegatedAuthority,
