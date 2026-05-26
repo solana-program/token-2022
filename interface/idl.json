@@ -4004,6 +4004,30 @@
                     },
                     {
                         "kind": "instructionArgumentNode",
+                        "name": "transferAmountAuditorCiphertextLo",
+                        "docs": [
+                            "The low 16 bits of the transfer amount encrypted under the auditor",
+                            "ElGamal public key."
+                        ],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "encryptedBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "transferAmountAuditorCiphertextHi",
+                        "docs": [
+                            "The high 32 bits of the transfer amount encrypted under the auditor",
+                            "ElGamal public key."
+                        ],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "encryptedBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
                         "name": "equalityProofInstructionOffset",
                         "docs": [
                             "Relative location of the",

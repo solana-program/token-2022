@@ -36,8 +36,12 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import {
     getDecryptableBalanceDecoder,
     getDecryptableBalanceEncoder,
+    getEncryptedBalanceDecoder,
+    getEncryptedBalanceEncoder,
     type DecryptableBalance,
     type DecryptableBalanceArgs,
+    type EncryptedBalance,
+    type EncryptedBalanceArgs,
 } from '../types';
 
 export const CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 27;
@@ -91,6 +95,16 @@ export type ConfidentialTransferInstructionData = {
     /** The new source decryptable balance if the transfer succeeds. */
     newSourceDecryptableAvailableBalance: DecryptableBalance;
     /**
+     * The low 16 bits of the transfer amount encrypted under the auditor
+     * ElGamal public key.
+     */
+    transferAmountAuditorCiphertextLo: EncryptedBalance;
+    /**
+     * The high 32 bits of the transfer amount encrypted under the auditor
+     * ElGamal public key.
+     */
+    transferAmountAuditorCiphertextHi: EncryptedBalance;
+    /**
      * Relative location of the
      * `ProofInstruction::VerifyCiphertextCommitmentEquality` instruction
      * to the `Transfer` instruction in the transaction. If the offset is
@@ -115,6 +129,16 @@ export type ConfidentialTransferInstructionData = {
 export type ConfidentialTransferInstructionDataArgs = {
     /** The new source decryptable balance if the transfer succeeds. */
     newSourceDecryptableAvailableBalance: DecryptableBalanceArgs;
+    /**
+     * The low 16 bits of the transfer amount encrypted under the auditor
+     * ElGamal public key.
+     */
+    transferAmountAuditorCiphertextLo: EncryptedBalanceArgs;
+    /**
+     * The high 32 bits of the transfer amount encrypted under the auditor
+     * ElGamal public key.
+     */
+    transferAmountAuditorCiphertextHi: EncryptedBalanceArgs;
     /**
      * Relative location of the
      * `ProofInstruction::VerifyCiphertextCommitmentEquality` instruction
@@ -143,6 +167,8 @@ export function getConfidentialTransferInstructionDataEncoder(): FixedSizeEncode
             ['discriminator', getU8Encoder()],
             ['confidentialTransferDiscriminator', getU8Encoder()],
             ['newSourceDecryptableAvailableBalance', getDecryptableBalanceEncoder()],
+            ['transferAmountAuditorCiphertextLo', getEncryptedBalanceEncoder()],
+            ['transferAmountAuditorCiphertextHi', getEncryptedBalanceEncoder()],
             ['equalityProofInstructionOffset', getI8Encoder()],
             ['ciphertextValidityProofInstructionOffset', getI8Encoder()],
             ['rangeProofInstructionOffset', getI8Encoder()],
@@ -160,6 +186,8 @@ export function getConfidentialTransferInstructionDataDecoder(): FixedSizeDecode
         ['discriminator', getU8Decoder()],
         ['confidentialTransferDiscriminator', getU8Decoder()],
         ['newSourceDecryptableAvailableBalance', getDecryptableBalanceDecoder()],
+        ['transferAmountAuditorCiphertextLo', getEncryptedBalanceDecoder()],
+        ['transferAmountAuditorCiphertextHi', getEncryptedBalanceDecoder()],
         ['equalityProofInstructionOffset', getI8Decoder()],
         ['ciphertextValidityProofInstructionOffset', getI8Decoder()],
         ['rangeProofInstructionOffset', getI8Decoder()],
@@ -207,6 +235,8 @@ export type ConfidentialTransferInput<
     /** The source account's owner/delegate or its multisignature account. */
     authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
     newSourceDecryptableAvailableBalance: ConfidentialTransferInstructionDataArgs['newSourceDecryptableAvailableBalance'];
+    transferAmountAuditorCiphertextLo: ConfidentialTransferInstructionDataArgs['transferAmountAuditorCiphertextLo'];
+    transferAmountAuditorCiphertextHi: ConfidentialTransferInstructionDataArgs['transferAmountAuditorCiphertextHi'];
     equalityProofInstructionOffset: ConfidentialTransferInstructionDataArgs['equalityProofInstructionOffset'];
     ciphertextValidityProofInstructionOffset: ConfidentialTransferInstructionDataArgs['ciphertextValidityProofInstructionOffset'];
     rangeProofInstructionOffset: ConfidentialTransferInstructionDataArgs['rangeProofInstructionOffset'];
