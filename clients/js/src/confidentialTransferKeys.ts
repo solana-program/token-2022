@@ -2,6 +2,7 @@ import {
     createSignableMessage,
     getAddressDecoder,
     getAddressEncoder,
+    getTupleEncoder,
     type Address,
     type MessagePartialSigner,
     type ReadonlyUint8Array,
@@ -22,14 +23,8 @@ async function signDerivationMessage(signer: MessagePartialSigner, message: Uint
     return new Uint8Array(signature);
 }
 
-function ownerMintSeed(owner: Address, mint: Address): Uint8Array {
-    const addressEncoder = getAddressEncoder();
-    const ownerBytes = addressEncoder.encode(owner);
-    const mintBytes = addressEncoder.encode(mint);
-    const seed = new Uint8Array(ownerBytes.length + mintBytes.length);
-    seed.set(ownerBytes, 0);
-    seed.set(mintBytes, ownerBytes.length);
-    return seed;
+function ownerMintSeed(owner: Address, mint: Address): ReadonlyUint8Array {
+    return getTupleEncoder([getAddressEncoder(), getAddressEncoder()]).encode([owner, mint]);
 }
 
 /**

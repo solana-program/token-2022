@@ -266,7 +266,7 @@ function parseElGamalCiphertext(zk: ConfidentialTransferZkClient, bytes: Readonl
 }
 
 function getElGamalPubkeyFromAddress(zk: ConfidentialTransferZkClient, value: Address) {
-    return zk.ElGamalPubkey.fromBytes(new Uint8Array(getAddressEncoder().encode(value)));
+    return zk.ElGamalPubkey.fromBytes(getAddressEncoder().encode(value) as Uint8Array);
 }
 
 function getDefaultAuditorElGamalPubkey(zk: ConfidentialTransferZkClient) {
@@ -285,10 +285,6 @@ function getDestinationElGamalPubkey(input: GetConfidentialTransferInstructionPl
         input.zk,
         getRequiredConfidentialTransferAccountExtension(input.destinationTokenAccount).elgamalPubkey,
     );
-}
-
-function toBigIntAmount(amount: number | bigint) {
-    return typeof amount === 'bigint' ? amount : BigInt(amount);
 }
 
 function splitAmount(amount: bigint, bitLength: bigint): [bigint, bigint] {
@@ -486,7 +482,7 @@ export async function getConfidentialWithdrawInstructions(
 ): Promise<InstructionPlan> {
     assertInstructionDataProofModeIsUnsupported(input as { proofMode?: string });
     const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
-    const amount = toBigIntAmount(input.amount);
+    const amount = BigInt(input.amount);
     const newAvailableBalance = computeNewAvailableBalance(
         decryptAvailableBalance(input.zk, account, input.aesKey),
         amount,
@@ -556,7 +552,7 @@ export async function getConfidentialTransferInstructions(
 ): Promise<InstructionPlan> {
     assertInstructionDataProofModeIsUnsupported(input as { proofMode?: string });
     const sourceAccount = getRequiredConfidentialTransferAccountExtension(input.sourceTokenAccount);
-    const amount = toBigIntAmount(input.amount);
+    const amount = BigInt(input.amount);
     const [transferAmountLo, transferAmountHi] = splitAmount(amount, TRANSFER_AMOUNT_LO_BIT_LENGTH);
 
     const sourcePubkey = input.sourceElgamalKeypair.pubkey();
