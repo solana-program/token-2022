@@ -380,7 +380,7 @@ async fn test_cpi_guard_burn() {
         ..
     } = context.token_context.unwrap();
 
-    let mk_burn = |authority, do_checked| {
+    let mk_burn = |authority, do_checked, amount| {
         wrap_instruction(
             spl_instruction_padding_interface::id(),
             if do_checked {
@@ -390,7 +390,7 @@ async fn test_cpi_guard_burn() {
                     token.get_address(),
                     &authority,
                     &[],
-                    1,
+                    amount,
                     9,
                 )
                 .unwrap()
@@ -401,7 +401,7 @@ async fn test_cpi_guard_burn() {
                     token.get_address(),
                     &authority,
                     &[],
-                    1,
+                    amount,
                 )
                 .unwrap()
             },
@@ -441,7 +441,7 @@ async fn test_cpi_guard_burn() {
 
         // user-auth cpi burn with cpi guard doesn't work
         let error = token_obj
-            .process_ixs(&[mk_burn(alice.pubkey(), do_checked)], &[&alice])
+            .process_ixs(&[mk_burn(alice.pubkey(), do_checked, 1)], &[&alice])
             .await
             .unwrap_err();
         assert_eq!(error, client_error(TokenError::CpiGuardBurnBlocked));
@@ -462,7 +462,7 @@ async fn test_cpi_guard_burn() {
             .unwrap();
 
         let error = token_obj
-            .process_ixs(&[mk_burn(alice.pubkey(), do_checked)], &[&alice])
+            .process_ixs(&[mk_burn(alice.pubkey(), do_checked, 2)], &[&alice])
             .await
             .unwrap_err();
         assert_eq!(error, client_error(TokenError::CpiGuardBurnBlocked));
@@ -483,7 +483,7 @@ async fn test_cpi_guard_burn() {
             .unwrap();
 
         token_obj
-            .process_ixs(&[mk_burn(bob.pubkey(), do_checked)], &[&bob])
+            .process_ixs(&[mk_burn(bob.pubkey(), do_checked, 1)], &[&bob])
             .await
             .unwrap();
         amount -= 1;
@@ -498,10 +498,10 @@ async fn test_cpi_guard_burn() {
             .unwrap();
 
         token_obj
-            .process_ixs(&[mk_burn(alice.pubkey(), do_checked)], &[&alice])
+            .process_ixs(&[mk_burn(alice.pubkey(), do_checked, 3)], &[&alice])
             .await
             .unwrap();
-        amount -= 1;
+        amount -= 3;
 
         let alice_state = token_obj.get_account_info(&alice.pubkey()).await.unwrap();
         assert_eq!(alice_state.base.amount, amount);
