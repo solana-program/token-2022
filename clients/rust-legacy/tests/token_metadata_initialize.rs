@@ -9,7 +9,9 @@ use {
     },
     spl_token_2022_interface::{error::TokenError, extension::BaseStateWithExtensions},
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
-    spl_token_metadata_interface::{error::TokenMetadataError, state::TokenMetadata},
+    spl_token_metadata_interface::{
+        error::TokenMetadataError, instruction::Initialize, state::TokenMetadata,
+    },
     std::{convert::TryInto, sync::Arc},
 };
 
@@ -279,6 +281,56 @@ async fn fail_without_signature() {
         error,
         TokenClientError::Client(Box::new(TransportError::TransactionError(
             TransactionError::InstructionError(0, InstructionError::MissingRequiredSignature)
+        )))
+    );
+}
+
+#[tokio::test]
+async fn fail_initialize_with_forged_name_length_returns_invalid_instruction_data() {
+    let authority = Pubkey::new_unique();
+    let mint_keypair = Keypair::new();
+    let mut test_context = setup(mint_keypair, &authority).await;
+
+    let token_context = test_context.token_context.take().unwrap();
+
+    let name = "Name".to_string();
+    let symbol = "SYM".to_string();
+    let uri = "uri".to_string();
+    let payload = borsh::to_vec(&Initialize {
+        name: name.clone(),
+        symbol: symbol.clone(),
+        uri: uri.clone(),
+    })
+    .unwrap();
+    let mut instruction = spl_token_metadata_interface::instruction::initialize(
+        &spl_token_2022_interface::id(),
+        token_context.token.get_address(),
+        &Pubkey::new_unique(),
+        token_context.token.get_address(),
+        &token_context.mint_authority.pubkey(),
+        name,
+        symbol,
+        uri,
+    );
+
+    let payload_offset = instruction.data.len().checked_sub(payload.len()).unwrap();
+    let length_prefix_len = std::mem::size_of::<u32>();
+    instruction.data[payload_offset..payload_offset + length_prefix_len]
+        .copy_from_slice(&u32::MAX.to_le_bytes());
+
+    let error = token_context
+        .token
+        .process_ixs(&[instruction], &[&token_context.mint_authority])
+        .await
+        .unwrap_err();
+
+    // Once the metadata decoder is hardened, malformed recognized payloads
+    // should reject as InvalidInstructionData instead of aborting or falling
+    // through to another error shape.
+    assert_eq!(
+        error,
+        TokenClientError::Client(Box::new(TransportError::TransactionError(
+            TransactionError::InstructionError(0, InstructionError::InvalidInstructionData)
         )))
     );
 }

@@ -14,7 +14,7 @@ use {
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
     spl_token_metadata_interface::{
         error::TokenMetadataError,
-        instruction::remove_key,
+        instruction::{remove_key, RemoveKey},
         state::{Field, TokenMetadata},
     },
     std::{convert::TryInto, sync::Arc},
@@ -248,5 +248,67 @@ async fn fail_authority_checks() {
     assert_eq!(
         error,
         TransactionError::InstructionError(0, InstructionError::MissingRequiredSignature,)
+    );
+}
+
+#[tokio::test]
+async fn fail_remove_key_with_forged_key_length_returns_invalid_instruction_data() {
+    let authority = Keypair::new();
+    let mint_keypair = Keypair::new();
+    let mut test_context = setup(mint_keypair, &authority.pubkey()).await;
+    let payer_pubkey = test_context.context.lock().await.payer.pubkey();
+    let token_context = test_context.token_context.take().unwrap();
+
+    let update_authority = Keypair::new();
+    token_context
+        .token
+        .token_metadata_initialize_with_rent_transfer(
+            &payer_pubkey,
+            &update_authority.pubkey(),
+            &token_context.mint_authority.pubkey(),
+            "MySuperCoolToken".to_string(),
+            "MINE".to_string(),
+            "my.super.cool.token".to_string(),
+            &[&token_context.mint_authority],
+        )
+        .await
+        .unwrap();
+
+    let key = "new_name".to_string();
+    let idempotent = true;
+    let idempotent_prefix = borsh::to_vec(&idempotent).unwrap();
+    let payload = borsh::to_vec(&RemoveKey {
+        key: key.clone(),
+        idempotent,
+    })
+    .unwrap();
+    let mut instruction = remove_key(
+        &spl_token_2022_interface::id(),
+        token_context.token.get_address(),
+        &update_authority.pubkey(),
+        key,
+        idempotent,
+    );
+
+    let payload_offset = instruction.data.len().checked_sub(payload.len()).unwrap();
+    let key_length_offset = payload_offset + idempotent_prefix.len();
+    let length_prefix_len = std::mem::size_of::<u32>();
+    instruction.data[key_length_offset..key_length_offset + length_prefix_len]
+        .copy_from_slice(&u32::MAX.to_le_bytes());
+
+    let error = token_context
+        .token
+        .process_ixs(&[instruction], &[&update_authority])
+        .await
+        .unwrap_err();
+
+    // Once the metadata decoder is hardened, malformed recognized payloads
+    // should reject as InvalidInstructionData instead of aborting or falling
+    // through to another error shape.
+    assert_eq!(
+        error,
+        TokenClientError::Client(Box::new(TransportError::TransactionError(
+            TransactionError::InstructionError(0, InstructionError::InvalidInstructionData)
+        )))
     );
 }
