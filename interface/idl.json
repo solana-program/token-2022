@@ -3703,7 +3703,7 @@
                     "Fails if the source or destination accounts are frozen.",
                     "Fails if the associated mint is extended as `NonTransferable`."
                 ],
-                "optionalAccountStrategy": "programId",
+                "optionalAccountStrategy": "omitted",
                 "accounts": [
                     {
                         "kind": "instructionAccountNode",
@@ -3891,7 +3891,7 @@
                     "",
                     "Fails if the associated mint is extended as `NonTransferable`."
                 ],
-                "optionalAccountStrategy": "programId",
+                "optionalAccountStrategy": "omitted",
                 "accounts": [
                     {
                         "kind": "instructionAccountNode",
@@ -4000,6 +4000,30 @@
                         "type": {
                             "kind": "definedTypeLinkNode",
                             "name": "decryptableBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "transferAmountAuditorCiphertextLo",
+                        "docs": [
+                            "The low 16 bits of the transfer amount encrypted under the auditor",
+                            "ElGamal public key."
+                        ],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "encryptedBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "transferAmountAuditorCiphertextHi",
+                        "docs": [
+                            "The high 32 bits of the transfer amount encrypted under the auditor",
+                            "ElGamal public key."
+                        ],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "encryptedBalance"
                         }
                     },
                     {
