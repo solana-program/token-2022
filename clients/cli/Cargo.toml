@@ -50,7 +50,7 @@ solana-sdk-ids = "3.1.0"
 solana-test-validator = { version = "4.0.0-beta.7", features = ["agave-unstable-api"] }
 assert_cmd = "2.2.2"
 libtest-mimic = "0.8"
-serial_test = "3.4.0"
+serial_test = "3.5.0"
 tempfile = "3.27.0"
 
 [[bin]]
