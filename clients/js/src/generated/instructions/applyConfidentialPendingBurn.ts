@@ -32,80 +32,92 @@ import {
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const WITHDRAW_EXCESS_LAMPORTS_DISCRIMINATOR = 38;
+export const APPLY_CONFIDENTIAL_PENDING_BURN_DISCRIMINATOR = 42;
 
-export function getWithdrawExcessLamportsDiscriminatorBytes() {
-    return getU8Encoder().encode(WITHDRAW_EXCESS_LAMPORTS_DISCRIMINATOR);
+export function getApplyConfidentialPendingBurnDiscriminatorBytes() {
+    return getU8Encoder().encode(APPLY_CONFIDENTIAL_PENDING_BURN_DISCRIMINATOR);
 }
 
-export type WithdrawExcessLamportsInstruction<
+export const APPLY_CONFIDENTIAL_PENDING_BURN_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR = 5;
+
+export function getApplyConfidentialPendingBurnConfidentialMintBurnDiscriminatorBytes() {
+    return getU8Encoder().encode(APPLY_CONFIDENTIAL_PENDING_BURN_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR);
+}
+
+export type ApplyConfidentialPendingBurnInstruction<
     TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-    TAccountSource extends string | AccountMeta<string> = string,
-    TAccountDestination extends string | AccountMeta<string> = string,
+    TAccountMint extends string | AccountMeta<string> = string,
     TAccountAuthority extends string | AccountMeta<string> = string,
     TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
     InstructionWithData<ReadonlyUint8Array> &
     InstructionWithAccounts<
         [
-            TAccountSource extends string ? WritableAccount<TAccountSource> : TAccountSource,
-            TAccountDestination extends string ? WritableAccount<TAccountDestination> : TAccountDestination,
+            TAccountMint extends string ? WritableAccount<TAccountMint> : TAccountMint,
             TAccountAuthority extends string ? ReadonlyAccount<TAccountAuthority> : TAccountAuthority,
             ...TRemainingAccounts,
         ]
     >;
 
-export type WithdrawExcessLamportsInstructionData = { discriminator: number };
+export type ApplyConfidentialPendingBurnInstructionData = {
+    discriminator: number;
+    confidentialMintBurnDiscriminator: number;
+};
 
-export type WithdrawExcessLamportsInstructionDataArgs = {};
+export type ApplyConfidentialPendingBurnInstructionDataArgs = {};
 
-export function getWithdrawExcessLamportsInstructionDataEncoder(): FixedSizeEncoder<WithdrawExcessLamportsInstructionDataArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', getU8Encoder()]]), value => ({
-        ...value,
-        discriminator: WITHDRAW_EXCESS_LAMPORTS_DISCRIMINATOR,
-    }));
-}
-
-export function getWithdrawExcessLamportsInstructionDataDecoder(): FixedSizeDecoder<WithdrawExcessLamportsInstructionData> {
-    return getStructDecoder([['discriminator', getU8Decoder()]]);
-}
-
-export function getWithdrawExcessLamportsInstructionDataCodec(): FixedSizeCodec<
-    WithdrawExcessLamportsInstructionDataArgs,
-    WithdrawExcessLamportsInstructionData
-> {
-    return combineCodec(
-        getWithdrawExcessLamportsInstructionDataEncoder(),
-        getWithdrawExcessLamportsInstructionDataDecoder(),
+export function getApplyConfidentialPendingBurnInstructionDataEncoder(): FixedSizeEncoder<ApplyConfidentialPendingBurnInstructionDataArgs> {
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', getU8Encoder()],
+            ['confidentialMintBurnDiscriminator', getU8Encoder()],
+        ]),
+        value => ({
+            ...value,
+            discriminator: APPLY_CONFIDENTIAL_PENDING_BURN_DISCRIMINATOR,
+            confidentialMintBurnDiscriminator: APPLY_CONFIDENTIAL_PENDING_BURN_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR,
+        }),
     );
 }
 
-export type WithdrawExcessLamportsInput<
-    TAccountSource extends string = string,
-    TAccountDestination extends string = string,
+export function getApplyConfidentialPendingBurnInstructionDataDecoder(): FixedSizeDecoder<ApplyConfidentialPendingBurnInstructionData> {
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['confidentialMintBurnDiscriminator', getU8Decoder()],
+    ]);
+}
+
+export function getApplyConfidentialPendingBurnInstructionDataCodec(): FixedSizeCodec<
+    ApplyConfidentialPendingBurnInstructionDataArgs,
+    ApplyConfidentialPendingBurnInstructionData
+> {
+    return combineCodec(
+        getApplyConfidentialPendingBurnInstructionDataEncoder(),
+        getApplyConfidentialPendingBurnInstructionDataDecoder(),
+    );
+}
+
+export type ApplyConfidentialPendingBurnInput<
+    TAccountMint extends string = string,
     TAccountAuthority extends string = string,
 > = {
-    /** The source account. */
-    source: Address<TAccountSource>;
-    /** The destination account. */
-    destination: Address<TAccountDestination>;
-    /** The source account owner or its multisignature account. */
+    /** The SPL Token mint. */
+    mint: Address<TAccountMint>;
+    /** The mint authority or its multisignature account. */
     authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
     multiSigners?: Array<TransactionSigner>;
 };
 
-export function getWithdrawExcessLamportsInstruction<
-    TAccountSource extends string,
-    TAccountDestination extends string,
+export function getApplyConfidentialPendingBurnInstruction<
+    TAccountMint extends string,
     TAccountAuthority extends string,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-    input: WithdrawExcessLamportsInput<TAccountSource, TAccountDestination, TAccountAuthority>,
+    input: ApplyConfidentialPendingBurnInput<TAccountMint, TAccountAuthority>,
     config?: { programAddress?: TProgramAddress },
-): WithdrawExcessLamportsInstruction<
+): ApplyConfidentialPendingBurnInstruction<
     TProgramAddress,
-    TAccountSource,
-    TAccountDestination,
+    TAccountMint,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
         ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
         : TAccountAuthority
@@ -115,8 +127,7 @@ export function getWithdrawExcessLamportsInstruction<
 
     // Original accounts.
     const originalAccounts = {
-        source: { value: input.source ?? null, isWritable: true },
-        destination: { value: input.destination ?? null, isWritable: true },
+        mint: { value: input.mint ?? null, isWritable: true },
         authority: { value: input.authority ?? null, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
@@ -133,49 +144,41 @@ export function getWithdrawExcessLamportsInstruction<
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [
-            getAccountMeta(accounts.source),
-            getAccountMeta(accounts.destination),
-            getAccountMeta(accounts.authority),
-            ...remainingAccounts,
-        ],
-        data: getWithdrawExcessLamportsInstructionDataEncoder().encode({}),
+        accounts: [getAccountMeta(accounts.mint), getAccountMeta(accounts.authority), ...remainingAccounts],
+        data: getApplyConfidentialPendingBurnInstructionDataEncoder().encode({}),
         programAddress,
-    } as WithdrawExcessLamportsInstruction<
+    } as ApplyConfidentialPendingBurnInstruction<
         TProgramAddress,
-        TAccountSource,
-        TAccountDestination,
+        TAccountMint,
         (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
             ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
             : TAccountAuthority
     >);
 }
 
-export type ParsedWithdrawExcessLamportsInstruction<
+export type ParsedApplyConfidentialPendingBurnInstruction<
     TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
     TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
     programAddress: Address<TProgram>;
     accounts: {
-        /** The source account. */
-        source: TAccountMetas[0];
-        /** The destination account. */
-        destination: TAccountMetas[1];
-        /** The source account owner or its multisignature account. */
-        authority: TAccountMetas[2];
+        /** The SPL Token mint. */
+        mint: TAccountMetas[0];
+        /** The mint authority or its multisignature account. */
+        authority: TAccountMetas[1];
     };
-    data: WithdrawExcessLamportsInstructionData;
+    data: ApplyConfidentialPendingBurnInstructionData;
 };
 
-export function parseWithdrawExcessLamportsInstruction<
+export function parseApplyConfidentialPendingBurnInstruction<
     TProgram extends string,
     TAccountMetas extends readonly AccountMeta[],
 >(
     instruction: Instruction<TProgram> &
         InstructionWithAccounts<TAccountMetas> &
         InstructionWithData<ReadonlyUint8Array>,
-): ParsedWithdrawExcessLamportsInstruction<TProgram, TAccountMetas> {
-    if (instruction.accounts.length < 3) {
+): ParsedApplyConfidentialPendingBurnInstruction<TProgram, TAccountMetas> {
+    if (instruction.accounts.length < 2) {
         // TODO: Coded error.
         throw new Error('Not enough accounts');
     }
@@ -187,7 +190,7 @@ export function parseWithdrawExcessLamportsInstruction<
     };
     return {
         programAddress: instruction.programAddress,
-        accounts: { source: getNextAccount(), destination: getNextAccount(), authority: getNextAccount() },
-        data: getWithdrawExcessLamportsInstructionDataDecoder().decode(instruction.data),
+        accounts: { mint: getNextAccount(), authority: getNextAccount() },
+        data: getApplyConfidentialPendingBurnInstructionDataDecoder().decode(instruction.data),
     };
 }

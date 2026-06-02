@@ -5,6 +5,7 @@ import {
     getEnableMemoTransfersInstruction,
     getEnableCpiGuardInstruction,
     getDisableCpiGuardInstruction,
+    getInitializeConfidentialMintBurnInstruction,
     getInitializeConfidentialTransferMintInstruction,
     getInitializeDefaultAccountStateInstruction,
     getInitializeGroupMemberPointerInstruction,
@@ -40,6 +41,14 @@ export function getPreInitializeInstructionsForMintExtensions(
                     getInitializeConfidentialTransferMintInstruction({
                         mint,
                         ...extension,
+                    }),
+                ];
+            case 'ConfidentialMintBurn':
+                return [
+                    getInitializeConfidentialMintBurnInstruction({
+                        mint,
+                        supplyElgamalPubkey: extension.supplyElgamalPubkey,
+                        decryptableSupply: extension.decryptableSupply,
                     }),
                 ];
             case 'DefaultAccountState':

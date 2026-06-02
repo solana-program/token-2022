@@ -30,7 +30,14 @@ test('it returns the size including all provided extensions', t => {
 
 test('it returns the correct size for the confidential mint burn extension', t => {
     t.is(
-        getMintSize([extension('ConfidentialMintBurn', {})]),
-        166 /* extended mint base size */ + 4 /* ConfidentialMintBurn extension size */,
+        getMintSize([
+            extension('ConfidentialMintBurn', {
+                confidentialSupply: new Uint8Array(64),
+                decryptableSupply: new Uint8Array(36),
+                supplyElgamalPubkey: address('6YG6ggAzLnqu1oV56HELbmvfyveD3JKmCmEWGU9W6RK2'),
+                pendingBurn: new Uint8Array(64),
+            }),
+        ]),
+        166 /* extended mint base size */ + 4 /* TLV header */ + 196 /* ConfidentialMintBurn extension size */,
     );
 });

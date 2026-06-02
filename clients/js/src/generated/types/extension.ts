@@ -266,7 +266,17 @@ export type Extension =
           /** The member number. */
           memberNumber: bigint;
       }
-    | { __kind: 'ConfidentialMintBurn' }
+    | {
+          __kind: 'ConfidentialMintBurn';
+          /** The confidential supply of the mint (encrypted by `supply_elgamal_pubkey`). */
+          confidentialSupply: EncryptedBalance;
+          /** The decryptable confidential supply of the mint. */
+          decryptableSupply: DecryptableBalance;
+          /** The ElGamal pubkey used to encrypt the confidential supply. */
+          supplyElgamalPubkey: Address;
+          /** The amount of burnt tokens that have not yet been applied to the confidential supply (encrypted by `supply_elgamal_pubkey`). */
+          pendingBurn: EncryptedBalance;
+      }
     | {
           __kind: 'ScaledUiAmountConfig';
           authority: Address;
@@ -484,7 +494,17 @@ export type ExtensionArgs =
           /** The member number. */
           memberNumber: number | bigint;
       }
-    | { __kind: 'ConfidentialMintBurn' }
+    | {
+          __kind: 'ConfidentialMintBurn';
+          /** The confidential supply of the mint (encrypted by `supply_elgamal_pubkey`). */
+          confidentialSupply: EncryptedBalanceArgs;
+          /** The decryptable confidential supply of the mint. */
+          decryptableSupply: DecryptableBalanceArgs;
+          /** The ElGamal pubkey used to encrypt the confidential supply. */
+          supplyElgamalPubkey: Address;
+          /** The amount of burnt tokens that have not yet been applied to the confidential supply (encrypted by `supply_elgamal_pubkey`). */
+          pendingBurn: EncryptedBalanceArgs;
+      }
     | {
           __kind: 'ScaledUiAmountConfig';
           authority: Address;
@@ -706,7 +726,18 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
                     getU16Encoder(),
                 ),
             ],
-            ['ConfidentialMintBurn', addEncoderSizePrefix(getStructEncoder([]), getU16Encoder())],
+            [
+                'ConfidentialMintBurn',
+                addEncoderSizePrefix(
+                    getStructEncoder([
+                        ['confidentialSupply', getEncryptedBalanceEncoder()],
+                        ['decryptableSupply', getDecryptableBalanceEncoder()],
+                        ['supplyElgamalPubkey', getAddressEncoder()],
+                        ['pendingBurn', getEncryptedBalanceEncoder()],
+                    ]),
+                    getU16Encoder(),
+                ),
+            ],
             [
                 'ScaledUiAmountConfig',
                 addEncoderSizePrefix(
@@ -950,7 +981,18 @@ export function getExtensionDecoder(): Decoder<Extension> {
                     getU16Decoder(),
                 ),
             ],
-            ['ConfidentialMintBurn', addDecoderSizePrefix(getStructDecoder([]), getU16Decoder())],
+            [
+                'ConfidentialMintBurn',
+                addDecoderSizePrefix(
+                    getStructDecoder([
+                        ['confidentialSupply', getEncryptedBalanceDecoder()],
+                        ['decryptableSupply', getDecryptableBalanceDecoder()],
+                        ['supplyElgamalPubkey', getAddressDecoder()],
+                        ['pendingBurn', getEncryptedBalanceDecoder()],
+                    ]),
+                    getU16Decoder(),
+                ),
+            ],
             [
                 'ScaledUiAmountConfig',
                 addDecoderSizePrefix(

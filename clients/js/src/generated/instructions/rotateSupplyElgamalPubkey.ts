@@ -9,6 +9,8 @@
 import {
     AccountRole,
     combineCodec,
+    getAddressDecoder,
+    getAddressEncoder,
     getI8Decoder,
     getI8Encoder,
     getStructDecoder,
@@ -34,21 +36,21 @@ import {
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const EMPTY_CONFIDENTIAL_TRANSFER_ACCOUNT_DISCRIMINATOR = 27;
+export const ROTATE_SUPPLY_ELGAMAL_PUBKEY_DISCRIMINATOR = 42;
 
-export function getEmptyConfidentialTransferAccountDiscriminatorBytes() {
-    return getU8Encoder().encode(EMPTY_CONFIDENTIAL_TRANSFER_ACCOUNT_DISCRIMINATOR);
+export function getRotateSupplyElgamalPubkeyDiscriminatorBytes() {
+    return getU8Encoder().encode(ROTATE_SUPPLY_ELGAMAL_PUBKEY_DISCRIMINATOR);
 }
 
-export const EMPTY_CONFIDENTIAL_TRANSFER_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 4;
+export const ROTATE_SUPPLY_ELGAMAL_PUBKEY_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR = 1;
 
-export function getEmptyConfidentialTransferAccountConfidentialTransferDiscriminatorBytes() {
-    return getU8Encoder().encode(EMPTY_CONFIDENTIAL_TRANSFER_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR);
+export function getRotateSupplyElgamalPubkeyConfidentialMintBurnDiscriminatorBytes() {
+    return getU8Encoder().encode(ROTATE_SUPPLY_ELGAMAL_PUBKEY_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR);
 }
 
-export type EmptyConfidentialTransferAccountInstruction<
+export type RotateSupplyElgamalPubkeyInstruction<
     TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-    TAccountToken extends string | AccountMeta<string> = string,
+    TAccountMint extends string | AccountMeta<string> = string,
     TAccountInstructionsSysvarOrContextState extends string | AccountMeta<string> =
         'Sysvar1nstructions1111111111111111111111111',
     TAccountAuthority extends string | AccountMeta<string> = string,
@@ -57,7 +59,7 @@ export type EmptyConfidentialTransferAccountInstruction<
     InstructionWithData<ReadonlyUint8Array> &
     InstructionWithAccounts<
         [
-            TAccountToken extends string ? WritableAccount<TAccountToken> : TAccountToken,
+            TAccountMint extends string ? WritableAccount<TAccountMint> : TAccountMint,
             TAccountInstructionsSysvarOrContextState extends string
                 ? ReadonlyAccount<TAccountInstructionsSysvarOrContextState>
                 : TAccountInstructionsSysvarOrContextState,
@@ -66,94 +68,101 @@ export type EmptyConfidentialTransferAccountInstruction<
         ]
     >;
 
-export type EmptyConfidentialTransferAccountInstructionData = {
+export type RotateSupplyElgamalPubkeyInstructionData = {
     discriminator: number;
-    confidentialTransferDiscriminator: number;
+    confidentialMintBurnDiscriminator: number;
+    /** The new ElGamal pubkey for supply encryption. */
+    newSupplyElgamalPubkey: Address;
     /**
-     * Relative location of the `ProofInstruction::VerifyCloseAccount`
-     * instruction to the `EmptyAccount` instruction in the transaction. If
-     * the offset is `0`, then use a context state account for the proof.
+     * The location of the
+     * `ProofInstruction::VerifyCiphertextCiphertextEquality` instruction
+     * relative to the `RotateSupplyElGamalPubkey` instruction in the
+     * transaction. If the offset is `0`, then use a context state account
+     * for the proof.
      */
     proofInstructionOffset: number;
 };
 
-export type EmptyConfidentialTransferAccountInstructionDataArgs = {
+export type RotateSupplyElgamalPubkeyInstructionDataArgs = {
+    /** The new ElGamal pubkey for supply encryption. */
+    newSupplyElgamalPubkey: Address;
     /**
-     * Relative location of the `ProofInstruction::VerifyCloseAccount`
-     * instruction to the `EmptyAccount` instruction in the transaction. If
-     * the offset is `0`, then use a context state account for the proof.
+     * The location of the
+     * `ProofInstruction::VerifyCiphertextCiphertextEquality` instruction
+     * relative to the `RotateSupplyElGamalPubkey` instruction in the
+     * transaction. If the offset is `0`, then use a context state account
+     * for the proof.
      */
     proofInstructionOffset: number;
 };
 
-export function getEmptyConfidentialTransferAccountInstructionDataEncoder(): FixedSizeEncoder<EmptyConfidentialTransferAccountInstructionDataArgs> {
+export function getRotateSupplyElgamalPubkeyInstructionDataEncoder(): FixedSizeEncoder<RotateSupplyElgamalPubkeyInstructionDataArgs> {
     return transformEncoder(
         getStructEncoder([
             ['discriminator', getU8Encoder()],
-            ['confidentialTransferDiscriminator', getU8Encoder()],
+            ['confidentialMintBurnDiscriminator', getU8Encoder()],
+            ['newSupplyElgamalPubkey', getAddressEncoder()],
             ['proofInstructionOffset', getI8Encoder()],
         ]),
         value => ({
             ...value,
-            discriminator: EMPTY_CONFIDENTIAL_TRANSFER_ACCOUNT_DISCRIMINATOR,
-            confidentialTransferDiscriminator: EMPTY_CONFIDENTIAL_TRANSFER_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR,
+            discriminator: ROTATE_SUPPLY_ELGAMAL_PUBKEY_DISCRIMINATOR,
+            confidentialMintBurnDiscriminator: ROTATE_SUPPLY_ELGAMAL_PUBKEY_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR,
         }),
     );
 }
 
-export function getEmptyConfidentialTransferAccountInstructionDataDecoder(): FixedSizeDecoder<EmptyConfidentialTransferAccountInstructionData> {
+export function getRotateSupplyElgamalPubkeyInstructionDataDecoder(): FixedSizeDecoder<RotateSupplyElgamalPubkeyInstructionData> {
     return getStructDecoder([
         ['discriminator', getU8Decoder()],
-        ['confidentialTransferDiscriminator', getU8Decoder()],
+        ['confidentialMintBurnDiscriminator', getU8Decoder()],
+        ['newSupplyElgamalPubkey', getAddressDecoder()],
         ['proofInstructionOffset', getI8Decoder()],
     ]);
 }
 
-export function getEmptyConfidentialTransferAccountInstructionDataCodec(): FixedSizeCodec<
-    EmptyConfidentialTransferAccountInstructionDataArgs,
-    EmptyConfidentialTransferAccountInstructionData
+export function getRotateSupplyElgamalPubkeyInstructionDataCodec(): FixedSizeCodec<
+    RotateSupplyElgamalPubkeyInstructionDataArgs,
+    RotateSupplyElgamalPubkeyInstructionData
 > {
     return combineCodec(
-        getEmptyConfidentialTransferAccountInstructionDataEncoder(),
-        getEmptyConfidentialTransferAccountInstructionDataDecoder(),
+        getRotateSupplyElgamalPubkeyInstructionDataEncoder(),
+        getRotateSupplyElgamalPubkeyInstructionDataDecoder(),
     );
 }
 
-export type EmptyConfidentialTransferAccountInput<
-    TAccountToken extends string = string,
+export type RotateSupplyElgamalPubkeyInput<
+    TAccountMint extends string = string,
     TAccountInstructionsSysvarOrContextState extends string = string,
     TAccountAuthority extends string = string,
 > = {
-    /** The SPL Token account. */
-    token: Address<TAccountToken>;
+    /** The SPL Token mint. */
+    mint: Address<TAccountMint>;
     /**
-     * Instructions sysvar if `VerifyZeroCiphertext` is included in
+     * Instructions sysvar if `CiphertextCiphertextEquality` is included in
      * the same transaction or context state account if
-     * `VerifyZeroCiphertext` is pre-verified into a context state
+     * `CiphertextCiphertextEquality` is pre-verified into a context state
      * account.
      */
     instructionsSysvarOrContextState?: Address<TAccountInstructionsSysvarOrContextState>;
-    /** The source account's owner/delegate or its multisignature account. */
+    /** The confidential mint authority or its multisignature account. */
     authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
-    proofInstructionOffset: EmptyConfidentialTransferAccountInstructionDataArgs['proofInstructionOffset'];
+    newSupplyElgamalPubkey: RotateSupplyElgamalPubkeyInstructionDataArgs['newSupplyElgamalPubkey'];
+    proofInstructionOffset: RotateSupplyElgamalPubkeyInstructionDataArgs['proofInstructionOffset'];
     multiSigners?: Array<TransactionSigner>;
 };
 
-export function getEmptyConfidentialTransferAccountInstruction<
-    TAccountToken extends string,
+export function getRotateSupplyElgamalPubkeyInstruction<
+    TAccountMint extends string,
     TAccountInstructionsSysvarOrContextState extends string,
     TAccountAuthority extends string,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-    input: EmptyConfidentialTransferAccountInput<
-        TAccountToken,
-        TAccountInstructionsSysvarOrContextState,
-        TAccountAuthority
-    >,
+    input: RotateSupplyElgamalPubkeyInput<TAccountMint, TAccountInstructionsSysvarOrContextState, TAccountAuthority>,
     config?: { programAddress?: TProgramAddress },
-): EmptyConfidentialTransferAccountInstruction<
+): RotateSupplyElgamalPubkeyInstruction<
     TProgramAddress,
-    TAccountToken,
+    TAccountMint,
     TAccountInstructionsSysvarOrContextState,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
         ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
@@ -164,7 +173,7 @@ export function getEmptyConfidentialTransferAccountInstruction<
 
     // Original accounts.
     const originalAccounts = {
-        token: { value: input.token ?? null, isWritable: true },
+        mint: { value: input.mint ?? null, isWritable: true },
         instructionsSysvarOrContextState: { value: input.instructionsSysvarOrContextState ?? null, isWritable: false },
         authority: { value: input.authority ?? null, isWritable: false },
     };
@@ -189,18 +198,18 @@ export function getEmptyConfidentialTransferAccountInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.token),
+            getAccountMeta(accounts.mint),
             getAccountMeta(accounts.instructionsSysvarOrContextState),
             getAccountMeta(accounts.authority),
             ...remainingAccounts,
         ],
-        data: getEmptyConfidentialTransferAccountInstructionDataEncoder().encode(
-            args as EmptyConfidentialTransferAccountInstructionDataArgs,
+        data: getRotateSupplyElgamalPubkeyInstructionDataEncoder().encode(
+            args as RotateSupplyElgamalPubkeyInstructionDataArgs,
         ),
         programAddress,
-    } as EmptyConfidentialTransferAccountInstruction<
+    } as RotateSupplyElgamalPubkeyInstruction<
         TProgramAddress,
-        TAccountToken,
+        TAccountMint,
         TAccountInstructionsSysvarOrContextState,
         (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
             ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
@@ -208,35 +217,35 @@ export function getEmptyConfidentialTransferAccountInstruction<
     >);
 }
 
-export type ParsedEmptyConfidentialTransferAccountInstruction<
+export type ParsedRotateSupplyElgamalPubkeyInstruction<
     TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
     TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
     programAddress: Address<TProgram>;
     accounts: {
-        /** The SPL Token account. */
-        token: TAccountMetas[0];
+        /** The SPL Token mint. */
+        mint: TAccountMetas[0];
         /**
-         * Instructions sysvar if `VerifyZeroCiphertext` is included in
+         * Instructions sysvar if `CiphertextCiphertextEquality` is included in
          * the same transaction or context state account if
-         * `VerifyZeroCiphertext` is pre-verified into a context state
+         * `CiphertextCiphertextEquality` is pre-verified into a context state
          * account.
          */
         instructionsSysvarOrContextState: TAccountMetas[1];
-        /** The source account's owner/delegate or its multisignature account. */
+        /** The confidential mint authority or its multisignature account. */
         authority: TAccountMetas[2];
     };
-    data: EmptyConfidentialTransferAccountInstructionData;
+    data: RotateSupplyElgamalPubkeyInstructionData;
 };
 
-export function parseEmptyConfidentialTransferAccountInstruction<
+export function parseRotateSupplyElgamalPubkeyInstruction<
     TProgram extends string,
     TAccountMetas extends readonly AccountMeta[],
 >(
     instruction: Instruction<TProgram> &
         InstructionWithAccounts<TAccountMetas> &
         InstructionWithData<ReadonlyUint8Array>,
-): ParsedEmptyConfidentialTransferAccountInstruction<TProgram, TAccountMetas> {
+): ParsedRotateSupplyElgamalPubkeyInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 3) {
         // TODO: Coded error.
         throw new Error('Not enough accounts');
@@ -250,10 +259,10 @@ export function parseEmptyConfidentialTransferAccountInstruction<
     return {
         programAddress: instruction.programAddress,
         accounts: {
-            token: getNextAccount(),
+            mint: getNextAccount(),
             instructionsSysvarOrContextState: getNextAccount(),
             authority: getNextAccount(),
         },
-        data: getEmptyConfidentialTransferAccountInstructionDataDecoder().decode(instruction.data),
+        data: getRotateSupplyElgamalPubkeyInstructionDataDecoder().decode(instruction.data),
     };
 }

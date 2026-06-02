@@ -87,7 +87,7 @@ test('it initializes a mint with confidential transfer fee', async t => {
         getInitializeConfidentialTransferFeeInstruction({
             mint: mint.address,
             authority: some(confidentialTransferAuthority),
-            withdrawWithheldAuthorityElGamalPubkey: some(elgamalPubkey),
+            withdrawWithheldAuthorityElGamalPubkey: elgamalPubkey,
         }),
         initMintInstruction,
     ]);

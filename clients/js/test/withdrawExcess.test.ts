@@ -78,8 +78,8 @@ test('it withdraws excess lamports from an associated token account', async t =>
 
     // And we initiate withdrawal of excess lamports from the ATA to the destination
     const withdrawInstruction = await getWithdrawExcessLamportsInstruction({
-        sourceAccount: ata,
-        destinationAccount: destination.address,
+        source: ata,
+        destination: destination.address,
         authority: owner,
     });
     await sendAndConfirmInstructions(client, payer, [withdrawInstruction]);
