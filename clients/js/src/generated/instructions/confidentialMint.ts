@@ -44,23 +44,22 @@ import {
     type EncryptedBalanceArgs,
 } from '../types';
 
-export const CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 27;
+export const CONFIDENTIAL_MINT_DISCRIMINATOR = 42;
 
-export function getConfidentialTransferDiscriminatorBytes() {
-    return getU8Encoder().encode(CONFIDENTIAL_TRANSFER_DISCRIMINATOR);
+export function getConfidentialMintDiscriminatorBytes() {
+    return getU8Encoder().encode(CONFIDENTIAL_MINT_DISCRIMINATOR);
 }
 
-export const CONFIDENTIAL_TRANSFER_CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 7;
+export const CONFIDENTIAL_MINT_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR = 3;
 
-export function getConfidentialTransferConfidentialTransferDiscriminatorBytes() {
-    return getU8Encoder().encode(CONFIDENTIAL_TRANSFER_CONFIDENTIAL_TRANSFER_DISCRIMINATOR);
+export function getConfidentialMintConfidentialMintBurnDiscriminatorBytes() {
+    return getU8Encoder().encode(CONFIDENTIAL_MINT_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR);
 }
 
-export type ConfidentialTransferInstruction<
+export type ConfidentialMintInstruction<
     TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-    TAccountSourceToken extends string | AccountMeta<string> = string,
+    TAccountToken extends string | AccountMeta<string> = string,
     TAccountMint extends string | AccountMeta<string> = string,
-    TAccountDestinationToken extends string | AccountMeta<string> = string,
     TAccountInstructionsSysvar extends string | AccountMeta<string> | undefined = undefined,
     TAccountEqualityRecord extends string | AccountMeta<string> | undefined = undefined,
     TAccountCiphertextValidityRecord extends string | AccountMeta<string> | undefined = undefined,
@@ -71,11 +70,8 @@ export type ConfidentialTransferInstruction<
     InstructionWithData<ReadonlyUint8Array> &
     InstructionWithAccounts<
         [
-            TAccountSourceToken extends string ? WritableAccount<TAccountSourceToken> : TAccountSourceToken,
-            TAccountMint extends string ? ReadonlyAccount<TAccountMint> : TAccountMint,
-            TAccountDestinationToken extends string
-                ? WritableAccount<TAccountDestinationToken>
-                : TAccountDestinationToken,
+            TAccountToken extends string ? WritableAccount<TAccountToken> : TAccountToken,
+            TAccountMint extends string ? WritableAccount<TAccountMint> : TAccountMint,
             ...(TAccountInstructionsSysvar extends undefined
                 ? []
                 : [
@@ -105,152 +101,156 @@ export type ConfidentialTransferInstruction<
         ]
     >;
 
-export type ConfidentialTransferInstructionData = {
+export type ConfidentialMintInstructionData = {
     discriminator: number;
-    confidentialTransferDiscriminator: number;
-    /** The new source decryptable balance if the transfer succeeds. */
-    newSourceDecryptableAvailableBalance: DecryptableBalance;
-    /** The transfer amount encrypted under the auditor ElGamal public key. */
-    transferAmountAuditorCiphertextLo: EncryptedBalance;
-    /** The transfer amount encrypted under the auditor ElGamal public key. */
-    transferAmountAuditorCiphertextHi: EncryptedBalance;
+    confidentialMintBurnDiscriminator: number;
+    /** The new decryptable supply if the mint succeeds. */
+    newDecryptableSupply: DecryptableBalance;
+    /** The mint amount encrypted under the auditor ElGamal public key. */
+    mintAmountAuditorCiphertextLo: EncryptedBalance;
+    /** The mint amount encrypted under the auditor ElGamal public key. */
+    mintAmountAuditorCiphertextHi: EncryptedBalance;
     /**
      * Relative location of the
      * `ProofInstruction::VerifyCiphertextCommitmentEquality` instruction
-     * to the `Transfer` instruction in the transaction. If the offset is
-     * `0`, then use a context state account for the proof.
+     * to the `ConfidentialMint` instruction in the transaction. If the
+     * offset is `0`, then use a context state account for the proof.
      */
     equalityProofInstructionOffset: number;
     /**
      * Relative location of the
      * `ProofInstruction::VerifyBatchedGroupedCiphertext3HandlesValidity`
-     * instruction to the `Transfer` instruction in the transaction. If the
-     * offset is `0`, then use a context state account for the proof.
+     * instruction to the `ConfidentialMint` instruction in the transaction.
+     * If the offset is `0`, then use a context state account for the proof.
      */
     ciphertextValidityProofInstructionOffset: number;
     /**
-     * Relative location of the `ProofInstruction::BatchedRangeProofU128Data`
-     * instruction to the `Transfer` instruction in the transaction. If the
-     * offset is `0`, then use a context state account for the proof.
+     * Relative location of the
+     * `ProofInstruction::VerifyBatchedRangeProofU128` instruction to the
+     * `ConfidentialMint` instruction in the transaction. If the offset is
+     * `0`, then use a context state account for the proof.
      */
     rangeProofInstructionOffset: number;
 };
 
-export type ConfidentialTransferInstructionDataArgs = {
-    /** The new source decryptable balance if the transfer succeeds. */
-    newSourceDecryptableAvailableBalance: DecryptableBalanceArgs;
-    /** The transfer amount encrypted under the auditor ElGamal public key. */
-    transferAmountAuditorCiphertextLo: EncryptedBalanceArgs;
-    /** The transfer amount encrypted under the auditor ElGamal public key. */
-    transferAmountAuditorCiphertextHi: EncryptedBalanceArgs;
+export type ConfidentialMintInstructionDataArgs = {
+    /** The new decryptable supply if the mint succeeds. */
+    newDecryptableSupply: DecryptableBalanceArgs;
+    /** The mint amount encrypted under the auditor ElGamal public key. */
+    mintAmountAuditorCiphertextLo: EncryptedBalanceArgs;
+    /** The mint amount encrypted under the auditor ElGamal public key. */
+    mintAmountAuditorCiphertextHi: EncryptedBalanceArgs;
     /**
      * Relative location of the
      * `ProofInstruction::VerifyCiphertextCommitmentEquality` instruction
-     * to the `Transfer` instruction in the transaction. If the offset is
-     * `0`, then use a context state account for the proof.
+     * to the `ConfidentialMint` instruction in the transaction. If the
+     * offset is `0`, then use a context state account for the proof.
      */
     equalityProofInstructionOffset: number;
     /**
      * Relative location of the
      * `ProofInstruction::VerifyBatchedGroupedCiphertext3HandlesValidity`
-     * instruction to the `Transfer` instruction in the transaction. If the
-     * offset is `0`, then use a context state account for the proof.
+     * instruction to the `ConfidentialMint` instruction in the transaction.
+     * If the offset is `0`, then use a context state account for the proof.
      */
     ciphertextValidityProofInstructionOffset: number;
     /**
-     * Relative location of the `ProofInstruction::BatchedRangeProofU128Data`
-     * instruction to the `Transfer` instruction in the transaction. If the
-     * offset is `0`, then use a context state account for the proof.
+     * Relative location of the
+     * `ProofInstruction::VerifyBatchedRangeProofU128` instruction to the
+     * `ConfidentialMint` instruction in the transaction. If the offset is
+     * `0`, then use a context state account for the proof.
      */
     rangeProofInstructionOffset: number;
 };
 
-export function getConfidentialTransferInstructionDataEncoder(): FixedSizeEncoder<ConfidentialTransferInstructionDataArgs> {
+export function getConfidentialMintInstructionDataEncoder(): FixedSizeEncoder<ConfidentialMintInstructionDataArgs> {
     return transformEncoder(
         getStructEncoder([
             ['discriminator', getU8Encoder()],
-            ['confidentialTransferDiscriminator', getU8Encoder()],
-            ['newSourceDecryptableAvailableBalance', getDecryptableBalanceEncoder()],
-            ['transferAmountAuditorCiphertextLo', getEncryptedBalanceEncoder()],
-            ['transferAmountAuditorCiphertextHi', getEncryptedBalanceEncoder()],
+            ['confidentialMintBurnDiscriminator', getU8Encoder()],
+            ['newDecryptableSupply', getDecryptableBalanceEncoder()],
+            ['mintAmountAuditorCiphertextLo', getEncryptedBalanceEncoder()],
+            ['mintAmountAuditorCiphertextHi', getEncryptedBalanceEncoder()],
             ['equalityProofInstructionOffset', getI8Encoder()],
             ['ciphertextValidityProofInstructionOffset', getI8Encoder()],
             ['rangeProofInstructionOffset', getI8Encoder()],
         ]),
         value => ({
             ...value,
-            discriminator: CONFIDENTIAL_TRANSFER_DISCRIMINATOR,
-            confidentialTransferDiscriminator: CONFIDENTIAL_TRANSFER_CONFIDENTIAL_TRANSFER_DISCRIMINATOR,
+            discriminator: CONFIDENTIAL_MINT_DISCRIMINATOR,
+            confidentialMintBurnDiscriminator: CONFIDENTIAL_MINT_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR,
         }),
     );
 }
 
-export function getConfidentialTransferInstructionDataDecoder(): FixedSizeDecoder<ConfidentialTransferInstructionData> {
+export function getConfidentialMintInstructionDataDecoder(): FixedSizeDecoder<ConfidentialMintInstructionData> {
     return getStructDecoder([
         ['discriminator', getU8Decoder()],
-        ['confidentialTransferDiscriminator', getU8Decoder()],
-        ['newSourceDecryptableAvailableBalance', getDecryptableBalanceDecoder()],
-        ['transferAmountAuditorCiphertextLo', getEncryptedBalanceDecoder()],
-        ['transferAmountAuditorCiphertextHi', getEncryptedBalanceDecoder()],
+        ['confidentialMintBurnDiscriminator', getU8Decoder()],
+        ['newDecryptableSupply', getDecryptableBalanceDecoder()],
+        ['mintAmountAuditorCiphertextLo', getEncryptedBalanceDecoder()],
+        ['mintAmountAuditorCiphertextHi', getEncryptedBalanceDecoder()],
         ['equalityProofInstructionOffset', getI8Decoder()],
         ['ciphertextValidityProofInstructionOffset', getI8Decoder()],
         ['rangeProofInstructionOffset', getI8Decoder()],
     ]);
 }
 
-export function getConfidentialTransferInstructionDataCodec(): FixedSizeCodec<
-    ConfidentialTransferInstructionDataArgs,
-    ConfidentialTransferInstructionData
+export function getConfidentialMintInstructionDataCodec(): FixedSizeCodec<
+    ConfidentialMintInstructionDataArgs,
+    ConfidentialMintInstructionData
 > {
-    return combineCodec(
-        getConfidentialTransferInstructionDataEncoder(),
-        getConfidentialTransferInstructionDataDecoder(),
-    );
+    return combineCodec(getConfidentialMintInstructionDataEncoder(), getConfidentialMintInstructionDataDecoder());
 }
 
-export type ConfidentialTransferInput<
-    TAccountSourceToken extends string = string,
+export type ConfidentialMintInput<
+    TAccountToken extends string = string,
     TAccountMint extends string = string,
-    TAccountDestinationToken extends string = string,
     TAccountInstructionsSysvar extends string = string,
     TAccountEqualityRecord extends string = string,
     TAccountCiphertextValidityRecord extends string = string,
     TAccountRangeRecord extends string = string,
     TAccountAuthority extends string = string,
 > = {
-    /** The source SPL Token account. */
-    sourceToken: Address<TAccountSourceToken>;
-    /** The corresponding SPL Token mint. */
+    /** The SPL Token account. */
+    token: Address<TAccountToken>;
+    /** The SPL Token mint. */
     mint: Address<TAccountMint>;
-    /** The destination SPL Token account. */
-    destinationToken: Address<TAccountDestinationToken>;
     /**
      * (Optional) Instructions sysvar if at least one of the
      * `zk_elgamal_proof` instructions are included in the same
      * transaction.
      */
     instructionsSysvar?: Address<TAccountInstructionsSysvar>;
-    /** (Optional) Equality proof record account or context state account. */
+    /**
+     * (Optional) The context state account containing the pre-verified
+     * `VerifyCiphertextCommitmentEquality` proof.
+     */
     equalityRecord?: Address<TAccountEqualityRecord>;
-    /** (Optional) Ciphertext validity proof record account or context state account. */
+    /**
+     * (Optional) The context state account containing the pre-verified
+     * `VerifyBatchedGroupedCiphertext3HandlesValidity` proof.
+     */
     ciphertextValidityRecord?: Address<TAccountCiphertextValidityRecord>;
-    /** (Optional) Range proof record account or context state account. */
+    /**
+     * (Optional) The context state account containing the pre-verified
+     * `VerifyBatchedRangeProofU128` proof.
+     */
     rangeRecord?: Address<TAccountRangeRecord>;
-    /** The source account's owner/delegate or its multisignature account. */
+    /** The account owner or its multisignature account. */
     authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
-    newSourceDecryptableAvailableBalance: ConfidentialTransferInstructionDataArgs['newSourceDecryptableAvailableBalance'];
-    transferAmountAuditorCiphertextLo: ConfidentialTransferInstructionDataArgs['transferAmountAuditorCiphertextLo'];
-    transferAmountAuditorCiphertextHi: ConfidentialTransferInstructionDataArgs['transferAmountAuditorCiphertextHi'];
-    equalityProofInstructionOffset: ConfidentialTransferInstructionDataArgs['equalityProofInstructionOffset'];
-    ciphertextValidityProofInstructionOffset: ConfidentialTransferInstructionDataArgs['ciphertextValidityProofInstructionOffset'];
-    rangeProofInstructionOffset: ConfidentialTransferInstructionDataArgs['rangeProofInstructionOffset'];
+    newDecryptableSupply: ConfidentialMintInstructionDataArgs['newDecryptableSupply'];
+    mintAmountAuditorCiphertextLo: ConfidentialMintInstructionDataArgs['mintAmountAuditorCiphertextLo'];
+    mintAmountAuditorCiphertextHi: ConfidentialMintInstructionDataArgs['mintAmountAuditorCiphertextHi'];
+    equalityProofInstructionOffset: ConfidentialMintInstructionDataArgs['equalityProofInstructionOffset'];
+    ciphertextValidityProofInstructionOffset: ConfidentialMintInstructionDataArgs['ciphertextValidityProofInstructionOffset'];
+    rangeProofInstructionOffset: ConfidentialMintInstructionDataArgs['rangeProofInstructionOffset'];
     multiSigners?: Array<TransactionSigner>;
 };
 
-export function getConfidentialTransferInstruction<
-    TAccountSourceToken extends string,
+export function getConfidentialMintInstruction<
+    TAccountToken extends string,
     TAccountMint extends string,
-    TAccountDestinationToken extends string,
     TAccountInstructionsSysvar extends string,
     TAccountEqualityRecord extends string,
     TAccountCiphertextValidityRecord extends string,
@@ -258,10 +258,9 @@ export function getConfidentialTransferInstruction<
     TAccountAuthority extends string,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-    input: ConfidentialTransferInput<
-        TAccountSourceToken,
+    input: ConfidentialMintInput<
+        TAccountToken,
         TAccountMint,
-        TAccountDestinationToken,
         TAccountInstructionsSysvar,
         TAccountEqualityRecord,
         TAccountCiphertextValidityRecord,
@@ -269,11 +268,10 @@ export function getConfidentialTransferInstruction<
         TAccountAuthority
     >,
     config?: { programAddress?: TProgramAddress },
-): ConfidentialTransferInstruction<
+): ConfidentialMintInstruction<
     TProgramAddress,
-    TAccountSourceToken,
+    TAccountToken,
     TAccountMint,
-    TAccountDestinationToken,
     TAccountInstructionsSysvar,
     TAccountEqualityRecord,
     TAccountCiphertextValidityRecord,
@@ -287,9 +285,8 @@ export function getConfidentialTransferInstruction<
 
     // Original accounts.
     const originalAccounts = {
-        sourceToken: { value: input.sourceToken ?? null, isWritable: true },
-        mint: { value: input.mint ?? null, isWritable: false },
-        destinationToken: { value: input.destinationToken ?? null, isWritable: true },
+        token: { value: input.token ?? null, isWritable: true },
+        mint: { value: input.mint ?? null, isWritable: true },
         instructionsSysvar: { value: input.instructionsSysvar ?? null, isWritable: false },
         equalityRecord: { value: input.equalityRecord ?? null, isWritable: false },
         ciphertextValidityRecord: { value: input.ciphertextValidityRecord ?? null, isWritable: false },
@@ -311,9 +308,8 @@ export function getConfidentialTransferInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'omitted');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.sourceToken),
+            getAccountMeta(accounts.token),
             getAccountMeta(accounts.mint),
-            getAccountMeta(accounts.destinationToken),
             getAccountMeta(accounts.instructionsSysvar),
             getAccountMeta(accounts.equalityRecord),
             getAccountMeta(accounts.ciphertextValidityRecord),
@@ -321,13 +317,12 @@ export function getConfidentialTransferInstruction<
             getAccountMeta(accounts.authority),
             ...remainingAccounts,
         ].filter(<T>(x: T | undefined): x is T => x !== undefined),
-        data: getConfidentialTransferInstructionDataEncoder().encode(args as ConfidentialTransferInstructionDataArgs),
+        data: getConfidentialMintInstructionDataEncoder().encode(args as ConfidentialMintInstructionDataArgs),
         programAddress,
-    } as ConfidentialTransferInstruction<
+    } as ConfidentialMintInstruction<
         TProgramAddress,
-        TAccountSourceToken,
+        TAccountToken,
         TAccountMint,
-        TAccountDestinationToken,
         TAccountInstructionsSysvar,
         TAccountEqualityRecord,
         TAccountCiphertextValidityRecord,
@@ -338,45 +333,49 @@ export function getConfidentialTransferInstruction<
     >);
 }
 
-export type ParsedConfidentialTransferInstruction<
+export type ParsedConfidentialMintInstruction<
     TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
     TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
     programAddress: Address<TProgram>;
     accounts: {
-        /** The source SPL Token account. */
-        sourceToken: TAccountMetas[0];
-        /** The corresponding SPL Token mint. */
+        /** The SPL Token account. */
+        token: TAccountMetas[0];
+        /** The SPL Token mint. */
         mint: TAccountMetas[1];
-        /** The destination SPL Token account. */
-        destinationToken: TAccountMetas[2];
         /**
          * (Optional) Instructions sysvar if at least one of the
          * `zk_elgamal_proof` instructions are included in the same
          * transaction.
          */
-        instructionsSysvar?: TAccountMetas[3] | undefined;
-        /** (Optional) Equality proof record account or context state account. */
-        equalityRecord?: TAccountMetas[4] | undefined;
-        /** (Optional) Ciphertext validity proof record account or context state account. */
-        ciphertextValidityRecord?: TAccountMetas[5] | undefined;
-        /** (Optional) Range proof record account or context state account. */
-        rangeRecord?: TAccountMetas[6] | undefined;
-        /** The source account's owner/delegate or its multisignature account. */
-        authority: TAccountMetas[7];
+        instructionsSysvar?: TAccountMetas[2] | undefined;
+        /**
+         * (Optional) The context state account containing the pre-verified
+         * `VerifyCiphertextCommitmentEquality` proof.
+         */
+        equalityRecord?: TAccountMetas[3] | undefined;
+        /**
+         * (Optional) The context state account containing the pre-verified
+         * `VerifyBatchedGroupedCiphertext3HandlesValidity` proof.
+         */
+        ciphertextValidityRecord?: TAccountMetas[4] | undefined;
+        /**
+         * (Optional) The context state account containing the pre-verified
+         * `VerifyBatchedRangeProofU128` proof.
+         */
+        rangeRecord?: TAccountMetas[5] | undefined;
+        /** The account owner or its multisignature account. */
+        authority: TAccountMetas[6];
     };
-    data: ConfidentialTransferInstructionData;
+    data: ConfidentialMintInstructionData;
 };
 
-export function parseConfidentialTransferInstruction<
-    TProgram extends string,
-    TAccountMetas extends readonly AccountMeta[],
->(
+export function parseConfidentialMintInstruction<TProgram extends string, TAccountMetas extends readonly AccountMeta[]>(
     instruction: Instruction<TProgram> &
         InstructionWithAccounts<TAccountMetas> &
         InstructionWithData<ReadonlyUint8Array>,
-): ParsedConfidentialTransferInstruction<TProgram, TAccountMetas> {
-    if (instruction.accounts.length < 4) {
+): ParsedConfidentialMintInstruction<TProgram, TAccountMetas> {
+    if (instruction.accounts.length < 3) {
         // TODO: Coded error.
         throw new Error('Not enough accounts');
     }
@@ -386,7 +385,7 @@ export function parseConfidentialTransferInstruction<
         accountIndex += 1;
         return accountMeta;
     };
-    let optionalAccountsRemaining = instruction.accounts.length - 4;
+    let optionalAccountsRemaining = instruction.accounts.length - 3;
     const getNextOptionalAccount = () => {
         if (optionalAccountsRemaining === 0) return undefined;
         optionalAccountsRemaining -= 1;
@@ -395,15 +394,14 @@ export function parseConfidentialTransferInstruction<
     return {
         programAddress: instruction.programAddress,
         accounts: {
-            sourceToken: getNextAccount(),
+            token: getNextAccount(),
             mint: getNextAccount(),
-            destinationToken: getNextAccount(),
             instructionsSysvar: getNextOptionalAccount(),
             equalityRecord: getNextOptionalAccount(),
             ciphertextValidityRecord: getNextOptionalAccount(),
             rangeRecord: getNextOptionalAccount(),
             authority: getNextAccount(),
         },
-        data: getConfidentialTransferInstructionDataDecoder().decode(instruction.data),
+        data: getConfidentialMintInstructionDataDecoder().decode(instruction.data),
     };
 }

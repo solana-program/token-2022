@@ -36,8 +36,12 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import {
     getDecryptableBalanceDecoder,
     getDecryptableBalanceEncoder,
+    getEncryptedBalanceDecoder,
+    getEncryptedBalanceEncoder,
     type DecryptableBalance,
     type DecryptableBalanceArgs,
+    type EncryptedBalance,
+    type EncryptedBalanceArgs,
 } from '../types';
 
 export const CONFIDENTIAL_TRANSFER_WITH_FEE_DISCRIMINATOR = 27;
@@ -57,12 +61,12 @@ export type ConfidentialTransferWithFeeInstruction<
     TAccountSourceToken extends string | AccountMeta<string> = string,
     TAccountMint extends string | AccountMeta<string> = string,
     TAccountDestinationToken extends string | AccountMeta<string> = string,
-    TAccountInstructionsSysvar extends string | AccountMeta<string> = string,
-    TAccountEqualityRecord extends string | AccountMeta<string> = string,
-    TAccountTransferAmountCiphertextValidityRecord extends string | AccountMeta<string> = string,
-    TAccountFeeSigmaRecord extends string | AccountMeta<string> = string,
-    TAccountFeeCiphertextValidityRecord extends string | AccountMeta<string> = string,
-    TAccountRangeRecord extends string | AccountMeta<string> = string,
+    TAccountInstructionsSysvar extends string | AccountMeta<string> | undefined = undefined,
+    TAccountEqualityRecord extends string | AccountMeta<string> | undefined = undefined,
+    TAccountTransferAmountCiphertextValidityRecord extends string | AccountMeta<string> | undefined = undefined,
+    TAccountFeeSigmaRecord extends string | AccountMeta<string> | undefined = undefined,
+    TAccountFeeCiphertextValidityRecord extends string | AccountMeta<string> | undefined = undefined,
+    TAccountRangeRecord extends string | AccountMeta<string> | undefined = undefined,
     TAccountAuthority extends string | AccountMeta<string> = string,
     TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
@@ -74,18 +78,44 @@ export type ConfidentialTransferWithFeeInstruction<
             TAccountDestinationToken extends string
                 ? WritableAccount<TAccountDestinationToken>
                 : TAccountDestinationToken,
-            TAccountInstructionsSysvar extends string
-                ? ReadonlyAccount<TAccountInstructionsSysvar>
-                : TAccountInstructionsSysvar,
-            TAccountEqualityRecord extends string ? ReadonlyAccount<TAccountEqualityRecord> : TAccountEqualityRecord,
-            TAccountTransferAmountCiphertextValidityRecord extends string
-                ? ReadonlyAccount<TAccountTransferAmountCiphertextValidityRecord>
-                : TAccountTransferAmountCiphertextValidityRecord,
-            TAccountFeeSigmaRecord extends string ? ReadonlyAccount<TAccountFeeSigmaRecord> : TAccountFeeSigmaRecord,
-            TAccountFeeCiphertextValidityRecord extends string
-                ? ReadonlyAccount<TAccountFeeCiphertextValidityRecord>
-                : TAccountFeeCiphertextValidityRecord,
-            TAccountRangeRecord extends string ? ReadonlyAccount<TAccountRangeRecord> : TAccountRangeRecord,
+            ...(TAccountInstructionsSysvar extends undefined
+                ? []
+                : [
+                      TAccountInstructionsSysvar extends string
+                          ? ReadonlyAccount<TAccountInstructionsSysvar>
+                          : TAccountInstructionsSysvar,
+                  ]),
+            ...(TAccountEqualityRecord extends undefined
+                ? []
+                : [
+                      TAccountEqualityRecord extends string
+                          ? ReadonlyAccount<TAccountEqualityRecord>
+                          : TAccountEqualityRecord,
+                  ]),
+            ...(TAccountTransferAmountCiphertextValidityRecord extends undefined
+                ? []
+                : [
+                      TAccountTransferAmountCiphertextValidityRecord extends string
+                          ? ReadonlyAccount<TAccountTransferAmountCiphertextValidityRecord>
+                          : TAccountTransferAmountCiphertextValidityRecord,
+                  ]),
+            ...(TAccountFeeSigmaRecord extends undefined
+                ? []
+                : [
+                      TAccountFeeSigmaRecord extends string
+                          ? ReadonlyAccount<TAccountFeeSigmaRecord>
+                          : TAccountFeeSigmaRecord,
+                  ]),
+            ...(TAccountFeeCiphertextValidityRecord extends undefined
+                ? []
+                : [
+                      TAccountFeeCiphertextValidityRecord extends string
+                          ? ReadonlyAccount<TAccountFeeCiphertextValidityRecord>
+                          : TAccountFeeCiphertextValidityRecord,
+                  ]),
+            ...(TAccountRangeRecord extends undefined
+                ? []
+                : [TAccountRangeRecord extends string ? ReadonlyAccount<TAccountRangeRecord> : TAccountRangeRecord]),
             TAccountAuthority extends string ? ReadonlyAccount<TAccountAuthority> : TAccountAuthority,
             ...TRemainingAccounts,
         ]
@@ -96,6 +126,10 @@ export type ConfidentialTransferWithFeeInstructionData = {
     confidentialTransferDiscriminator: number;
     /** The new source decryptable balance if the transfer succeeds. */
     newSourceDecryptableAvailableBalance: DecryptableBalance;
+    /** The transfer amount encrypted under the auditor ElGamal public key. */
+    transferAmountAuditorCiphertextLo: EncryptedBalance;
+    /** The transfer amount encrypted under the auditor ElGamal public key. */
+    transferAmountAuditorCiphertextHi: EncryptedBalance;
     /**
      * Relative location of the
      * `ProofInstruction::VerifyCiphertextCommitmentEquality` instruction
@@ -138,6 +172,10 @@ export type ConfidentialTransferWithFeeInstructionData = {
 export type ConfidentialTransferWithFeeInstructionDataArgs = {
     /** The new source decryptable balance if the transfer succeeds. */
     newSourceDecryptableAvailableBalance: DecryptableBalanceArgs;
+    /** The transfer amount encrypted under the auditor ElGamal public key. */
+    transferAmountAuditorCiphertextLo: EncryptedBalanceArgs;
+    /** The transfer amount encrypted under the auditor ElGamal public key. */
+    transferAmountAuditorCiphertextHi: EncryptedBalanceArgs;
     /**
      * Relative location of the
      * `ProofInstruction::VerifyCiphertextCommitmentEquality` instruction
@@ -183,6 +221,8 @@ export function getConfidentialTransferWithFeeInstructionDataEncoder(): FixedSiz
             ['discriminator', getU8Encoder()],
             ['confidentialTransferDiscriminator', getU8Encoder()],
             ['newSourceDecryptableAvailableBalance', getDecryptableBalanceEncoder()],
+            ['transferAmountAuditorCiphertextLo', getEncryptedBalanceEncoder()],
+            ['transferAmountAuditorCiphertextHi', getEncryptedBalanceEncoder()],
             ['equalityProofInstructionOffset', getI8Encoder()],
             ['transferAmountCiphertextValidityProofInstructionOffset', getI8Encoder()],
             ['feeSigmaProofInstructionOffset', getI8Encoder()],
@@ -202,6 +242,8 @@ export function getConfidentialTransferWithFeeInstructionDataDecoder(): FixedSiz
         ['discriminator', getU8Decoder()],
         ['confidentialTransferDiscriminator', getU8Decoder()],
         ['newSourceDecryptableAvailableBalance', getDecryptableBalanceDecoder()],
+        ['transferAmountAuditorCiphertextLo', getEncryptedBalanceDecoder()],
+        ['transferAmountAuditorCiphertextHi', getEncryptedBalanceDecoder()],
         ['equalityProofInstructionOffset', getI8Decoder()],
         ['transferAmountCiphertextValidityProofInstructionOffset', getI8Decoder()],
         ['feeSigmaProofInstructionOffset', getI8Decoder()],
@@ -260,6 +302,8 @@ export type ConfidentialTransferWithFeeInput<
     /** The source account's owner/delegate or its multisignature account. */
     authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
     newSourceDecryptableAvailableBalance: ConfidentialTransferWithFeeInstructionDataArgs['newSourceDecryptableAvailableBalance'];
+    transferAmountAuditorCiphertextLo: ConfidentialTransferWithFeeInstructionDataArgs['transferAmountAuditorCiphertextLo'];
+    transferAmountAuditorCiphertextHi: ConfidentialTransferWithFeeInstructionDataArgs['transferAmountAuditorCiphertextHi'];
     equalityProofInstructionOffset: ConfidentialTransferWithFeeInstructionDataArgs['equalityProofInstructionOffset'];
     transferAmountCiphertextValidityProofInstructionOffset: ConfidentialTransferWithFeeInstructionDataArgs['transferAmountCiphertextValidityProofInstructionOffset'];
     feeSigmaProofInstructionOffset: ConfidentialTransferWithFeeInstructionDataArgs['feeSigmaProofInstructionOffset'];
@@ -340,7 +384,7 @@ export function getConfidentialTransferWithFeeInstruction<
         signer,
     }));
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'omitted');
     return Object.freeze({
         accounts: [
             getAccountMeta(accounts.sourceToken),
@@ -354,7 +398,7 @@ export function getConfidentialTransferWithFeeInstruction<
             getAccountMeta(accounts.rangeRecord),
             getAccountMeta(accounts.authority),
             ...remainingAccounts,
-        ],
+        ].filter(<T>(x: T | undefined): x is T => x !== undefined),
         data: getConfidentialTransferWithFeeInstructionDataEncoder().encode(
             args as ConfidentialTransferWithFeeInstructionDataArgs,
         ),
@@ -421,7 +465,7 @@ export function parseConfidentialTransferWithFeeInstruction<
         InstructionWithAccounts<TAccountMetas> &
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedConfidentialTransferWithFeeInstruction<TProgram, TAccountMetas> {
-    if (instruction.accounts.length < 10) {
+    if (instruction.accounts.length < 4) {
         // TODO: Coded error.
         throw new Error('Not enough accounts');
     }
@@ -431,9 +475,11 @@ export function parseConfidentialTransferWithFeeInstruction<
         accountIndex += 1;
         return accountMeta;
     };
+    let optionalAccountsRemaining = instruction.accounts.length - 4;
     const getNextOptionalAccount = () => {
-        const accountMeta = getNextAccount();
-        return accountMeta.address === TOKEN_2022_PROGRAM_ADDRESS ? undefined : accountMeta;
+        if (optionalAccountsRemaining === 0) return undefined;
+        optionalAccountsRemaining -= 1;
+        return getNextAccount();
     };
     return {
         programAddress: instruction.programAddress,

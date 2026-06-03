@@ -6,8 +6,7 @@
         "kind": "programNode",
         "name": "token-2022",
         "publicKey": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
-        "version": "3.0.2",
-        "origin": "shank",
+        "version": "3.0.1",
         "docs": [],
         "accounts": [
             {
@@ -1790,7 +1789,7 @@
                     "`system_instruction::transfer` to move lamports to a wrapped token",
                     "account, and needs to have its token `amount` field updated."
                 ],
-                "optionalAccountStrategy": "programId",
+                "optionalAccountStrategy": "omitted",
                 "accounts": [
                     {
                         "kind": "instructionAccountNode",
@@ -1799,6 +1798,18 @@
                         "isSigner": false,
                         "isOptional": false,
                         "docs": ["The native token account to sync with its underlying lamports."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "rent",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": true,
+                        "docs": ["Rent sysvar."],
+                        "defaultValue": {
+                            "kind": "publicKeyValueNode",
+                            "publicKey": "SysvarRent111111111111111111111111111111111"
+                        }
                     }
                 ],
                 "arguments": [
@@ -3230,16 +3241,6 @@
                     },
                     {
                         "kind": "instructionAccountNode",
-                        "name": "record",
-                        "isWritable": false,
-                        "isSigner": false,
-                        "isOptional": true,
-                        "docs": [
-                            "(Optional) Record account if the accompanying proof is to be read from a record account."
-                        ]
-                    },
-                    {
-                        "kind": "instructionAccountNode",
                         "name": "authority",
                         "isWritable": false,
                         "isSigner": "either",
@@ -3478,16 +3479,6 @@
                     },
                     {
                         "kind": "instructionAccountNode",
-                        "name": "record",
-                        "isWritable": false,
-                        "isSigner": false,
-                        "isOptional": true,
-                        "docs": [
-                            "(Optional) Record account if the accompanying proof is to be read from a record account."
-                        ]
-                    },
-                    {
-                        "kind": "instructionAccountNode",
                         "name": "authority",
                         "isWritable": false,
                         "isSigner": "either",
@@ -3703,7 +3694,7 @@
                     "Fails if the source or destination accounts are frozen.",
                     "Fails if the associated mint is extended as `NonTransferable`."
                 ],
-                "optionalAccountStrategy": "programId",
+                "optionalAccountStrategy": "omitted",
                 "accounts": [
                     {
                         "kind": "instructionAccountNode",
@@ -3891,7 +3882,7 @@
                     "",
                     "Fails if the associated mint is extended as `NonTransferable`."
                 ],
-                "optionalAccountStrategy": "programId",
+                "optionalAccountStrategy": "omitted",
                 "accounts": [
                     {
                         "kind": "instructionAccountNode",
@@ -4000,6 +3991,24 @@
                         "type": {
                             "kind": "definedTypeLinkNode",
                             "name": "decryptableBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "transferAmountAuditorCiphertextLo",
+                        "docs": ["The transfer amount encrypted under the auditor ElGamal public key."],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "encryptedBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "transferAmountAuditorCiphertextHi",
+                        "docs": ["The transfer amount encrypted under the auditor ElGamal public key."],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "encryptedBalance"
                         }
                     },
                     {
@@ -4547,7 +4556,7 @@
                     "`TransferWithFee`. Namely, the instruction fails if the",
                     "associated mint is extended as `NonTransferable`."
                 ],
-                "optionalAccountStrategy": "programId",
+                "optionalAccountStrategy": "omitted",
                 "accounts": [
                     {
                         "kind": "instructionAccountNode",
@@ -4679,6 +4688,24 @@
                     },
                     {
                         "kind": "instructionArgumentNode",
+                        "name": "transferAmountAuditorCiphertextLo",
+                        "docs": ["The transfer amount encrypted under the auditor ElGamal public key."],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "encryptedBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "transferAmountAuditorCiphertextHi",
+                        "docs": ["The transfer amount encrypted under the auditor ElGamal public key."],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "encryptedBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
                         "name": "equalityProofInstructionOffset",
                         "docs": [
                             "Relative location of the",
@@ -4764,6 +4791,115 @@
                         "value": {
                             "kind": "argumentValueNode",
                             "name": "multiSigners"
+                        }
+                    }
+                ],
+                "discriminators": [
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "discriminator",
+                        "offset": 0
+                    },
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "confidentialTransferDiscriminator",
+                        "offset": 1
+                    }
+                ]
+            },
+            {
+                "kind": "instructionNode",
+                "name": "configureConfidentialTransferAccountWithRegistry",
+                "docs": [
+                    "Configures confidential transfers for a token account.",
+                    "",
+                    "This instruction is identical to the `ConfigureAccount` instruction",
+                    "except that an `ElGamalRegistry` account is expected in place of the",
+                    "`VerifyPubkeyValidity` proof.",
+                    "",
+                    "An `ElGamalRegistry` account is valid if it shares the same owner with",
+                    "the token account. If a valid `ElGamalRegistry` account is provided,",
+                    "then the program skips the verification of the ElGamal pubkey validity",
+                    "proof as well as the token owner signature.",
+                    "",
+                    "If the token account is not large enough to include the new",
+                    "confidential transfer extension, then optionally reallocate the account",
+                    "to increase the data size. To reallocate, a payer account to fund the",
+                    "reallocation and the system account should be included in the",
+                    "instruction."
+                ],
+                "optionalAccountStrategy": "omitted",
+                "accounts": [
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "token",
+                        "isWritable": true,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The SPL Token account."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "mint",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The corresponding SPL Token mint."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "elgamalRegistry",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The ElGamal registry account."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "payer",
+                        "isWritable": true,
+                        "isSigner": true,
+                        "isOptional": true,
+                        "docs": ["(Optional) The payer account to fund reallocation."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "systemProgram",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": true,
+                        "docs": ["(Optional) System program for reallocation funding."]
+                    }
+                ],
+                "arguments": [
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "discriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 27
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "confidentialTransferDiscriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 14
                         }
                     }
                 ],
@@ -5997,10 +6133,7 @@
                         "name": "withdrawWithheldAuthorityElGamalPubkey",
                         "docs": ["Withheld fees from accounts must be encrypted with this ElGamal key"],
                         "type": {
-                            "kind": "zeroableOptionTypeNode",
-                            "item": {
-                                "kind": "publicKeyTypeNode"
-                            }
+                            "kind": "publicKeyTypeNode"
                         }
                     }
                 ],
@@ -6054,15 +6187,12 @@
                         "isWritable": false,
                         "isSigner": false,
                         "isOptional": false,
-                        "docs": ["Instructions sysvar or context state account"]
-                    },
-                    {
-                        "kind": "instructionAccountNode",
-                        "name": "record",
-                        "isWritable": false,
-                        "isSigner": false,
-                        "isOptional": true,
-                        "docs": ["Optional record account if proof is read from record"]
+                        "docs": [
+                            "Instructions sysvar if `VerifyCiphertextCiphertextEquality` is",
+                            "included in the same transaction or context state account if",
+                            "`VerifyCiphertextCiphertextEquality` is pre-verified into a context",
+                            "state account."
+                        ]
                     },
                     {
                         "kind": "instructionAccountNode",
@@ -6183,15 +6313,12 @@
                         "isWritable": false,
                         "isSigner": false,
                         "isOptional": false,
-                        "docs": ["Instructions sysvar or context state account"]
-                    },
-                    {
-                        "kind": "instructionAccountNode",
-                        "name": "record",
-                        "isWritable": false,
-                        "isSigner": false,
-                        "isOptional": true,
-                        "docs": ["Optional record account"]
+                        "docs": [
+                            "Instructions sysvar if `VerifyCiphertextCiphertextEquality` is",
+                            "included in the same transaction or context state account if",
+                            "`VerifyCiphertextCiphertextEquality` is pre-verified into a context",
+                            "state account."
+                        ]
                     },
                     {
                         "kind": "instructionAccountNode",
@@ -6540,19 +6667,19 @@
                 "accounts": [
                     {
                         "kind": "instructionAccountNode",
-                        "name": "sourceAccount",
+                        "name": "source",
                         "isWritable": true,
                         "isSigner": false,
                         "isOptional": false,
-                        "docs": ["Account holding excess lamports."]
+                        "docs": ["The source account."]
                     },
                     {
                         "kind": "instructionAccountNode",
-                        "name": "destinationAccount",
+                        "name": "destination",
                         "isWritable": true,
                         "isSigner": false,
                         "isOptional": false,
-                        "docs": ["Destination account for withdrawn lamports."]
+                        "docs": ["The destination account."]
                     },
                     {
                         "kind": "instructionAccountNode",
@@ -6560,10 +6687,7 @@
                         "isWritable": false,
                         "isSigner": "either",
                         "isOptional": false,
-                        "docs": ["The source account's owner/delegate or its multisignature account."],
-                        "defaultValue": {
-                            "kind": "identityValueNode"
-                        }
+                        "docs": ["The source account owner or its multisignature account."]
                     }
                 ],
                 "arguments": [
@@ -7154,6 +7278,826 @@
                     {
                         "kind": "fieldDiscriminatorNode",
                         "name": "groupMemberPointerDiscriminator",
+                        "offset": 1
+                    }
+                ]
+            },
+            {
+                "kind": "instructionNode",
+                "name": "initializeConfidentialMintBurn",
+                "docs": [
+                    "Initializes confidential mints and burns for a mint.",
+                    "",
+                    "The `ConfidentialMintBurnInstruction::InitializeMint` instruction",
+                    "requires no signers and MUST be included within the same Transaction as",
+                    "`TokenInstruction::InitializeMint`. Otherwise another party can",
+                    "initialize the configuration.",
+                    "",
+                    "The instruction fails if the `TokenInstruction::InitializeMint`",
+                    "instruction has already executed for the mint."
+                ],
+                "optionalAccountStrategy": "programId",
+                "accounts": [
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "mint",
+                        "isWritable": true,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The SPL Token mint."]
+                    }
+                ],
+                "arguments": [
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "discriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 42
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "confidentialMintBurnDiscriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 0
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "supplyElgamalPubkey",
+                        "docs": ["The ElGamal pubkey used to encrypt the confidential supply."],
+                        "type": {
+                            "kind": "publicKeyTypeNode"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "decryptableSupply",
+                        "docs": ["The initial 0 supply encrypted with the supply aes key."],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "decryptableBalance"
+                        }
+                    }
+                ],
+                "discriminators": [
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "discriminator",
+                        "offset": 0
+                    },
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "confidentialMintBurnDiscriminator",
+                        "offset": 1
+                    }
+                ]
+            },
+            {
+                "kind": "instructionNode",
+                "name": "rotateSupplyElgamalPubkey",
+                "docs": [
+                    "Rotates the ElGamal pubkey used to encrypt confidential supply.",
+                    "",
+                    "The pending burn amount must be zero in order for this instruction to be",
+                    "processed successfully."
+                ],
+                "optionalAccountStrategy": "programId",
+                "accounts": [
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "mint",
+                        "isWritable": true,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The SPL Token mint."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "instructionsSysvarOrContextState",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": [
+                            "Instructions sysvar if `CiphertextCiphertextEquality` is included in",
+                            "the same transaction or context state account if",
+                            "`CiphertextCiphertextEquality` is pre-verified into a context state",
+                            "account."
+                        ],
+                        "defaultValue": {
+                            "kind": "publicKeyValueNode",
+                            "publicKey": "Sysvar1nstructions1111111111111111111111111"
+                        }
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "authority",
+                        "isWritable": false,
+                        "isSigner": "either",
+                        "isOptional": false,
+                        "docs": ["The confidential mint authority or its multisignature account."]
+                    }
+                ],
+                "arguments": [
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "discriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 42
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "confidentialMintBurnDiscriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 1
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "newSupplyElgamalPubkey",
+                        "docs": ["The new ElGamal pubkey for supply encryption."],
+                        "type": {
+                            "kind": "publicKeyTypeNode"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "proofInstructionOffset",
+                        "docs": [
+                            "The location of the",
+                            "`ProofInstruction::VerifyCiphertextCiphertextEquality` instruction",
+                            "relative to the `RotateSupplyElGamalPubkey` instruction in the",
+                            "transaction. If the offset is `0`, then use a context state account",
+                            "for the proof."
+                        ],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "i8",
+                            "endian": "le"
+                        }
+                    }
+                ],
+                "remainingAccounts": [
+                    {
+                        "kind": "instructionRemainingAccountsNode",
+                        "isOptional": true,
+                        "isSigner": true,
+                        "docs": [],
+                        "value": {
+                            "kind": "argumentValueNode",
+                            "name": "multiSigners"
+                        }
+                    }
+                ],
+                "discriminators": [
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "discriminator",
+                        "offset": 0
+                    },
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "confidentialMintBurnDiscriminator",
+                        "offset": 1
+                    }
+                ]
+            },
+            {
+                "kind": "instructionNode",
+                "name": "updateConfidentialMintBurnDecryptableSupply",
+                "docs": ["Updates the decryptable supply of the mint."],
+                "optionalAccountStrategy": "programId",
+                "accounts": [
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "mint",
+                        "isWritable": true,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The SPL Token mint."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "authority",
+                        "isWritable": false,
+                        "isSigner": "either",
+                        "isOptional": false,
+                        "docs": ["The confidential mint authority or its multisignature account."]
+                    }
+                ],
+                "arguments": [
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "discriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 42
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "confidentialMintBurnDiscriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 2
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "newDecryptableSupply",
+                        "docs": ["The new decryptable supply."],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "decryptableBalance"
+                        }
+                    }
+                ],
+                "remainingAccounts": [
+                    {
+                        "kind": "instructionRemainingAccountsNode",
+                        "isOptional": true,
+                        "isSigner": true,
+                        "docs": [],
+                        "value": {
+                            "kind": "argumentValueNode",
+                            "name": "multiSigners"
+                        }
+                    }
+                ],
+                "discriminators": [
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "discriminator",
+                        "offset": 0
+                    },
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "confidentialMintBurnDiscriminator",
+                        "offset": 1
+                    }
+                ]
+            },
+            {
+                "kind": "instructionNode",
+                "name": "confidentialMint",
+                "docs": [
+                    "Mints tokens to a confidential balance.",
+                    "",
+                    "Fails if the destination account is frozen.",
+                    "",
+                    "In order for this instruction to be successfully processed, it must be",
+                    "accompanied by the following list of `zk_elgamal_proof` program",
+                    "instructions:",
+                    "- `VerifyCiphertextCommitmentEquality`",
+                    "- `VerifyBatchedGroupedCiphertext3HandlesValidity`",
+                    "- `VerifyBatchedRangeProofU128`",
+                    "These instructions can be accompanied in the same transaction or can be",
+                    "pre-verified into a context state account, in which case, only their",
+                    "context state account addresses need to be provided."
+                ],
+                "optionalAccountStrategy": "omitted",
+                "accounts": [
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "token",
+                        "isWritable": true,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The SPL Token account."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "mint",
+                        "isWritable": true,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The SPL Token mint."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "instructionsSysvar",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": true,
+                        "docs": [
+                            "(Optional) Instructions sysvar if at least one of the",
+                            "`zk_elgamal_proof` instructions are included in the same",
+                            "transaction."
+                        ]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "equalityRecord",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": true,
+                        "docs": [
+                            "(Optional) The context state account containing the pre-verified",
+                            "`VerifyCiphertextCommitmentEquality` proof."
+                        ]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "ciphertextValidityRecord",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": true,
+                        "docs": [
+                            "(Optional) The context state account containing the pre-verified",
+                            "`VerifyBatchedGroupedCiphertext3HandlesValidity` proof."
+                        ]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "rangeRecord",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": true,
+                        "docs": [
+                            "(Optional) The context state account containing the pre-verified",
+                            "`VerifyBatchedRangeProofU128` proof."
+                        ]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "authority",
+                        "isWritable": false,
+                        "isSigner": "either",
+                        "isOptional": false,
+                        "docs": ["The account owner or its multisignature account."]
+                    }
+                ],
+                "arguments": [
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "discriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 42
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "confidentialMintBurnDiscriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 3
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "newDecryptableSupply",
+                        "docs": ["The new decryptable supply if the mint succeeds."],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "decryptableBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "mintAmountAuditorCiphertextLo",
+                        "docs": ["The mint amount encrypted under the auditor ElGamal public key."],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "encryptedBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "mintAmountAuditorCiphertextHi",
+                        "docs": ["The mint amount encrypted under the auditor ElGamal public key."],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "encryptedBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "equalityProofInstructionOffset",
+                        "docs": [
+                            "Relative location of the",
+                            "`ProofInstruction::VerifyCiphertextCommitmentEquality` instruction",
+                            "to the `ConfidentialMint` instruction in the transaction. If the",
+                            "offset is `0`, then use a context state account for the proof."
+                        ],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "i8",
+                            "endian": "le"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "ciphertextValidityProofInstructionOffset",
+                        "docs": [
+                            "Relative location of the",
+                            "`ProofInstruction::VerifyBatchedGroupedCiphertext3HandlesValidity`",
+                            "instruction to the `ConfidentialMint` instruction in the transaction.",
+                            "If the offset is `0`, then use a context state account for the proof."
+                        ],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "i8",
+                            "endian": "le"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "rangeProofInstructionOffset",
+                        "docs": [
+                            "Relative location of the",
+                            "`ProofInstruction::VerifyBatchedRangeProofU128` instruction to the",
+                            "`ConfidentialMint` instruction in the transaction. If the offset is",
+                            "`0`, then use a context state account for the proof."
+                        ],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "i8",
+                            "endian": "le"
+                        }
+                    }
+                ],
+                "remainingAccounts": [
+                    {
+                        "kind": "instructionRemainingAccountsNode",
+                        "isOptional": true,
+                        "isSigner": true,
+                        "docs": [],
+                        "value": {
+                            "kind": "argumentValueNode",
+                            "name": "multiSigners"
+                        }
+                    }
+                ],
+                "discriminators": [
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "discriminator",
+                        "offset": 0
+                    },
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "confidentialMintBurnDiscriminator",
+                        "offset": 1
+                    }
+                ]
+            },
+            {
+                "kind": "instructionNode",
+                "name": "confidentialBurn",
+                "docs": [
+                    "Burns tokens from a confidential balance.",
+                    "",
+                    "Fails if the source account is frozen.",
+                    "",
+                    "In order for this instruction to be successfully processed, it must be",
+                    "accompanied by the following list of `zk_elgamal_proof` program",
+                    "instructions:",
+                    "- `VerifyCiphertextCommitmentEquality`",
+                    "- `VerifyBatchedGroupedCiphertext3HandlesValidity`",
+                    "- `VerifyBatchedRangeProofU128`",
+                    "These instructions can be accompanied in the same transaction or can be",
+                    "pre-verified into a context state account, in which case, only their",
+                    "context state account addresses need to be provided."
+                ],
+                "optionalAccountStrategy": "omitted",
+                "accounts": [
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "token",
+                        "isWritable": true,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The SPL Token account."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "mint",
+                        "isWritable": true,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The SPL Token mint."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "instructionsSysvar",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": true,
+                        "docs": [
+                            "(Optional) Instructions sysvar if at least one of the",
+                            "`zk_elgamal_proof` instructions are included in the same",
+                            "transaction."
+                        ]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "equalityRecord",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": true,
+                        "docs": [
+                            "(Optional) The context state account containing the pre-verified",
+                            "`VerifyCiphertextCommitmentEquality` proof."
+                        ]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "ciphertextValidityRecord",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": true,
+                        "docs": [
+                            "(Optional) The context state account containing the pre-verified",
+                            "`VerifyBatchedGroupedCiphertext3HandlesValidity` proof."
+                        ]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "rangeRecord",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": true,
+                        "docs": [
+                            "(Optional) The context state account containing the pre-verified",
+                            "`VerifyBatchedRangeProofU128` proof."
+                        ]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "authority",
+                        "isWritable": false,
+                        "isSigner": "either",
+                        "isOptional": false,
+                        "docs": ["The account owner or its multisignature account."]
+                    }
+                ],
+                "arguments": [
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "discriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 42
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "confidentialMintBurnDiscriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 4
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "newDecryptableAvailableBalance",
+                        "docs": ["The new decryptable balance of the burner if the burn succeeds."],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "decryptableBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "burnAmountAuditorCiphertextLo",
+                        "docs": ["The burn amount encrypted under the auditor ElGamal public key."],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "encryptedBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "burnAmountAuditorCiphertextHi",
+                        "docs": ["The burn amount encrypted under the auditor ElGamal public key."],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "encryptedBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "equalityProofInstructionOffset",
+                        "docs": [
+                            "Relative location of the",
+                            "`ProofInstruction::VerifyCiphertextCommitmentEquality` instruction",
+                            "to the `ConfidentialBurn` instruction in the transaction. If the",
+                            "offset is `0`, then use a context state account for the proof."
+                        ],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "i8",
+                            "endian": "le"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "ciphertextValidityProofInstructionOffset",
+                        "docs": [
+                            "Relative location of the",
+                            "`ProofInstruction::VerifyBatchedGroupedCiphertext3HandlesValidity`",
+                            "instruction to the `ConfidentialBurn` instruction in the transaction.",
+                            "If the offset is `0`, then use a context state account for the proof."
+                        ],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "i8",
+                            "endian": "le"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "rangeProofInstructionOffset",
+                        "docs": [
+                            "Relative location of the",
+                            "`ProofInstruction::VerifyBatchedRangeProofU128` instruction to the",
+                            "`ConfidentialBurn` instruction in the transaction. If the offset is",
+                            "`0`, then use a context state account for the proof."
+                        ],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "i8",
+                            "endian": "le"
+                        }
+                    }
+                ],
+                "remainingAccounts": [
+                    {
+                        "kind": "instructionRemainingAccountsNode",
+                        "isOptional": true,
+                        "isSigner": true,
+                        "docs": [],
+                        "value": {
+                            "kind": "argumentValueNode",
+                            "name": "multiSigners"
+                        }
+                    }
+                ],
+                "discriminators": [
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "discriminator",
+                        "offset": 0
+                    },
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "confidentialMintBurnDiscriminator",
+                        "offset": 1
+                    }
+                ]
+            },
+            {
+                "kind": "instructionNode",
+                "name": "applyConfidentialPendingBurn",
+                "docs": ["Applies the pending burn amount to the confidential supply."],
+                "optionalAccountStrategy": "programId",
+                "accounts": [
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "mint",
+                        "isWritable": true,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The SPL Token mint."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "authority",
+                        "isWritable": false,
+                        "isSigner": "either",
+                        "isOptional": false,
+                        "docs": ["The mint authority or its multisignature account."]
+                    }
+                ],
+                "arguments": [
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "discriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 42
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "confidentialMintBurnDiscriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 5
+                        }
+                    }
+                ],
+                "remainingAccounts": [
+                    {
+                        "kind": "instructionRemainingAccountsNode",
+                        "isOptional": true,
+                        "isSigner": true,
+                        "docs": [],
+                        "value": {
+                            "kind": "argumentValueNode",
+                            "name": "multiSigners"
+                        }
+                    }
+                ],
+                "discriminators": [
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "discriminator",
+                        "offset": 0
+                    },
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "confidentialMintBurnDiscriminator",
                         "offset": 1
                     }
                 ]
@@ -8667,6 +9611,328 @@
                         "offset": 1
                     }
                 ]
+            },
+            {
+                "kind": "instructionNode",
+                "name": "permissionedConfidentialBurn",
+                "docs": [
+                    "Burn tokens from a confidential balance when the mint has the",
+                    "permissioned burn extension enabled.",
+                    "",
+                    "Fails if the source account is frozen.",
+                    "",
+                    "In order for this instruction to be successfully processed, it must be",
+                    "accompanied by the following list of `zk_elgamal_proof` program",
+                    "instructions:",
+                    "- `VerifyCiphertextCommitmentEquality`",
+                    "- `VerifyBatchedGroupedCiphertext3HandlesValidity`",
+                    "- `VerifyBatchedRangeProofU128`",
+                    "These instructions can be accompanied in the same transaction or can be",
+                    "pre-verified into a context state account, in which case, only their",
+                    "context state account addresses need to be provided."
+                ],
+                "optionalAccountStrategy": "omitted",
+                "accounts": [
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "token",
+                        "isWritable": true,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The SPL Token account."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "mint",
+                        "isWritable": true,
+                        "isSigner": false,
+                        "isOptional": false,
+                        "docs": ["The SPL Token mint."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "instructionsSysvar",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": true,
+                        "docs": [
+                            "(Optional) Instructions sysvar if at least one of the",
+                            "`zk_elgamal_proof` instructions are included in the same",
+                            "transaction."
+                        ]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "equalityRecord",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": true,
+                        "docs": [
+                            "(Optional) The context state account containing the pre-verified",
+                            "`VerifyCiphertextCommitmentEquality` proof."
+                        ]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "ciphertextValidityRecord",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": true,
+                        "docs": [
+                            "(Optional) The context state account containing the pre-verified",
+                            "`VerifyBatchedGroupedCiphertext3HandlesValidity` proof."
+                        ]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "rangeRecord",
+                        "isWritable": false,
+                        "isSigner": false,
+                        "isOptional": true,
+                        "docs": [
+                            "(Optional) The context state account containing the pre-verified",
+                            "`VerifyBatchedRangeProofU128` proof."
+                        ]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "permissionedBurnAuthority",
+                        "isWritable": false,
+                        "isSigner": true,
+                        "isOptional": false,
+                        "docs": ["Authority configured on the mint that must sign any permissioned burn instruction."]
+                    },
+                    {
+                        "kind": "instructionAccountNode",
+                        "name": "authority",
+                        "isWritable": false,
+                        "isSigner": "either",
+                        "isOptional": false,
+                        "docs": ["The account's owner/delegate or its multisignature account."]
+                    }
+                ],
+                "arguments": [
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "discriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 46
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "permissionedBurnDiscriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 3
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "newDecryptableAvailableBalance",
+                        "docs": ["The new decryptable balance of the burner if the burn succeeds."],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "decryptableBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "burnAmountAuditorCiphertextLo",
+                        "docs": ["The burn amount encrypted under the auditor ElGamal public key."],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "encryptedBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "burnAmountAuditorCiphertextHi",
+                        "docs": ["The burn amount encrypted under the auditor ElGamal public key."],
+                        "type": {
+                            "kind": "definedTypeLinkNode",
+                            "name": "encryptedBalance"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "equalityProofInstructionOffset",
+                        "docs": [
+                            "Relative location of the",
+                            "`ProofInstruction::VerifyCiphertextCommitmentEquality` instruction",
+                            "to the burn instruction in the transaction. If the offset is `0`,",
+                            "then use a context state account for the proof."
+                        ],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "i8",
+                            "endian": "le"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "ciphertextValidityProofInstructionOffset",
+                        "docs": [
+                            "Relative location of the",
+                            "`ProofInstruction::VerifyBatchedGroupedCiphertext3HandlesValidity`",
+                            "instruction to the burn instruction in the transaction. If the offset",
+                            "is `0`, then use a context state account for the proof."
+                        ],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "i8",
+                            "endian": "le"
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "rangeProofInstructionOffset",
+                        "docs": [
+                            "Relative location of the",
+                            "`ProofInstruction::VerifyBatchedRangeProofU128` instruction to the",
+                            "burn instruction in the transaction. If the offset is `0`, then use a",
+                            "context state account for the proof."
+                        ],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "i8",
+                            "endian": "le"
+                        }
+                    }
+                ],
+                "remainingAccounts": [
+                    {
+                        "kind": "instructionRemainingAccountsNode",
+                        "isOptional": true,
+                        "isSigner": true,
+                        "docs": [],
+                        "value": {
+                            "kind": "argumentValueNode",
+                            "name": "multiSigners"
+                        }
+                    }
+                ],
+                "discriminators": [
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "discriminator",
+                        "offset": 0
+                    },
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "permissionedBurnDiscriminator",
+                        "offset": 1
+                    }
+                ]
+            },
+            {
+                "kind": "instructionNode",
+                "name": "batch",
+                "docs": [
+                    "Executes a batch of instructions. The instructions to be executed are",
+                    "specified in sequence on the instruction data. Each instruction",
+                    "provides:",
+                    "- `u8`: number of accounts",
+                    "- `u8`: instruction data length (includes the discriminator)",
+                    "- `u8`: instruction discriminator",
+                    "- `[u8]`: instruction data",
+                    "",
+                    "Accounts follow a similar pattern, where accounts for each instruction",
+                    "are specified in sequence. Therefore, the number of accounts expected by",
+                    "this instruction is variable, i.e., it depends on the instructions",
+                    "provided.",
+                    "",
+                    "Both the number of accounts and instruction data length are used to",
+                    "identify the slice of accounts and instruction data for each",
+                    "instruction.",
+                    "",
+                    "Note that it is not sound to have a `batch` instruction that contains",
+                    "other `batch` instructions; an error will be raised when this is",
+                    "detected."
+                ],
+                "optionalAccountStrategy": "programId",
+                "accounts": [],
+                "arguments": [
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "discriminator",
+                        "defaultValueStrategy": "omitted",
+                        "docs": [],
+                        "type": {
+                            "kind": "numberTypeNode",
+                            "format": "u8",
+                            "endian": "le"
+                        },
+                        "defaultValue": {
+                            "kind": "numberValueNode",
+                            "number": 255
+                        }
+                    },
+                    {
+                        "kind": "instructionArgumentNode",
+                        "name": "data",
+                        "docs": ["Instruction data for batch instructions."],
+                        "type": {
+                            "kind": "arrayTypeNode",
+                            "item": {
+                                "kind": "structTypeNode",
+                                "fields": [
+                                    {
+                                        "kind": "structFieldTypeNode",
+                                        "name": "numberOfAccounts",
+                                        "docs": [],
+                                        "type": {
+                                            "kind": "numberTypeNode",
+                                            "format": "u8",
+                                            "endian": "le"
+                                        }
+                                    },
+                                    {
+                                        "kind": "structFieldTypeNode",
+                                        "name": "instructionData",
+                                        "docs": [],
+                                        "type": {
+                                            "kind": "sizePrefixTypeNode",
+                                            "prefix": {
+                                                "kind": "numberTypeNode",
+                                                "format": "u8",
+                                                "endian": "le"
+                                            },
+                                            "type": {
+                                                "kind": "bytesTypeNode"
+                                            }
+                                        }
+                                    }
+                                ]
+                            },
+                            "count": {
+                                "kind": "remainderCountNode"
+                            }
+                        }
+                    }
+                ],
+                "discriminators": [
+                    {
+                        "kind": "fieldDiscriminatorNode",
+                        "name": "discriminator",
+                        "offset": 0
+                    }
+                ]
             }
         ],
         "definedTypes": [
@@ -9963,7 +11229,43 @@
                                 "kind": "sizePrefixTypeNode",
                                 "type": {
                                     "kind": "structTypeNode",
-                                    "fields": []
+                                    "fields": [
+                                        {
+                                            "kind": "structFieldTypeNode",
+                                            "name": "confidentialSupply",
+                                            "docs": ["The confidential supply of the mint (encrypted by `supply_elgamal_pubkey`)."],
+                                            "type": {
+                                                "kind": "definedTypeLinkNode",
+                                                "name": "encryptedBalance"
+                                            }
+                                        },
+                                        {
+                                            "kind": "structFieldTypeNode",
+                                            "name": "decryptableSupply",
+                                            "docs": ["The decryptable confidential supply of the mint."],
+                                            "type": {
+                                                "kind": "definedTypeLinkNode",
+                                                "name": "decryptableBalance"
+                                            }
+                                        },
+                                        {
+                                            "kind": "structFieldTypeNode",
+                                            "name": "supplyElgamalPubkey",
+                                            "docs": ["The ElGamal pubkey used to encrypt the confidential supply."],
+                                            "type": {
+                                                "kind": "publicKeyTypeNode"
+                                            }
+                                        },
+                                        {
+                                            "kind": "structFieldTypeNode",
+                                            "name": "pendingBurn",
+                                            "docs": ["The amount of burnt tokens that have not yet been applied to the confidential supply (encrypted by `supply_elgamal_pubkey`)."],
+                                            "type": {
+                                                "kind": "definedTypeLinkNode",
+                                                "name": "encryptedBalance"
+                                            }
+                                        }
+                                    ]
                                 },
                                 "prefix": {
                                     "kind": "numberTypeNode",
@@ -10232,21 +11534,6 @@
                         },
                         {
                             "kind": "enumEmptyVariantTypeNode",
-                            "name": "scaledUiAmountConfig",
-                            "docs": ["Tokens have a scaled UI amount"]
-                        },
-                        {
-                            "kind": "enumEmptyVariantTypeNode",
-                            "name": "pausableConfig",
-                            "docs": ["Mint contains pausable configuration"]
-                        },
-                        {
-                            "kind": "enumEmptyVariantTypeNode",
-                            "name": "pausableAccount",
-                            "docs": ["Account contains pausable configuration"]
-                        },
-                        {
-                            "kind": "enumEmptyVariantTypeNode",
                             "name": "metadataPointer",
                             "docs": [
                                 "Mint contains a pointer to another account (or the same account) that",
@@ -10283,6 +11570,31 @@
                             "kind": "enumEmptyVariantTypeNode",
                             "name": "tokenGroupMember",
                             "docs": ["Mint contains token group member configurations"]
+                        },
+                        {
+                            "kind": "enumEmptyVariantTypeNode",
+                            "name": "confidentialMintBurn",
+                            "docs": ["Mint allowing the minting and burning of confidential tokens"]
+                        },
+                        {
+                            "kind": "enumEmptyVariantTypeNode",
+                            "name": "scaledUiAmountConfig",
+                            "docs": ["Tokens whose UI amount is scaled by a given amount"]
+                        },
+                        {
+                            "kind": "enumEmptyVariantTypeNode",
+                            "name": "pausableConfig",
+                            "docs": ["Mint contains pausable configuration"]
+                        },
+                        {
+                            "kind": "enumEmptyVariantTypeNode",
+                            "name": "pausableAccount",
+                            "docs": ["Account contains pausable configuration"]
+                        },
+                        {
+                            "kind": "enumEmptyVariantTypeNode",
+                            "name": "permissionedBurn",
+                            "docs": ["Mint requires a permissioned burn authority to sign for any burn"]
                         }
                     ],
                     "size": {

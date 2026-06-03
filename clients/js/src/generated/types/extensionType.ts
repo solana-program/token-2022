@@ -41,15 +41,17 @@ export enum ExtensionType {
     TransferHookAccount,
     ConfidentialTransferFee,
     ConfidentialTransferFeeAmount,
-    ScaledUiAmountConfig,
-    PausableConfig,
-    PausableAccount,
     MetadataPointer,
     TokenMetadata,
     GroupPointer,
     TokenGroup,
     GroupMemberPointer,
     TokenGroupMember,
+    ConfidentialMintBurn,
+    ScaledUiAmountConfig,
+    PausableConfig,
+    PausableAccount,
+    PermissionedBurn,
 }
 
 export type ExtensionTypeArgs = ExtensionType;
