@@ -208,8 +208,8 @@ function splitAmount(amount: bigint, bitLength: bigint): [bigint, bigint] {
     return [amount & mask, amount >> bitLength];
 }
 
-function combineBalances(balanceLo: bigint, balanceHi: bigint) {
-    return (balanceHi << PENDING_BALANCE_LO_BIT_LENGTH) + balanceLo;
+function combineAmounts(amountLo: bigint, amountHi: bigint, bitLength: bigint): bigint {
+    return (amountHi << bitLength) + amountLo;
 }
 
 function decryptAvailableBalance(account: ConfidentialTransferAccountExtension, aesKey: AeKey) {
@@ -361,7 +361,10 @@ export function getApplyConfidentialPendingBalanceInstructionFromToken(
     const pendingBalanceLo = input.elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceLow));
     const pendingBalanceHi = input.elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceHigh));
     const newDecryptableAvailableBalance = input.aesKey
-        .encrypt(decryptAvailableBalance(account, input.aesKey) + combineBalances(pendingBalanceLo, pendingBalanceHi))
+        .encrypt(
+            decryptAvailableBalance(account, input.aesKey) +
+                combineAmounts(pendingBalanceLo, pendingBalanceHi, PENDING_BALANCE_LO_BIT_LENGTH),
+        )
         .toBytes();
 
     return getApplyConfidentialPendingBalanceInstruction(
