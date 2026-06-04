@@ -44,6 +44,7 @@ impl TestContext {
         let mut program_test = ProgramTest::new("spl_token_2022", id(), None);
         program_test.add_program("spl_record", spl_record::id(), None);
         program_test.add_program("spl_elgamal_registry", spl_elgamal_registry::id(), None);
+        program_test.add_program("spl_memo", spl_memo_interface::v4::id(), None);
         let context = program_test.start_with_context().await;
         let context = Arc::new(Mutex::new(context));
 

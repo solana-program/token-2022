@@ -90,13 +90,17 @@ async fn test_memo_transfers(
     let bob_state = token.get_account_info(&bob_account).await.unwrap();
     assert_eq!(bob_state.base.amount, 0);
 
-    // attempt to transfer from alice to bob with misplaced memo, v1 and current
+    // attempt to transfer from alice to bob with misplaced memo, v1 , v3 and current (v4)
     let mut memo_ix = spl_memo_interface::instruction::build_memo(
-        &spl_memo_interface::v3::id(),
+        &spl_memo_interface::v4::id(),
         &[240, 159, 166, 150],
         &[],
     );
-    for program_id in [spl_memo_interface::v3::id(), spl_memo_interface::v1::id()] {
+    for program_id in [
+        spl_memo_interface::v4::id(),
+        spl_memo_interface::v3::id(),
+        spl_memo_interface::v1::id(),
+    ] {
         let ctx = context.lock().await;
         memo_ix.program_id = program_id;
         #[allow(deprecated)]
@@ -137,7 +141,7 @@ async fn test_memo_transfers(
         assert_eq!(bob_state.base.amount, 0);
     }
 
-    // transfer with memo
+    // transfer with memo (current)
     token
         .with_memo("🦖", vec![alice.pubkey()])
         .transfer(&alice_account, &bob_account, &alice.pubkey(), 10, &[&alice])
@@ -145,6 +149,33 @@ async fn test_memo_transfers(
         .unwrap();
     let bob_state = token.get_account_info(&bob_account).await.unwrap();
     assert_eq!(bob_state.base.amount, 10);
+
+    // transfer with memo v3
+    let ctx = context.lock().await;
+    memo_ix.program_id = spl_memo_interface::v3::id();
+    #[allow(deprecated)]
+    let instructions = vec![
+        memo_ix.clone(),
+        spl_token_2022_interface::instruction::transfer(
+            &spl_token_2022_interface::id(),
+            &alice_account,
+            &bob_account,
+            &alice.pubkey(),
+            &[],
+            10,
+        )
+        .unwrap(),
+    ];
+    let tx = Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&ctx.payer.pubkey()),
+        &[&ctx.payer, &alice],
+        ctx.last_blockhash,
+    );
+    ctx.banks_client.process_transaction(tx).await.unwrap();
+    drop(ctx);
+    let bob_state = token.get_account_info(&bob_account).await.unwrap();
+    assert_eq!(bob_state.base.amount, 20);
 
     // transfer with memo v1
     let ctx = context.lock().await;
@@ -171,7 +202,7 @@ async fn test_memo_transfers(
     ctx.banks_client.process_transaction(tx).await.unwrap();
     drop(ctx);
     let bob_state = token.get_account_info(&bob_account).await.unwrap();
-    assert_eq!(bob_state.base.amount, 21);
+    assert_eq!(bob_state.base.amount, 31);
 
     // stop requiring memo transfers into bob_account
     token
@@ -185,7 +216,7 @@ async fn test_memo_transfers(
         .await
         .unwrap();
     let bob_state = token.get_account_info(&bob_account).await.unwrap();
-    assert_eq!(bob_state.base.amount, 33);
+    assert_eq!(bob_state.base.amount, 43);
 }
 
 #[tokio::test]

@@ -11022,6 +11022,7 @@ dependencies = [
  "solana-zk-sdk 6.0.1",
  "solana-zk-sdk-pod",
  "spl-associated-token-account-interface",
+ "spl-memo-interface",
  "spl-token-2022",
  "spl-token-2022-interface 3.0.1",
  "spl-token-client",
