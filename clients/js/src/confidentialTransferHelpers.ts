@@ -35,6 +35,22 @@ import {
     getReallocateInstruction,
 } from './generated';
 import {
+    AeCiphertext,
+    AeKey,
+    BatchedGroupedCiphertext3HandlesValidityProofData,
+    BatchedRangeProofU128Data,
+    BatchedRangeProofU64Data,
+    CiphertextCommitmentEqualityProofData,
+    ElGamalCiphertext,
+    ElGamalKeypair,
+    ElGamalPubkey,
+    ElGamalSecretKey,
+    GroupedElGamalCiphertext3Handles,
+    PedersenCommitment,
+    PedersenOpening,
+    PubkeyValidityProofData,
+} from '@solana/zk-sdk/bundler';
+import {
     extractCiphertextFromGroupedBytes,
     subtractAmountFromCiphertext,
     subtractWithLoHiCiphertexts,
@@ -46,11 +62,6 @@ const TRANSFER_AMOUNT_LO_BIT_LENGTH = 16n;
 const TRANSFER_AMOUNT_HI_BIT_LENGTH = 32n;
 const REMAINING_BALANCE_BIT_LENGTH = 64;
 const RANGE_PROOF_PADDING_BIT_LENGTH = 16;
-
-import type * as ZkSdk from '@solana/zk-sdk/node';
-
-/** The runtime shape of `@solana/zk-sdk/node` — pass it as the `zk` parameter to every helper. */
-export type ConfidentialTransferZkClient = typeof ZkSdk;
 
 type ConfidentialTransferAccountExtension = Extract<Extension, { __kind: 'ConfidentialTransferAccount' }>;
 
@@ -67,9 +78,8 @@ export type GetCreateConfidentialTransferAccountInstructionPlanInput = {
     token?: Address;
     authority?: Address | TransactionSigner;
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
-    zk: ConfidentialTransferZkClient;
-    elgamalKeypair: ZkSdk.ElGamalKeypair;
-    aesKey: ZkSdk.AeKey;
+    elgamalKeypair: ElGamalKeypair;
+    aesKey: AeKey;
     maximumPendingBalanceCreditCounter?: number | bigint;
     multiSigners?: Array<TransactionSigner>;
     programAddress?: Address;
@@ -79,9 +89,8 @@ export type GetApplyConfidentialPendingBalanceInstructionFromTokenInput = {
     token: Address;
     tokenAccount: Token;
     authority: Address | TransactionSigner;
-    zk: ConfidentialTransferZkClient;
-    elgamalSecretKey: ZkSdk.ElGamalSecretKey;
-    aesKey: ZkSdk.AeKey;
+    elgamalSecretKey: ElGamalSecretKey;
+    aesKey: AeKey;
     multiSigners?: Array<TransactionSigner>;
     programAddress?: Address;
 };
@@ -93,9 +102,8 @@ type GetConfidentialWithdrawInstructionPlanBaseInput = {
     authority: Address | TransactionSigner;
     amount: number | bigint;
     decimals: number;
-    zk: ConfidentialTransferZkClient;
-    elgamalKeypair: ZkSdk.ElGamalKeypair;
-    aesKey: ZkSdk.AeKey;
+    elgamalKeypair: ElGamalKeypair;
+    aesKey: AeKey;
     multiSigners?: Array<TransactionSigner>;
     programAddress?: Address;
 };
@@ -111,9 +119,8 @@ type GetConfidentialTransferInstructionPlanBaseInput = {
     auditorElgamalPubkey?: Address;
     authority: Address | TransactionSigner;
     amount: number | bigint;
-    zk: ConfidentialTransferZkClient;
-    sourceElgamalKeypair: ZkSdk.ElGamalKeypair;
-    aesKey: ZkSdk.AeKey;
+    sourceElgamalKeypair: ElGamalKeypair;
+    aesKey: AeKey;
     multiSigners?: Array<TransactionSigner>;
     programAddress?: Address;
 } & (
@@ -151,40 +158,39 @@ function getRequiredConfidentialTransferAccountExtension(tokenAccount: Token): C
     return extension;
 }
 
-function parseAeCiphertext(zk: ConfidentialTransferZkClient, bytes: ReadonlyUint8Array) {
-    const ciphertext = zk.AeCiphertext.fromBytes(new Uint8Array(bytes));
+function parseAeCiphertext(bytes: ReadonlyUint8Array) {
+    const ciphertext = AeCiphertext.fromBytes(new Uint8Array(bytes));
     if (!ciphertext) {
         throw new Error('Failed to deserialize an authenticated-encryption ciphertext.');
     }
     return ciphertext;
 }
 
-function parseElGamalCiphertext(zk: ConfidentialTransferZkClient, bytes: ReadonlyUint8Array) {
-    const ciphertext = zk.ElGamalCiphertext.fromBytes(new Uint8Array(bytes));
+function parseElGamalCiphertext(bytes: ReadonlyUint8Array) {
+    const ciphertext = ElGamalCiphertext.fromBytes(new Uint8Array(bytes));
     if (!ciphertext) {
         throw new Error('Failed to deserialize an ElGamal ciphertext.');
     }
     return ciphertext;
 }
 
-function getElGamalPubkeyFromAddress(zk: ConfidentialTransferZkClient, value: Address) {
-    return zk.ElGamalPubkey.fromBytes(getAddressEncoder().encode(value) as Uint8Array);
+function getElGamalPubkeyFromAddress(value: Address) {
+    return ElGamalPubkey.fromBytes(getAddressEncoder().encode(value) as Uint8Array);
 }
 
-function getDefaultAuditorElGamalPubkey(zk: ConfidentialTransferZkClient) {
-    return zk.ElGamalPubkey.fromBytes(new Uint8Array(32));
+function getDefaultAuditorElGamalPubkey() {
+    return ElGamalPubkey.fromBytes(new Uint8Array(32));
 }
 
 function getDestinationElGamalPubkey(input: GetConfidentialTransferInstructionPlanInput) {
     if (input.destinationElgamalPubkey) {
-        return getElGamalPubkeyFromAddress(input.zk, input.destinationElgamalPubkey);
+        return getElGamalPubkeyFromAddress(input.destinationElgamalPubkey);
     }
     if (!input.destinationTokenAccount) {
         throw new Error('Destination confidential transfer state is required.');
     }
 
     return getElGamalPubkeyFromAddress(
-        input.zk,
         getRequiredConfidentialTransferAccountExtension(input.destinationTokenAccount).elgamalPubkey,
     );
 }
@@ -198,12 +204,8 @@ function combineBalances(balanceLo: bigint, balanceHi: bigint) {
     return (balanceHi << PENDING_BALANCE_LO_BIT_LENGTH) + balanceLo;
 }
 
-function decryptAvailableBalance(
-    zk: ConfidentialTransferZkClient,
-    account: ConfidentialTransferAccountExtension,
-    aesKey: ZkSdk.AeKey,
-) {
-    return aesKey.decrypt(parseAeCiphertext(zk, account.decryptableAvailableBalance));
+function decryptAvailableBalance(account: ConfidentialTransferAccountExtension, aesKey: AeKey) {
+    return aesKey.decrypt(parseAeCiphertext(account.decryptableAvailableBalance));
 }
 
 function assertInstructionDataProofModeIsUnsupported(input: { proofMode?: string }) {
@@ -305,7 +307,7 @@ export async function getCreateConfidentialTransferAccountInstructionPlan(
             })
         )[0];
 
-    const pubkeyValidityProofData = new input.zk.PubkeyValidityProofData(input.elgamalKeypair);
+    const pubkeyValidityProofData = new PubkeyValidityProofData(input.elgamalKeypair);
     const [verifyProofInstruction] = await verifyPubkeyValidity({
         rpc: input.rpc,
         payer: input.payer,
@@ -356,17 +358,10 @@ export function getApplyConfidentialPendingBalanceInstructionFromToken(
     input: GetApplyConfidentialPendingBalanceInstructionFromTokenInput,
 ): Instruction {
     const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
-    const pendingBalanceLo = input.elgamalSecretKey.decrypt(
-        parseElGamalCiphertext(input.zk, account.pendingBalanceLow),
-    );
-    const pendingBalanceHi = input.elgamalSecretKey.decrypt(
-        parseElGamalCiphertext(input.zk, account.pendingBalanceHigh),
-    );
+    const pendingBalanceLo = input.elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceLow));
+    const pendingBalanceHi = input.elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceHigh));
     const newDecryptableAvailableBalance = input.aesKey
-        .encrypt(
-            decryptAvailableBalance(input.zk, account, input.aesKey) +
-                combineBalances(pendingBalanceLo, pendingBalanceHi),
-        )
+        .encrypt(decryptAvailableBalance(account, input.aesKey) + combineBalances(pendingBalanceLo, pendingBalanceHi))
         .toBytes();
 
     return getApplyConfidentialPendingBalanceInstruction(
@@ -393,26 +388,22 @@ export async function getConfidentialWithdrawInstructionPlan(
     const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
     const amount = BigInt(input.amount);
     assertNonNegativeAmount(amount);
-    const newAvailableBalance = computeNewAvailableBalance(
-        decryptAvailableBalance(input.zk, account, input.aesKey),
-        amount,
-    );
+    const newAvailableBalance = computeNewAvailableBalance(decryptAvailableBalance(account, input.aesKey), amount);
 
-    const remainingBalanceOpening = new input.zk.PedersenOpening();
-    const remainingBalanceCommitment = input.zk.PedersenCommitment.from(newAvailableBalance, remainingBalanceOpening);
+    const remainingBalanceOpening = new PedersenOpening();
+    const remainingBalanceCommitment = PedersenCommitment.from(newAvailableBalance, remainingBalanceOpening);
     const remainingBalanceCiphertext = parseElGamalCiphertext(
-        input.zk,
         subtractAmountFromCiphertext(account.availableBalance, amount),
     );
 
-    const equalityProofData = new input.zk.CiphertextCommitmentEqualityProofData(
+    const equalityProofData = new CiphertextCommitmentEqualityProofData(
         input.elgamalKeypair,
         remainingBalanceCiphertext,
         remainingBalanceCommitment,
         remainingBalanceOpening,
         newAvailableBalance,
     );
-    const rangeProofData = new input.zk.BatchedRangeProofU64Data(
+    const rangeProofData = new BatchedRangeProofU64Data(
         [remainingBalanceCommitment],
         new BigUint64Array([newAvailableBalance]),
         Uint8Array.from([REMAINING_BALANCE_BIT_LENGTH]),
@@ -469,19 +460,19 @@ export async function getConfidentialTransferInstructionPlan(
     const sourcePubkey = input.sourceElgamalKeypair.pubkey();
     const destinationPubkey = getDestinationElGamalPubkey(input);
     const auditorPubkey = input.auditorElgamalPubkey
-        ? getElGamalPubkeyFromAddress(input.zk, input.auditorElgamalPubkey)
-        : getDefaultAuditorElGamalPubkey(input.zk);
+        ? getElGamalPubkeyFromAddress(input.auditorElgamalPubkey)
+        : getDefaultAuditorElGamalPubkey();
 
-    const openingLo = new input.zk.PedersenOpening();
-    const openingHi = new input.zk.PedersenOpening();
-    const groupedCiphertextLo = input.zk.GroupedElGamalCiphertext3Handles.encryptWith(
+    const openingLo = new PedersenOpening();
+    const openingHi = new PedersenOpening();
+    const groupedCiphertextLo = GroupedElGamalCiphertext3Handles.encryptWith(
         sourcePubkey,
         destinationPubkey,
         auditorPubkey,
         transferAmountLo,
         openingLo,
     );
-    const groupedCiphertextHi = input.zk.GroupedElGamalCiphertext3Handles.encryptWith(
+    const groupedCiphertextHi = GroupedElGamalCiphertext3Handles.encryptWith(
         sourcePubkey,
         destinationPubkey,
         auditorPubkey,
@@ -497,16 +488,12 @@ export async function getConfidentialTransferInstructionPlan(
     const transferAmountAuditorCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 2);
 
     const newAvailableBalance = computeNewAvailableBalance(
-        decryptAvailableBalance(input.zk, sourceAccount, input.aesKey),
+        decryptAvailableBalance(sourceAccount, input.aesKey),
         amount,
     );
-    const newAvailableBalanceOpening = new input.zk.PedersenOpening();
-    const newAvailableBalanceCommitment = input.zk.PedersenCommitment.from(
-        newAvailableBalance,
-        newAvailableBalanceOpening,
-    );
+    const newAvailableBalanceOpening = new PedersenOpening();
+    const newAvailableBalanceCommitment = PedersenCommitment.from(newAvailableBalance, newAvailableBalanceOpening);
     const newAvailableBalanceCiphertext = parseElGamalCiphertext(
-        input.zk,
         subtractWithLoHiCiphertexts(
             sourceAccount.availableBalance,
             transferAmountSourceCiphertextLo,
@@ -515,14 +502,14 @@ export async function getConfidentialTransferInstructionPlan(
         ),
     );
 
-    const equalityProofData = new input.zk.CiphertextCommitmentEqualityProofData(
+    const equalityProofData = new CiphertextCommitmentEqualityProofData(
         input.sourceElgamalKeypair,
         newAvailableBalanceCiphertext,
         newAvailableBalanceCommitment,
         newAvailableBalanceOpening,
         newAvailableBalance,
     );
-    const ciphertextValidityProofData = new input.zk.BatchedGroupedCiphertext3HandlesValidityProofData(
+    const ciphertextValidityProofData = new BatchedGroupedCiphertext3HandlesValidityProofData(
         sourcePubkey,
         destinationPubkey,
         auditorPubkey,
@@ -534,11 +521,11 @@ export async function getConfidentialTransferInstructionPlan(
         openingHi,
     );
 
-    const commitmentLo = input.zk.PedersenCommitment.fromBytes(groupedCiphertextLoBytes.slice(0, 32));
-    const commitmentHi = input.zk.PedersenCommitment.fromBytes(groupedCiphertextHiBytes.slice(0, 32));
-    const paddingOpening = new input.zk.PedersenOpening();
-    const paddingCommitment = input.zk.PedersenCommitment.from(0n, paddingOpening);
-    const rangeProofData = new input.zk.BatchedRangeProofU128Data(
+    const commitmentLo = PedersenCommitment.fromBytes(groupedCiphertextLoBytes.slice(0, 32));
+    const commitmentHi = PedersenCommitment.fromBytes(groupedCiphertextHiBytes.slice(0, 32));
+    const paddingOpening = new PedersenOpening();
+    const paddingCommitment = PedersenCommitment.from(0n, paddingOpening);
+    const rangeProofData = new BatchedRangeProofU128Data(
         [newAvailableBalanceCommitment, commitmentLo, commitmentHi, paddingCommitment],
         new BigUint64Array([newAvailableBalance, transferAmountLo, transferAmountHi, 0n]),
         Uint8Array.from([
