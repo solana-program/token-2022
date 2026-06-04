@@ -66,6 +66,14 @@ const RANGE_PROOF_PADDING_BIT_LENGTH = 16;
 type ConfidentialTransferAccountExtension = Extract<Extension, { __kind: 'ConfidentialTransferAccount' }>;
 
 type ContextStateProofMode = {
+    /**
+     * The strategy used to provide zero-knowledge proofs to the program.
+     *
+     * Currently, only `context-state` is supported, where each proof is verified
+     * into a dedicated context-state account before the instruction is executed.
+     * Additional modes — such as `instruction-data`, where proofs are provided
+     * inline within the same transaction — may be supported in the future.
+     */
     proofMode?: 'context-state';
     payer: TransactionSigner;
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
@@ -206,14 +214,6 @@ function combineBalances(balanceLo: bigint, balanceHi: bigint) {
 
 function decryptAvailableBalance(account: ConfidentialTransferAccountExtension, aesKey: AeKey) {
     return aesKey.decrypt(parseAeCiphertext(account.decryptableAvailableBalance));
-}
-
-function assertInstructionDataProofModeIsUnsupported(input: { proofMode?: string }) {
-    if (input.proofMode === 'instruction-data') {
-        throw new Error(
-            'instruction-data proof mode is unsupported for confidential withdraw/transfer helpers in clients/js; use the default context-state flow.',
-        );
-    }
 }
 
 function assertCreateHelperOwnerMatchesAuthority(
@@ -384,7 +384,6 @@ export function getApplyConfidentialPendingBalanceInstructionFromToken(
 export async function getConfidentialWithdrawInstructionPlan(
     input: GetConfidentialWithdrawInstructionPlanInput,
 ): Promise<InstructionPlan> {
-    assertInstructionDataProofModeIsUnsupported(input as { proofMode?: string });
     const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
     const amount = BigInt(input.amount);
     assertNonNegativeAmount(amount);
@@ -451,7 +450,6 @@ export async function getConfidentialWithdrawInstructionPlan(
 export async function getConfidentialTransferInstructionPlan(
     input: GetConfidentialTransferInstructionPlanInput,
 ): Promise<InstructionPlan> {
-    assertInstructionDataProofModeIsUnsupported(input as { proofMode?: string });
     const sourceAccount = getRequiredConfidentialTransferAccountExtension(input.sourceTokenAccount);
     const amount = BigInt(input.amount);
     assertNonNegativeAmount(amount);
