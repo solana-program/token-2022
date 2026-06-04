@@ -7,7 +7,7 @@ import {
     type MessagePartialSigner,
     type ReadonlyUint8Array,
 } from '@solana/kit';
-import type { ConfidentialTransferZkClient } from './confidentialTransferHelpers';
+import { AeKey, ElGamalKeypair } from '@solana/zk-sdk/bundler';
 
 export type DerivedElGamalKeypair = Readonly<{
     elgamalPubkey: Address;
@@ -33,16 +33,14 @@ function ownerMintSeed(owner: Address, mint: Address): ReadonlyUint8Array {
  */
 export async function deriveElGamalKeypair({
     signer,
-    zk,
     publicSeed = new Uint8Array(0),
 }: {
     signer: MessagePartialSigner;
-    zk: ConfidentialTransferZkClient;
     publicSeed?: ReadonlyUint8Array;
 }): Promise<DerivedElGamalKeypair> {
-    const message = zk.ElGamalKeypair.signerMessage(new Uint8Array(publicSeed));
+    const message = ElGamalKeypair.signerMessage(new Uint8Array(publicSeed));
     const signature = await signDerivationMessage(signer, message);
-    const keypair = zk.ElGamalKeypair.fromSignature(signature);
+    const keypair = ElGamalKeypair.fromSignature(signature);
     const secretKey = new Uint8Array(keypair.secret().toBytes());
     const elgamalPubkey = getAddressDecoder().decode(new Uint8Array(keypair.pubkey().toBytes()));
     return { elgamalPubkey, secretKey };
@@ -55,16 +53,14 @@ export async function deriveElGamalKeypair({
  */
 export async function deriveElGamalKeypairForOwnerMint({
     signer,
-    zk,
     owner,
     mint,
 }: {
     signer: MessagePartialSigner;
-    zk: ConfidentialTransferZkClient;
     owner: Address;
     mint: Address;
 }): Promise<DerivedElGamalKeypair> {
-    return await deriveElGamalKeypair({ signer, zk, publicSeed: ownerMintSeed(owner, mint) });
+    return await deriveElGamalKeypair({ signer, publicSeed: ownerMintSeed(owner, mint) });
 }
 
 /**
@@ -74,16 +70,14 @@ export async function deriveElGamalKeypairForOwnerMint({
  */
 export async function deriveAeKey({
     signer,
-    zk,
     publicSeed = new Uint8Array(0),
 }: {
     signer: MessagePartialSigner;
-    zk: ConfidentialTransferZkClient;
     publicSeed?: ReadonlyUint8Array;
 }): Promise<Uint8Array> {
-    const message = zk.AeKey.signerMessage(new Uint8Array(publicSeed));
+    const message = AeKey.signerMessage(new Uint8Array(publicSeed));
     const signature = await signDerivationMessage(signer, message);
-    const aeKey = zk.AeKey.fromSignature(signature);
+    const aeKey = AeKey.fromSignature(signature);
     return new Uint8Array(aeKey.toBytes());
 }
 
@@ -95,14 +89,12 @@ export async function deriveAeKey({
  */
 export async function deriveAeKeyForOwnerMint({
     signer,
-    zk,
     owner,
     mint,
 }: {
     signer: MessagePartialSigner;
-    zk: ConfidentialTransferZkClient;
     owner: Address;
     mint: Address;
 }): Promise<Uint8Array> {
-    return await deriveAeKey({ signer, zk, publicSeed: ownerMintSeed(owner, mint) });
+    return await deriveAeKey({ signer, publicSeed: ownerMintSeed(owner, mint) });
 }

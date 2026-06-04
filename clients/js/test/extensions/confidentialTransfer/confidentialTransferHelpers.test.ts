@@ -1,5 +1,5 @@
 import { generateKeyPairSigner } from '@solana/kit';
-import * as zk from '@solana/zk-sdk/node';
+import { AeKey, ElGamalKeypair } from '@solana/zk-sdk/bundler';
 import test from 'ava';
 import {
     getConfidentialTransferInstructionPlan,
@@ -15,8 +15,8 @@ test('it rejects create helper authority that does not match the owner ATA flow'
         generateKeyPairSigner(),
         generateKeyPairSigner(),
     ]);
-    const elgamalKeypair = new zk.ElGamalKeypair();
-    const aesKey = new zk.AeKey();
+    const elgamalKeypair = new ElGamalKeypair();
+    const aesKey = new AeKey();
 
     await t.throwsAsync(
         () =>
@@ -26,7 +26,6 @@ test('it rejects create helper authority that does not match the owner ATA flow'
                 authority: delegatedAuthority,
                 mint: payer.address,
                 rpc: createDefaultSolanaClient().rpc,
-                zk,
                 elgamalKeypair,
                 aesKey,
             }),
@@ -38,8 +37,8 @@ test('it rejects create helper authority that does not match the owner ATA flow'
 
 test('it rejects instruction-data proof mode for confidential withdraw', async t => {
     const [payer, owner] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
-    const elgamalKeypair = new zk.ElGamalKeypair();
-    const aesKey = new zk.AeKey();
+    const elgamalKeypair = new ElGamalKeypair();
+    const aesKey = new AeKey();
 
     await t.throwsAsync(
         () =>
@@ -52,7 +51,6 @@ test('it rejects instruction-data proof mode for confidential withdraw', async t
                 authority: owner,
                 amount: 1n,
                 decimals: 0,
-                zk,
                 elgamalKeypair,
                 aesKey,
                 proofMode: 'instruction-data',
@@ -65,8 +63,8 @@ test('it rejects instruction-data proof mode for confidential withdraw', async t
 
 test('it rejects instruction-data proof mode for confidential transfer', async t => {
     const [payer, owner] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
-    const sourceElgamalKeypair = new zk.ElGamalKeypair();
-    const aesKey = new zk.AeKey();
+    const sourceElgamalKeypair = new ElGamalKeypair();
+    const aesKey = new AeKey();
 
     await t.throwsAsync(
         () =>
@@ -79,7 +77,6 @@ test('it rejects instruction-data proof mode for confidential transfer', async t
                 sourceTokenAccount: {} as Token,
                 authority: owner,
                 amount: 1n,
-                zk,
                 sourceElgamalKeypair,
                 aesKey,
                 proofMode: 'instruction-data',
