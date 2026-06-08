@@ -75,6 +75,20 @@ function combineLoHiCiphertexts(ciphertextLo: ReadonlyUint8Array, ciphertextHi: 
  * result from `left`. Used to compute the new available-balance ciphertext
  * after a confidential transfer.
  */
+export function addWithLoHiCiphertexts(
+    left: ReadonlyUint8Array,
+    ciphertextLo: ReadonlyUint8Array,
+    ciphertextHi: ReadonlyUint8Array,
+    bitLength: bigint,
+) {
+    const leftPoints = ciphertextToPoints(left);
+    const rightPoints = ciphertextToPoints(combineLoHiCiphertexts(ciphertextLo, ciphertextHi, bitLength));
+    return pointsToCiphertext(
+        leftPoints.commitment.add(rightPoints.commitment),
+        leftPoints.handle.add(rightPoints.handle),
+    );
+}
+
 export function subtractWithLoHiCiphertexts(
     left: ReadonlyUint8Array,
     ciphertextLo: ReadonlyUint8Array,

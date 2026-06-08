@@ -4,6 +4,7 @@ export * from './generated';
 export { type BatchInstruction, getBatchInstruction, parseBatchInstruction } from './batch';
 
 export * from './amountToUiAmount';
+export * from './confidentialMintBurnHelpers';
 export * from './confidentialTransferHelpers';
 export * from './confidentialTransferKeys';
 export * from './getInitializeInstructionsForExtensions';
