@@ -11001,6 +11001,7 @@ dependencies = [
  "spl-type-length-value",
  "strum 0.28.0",
  "strum_macros 0.28.0",
+ "test-case",
  "thiserror 2.0.18",
 ]
 

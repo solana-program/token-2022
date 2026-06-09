@@ -50,6 +50,7 @@ spl-token-2022-interface = { path = ".", features = ["serde"] }
 spl-token-interface = { version = "3.0" }
 strum = "0.28"
 strum_macros = "0.28"
+test-case = "3.3.1"
 
 [lib]
 crate-type = ["lib"]

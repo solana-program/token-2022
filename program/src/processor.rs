@@ -32,6 +32,7 @@ use {
         check_program_account,
         error::TokenError,
         extension::{
+            account_len::try_calculate_account_len_from_mint_data,
             confidential_mint_burn::ConfidentialMintBurn,
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
             confidential_transfer_fee::{
@@ -53,7 +54,7 @@ use {
             scaled_ui_amount::ScaledUiAmountConfig,
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::{TransferHook, TransferHookAccount},
-            AccountType, BaseStateWithExtensions, BaseStateWithExtensionsMut, ExtensionType,
+            BaseStateWithExtensions, BaseStateWithExtensionsMut, ExtensionType,
             PodStateWithExtensions, PodStateWithExtensionsMut,
         },
         inline_spl_token,
@@ -1506,24 +1507,15 @@ impl Processor {
         accounts: &[AccountInfo],
         new_extension_types: &[ExtensionType],
     ) -> ProgramResult {
-        if new_extension_types
-            .iter()
-            .any(|&t| t.get_account_type() != AccountType::Account)
-        {
-            return Err(TokenError::ExtensionTypeMismatch.into());
-        }
-
         let account_info_iter = &mut accounts.iter();
         let mint_account_info = next_account_info(account_info_iter)?;
 
-        check_program_account(mint_account_info.owner)?;
-
-        let mut account_extensions = Self::get_required_account_extensions(mint_account_info)?;
-        // ExtensionType::try_calculate_account_len() dedupes types, so just a dumb
-        // concatenation is fine here
-        account_extensions.extend_from_slice(new_extension_types);
-
-        let account_len = ExtensionType::try_calculate_account_len::<Account>(&account_extensions)?;
+        let mint_data = mint_account_info.data.borrow();
+        let account_len = try_calculate_account_len_from_mint_data(
+            mint_account_info.owner,
+            &mint_data,
+            new_extension_types,
+        )?;
         set_return_data(&account_len.to_le_bytes());
 
         Ok(())
@@ -2289,15 +2281,6 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
         Ok(())
-    }
-
-    fn get_required_account_extensions(
-        mint_account_info: &AccountInfo,
-    ) -> Result<Vec<ExtensionType>, ProgramError> {
-        let mint_data = mint_account_info.data.borrow();
-        let state = PodStateWithExtensions::<PodMint>::unpack(&mint_data)
-            .map_err(|_| Into::<ProgramError>::into(TokenError::InvalidMint))?;
-        Self::get_required_account_extensions_from_unpacked_mint(mint_account_info.owner, &state)
     }
 
     fn get_required_account_extensions_from_unpacked_mint(
