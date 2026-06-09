@@ -47,6 +47,8 @@ use {
     spl_type_length_value::variable_len_pack::VariableLenPack,
 };
 
+/// Account length calculation helpers.
+pub mod account_len;
 /// Confidential Transfer extension
 pub mod confidential_transfer;
 /// Confidential Transfer Fee extension
@@ -197,34 +199,30 @@ struct TlvDataInfo {
     used_len: usize,
 }
 
-/// Fetches basic information about the TLV buffer by iterating through all
-/// TLV entries.
-fn get_tlv_data_info(tlv_data: &[u8]) -> Result<TlvDataInfo, ProgramError> {
-    let mut extension_types = vec![];
+/// Iterates through all TLV entries, passing each initialized extension type
+/// to `f`, and returns the total number of bytes used by all TLV entries.
+fn try_for_each_tlv_extension_type<F>(tlv_data: &[u8], mut f: F) -> Result<usize, ProgramError>
+where
+    F: FnMut(ExtensionType) -> Result<(), ProgramError>,
+{
     let mut start_index = 0;
     while start_index < tlv_data.len() {
         let tlv_indices = get_tlv_indices(start_index);
         if tlv_data.len() < tlv_indices.length_start {
             // There aren't enough bytes to store the next type, which means we
             // got to the end. The last byte could be used during a realloc!
-            return Ok(TlvDataInfo {
-                extension_types,
-                used_len: tlv_indices.type_start,
-            });
+            return Ok(tlv_indices.type_start);
         }
         let extension_type =
             ExtensionType::try_from(&tlv_data[tlv_indices.type_start..tlv_indices.length_start])?;
         if extension_type == ExtensionType::Uninitialized {
-            return Ok(TlvDataInfo {
-                extension_types,
-                used_len: tlv_indices.type_start,
-            });
+            return Ok(tlv_indices.type_start);
         } else {
             if tlv_data.len() < tlv_indices.value_start {
                 // not enough bytes to store the length, malformed
                 return Err(ProgramError::InvalidAccountData);
             }
-            extension_types.push(extension_type);
+            f(extension_type)?;
             let length = bytemuck::try_from_bytes::<Length>(
                 &tlv_data[tlv_indices.length_start..tlv_indices.value_start],
             )
@@ -238,9 +236,20 @@ fn get_tlv_data_info(tlv_data: &[u8]) -> Result<TlvDataInfo, ProgramError> {
             start_index = value_end_index;
         }
     }
+    Ok(start_index)
+}
+
+/// Fetches basic information about the TLV buffer by iterating through all
+/// TLV entries.
+fn get_tlv_data_info(tlv_data: &[u8]) -> Result<TlvDataInfo, ProgramError> {
+    let mut extension_types = vec![];
+    let used_len = try_for_each_tlv_extension_type(tlv_data, |extension_type| {
+        extension_types.push(extension_type);
+        Ok(())
+    })?;
     Ok(TlvDataInfo {
         extension_types,
-        used_len: start_index,
+        used_len,
     })
 }
 
@@ -315,7 +324,7 @@ fn type_and_tlv_indices<S: BaseState>(
         if rest_input.len() < tlv_start_index {
             return Err(ProgramError::InvalidAccountData);
         }
-        if rest_input[..account_type_index] != vec![0; account_type_index] {
+        if rest_input[..account_type_index].iter().any(|&b| b != 0) {
             Err(ProgramError::InvalidAccountData)
         } else {
             Ok(Some((account_type_index, tlv_start_index)))
@@ -1059,6 +1068,7 @@ pub enum AccountType {
 #[repr(u16)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(test, derive(strum_macros::EnumIter))]
 #[derive(Clone, Copy, Debug, PartialEq, TryFromPrimitive, IntoPrimitive)]
 pub enum ExtensionType {
     /// Used as padding if the account size would otherwise be 355, same as a
@@ -1296,33 +1306,31 @@ impl ExtensionType {
         }
     }
 
+    /// Based on an `AccountType::Mint` `ExtensionType`, get the
+    /// `AccountType::Account` `ExtensionType`s required on `InitializeAccount`
+    fn required_init_account_extensions(&self) -> &'static [Self] {
+        match self {
+            ExtensionType::TransferFeeConfig => &[ExtensionType::TransferFeeAmount],
+            ExtensionType::NonTransferable => &[
+                ExtensionType::NonTransferableAccount,
+                ExtensionType::ImmutableOwner,
+            ],
+            ExtensionType::TransferHook => &[ExtensionType::TransferHookAccount],
+            ExtensionType::Pausable => &[ExtensionType::PausableAccount],
+            #[cfg(test)]
+            ExtensionType::MintPaddingTest => &[ExtensionType::AccountPaddingTest],
+            _ => &[],
+        }
+    }
+
     /// Based on a set of `AccountType::Mint` `ExtensionType`s, get the list of
     /// `AccountType::Account` `ExtensionType`s required on `InitializeAccount`
     pub fn get_required_init_account_extensions(mint_extension_types: &[Self]) -> Vec<Self> {
-        let mut account_extension_types = vec![];
-        for extension_type in mint_extension_types {
-            match extension_type {
-                ExtensionType::TransferFeeConfig => {
-                    account_extension_types.push(ExtensionType::TransferFeeAmount);
-                }
-                ExtensionType::NonTransferable => {
-                    account_extension_types.push(ExtensionType::NonTransferableAccount);
-                    account_extension_types.push(ExtensionType::ImmutableOwner);
-                }
-                ExtensionType::TransferHook => {
-                    account_extension_types.push(ExtensionType::TransferHookAccount);
-                }
-                ExtensionType::Pausable => {
-                    account_extension_types.push(ExtensionType::PausableAccount);
-                }
-                #[cfg(test)]
-                ExtensionType::MintPaddingTest => {
-                    account_extension_types.push(ExtensionType::AccountPaddingTest);
-                }
-                _ => {}
-            }
-        }
-        account_extension_types
+        mint_extension_types
+            .iter()
+            .flat_map(|extension_type| extension_type.required_init_account_extensions())
+            .copied()
+            .collect()
     }
 
     /// Check for invalid combination of mint extensions
