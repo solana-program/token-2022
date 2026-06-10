@@ -1810,6 +1810,7 @@ async fn command_burn(
     mint_address: Option<Pubkey>,
     mint_decimals: Option<u8>,
     use_unchecked_instruction: bool,
+    permissioned_burn_authority: Option<Pubkey>,
     memo: Option<String>,
     bulk_signers: BulkSigners,
 ) -> CommandResult {
@@ -1851,7 +1852,13 @@ async fn command_burn(
         token.with_memo(text, vec![config.default_signer()?.pubkey()]);
     }
 
-    let res = token.burn(&account, &owner, amount, &bulk_signers).await?;
+    let res = if let Some(authority) = permissioned_burn_authority {
+        token
+            .permissioned_burn(&account, &authority, &owner, amount, &bulk_signers)
+            .await?
+    } else {
+        token.burn(&account, &owner, amount, &bulk_signers).await?
+    };
 
     let tx_return = finish_tx(config, &res, false).await?;
     Ok(match tx_return {
@@ -4250,6 +4257,15 @@ pub async fn process_command(
 
             let (owner_signer, owner) =
                 config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
+            let permissioned_burn_authority = get_signer(
+                arg_matches,
+                "permissioned_burn_authority",
+                &mut wallet_manager,
+            )
+            .map(|(signer, authority)| {
+                push_signer_with_dedup(signer, &mut bulk_signers);
+                authority
+            });
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(owner_signer, &mut bulk_signers);
             }
@@ -4270,6 +4286,7 @@ pub async fn process_command(
                 mint_address,
                 mint_decimals,
                 use_unchecked_instruction,
+                permissioned_burn_authority,
                 memo,
                 bulk_signers,
             )

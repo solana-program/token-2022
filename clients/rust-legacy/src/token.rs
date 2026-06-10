@@ -1295,6 +1295,44 @@ where
         self.process_ixs(&instructions, signing_keypairs).await
     }
 
+    /// Burn tokens from account with permissioned burn authority
+    pub async fn permissioned_burn<S: Signers>(
+        &self,
+        source: &Address,
+        permissioned_burn_authority: &Address,
+        authority: &Address,
+        amount: u64,
+        signing_keypairs: &S,
+    ) -> TokenResult<T::Output> {
+        let signing_pubkeys = signing_keypairs.pubkeys();
+        let multisig_signers = self.get_multisig_signers(authority, &signing_pubkeys);
+
+        let instructions = if let Some(decimals) = self.decimals {
+            [permissioned_burn::instruction::burn_checked(
+                &self.program_id,
+                source,
+                &self.pubkey,
+                permissioned_burn_authority,
+                authority,
+                &multisig_signers,
+                amount,
+                decimals,
+            )?]
+        } else {
+            [permissioned_burn::instruction::burn(
+                &self.program_id,
+                source,
+                &self.pubkey,
+                permissioned_burn_authority,
+                authority,
+                &multisig_signers,
+                amount,
+            )?]
+        };
+
+        self.process_ixs(&instructions, signing_keypairs).await
+    }
+
     /// Approve a delegate to spend tokens
     pub async fn approve<S: Signers>(
         &self,

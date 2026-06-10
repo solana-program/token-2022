@@ -1541,6 +1541,17 @@ pub fn app<'a>(
                             Defaults to the client keypair.",
                         ),
                 )
+                .arg(
+                    Arg::with_name("permissioned_burn_authority")
+                        .long("permissioned-burn-authority")
+                        .value_name("KEYPAIR")
+                        .validator(|s| is_valid_signer(s))
+                        .takes_value(true)
+                        .help(
+                            "Specify the permissioned burn authority keypair. \
+                             This may be a keypair file or the ASK keyword."
+                        ),
+                )
                 .arg(multisig_signer_arg())
                 .mint_args()
                 .nonce_args(true)

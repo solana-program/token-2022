@@ -4822,10 +4822,13 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     let token = Keypair::new();
-    let burn_authority = Keypair::new();
     let token_keypair_file = NamedTempFile::new().unwrap();
     write_keypair_file(&token, &token_keypair_file).unwrap();
-    let token_pubkey = token.pubkey();
+    let token = token.pubkey();
+
+    let burn_authority = Keypair::new();
+    let burn_authority_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&burn_authority, &burn_authority_keypair_file).unwrap();
 
     process_test_command(
         &config,
@@ -4841,11 +4844,33 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
     .await
     .unwrap();
 
-    let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let account = config.rpc_client.get_account(&token).await.unwrap();
     let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
     let extension = test_mint.get_extension::<PermissionedBurnConfig>().unwrap();
     assert_eq!(
         Option::<Pubkey>::from(extension.authority),
         Some(burn_authority.pubkey())
     );
+
+    // do a burn
+    let source = create_associated_account(&config, payer, &token, &payer.pubkey()).await;
+    let ui_amount = 100.0;
+    mint_tokens(&config, payer, token, ui_amount, source)
+        .await
+        .unwrap();
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Burn.into(),
+            &source.to_string(),
+            "10",
+            "--permissioned-burn-authority",
+            burn_authority_keypair_file.path().to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap();
 }
