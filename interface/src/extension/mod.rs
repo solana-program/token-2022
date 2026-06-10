@@ -6,6 +6,7 @@ use {
     crate::{
         error::TokenError,
         extension::{
+            account_len::ExtensionTypeBuffer,
             confidential_mint_burn::ConfidentialMintBurn,
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
             confidential_transfer_fee::{
@@ -47,7 +48,7 @@ use {
     spl_type_length_value::variable_len_pack::VariableLenPack,
 };
 
-/// Account length calculation helpers.
+/// Account length calculation helpers
 pub mod account_len;
 /// Confidential Transfer extension
 pub mod confidential_transfer;
@@ -1241,13 +1242,11 @@ impl ExtensionType {
     /// Fails if any of the extension types has a variable length
     fn try_get_total_tlv_len(extension_types: &[Self]) -> Result<usize, ProgramError> {
         // dedupe extensions
-        let mut extensions = vec![];
-        for extension_type in extension_types {
-            if !extensions.contains(&extension_type) {
-                extensions.push(extension_type);
-            }
+        let mut extensions = ExtensionTypeBuffer::default();
+        for &extension_type in extension_types {
+            extensions.insert(extension_type)?;
         }
-        extensions.iter().map(|e| e.try_get_tlv_len()).sum()
+        extensions.types().iter().map(|e| e.try_get_tlv_len()).sum()
     }
 
     /// Get the required account data length for the given `ExtensionType`s
