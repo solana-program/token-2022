@@ -9,3 +9,4 @@ export * from './confidentialTransferKeys';
 export * from './getInitializeInstructionsForExtensions';
 export * from './getTokenSize';
 export * from './getMintSize';
+export * from './transferHook';
