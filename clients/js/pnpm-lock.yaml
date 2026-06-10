@@ -50,7 +50,7 @@ importers:
         version: 8.57.1
       prettier:
         specifier: ^3.8.1
-        version: 3.8.3
+        version: 3.8.4
       rimraf:
         specifier: ^6.0.1
         version: 6.1.3
@@ -2001,8 +2001,8 @@ packages:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
 
-  prettier@3.8.3:
-    resolution: {integrity: sha512-7igPTM53cGHMW8xWuVTydi2KO233VFiTNyF5hLJqpilHfmn8C8gPf+PS7dUT64YcXFbiMGZxS9pCSxL/Dxm/Jw==}
+  prettier@3.8.4:
+    resolution: {integrity: sha512-N2MylSdi48+5N/6S5j+maeHbUSIzzZ5uOcX5Hm4QpV8Dkb1HFjfAKTKX6yNPJQD9AhcT3ifHNB66tWTTJDi11Q==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -2073,8 +2073,8 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
-  semver@7.8.2:
-    resolution: {integrity: sha512-c8jsqUZm3omBOI66G90z1Dyw5z622G8oLG+omfsHBJf3CWQTlOcwOjvOG6wtiNfW6anKm/eA39LMwMtMez2TiQ==}
+  semver@7.8.4:
+    resolution: {integrity: sha512-rUCObTnP32Q08R2uuIrt7r9PlEonuTmtuXYcW6s5kjdlj3xbnwe+21yXptAUYcMAABLkYYTtnmzb3w3EDZfueA==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -3360,7 +3360,7 @@ snapshots:
       debug: 4.4.3
       globby: 11.1.0
       is-glob: 4.0.3
-      semver: 7.8.2
+      semver: 7.8.4
       tsutils: 3.21.0(typescript@5.9.3)
     optionalDependencies:
       typescript: 5.9.3
@@ -3392,7 +3392,7 @@ snapshots:
       '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.9.3)
       eslint: 8.57.1
       eslint-scope: 5.1.1
-      semver: 7.8.2
+      semver: 7.8.4
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -4331,7 +4331,7 @@ snapshots:
 
   prelude-ls@1.2.1: {}
 
-  prettier@3.8.3: {}
+  prettier@3.8.4: {}
 
   pretty-ms@9.3.0:
     dependencies:
@@ -4402,7 +4402,7 @@ snapshots:
 
   semver@7.8.0: {}
 
-  semver@7.8.2: {}
+  semver@7.8.4: {}
 
   serialize-error@7.0.1:
     dependencies:
