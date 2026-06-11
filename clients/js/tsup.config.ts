@@ -3,7 +3,7 @@ import { defineConfig, Options } from 'tsup';
 
 const SHARED_OPTIONS: Options = {
     define: { __VERSION__: `"${env.npm_package_version}"` },
-    entry: ['./src/index.ts'],
+    entry: ['./src/index.ts', './src/confidential.ts'],
     outDir: './dist/src',
     outExtension: ({ format }) => ({ js: format === 'cjs' ? '.js' : '.mjs' }),
     sourcemap: true,

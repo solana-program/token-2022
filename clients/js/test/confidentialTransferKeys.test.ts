@@ -8,13 +8,15 @@ import {
 } from '@solana/kit';
 import test from 'ava';
 import {
+    getInitializeConfidentialTransferMintInstruction,
+    parseInitializeConfidentialTransferMintInstruction,
+} from '../src';
+import {
     deriveAeKey,
     deriveAeKeyForOwnerMint,
     deriveElGamalKeypair,
     deriveElGamalKeypairForOwnerMint,
-    getInitializeConfidentialTransferMintInstruction,
-    parseInitializeConfidentialTransferMintInstruction,
-} from '../src';
+} from '../src/confidential';
 
 const ADDRESS_DECODER = getAddressDecoder();
 const ADDRESS_ENCODER = getAddressEncoder();

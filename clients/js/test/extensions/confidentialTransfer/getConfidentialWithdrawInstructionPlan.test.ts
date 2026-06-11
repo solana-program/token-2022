@@ -1,5 +1,6 @@
 import test from 'ava';
-import { fetchToken, getConfidentialWithdrawInstructionPlan } from '../../../src';
+import { fetchToken } from '../../../src';
+import { getConfidentialWithdrawInstructionPlan } from '../../../src/confidential';
 import {
     createConfidentialMint,
     createConfidentialTokenAccountWithBalance,

@@ -12,6 +12,11 @@
             "types": "./dist/types/index.d.ts",
             "import": "./dist/src/index.mjs",
             "require": "./dist/src/index.js"
+        },
+        "./confidential": {
+            "types": "./dist/types/confidential.d.ts",
+            "import": "./dist/src/confidential.mjs",
+            "require": "./dist/src/confidential.js"
         }
     },
     "files": [
