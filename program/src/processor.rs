@@ -769,7 +769,7 @@ impl Processor {
                     )?;
 
                     if let Ok(cpi_guard) = account.get_extension::<CpiGuard>() {
-                        if cpi_guard.lock_cpi.into() && in_cpi() && new_authority.is_some() {
+                        if cpi_guard.lock_cpi.into() && in_cpi() {
                             return Err(TokenError::CpiGuardSetAuthorityBlocked.into());
                         }
                     }
@@ -2349,6 +2349,7 @@ mod tests {
         solana_sdk_ids::sysvar::rent,
         spl_token_2022_interface::{
             extension::{
+                cpi_guard::instruction::enable_cpi_guard,
                 permissioned_burn, transfer_fee::instruction::initialize_transfer_fee_config,
                 ExtensionType,
             },
@@ -5864,6 +5865,96 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut account_account, &mut owner_account],
+            )
+        );
+    }
+
+    #[test]
+    fn test_set_authority_with_cpi_guard_extension() {
+        let program_id = crate::id();
+        let account_key = Address::new_unique();
+
+        let account_len =
+            ExtensionType::try_calculate_account_len::<Account>(&[ExtensionType::CpiGuard])
+                .unwrap();
+        let mut account_account = SolanaAccount::new(
+            Rent::default().minimum_balance(account_len),
+            account_len,
+            &program_id,
+        );
+        let owner_key = Address::new_unique();
+        let mut owner_account = SolanaAccount::default();
+        let owner2_key = Address::new_unique();
+        let mut owner2_account = SolanaAccount::default();
+
+        let mint_key = Address::new_unique();
+        let mut mint_account =
+            SolanaAccount::new(mint_minimum_balance(), Mint::get_packed_len(), &program_id);
+        let mut rent_sysvar = rent_sysvar();
+
+        // create mint
+        assert_eq!(
+            Ok(()),
+            do_process_instruction(
+                initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
+                vec![&mut mint_account, &mut rent_sysvar],
+            )
+        );
+
+        // create account
+        assert_eq!(
+            Ok(()),
+            do_process_instruction(
+                initialize_account(&program_id, &account_key, &mint_key, &owner_key).unwrap(),
+                vec![
+                    &mut account_account,
+                    &mut mint_account,
+                    &mut owner_account,
+                    &mut rent_sysvar,
+                ],
+            )
+        );
+
+        // enable CPI Guard
+        assert_eq!(
+            Ok(()),
+            do_process_instruction(
+                enable_cpi_guard(&program_id, &account_key, &owner_key, &[]).unwrap(),
+                vec![&mut account_account, &mut owner_account],
+            )
+        );
+
+        // close_authority may be set to Some when CPI Guard is enabled
+        assert_eq!(
+            Ok(()),
+            do_process_instruction(
+                set_authority(
+                    &program_id,
+                    &account_key,
+                    Some(&owner2_key),
+                    AuthorityType::CloseAccount,
+                    &owner_key,
+                    &[]
+                )
+                .unwrap(),
+                vec![&mut account_account, &mut owner_account],
+            )
+        );
+
+        // close_authority may be set to None when CPI Guard is enabled (not in CPI)
+        assert_eq!(
+            Ok(()),
+            do_process_instruction(
+                set_authority(
+                    &program_id,
+                    &account_key,
+                    None,
+                    AuthorityType::CloseAccount,
+                    &owner2_key,
+                    &[]
+                )
+                .unwrap(),
+                vec![&mut account_account, &mut owner2_account],
             )
         );
     }
