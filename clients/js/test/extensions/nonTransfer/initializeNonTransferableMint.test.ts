@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
-import test from 'ava';
 import { Mint, extension, fetchMint, getInitializeNonTransferableMintInstruction } from '../../../src';
 import {
     createDefaultSolanaClient,
@@ -8,7 +8,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it initializes a non-transferable mint', async t => {
+it('initializes a non-transferable mint', async () => {
     // Given an authority and a mint account.
     const client = createDefaultSolanaClient();
     const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
@@ -32,7 +32,7 @@ test('it initializes a non-transferable mint', async t => {
 
     // Then we expect the mint to be initialized with the non-transferable extension
     const mintAccount = await fetchMint(client.rpc, mint.address);
-    t.like(mintAccount, <Account<Mint>>{
+    expect(mintAccount).toMatchObject(<Account<Mint>>{
         address: mint.address,
         data: {
             mintAuthority: some(authority.address),

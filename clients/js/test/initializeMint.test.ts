@@ -1,10 +1,10 @@
+import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, none, some } from '@solana/kit';
-import test from 'ava';
 import { Mint, TOKEN_2022_PROGRAM_ADDRESS, fetchMint, getInitializeMintInstruction, getMintSize } from '../src';
 import { createDefaultSolanaClient, generateKeyPairSignerWithSol, sendAndConfirmInstructions } from './_setup';
 import { getCreateAccountInstruction } from '@solana-program/system';
 
-test('it creates and initializes a new mint account', async t => {
+it('creates and initializes a new mint account', async () => {
     // Given an authority and a mint account.
     const client = createDefaultSolanaClient();
     const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
@@ -29,7 +29,7 @@ test('it creates and initializes a new mint account', async t => {
 
     // Then we expect the mint account to exist and have the following data.
     const mintAccount = await fetchMint(client.rpc, mint.address);
-    t.like(mintAccount, <Account<Mint>>{
+    expect(mintAccount).toMatchObject(<Account<Mint>>{
         address: mint.address,
         data: {
             mintAuthority: some(authority.address),
@@ -41,7 +41,7 @@ test('it creates and initializes a new mint account', async t => {
     });
 });
 
-test('it creates a new mint account with a freeze authority', async t => {
+it('creates a new mint account with a freeze authority', async () => {
     // Given an authority and a mint account.
     const client = createDefaultSolanaClient();
     const [payer, mintAuthority, freezeAuthority, mint] = await Promise.all([
@@ -72,7 +72,7 @@ test('it creates a new mint account with a freeze authority', async t => {
 
     // Then we expect the mint account to exist and have the following data.
     const mintAccount = await fetchMint(client.rpc, mint.address);
-    t.like(mintAccount, <Account<Mint>>{
+    expect(mintAccount).toMatchObject(<Account<Mint>>{
         address: mint.address,
         data: {
             mintAuthority: some(mintAuthority.address),

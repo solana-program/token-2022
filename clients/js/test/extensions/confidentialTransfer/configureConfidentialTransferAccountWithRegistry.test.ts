@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { address, generateKeyPairSigner, type AccountMeta } from '@solana/kit';
-import test from 'ava';
 import {
     getConfigureConfidentialTransferAccountWithRegistryInstruction,
     parseConfigureConfidentialTransferAccountWithRegistryInstruction,
@@ -7,7 +7,7 @@ import {
 
 const SYSTEM_PROGRAM_ADDRESS = address('11111111111111111111111111111111');
 
-test('it encodes the 27/14 discriminator pair', async t => {
+it('encodes the 27/14 discriminator pair', async () => {
     const [token, mint, elgamalRegistry] = await Promise.all([
         generateKeyPairSigner(),
         generateKeyPairSigner(),
@@ -20,12 +20,12 @@ test('it encodes the 27/14 discriminator pair', async t => {
         elgamalRegistry: elgamalRegistry.address,
     });
 
-    t.is(instruction.data[0], 27);
-    t.is(instruction.data[1], 14);
-    t.is(instruction.data.length, 2);
+    expect(instruction.data[0]).toBe(27);
+    expect(instruction.data[1]).toBe(14);
+    expect(instruction.data.length).toBe(2);
 });
 
-test('it emits a 3-account layout when payer and systemProgram are omitted', async t => {
+it('emits a 3-account layout when payer and systemProgram are omitted', async () => {
     const [token, mint, elgamalRegistry] = await Promise.all([
         generateKeyPairSigner(),
         generateKeyPairSigner(),
@@ -39,13 +39,13 @@ test('it emits a 3-account layout when payer and systemProgram are omitted', asy
     });
     const accounts = instruction.accounts as readonly AccountMeta[];
 
-    t.is(accounts.length, 3);
-    t.is(accounts[0].address, token.address);
-    t.is(accounts[1].address, mint.address);
-    t.is(accounts[2].address, elgamalRegistry.address);
+    expect(accounts.length).toBe(3);
+    expect(accounts[0].address).toBe(token.address);
+    expect(accounts[1].address).toBe(mint.address);
+    expect(accounts[2].address).toBe(elgamalRegistry.address);
 });
 
-test('it emits a 5-account layout when payer is provided', async t => {
+it('emits a 5-account layout when payer is provided', async () => {
     const [token, mint, elgamalRegistry, payer] = await Promise.all([
         generateKeyPairSigner(),
         generateKeyPairSigner(),
@@ -62,12 +62,12 @@ test('it emits a 5-account layout when payer is provided', async t => {
     });
     const accounts = instruction.accounts as readonly AccountMeta[];
 
-    t.is(accounts.length, 5);
-    t.is(accounts[3].address, payer.address);
-    t.is(accounts[4].address, SYSTEM_PROGRAM_ADDRESS);
+    expect(accounts.length).toBe(5);
+    expect(accounts[3].address).toBe(payer.address);
+    expect(accounts[4].address).toBe(SYSTEM_PROGRAM_ADDRESS);
 });
 
-test('it round-trips through parse', async t => {
+it('round-trips through parse', async () => {
     const [token, mint, elgamalRegistry] = await Promise.all([
         generateKeyPairSigner(),
         generateKeyPairSigner(),
@@ -81,7 +81,7 @@ test('it round-trips through parse', async t => {
     });
     const parsed = parseConfigureConfidentialTransferAccountWithRegistryInstruction(instruction);
 
-    t.is(parsed.accounts.token.address, token.address);
-    t.is(parsed.accounts.mint.address, mint.address);
-    t.is(parsed.accounts.elgamalRegistry.address, elgamalRegistry.address);
+    expect(parsed.accounts.token.address).toBe(token.address);
+    expect(parsed.accounts.mint.address).toBe(mint.address);
+    expect(parsed.accounts.elgamalRegistry.address).toBe(elgamalRegistry.address);
 });

@@ -1,8 +1,8 @@
+import { expect, it } from 'vitest';
 import { getBase16Encoder, getBase64Encoder, none, some } from '@solana/kit';
-import test from 'ava';
 import { AccountState, Token, getTokenDecoder } from '../../src';
 
-test('it decodes a token account with extensions', t => {
+it('decodes a token account with extensions', () => {
     // Given an encoded mega token account.
     const encodedData = getBase64Encoder().encode(
         'RYm8iq8LbcyTLQKCP6wVDptQOvkKvx/PFJtKgrZAeG7ZdKMso+RJvIY7btmT+8qNLoG5UbM+oYVSXTaPoAGscwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAANAAAAAgAIAAAAAAAAAAAADwABAAAIAAEAAQsAAQABBQAnAQHGmf+ACSBnwGhPwFsNLGf0R68ypIqgyJhY8PGmjul0JwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC1Oy+19D9M/Ln1h7jIkAZ9g7WaCs4m0zPkPZy7ew5I1hYEN5AEBAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAARAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==',
@@ -12,7 +12,7 @@ test('it decodes a token account with extensions', t => {
     const decodedData = getTokenDecoder().decode(encodedData);
 
     // Then we expect the following data.
-    t.like(decodedData, <Token>{
+    expect(decodedData).toMatchObject(<Token>{
         mint: '5gSwsLGzyCwgwPJSnxjsQCaFeE19ZFaibHMLky9TDFim',
         owner: 'FdrdFuo1RQ9LrQ3FRfQUE7RigyANe5kFNLyMhCYk1xgJ',
         amount: 0n,

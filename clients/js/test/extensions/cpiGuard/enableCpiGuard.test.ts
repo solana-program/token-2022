@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
-import test from 'ava';
 import { Token, extension, fetchToken, getEnableCpiGuardInstruction } from '../../../src';
 import {
     createDefaultSolanaClient,
@@ -10,7 +10,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it initializes a token account with an enabled CPI guard extension', async t => {
+it('initializes a token account with an enabled CPI guard extension', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, token, owner] = await Promise.all([
@@ -45,7 +45,7 @@ test('it initializes a token account with an enabled CPI guard extension', async
 
     // Then we expect the token account to exist and have the following extension.
     const tokenAccount = await fetchToken(client.rpc, token.address);
-    t.like(tokenAccount, <Account<Token>>{
+    expect(tokenAccount).toMatchObject(<Account<Token>>{
         address: token.address,
         data: {
             extensions: some([cpiGuardExtension]),
@@ -53,7 +53,7 @@ test('it initializes a token account with an enabled CPI guard extension', async
     });
 });
 
-test('it enables CPI guard on a token account', async t => {
+it('enables CPI guard on a token account', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, owner] = await Promise.all([
@@ -76,5 +76,5 @@ test('it enables CPI guard on a token account', async t => {
 
     // Then we expect the token account to have CPI guard enabled.
     const tokenAccount = await fetchToken(client.rpc, token);
-    t.deepEqual(tokenAccount.data.extensions, some([extension('CpiGuard', { lockCpi: true })]));
+    expect(tokenAccount.data.extensions).toEqual(some([extension('CpiGuard', { lockCpi: true })]));
 });

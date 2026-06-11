@@ -1,4 +1,4 @@
-import test from 'ava';
+import { expect, it } from 'vitest';
 import {
     createConfidentialMint,
     createConfidentialTokenAccount,
@@ -8,7 +8,7 @@ import {
     getTokenExtension,
 } from '../../_setup';
 
-test('it configures a token account for confidential transfers', async t => {
+it('configures a token account for confidential transfers', async () => {
     // Given a confidential transfer mint and an account owner.
     const client = createDefaultSolanaClient();
     const owner = await generateKeyPairSignerWithSol(client);
@@ -20,7 +20,7 @@ test('it configures a token account for confidential transfers', async t => {
     // Then the token account has an approved ConfidentialTransferAccount extension.
     const tokenAccount = await fetchAssociatedToken(client, owner.address, mint);
     const confidentialAccount = getTokenExtension(tokenAccount, 'ConfidentialTransferAccount');
-    t.true(confidentialAccount.approved);
-    t.true(confidentialAccount.allowConfidentialCredits);
-    t.true(confidentialAccount.allowNonConfidentialCredits);
+    expect(confidentialAccount.approved).toBe(true);
+    expect(confidentialAccount.allowConfidentialCredits).toBe(true);
+    expect(confidentialAccount.allowNonConfidentialCredits).toBe(true);
 });

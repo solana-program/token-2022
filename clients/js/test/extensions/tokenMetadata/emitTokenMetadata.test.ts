@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { generateKeyPairSigner, getBase64Encoder } from '@solana/kit';
-import test from 'ava';
 import { extension, getEmitTokenMetadataInstruction, getExtensionEncoder } from '../../../src';
 import {
     createDefaultSolanaClient,
@@ -8,7 +8,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it emits the token metadata extension as return data', async t => {
+it('emits the token metadata extension as return data', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, mint, updateAuthority] = await Promise.all([
@@ -54,5 +54,5 @@ test('it emits the token metadata extension as return data', async t => {
         .send();
     const returnData = getBase64Encoder().encode(transaction?.meta?.returnData?.data?.[0] ?? '');
     const expectedReturnData = getExtensionEncoder().encode(tokenMetadataExtension).slice(4); // Remove extension header.
-    t.deepEqual(returnData, expectedReturnData);
+    expect(returnData).toEqual(expectedReturnData);
 });

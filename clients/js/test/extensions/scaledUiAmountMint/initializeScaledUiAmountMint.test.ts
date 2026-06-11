@@ -1,4 +1,4 @@
-import test from 'ava';
+import { expect, it } from 'vitest';
 import {
     createDefaultSolanaClient,
     generateKeyPairSignerWithSol,
@@ -8,7 +8,7 @@ import {
 import { Account, generateKeyPairSigner, isSome } from '@solana/kit';
 import { extension, fetchMint, getInitializeScaledUiAmountMintInstruction, Mint } from '../../../src';
 
-test('it initialize a mint account with a scaled ui amount mint extension', async t => {
+it('initialize a mint account with a scaled ui amount mint extension', async () => {
     // Given a fresh client with no state the test cares about.
     const client = createDefaultSolanaClient();
     const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
@@ -45,24 +45,24 @@ test('it initialize a mint account with a scaled ui amount mint extension', asyn
 
     const mintAccount = await fetchMint(client.rpc, mint.address);
     // Then the mint account exists.
-    t.like(mintAccount, <Account<Mint>>{
+    expect(mintAccount).toMatchObject(<Account<Mint>>{
         address: mint.address,
     });
 
     const extensions = mintAccount.data.extensions;
 
     // And the mint account has a scaled ui amount mint extension.
-    t.true(isSome(extensions));
-    t.true(isSome(extensions) && extensions.value[0].__kind === 'ScaledUiAmountConfig');
+    expect(isSome(extensions)).toBe(true);
+    expect(isSome(extensions) && extensions.value[0].__kind === 'ScaledUiAmountConfig').toBe(true);
 
     if (isSome(extensions) && extensions.value[0].__kind === 'ScaledUiAmountConfig') {
         // And the extension has the correct authority.
-        t.is(extensions.value[0].authority, authority.address);
+        expect(extensions.value[0].authority).toBe(authority.address);
         // And the extension has the correct multiplier.
-        t.is(extensions.value[0].multiplier, multiplier);
+        expect(extensions.value[0].multiplier).toBe(multiplier);
         // And the extension has the correct new multiplier effective timestamp.
-        t.true(typeof extensions.value[0].newMultiplierEffectiveTimestamp === 'bigint');
+        expect(typeof extensions.value[0].newMultiplierEffectiveTimestamp === 'bigint').toBe(true);
         // And the extension has the correct new multiplier which is not changed due to how the extension is initialized.
-        t.is(extensions.value[0].newMultiplier, multiplier);
+        expect(extensions.value[0].newMultiplier).toBe(multiplier);
     }
 });

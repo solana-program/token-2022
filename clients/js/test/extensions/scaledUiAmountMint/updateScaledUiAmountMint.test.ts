@@ -1,4 +1,4 @@
-import test from 'ava';
+import { expect, it } from 'vitest';
 import {
     createDefaultSolanaClient,
     createMint,
@@ -8,7 +8,7 @@ import {
 import { isSome } from '@solana/kit';
 import { extension, fetchMint, getUpdateMultiplierScaledUiMintInstruction } from '../../../src';
 
-test('it updates the multiplier of the scaled ui amount mint extension on a mint account', async t => {
+it('updates the multiplier of the scaled ui amount mint extension on a mint account', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [multiplierAuthority] = await Promise.all([generateKeyPairSignerWithSol(client)]);
@@ -45,17 +45,17 @@ test('it updates the multiplier of the scaled ui amount mint extension on a mint
 
     // Then the mint account has a scaled ui amount mint extension.
     const extensions = mintAccount.data.extensions;
-    t.true(isSome(extensions));
-    t.true(isSome(extensions) && extensions.value[0].__kind === 'ScaledUiAmountConfig');
+    expect(isSome(extensions)).toBe(true);
+    expect(isSome(extensions) && extensions.value[0].__kind === 'ScaledUiAmountConfig').toBe(true);
 
     if (isSome(extensions) && extensions.value[0].__kind === 'ScaledUiAmountConfig') {
         // And the extension has the correct authority.
-        t.is(extensions.value[0].authority, multiplierAuthority.address);
+        expect(extensions.value[0].authority).toBe(multiplierAuthority.address);
         // And the extension has the correct multiplier.
-        t.true(typeof extensions.value[0].multiplier === 'number');
+        expect(typeof extensions.value[0].multiplier === 'number').toBe(true);
         // And the extension has the correct new multiplier effective timestamp.
-        t.true(typeof extensions.value[0].newMultiplierEffectiveTimestamp === 'bigint');
+        expect(typeof extensions.value[0].newMultiplierEffectiveTimestamp === 'bigint').toBe(true);
         // And the extension has the correct new multiplier.
-        t.is(extensions.value[0].newMultiplier, newMultiplier);
+        expect(extensions.value[0].newMultiplier).toBe(newMultiplier);
     }
 });

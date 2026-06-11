@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, none, some } from '@solana/kit';
-import test from 'ava';
 import { Mint, extension, fetchMint, getUpdateConfidentialTransferMintInstruction } from '../../../src';
 import {
     createDefaultSolanaClient,
@@ -8,7 +8,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it updates a mint account with confidential transfer', async t => {
+it('updates a mint account with confidential transfer', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, confidentialTransferAuthority] = await Promise.all([
@@ -42,7 +42,7 @@ test('it updates a mint account with confidential transfer', async t => {
 
     // Then we expect the mint account to have the following updated data.
     const mintAccount = await fetchMint(client.rpc, mint);
-    t.like(mintAccount, <Account<Mint>>{
+    expect(mintAccount).toMatchObject(<Account<Mint>>{
         address: mint,
         data: {
             mintAuthority: some(authority.address),

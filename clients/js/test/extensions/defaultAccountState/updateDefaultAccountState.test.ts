@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
-import test from 'ava';
 import { AccountState, Mint, extension, fetchMint, getUpdateDefaultAccountStateInstruction } from '../../../src';
 import {
     createDefaultSolanaClient,
@@ -8,7 +8,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it updates the default state account on a mint account', async t => {
+it('updates the default state account on a mint account', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, freezeAuthority] = await Promise.all([
@@ -36,7 +36,7 @@ test('it updates the default state account on a mint account', async t => {
 
     // Then we expect the mint account to have the following updated data.
     const mintAccount = await fetchMint(client.rpc, mint);
-    t.like(mintAccount, <Account<Mint>>{
+    expect(mintAccount).toMatchObject(<Account<Mint>>{
         address: mint,
         data: {
             extensions: some([extension('DefaultAccountState', { state: AccountState.Initialized })]),

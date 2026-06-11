@@ -1,3 +1,4 @@
+import { expect, it } from 'vitest';
 import { getCreateAccountInstruction } from '@solana-program/system';
 import {
     AccountRole,
@@ -12,7 +13,6 @@ import {
     ReadonlyUint8Array,
     some,
 } from '@solana/kit';
-import test from 'ava';
 import {
     AccountState,
     fetchMint,
@@ -31,7 +31,7 @@ import {
 } from '../src';
 import { createDefaultSolanaClient, generateKeyPairSignerWithSol, sendAndConfirmInstructions } from './_setup';
 
-test('it batches multiple token instructions together', async t => {
+it('batches multiple token instructions together', async () => {
     // Given a client with some generated keypairs.
     const client = createDefaultSolanaClient();
     const [payer, mint, token, mintAuthority, tokenOwner] = await Promise.all([
@@ -86,7 +86,7 @@ test('it batches multiple token instructions together', async t => {
 
     // Then we expect the mint account to have the correct data.
     const { data: mintData } = await fetchMint(client.rpc, mint.address);
-    t.like(mintData, <Mint>{
+    expect(mintData).toMatchObject(<Mint>{
         mintAuthority: some(mintAuthority.address),
         supply: 123_45n,
         decimals: 2,
@@ -96,7 +96,7 @@ test('it batches multiple token instructions together', async t => {
 
     // And we expect the token account to have the correct data.
     const { data: tokenData } = await fetchToken(client.rpc, token.address);
-    t.like(tokenData, <Token>{
+    expect(tokenData).toMatchObject(<Token>{
         mint: mint.address,
         owner: tokenOwner.address,
         amount: 123_45n,
@@ -104,7 +104,7 @@ test('it batches multiple token instructions together', async t => {
     });
 });
 
-test('it fails to batch nested batch instructions', async t => {
+it('fails to batch nested batch instructions', async () => {
     // Given some generated keypairs.
     const [mint, token, mintAuthority, tokenOwner] = await Promise.all([
         generateKeyPairSigner(),
@@ -138,10 +138,10 @@ test('it fails to batch nested batch instructions', async t => {
         ]);
 
     // Then we expect an error to be thrown.
-    t.throws(createNestedBatch, { message: 'Batch instructions cannot be nested within other batch instructions.' });
+    expect(createNestedBatch).toThrow('Batch instructions cannot be nested within other batch instructions.');
 });
 
-test('it parses batch instructions including its inner instructions', async t => {
+it('parses batch instructions including its inner instructions', async () => {
     // Given a batch instruction with multiple token inner instructions.
     const [mint, token, mintAuthority, tokenOwner] = await Promise.all([
         generateKeyPairSigner(),
@@ -172,7 +172,7 @@ test('it parses batch instructions including its inner instructions', async t =>
     const parsedInstruction = parseBatchInstruction(batchInstruction);
 
     // Then we expect the parsed instruction to have the following inner instructions.
-    t.deepEqual(parsedInstruction.instructions, [
+    expect(parsedInstruction.instructions).toEqual([
         {
             instructionType: Token2022Instruction.InitializeMint2,
             programAddress: TOKEN_2022_PROGRAM_ADDRESS,
@@ -218,7 +218,7 @@ test('it parses batch instructions including its inner instructions', async t =>
     ]);
 });
 
-test('it parses batch instructions from a fetched transaction', async t => {
+it('parses batch instructions from a fetched transaction', async () => {
     // Given a client with some generated keypairs.
     const client = createDefaultSolanaClient();
     const [payer, mint, token, mintAuthority, tokenOwner] = await Promise.all([
@@ -275,7 +275,7 @@ test('it parses batch instructions from a fetched transaction', async t => {
     const transactionResult = await client.rpc
         .getTransaction(signature, { encoding: 'base64', maxSupportedTransactionVersion: 0 })
         .send();
-    t.assert(transactionResult);
+    expect(transactionResult).toBeTruthy();
     const transactionBytes = getBase64Encoder().encode(transactionResult!.transaction[0]);
     const transaction = getTransactionDecoder().decode(transactionBytes);
     const compiledMessage = getCompiledTransactionMessageDecoder().decode(transaction.messageBytes);
@@ -288,7 +288,7 @@ test('it parses batch instructions from a fetched transaction', async t => {
     const parsedInstruction = parseBatchInstruction(batchInstruction);
 
     // Then we expect the parsed instruction to have the following inner instructions.
-    t.deepEqual(parsedInstruction.instructions, [
+    expect(parsedInstruction.instructions).toEqual([
         {
             instructionType: Token2022Instruction.InitializeMint2,
             programAddress: TOKEN_2022_PROGRAM_ADDRESS,

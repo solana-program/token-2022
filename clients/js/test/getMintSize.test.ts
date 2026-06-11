@@ -1,18 +1,17 @@
-import test from 'ava';
-
+import { expect, it } from 'vitest';
 import { extension, getMintSize } from '../src';
 import { address } from '@solana/kit';
 
-test('it returns the base size when no extensions are provided', t => {
-    t.is(getMintSize(), 82 /* base size */);
+it('returns the base size when no extensions are provided', () => {
+    expect(getMintSize()).toBe(82 /* base size */);
 });
 
-test('it returns the extended base size when an empty array of extensions is provided', t => {
-    t.is(getMintSize([]), 82 /* base size */ + 83 /* offset to reach 165 */ + 1 /* mint discriminator */);
+it('returns the extended base size when an empty array of extensions is provided', () => {
+    expect(getMintSize([])).toBe(82 /* base size */ + 83 /* offset to reach 165 */ + 1 /* mint discriminator */);
 });
 
-test('it returns the size including all provided extensions', t => {
-    t.is(
+it('returns the size including all provided extensions', () => {
+    expect(
         getMintSize([
             extension('MintCloseAuthority', {
                 closeAuthority: address('HHS1XymmkBpYAkg3XTbZLxgHa5n11PAWUCWdiVtRmzzS'),
@@ -22,14 +21,15 @@ test('it returns the size including all provided extensions', t => {
                 programId: address('DAFy5fcNXoaxxrtenLrqH1DHUyD8rAqn77sDMEHit4Qx'),
             }),
         ]),
+    ).toBe(
         166 /* extended mint base size */ +
             36 /* MintCloseAuthority extension size */ +
             68 /* TransferHook extension size */,
     );
 });
 
-test('it returns the correct size for the confidential mint burn extension', t => {
-    t.is(
+it('returns the correct size for the confidential mint burn extension', () => {
+    expect(
         getMintSize([
             extension('ConfidentialMintBurn', {
                 confidentialSupply: new Uint8Array(64),
@@ -38,6 +38,5 @@ test('it returns the correct size for the confidential mint burn extension', t =
                 pendingBurn: new Uint8Array(64),
             }),
         ]),
-        166 /* extended mint base size */ + 4 /* TLV header */ + 196 /* ConfidentialMintBurn extension size */,
-    );
+    ).toBe(166 /* extended mint base size */ + 4 /* TLV header */ + 196 /* ConfidentialMintBurn extension size */);
 });

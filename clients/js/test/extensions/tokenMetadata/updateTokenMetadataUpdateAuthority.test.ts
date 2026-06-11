@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { generateKeyPairSigner, none, some, unwrapOption } from '@solana/kit';
-import test from 'ava';
 import { extension, fetchMint, getUpdateTokenMetadataUpdateAuthorityInstruction, isExtension } from '../../../src';
 import {
     createDefaultSolanaClient,
@@ -8,7 +8,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it updates the update authority of the token metadata extension', async t => {
+it('updates the update authority of the token metadata extension', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, mint, updateAuthority, newUpdateAuthority] = await Promise.all([
@@ -54,10 +54,10 @@ test('it updates the update authority of the token metadata extension', async t 
     const tokenMetadataExtension = unwrapOption(mintAccount.data.extensions)?.find(e =>
         isExtension('TokenMetadata', e),
     );
-    t.deepEqual(tokenMetadataExtension?.updateAuthority, some(newUpdateAuthority.address));
+    expect(tokenMetadataExtension?.updateAuthority).toEqual(some(newUpdateAuthority.address));
 });
 
-test('it removes the update authority of the token metadata extension', async t => {
+it('removes the update authority of the token metadata extension', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, mint, updateAuthority] = await Promise.all([
@@ -103,5 +103,5 @@ test('it removes the update authority of the token metadata extension', async t 
     const tokenMetadataExtension = unwrapOption(mintAccount.data.extensions)?.find(e =>
         isExtension('TokenMetadata', e),
     );
-    t.deepEqual(tokenMetadataExtension?.updateAuthority, none());
+    expect(tokenMetadataExtension?.updateAuthority).toEqual(none());
 });

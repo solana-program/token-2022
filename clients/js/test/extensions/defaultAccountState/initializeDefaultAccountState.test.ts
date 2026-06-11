@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
-import test from 'ava';
 import {
     AccountState,
     Mint,
@@ -17,7 +17,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it initializes a mint account with a default account state extension', async t => {
+it('initializes a mint account with a default account state extension', async () => {
     // Given an authority and a mint account.
     const client = createDefaultSolanaClient();
     const [authority, freezeAuthority, mint] = await Promise.all([
@@ -51,7 +51,7 @@ test('it initializes a mint account with a default account state extension', asy
 
     // Then we expect the mint account to exist and have the following data.
     const mintAccount = await fetchMint(client.rpc, mint.address);
-    t.like(mintAccount, <Account<Mint>>{
+    expect(mintAccount).toMatchObject(<Account<Mint>>{
         address: mint.address,
         data: {
             mintAuthority: some(authority.address),
@@ -61,7 +61,7 @@ test('it initializes a mint account with a default account state extension', asy
     });
 });
 
-test('it initializes a token account with the default state defined on the mint account', async t => {
+it('initializes a token account with the default state defined on the mint account', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, freezeAuthority, owner] = await Promise.all([
@@ -84,5 +84,5 @@ test('it initializes a token account with the default state defined on the mint 
 
     // Then we expect the token account to have the default state defined on the mint account.
     const tokenAccount = await fetchToken(client.rpc, token);
-    t.is(tokenAccount.data.state, AccountState.Frozen);
+    expect(tokenAccount.data.state).toBe(AccountState.Frozen);
 });
