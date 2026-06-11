@@ -212,7 +212,10 @@ impl Processor {
 
         check_program_account(mint_info.owner)?;
 
-        // Sizing walks every TLV entry, so this also validates the extension data
+        // Sizing walks every TLV entry, which also validates the extension data. It is only a
+        // lower bound since it skips extensions already initialized on the account (e.g.
+        // `ImmutableOwner`), but each init call below still verifies the space for its own write.
+        // Passing the initialized types as `additional_account_extensions` would make it exact.
         let required_account_len = try_calculate_account_len_from_mint_data(&mint_data, &[])?;
         if required_account_len > new_account_info_data_len {
             return Err(ProgramError::InvalidAccountData);

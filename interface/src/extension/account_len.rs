@@ -1,56 +1,56 @@
 use {
     super::{
-        try_for_each_tlv_extension_type, AccountType, BaseStateWithExtensions, ExtensionType,
-        PodStateWithExtensions,
+        adjust_len_for_multisig, try_for_each_tlv_extension_type, AccountType, BaseState,
+        BaseStateWithExtensions, ExtensionType, PodStateWithExtensions,
+        BASE_ACCOUNT_AND_TYPE_LENGTH,
     },
     crate::{error::TokenError, pod::PodMint, state::Account},
     solana_program_error::ProgramError,
 };
 
-/// Must stay at or above the total number of `ExtensionType`s that exist, which is verified
-/// by the capacity test in this module
-pub(crate) const EXTENSION_TYPE_BUFFER_CAPACITY: usize = 50;
-
-/// A fixed-capacity unique list of extension types. A no-alloc version of a set.
-#[derive(Debug)]
-pub(crate) struct ExtensionTypeBuffer {
-    /// The recorded extension types, filled from the front. Slots past `count` are unused
-    /// and hold `Uninitialized` as filler
-    types: [ExtensionType; EXTENSION_TYPE_BUFFER_CAPACITY],
-    /// How many slots are occupied
-    count: usize,
+/// Accumulates the total TLV length of the inserted extension types, counting each
+/// distinct type once. A no-alloc version of summing over a set.
+#[derive(Debug, Default)]
+pub(crate) struct TlvLenAccumulator {
+    /// Bitset of the extension types inserted so far
+    seen: u64,
+    /// Total TLV length of the distinct inserted types
+    total: usize,
 }
 
-impl Default for ExtensionTypeBuffer {
-    fn default() -> Self {
-        Self {
-            types: [ExtensionType::Uninitialized; EXTENSION_TYPE_BUFFER_CAPACITY],
-            count: 0,
+impl TlvLenAccumulator {
+    /// The bit recording the extension type in `seen`. The bit test in this module
+    /// verifies that every `ExtensionType` holds a distinct bit within the `u64`
+    fn bit(extension_type: ExtensionType) -> u64 {
+        #[cfg(test)]
+        match extension_type {
+            // The test-only types live at the top of the `u16` discriminant range,
+            // so they are mirrored onto the highest bits
+            ExtensionType::VariableLenMintTest => return 1 << 61,
+            ExtensionType::AccountPaddingTest => return 1 << 62,
+            ExtensionType::MintPaddingTest => return 1 << 63,
+            _ => (),
         }
+        1 << u16::from(extension_type)
     }
-}
 
-impl ExtensionTypeBuffer {
-    /// Records the extension type unless it is already present
+    /// Adds the extension type's TLV length unless the type was already inserted
     pub(crate) fn insert(&mut self, extension_type: ExtensionType) -> Result<(), ProgramError> {
-        if self.types().contains(&extension_type) {
-            return Ok(());
+        let bit = Self::bit(extension_type);
+        if self.seen & bit == 0 {
+            self.seen |= bit;
+            self.total = self.total.saturating_add(extension_type.try_get_tlv_len()?);
         }
-
-        // Not seen, so take the next free slot
-        let slot = self
-            .types
-            .get_mut(self.count)
-            .ok_or(ProgramError::InvalidAccountData)?;
-        *slot = extension_type;
-        self.count = self.count.saturating_add(1);
-
         Ok(())
     }
 
-    /// The recorded extension types in insertion order
-    pub(crate) fn types(&self) -> &[ExtensionType] {
-        &self.types[..self.count]
+    /// The account length for base state `S` followed by the accumulated TLV entries
+    pub(crate) fn account_len<S: BaseState>(&self) -> usize {
+        if self.seen == 0 {
+            S::SIZE_OF
+        } else {
+            adjust_len_for_multisig(self.total.saturating_add(BASE_ACCOUNT_AND_TYPE_LENGTH))
+        }
     }
 }
 
@@ -89,19 +89,19 @@ pub fn try_calculate_account_len_from_mint_data(
     let state = PodStateWithExtensions::<PodMint>::unpack(mint_data)
         .map_err(|_| TokenError::InvalidMint)?;
 
-    // Collect the account extensions the mint requires
-    let mut account_extensions = ExtensionTypeBuffer::default();
+    // Size the account extensions the mint requires
+    let mut tlv_len = TlvLenAccumulator::default();
     try_for_each_required_init_account_extension(state.get_tlv_data(), |extension_type| {
-        account_extensions.insert(extension_type)
+        tlv_len.insert(extension_type)
     })?;
 
     // Add the requested ones. `insert` dedupes, so overlap with the required
     // extensions is only sized once.
     for &extension_type in additional_account_extensions {
-        account_extensions.insert(extension_type)?;
+        tlv_len.insert(extension_type)?;
     }
 
-    ExtensionType::try_calculate_account_len::<Account>(account_extensions.types())
+    Ok(tlv_len.account_len::<Account>())
 }
 
 #[cfg(test)]
@@ -143,9 +143,9 @@ mod tests {
         "mint with no extensions"
     )]
     #[test_case(
-        mint_data_with_tlv_entries(&[(ExtensionType::ImmutableOwner, 0)]), &[],
+        mint_data_with_tlv_entries(&[(ExtensionType::MintCloseAuthority, 0)]), &[],
         Account::SIZE_OF;
-        "account extension inside mint tlv"
+        "mint extension with no required account extensions"
     )]
     // 165 base + 1 account type + (4 header + 0 `ImmutableOwner`) + (4 header + 1
     // `MemoTransfer`) + (4 header + 1 `CpiGuard`)
@@ -172,20 +172,6 @@ mod tests {
         "requested extensions overlap required ones"
     )]
     #[test_case(
-        mint_data_with_tlv_entries(&[
-            (ExtensionType::NonTransferable, 0),
-            (ExtensionType::NonTransferable, 0),
-        ]),
-        &[],
-        174;
-        "duplicate mint extensions"
-    )]
-    #[test_case(
-        mint_data_with_tlv_entries(&[(ExtensionType::TransferFeeConfig, 5)]), &[],
-        178;
-        "declared tlv value length is ignored"
-    )]
-    #[test_case(
         {
             let mut data = mint_data_with_tlv_entries(&[(ExtensionType::TransferFeeConfig, 0)]);
             data.push(0);
@@ -194,17 +180,6 @@ mod tests {
         &[],
         178;
         "trailing realloc byte is ignored"
-    )]
-    #[test_case(
-        {
-            let mut data = mint_data_with_tlv_entries(&[(ExtensionType::TransferFeeConfig, 0)]);
-            data.extend_from_slice(&u16::from(ExtensionType::Uninitialized).to_le_bytes());
-            data.extend_from_slice(&[0xff; 7]);
-            data
-        },
-        &[],
-        178;
-        "bytes after uninitialized terminator are ignored"
     )]
     #[test_case(
         mint_data_with_tlv_entries(&[(ExtensionType::MintPaddingTest, 0)]), &[],
@@ -224,6 +199,43 @@ mod tests {
         assert_eq!(
             try_calculate_account_len_from_mint_data(&mint_data, additional_account_extensions)
                 .unwrap(),
+            expected_len,
+        );
+    }
+
+    // Bad input cases that aren't possible from within the token program, but proves
+    // external usage can handle some bogus params.
+    #[test_case(
+        mint_data_with_tlv_entries(&[(ExtensionType::ImmutableOwner, 0)]),
+        Account::SIZE_OF;
+        "account extension inside mint tlv contributes nothing"
+    )]
+    #[test_case(
+        mint_data_with_tlv_entries(&[
+            (ExtensionType::NonTransferable, 0),
+            (ExtensionType::NonTransferable, 0),
+        ]),
+        174;
+        "duplicate mint extensions"
+    )]
+    #[test_case(
+        mint_data_with_tlv_entries(&[(ExtensionType::TransferFeeConfig, 5)]),
+        178;
+        "account size is computed from the extension types alone"
+    )]
+    #[test_case(
+        {
+            let mut data = mint_data_with_tlv_entries(&[(ExtensionType::TransferFeeConfig, 0)]);
+            data.extend_from_slice(&u16::from(ExtensionType::Uninitialized).to_le_bytes());
+            data.extend_from_slice(&[0xff; 7]);
+            data
+        },
+        178;
+        "bytes after uninitialized terminator are ignored"
+    )]
+    fn sizes_unwritable_mint_bytes_to_known_len(mint_data: Vec<u8>, expected_len: usize) {
+        assert_eq!(
+            try_calculate_account_len_from_mint_data(&mint_data, &[]).unwrap(),
             expected_len,
         );
     }
@@ -326,13 +338,16 @@ mod tests {
     }
 
     #[test]
-    fn buffer_holds_every_extension_type_once() {
-        let mut buffer = ExtensionTypeBuffer::default();
-        for _ in 0..2 {
-            for extension_type in ExtensionType::iter() {
-                buffer.insert(extension_type).unwrap();
-            }
+    fn every_extension_type_holds_a_distinct_bit() {
+        let mut seen = 0u64;
+        for extension_type in ExtensionType::iter() {
+            let bit = TlvLenAccumulator::bit(extension_type);
+            assert_eq!(
+                seen & bit,
+                0,
+                "{extension_type:?} shares its bit with another extension type."
+            );
+            seen |= bit;
         }
-        assert_eq!(buffer.types().len(), ExtensionType::iter().count());
     }
 }
