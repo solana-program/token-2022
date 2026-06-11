@@ -42,9 +42,7 @@ import {
     extension,
     fetchToken,
     findAssociatedTokenPda,
-    getApplyConfidentialPendingBalanceInstructionFromToken,
     getConfidentialDepositInstruction,
-    getCreateConfidentialTransferAccountInstructionPlan,
     getInitializeAccountInstruction,
     getInitializeMintInstruction,
     getMintSize,
@@ -54,6 +52,10 @@ import {
     getPreInitializeInstructionsForMintExtensions,
     getTokenSize,
 } from '../src';
+import {
+    getApplyConfidentialPendingBalanceInstructionFromToken,
+    getCreateConfidentialTransferAccountInstructionPlan,
+} from '../src/confidential';
 
 export type Client = {
     rpc: Rpc<SolanaRpcApi>;

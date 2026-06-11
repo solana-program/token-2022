@@ -1,10 +1,6 @@
 import test from 'ava';
-import {
-    fetchToken,
-    getApplyConfidentialPendingBalanceInstructionFromToken,
-    getConfidentialDepositInstruction,
-    getMintToInstruction,
-} from '../../../src';
+import { fetchToken, getConfidentialDepositInstruction, getMintToInstruction } from '../../../src';
+import { getApplyConfidentialPendingBalanceInstructionFromToken } from '../../../src/confidential';
 import {
     createConfidentialMint,
     createConfidentialTokenAccount,
