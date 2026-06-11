@@ -442,3 +442,46 @@ test('it builds an execute instruction', async t => {
     );
     t.true(instruction.accounts?.every(meta => meta.role === AccountRole.READONLY));
 });
+
+test('it de-escalates extra account metas to the privileges already present', async t => {
+    // Given a validation account listing a writable signer meta for the source
+    // account, already present as readonly, and a writable meta for an
+    // unrelated account.
+    const validationAddress = (
+        await findExtraAccountMetasPda({ mint: MINT }, { programAddress: TRANSFER_HOOK_PROGRAM_ID })
+    )[0];
+    const rpc = getMockRpc({
+        [validationAddress]: encodeValidationData([
+            fixedAddress(SOURCE, true, true),
+            fixedAddress(PLAIN_ACCOUNT, false, true),
+        ]),
+    });
+    const instruction = {
+        accounts: [
+            { address: SOURCE, role: AccountRole.WRITABLE },
+            { address: MINT, role: AccountRole.READONLY },
+            { address: DESTINATION, role: AccountRole.WRITABLE },
+            { address: AUTHORITY, role: AccountRole.READONLY_SIGNER },
+        ],
+        data: new Uint8Array(),
+        programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+    };
+
+    // When we add the extra account metas to the instruction.
+    const withExtraMetas = await addExtraAccountMetasForExecute(rpc, instruction, TRANSFER_HOOK_PROGRAM_ID, {
+        amount: 100n,
+        destination: DESTINATION,
+        mint: MINT,
+        owner: AUTHORITY,
+        source: SOURCE,
+    });
+
+    // Then we expect the source meta to be de-escalated to readonly and the
+    // unrelated meta to keep its privileges.
+    t.deepEqual(withExtraMetas.accounts.slice(4), [
+        { address: SOURCE, role: AccountRole.READONLY },
+        { address: PLAIN_ACCOUNT, role: AccountRole.WRITABLE },
+        { address: TRANSFER_HOOK_PROGRAM_ID, role: AccountRole.READONLY },
+        { address: validationAddress, role: AccountRole.READONLY },
+    ]);
+});

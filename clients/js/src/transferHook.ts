@@ -6,6 +6,8 @@ import {
     assertAccountExists,
     combineCodec,
     decodeAccount,
+    downgradeRoleToNonSigner,
+    downgradeRoleToReadonly,
     type EncodedAccount,
     type FetchAccountConfig,
     fetchEncodedAccount,
@@ -42,6 +44,8 @@ import {
     type ProgramDerivedAddress,
     type ReadonlyUint8Array,
     type Rpc,
+    transformEncoder,
+    upgradeRoleToSigner,
     type VariableSizeCodec,
     type VariableSizeDecoder,
     type VariableSizeEncoder,
@@ -61,14 +65,16 @@ const EXTRA_ACCOUNT_METAS_SEED = 'extra-account-metas';
 const PUBKEY_LENGTH = 32;
 
 function roleFromFlags(isSigner: boolean, isWritable: boolean): AccountRole {
-    if (isSigner && isWritable) return AccountRole.WRITABLE_SIGNER;
-    if (isSigner) return AccountRole.READONLY_SIGNER;
-    if (isWritable) return AccountRole.WRITABLE;
-    return AccountRole.READONLY;
+    const role = isWritable ? AccountRole.WRITABLE : AccountRole.READONLY;
+    return isSigner ? upgradeRoleToSigner(role) : role;
 }
 
-async function fetchAccountData(rpc: Rpc<GetAccountInfoApi>, address: Address): Promise<ReadonlyUint8Array> {
-    const account = await fetchEncodedAccount(rpc, address);
+async function fetchAccountData(
+    rpc: Rpc<GetAccountInfoApi>,
+    address: Address,
+    config?: FetchAccountConfig,
+): Promise<ReadonlyUint8Array> {
+    const account = await fetchEncodedAccount(rpc, address, config);
     assertAccountExists(account);
     return account.data;
 }
@@ -78,6 +84,7 @@ async function unpackSeeds(
     previousMetas: AccountMeta[],
     instructionData: ReadonlyUint8Array,
     rpc: Rpc<GetAccountInfoApi>,
+    config?: FetchAccountConfig,
 ): Promise<ReadonlyUint8Array[]> {
     const seeds: ReadonlyUint8Array[] = [];
     let i = 0;
@@ -112,7 +119,7 @@ async function unpackSeeds(
             if (previousMetas.length <= accountIndex) {
                 throw new Error('Invalid transfer hook account data seed.');
             }
-            const data = await fetchAccountData(rpc, previousMetas[accountIndex].address);
+            const data = await fetchAccountData(rpc, previousMetas[accountIndex].address, config);
             if (data.length < dataIndex + length) throw new Error('Invalid transfer hook account data seed.');
             seeds.push(data.subarray(dataIndex, dataIndex + length));
             i += 4;
@@ -128,6 +135,7 @@ async function unpackPubkeyData(
     previousMetas: AccountMeta[],
     instructionData: ReadonlyUint8Array,
     rpc: Rpc<GetAccountInfoApi>,
+    config?: FetchAccountConfig,
 ): Promise<Address> {
     const discriminator = keyDataConfig[0];
     const rest = keyDataConfig.subarray(1);
@@ -143,7 +151,7 @@ async function unpackPubkeyData(
         if (previousMetas.length <= accountIndex) {
             throw new Error('Transfer hook pubkey data account not found.');
         }
-        const data = await fetchAccountData(rpc, previousMetas[accountIndex].address);
+        const data = await fetchAccountData(rpc, previousMetas[accountIndex].address, config);
         if (data.length < dataIndex + PUBKEY_LENGTH) {
             throw new Error('Transfer hook pubkey data too small.');
         }
@@ -155,16 +163,10 @@ async function unpackPubkeyData(
 function deEscalateAccountMeta(accountMeta: AccountMeta, accountMetas: AccountMeta[]): AccountMeta {
     const matching = accountMetas.filter(meta => meta.address === accountMeta.address);
     if (matching.length === 0) return accountMeta;
-    const isSigner = matching.some(meta => isSignerRole(meta.role)) && isSignerRole(accountMeta.role);
-    const isWritable = matching.some(meta => isWritableRole(meta.role)) && isWritableRole(accountMeta.role);
-    return { ...accountMeta, role: roleFromFlags(isSigner, isWritable) };
-}
-
-function getExecuteInstructionData(amount: bigint): ReadonlyUint8Array {
-    const data = new Uint8Array(16);
-    data.set(EXECUTE_DISCRIMINATOR, 0);
-    data.set(getU64Encoder().encode(amount), 8);
-    return data;
+    let role = accountMeta.role;
+    if (!matching.some(meta => isSignerRole(meta.role))) role = downgradeRoleToNonSigner(role);
+    if (!matching.some(meta => isWritableRole(meta.role))) role = downgradeRoleToReadonly(role);
+    return { ...accountMeta, role };
 }
 
 function getOwnerAddress(authority: TransferCheckedInput['authority']): Address {
@@ -181,19 +183,26 @@ async function addTransferHookAccountsToInstruction<TInstruction extends Instruc
         mint: Address;
         source: Address;
     },
+    config?: FetchAccountConfig,
 ): Promise<TInstruction> {
-    const mint = await fetchMint(rpc, input.mint);
+    const mint = await fetchMint(rpc, input.mint, config);
     const transferHookProgramId = getTransferHookProgramId(mint);
     if (!transferHookProgramId) {
         return instruction;
     }
-    return await addExtraAccountMetasForExecute(rpc, instruction, transferHookProgramId, {
-        amount: input.amount,
-        destination: input.destination,
-        mint: input.mint,
-        owner: getOwnerAddress(input.authority),
-        source: input.source,
-    });
+    return await addExtraAccountMetasForExecute(
+        rpc,
+        instruction,
+        transferHookProgramId,
+        {
+            amount: input.amount,
+            destination: input.destination,
+            mint: input.mint,
+            owner: getOwnerAddress(input.authority),
+            source: input.source,
+        },
+        config,
+    );
 }
 
 /**
@@ -201,6 +210,41 @@ async function addTransferHookAccountsToInstruction<TInstruction extends Instruc
  * `sha256("spl-transfer-hook-interface:execute")[0..8]`.
  */
 export const EXECUTE_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([105, 37, 101, 197, 75, 251, 102, 26]);
+
+export function getExecuteDiscriminatorBytes(): ReadonlyUint8Array {
+    return fixEncoderSize(getBytesEncoder(), 8).encode(EXECUTE_DISCRIMINATOR);
+}
+
+/** The data of the transfer hook interface's `Execute` instruction. */
+export type ExecuteInstructionData = {
+    discriminator: ReadonlyUint8Array;
+    amount: bigint;
+};
+
+export type ExecuteInstructionDataArgs = {
+    amount: bigint | number;
+};
+
+export function getExecuteInstructionDataEncoder(): FixedSizeEncoder<ExecuteInstructionDataArgs> {
+    return transformEncoder(
+        getStructEncoder([
+            ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
+            ['amount', getU64Encoder()],
+        ]),
+        value => ({ ...value, discriminator: EXECUTE_DISCRIMINATOR }),
+    );
+}
+
+export function getExecuteInstructionDataDecoder(): FixedSizeDecoder<ExecuteInstructionData> {
+    return getStructDecoder([
+        ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
+        ['amount', getU64Decoder()],
+    ]);
+}
+
+export function getExecuteInstructionDataCodec(): FixedSizeCodec<ExecuteInstructionDataArgs, ExecuteInstructionData> {
+    return combineCodec(getExecuteInstructionDataEncoder(), getExecuteInstructionDataDecoder());
+}
 
 /** An additional account required by a transfer hook, as stored in the validation account. */
 export type ExtraAccountMeta = {
@@ -332,13 +376,14 @@ export async function resolveExtraAccountMeta(
     previousMetas: AccountMeta[],
     instructionData: ReadonlyUint8Array,
     transferHookProgramId: Address,
+    config?: FetchAccountConfig,
 ): Promise<AccountMeta> {
     const role = roleFromFlags(extraMeta.isSigner, extraMeta.isWritable);
     if (extraMeta.discriminator === 0) {
         return { address: getAddressDecoder().decode(extraMeta.addressConfig), role };
     }
     if (extraMeta.discriminator === 2) {
-        const address = await unpackPubkeyData(extraMeta.addressConfig, previousMetas, instructionData, rpc);
+        const address = await unpackPubkeyData(extraMeta.addressConfig, previousMetas, instructionData, rpc, config);
         return { address, role };
     }
 
@@ -355,7 +400,7 @@ export async function resolveExtraAccountMeta(
         throw new Error(`Invalid transfer hook extra account discriminator ${extraMeta.discriminator}.`);
     }
 
-    const seeds = await unpackSeeds(extraMeta.addressConfig, previousMetas, instructionData, rpc);
+    const seeds = await unpackSeeds(extraMeta.addressConfig, previousMetas, instructionData, rpc, config);
     const [address] = await getProgramDerivedAddress({ programAddress, seeds });
     return { address, role };
 }
@@ -385,7 +430,7 @@ export function getExecuteInstruction(
     ];
     return Object.freeze({
         accounts,
-        data: getExecuteInstructionData(BigInt(input.amount)),
+        data: getExecuteInstructionDataEncoder().encode({ amount: input.amount }),
         programAddress: config.programAddress,
     });
 }
@@ -401,14 +446,15 @@ export async function getExtraAccountMetasForExecute(
     rpc: Rpc<GetAccountInfoApi>,
     transferHookProgramId: Address,
     input: ExecuteInput,
+    config?: FetchAccountConfig,
 ): Promise<AccountMeta[]> {
     const [validationAddress] = await findExtraAccountMetasPda(
         { mint: input.mint },
         { programAddress: transferHookProgramId },
     );
-    const validationAccount = await fetchExtraAccountMetaList(rpc, validationAddress);
+    const validationAccount = await fetchExtraAccountMetaList(rpc, validationAddress, config);
 
-    const instructionData = getExecuteInstructionData(BigInt(input.amount));
+    const instructionData = getExecuteInstructionDataEncoder().encode({ amount: input.amount });
     const executeMetas: AccountMeta[] = [
         { address: input.source, role: AccountRole.READONLY },
         { address: input.mint, role: AccountRole.READONLY },
@@ -424,6 +470,7 @@ export async function getExtraAccountMetasForExecute(
             executeMetas,
             instructionData,
             transferHookProgramId,
+            config,
         );
         executeMetas.push(deEscalateAccountMeta(resolved, executeMetas));
     }
@@ -444,6 +491,7 @@ export async function addExtraAccountMetasForExecute<TInstruction extends Instru
     instruction: TInstruction,
     transferHookProgramId: Address,
     input: ExecuteInput,
+    config?: FetchAccountConfig,
 ): Promise<TInstruction> {
     const requiredAccounts = [input.source, input.mint, input.destination, input.owner];
     const instructionAccounts = instruction.accounts ?? [];
@@ -451,7 +499,7 @@ export async function addExtraAccountMetasForExecute<TInstruction extends Instru
         throw new Error('Missing required account in instruction.');
     }
 
-    const extraMetas = await getExtraAccountMetasForExecute(rpc, transferHookProgramId, input);
+    const extraMetas = await getExtraAccountMetasForExecute(rpc, transferHookProgramId, input, config);
     return Object.freeze({
         ...instruction,
         accounts: [...instructionAccounts, ...extraMetas],
@@ -478,10 +526,10 @@ export function getTransferHookProgramId(mint: Account<Mint>): Address | null {
 export async function getTransferCheckedWithTransferHookInstructionAsync(
     rpc: Rpc<GetAccountInfoApi>,
     input: TransferCheckedInput,
-    config?: { programAddress?: Address },
-): Promise<Instruction> {
-    const instruction = getTransferCheckedInstruction(input, config);
-    return await addTransferHookAccountsToInstruction(rpc, instruction, input);
+    config?: { fetchAccountConfig?: FetchAccountConfig; programAddress?: Address },
+) {
+    const instruction = getTransferCheckedInstruction(input, { programAddress: config?.programAddress });
+    return await addTransferHookAccountsToInstruction(rpc, instruction, input, config?.fetchAccountConfig);
 }
 
 /**
@@ -492,8 +540,8 @@ export async function getTransferCheckedWithTransferHookInstructionAsync(
 export async function getTransferCheckedWithFeeAndTransferHookInstructionAsync(
     rpc: Rpc<GetAccountInfoApi>,
     input: TransferCheckedWithFeeInput,
-    config?: { programAddress?: Address },
-): Promise<Instruction> {
-    const instruction = getTransferCheckedWithFeeInstruction(input, config);
-    return await addTransferHookAccountsToInstruction(rpc, instruction, input);
+    config?: { fetchAccountConfig?: FetchAccountConfig; programAddress?: Address },
+) {
+    const instruction = getTransferCheckedWithFeeInstruction(input, { programAddress: config?.programAddress });
+    return await addTransferHookAccountsToInstruction(rpc, instruction, input, config?.fetchAccountConfig);
 }
