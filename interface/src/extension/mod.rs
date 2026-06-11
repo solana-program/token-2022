@@ -6,7 +6,7 @@ use {
     crate::{
         error::TokenError,
         extension::{
-            account_len::ExtensionTypeBuffer,
+            account_len::TlvLenAccumulator,
             confidential_mint_burn::ConfidentialMintBurn,
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
             confidential_transfer_fee::{
@@ -223,7 +223,6 @@ where
                 // not enough bytes to store the length, malformed
                 return Err(ProgramError::InvalidAccountData);
             }
-            f(extension_type)?;
             let length = bytemuck::try_from_bytes::<Length>(
                 &tlv_data[tlv_indices.length_start..tlv_indices.value_start],
             )
@@ -234,6 +233,7 @@ where
                 // value blows past the size of the slice, malformed
                 return Err(ProgramError::InvalidAccountData);
             }
+            f(extension_type)?;
             start_index = value_end_index;
         }
     }
@@ -1237,31 +1237,17 @@ impl ExtensionType {
         Ok(add_type_and_length_to_len(self.try_get_type_len()?))
     }
 
-    /// Get the TLV length for a set of `ExtensionType`s
-    ///
-    /// Fails if any of the extension types has a variable length
-    fn try_get_total_tlv_len(extension_types: &[Self]) -> Result<usize, ProgramError> {
-        // dedupe extensions
-        let mut extensions = ExtensionTypeBuffer::default();
-        for &extension_type in extension_types {
-            extensions.insert(extension_type)?;
-        }
-        extensions.types().iter().map(|e| e.try_get_tlv_len()).sum()
-    }
-
     /// Get the required account data length for the given `ExtensionType`s
     ///
     /// Fails if any of the extension types has a variable length
     pub fn try_calculate_account_len<S: BaseState>(
         extension_types: &[Self],
     ) -> Result<usize, ProgramError> {
-        if extension_types.is_empty() {
-            Ok(S::SIZE_OF)
-        } else {
-            let extension_size = Self::try_get_total_tlv_len(extension_types)?;
-            let total_len = extension_size.saturating_add(BASE_ACCOUNT_AND_TYPE_LENGTH);
-            Ok(adjust_len_for_multisig(total_len))
+        let mut tlv_len = TlvLenAccumulator::default();
+        for &extension_type in extension_types {
+            tlv_len.insert(extension_type)?;
         }
+        Ok(tlv_len.account_len::<S>())
     }
 
     /// Get the associated account type
