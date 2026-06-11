@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, some } from '@solana/kit';
-import test from 'ava';
 import {
     Mint,
     extension,
@@ -15,7 +15,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it initializes a mint with confidential transfer fee', async t => {
+it('initializes a mint with confidential transfer fee', async () => {
     // Given an authority and a mint account.
     const client = createDefaultSolanaClient();
     const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
@@ -94,7 +94,7 @@ test('it initializes a mint with confidential transfer fee', async t => {
 
     // Then we expect the mint account to exist and have all extensions.
     const mintAccount = await fetchMint(client.rpc, mint.address);
-    t.like(mintAccount, <Account<Mint>>{
+    expect(mintAccount).toMatchObject(<Account<Mint>>{
         address: mint.address,
         data: {
             mintAuthority: some(authority.address),

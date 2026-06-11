@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { generateKeyPairSigner, unwrapOption } from '@solana/kit';
-import test from 'ava';
 import { extension, fetchMint, getUpdateTokenGroupMaxSizeInstruction, isExtension } from '../../../src';
 import {
     createDefaultSolanaClient,
@@ -8,7 +8,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it updates the max size of the token group extension', async t => {
+it('updates the max size of the token group extension', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, mint, updateAuthority] = await Promise.all([
@@ -49,5 +49,5 @@ test('it updates the max size of the token group extension', async t => {
     // Then we expect the token group extension to have the new max size.
     const mintAccount = await fetchMint(client.rpc, mint.address);
     const tokenGroupExtension = unwrapOption(mintAccount.data.extensions)?.find(e => isExtension('TokenGroup', e));
-    t.is(tokenGroupExtension?.maxSize, 30_000n);
+    expect(tokenGroupExtension?.maxSize).toBe(30_000n);
 });

@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { generateKeyPairSigner, none, some, unwrapOption } from '@solana/kit';
-import test from 'ava';
 import { extension, fetchMint, getUpdateTokenGroupUpdateAuthorityInstruction, isExtension } from '../../../src';
 import {
     createDefaultSolanaClient,
@@ -8,7 +8,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it updates the update authority of the token group extension', async t => {
+it('updates the update authority of the token group extension', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, mint, updateAuthority, newUpdateAuthority] = await Promise.all([
@@ -50,10 +50,10 @@ test('it updates the update authority of the token group extension', async t => 
     // Then we expect the new update authority to be set on the token group extension.
     const mintAccount = await fetchMint(client.rpc, mint.address);
     const tokenGroupExtension = unwrapOption(mintAccount.data.extensions)?.find(e => isExtension('TokenGroup', e));
-    t.deepEqual(tokenGroupExtension?.updateAuthority, some(newUpdateAuthority.address));
+    expect(tokenGroupExtension?.updateAuthority).toEqual(some(newUpdateAuthority.address));
 });
 
-test('it removes the update authority of the token group extension', async t => {
+it('removes the update authority of the token group extension', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, mint, updateAuthority] = await Promise.all([
@@ -94,5 +94,5 @@ test('it removes the update authority of the token group extension', async t => 
     // Then we expect the token group extension to have no update authority.
     const mintAccount = await fetchMint(client.rpc, mint.address);
     const tokenGroupExtension = unwrapOption(mintAccount.data.extensions)?.find(e => isExtension('TokenGroup', e));
-    t.deepEqual(tokenGroupExtension?.updateAuthority, none());
+    expect(tokenGroupExtension?.updateAuthority).toEqual(none());
 });

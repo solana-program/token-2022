@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { generateKeyPairSigner, unwrapOption } from '@solana/kit';
-import test from 'ava';
 import {
     extension,
     fetchMint,
@@ -14,7 +14,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it updates a known field on the token metadata extension', async t => {
+it('updates a known field on the token metadata extension', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, mint, updateAuthority] = await Promise.all([
@@ -60,10 +60,10 @@ test('it updates a known field on the token metadata extension', async t => {
     const tokenMetadataExtension = unwrapOption(mintAccount.data.extensions)?.find(e =>
         isExtension('TokenMetadata', e),
     );
-    t.is(tokenMetadataExtension?.name, 'My NEW Token Name');
+    expect(tokenMetadataExtension?.name).toBe('My NEW Token Name');
 });
 
-test('it updates a custom field on the token metadata extension', async t => {
+it('updates a custom field on the token metadata extension', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, mint, updateAuthority] = await Promise.all([
@@ -114,5 +114,5 @@ test('it updates a custom field on the token metadata extension', async t => {
     const tokenMetadataExtension = unwrapOption(mintAccount.data.extensions)?.find(e =>
         isExtension('TokenMetadata', e),
     );
-    t.deepEqual(tokenMetadataExtension?.additionalMetadata, new Map([['CustomField', 'CustomValue']]));
+    expect(tokenMetadataExtension?.additionalMetadata).toEqual(new Map([['CustomField', 'CustomValue']]));
 });

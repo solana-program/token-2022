@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
-import test from 'ava';
 import { Mint, extension, fetchMint, getInitializePermissionedBurnInstruction } from '../../../src';
 import {
     createDefaultSolanaClient,
@@ -8,7 +8,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it initializes a mint with permissioned burn', async t => {
+it('initializes a mint with permissioned burn', async () => {
     // Given a fresh client and signers
     const client = createDefaultSolanaClient();
     const [authority, mint, permissionedBurnAuthority] = await Promise.all([
@@ -42,7 +42,7 @@ test('it initializes a mint with permissioned burn', async t => {
 
     // Then we expect the mint account to exist with the permissioned burn config
     const mintAccount = await fetchMint(client.rpc, mint.address);
-    t.like(mintAccount, <Account<Mint>>{
+    expect(mintAccount).toMatchObject(<Account<Mint>>{
         address: mint.address,
         data: {
             mintAuthority: some(authority.address),

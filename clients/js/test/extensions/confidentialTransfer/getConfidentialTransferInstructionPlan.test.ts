@@ -1,4 +1,4 @@
-import test from 'ava';
+import { expect, it } from 'vitest';
 import { fetchToken } from '../../../src';
 import { getConfidentialTransferInstructionPlan } from '../../../src/confidential';
 import {
@@ -12,7 +12,7 @@ import {
     sendAndConfirmInstructionPlan,
 } from '../../_setup';
 
-test('it transfers tokens confidentially between two accounts', async t => {
+it('transfers tokens confidentially between two accounts', async () => {
     // Given a funded source account and an empty destination account.
     const client = createDefaultSolanaClient();
     const [payer, sourceOwner, destinationOwner] = await Promise.all([
@@ -59,5 +59,5 @@ test('it transfers tokens confidentially between two accounts', async t => {
     // Then the destination account received a confidential credit in its pending balance.
     const updatedDestination = await fetchAssociatedToken(client, destinationOwner.address, mint);
     const destinationConfidential = getTokenExtension(updatedDestination, 'ConfidentialTransferAccount');
-    t.is(destinationConfidential.pendingBalanceCreditCounter, 1n);
+    expect(destinationConfidential.pendingBalanceCreditCounter).toBe(1n);
 });

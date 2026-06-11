@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, some } from '@solana/kit';
-import test from 'ava';
 import { Mint, extension, fetchMint, getInitializeTransferHookInstruction } from '../../../src';
 import {
     createDefaultSolanaClient,
@@ -8,7 +8,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it initializes a mint with transfer hook extension', async t => {
+it('initializes a mint with transfer hook extension', async () => {
     // Given some signer accounts
     const client = createDefaultSolanaClient();
     const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
@@ -42,7 +42,7 @@ test('it initializes a mint with transfer hook extension', async t => {
 
     // Then we expect the mint account to exist with the transfer hook extension
     const mintAccount = await fetchMint(client.rpc, mint.address);
-    t.like(mintAccount, <Account<Mint>>{
+    expect(mintAccount).toMatchObject(<Account<Mint>>{
         address: mint.address,
         data: {
             mintAuthority: some(authority.address),

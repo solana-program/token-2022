@@ -27,7 +27,8 @@
     "scripts": {
         "build": "rimraf dist && tsup && tsc -p ./tsconfig.declarations.json",
         "build:docs": "typedoc",
-        "test": "tsc --noEmit && ava",
+        "dev": "vitest",
+        "test": "tsc --noEmit && vitest run",
         "lint": "eslint --ext js,ts,tsx src",
         "lint:fix": "eslint --fix --ext js,ts,tsx src",
         "format": "prettier --check src test",
@@ -62,7 +63,6 @@
         "@solana-program/zk-elgamal-proof": "^0.1.0"
     },
     "devDependencies": {
-        "@ava/typescript": "^7.0.0",
         "@solana-program/system": "^0.12.0",
         "@solana/eslint-config-solana": "^3.0.3",
         "@solana/kit": "^6.0.0",
@@ -70,23 +70,12 @@
         "@types/node": "^25",
         "@typescript-eslint/eslint-plugin": "^7.16.1",
         "@typescript-eslint/parser": "^7.16.1",
-        "ava": "^8.0.0",
         "eslint": "^8.57.0",
         "prettier": "^3.8.1",
         "rimraf": "^6.0.1",
         "tsup": "^8.1.2",
         "typedoc": "^0.28.0",
-        "typescript": "^5.9.3"
-    },
-    "ava": {
-        "nodeArguments": [
-            "--no-warnings"
-        ],
-        "typescript": {
-            "compile": false,
-            "rewritePaths": {
-                "test/": "dist/test/"
-            }
-        }
+        "typescript": "^5.9.3",
+        "vitest": "^4.1.8"
     }
 }

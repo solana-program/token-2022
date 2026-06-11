@@ -1,4 +1,4 @@
-import test from 'ava';
+import { expect, it } from 'vitest';
 import { fetchToken } from '../../../src';
 import { getConfidentialWithdrawInstructionPlan } from '../../../src/confidential';
 import {
@@ -9,7 +9,7 @@ import {
     sendAndConfirmInstructionPlan,
 } from '../../_setup';
 
-test('it withdraws tokens from a confidential balance', async t => {
+it('withdraws tokens from a confidential balance', async () => {
     // Given a confidential token account funded with an available confidential balance.
     const client = createDefaultSolanaClient();
     const [payer, owner] = await Promise.all([
@@ -49,5 +49,5 @@ test('it withdraws tokens from a confidential balance', async t => {
 
     // Then the withdrawn amount is reflected in the public token balance.
     const { data: updated } = await fetchToken(client.rpc, account.token);
-    t.is(updated.amount, 400n);
+    expect(updated.amount).toBe(400n);
 });

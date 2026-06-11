@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, some } from '@solana/kit';
-import test from 'ava';
 import { Token, extension, fetchToken, getMintToInstruction, getTransferCheckedWithFeeInstruction } from '../../../src';
 import {
     createDefaultSolanaClient,
@@ -9,7 +9,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it transfers tokens with pre-configured fees', async t => {
+it('transfers tokens with pre-configured fees', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, ownerA, tokenA, ownerB, tokenB] = await Promise.all([
@@ -89,7 +89,7 @@ test('it transfers tokens with pre-configured fees', async t => {
 
     // Then we expect token A to have 8.00 tokens and no fees withheld.
     const tokenAccountA = await fetchToken(client.rpc, tokenA.address);
-    t.like(tokenAccountA, <Account<Token>>{
+    expect(tokenAccountA).toMatchObject(<Account<Token>>{
         address: tokenA.address,
         data: {
             mint,
@@ -101,7 +101,7 @@ test('it transfers tokens with pre-configured fees', async t => {
 
     // And token B to have 1.97 tokens and 0.03 fees withheld.
     const tokenAccountB = await fetchToken(client.rpc, tokenB.address);
-    t.like(tokenAccountB, <Account<Token>>{
+    expect(tokenAccountB).toMatchObject(<Account<Token>>{
         address: tokenB.address,
         data: {
             mint,

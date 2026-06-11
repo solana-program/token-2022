@@ -1,3 +1,4 @@
+import { expect, it } from 'vitest';
 import {
     Address,
     assertAccountExists,
@@ -6,7 +7,6 @@ import {
     GetAccountInfoApi,
     Rpc,
 } from '@solana/kit';
-import test from 'ava';
 import { ExtensionType, getReallocateInstruction } from '../../src';
 import {
     createDefaultSolanaClient,
@@ -16,7 +16,7 @@ import {
     sendAndConfirmInstructions,
 } from '../_setup';
 
-test('it reallocates token accounts to fit the provided extensions', async t => {
+it('reallocates token accounts to fit the provided extensions', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, owner] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
@@ -29,7 +29,7 @@ test('it reallocates token accounts to fit the provided extensions', async t => 
         owner,
         payer: authority,
     });
-    t.is(await getAccountLength(client, token), 165);
+    expect(await getAccountLength(client, token)).toBe(165);
 
     // When
     await sendAndConfirmInstructions(client, authority, [
@@ -42,8 +42,7 @@ test('it reallocates token accounts to fit the provided extensions', async t => 
     ]);
 
     // Then
-    t.is(
-        await getAccountLength(client, token),
+    expect(await getAccountLength(client, token)).toBe(
         165 /** base token length */ +
             1 /** account type discriminator */ +
             2 /** memo transfer discriminator */ +

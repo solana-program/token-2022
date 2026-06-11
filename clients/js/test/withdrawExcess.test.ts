@@ -1,4 +1,4 @@
-import test from 'ava';
+import { expect, it } from 'vitest';
 import {
     AccountState,
     TOKEN_2022_PROGRAM_ADDRESS,
@@ -18,7 +18,7 @@ import {
 import { getTransferSolInstruction } from '@solana-program/system';
 import { generateKeyPairSigner } from '@solana/kit';
 
-test('it withdraws excess lamports from an associated token account', async t => {
+it('withdraws excess lamports from an associated token account', async () => {
     // Given: A client, a payer, mint authority, token owner, and destination account
     const client = createDefaultSolanaClient();
     const [payer, mintAuthority, owner, destination] = await Promise.all([
@@ -62,7 +62,7 @@ test('it withdraws excess lamports from an associated token account', async t =>
 
     // Ensure the token account was initialized correctly
     const initialTokenAccount = await fetchToken(client.rpc, ata);
-    t.is(initialTokenAccount.data.state, AccountState.Initialized);
+    expect(initialTokenAccount.data.state).toBe(AccountState.Initialized);
 
     // When: SOL is mistakenly transferred to the ATA
     const transferSolInstruction = await getTransferSolInstruction({
@@ -89,12 +89,12 @@ test('it withdraws excess lamports from an associated token account', async t =>
     const ataLamportsAfter = await client.rpc.getBalance(ata).send();
 
     // Assertions to confirm successful transfer of lamports
-    t.true(
+    expect(
         Number(lamportsAfter.value) > Number(lamportsBefore.value),
         'Lamports were successfully withdrawn to the destination account.',
-    );
-    t.true(
+    ).toBe(true);
+    expect(
         Number(ataLamportsBefore.value) > Number(ataLamportsAfter.value),
         'Lamports were successfully withdrawn from the ATA.',
-    );
+    ).toBe(true);
 });

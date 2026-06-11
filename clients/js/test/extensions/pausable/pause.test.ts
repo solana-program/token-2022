@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { generateKeyPairSigner, isSome, some } from '@solana/kit';
-import test from 'ava';
 import { getInitializePausableConfigInstruction, extension, fetchMint, getPauseInstruction } from '../../../src';
 import {
     createDefaultSolanaClient,
@@ -8,7 +8,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it pauses a mint', async t => {
+it('pauses a mint', async () => {
     // Given a fresh client with no state the test cares about.
     const client = createDefaultSolanaClient();
     const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
@@ -47,11 +47,11 @@ test('it pauses a mint', async t => {
     // Then we expect the mint account to exist and have the pausable config extension.
     const mintAccount = await fetchMint(client.rpc, mint.address);
     const extensions = mintAccount.data.extensions;
-    t.true(isSome(extensions));
-    t.true(isSome(extensions) && extensions.value[0].__kind === 'PausableConfig');
+    expect(isSome(extensions)).toBe(true);
+    expect(isSome(extensions) && extensions.value[0].__kind === 'PausableConfig').toBe(true);
 
     if (isSome(extensions) && extensions.value[0].__kind === 'PausableConfig') {
         // And the extension has the correct paused state.
-        t.is(extensions.value[0].paused, true);
+        expect(extensions.value[0].paused).toBe(true);
     }
 });
