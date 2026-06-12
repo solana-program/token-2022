@@ -1,19 +1,13 @@
 import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
-import {
-    Mint,
-    extension,
-    fetchMint,
-    getInitializeGroupPointerInstruction,
-    getInitializeTokenGroupInstruction,
-} from '../../../src';
-import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
+import { Mint, extension, fetchMint } from '../../../src';
+import { createTestClient } from '../../_setup';
 
 it('initializes a mint account with a token group and group pointer extension', async () => {
     // Given some signer accounts.
     const client = await createTestClient();
     const [authority, mint, updateAuthority] = await Promise.all([
-        generateKeyPairSignerWithSol(client),
+        generateKeyPairSigner(),
         generateKeyPairSigner(),
         generateKeyPairSigner(),
     ]);
@@ -33,29 +27,13 @@ it('initializes a mint account with a token group and group pointer extension', 
     });
 
     // When we create and initialize a mint account with these extensions.
-    const [createMintInstruction, initMintInstruction] = await getCreateMintInstructions({
-        authority: authority.address,
-        client,
-        extensions: [groupPointerExtension, tokenGroupExtension],
-        mint,
-        payer: authority,
-    });
-    await client.sendTransaction([
-        createMintInstruction,
-        getInitializeGroupPointerInstruction({
-            mint: mint.address,
-            authority: authority.address,
-            groupAddress: mint.address,
-        }),
-        initMintInstruction,
-        getInitializeTokenGroupInstruction({
-            group: mint.address,
-            updateAuthority: updateAuthority.address,
-            mint: mint.address,
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
             mintAuthority: authority,
-            maxSize: tokenGroupExtension.maxSize,
-        }),
-    ]);
+            extensions: [groupPointerExtension, tokenGroupExtension],
+        })
+        .sendTransaction();
 
     // Then we expect the mint account to exist and have the following extension.
     const mintAccount = await fetchMint(client.rpc, mint.address);

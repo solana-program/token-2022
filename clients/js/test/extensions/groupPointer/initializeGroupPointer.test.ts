@@ -1,13 +1,13 @@
 import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
-import { Mint, extension, fetchMint, getInitializeGroupPointerInstruction } from '../../../src';
-import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
+import { Mint, extension, fetchMint } from '../../../src';
+import { createTestClient } from '../../_setup';
 
 it('initializes a mint account with a group pointer extension', async () => {
     // Given some signer accounts.
     const client = await createTestClient();
     const [authority, mint, group, groupPointerAuthority] = await Promise.all([
-        generateKeyPairSignerWithSol(client),
+        generateKeyPairSigner(),
         generateKeyPairSigner(),
         generateKeyPairSigner(),
         generateKeyPairSigner(),
@@ -20,22 +20,13 @@ it('initializes a mint account with a group pointer extension', async () => {
     });
 
     // When we create and initialize a mint account with this extension.
-    const [createMintInstruction, initMintInstruction] = await getCreateMintInstructions({
-        authority: authority.address,
-        client,
-        extensions: [groupPointerExtension],
-        mint,
-        payer: authority,
-    });
-    await client.sendTransaction([
-        createMintInstruction,
-        getInitializeGroupPointerInstruction({
-            mint: mint.address,
-            authority: groupPointerExtension.authority,
-            groupAddress: groupPointerExtension.groupAddress,
-        }),
-        initMintInstruction,
-    ]);
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            mintAuthority: authority,
+            extensions: [groupPointerExtension],
+        })
+        .sendTransaction();
 
     // Then we expect the mint account to exist and have the following extension.
     const mintAccount = await fetchMint(client.rpc, mint.address);

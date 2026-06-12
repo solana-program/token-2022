@@ -1,29 +1,21 @@
 import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
-import { Mint, extension, fetchMint, getInitializeNonTransferableMintInstruction } from '../../../src';
-import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
+import { Mint, extension, fetchMint } from '../../../src';
+import { createTestClient } from '../../_setup';
 
 it('initializes a non-transferable mint', async () => {
     // Given an authority and a mint account.
     const client = await createTestClient();
-    const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
+    const [authority, mint] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
 
     // When we create and initialize a mint account as non-transferable
-    const [createMintInstruction, initMintInstruction] = await getCreateMintInstructions({
-        authority: authority.address,
-        client,
-        extensions: [extension('NonTransferable', {})],
-        mint,
-        payer: authority,
-    });
-
-    await client.sendTransaction([
-        createMintInstruction,
-        getInitializeNonTransferableMintInstruction({
-            mint: mint.address,
-        }),
-        initMintInstruction,
-    ]);
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            mintAuthority: authority,
+            extensions: [extension('NonTransferable', {})],
+        })
+        .sendTransaction();
 
     // Then we expect the mint to be initialized with the non-transferable extension
     const mintAccount = await fetchMint(client.rpc, mint.address);

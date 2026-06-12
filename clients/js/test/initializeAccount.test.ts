@@ -9,18 +9,19 @@ import {
     getInitializeAccountInstruction,
     getTokenSize,
 } from '../src';
-import { createTestClient, createMint } from './_setup';
+import { createTestClient } from './_setup';
 
 it('creates and initializes a new token account', async () => {
     // Given a mint account, its mint authority and two generated keypairs
     // for the token to be created and its owner.
     const client = await createTestClient();
-    const [mintAuthority, token, owner] = await Promise.all([
+    const [mintAuthority, token, owner, mint] = await Promise.all([
+        generateKeyPairSigner(),
         generateKeyPairSigner(),
         generateKeyPairSigner(),
         generateKeyPairSigner(),
     ]);
-    const mint = await createMint({ client, payer: client.payer, authority: mintAuthority });
+    await client.token2022.instructions.createMint({ newMint: mint, mintAuthority }).sendTransaction();
 
     // When we create and initialize a token account at this address.
     const space = BigInt(getTokenSize());
@@ -35,7 +36,7 @@ it('creates and initializes a new token account', async () => {
         }),
         getInitializeAccountInstruction({
             account: token.address,
-            mint,
+            mint: mint.address,
             owner: owner.address,
         }),
     ];
@@ -46,7 +47,7 @@ it('creates and initializes a new token account', async () => {
     expect(tokenAccount).toMatchObject(<Account<Token>>{
         address: token.address,
         data: {
-            mint,
+            mint: mint.address,
             owner: owner.address,
             amount: 0n,
             delegate: none(),

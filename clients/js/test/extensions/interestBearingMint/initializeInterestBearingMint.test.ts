@@ -1,12 +1,12 @@
 import { expect, it } from 'vitest';
-import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
+import { createTestClient } from '../../_setup';
 import { Account, generateKeyPairSigner, isSome } from '@solana/kit';
-import { extension, fetchMint, getInitializeInterestBearingMintInstruction, Mint } from '../../../src';
+import { extension, fetchMint, Mint } from '../../../src';
 
 it('initialize a mint account with an interest bearing mint extension', async () => {
     // Given a fresh client with no state the test cares about.
     const client = await createTestClient();
-    const [rateAuthority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
+    const [rateAuthority, mint] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
 
     // in bips
     const rate = 10000;
@@ -21,22 +21,13 @@ it('initialize a mint account with an interest bearing mint extension', async ()
     });
 
     // When we initialize the mint account with the interest bearing mint extension.
-    const [createMintInstruction, initMintInstruction] = await getCreateMintInstructions({
-        authority: rateAuthority.address,
-        client,
-        extensions: [interestBearingMintExtension],
-        mint,
-        payer: rateAuthority,
-    });
-    await client.sendTransaction([
-        createMintInstruction,
-        getInitializeInterestBearingMintInstruction({
-            rateAuthority: rateAuthority.address,
-            mint: mint.address,
-            rate: rate,
-        }),
-        initMintInstruction,
-    ]);
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            mintAuthority: rateAuthority,
+            extensions: [interestBearingMintExtension],
+        })
+        .sendTransaction();
 
     const mintAccount = await fetchMint(client.rpc, mint.address);
     // Then the mint account exists.

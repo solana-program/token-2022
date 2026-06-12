@@ -7,33 +7,34 @@ import {
     GetAccountInfoApi,
     Rpc,
 } from '@solana/kit';
-import { ExtensionType, getReallocateInstruction } from '../../src';
-import { createTestClient, createMint, createToken, generateKeyPairSignerWithSol } from '../_setup';
+import { ExtensionType } from '../../src';
+import { createTestClient, createToken, generateKeyPairSignerWithSol } from '../_setup';
 
 it('reallocates token accounts to fit the provided extensions', async () => {
     // Given some signer accounts.
     const client = await createTestClient();
-    const [authority, owner] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
+    const [authority, owner, mint] = await Promise.all([
+        generateKeyPairSignerWithSol(client),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+    ]);
 
     // And a token account with no extensions.
-    const mint = await createMint({ authority, client, payer: authority });
+    await client.token2022.instructions
+        .createMint({ payer: authority, newMint: mint, mintAuthority: authority })
+        .sendTransaction();
     const token = await createToken({
         client,
-        mint,
+        mint: mint.address,
         owner,
         payer: authority,
     });
     expect(await getAccountLength(client, token)).toBe(165);
 
     // When
-    await client.sendTransaction([
-        getReallocateInstruction({
-            token,
-            owner,
-            newExtensionTypes: [ExtensionType.MemoTransfer],
-            payer: authority,
-        }),
-    ]);
+    await client.token2022.instructions
+        .reallocate({ token, owner, newExtensionTypes: [ExtensionType.MemoTransfer], payer: authority })
+        .sendTransaction();
 
     // Then
     expect(await getAccountLength(client, token)).toBe(

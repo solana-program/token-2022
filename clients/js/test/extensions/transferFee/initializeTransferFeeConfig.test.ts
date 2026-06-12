@@ -1,12 +1,12 @@
 import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, none, some } from '@solana/kit';
-import { Mint, extension, fetchMint, getInitializeTransferFeeConfigInstruction } from '../../../src';
-import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
+import { Mint, extension, fetchMint } from '../../../src';
+import { createTestClient } from '../../_setup';
 
 it('initializes a mint account with transfer fee configurations', async () => {
     // Given an authority and a mint account.
     const client = await createTestClient();
-    const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
+    const [authority, mint] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
 
     // And a transfer fee config extension.
     const transferFees = {
@@ -24,25 +24,14 @@ it('initializes a mint account with transfer fee configurations', async () => {
     });
 
     // When we create and initialize a mint account with this extension.
-    const [createMintInstruction, initMintInstruction] = await getCreateMintInstructions({
-        authority: authority.address,
-        client,
-        decimals: 2,
-        extensions: [transferFeeConfigExtension],
-        mint,
-        payer: authority,
-    });
-    await client.sendTransaction([
-        createMintInstruction,
-        getInitializeTransferFeeConfigInstruction({
-            mint: mint.address,
-            transferFeeConfigAuthority: transferFeeConfigExtension.transferFeeConfigAuthority,
-            withdrawWithheldAuthority: transferFeeConfigExtension.withdrawWithheldAuthority,
-            transferFeeBasisPoints: transferFeeConfigExtension.newerTransferFee.transferFeeBasisPoints,
-            maximumFee: transferFeeConfigExtension.newerTransferFee.maximumFee,
-        }),
-        initMintInstruction,
-    ]);
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            decimals: 2,
+            mintAuthority: authority,
+            extensions: [transferFeeConfigExtension],
+        })
+        .sendTransaction();
 
     // Then we expect the mint account to exist and have the following data.
     const mintAccount = await fetchMint(client.rpc, mint.address);

@@ -1,13 +1,13 @@
 import { expect, it } from 'vitest';
 import { generateKeyPairSigner } from '@solana/kit';
-import { extension, getEmitTokenMetadataInstruction, getExtensionEncoder } from '../../../src';
-import { createTestClient, createMint, generateKeyPairSignerWithSol, getSingleTransactionContext } from '../../_setup';
+import { extension, getExtensionEncoder } from '../../../src';
+import { createTestClient, getSingleTransactionContext } from '../../_setup';
 
 it('emits the token metadata extension as return data', async () => {
     // Given some signer accounts.
     const client = await createTestClient();
     const [authority, mint, updateAuthority] = await Promise.all([
-        generateKeyPairSignerWithSol(client),
+        generateKeyPairSigner(),
         generateKeyPairSigner(),
         generateKeyPairSigner(),
     ]);
@@ -21,22 +21,22 @@ it('emits the token metadata extension as return data', async () => {
         uri: 'https://example.com/mst.json',
         additionalMetadata: new Map(),
     });
-    await createMint({
-        authority,
-        client,
-        extensions: [
-            extension('MetadataPointer', {
-                authority: authority.address,
-                metadataAddress: mint.address,
-            }),
-            tokenMetadataExtension,
-        ],
-        mint,
-        payer: authority,
-    });
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            mintAuthority: authority,
+            extensions: [
+                extension('MetadataPointer', {
+                    authority: authority.address,
+                    metadataAddress: mint.address,
+                }),
+                tokenMetadataExtension,
+            ],
+        })
+        .sendTransaction();
 
     // When we emit the token metadata extension.
-    const result = await client.sendTransaction([getEmitTokenMetadataInstruction({ metadata: mint.address })]);
+    const result = await client.token2022.instructions.emitTokenMetadata({ metadata: mint.address }).sendTransaction();
 
     // Then we expect the token metadata extension to be emitted as return data.
     const returnData = getSingleTransactionContext(result).transactionMetadata.returnData().data();

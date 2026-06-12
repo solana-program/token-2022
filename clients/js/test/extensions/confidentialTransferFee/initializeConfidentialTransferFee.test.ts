@@ -1,19 +1,12 @@
 import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, some } from '@solana/kit';
-import {
-    Mint,
-    extension,
-    fetchMint,
-    getInitializeConfidentialTransferFeeInstruction,
-    getInitializeTransferFeeConfigInstruction,
-    getInitializeConfidentialTransferMintInstruction,
-} from '../../../src';
-import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
+import { Mint, extension, fetchMint } from '../../../src';
+import { createTestClient } from '../../_setup';
 
 it('initializes a mint with confidential transfer fee', async () => {
     // Given an authority and a mint account.
     const client = await createTestClient();
-    const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
+    const [authority, mint] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
 
     // And required extensions configuration
     const confidentialTransferAuthority = address('6sPR6MzvjMMP5LSZzEtTe4ZBVX9rhBmtM1dmfFtkNTbW');
@@ -52,40 +45,18 @@ it('initializes a mint with confidential transfer fee', async () => {
     });
 
     // When we create and initialize a mint account with these extensions.
-    const [createMintInstruction, initMintInstruction] = await getCreateMintInstructions({
-        authority: authority.address,
-        client,
-        decimals: 2,
-        extensions: [transferFeeConfigExtension, confidentialTransferMintExtension, confidentialTransferFeeExtension],
-        mint,
-        payer: authority,
-    });
-
-    await client.sendTransaction([
-        createMintInstruction,
-        // Initialize TransferFeeConfig first
-        getInitializeTransferFeeConfigInstruction({
-            mint: mint.address,
-            transferFeeConfigAuthority: confidentialTransferAuthority,
-            withdrawWithheldAuthority: confidentialTransferAuthority,
-            transferFeeBasisPoints: 0,
-            maximumFee: 0n,
-        }),
-        // Then initialize ConfidentialTransferMint
-        getInitializeConfidentialTransferMintInstruction({
-            mint: mint.address,
-            authority: some(confidentialTransferAuthority),
-            autoApproveNewAccounts: true,
-            auditorElgamalPubkey: some(elgamalPubkey),
-        }),
-        // Finally initialize ConfidentialTransferFee
-        getInitializeConfidentialTransferFeeInstruction({
-            mint: mint.address,
-            authority: some(confidentialTransferAuthority),
-            withdrawWithheldAuthorityElGamalPubkey: elgamalPubkey,
-        }),
-        initMintInstruction,
-    ]);
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            decimals: 2,
+            mintAuthority: authority,
+            extensions: [
+                transferFeeConfigExtension,
+                confidentialTransferMintExtension,
+                confidentialTransferFeeExtension,
+            ],
+        })
+        .sendTransaction();
 
     // Then we expect the mint account to exist and have all extensions.
     const mintAccount = await fetchMint(client.rpc, mint.address);

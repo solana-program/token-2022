@@ -1,18 +1,12 @@
 import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, some } from '@solana/kit';
-import {
-    Mint,
-    extension,
-    fetchMint,
-    getInitializeConfidentialMintBurnInstruction,
-    getInitializeConfidentialTransferMintInstruction,
-} from '../../../src';
-import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
+import { Mint, extension, fetchMint } from '../../../src';
+import { createTestClient } from '../../_setup';
 
 it('initializes a mint with confidential mint burn', async () => {
     // Given an authority and a mint account.
     const client = await createTestClient();
-    const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
+    const [authority, mint] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
 
     // And a confidential transfer extension, which is required by the
     // confidential mint burn extension.
@@ -36,29 +30,13 @@ it('initializes a mint with confidential mint burn', async () => {
     });
 
     // When we create and initialize a mint account with these extensions.
-    const [createMintInstruction, initMintInstruction] = await getCreateMintInstructions({
-        authority: authority.address,
-        client,
-        extensions: [confidentialTransferMintExtension, confidentialMintBurnExtension],
-        mint,
-        payer: authority,
-    });
-
-    await client.sendTransaction([
-        createMintInstruction,
-        getInitializeConfidentialTransferMintInstruction({
-            mint: mint.address,
-            authority: some(confidentialTransferAuthority),
-            autoApproveNewAccounts: true,
-            auditorElgamalPubkey: some(auditorElgamalPubkey),
-        }),
-        getInitializeConfidentialMintBurnInstruction({
-            mint: mint.address,
-            supplyElgamalPubkey,
-            decryptableSupply,
-        }),
-        initMintInstruction,
-    ]);
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            mintAuthority: authority,
+            extensions: [confidentialTransferMintExtension, confidentialMintBurnExtension],
+        })
+        .sendTransaction();
 
     // Then we expect the mint account to exist and have both extensions.
     const mintAccount = await fetchMint(client.rpc, mint.address);

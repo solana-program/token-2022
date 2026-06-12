@@ -1,12 +1,12 @@
 import { expect, it } from 'vitest';
-import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
+import { createTestClient } from '../../_setup';
 import { Account, generateKeyPairSigner, isSome } from '@solana/kit';
-import { extension, fetchMint, getInitializeScaledUiAmountMintInstruction, Mint } from '../../../src';
+import { extension, fetchMint, Mint } from '../../../src';
 
 it('initialize a mint account with a scaled ui amount mint extension', async () => {
     // Given a fresh client with no state the test cares about.
     const client = await createTestClient();
-    const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
+    const [authority, mint] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
 
     const multiplier = 1;
     const newMultiplier = 2;
@@ -20,23 +20,14 @@ it('initialize a mint account with a scaled ui amount mint extension', async () 
     });
 
     // When we initialize the mint account with the scaled ui amount mint extension.
-    const [createMintInstruction, initMintInstruction] = await getCreateMintInstructions({
-        authority: authority.address,
-        client,
-        decimals: 2,
-        extensions: [scaledUiAmountMintExtension],
-        mint,
-        payer: authority,
-    });
-    await client.sendTransaction([
-        createMintInstruction,
-        getInitializeScaledUiAmountMintInstruction({
-            mint: mint.address,
-            authority: authority.address,
-            multiplier,
-        }),
-        initMintInstruction,
-    ]);
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            decimals: 2,
+            mintAuthority: authority,
+            extensions: [scaledUiAmountMintExtension],
+        })
+        .sendTransaction();
 
     const mintAccount = await fetchMint(client.rpc, mint.address);
     // Then the mint account exists.

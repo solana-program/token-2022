@@ -1,13 +1,14 @@
 import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, some } from '@solana/kit';
-import { Mint, extension, fetchMint, getUpdateTransferHookInstruction } from '../../../src';
-import { createTestClient, generateKeyPairSignerWithSol, createMint } from '../../_setup';
+import { Mint, extension, fetchMint } from '../../../src';
+import { createTestClient } from '../../_setup';
 
 it('updates transfer hook program ID on a mint', async () => {
     // Given some signer accounts and client
     const client = await createTestClient();
-    const [authority, hookAuthority] = await Promise.all([
-        generateKeyPairSignerWithSol(client),
+    const [authority, hookAuthority, mint] = await Promise.all([
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
         generateKeyPairSigner(),
     ]);
 
@@ -18,27 +19,20 @@ it('updates transfer hook program ID on a mint', async () => {
         programId: oldProgramId,
     });
 
-    const mint = await createMint({
-        authority,
-        client,
-        extensions: [transferHookExtension],
-        payer: authority,
-    });
+    await client.token2022.instructions
+        .createMint({ newMint: mint, mintAuthority: authority, extensions: [transferHookExtension] })
+        .sendTransaction();
 
     // When we update the program ID
     const newProgramId = address('6sPR6MzvjMMP5LSZzEtTe4ZBVX9rhBmtM1dmfFtkNTbW');
-    await client.sendTransaction([
-        getUpdateTransferHookInstruction({
-            mint,
-            authority: hookAuthority,
-            programId: some(newProgramId),
-        }),
-    ]);
+    await client.token2022.instructions
+        .updateTransferHook({ mint: mint.address, authority: hookAuthority, programId: some(newProgramId) })
+        .sendTransaction();
 
     // Then we expect the mint to have the updated program ID
-    const mintAccount = await fetchMint(client.rpc, mint);
+    const mintAccount = await fetchMint(client.rpc, mint.address);
     expect(mintAccount).toMatchObject(<Account<Mint>>{
-        address: mint,
+        address: mint.address,
         data: {
             extensions: some([
                 extension('TransferHook', {
