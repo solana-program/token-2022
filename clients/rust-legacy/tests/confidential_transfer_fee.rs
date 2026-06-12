@@ -13,7 +13,7 @@ use {
     },
     solana_system_interface::instruction as system_instruction,
     solana_zk_sdk::{
-        encryption::{auth_encryption::*, elgamal::*},
+        encryption::{auth_encryption::*, derivation::derive_confidential_keys, elgamal::*},
         zk_elgamal_proof_program::build_pubkey_validity_proof_data,
     },
     solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
@@ -79,9 +79,8 @@ impl ConfidentialTokenAccountMeta {
             .unwrap();
         let token_account = token_account_keypair.pubkey();
 
-        let elgamal_keypair =
-            ElGamalKeypair::new_from_signer(owner, &token_account.to_bytes()).unwrap();
-        let aes_key = AeKey::new_from_signer(owner, &token_account.to_bytes()).unwrap();
+        let (elgamal_keypair, aes_key) =
+            derive_confidential_keys(owner, &token_account.to_bytes()).unwrap();
 
         token
             .confidential_transfer_configure_token_account(
@@ -1241,11 +1240,9 @@ async fn test_withdraw_withheld_tokens_with_max_pending_counter() {
         .await
         .unwrap();
 
-    let fc_elgamal =
-        ElGamalKeypair::new_from_signer(&fee_collector, &fee_collector_account.pubkey().to_bytes())
+    let (fc_elgamal, fc_aes) =
+        derive_confidential_keys(&fee_collector, &fee_collector_account.pubkey().to_bytes())
             .unwrap();
-    let fc_aes =
-        AeKey::new_from_signer(&fee_collector, &fee_collector_account.pubkey().to_bytes()).unwrap();
 
     // Configure with max_pending_balance_credit_counter = 1
     token

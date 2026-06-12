@@ -61,14 +61,14 @@ export type InitializeConfidentialTransferFeeInstructionData = {
     /** Optional authority to set the withdraw withheld authority ElGamal key */
     authority: Option<Address>;
     /** Withheld fees from accounts must be encrypted with this ElGamal key */
-    withdrawWithheldAuthorityElGamalPubkey: Option<Address>;
+    withdrawWithheldAuthorityElGamalPubkey: Address;
 };
 
 export type InitializeConfidentialTransferFeeInstructionDataArgs = {
     /** Optional authority to set the withdraw withheld authority ElGamal key */
     authority: OptionOrNullable<Address>;
     /** Withheld fees from accounts must be encrypted with this ElGamal key */
-    withdrawWithheldAuthorityElGamalPubkey: OptionOrNullable<Address>;
+    withdrawWithheldAuthorityElGamalPubkey: Address;
 };
 
 export function getInitializeConfidentialTransferFeeInstructionDataEncoder(): FixedSizeEncoder<InitializeConfidentialTransferFeeInstructionDataArgs> {
@@ -77,10 +77,7 @@ export function getInitializeConfidentialTransferFeeInstructionDataEncoder(): Fi
             ['discriminator', getU8Encoder()],
             ['confidentialTransferFeeDiscriminator', getU8Encoder()],
             ['authority', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
-            [
-                'withdrawWithheldAuthorityElGamalPubkey',
-                getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' }),
-            ],
+            ['withdrawWithheldAuthorityElGamalPubkey', getAddressEncoder()],
         ]),
         value => ({
             ...value,
@@ -96,10 +93,7 @@ export function getInitializeConfidentialTransferFeeInstructionDataDecoder(): Fi
         ['discriminator', getU8Decoder()],
         ['confidentialTransferFeeDiscriminator', getU8Decoder()],
         ['authority', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
-        [
-            'withdrawWithheldAuthorityElGamalPubkey',
-            getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' }),
-        ],
+        ['withdrawWithheldAuthorityElGamalPubkey', getAddressDecoder()],
     ]);
 }
 

@@ -10,7 +10,9 @@ use {
         transaction::TransactionError,
         transport::TransportError,
     },
-    solana_zk_sdk::encryption::{auth_encryption::*, elgamal::*},
+    solana_zk_sdk::encryption::{
+        auth_encryption::*, derivation::derive_confidential_keys, elgamal::*,
+    },
     solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
     spl_token_2022_interface::{
         error::TokenError,
@@ -60,9 +62,8 @@ impl ConfidentialTokenAccountMeta {
             .unwrap();
 
         let token_account = token_account_keypair.pubkey();
-        let elgamal_keypair =
-            ElGamalKeypair::new_from_signer(owner, &token_account.to_bytes()).unwrap();
-        let aes_key = AeKey::new_from_signer(owner, &token_account.to_bytes()).unwrap();
+        let (elgamal_keypair, aes_key) =
+            derive_confidential_keys(owner, &token_account.to_bytes()).unwrap();
 
         token
             .confidential_transfer_configure_token_account(

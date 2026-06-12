@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { generateKeyPairSigner, none, some, unwrapOption } from '@solana/kit';
-import test from 'ava';
 import { extension, fetchMint, getInitializeTokenGroupMemberInstruction, isExtension, Mint } from '../../../src';
 import {
     createDefaultSolanaClient,
@@ -8,7 +8,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it adds members to the token group extension', async t => {
+it('adds members to the token group extension', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, group, member, groupUpdateAuthority] = await Promise.all([
@@ -71,12 +71,12 @@ test('it adds members to the token group extension', async t => {
 
     // Then we expect the member mint account to have the following extensions
     const memberAccount = await fetchMint(client.rpc, member.address);
-    t.like(memberAccount.data, <Mint>{
+    expect(memberAccount.data).toMatchObject(<Mint>{
         extensions: some(memberExtensions),
     });
 
     // And we expect the size of the group mint account to be updated accordingly.
     const groupAccount = await fetchMint(client.rpc, group.address);
     const tokenGroupExtension = unwrapOption(groupAccount.data.extensions)?.find(e => isExtension('TokenGroup', e));
-    t.is(tokenGroupExtension?.size, 1n);
+    expect(tokenGroupExtension?.size).toBe(1n);
 });

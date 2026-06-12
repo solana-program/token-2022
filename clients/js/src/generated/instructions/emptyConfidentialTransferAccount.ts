@@ -51,7 +51,6 @@ export type EmptyConfidentialTransferAccountInstruction<
     TAccountToken extends string | AccountMeta<string> = string,
     TAccountInstructionsSysvarOrContextState extends string | AccountMeta<string> =
         'Sysvar1nstructions1111111111111111111111111',
-    TAccountRecord extends string | AccountMeta<string> = string,
     TAccountAuthority extends string | AccountMeta<string> = string,
     TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
@@ -62,7 +61,6 @@ export type EmptyConfidentialTransferAccountInstruction<
             TAccountInstructionsSysvarOrContextState extends string
                 ? ReadonlyAccount<TAccountInstructionsSysvarOrContextState>
                 : TAccountInstructionsSysvarOrContextState,
-            TAccountRecord extends string ? ReadonlyAccount<TAccountRecord> : TAccountRecord,
             TAccountAuthority extends string ? ReadonlyAccount<TAccountAuthority> : TAccountAuthority,
             ...TRemainingAccounts,
         ]
@@ -124,7 +122,6 @@ export function getEmptyConfidentialTransferAccountInstructionDataCodec(): Fixed
 export type EmptyConfidentialTransferAccountInput<
     TAccountToken extends string = string,
     TAccountInstructionsSysvarOrContextState extends string = string,
-    TAccountRecord extends string = string,
     TAccountAuthority extends string = string,
 > = {
     /** The SPL Token account. */
@@ -136,8 +133,6 @@ export type EmptyConfidentialTransferAccountInput<
      * account.
      */
     instructionsSysvarOrContextState?: Address<TAccountInstructionsSysvarOrContextState>;
-    /** (Optional) Record account if the accompanying proof is to be read from a record account. */
-    record?: Address<TAccountRecord>;
     /** The source account's owner/delegate or its multisignature account. */
     authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
     proofInstructionOffset: EmptyConfidentialTransferAccountInstructionDataArgs['proofInstructionOffset'];
@@ -147,14 +142,12 @@ export type EmptyConfidentialTransferAccountInput<
 export function getEmptyConfidentialTransferAccountInstruction<
     TAccountToken extends string,
     TAccountInstructionsSysvarOrContextState extends string,
-    TAccountRecord extends string,
     TAccountAuthority extends string,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: EmptyConfidentialTransferAccountInput<
         TAccountToken,
         TAccountInstructionsSysvarOrContextState,
-        TAccountRecord,
         TAccountAuthority
     >,
     config?: { programAddress?: TProgramAddress },
@@ -162,7 +155,6 @@ export function getEmptyConfidentialTransferAccountInstruction<
     TProgramAddress,
     TAccountToken,
     TAccountInstructionsSysvarOrContextState,
-    TAccountRecord,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
         ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
         : TAccountAuthority
@@ -174,7 +166,6 @@ export function getEmptyConfidentialTransferAccountInstruction<
     const originalAccounts = {
         token: { value: input.token ?? null, isWritable: true },
         instructionsSysvarOrContextState: { value: input.instructionsSysvarOrContextState ?? null, isWritable: false },
-        record: { value: input.record ?? null, isWritable: false },
         authority: { value: input.authority ?? null, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
@@ -200,7 +191,6 @@ export function getEmptyConfidentialTransferAccountInstruction<
         accounts: [
             getAccountMeta(accounts.token),
             getAccountMeta(accounts.instructionsSysvarOrContextState),
-            getAccountMeta(accounts.record),
             getAccountMeta(accounts.authority),
             ...remainingAccounts,
         ],
@@ -212,7 +202,6 @@ export function getEmptyConfidentialTransferAccountInstruction<
         TProgramAddress,
         TAccountToken,
         TAccountInstructionsSysvarOrContextState,
-        TAccountRecord,
         (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
             ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
             : TAccountAuthority
@@ -234,10 +223,8 @@ export type ParsedEmptyConfidentialTransferAccountInstruction<
          * account.
          */
         instructionsSysvarOrContextState: TAccountMetas[1];
-        /** (Optional) Record account if the accompanying proof is to be read from a record account. */
-        record?: TAccountMetas[2] | undefined;
         /** The source account's owner/delegate or its multisignature account. */
-        authority: TAccountMetas[3];
+        authority: TAccountMetas[2];
     };
     data: EmptyConfidentialTransferAccountInstructionData;
 };
@@ -250,7 +237,7 @@ export function parseEmptyConfidentialTransferAccountInstruction<
         InstructionWithAccounts<TAccountMetas> &
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedEmptyConfidentialTransferAccountInstruction<TProgram, TAccountMetas> {
-    if (instruction.accounts.length < 4) {
+    if (instruction.accounts.length < 3) {
         // TODO: Coded error.
         throw new Error('Not enough accounts');
     }
@@ -260,16 +247,11 @@ export function parseEmptyConfidentialTransferAccountInstruction<
         accountIndex += 1;
         return accountMeta;
     };
-    const getNextOptionalAccount = () => {
-        const accountMeta = getNextAccount();
-        return accountMeta.address === TOKEN_2022_PROGRAM_ADDRESS ? undefined : accountMeta;
-    };
     return {
         programAddress: instruction.programAddress,
         accounts: {
             token: getNextAccount(),
             instructionsSysvarOrContextState: getNextAccount(),
-            record: getNextOptionalAccount(),
             authority: getNextAccount(),
         },
         data: getEmptyConfidentialTransferAccountInstructionDataDecoder().decode(instruction.data),

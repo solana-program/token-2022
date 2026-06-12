@@ -1,6 +1,6 @@
 {
     "name": "@solana-program/token-2022",
-    "version": "0.9.0",
+    "version": "0.11.0",
     "description": "JavaScript client for the Token 2022 program",
     "sideEffects": false,
     "module": "./dist/src/index.mjs",
@@ -12,6 +12,11 @@
             "types": "./dist/types/index.d.ts",
             "import": "./dist/src/index.mjs",
             "require": "./dist/src/index.js"
+        },
+        "./confidential": {
+            "types": "./dist/types/confidential.d.ts",
+            "import": "./dist/src/confidential.mjs",
+            "require": "./dist/src/confidential.js"
         }
     },
     "files": [
@@ -22,7 +27,8 @@
     "scripts": {
         "build": "rimraf dist && tsup && tsc -p ./tsconfig.declarations.json",
         "build:docs": "typedoc",
-        "test": "tsc --noEmit && ava",
+        "dev": "vitest",
+        "test": "tsc --noEmit && vitest run",
         "lint": "eslint --ext js,ts,tsx src",
         "lint:fix": "eslint --fix --ext js,ts,tsx src",
         "format": "prettier --check src test",
@@ -44,33 +50,32 @@
     "homepage": "https://github.com/solana-program/token-2022#readme",
     "peerDependencies": {
         "@solana/kit": "^6.0.0",
-        "@solana/sysvars": "^5.0"
+        "@solana/sysvars": "^5.0",
+        "@solana/zk-sdk": "^0.4.2"
+    },
+    "peerDependenciesMeta": {
+        "@solana/zk-sdk": {
+            "optional": true
+        }
+    },
+    "dependencies": {
+        "@noble/curves": "^1.9.7",
+        "@solana-program/zk-elgamal-proof": "^0.1.0"
     },
     "devDependencies": {
-        "@ava/typescript": "^7.0.0",
         "@solana-program/system": "^0.12.0",
         "@solana/eslint-config-solana": "^3.0.3",
         "@solana/kit": "^6.0.0",
+        "@solana/zk-sdk": "^0.4.2",
         "@types/node": "^25",
         "@typescript-eslint/eslint-plugin": "^7.16.1",
         "@typescript-eslint/parser": "^7.16.1",
-        "ava": "^8.0.0",
         "eslint": "^8.57.0",
         "prettier": "^3.8.1",
         "rimraf": "^6.0.1",
         "tsup": "^8.1.2",
         "typedoc": "^0.28.0",
-        "typescript": "^5.9.3"
-    },
-    "ava": {
-        "nodeArguments": [
-            "--no-warnings"
-        ],
-        "typescript": {
-            "compile": false,
-            "rewritePaths": {
-                "test/": "dist/test/"
-            }
-        }
+        "typescript": "^5.9.3",
+        "vitest": "^4.1.8"
     }
 }

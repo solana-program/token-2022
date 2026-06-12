@@ -21,6 +21,7 @@ import {
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
+    type ReadonlyAccount,
     type ReadonlyUint8Array,
     type WritableAccount,
 } from '@solana/kit';
@@ -36,11 +37,18 @@ export function getSyncNativeDiscriminatorBytes() {
 export type SyncNativeInstruction<
     TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
     TAccountAccount extends string | AccountMeta<string> = string,
+    TAccountRent extends string | AccountMeta<string> | undefined = undefined,
     TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
     InstructionWithData<ReadonlyUint8Array> &
     InstructionWithAccounts<
-        [TAccountAccount extends string ? WritableAccount<TAccountAccount> : TAccountAccount, ...TRemainingAccounts]
+        [
+            TAccountAccount extends string ? WritableAccount<TAccountAccount> : TAccountAccount,
+            ...(TAccountRent extends undefined
+                ? []
+                : [TAccountRent extends string ? ReadonlyAccount<TAccountRent> : TAccountRent]),
+            ...TRemainingAccounts,
+        ]
     >;
 
 export type SyncNativeInstructionData = { discriminator: number };
@@ -65,31 +73,45 @@ export function getSyncNativeInstructionDataCodec(): FixedSizeCodec<
     return combineCodec(getSyncNativeInstructionDataEncoder(), getSyncNativeInstructionDataDecoder());
 }
 
-export type SyncNativeInput<TAccountAccount extends string = string> = {
+export type SyncNativeInput<TAccountAccount extends string = string, TAccountRent extends string = string> = {
     /** The native token account to sync with its underlying lamports. */
     account: Address<TAccountAccount>;
+    /** Rent sysvar. */
+    rent?: Address<TAccountRent>;
 };
 
 export function getSyncNativeInstruction<
     TAccountAccount extends string,
+    TAccountRent extends string,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-    input: SyncNativeInput<TAccountAccount>,
+    input: SyncNativeInput<TAccountAccount, TAccountRent>,
     config?: { programAddress?: TProgramAddress },
-): SyncNativeInstruction<TProgramAddress, TAccountAccount> {
+): SyncNativeInstruction<TProgramAddress, TAccountAccount, TAccountRent> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
     // Original accounts.
-    const originalAccounts = { account: { value: input.account ?? null, isWritable: true } };
+    const originalAccounts = {
+        account: { value: input.account ?? null, isWritable: true },
+        rent: { value: input.rent ?? null, isWritable: false },
+    };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    // Resolve default values.
+    if (!accounts.rent.value) {
+        accounts.rent.value =
+            'SysvarRent111111111111111111111111111111111' as Address<'SysvarRent111111111111111111111111111111111'>;
+    }
+
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'omitted');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.account)],
+        accounts: [getAccountMeta(accounts.account), getAccountMeta(accounts.rent)].filter(
+            <T>(x: T | undefined): x is T => x !== undefined,
+        ),
         data: getSyncNativeInstructionDataEncoder().encode({}),
         programAddress,
-    } as SyncNativeInstruction<TProgramAddress, TAccountAccount>);
+    } as SyncNativeInstruction<TProgramAddress, TAccountAccount, TAccountRent>);
 }
 
 export type ParsedSyncNativeInstruction<
@@ -100,6 +122,8 @@ export type ParsedSyncNativeInstruction<
     accounts: {
         /** The native token account to sync with its underlying lamports. */
         account: TAccountMetas[0];
+        /** Rent sysvar. */
+        rent?: TAccountMetas[1] | undefined;
     };
     data: SyncNativeInstructionData;
 };
@@ -119,9 +143,15 @@ export function parseSyncNativeInstruction<TProgram extends string, TAccountMeta
         accountIndex += 1;
         return accountMeta;
     };
+    let optionalAccountsRemaining = instruction.accounts.length - 1;
+    const getNextOptionalAccount = () => {
+        if (optionalAccountsRemaining === 0) return undefined;
+        optionalAccountsRemaining -= 1;
+        return getNextAccount();
+    };
     return {
         programAddress: instruction.programAddress,
-        accounts: { account: getNextAccount() },
+        accounts: { account: getNextAccount(), rent: getNextOptionalAccount() },
         data: getSyncNativeInstructionDataDecoder().decode(instruction.data),
     };
 }

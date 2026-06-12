@@ -1,8 +1,8 @@
+import { expect, it } from 'vitest';
 import { getBase64Encoder, none, some } from '@solana/kit';
-import test from 'ava';
 import { AccountState, Mint, getMintDecoder } from '../../src';
 
-test('it decodes a mint account with extensions', t => {
+it('decodes a mint account with extensions', () => {
     // Given an encoded mega mint account.
     const encodedData = getBase64Encoder().encode(
         'AQAAANl0oyyj5Em8hjtu2ZP7yo0ugblRsz6hhVJdNo+gAaxzAAAAAAAAAAAJAQEAAADZdKMso+RJvIY7btmT+8qNLoG5UbM+oYVSXTaPoAGscwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQMAIADZdKMso+RJvIY7btmT+8qNLoG5UbM+oYVSXTaPoAGscwwAIADZdKMso+RJvIY7btmT+8qNLoG5UbM+oYVSXTaPoAGscwoANADZdKMso+RJvIY7btmT+8qNLoG5UbM+oYVSXTaPoAGsc1DcOGYAAAAABQBQ3DhmAAAAAAUACQAAAAYAAQABAQBsANl0oyyj5Em8hjtu2ZP7yo0ugblRsz6hhVJdNo+gAaxz2XSjLKPkSbyGO27Zk/vKjS6BuVGzPqGFUl02j6ABrHMAAAAAAAAAAAAAAAAAAAAACwAAAAAAAAAKAAAAAAAAAAAACwAAAAAAAAAKAAQAQQDZdKMso+RJvIY7btmT+8qNLoG5UbM+oYVSXTaPoAGscwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAgQDZdKMso+RJvIY7btmT+8qNLoG5UbM+oYVSXTaPoAGsc8aZ/4AJIGfAaE/AWw0sZ/RHrzKkiqDImFjw8aaO6XQnAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOAEAA2XSjLKPkSbyGO27Zk/vKjS6BuVGzPqGFUl02j6ABrHNFibyKrwttzJMtAoI/rBUOm1A6+Qq/H88Um0qCtkB4bhIAQADZdKMso+RJvIY7btmT+8qNLoG5UbM+oYVSXTaPoAGsc0WJvIqvC23Mky0Cgj+sFQ6bUDr5Cr8fzxSbSoK2QHhuFABAANl0oyyj5Em8hjtu2ZP7yo0ugblRsz6hhVJdNo+gAaxzRYm8iq8LbcyTLQKCP6wVDptQOvkKvx/PFJtKgrZAeG4WAEAA2XSjLKPkSbyGO27Zk/vKjS6BuVGzPqGFUl02j6ABrHNFibyKrwttzJMtAoI/rBUOm1A6+Qq/H88Um0qCtkB4bhMAjQDZdKMso+RJvIY7btmT+8qNLoG5UbM+oYVSXTaPoAGsc0WJvIqvC23Mky0Cgj+sFQ6bUDr5Cr8fzxSbSoK2QHhuCQAAAE1lZ2FUb2tlbgIAAABNVCEAAABodHRwczovL3NwbC5zb2xhbmEuY29tL3Rva2VuLTIwMjIBAAAABAAAAE1lZ2EFAAAAVG9rZW4VAFAA2XSjLKPkSbyGO27Zk/vKjS6BuVGzPqGFUl02j6ABrHNFibyKrwttzJMtAoI/rBUOm1A6+Qq/H88Um0qCtkB4bgAAAAAAAAAA6AMAAAAAAAA=',
@@ -12,7 +12,7 @@ test('it decodes a mint account with extensions', t => {
     const decodedData = getMintDecoder().decode(encodedData);
 
     // Then we expect the following data.
-    t.like(decodedData, <Mint>{
+    expect(decodedData).toMatchObject(<Mint>{
         mintAuthority: some('FdrdFuo1RQ9LrQ3FRfQUE7RigyANe5kFNLyMhCYk1xgJ'),
         supply: 0n,
         decimals: 9,

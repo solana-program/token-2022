@@ -59,7 +59,6 @@ export type WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction<
     TAccountMint extends string | AccountMeta<string> = string,
     TAccountDestination extends string | AccountMeta<string> = string,
     TAccountInstructionsSysvarOrContextState extends string | AccountMeta<string> = string,
-    TAccountRecord extends string | AccountMeta<string> = string,
     TAccountAuthority extends string | AccountMeta<string> = string,
     TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
@@ -71,7 +70,6 @@ export type WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction<
             TAccountInstructionsSysvarOrContextState extends string
                 ? ReadonlyAccount<TAccountInstructionsSysvarOrContextState>
                 : TAccountInstructionsSysvarOrContextState,
-            TAccountRecord extends string ? ReadonlyAccount<TAccountRecord> : TAccountRecord,
             TAccountAuthority extends string ? ReadonlyAccount<TAccountAuthority> : TAccountAuthority,
             ...TRemainingAccounts,
         ]
@@ -133,17 +131,19 @@ export type WithdrawWithheldTokensFromMintForConfidentialTransferFeeInput<
     TAccountMint extends string = string,
     TAccountDestination extends string = string,
     TAccountInstructionsSysvarOrContextState extends string = string,
-    TAccountRecord extends string = string,
     TAccountAuthority extends string = string,
 > = {
     /** The token mint. */
     mint: Address<TAccountMint>;
     /** The fee receiver account. */
     destination: Address<TAccountDestination>;
-    /** Instructions sysvar or context state account */
+    /**
+     * Instructions sysvar if `VerifyCiphertextCiphertextEquality` is
+     * included in the same transaction or context state account if
+     * `VerifyCiphertextCiphertextEquality` is pre-verified into a context
+     * state account.
+     */
     instructionsSysvarOrContextState: Address<TAccountInstructionsSysvarOrContextState>;
-    /** Optional record account if proof is read from record */
-    record?: Address<TAccountRecord>;
     /** The mint's withdraw_withheld_authority */
     authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
     proofInstructionOffset: WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataArgs['proofInstructionOffset'];
@@ -155,7 +155,6 @@ export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstr
     TAccountMint extends string,
     TAccountDestination extends string,
     TAccountInstructionsSysvarOrContextState extends string,
-    TAccountRecord extends string,
     TAccountAuthority extends string,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
@@ -163,7 +162,6 @@ export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstr
         TAccountMint,
         TAccountDestination,
         TAccountInstructionsSysvarOrContextState,
-        TAccountRecord,
         TAccountAuthority
     >,
     config?: { programAddress?: TProgramAddress },
@@ -172,7 +170,6 @@ export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstr
     TAccountMint,
     TAccountDestination,
     TAccountInstructionsSysvarOrContextState,
-    TAccountRecord,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
         ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
         : TAccountAuthority
@@ -185,7 +182,6 @@ export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstr
         mint: { value: input.mint ?? null, isWritable: true },
         destination: { value: input.destination ?? null, isWritable: true },
         instructionsSysvarOrContextState: { value: input.instructionsSysvarOrContextState ?? null, isWritable: false },
-        record: { value: input.record ?? null, isWritable: false },
         authority: { value: input.authority ?? null, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
@@ -206,7 +202,6 @@ export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstr
             getAccountMeta(accounts.mint),
             getAccountMeta(accounts.destination),
             getAccountMeta(accounts.instructionsSysvarOrContextState),
-            getAccountMeta(accounts.record),
             getAccountMeta(accounts.authority),
             ...remainingAccounts,
         ],
@@ -219,7 +214,6 @@ export function getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstr
         TAccountMint,
         TAccountDestination,
         TAccountInstructionsSysvarOrContextState,
-        TAccountRecord,
         (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
             ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
             : TAccountAuthority
@@ -236,12 +230,15 @@ export type ParsedWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstru
         mint: TAccountMetas[0];
         /** The fee receiver account. */
         destination: TAccountMetas[1];
-        /** Instructions sysvar or context state account */
+        /**
+         * Instructions sysvar if `VerifyCiphertextCiphertextEquality` is
+         * included in the same transaction or context state account if
+         * `VerifyCiphertextCiphertextEquality` is pre-verified into a context
+         * state account.
+         */
         instructionsSysvarOrContextState: TAccountMetas[2];
-        /** Optional record account if proof is read from record */
-        record?: TAccountMetas[3] | undefined;
         /** The mint's withdraw_withheld_authority */
-        authority: TAccountMetas[4];
+        authority: TAccountMetas[3];
     };
     data: WithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionData;
 };
@@ -254,7 +251,7 @@ export function parseWithdrawWithheldTokensFromMintForConfidentialTransferFeeIns
         InstructionWithAccounts<TAccountMetas> &
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction<TProgram, TAccountMetas> {
-    if (instruction.accounts.length < 5) {
+    if (instruction.accounts.length < 4) {
         // TODO: Coded error.
         throw new Error('Not enough accounts');
     }
@@ -264,17 +261,12 @@ export function parseWithdrawWithheldTokensFromMintForConfidentialTransferFeeIns
         accountIndex += 1;
         return accountMeta;
     };
-    const getNextOptionalAccount = () => {
-        const accountMeta = getNextAccount();
-        return accountMeta.address === TOKEN_2022_PROGRAM_ADDRESS ? undefined : accountMeta;
-    };
     return {
         programAddress: instruction.programAddress,
         accounts: {
             mint: getNextAccount(),
             destination: getNextAccount(),
             instructionsSysvarOrContextState: getNextAccount(),
-            record: getNextOptionalAccount(),
             authority: getNextAccount(),
         },
         data: getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstructionDataDecoder().decode(

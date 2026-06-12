@@ -1,4 +1,4 @@
-import test from 'ava';
+import { expect, test } from 'vitest';
 import type {
     GetAccountInfoApi,
     Lamports,
@@ -113,7 +113,7 @@ const createMockClockAccountInfo = (unixTimestamp: number) => {
 const mint = address('So11111111111111111111111111111111111111112');
 const clock = SYSVAR_CLOCK_ADDRESS;
 
-test('should return the correct UiAmount when interest bearing config is not present', async t => {
+test('should return the correct UiAmount when interest bearing config is not present', async () => {
     const testCases = [
         { decimals: 0, amount: BigInt(100), expected: '100' },
         { decimals: 2, amount: BigInt(100), expected: '1' },
@@ -128,11 +128,11 @@ test('should return the correct UiAmount when interest bearing config is not pre
             [mint]: createMockMintAccountInfo(decimals, false),
         });
         const result = await amountToUiAmountForMintWithoutSimulation(rpc, mint, amount);
-        t.is(result, expected);
+        expect(result).toBe(expected);
     }
 });
 
-test('should return the correct UiAmount for constant 5% rate', async t => {
+test('should return the correct UiAmount for constant 5% rate', async () => {
     const testCases = [
         { decimals: 0, amount: BigInt(1), expected: '1' },
         { decimals: 1, amount: BigInt(1), expected: '0.1' },
@@ -147,11 +147,11 @@ test('should return the correct UiAmount for constant 5% rate', async t => {
         });
 
         const result = await amountToUiAmountForMintWithoutSimulation(rpc, mint, amount);
-        t.is(result, expected);
+        expect(result).toBe(expected);
     }
 });
 
-test('should return the correct UiAmount for constant -5% rate', async t => {
+test('should return the correct UiAmount for constant -5% rate', async () => {
     const rpc = getMockRpc({
         [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS),
         [mint]: createMockMintAccountInfo(10, true, {
@@ -161,10 +161,10 @@ test('should return the correct UiAmount for constant -5% rate', async t => {
     });
 
     const result = await amountToUiAmountForMintWithoutSimulation(rpc, mint, BigInt(10000000000));
-    t.is(result, '0.9512294245');
+    expect(result).toBe('0.9512294245');
 });
 
-test('should return the correct UiAmount for netting out rates', async t => {
+test('should return the correct UiAmount for netting out rates', async () => {
     const rpc = getMockRpc({
         [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
         [mint]: createMockMintAccountInfo(10, true, {
@@ -174,30 +174,30 @@ test('should return the correct UiAmount for netting out rates', async t => {
     });
 
     const result = await amountToUiAmountForMintWithoutSimulation(rpc, mint, BigInt(10000000000));
-    t.is(result, '1');
+    expect(result).toBe('1');
 });
 
-test('should handle huge values correctly', async t => {
+test('should handle huge values correctly', async () => {
     const rpc = getMockRpc({
         [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
         [mint]: createMockMintAccountInfo(6, true),
     });
 
     const result = await amountToUiAmountForMintWithoutSimulation(rpc, mint, BigInt('18446744073709551615'));
-    t.is(result, '20386805083448.098');
+    expect(result).toBe('20386805083448.098');
 });
 
-test('should return the correct amount for constant 5% rate', async t => {
+test('should return the correct amount for constant 5% rate', async () => {
     const rpc = getMockRpc({
         [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS),
         [mint]: createMockMintAccountInfo(0, true),
     });
 
     const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '1.0512710963760241');
-    t.is(result, 1n);
+    expect(result).toBe(1n);
 });
 
-test('should handle decimal places correctly', async t => {
+test('should handle decimal places correctly', async () => {
     const testCases = [
         { decimals: 1, uiAmount: '0.10512710963760241', expected: 1n },
         { decimals: 10, uiAmount: '0.00000000010512710963760242', expected: 1n },
@@ -211,11 +211,11 @@ test('should handle decimal places correctly', async t => {
         });
 
         const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, uiAmount);
-        t.is(result, expected);
+        expect(result).toBe(expected);
     }
 });
 
-test('should return the correct amount for constant -5% rate', async t => {
+test('should return the correct amount for constant -5% rate', async () => {
     const rpc = getMockRpc({
         [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS),
         [mint]: createMockMintAccountInfo(10, true, {
@@ -225,10 +225,10 @@ test('should return the correct amount for constant -5% rate', async t => {
     });
 
     const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '0.951229424500714');
-    t.is(result, 9999999999n); // calculation truncates to avoid floating point precision issues in transfers
+    expect(result).toBe(9999999999n); // calculation truncates to avoid floating point precision issues in transfers
 });
 
-test('should return the correct amount for netting out rates', async t => {
+test('should return the correct amount for netting out rates', async () => {
     const rpc = getMockRpc({
         [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
         [mint]: createMockMintAccountInfo(10, true, {
@@ -238,15 +238,15 @@ test('should return the correct amount for netting out rates', async t => {
     });
 
     const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '1');
-    t.is(result, 10000000000n);
+    expect(result).toBe(10000000000n);
 });
 
-test('should handle huge values correctly for amount to ui amount', async t => {
+test('should handle huge values correctly for amount to ui amount', async () => {
     const rpc = getMockRpc({
         [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
         [mint]: createMockMintAccountInfo(0, true),
     });
 
     const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '20386805083448100000');
-    t.is(result, 18446744073709551616n);
+    expect(result).toBe(18446744073709551616n);
 });

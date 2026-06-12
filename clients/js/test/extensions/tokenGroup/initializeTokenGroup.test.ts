@@ -1,5 +1,5 @@
+import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
-import test from 'ava';
 import {
     Mint,
     extension,
@@ -14,7 +14,7 @@ import {
     sendAndConfirmInstructions,
 } from '../../_setup';
 
-test('it initializes a mint account with a token group and group pointer extension', async t => {
+it('initializes a mint account with a token group and group pointer extension', async () => {
     // Given some signer accounts.
     const client = createDefaultSolanaClient();
     const [authority, mint, updateAuthority] = await Promise.all([
@@ -64,7 +64,7 @@ test('it initializes a mint account with a token group and group pointer extensi
 
     // Then we expect the mint account to exist and have the following extension.
     const mintAccount = await fetchMint(client.rpc, mint.address);
-    t.like(mintAccount, <Account<Mint>>{
+    expect(mintAccount).toMatchObject(<Account<Mint>>{
         address: mint.address,
         data: {
             extensions: some([groupPointerExtension, tokenGroupExtension]),

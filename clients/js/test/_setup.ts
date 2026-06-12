@@ -4,6 +4,7 @@ import {
     TransactionMessage,
     Commitment,
     Instruction,
+    InstructionPlan,
     Rpc,
     RpcSubscriptions,
     SolanaRpcApi,
@@ -18,19 +19,30 @@ import {
     createSolanaRpc,
     createSolanaRpcSubscriptions,
     createTransactionMessage,
+    createTransactionPlanExecutor,
+    createTransactionPlanner,
     generateKeyPairSigner,
     getSignatureFromTransaction,
+    isSome,
     lamports,
+    none,
     pipe,
     sendAndConfirmTransactionFactory,
     setTransactionMessageFeePayerSigner,
     setTransactionMessageLifetimeUsingBlockhash,
     signTransactionMessageWithSigners,
+    some,
 } from '@solana/kit';
+import { AeKey, ElGamalKeypair } from '@solana/zk-sdk/bundler';
 import {
     Extension,
     ExtensionArgs,
     TOKEN_2022_PROGRAM_ADDRESS,
+    Token,
+    extension,
+    fetchToken,
+    findAssociatedTokenPda,
+    getConfidentialDepositInstruction,
     getInitializeAccountInstruction,
     getInitializeMintInstruction,
     getMintSize,
@@ -40,8 +52,12 @@ import {
     getPreInitializeInstructionsForMintExtensions,
     getTokenSize,
 } from '../src';
+import {
+    getApplyConfidentialPendingBalanceInstructionFromToken,
+    getCreateConfidentialTransferAccountInstructionPlan,
+} from '../src/confidential';
 
-type Client = {
+export type Client = {
     rpc: Rpc<SolanaRpcApi>;
     rpcSubscriptions: RpcSubscriptions<SolanaRpcSubscriptionsApi>;
 };
@@ -95,6 +111,32 @@ export const sendAndConfirmInstructions = async (
         tx => signAndSendTransaction(client, tx),
     );
     return signature;
+};
+
+export const sendAndConfirmInstructionPlan = async (
+    client: Client,
+    payer: TransactionSigner,
+    instructionPlan: InstructionPlan,
+) => {
+    const planner = createTransactionPlanner({
+        createTransactionMessage: () =>
+            pipe(createTransactionMessage({ version: 0 }), tx => setTransactionMessageFeePayerSigner(payer, tx)),
+    });
+    const sendAndConfirmTransaction = sendAndConfirmTransactionFactory(client);
+    const executor = createTransactionPlanExecutor({
+        executeTransactionMessage: async (_context, message) => {
+            const { value: latestBlockhash } = await client.rpc.getLatestBlockhash().send();
+            const transaction = await pipe(setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, message), tx =>
+                signTransactionMessageWithSigners(tx),
+            );
+            assertIsSendableTransaction(transaction);
+            assertIsTransactionWithBlockhashLifetime(transaction);
+            await sendAndConfirmTransaction(transaction, { commitment: 'confirmed' });
+            return transaction;
+        },
+    });
+    const transactionPlan = await planner(instructionPlan);
+    return await executor(transactionPlan);
 };
 
 export const getCreateMintInstructions = async (input: {
@@ -220,4 +262,129 @@ export const createTokenWithAmount = async (
         }),
     ]);
     return token.address;
+};
+
+export const getTokenExtension = <TKind extends Extension['__kind']>(
+    token: Token,
+    kind: TKind,
+): Extract<Extension, { __kind: TKind }> => {
+    if (!isSome(token.extensions)) {
+        throw new Error('Token account has no extensions.');
+    }
+    const found = token.extensions.value.find(e => e.__kind === kind);
+    if (!found) {
+        throw new Error(`Token account is missing the ${kind} extension.`);
+    }
+    return found as Extract<Extension, { __kind: TKind }>;
+};
+
+export const fetchAssociatedToken = async (client: Client, owner: Address, mint: Address): Promise<Token> => {
+    const [token] = await findAssociatedTokenPda({ owner, tokenProgram: TOKEN_2022_PROGRAM_ADDRESS, mint });
+    const { data } = await fetchToken(client.rpc, token);
+    return data;
+};
+
+// Creates a mint configured for confidential transfers with auto-approval, so
+// that newly configured accounts are immediately usable without a separate
+// approval from the confidential transfer mint authority.
+export const createConfidentialMint = async (input: {
+    client: Client;
+    payer: TransactionSigner;
+    decimals?: number;
+}): Promise<{ mint: Address; mintAuthority: TransactionSigner }> => {
+    const mintAuthority = await generateKeyPairSigner();
+    const mint = await createMint({
+        client: input.client,
+        payer: input.payer,
+        authority: mintAuthority,
+        decimals: input.decimals ?? 2,
+        extensions: [
+            extension('ConfidentialTransferMint', {
+                authority: some(mintAuthority.address),
+                autoApproveNewAccounts: true,
+                auditorElgamalPubkey: none(),
+            }),
+        ],
+    });
+    return { mint, mintAuthority };
+};
+
+export type ConfidentialTokenAccount = {
+    token: Address;
+    elgamalKeypair: ElGamalKeypair;
+    aesKey: AeKey;
+};
+
+// Creates and configures an associated token account for confidential transfers.
+export const createConfidentialTokenAccount = async (input: {
+    client: Client;
+    payer: TransactionSigner;
+    owner: TransactionSigner;
+    mint: Address;
+}): Promise<ConfidentialTokenAccount> => {
+    const elgamalKeypair = new ElGamalKeypair();
+    const aesKey = new AeKey();
+    const [token] = await findAssociatedTokenPda({
+        owner: input.owner.address,
+        tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+        mint: input.mint,
+    });
+    await sendAndConfirmInstructionPlan(
+        input.client,
+        input.payer,
+        await getCreateConfidentialTransferAccountInstructionPlan({
+            payer: input.payer,
+            owner: input.owner,
+            mint: input.mint,
+            rpc: input.client.rpc,
+            elgamalKeypair,
+            aesKey,
+        }),
+    );
+    return { token, elgamalKeypair, aesKey };
+};
+
+// Creates a confidential token account with `amount` tokens deposited and
+// applied to its available confidential balance (ready to withdraw or transfer).
+export const createConfidentialTokenAccountWithBalance = async (input: {
+    client: Client;
+    payer: TransactionSigner;
+    owner: TransactionSigner;
+    mint: Address;
+    mintAuthority: TransactionSigner;
+    decimals: number;
+    amount: bigint;
+}): Promise<ConfidentialTokenAccount> => {
+    const account = await createConfidentialTokenAccount(input);
+
+    // Mint public tokens, then deposit them into the confidential pending balance.
+    await sendAndConfirmInstructions(input.client, input.payer, [
+        getMintToInstruction({
+            mint: input.mint,
+            token: account.token,
+            mintAuthority: input.mintAuthority,
+            amount: input.amount,
+        }),
+        getConfidentialDepositInstruction({
+            token: account.token,
+            mint: input.mint,
+            authority: input.owner,
+            amount: input.amount,
+            decimals: input.decimals,
+        }),
+    ]);
+
+    // Apply the pending balance so the deposited amount becomes available.
+    const { data: tokenAccount } = await fetchToken(input.client.rpc, account.token);
+    await sendAndConfirmInstructions(input.client, input.payer, [
+        getApplyConfidentialPendingBalanceInstructionFromToken({
+            token: account.token,
+            tokenAccount,
+            authority: input.owner,
+            elgamalSecretKey: account.elgamalKeypair.secret(),
+            aesKey: account.aesKey,
+        }),
+    ]);
+
+    return account;
 };

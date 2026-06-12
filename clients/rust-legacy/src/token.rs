@@ -383,7 +383,7 @@ struct TokenMemo {
 impl TokenMemo {
     pub fn to_instruction(&self) -> Instruction {
         spl_memo_interface::instruction::build_memo(
-            &spl_memo_interface::v3::id(),
+            &spl_memo_interface::v4::id(),
             self.text.as_bytes(),
             &self.signers.iter().collect::<Vec<_>>(),
         )
@@ -1286,6 +1286,44 @@ where
                 &self.program_id,
                 source,
                 &self.pubkey,
+                authority,
+                &multisig_signers,
+                amount,
+            )?]
+        };
+
+        self.process_ixs(&instructions, signing_keypairs).await
+    }
+
+    /// Burn tokens from account with permissioned burn authority
+    pub async fn permissioned_burn<S: Signers>(
+        &self,
+        source: &Address,
+        permissioned_burn_authority: &Address,
+        authority: &Address,
+        amount: u64,
+        signing_keypairs: &S,
+    ) -> TokenResult<T::Output> {
+        let signing_pubkeys = signing_keypairs.pubkeys();
+        let multisig_signers = self.get_multisig_signers(authority, &signing_pubkeys);
+
+        let instructions = if let Some(decimals) = self.decimals {
+            [permissioned_burn::instruction::burn_checked(
+                &self.program_id,
+                source,
+                &self.pubkey,
+                permissioned_burn_authority,
+                authority,
+                &multisig_signers,
+                amount,
+                decimals,
+            )?]
+        } else {
+            [permissioned_burn::instruction::burn(
+                &self.program_id,
+                source,
+                &self.pubkey,
+                permissioned_burn_authority,
                 authority,
                 &multisig_signers,
                 amount,

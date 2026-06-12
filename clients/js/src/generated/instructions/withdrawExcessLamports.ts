@@ -40,18 +40,16 @@ export function getWithdrawExcessLamportsDiscriminatorBytes() {
 
 export type WithdrawExcessLamportsInstruction<
     TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-    TAccountSourceAccount extends string | AccountMeta<string> = string,
-    TAccountDestinationAccount extends string | AccountMeta<string> = string,
+    TAccountSource extends string | AccountMeta<string> = string,
+    TAccountDestination extends string | AccountMeta<string> = string,
     TAccountAuthority extends string | AccountMeta<string> = string,
     TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
     InstructionWithData<ReadonlyUint8Array> &
     InstructionWithAccounts<
         [
-            TAccountSourceAccount extends string ? WritableAccount<TAccountSourceAccount> : TAccountSourceAccount,
-            TAccountDestinationAccount extends string
-                ? WritableAccount<TAccountDestinationAccount>
-                : TAccountDestinationAccount,
+            TAccountSource extends string ? WritableAccount<TAccountSource> : TAccountSource,
+            TAccountDestination extends string ? WritableAccount<TAccountDestination> : TAccountDestination,
             TAccountAuthority extends string ? ReadonlyAccount<TAccountAuthority> : TAccountAuthority,
             ...TRemainingAccounts,
         ]
@@ -83,31 +81,31 @@ export function getWithdrawExcessLamportsInstructionDataCodec(): FixedSizeCodec<
 }
 
 export type WithdrawExcessLamportsInput<
-    TAccountSourceAccount extends string = string,
-    TAccountDestinationAccount extends string = string,
+    TAccountSource extends string = string,
+    TAccountDestination extends string = string,
     TAccountAuthority extends string = string,
 > = {
-    /** Account holding excess lamports. */
-    sourceAccount: Address<TAccountSourceAccount>;
-    /** Destination account for withdrawn lamports. */
-    destinationAccount: Address<TAccountDestinationAccount>;
-    /** The source account's owner/delegate or its multisignature account. */
+    /** The source account. */
+    source: Address<TAccountSource>;
+    /** The destination account. */
+    destination: Address<TAccountDestination>;
+    /** The source account owner or its multisignature account. */
     authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
     multiSigners?: Array<TransactionSigner>;
 };
 
 export function getWithdrawExcessLamportsInstruction<
-    TAccountSourceAccount extends string,
-    TAccountDestinationAccount extends string,
+    TAccountSource extends string,
+    TAccountDestination extends string,
     TAccountAuthority extends string,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
-    input: WithdrawExcessLamportsInput<TAccountSourceAccount, TAccountDestinationAccount, TAccountAuthority>,
+    input: WithdrawExcessLamportsInput<TAccountSource, TAccountDestination, TAccountAuthority>,
     config?: { programAddress?: TProgramAddress },
 ): WithdrawExcessLamportsInstruction<
     TProgramAddress,
-    TAccountSourceAccount,
-    TAccountDestinationAccount,
+    TAccountSource,
+    TAccountDestination,
     (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
         ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
         : TAccountAuthority
@@ -117,8 +115,8 @@ export function getWithdrawExcessLamportsInstruction<
 
     // Original accounts.
     const originalAccounts = {
-        sourceAccount: { value: input.sourceAccount ?? null, isWritable: true },
-        destinationAccount: { value: input.destinationAccount ?? null, isWritable: true },
+        source: { value: input.source ?? null, isWritable: true },
+        destination: { value: input.destination ?? null, isWritable: true },
         authority: { value: input.authority ?? null, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
@@ -136,8 +134,8 @@ export function getWithdrawExcessLamportsInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.sourceAccount),
-            getAccountMeta(accounts.destinationAccount),
+            getAccountMeta(accounts.source),
+            getAccountMeta(accounts.destination),
             getAccountMeta(accounts.authority),
             ...remainingAccounts,
         ],
@@ -145,8 +143,8 @@ export function getWithdrawExcessLamportsInstruction<
         programAddress,
     } as WithdrawExcessLamportsInstruction<
         TProgramAddress,
-        TAccountSourceAccount,
-        TAccountDestinationAccount,
+        TAccountSource,
+        TAccountDestination,
         (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
             ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
             : TAccountAuthority
@@ -159,11 +157,11 @@ export type ParsedWithdrawExcessLamportsInstruction<
 > = {
     programAddress: Address<TProgram>;
     accounts: {
-        /** Account holding excess lamports. */
-        sourceAccount: TAccountMetas[0];
-        /** Destination account for withdrawn lamports. */
-        destinationAccount: TAccountMetas[1];
-        /** The source account's owner/delegate or its multisignature account. */
+        /** The source account. */
+        source: TAccountMetas[0];
+        /** The destination account. */
+        destination: TAccountMetas[1];
+        /** The source account owner or its multisignature account. */
         authority: TAccountMetas[2];
     };
     data: WithdrawExcessLamportsInstructionData;
@@ -189,11 +187,7 @@ export function parseWithdrawExcessLamportsInstruction<
     };
     return {
         programAddress: instruction.programAddress,
-        accounts: {
-            sourceAccount: getNextAccount(),
-            destinationAccount: getNextAccount(),
-            authority: getNextAccount(),
-        },
+        accounts: { source: getNextAccount(), destination: getNextAccount(), authority: getNextAccount() },
         data: getWithdrawExcessLamportsInstructionDataDecoder().decode(instruction.data),
     };
 }

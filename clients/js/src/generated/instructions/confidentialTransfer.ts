@@ -36,8 +36,12 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import {
     getDecryptableBalanceDecoder,
     getDecryptableBalanceEncoder,
+    getEncryptedBalanceDecoder,
+    getEncryptedBalanceEncoder,
     type DecryptableBalance,
     type DecryptableBalanceArgs,
+    type EncryptedBalance,
+    type EncryptedBalanceArgs,
 } from '../types';
 
 export const CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 27;
@@ -57,10 +61,10 @@ export type ConfidentialTransferInstruction<
     TAccountSourceToken extends string | AccountMeta<string> = string,
     TAccountMint extends string | AccountMeta<string> = string,
     TAccountDestinationToken extends string | AccountMeta<string> = string,
-    TAccountInstructionsSysvar extends string | AccountMeta<string> = string,
-    TAccountEqualityRecord extends string | AccountMeta<string> = string,
-    TAccountCiphertextValidityRecord extends string | AccountMeta<string> = string,
-    TAccountRangeRecord extends string | AccountMeta<string> = string,
+    TAccountInstructionsSysvar extends string | AccountMeta<string> | undefined = undefined,
+    TAccountEqualityRecord extends string | AccountMeta<string> | undefined = undefined,
+    TAccountCiphertextValidityRecord extends string | AccountMeta<string> | undefined = undefined,
+    TAccountRangeRecord extends string | AccountMeta<string> | undefined = undefined,
     TAccountAuthority extends string | AccountMeta<string> = string,
     TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
@@ -72,14 +76,30 @@ export type ConfidentialTransferInstruction<
             TAccountDestinationToken extends string
                 ? WritableAccount<TAccountDestinationToken>
                 : TAccountDestinationToken,
-            TAccountInstructionsSysvar extends string
-                ? ReadonlyAccount<TAccountInstructionsSysvar>
-                : TAccountInstructionsSysvar,
-            TAccountEqualityRecord extends string ? ReadonlyAccount<TAccountEqualityRecord> : TAccountEqualityRecord,
-            TAccountCiphertextValidityRecord extends string
-                ? ReadonlyAccount<TAccountCiphertextValidityRecord>
-                : TAccountCiphertextValidityRecord,
-            TAccountRangeRecord extends string ? ReadonlyAccount<TAccountRangeRecord> : TAccountRangeRecord,
+            ...(TAccountInstructionsSysvar extends undefined
+                ? []
+                : [
+                      TAccountInstructionsSysvar extends string
+                          ? ReadonlyAccount<TAccountInstructionsSysvar>
+                          : TAccountInstructionsSysvar,
+                  ]),
+            ...(TAccountEqualityRecord extends undefined
+                ? []
+                : [
+                      TAccountEqualityRecord extends string
+                          ? ReadonlyAccount<TAccountEqualityRecord>
+                          : TAccountEqualityRecord,
+                  ]),
+            ...(TAccountCiphertextValidityRecord extends undefined
+                ? []
+                : [
+                      TAccountCiphertextValidityRecord extends string
+                          ? ReadonlyAccount<TAccountCiphertextValidityRecord>
+                          : TAccountCiphertextValidityRecord,
+                  ]),
+            ...(TAccountRangeRecord extends undefined
+                ? []
+                : [TAccountRangeRecord extends string ? ReadonlyAccount<TAccountRangeRecord> : TAccountRangeRecord]),
             TAccountAuthority extends string ? ReadonlyAccount<TAccountAuthority> : TAccountAuthority,
             ...TRemainingAccounts,
         ]
@@ -90,6 +110,10 @@ export type ConfidentialTransferInstructionData = {
     confidentialTransferDiscriminator: number;
     /** The new source decryptable balance if the transfer succeeds. */
     newSourceDecryptableAvailableBalance: DecryptableBalance;
+    /** The transfer amount encrypted under the auditor ElGamal public key. */
+    transferAmountAuditorCiphertextLo: EncryptedBalance;
+    /** The transfer amount encrypted under the auditor ElGamal public key. */
+    transferAmountAuditorCiphertextHi: EncryptedBalance;
     /**
      * Relative location of the
      * `ProofInstruction::VerifyCiphertextCommitmentEquality` instruction
@@ -115,6 +139,10 @@ export type ConfidentialTransferInstructionData = {
 export type ConfidentialTransferInstructionDataArgs = {
     /** The new source decryptable balance if the transfer succeeds. */
     newSourceDecryptableAvailableBalance: DecryptableBalanceArgs;
+    /** The transfer amount encrypted under the auditor ElGamal public key. */
+    transferAmountAuditorCiphertextLo: EncryptedBalanceArgs;
+    /** The transfer amount encrypted under the auditor ElGamal public key. */
+    transferAmountAuditorCiphertextHi: EncryptedBalanceArgs;
     /**
      * Relative location of the
      * `ProofInstruction::VerifyCiphertextCommitmentEquality` instruction
@@ -143,6 +171,8 @@ export function getConfidentialTransferInstructionDataEncoder(): FixedSizeEncode
             ['discriminator', getU8Encoder()],
             ['confidentialTransferDiscriminator', getU8Encoder()],
             ['newSourceDecryptableAvailableBalance', getDecryptableBalanceEncoder()],
+            ['transferAmountAuditorCiphertextLo', getEncryptedBalanceEncoder()],
+            ['transferAmountAuditorCiphertextHi', getEncryptedBalanceEncoder()],
             ['equalityProofInstructionOffset', getI8Encoder()],
             ['ciphertextValidityProofInstructionOffset', getI8Encoder()],
             ['rangeProofInstructionOffset', getI8Encoder()],
@@ -160,6 +190,8 @@ export function getConfidentialTransferInstructionDataDecoder(): FixedSizeDecode
         ['discriminator', getU8Decoder()],
         ['confidentialTransferDiscriminator', getU8Decoder()],
         ['newSourceDecryptableAvailableBalance', getDecryptableBalanceDecoder()],
+        ['transferAmountAuditorCiphertextLo', getEncryptedBalanceDecoder()],
+        ['transferAmountAuditorCiphertextHi', getEncryptedBalanceDecoder()],
         ['equalityProofInstructionOffset', getI8Decoder()],
         ['ciphertextValidityProofInstructionOffset', getI8Decoder()],
         ['rangeProofInstructionOffset', getI8Decoder()],
@@ -207,6 +239,8 @@ export type ConfidentialTransferInput<
     /** The source account's owner/delegate or its multisignature account. */
     authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
     newSourceDecryptableAvailableBalance: ConfidentialTransferInstructionDataArgs['newSourceDecryptableAvailableBalance'];
+    transferAmountAuditorCiphertextLo: ConfidentialTransferInstructionDataArgs['transferAmountAuditorCiphertextLo'];
+    transferAmountAuditorCiphertextHi: ConfidentialTransferInstructionDataArgs['transferAmountAuditorCiphertextHi'];
     equalityProofInstructionOffset: ConfidentialTransferInstructionDataArgs['equalityProofInstructionOffset'];
     ciphertextValidityProofInstructionOffset: ConfidentialTransferInstructionDataArgs['ciphertextValidityProofInstructionOffset'];
     rangeProofInstructionOffset: ConfidentialTransferInstructionDataArgs['rangeProofInstructionOffset'];
@@ -274,7 +308,7 @@ export function getConfidentialTransferInstruction<
         signer,
     }));
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'omitted');
     return Object.freeze({
         accounts: [
             getAccountMeta(accounts.sourceToken),
@@ -286,7 +320,7 @@ export function getConfidentialTransferInstruction<
             getAccountMeta(accounts.rangeRecord),
             getAccountMeta(accounts.authority),
             ...remainingAccounts,
-        ],
+        ].filter(<T>(x: T | undefined): x is T => x !== undefined),
         data: getConfidentialTransferInstructionDataEncoder().encode(args as ConfidentialTransferInstructionDataArgs),
         programAddress,
     } as ConfidentialTransferInstruction<
@@ -342,7 +376,7 @@ export function parseConfidentialTransferInstruction<
         InstructionWithAccounts<TAccountMetas> &
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedConfidentialTransferInstruction<TProgram, TAccountMetas> {
-    if (instruction.accounts.length < 8) {
+    if (instruction.accounts.length < 4) {
         // TODO: Coded error.
         throw new Error('Not enough accounts');
     }
@@ -352,9 +386,11 @@ export function parseConfidentialTransferInstruction<
         accountIndex += 1;
         return accountMeta;
     };
+    let optionalAccountsRemaining = instruction.accounts.length - 4;
     const getNextOptionalAccount = () => {
-        const accountMeta = getNextAccount();
-        return accountMeta.address === TOKEN_2022_PROGRAM_ADDRESS ? undefined : accountMeta;
+        if (optionalAccountsRemaining === 0) return undefined;
+        optionalAccountsRemaining -= 1;
+        return getNextAccount();
     };
     return {
         programAddress: instruction.programAddress,

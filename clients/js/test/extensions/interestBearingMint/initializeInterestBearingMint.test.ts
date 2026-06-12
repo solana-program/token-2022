@@ -1,4 +1,4 @@
-import test from 'ava';
+import { expect, it } from 'vitest';
 import {
     createDefaultSolanaClient,
     generateKeyPairSignerWithSol,
@@ -8,7 +8,7 @@ import {
 import { Account, generateKeyPairSigner, isSome } from '@solana/kit';
 import { extension, fetchMint, getInitializeInterestBearingMintInstruction, Mint } from '../../../src';
 
-test('it initialize a mint account with an interest bearing mint extension', async t => {
+it('initialize a mint account with an interest bearing mint extension', async () => {
     // Given a fresh client with no state the test cares about.
     const client = createDefaultSolanaClient();
     const [rateAuthority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
@@ -45,26 +45,26 @@ test('it initialize a mint account with an interest bearing mint extension', asy
 
     const mintAccount = await fetchMint(client.rpc, mint.address);
     // Then the mint account exists.
-    t.like(mintAccount, <Account<Mint>>{
+    expect(mintAccount).toMatchObject(<Account<Mint>>{
         address: mint.address,
     });
 
     const extensions = mintAccount.data.extensions;
 
     // And the mint account has an interest bearing mint extension.
-    t.true(isSome(extensions));
-    t.true(isSome(extensions) && extensions.value[0].__kind === 'InterestBearingConfig');
+    expect(isSome(extensions)).toBe(true);
+    expect(isSome(extensions) && extensions.value[0].__kind === 'InterestBearingConfig').toBe(true);
 
     if (isSome(extensions) && extensions.value[0].__kind === 'InterestBearingConfig') {
         // And the extension has the correct rate authority.
-        t.is(extensions.value[0].rateAuthority, rateAuthority.address);
+        expect(extensions.value[0].rateAuthority).toBe(rateAuthority.address);
         // And the extension has the correct initialization timestamp.
-        t.true(typeof extensions.value[0].initializationTimestamp === 'bigint');
+        expect(typeof extensions.value[0].initializationTimestamp === 'bigint').toBe(true);
         // And the extension has the correct last update timestamp.
-        t.true(typeof extensions.value[0].lastUpdateTimestamp === 'bigint');
+        expect(typeof extensions.value[0].lastUpdateTimestamp === 'bigint').toBe(true);
         // And the extension has the correct pre update average rate.
-        t.is(extensions.value[0].preUpdateAverageRate, rate);
+        expect(extensions.value[0].preUpdateAverageRate).toBe(rate);
         // And the extension has the correct current rate.
-        t.is(extensions.value[0].currentRate, rate);
+        expect(extensions.value[0].currentRate).toBe(rate);
     }
 });

@@ -6,7 +6,9 @@ use {
         pubkey::Pubkey,
         signer::{keypair::Keypair, Signer},
     },
-    solana_zk_sdk::encryption::{auth_encryption::*, elgamal::*},
+    solana_zk_sdk::encryption::{
+        auth_encryption::*, derivation::derive_confidential_keys, elgamal::*,
+    },
     spl_token_2022_interface::{
         extension::{
             confidential_transfer::ConfidentialTransferAccount, BaseStateWithExtensions,
@@ -44,6 +46,7 @@ impl TestContext {
         let mut program_test = ProgramTest::new("spl_token_2022", id(), None);
         program_test.add_program("spl_record", spl_record::id(), None);
         program_test.add_program("spl_elgamal_registry", spl_elgamal_registry::id(), None);
+        program_test.add_program("spl_memo", spl_memo_interface::v4::id(), None);
         let context = program_test.start_with_context().await;
         let context = Arc::new(Mutex::new(context));
 
@@ -216,9 +219,8 @@ impl ConfidentialTokenAccountMeta {
             .unwrap();
         let token_account = token_account_keypair.pubkey();
 
-        let elgamal_keypair =
-            ElGamalKeypair::new_from_signer(owner, &token_account.to_bytes()).unwrap();
-        let aes_key = AeKey::new_from_signer(owner, &token_account.to_bytes()).unwrap();
+        let (elgamal_keypair, aes_key) =
+            derive_confidential_keys(owner, &token_account.to_bytes()).unwrap();
 
         token
             .confidential_transfer_configure_token_account(

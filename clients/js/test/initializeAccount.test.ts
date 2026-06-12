@@ -1,6 +1,6 @@
+import { expect, it } from 'vitest';
 import { getCreateAccountInstruction } from '@solana-program/system';
 import { Account, generateKeyPairSigner, none } from '@solana/kit';
-import test from 'ava';
 import {
     AccountState,
     TOKEN_2022_PROGRAM_ADDRESS,
@@ -16,7 +16,7 @@ import {
     sendAndConfirmInstructions,
 } from './_setup';
 
-test('it creates and initializes a new token account', async t => {
+it('creates and initializes a new token account', async () => {
     // Given a mint account, its mint authority and two generated keypairs
     // for the token to be created and its owner.
     const client = createDefaultSolanaClient();
@@ -49,7 +49,7 @@ test('it creates and initializes a new token account', async t => {
 
     // Then we expect the token account to exist and have the following data.
     const tokenAccount = await fetchToken(client.rpc, token.address);
-    t.like(tokenAccount, <Account<Token>>{
+    expect(tokenAccount).toMatchObject(<Account<Token>>{
         address: token.address,
         data: {
             mint,
