@@ -65,13 +65,21 @@ macro_rules! async_trial {
         let local_test_validator = $test_validator.clone();
         let local_payer = $payer.clone();
         Trial::test(stringify!($test_func), move || {
-            tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
+            std::thread::Builder::new()
+                .name(stringify!($test_func).to_string())
+                .stack_size(3 * 1024 * 1024)
+                .spawn(move || {
+                    tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .unwrap()
+                        .block_on(async {
+                            $test_func(local_test_validator.as_ref(), local_payer.as_ref()).await
+                        });
+                })
                 .unwrap()
-                .block_on(async {
-                    $test_func(local_test_validator.as_ref(), local_payer.as_ref()).await
-                });
+                .join()
+                .unwrap();
             Ok(())
         })
     }};
@@ -177,6 +185,12 @@ async fn new_validator_for_test() -> (TestValidator, Keypair) {
             program_id: spl_memo_interface::v4::id(),
             loader: bpf_loader_upgradeable::id(),
             program_path: PathBuf::from("../rust-legacy/tests/fixtures/spl_memo.so"),
+            upgrade_authority: Pubkey::new_unique(),
+        },
+        UpgradeableProgramInfo {
+            program_id: spl_record::id(),
+            loader: bpf_loader_upgradeable::id(),
+            program_path: PathBuf::from("../rust-legacy/tests/fixtures/spl_record.so"),
             upgrade_authority: Pubkey::new_unique(),
         },
     ]);
@@ -3274,6 +3288,101 @@ async fn confidential_transfer_with_fee(test_validator: &TestValidator, payer: &
         Option::<Pubkey>::from(extension.authority),
         Some(confidential_transfer_mint_authority),
     );
+
+    // Create and configure source and destination accounts
+    let source_account =
+        create_associated_account(&config, payer, &token_pubkey, &payer.pubkey()).await;
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ConfigureConfidentialTransferAccount.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let destination_account = create_auxiliary_account(&config, payer, token_pubkey).await;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ConfigureConfidentialTransferAccount.into(),
+            "--address",
+            &destination_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    // Mint tokens to source
+    let deposit_amount = 100.0;
+    mint_tokens(&config, payer, token_pubkey, deposit_amount, source_account)
+        .await
+        .unwrap();
+
+    // Deposit into confidential balance
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::DepositConfidentialTokens.into(),
+            &token_pubkey.to_string(),
+            &deposit_amount.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    // Transfer confidentially with expected fee
+    let transfer_amount = 100.0;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Transfer.into(),
+            &token_pubkey.to_string(),
+            &transfer_amount.to_string(),
+            &destination_account.to_string(),
+            "--confidential",
+            "--expected-fee",
+            "1", // 1% of 100 is 1
+        ],
+    )
+    .await
+    .unwrap();
+
+    // Apply pending balance on destination to finalize the transfer
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            "--address",
+            &destination_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
 }
 
 async fn multisig_transfer(test_validator: &TestValidator, payer: &Keypair) {
