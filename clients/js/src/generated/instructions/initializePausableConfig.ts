@@ -16,6 +16,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type Address,
@@ -30,18 +32,18 @@ import {
     type ReadonlyUint8Array,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const INITIALIZE_PAUSABLE_CONFIG_DISCRIMINATOR = 44;
 
-export function getInitializePausableConfigDiscriminatorBytes() {
+export function getInitializePausableConfigDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(INITIALIZE_PAUSABLE_CONFIG_DISCRIMINATOR);
 }
 
 export const INITIALIZE_PAUSABLE_CONFIG_PAUSABLE_DISCRIMINATOR = 0;
 
-export function getInitializePausableConfigPausableDiscriminatorBytes() {
+export function getInitializePausableConfigPausableDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(INITIALIZE_PAUSABLE_CONFIG_PAUSABLE_DISCRIMINATOR);
 }
 
@@ -118,14 +120,14 @@ export function getInitializePausableConfigInstruction<
 
     // Original accounts.
     const originalAccounts = { mint: { value: input.mint ?? null, isWritable: true } };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.mint)],
+        accounts: [getAccountMeta('mint', accounts.mint)],
         data: getInitializePausableConfigInstructionDataEncoder().encode(
             args as InitializePausableConfigInstructionDataArgs,
         ),
@@ -154,8 +156,10 @@ export function parseInitializePausableConfigInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializePausableConfigInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 1) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 1,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

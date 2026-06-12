@@ -13,6 +13,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type Address,
@@ -25,18 +27,18 @@ import {
     type ReadonlyUint8Array,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const HARVEST_WITHHELD_TOKENS_TO_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR = 37;
 
-export function getHarvestWithheldTokensToMintForConfidentialTransferFeeDiscriminatorBytes() {
+export function getHarvestWithheldTokensToMintForConfidentialTransferFeeDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(HARVEST_WITHHELD_TOKENS_TO_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR);
 }
 
 export const HARVEST_WITHHELD_TOKENS_TO_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR = 3;
 
-export function getHarvestWithheldTokensToMintForConfidentialTransferFeeConfidentialTransferFeeDiscriminatorBytes() {
+export function getHarvestWithheldTokensToMintForConfidentialTransferFeeConfidentialTransferFeeDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(
         HARVEST_WITHHELD_TOKENS_TO_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR,
     );
@@ -109,7 +111,7 @@ export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruct
 
     // Original accounts.
     const originalAccounts = { mint: { value: input.mint ?? null, isWritable: true } };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -122,7 +124,7 @@ export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruct
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.mint), ...remainingAccounts],
+        accounts: [getAccountMeta('mint', accounts.mint), ...remainingAccounts],
         data: getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataEncoder().encode({}),
         programAddress,
     } as HarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<TProgramAddress, TAccountMint>);
@@ -149,8 +151,10 @@ export function parseHarvestWithheldTokensToMintForConfidentialTransferFeeInstru
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 1) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 1,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

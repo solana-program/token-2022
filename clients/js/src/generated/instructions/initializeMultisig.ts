@@ -13,6 +13,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type Address,
@@ -26,12 +28,12 @@ import {
     type ReadonlyUint8Array,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const INITIALIZE_MULTISIG_DISCRIMINATOR = 2;
 
-export function getInitializeMultisigDiscriminatorBytes() {
+export function getInitializeMultisigDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(INITIALIZE_MULTISIG_DISCRIMINATOR);
 }
 
@@ -110,7 +112,7 @@ export function getInitializeMultisigInstruction<
         multisig: { value: input.multisig ?? null, isWritable: true },
         rent: { value: input.rent ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -126,7 +128,11 @@ export function getInitializeMultisigInstruction<
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.multisig), getAccountMeta(accounts.rent), ...remainingAccounts],
+        accounts: [
+            getAccountMeta('multisig', accounts.multisig),
+            getAccountMeta('rent', accounts.rent),
+            ...remainingAccounts,
+        ],
         data: getInitializeMultisigInstructionDataEncoder().encode(args as InitializeMultisigInstructionDataArgs),
         programAddress,
     } as InitializeMultisigInstruction<TProgramAddress, TAccountMultisig, TAccountRent>);
@@ -155,8 +161,10 @@ export function parseInitializeMultisigInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeMultisigInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 2) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 2,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

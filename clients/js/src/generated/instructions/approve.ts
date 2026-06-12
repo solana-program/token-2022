@@ -15,6 +15,8 @@ import {
     getU64Encoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -31,12 +33,12 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const APPROVE_DISCRIMINATOR = 4;
 
-export function getApproveDiscriminatorBytes() {
+export function getApproveDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(APPROVE_DISCRIMINATOR);
 }
 
@@ -129,7 +131,7 @@ export function getApproveInstruction<
         delegate: { value: input.delegate ?? null, isWritable: false },
         owner: { value: input.owner ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -144,9 +146,9 @@ export function getApproveInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.source),
-            getAccountMeta(accounts.delegate),
-            getAccountMeta(accounts.owner),
+            getAccountMeta('source', accounts.source),
+            getAccountMeta('delegate', accounts.delegate),
+            getAccountMeta('owner', accounts.owner),
             ...remainingAccounts,
         ],
         data: getApproveInstructionDataEncoder().encode(args as ApproveInstructionDataArgs),
@@ -183,8 +185,10 @@ export function parseApproveInstruction<TProgram extends string, TAccountMetas e
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedApproveInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 3) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 3,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

@@ -13,6 +13,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -29,8 +31,8 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import {
     getDecryptableBalanceDecoder,
     getDecryptableBalanceEncoder,
@@ -40,13 +42,13 @@ import {
 
 export const UPDATE_CONFIDENTIAL_MINT_BURN_DECRYPTABLE_SUPPLY_DISCRIMINATOR = 42;
 
-export function getUpdateConfidentialMintBurnDecryptableSupplyDiscriminatorBytes() {
+export function getUpdateConfidentialMintBurnDecryptableSupplyDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(UPDATE_CONFIDENTIAL_MINT_BURN_DECRYPTABLE_SUPPLY_DISCRIMINATOR);
 }
 
 export const UPDATE_CONFIDENTIAL_MINT_BURN_DECRYPTABLE_SUPPLY_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR = 2;
 
-export function getUpdateConfidentialMintBurnDecryptableSupplyConfidentialMintBurnDiscriminatorBytes() {
+export function getUpdateConfidentialMintBurnDecryptableSupplyConfidentialMintBurnDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(UPDATE_CONFIDENTIAL_MINT_BURN_DECRYPTABLE_SUPPLY_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR);
 }
 
@@ -145,7 +147,7 @@ export function getUpdateConfidentialMintBurnDecryptableSupplyInstruction<
         mint: { value: input.mint ?? null, isWritable: true },
         authority: { value: input.authority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -159,7 +161,11 @@ export function getUpdateConfidentialMintBurnDecryptableSupplyInstruction<
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.mint), getAccountMeta(accounts.authority), ...remainingAccounts],
+        accounts: [
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('authority', accounts.authority),
+            ...remainingAccounts,
+        ],
         data: getUpdateConfidentialMintBurnDecryptableSupplyInstructionDataEncoder().encode(
             args as UpdateConfidentialMintBurnDecryptableSupplyInstructionDataArgs,
         ),
@@ -196,8 +202,10 @@ export function parseUpdateConfidentialMintBurnDecryptableSupplyInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedUpdateConfidentialMintBurnDecryptableSupplyInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 2) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 2,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

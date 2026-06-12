@@ -17,6 +17,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -35,18 +37,18 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const UPDATE_METADATA_POINTER_DISCRIMINATOR = 39;
 
-export function getUpdateMetadataPointerDiscriminatorBytes() {
+export function getUpdateMetadataPointerDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(UPDATE_METADATA_POINTER_DISCRIMINATOR);
 }
 
 export const UPDATE_METADATA_POINTER_METADATA_POINTER_DISCRIMINATOR = 1;
 
-export function getUpdateMetadataPointerMetadataPointerDiscriminatorBytes() {
+export function getUpdateMetadataPointerMetadataPointerDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(UPDATE_METADATA_POINTER_METADATA_POINTER_DISCRIMINATOR);
 }
 
@@ -148,7 +150,7 @@ export function getUpdateMetadataPointerInstruction<
         mint: { value: input.mint ?? null, isWritable: true },
         metadataPointerAuthority: { value: input.metadataPointerAuthority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -163,8 +165,8 @@ export function getUpdateMetadataPointerInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.mint),
-            getAccountMeta(accounts.metadataPointerAuthority),
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('metadataPointerAuthority', accounts.metadataPointerAuthority),
             ...remainingAccounts,
         ],
         data: getUpdateMetadataPointerInstructionDataEncoder().encode(args as UpdateMetadataPointerInstructionDataArgs),
@@ -202,8 +204,10 @@ export function parseUpdateMetadataPointerInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedUpdateMetadataPointerInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 2) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 2,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

@@ -15,6 +15,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -32,13 +34,13 @@ import {
     type WritableAccount,
     type WritableSignerAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import { getExtensionTypeDecoder, getExtensionTypeEncoder, type ExtensionType, type ExtensionTypeArgs } from '../types';
 
 export const REALLOCATE_DISCRIMINATOR = 29;
 
-export function getReallocateDiscriminatorBytes() {
+export function getReallocateDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(REALLOCATE_DISCRIMINATOR);
 }
 
@@ -141,7 +143,7 @@ export function getReallocateInstruction<
         systemProgram: { value: input.systemProgram ?? null, isWritable: false },
         owner: { value: input.owner ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -162,10 +164,10 @@ export function getReallocateInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.token),
-            getAccountMeta(accounts.payer),
-            getAccountMeta(accounts.systemProgram),
-            getAccountMeta(accounts.owner),
+            getAccountMeta('token', accounts.token),
+            getAccountMeta('payer', accounts.payer),
+            getAccountMeta('systemProgram', accounts.systemProgram),
+            getAccountMeta('owner', accounts.owner),
             ...remainingAccounts,
         ],
         data: getReallocateInstructionDataEncoder().encode(args as ReallocateInstructionDataArgs),
@@ -205,8 +207,10 @@ export function parseReallocateInstruction<TProgram extends string, TAccountMeta
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedReallocateInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 4) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 4,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

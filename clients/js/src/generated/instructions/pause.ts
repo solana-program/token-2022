@@ -12,6 +12,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -28,18 +30,18 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const PAUSE_DISCRIMINATOR = 44;
 
-export function getPauseDiscriminatorBytes() {
+export function getPauseDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(PAUSE_DISCRIMINATOR);
 }
 
 export const PAUSE_PAUSABLE_DISCRIMINATOR = 1;
 
-export function getPausePausableDiscriminatorBytes() {
+export function getPausePausableDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(PAUSE_PAUSABLE_DISCRIMINATOR);
 }
 
@@ -116,11 +118,11 @@ export function getPauseInstruction<
         mint: { value: input.mint ?? null, isWritable: true },
         authority: { value: input.authority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.mint), getAccountMeta(accounts.authority)],
+        accounts: [getAccountMeta('mint', accounts.mint), getAccountMeta('authority', accounts.authority)],
         data: getPauseInstructionDataEncoder().encode({}),
         programAddress,
     } as PauseInstruction<
@@ -152,8 +154,10 @@ export function parsePauseInstruction<TProgram extends string, TAccountMetas ext
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedPauseInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 2) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 2,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

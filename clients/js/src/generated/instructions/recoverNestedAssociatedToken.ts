@@ -12,6 +12,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -28,13 +30,17 @@ import {
     type WritableAccount,
     type WritableSignerAccount,
 } from '@solana/kit';
+import {
+    getAccountMetaFactory,
+    getAddressFromResolvedInstructionAccount,
+    type ResolvedInstructionAccount,
+} from '@solana/kit/program-client-core';
 import { findAssociatedTokenPda } from '../pdas';
 import { ASSOCIATED_TOKEN_PROGRAM_ADDRESS } from '../programs';
-import { expectAddress, getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const RECOVER_NESTED_ASSOCIATED_TOKEN_DISCRIMINATOR = 2;
 
-export function getRecoverNestedAssociatedTokenDiscriminatorBytes() {
+export function getRecoverNestedAssociatedTokenDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(RECOVER_NESTED_ASSOCIATED_TOKEN_DISCRIMINATOR);
 }
 
@@ -173,7 +179,7 @@ export async function getRecoverNestedAssociatedTokenInstructionAsync<
         walletAddress: { value: input.walletAddress ?? null, isWritable: true },
         tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Resolve default values.
     if (!accounts.tokenProgram.value) {
@@ -182,36 +188,48 @@ export async function getRecoverNestedAssociatedTokenInstructionAsync<
     }
     if (!accounts.ownerAssociatedAccountAddress.value) {
         accounts.ownerAssociatedAccountAddress.value = await findAssociatedTokenPda({
-            owner: expectAddress(accounts.walletAddress.value),
-            tokenProgram: expectAddress(accounts.tokenProgram.value),
-            mint: expectAddress(accounts.ownerTokenMintAddress.value),
+            owner: getAddressFromResolvedInstructionAccount('walletAddress', accounts.walletAddress.value),
+            tokenProgram: getAddressFromResolvedInstructionAccount('tokenProgram', accounts.tokenProgram.value),
+            mint: getAddressFromResolvedInstructionAccount(
+                'ownerTokenMintAddress',
+                accounts.ownerTokenMintAddress.value,
+            ),
         });
     }
     if (!accounts.nestedAssociatedAccountAddress.value) {
         accounts.nestedAssociatedAccountAddress.value = await findAssociatedTokenPda({
-            owner: expectAddress(accounts.ownerAssociatedAccountAddress.value),
-            tokenProgram: expectAddress(accounts.tokenProgram.value),
-            mint: expectAddress(accounts.nestedTokenMintAddress.value),
+            owner: getAddressFromResolvedInstructionAccount(
+                'ownerAssociatedAccountAddress',
+                accounts.ownerAssociatedAccountAddress.value,
+            ),
+            tokenProgram: getAddressFromResolvedInstructionAccount('tokenProgram', accounts.tokenProgram.value),
+            mint: getAddressFromResolvedInstructionAccount(
+                'nestedTokenMintAddress',
+                accounts.nestedTokenMintAddress.value,
+            ),
         });
     }
     if (!accounts.destinationAssociatedAccountAddress.value) {
         accounts.destinationAssociatedAccountAddress.value = await findAssociatedTokenPda({
-            owner: expectAddress(accounts.walletAddress.value),
-            tokenProgram: expectAddress(accounts.tokenProgram.value),
-            mint: expectAddress(accounts.nestedTokenMintAddress.value),
+            owner: getAddressFromResolvedInstructionAccount('walletAddress', accounts.walletAddress.value),
+            tokenProgram: getAddressFromResolvedInstructionAccount('tokenProgram', accounts.tokenProgram.value),
+            mint: getAddressFromResolvedInstructionAccount(
+                'nestedTokenMintAddress',
+                accounts.nestedTokenMintAddress.value,
+            ),
         });
     }
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.nestedAssociatedAccountAddress),
-            getAccountMeta(accounts.nestedTokenMintAddress),
-            getAccountMeta(accounts.destinationAssociatedAccountAddress),
-            getAccountMeta(accounts.ownerAssociatedAccountAddress),
-            getAccountMeta(accounts.ownerTokenMintAddress),
-            getAccountMeta(accounts.walletAddress),
-            getAccountMeta(accounts.tokenProgram),
+            getAccountMeta('nestedAssociatedAccountAddress', accounts.nestedAssociatedAccountAddress),
+            getAccountMeta('nestedTokenMintAddress', accounts.nestedTokenMintAddress),
+            getAccountMeta('destinationAssociatedAccountAddress', accounts.destinationAssociatedAccountAddress),
+            getAccountMeta('ownerAssociatedAccountAddress', accounts.ownerAssociatedAccountAddress),
+            getAccountMeta('ownerTokenMintAddress', accounts.ownerTokenMintAddress),
+            getAccountMeta('walletAddress', accounts.walletAddress),
+            getAccountMeta('tokenProgram', accounts.tokenProgram),
         ],
         data: getRecoverNestedAssociatedTokenInstructionDataEncoder().encode({}),
         programAddress,
@@ -298,7 +316,7 @@ export function getRecoverNestedAssociatedTokenInstruction<
         walletAddress: { value: input.walletAddress ?? null, isWritable: true },
         tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Resolve default values.
     if (!accounts.tokenProgram.value) {
@@ -309,13 +327,13 @@ export function getRecoverNestedAssociatedTokenInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.nestedAssociatedAccountAddress),
-            getAccountMeta(accounts.nestedTokenMintAddress),
-            getAccountMeta(accounts.destinationAssociatedAccountAddress),
-            getAccountMeta(accounts.ownerAssociatedAccountAddress),
-            getAccountMeta(accounts.ownerTokenMintAddress),
-            getAccountMeta(accounts.walletAddress),
-            getAccountMeta(accounts.tokenProgram),
+            getAccountMeta('nestedAssociatedAccountAddress', accounts.nestedAssociatedAccountAddress),
+            getAccountMeta('nestedTokenMintAddress', accounts.nestedTokenMintAddress),
+            getAccountMeta('destinationAssociatedAccountAddress', accounts.destinationAssociatedAccountAddress),
+            getAccountMeta('ownerAssociatedAccountAddress', accounts.ownerAssociatedAccountAddress),
+            getAccountMeta('ownerTokenMintAddress', accounts.ownerTokenMintAddress),
+            getAccountMeta('walletAddress', accounts.walletAddress),
+            getAccountMeta('tokenProgram', accounts.tokenProgram),
         ],
         data: getRecoverNestedAssociatedTokenInstructionDataEncoder().encode({}),
         programAddress,
@@ -364,8 +382,10 @@ export function parseRecoverNestedAssociatedTokenInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedRecoverNestedAssociatedTokenInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 7) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 7,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

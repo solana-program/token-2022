@@ -33,7 +33,7 @@ import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const BATCH_DISCRIMINATOR = 255;
 
-export function getBatchDiscriminatorBytes() {
+export function getBatchDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(BATCH_DISCRIMINATOR);
 }
 

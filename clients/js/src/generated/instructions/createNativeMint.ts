@@ -12,6 +12,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -28,12 +30,12 @@ import {
     type WritableAccount,
     type WritableSignerAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const CREATE_NATIVE_MINT_DISCRIMINATOR = 31;
 
-export function getCreateNativeMintDiscriminatorBytes() {
+export function getCreateNativeMintDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(CREATE_NATIVE_MINT_DISCRIMINATOR);
 }
 
@@ -109,7 +111,7 @@ export function getCreateNativeMintInstruction<
         nativeMint: { value: input.nativeMint ?? null, isWritable: true },
         systemProgram: { value: input.systemProgram ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Resolve default values.
     if (!accounts.systemProgram.value) {
@@ -120,9 +122,9 @@ export function getCreateNativeMintInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.payer),
-            getAccountMeta(accounts.nativeMint),
-            getAccountMeta(accounts.systemProgram),
+            getAccountMeta('payer', accounts.payer),
+            getAccountMeta('nativeMint', accounts.nativeMint),
+            getAccountMeta('systemProgram', accounts.systemProgram),
         ],
         data: getCreateNativeMintInstructionDataEncoder().encode({}),
         programAddress,
@@ -151,8 +153,10 @@ export function parseCreateNativeMintInstruction<TProgram extends string, TAccou
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCreateNativeMintInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 3) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 3,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

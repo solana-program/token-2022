@@ -13,6 +13,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -29,18 +31,18 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const ENABLE_MEMO_TRANSFERS_DISCRIMINATOR = 30;
 
-export function getEnableMemoTransfersDiscriminatorBytes() {
+export function getEnableMemoTransfersDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(ENABLE_MEMO_TRANSFERS_DISCRIMINATOR);
 }
 
 export const ENABLE_MEMO_TRANSFERS_MEMO_TRANSFERS_DISCRIMINATOR = 0;
 
-export function getEnableMemoTransfersMemoTransfersDiscriminatorBytes() {
+export function getEnableMemoTransfersMemoTransfersDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(ENABLE_MEMO_TRANSFERS_MEMO_TRANSFERS_DISCRIMINATOR);
 }
 
@@ -121,7 +123,7 @@ export function getEnableMemoTransfersInstruction<
         token: { value: input.token ?? null, isWritable: true },
         owner: { value: input.owner ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -135,7 +137,11 @@ export function getEnableMemoTransfersInstruction<
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.token), getAccountMeta(accounts.owner), ...remainingAccounts],
+        accounts: [
+            getAccountMeta('token', accounts.token),
+            getAccountMeta('owner', accounts.owner),
+            ...remainingAccounts,
+        ],
         data: getEnableMemoTransfersInstructionDataEncoder().encode({}),
         programAddress,
     } as EnableMemoTransfersInstruction<
@@ -170,8 +176,10 @@ export function parseEnableMemoTransfersInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedEnableMemoTransfersInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 2) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 2,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

@@ -13,6 +13,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -29,18 +31,18 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const APPLY_CONFIDENTIAL_PENDING_BURN_DISCRIMINATOR = 42;
 
-export function getApplyConfidentialPendingBurnDiscriminatorBytes() {
+export function getApplyConfidentialPendingBurnDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(APPLY_CONFIDENTIAL_PENDING_BURN_DISCRIMINATOR);
 }
 
 export const APPLY_CONFIDENTIAL_PENDING_BURN_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR = 5;
 
-export function getApplyConfidentialPendingBurnConfidentialMintBurnDiscriminatorBytes() {
+export function getApplyConfidentialPendingBurnConfidentialMintBurnDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(APPLY_CONFIDENTIAL_PENDING_BURN_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR);
 }
 
@@ -130,7 +132,7 @@ export function getApplyConfidentialPendingBurnInstruction<
         mint: { value: input.mint ?? null, isWritable: true },
         authority: { value: input.authority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -144,7 +146,11 @@ export function getApplyConfidentialPendingBurnInstruction<
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.mint), getAccountMeta(accounts.authority), ...remainingAccounts],
+        accounts: [
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('authority', accounts.authority),
+            ...remainingAccounts,
+        ],
         data: getApplyConfidentialPendingBurnInstructionDataEncoder().encode({}),
         programAddress,
     } as ApplyConfidentialPendingBurnInstruction<
@@ -179,8 +185,10 @@ export function parseApplyConfidentialPendingBurnInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedApplyConfidentialPendingBurnInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 2) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 2,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

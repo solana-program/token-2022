@@ -13,6 +13,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -29,12 +31,12 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const WITHDRAW_EXCESS_LAMPORTS_DISCRIMINATOR = 38;
 
-export function getWithdrawExcessLamportsDiscriminatorBytes() {
+export function getWithdrawExcessLamportsDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(WITHDRAW_EXCESS_LAMPORTS_DISCRIMINATOR);
 }
 
@@ -119,7 +121,7 @@ export function getWithdrawExcessLamportsInstruction<
         destination: { value: input.destination ?? null, isWritable: true },
         authority: { value: input.authority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -134,9 +136,9 @@ export function getWithdrawExcessLamportsInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.source),
-            getAccountMeta(accounts.destination),
-            getAccountMeta(accounts.authority),
+            getAccountMeta('source', accounts.source),
+            getAccountMeta('destination', accounts.destination),
+            getAccountMeta('authority', accounts.authority),
             ...remainingAccounts,
         ],
         data: getWithdrawExcessLamportsInstructionDataEncoder().encode({}),
@@ -176,8 +178,10 @@ export function parseWithdrawExcessLamportsInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedWithdrawExcessLamportsInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 3) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 3,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

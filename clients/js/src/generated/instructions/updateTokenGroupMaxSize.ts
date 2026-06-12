@@ -14,6 +14,8 @@ import {
     getStructEncoder,
     getU64Decoder,
     getU64Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -29,12 +31,14 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const UPDATE_TOKEN_GROUP_MAX_SIZE_DISCRIMINATOR = new Uint8Array([108, 37, 171, 143, 248, 30, 18, 110]);
+export const UPDATE_TOKEN_GROUP_MAX_SIZE_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
+    108, 37, 171, 143, 248, 30, 18, 110,
+]);
 
-export function getUpdateTokenGroupMaxSizeDiscriminatorBytes() {
+export function getUpdateTokenGroupMaxSizeDiscriminatorBytes(): ReadonlyUint8Array {
     return getBytesEncoder().encode(UPDATE_TOKEN_GROUP_MAX_SIZE_DISCRIMINATOR);
 }
 
@@ -118,14 +122,17 @@ export function getUpdateTokenGroupMaxSizeInstruction<
         group: { value: input.group ?? null, isWritable: true },
         updateAuthority: { value: input.updateAuthority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.group), getAccountMeta(accounts.updateAuthority)],
+        accounts: [
+            getAccountMeta('group', accounts.group),
+            getAccountMeta('updateAuthority', accounts.updateAuthority),
+        ],
         data: getUpdateTokenGroupMaxSizeInstructionDataEncoder().encode(
             args as UpdateTokenGroupMaxSizeInstructionDataArgs,
         ),
@@ -154,8 +161,10 @@ export function parseUpdateTokenGroupMaxSizeInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedUpdateTokenGroupMaxSizeInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 2) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 2,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

@@ -16,6 +16,8 @@ import {
     getOptionEncoder,
     getStructDecoder,
     getStructEncoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -33,12 +35,14 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const UPDATE_TOKEN_GROUP_UPDATE_AUTHORITY_DISCRIMINATOR = new Uint8Array([161, 105, 88, 1, 237, 221, 216, 203]);
+export const UPDATE_TOKEN_GROUP_UPDATE_AUTHORITY_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
+    161, 105, 88, 1, 237, 221, 216, 203,
+]);
 
-export function getUpdateTokenGroupUpdateAuthorityDiscriminatorBytes() {
+export function getUpdateTokenGroupUpdateAuthorityDiscriminatorBytes(): ReadonlyUint8Array {
     return getBytesEncoder().encode(UPDATE_TOKEN_GROUP_UPDATE_AUTHORITY_DISCRIMINATOR);
 }
 
@@ -123,14 +127,17 @@ export function getUpdateTokenGroupUpdateAuthorityInstruction<
         group: { value: input.group ?? null, isWritable: true },
         updateAuthority: { value: input.updateAuthority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.group), getAccountMeta(accounts.updateAuthority)],
+        accounts: [
+            getAccountMeta('group', accounts.group),
+            getAccountMeta('updateAuthority', accounts.updateAuthority),
+        ],
         data: getUpdateTokenGroupUpdateAuthorityInstructionDataEncoder().encode(
             args as UpdateTokenGroupUpdateAuthorityInstructionDataArgs,
         ),
@@ -160,8 +167,10 @@ export function parseUpdateTokenGroupUpdateAuthorityInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedUpdateTokenGroupUpdateAuthorityInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 2) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 2,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

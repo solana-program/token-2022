@@ -12,6 +12,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -28,13 +30,17 @@ import {
     type WritableAccount,
     type WritableSignerAccount,
 } from '@solana/kit';
+import {
+    getAccountMetaFactory,
+    getAddressFromResolvedInstructionAccount,
+    type ResolvedInstructionAccount,
+} from '@solana/kit/program-client-core';
 import { findAssociatedTokenPda } from '../pdas';
 import { ASSOCIATED_TOKEN_PROGRAM_ADDRESS } from '../programs';
-import { expectAddress, getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const CREATE_ASSOCIATED_TOKEN_IDEMPOTENT_DISCRIMINATOR = 1;
 
-export function getCreateAssociatedTokenIdempotentDiscriminatorBytes() {
+export function getCreateAssociatedTokenIdempotentDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(CREATE_ASSOCIATED_TOKEN_IDEMPOTENT_DISCRIMINATOR);
 }
 
@@ -151,7 +157,7 @@ export async function getCreateAssociatedTokenIdempotentInstructionAsync<
         systemProgram: { value: input.systemProgram ?? null, isWritable: false },
         tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Resolve default values.
     if (!accounts.tokenProgram.value) {
@@ -160,9 +166,9 @@ export async function getCreateAssociatedTokenIdempotentInstructionAsync<
     }
     if (!accounts.ata.value) {
         accounts.ata.value = await findAssociatedTokenPda({
-            owner: expectAddress(accounts.owner.value),
-            tokenProgram: expectAddress(accounts.tokenProgram.value),
-            mint: expectAddress(accounts.mint.value),
+            owner: getAddressFromResolvedInstructionAccount('owner', accounts.owner.value),
+            tokenProgram: getAddressFromResolvedInstructionAccount('tokenProgram', accounts.tokenProgram.value),
+            mint: getAddressFromResolvedInstructionAccount('mint', accounts.mint.value),
         });
     }
     if (!accounts.systemProgram.value) {
@@ -173,12 +179,12 @@ export async function getCreateAssociatedTokenIdempotentInstructionAsync<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.payer),
-            getAccountMeta(accounts.ata),
-            getAccountMeta(accounts.owner),
-            getAccountMeta(accounts.mint),
-            getAccountMeta(accounts.systemProgram),
-            getAccountMeta(accounts.tokenProgram),
+            getAccountMeta('payer', accounts.payer),
+            getAccountMeta('ata', accounts.ata),
+            getAccountMeta('owner', accounts.owner),
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('systemProgram', accounts.systemProgram),
+            getAccountMeta('tokenProgram', accounts.tokenProgram),
         ],
         data: getCreateAssociatedTokenIdempotentInstructionDataEncoder().encode({}),
         programAddress,
@@ -254,7 +260,7 @@ export function getCreateAssociatedTokenIdempotentInstruction<
         systemProgram: { value: input.systemProgram ?? null, isWritable: false },
         tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Resolve default values.
     if (!accounts.tokenProgram.value) {
@@ -269,12 +275,12 @@ export function getCreateAssociatedTokenIdempotentInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.payer),
-            getAccountMeta(accounts.ata),
-            getAccountMeta(accounts.owner),
-            getAccountMeta(accounts.mint),
-            getAccountMeta(accounts.systemProgram),
-            getAccountMeta(accounts.tokenProgram),
+            getAccountMeta('payer', accounts.payer),
+            getAccountMeta('ata', accounts.ata),
+            getAccountMeta('owner', accounts.owner),
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('systemProgram', accounts.systemProgram),
+            getAccountMeta('tokenProgram', accounts.tokenProgram),
         ],
         data: getCreateAssociatedTokenIdempotentInstructionDataEncoder().encode({}),
         programAddress,
@@ -320,8 +326,10 @@ export function parseCreateAssociatedTokenIdempotentInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCreateAssociatedTokenIdempotentInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 6) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 6,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

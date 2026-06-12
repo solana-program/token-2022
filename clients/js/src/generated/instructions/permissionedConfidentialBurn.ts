@@ -15,6 +15,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -31,8 +33,8 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import {
     getDecryptableBalanceDecoder,
     getDecryptableBalanceEncoder,
@@ -46,13 +48,13 @@ import {
 
 export const PERMISSIONED_CONFIDENTIAL_BURN_DISCRIMINATOR = 46;
 
-export function getPermissionedConfidentialBurnDiscriminatorBytes() {
+export function getPermissionedConfidentialBurnDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(PERMISSIONED_CONFIDENTIAL_BURN_DISCRIMINATOR);
 }
 
 export const PERMISSIONED_CONFIDENTIAL_BURN_PERMISSIONED_BURN_DISCRIMINATOR = 3;
 
-export function getPermissionedConfidentialBurnPermissionedBurnDiscriminatorBytes() {
+export function getPermissionedConfidentialBurnPermissionedBurnDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(PERMISSIONED_CONFIDENTIAL_BURN_PERMISSIONED_BURN_DISCRIMINATOR);
 }
 
@@ -308,7 +310,7 @@ export function getPermissionedConfidentialBurnInstruction<
         permissionedBurnAuthority: { value: input.permissionedBurnAuthority ?? null, isWritable: false },
         authority: { value: input.authority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -323,14 +325,14 @@ export function getPermissionedConfidentialBurnInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'omitted');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.token),
-            getAccountMeta(accounts.mint),
-            getAccountMeta(accounts.instructionsSysvar),
-            getAccountMeta(accounts.equalityRecord),
-            getAccountMeta(accounts.ciphertextValidityRecord),
-            getAccountMeta(accounts.rangeRecord),
-            getAccountMeta(accounts.permissionedBurnAuthority),
-            getAccountMeta(accounts.authority),
+            getAccountMeta('token', accounts.token),
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('instructionsSysvar', accounts.instructionsSysvar),
+            getAccountMeta('equalityRecord', accounts.equalityRecord),
+            getAccountMeta('ciphertextValidityRecord', accounts.ciphertextValidityRecord),
+            getAccountMeta('rangeRecord', accounts.rangeRecord),
+            getAccountMeta('permissionedBurnAuthority', accounts.permissionedBurnAuthority),
+            getAccountMeta('authority', accounts.authority),
             ...remainingAccounts,
         ].filter(<T>(x: T | undefined): x is T => x !== undefined),
         data: getPermissionedConfidentialBurnInstructionDataEncoder().encode(
@@ -400,8 +402,10 @@ export function parsePermissionedConfidentialBurnInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedPermissionedConfidentialBurnInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 4) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 4,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {
