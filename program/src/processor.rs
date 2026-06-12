@@ -28,7 +28,7 @@ use {
     solana_system_interface::instruction as system_instruction,
     solana_sysvar::{Sysvar, SysvarSerialize},
     solana_zero_copy::unaligned::U64,
-    spl_discriminator::SplDiscriminate,
+    spl_discriminator::{discriminator::ArrayDiscriminator, SplDiscriminate},
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -73,9 +73,6 @@ use {
     std::convert::{TryFrom, TryInto},
 };
 
-const TOKEN_METADATA_DISCRIMINATOR_LENGTH: usize = 8;
-const U32_BYTES: usize = 4;
-
 pub(crate) enum TransferInstruction {
     Unchecked,
     Checked { decimals: u8 },
@@ -111,7 +108,7 @@ impl Processor {
 
     fn read_u32(input: &[u8], cursor: &mut usize) -> Result<u32, ProgramError> {
         let end = cursor
-            .checked_add(U32_BYTES)
+            .checked_add(core::mem::size_of::<u32>())
             .ok_or(ProgramError::InvalidInstructionData)?;
         let bytes = input
             .get(*cursor..end)
@@ -171,12 +168,23 @@ impl Processor {
         Self::validate_no_remaining_bytes(input, cursor)
     }
 
+    /// Defense-in-depth guard for the token-metadata instructions that carry
+    /// Borsh length-prefixed strings (`Initialize`, `UpdateField`, `RemoveKey`).
+    /// A forged length prefix makes `TokenMetadataInstruction::unpack` ask Borsh
+    /// to allocate before it can return an error, which aborts on the SBF heap.
+    /// Validating the declared lengths against the buffer here rejects such
+    /// payloads as `InvalidInstructionData` before that allocation happens.
+    ///
+    /// `UpdateAuthority` and `Emit` carry only fixed-size fields, so they are
+    /// not affected and fall through to the regular `unpack` path. The root-cause
+    /// fix belongs in `spl-token-metadata-interface::unpack` (see #1152); this
+    /// guard can be removed once that lands.
     fn validate_affected_token_metadata_instruction(input: &[u8]) -> Result<bool, ProgramError> {
-        if input.len() < TOKEN_METADATA_DISCRIMINATOR_LENGTH {
+        if input.len() < ArrayDiscriminator::LENGTH {
             return Ok(false);
         }
 
-        let (discriminator, rest) = input.split_at(TOKEN_METADATA_DISCRIMINATOR_LENGTH);
+        let (discriminator, rest) = input.split_at(ArrayDiscriminator::LENGTH);
         if discriminator == Initialize::SPL_DISCRIMINATOR_SLICE {
             Self::validate_token_metadata_initialize_payload(rest)?;
             Ok(true)
