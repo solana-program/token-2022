@@ -889,7 +889,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94893f1e0c6eeab764ade8dc4c0db24caf4fe7cbbaafc0eba0a9030f447b5185"
 dependencies = [
  "num-traits",
- "rand 0.8.5",
+ "rand 0.8.6",
 ]
 
 [[package]]
@@ -899,7 +899,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "246a225cc6131e9ee4f24619af0f19d67761fff15d7ccc22e42b80846e69449a"
 dependencies = [
  "num-traits",
- "rand 0.8.5",
+ "rand 0.8.6",
 ]
 
 [[package]]
@@ -1203,7 +1203,7 @@ dependencies = [
  "getrandom 0.2.15",
  "instant",
  "pin-project-lite",
- "rand 0.8.5",
+ "rand 0.8.6",
  "tokio",
 ]
 
@@ -3019,7 +3019,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0f9ef7462f7c099f518d754361858f86d8a07af53ba9af0fe635bbccb151a63"
 dependencies = [
  "ff",
- "rand 0.8.5",
+ "rand 0.8.6",
  "rand_core 0.6.4",
  "rand_xorshift 0.3.0",
  "subtle",
@@ -3169,6 +3169,15 @@ name = "histogram"
 version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12cb882ccb290b8646e554b157ab0b71e64e8d5bef775cd66b6531e52d302669"
+
+[[package]]
+name = "hkdf"
+version = "0.12.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b5f8eb2ad728638ea2c7d47a21db23b7b58a72ed6a38256b8a1849f15fbbdf7"
+dependencies = [
+ "hmac 0.12.1",
+]
 
 [[package]]
 name = "hmac"
@@ -4748,7 +4757,7 @@ dependencies = [
  "lazy_static",
  "percent-encoding 2.3.2",
  "pin-project",
- "rand 0.8.5",
+ "rand 0.8.6",
  "thiserror 1.0.69",
 ]
 
@@ -5303,9 +5312,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.8.5"
+version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
+checksum = "5ca0ecfa931c29007047d1bc58e623ab12e5590e8c7cc53200d5202b69266d8a"
 dependencies = [
  "libc",
  "rand_chacha 0.3.1",
@@ -6342,7 +6351,7 @@ dependencies = [
  "futures 0.3.32",
  "httparse",
  "log",
- "rand 0.8.5",
+ "rand 0.8.6",
  "sha1",
 ]
 
@@ -6696,7 +6705,7 @@ dependencies = [
  "ff",
  "group",
  "pairing",
- "rand 0.8.5",
+ "rand 0.8.6",
  "rayon",
  "serde",
  "serde_json",
@@ -8545,7 +8554,7 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "percentage",
- "rand 0.8.5",
+ "rand 0.8.6",
  "serde",
  "solana-account",
  "solana-account-info",
@@ -8697,7 +8706,7 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8909d399deb0851aa524420beeb5646b115fd253ef446e35fe4504c904da3941"
 dependencies = [
- "rand 0.8.5",
+ "rand 0.8.6",
  "solana-address 1.1.0",
 ]
 
@@ -9225,7 +9234,7 @@ dependencies = [
  "hash32",
  "libc",
  "log",
- "rand 0.8.5",
+ "rand 0.8.6",
  "rustc-demangle",
  "thiserror 2.0.18",
  "winapi",
@@ -9242,7 +9251,7 @@ dependencies = [
  "hash32",
  "libc",
  "log",
- "rand 0.8.5",
+ "rand 0.8.6",
  "rustc-demangle",
  "thiserror 2.0.18",
  "winapi",
@@ -9827,7 +9836,7 @@ version = "3.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a3f2dab6bc6fd16f43942922ba53d7bc947666ef3a121d74ccb426f01ae1eaf"
 dependencies = [
- "rand 0.8.5",
+ "rand 0.8.6",
 ]
 
 [[package]]
@@ -10557,7 +10566,7 @@ dependencies = [
  "merlin",
  "num-derive",
  "num-traits",
- "rand 0.8.5",
+ "rand 0.8.6",
  "serde",
  "serde_derive",
  "serde_json",
@@ -10592,7 +10601,7 @@ dependencies = [
  "merlin",
  "num-derive",
  "num-traits",
- "rand 0.8.5",
+ "rand 0.8.6",
  "serde",
  "serde_derive",
  "serde_json",
@@ -10612,21 +10621,23 @@ dependencies = [
 
 [[package]]
 name = "solana-zk-sdk"
-version = "6.0.1"
+version = "7.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9664f023aac0b5976cb036684cd3d5ab3c4f12beadafafdcf87c3ba19f868887"
+checksum = "96cd8535d2f40d43a1d47af2849e1c86706a597a2ad84207441f51a50f09d8fd"
 dependencies = [
  "aes-gcm-siv",
  "base64 0.22.1",
  "bincode",
  "bytemuck",
  "curve25519-dalek 4.1.3",
+ "hkdf",
  "itertools 0.14.0",
  "merlin",
- "rand 0.8.5",
+ "rand 0.8.6",
  "serde",
  "serde_derive",
  "serde_json",
+ "sha2 0.10.9",
  "sha3",
  "solana-address 2.6.1",
  "solana-derivation-path",
@@ -11019,7 +11030,7 @@ dependencies = [
  "solana-sdk-ids",
  "solana-system-interface 3.2.0",
  "solana-test-validator",
- "solana-zk-sdk 6.0.1",
+ "solana-zk-sdk 7.0.1",
  "solana-zk-sdk-pod",
  "spl-associated-token-account-interface",
  "spl-memo-interface",
@@ -11069,7 +11080,7 @@ dependencies = [
  "solana-system-interface 3.2.0",
  "solana-transaction",
  "solana-zk-elgamal-proof-interface",
- "solana-zk-sdk 6.0.1",
+ "solana-zk-sdk 7.0.1",
  "solana-zk-sdk-pod",
  "spl-associated-token-account-interface",
  "spl-elgamal-registry",
@@ -11098,7 +11109,7 @@ dependencies = [
  "bytemuck",
  "curve25519-dalek 4.1.3",
  "solana-curve25519 4.0.1",
- "solana-zk-sdk 6.0.1",
+ "solana-zk-sdk 7.0.1",
  "solana-zk-sdk-pod",
  "spl-token-confidential-transfer-proof-generation 0.6.0",
 ]
@@ -11158,7 +11169,7 @@ version = "0.6.0"
 dependencies = [
  "curve25519-dalek 4.1.3",
  "solana-zk-elgamal-proof-interface",
- "solana-zk-sdk 6.0.1",
+ "solana-zk-sdk 7.0.1",
  "solana-zk-sdk-pod",
  "thiserror 2.0.18",
 ]
@@ -11169,7 +11180,7 @@ version = "0.0.1"
 dependencies = [
  "curve25519-dalek 4.1.3",
  "solana-zk-elgamal-proof-interface",
- "solana-zk-sdk 6.0.1",
+ "solana-zk-sdk 7.0.1",
  "spl-token-confidential-transfer-proof-extraction 0.6.1",
  "spl-token-confidential-transfer-proof-generation 0.6.0",
  "thiserror 2.0.18",
@@ -11530,7 +11541,7 @@ dependencies = [
  "humantime",
  "opentelemetry",
  "pin-project",
- "rand 0.8.5",
+ "rand 0.8.6",
  "serde",
  "static_assertions",
  "tarpc-plugins",
@@ -11747,7 +11758,7 @@ checksum = "a30fd743a02bf35236f6faf99adb03089bb77e91c998dac2c2ad76bb424f668c"
 dependencies = [
  "once_cell",
  "pbkdf2 0.12.2",
- "rand 0.8.5",
+ "rand 0.8.6",
  "rustc-hash 1.1.0",
  "sha2 0.10.9",
  "thiserror 1.0.69",
@@ -12003,7 +12014,7 @@ dependencies = [
  "indexmap 1.9.3",
  "pin-project",
  "pin-project-lite",
- "rand 0.8.5",
+ "rand 0.8.6",
  "slab",
  "tokio",
  "tokio-util 0.7.18",

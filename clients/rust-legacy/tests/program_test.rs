@@ -6,7 +6,9 @@ use {
         pubkey::Pubkey,
         signer::{keypair::Keypair, Signer},
     },
-    solana_zk_sdk::encryption::{auth_encryption::*, elgamal::*},
+    solana_zk_sdk::encryption::{
+        auth_encryption::*, derivation::derive_confidential_keys, elgamal::*,
+    },
     spl_token_2022_interface::{
         extension::{
             confidential_transfer::ConfidentialTransferAccount, BaseStateWithExtensions,
@@ -217,9 +219,8 @@ impl ConfidentialTokenAccountMeta {
             .unwrap();
         let token_account = token_account_keypair.pubkey();
 
-        let elgamal_keypair =
-            ElGamalKeypair::new_from_signer(owner, &token_account.to_bytes()).unwrap();
-        let aes_key = AeKey::new_from_signer(owner, &token_account.to_bytes()).unwrap();
+        let (elgamal_keypair, aes_key) =
+            derive_confidential_keys(owner, &token_account.to_bytes()).unwrap();
 
         token
             .confidential_transfer_configure_token_account(

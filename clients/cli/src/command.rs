@@ -35,6 +35,7 @@ use {
     solana_system_interface::program as system_program,
     solana_zk_sdk::encryption::{
         auth_encryption::AeKey,
+        derivation::derive_confidential_keys,
         elgamal::{self, ElGamalKeypair},
     },
     solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
@@ -338,8 +339,8 @@ async fn command_create_token(
             //
             // NOTE: Seed bytes are hardcoded to be empty bytes for now. They
             // will be updated once custom ElGamal keys are supported.
-            let elgamal_keypair =
-                ElGamalKeypair::new_from_signer(config.default_signer()?.as_ref(), b"").unwrap();
+            let (elgamal_keypair, _) =
+                derive_confidential_keys(config.default_signer()?.as_ref(), b"").unwrap();
             extensions.push(
                 ExtensionInitializationParams::ConfidentialTransferFeeConfig {
                     authority: Some(authority),
@@ -4188,9 +4189,8 @@ pub async fn process_command(
                 //
                 // NOTE:: Seed bytes are hardcoded to be empty bytes for now. They will be
                 // updated once custom ElGamal and AES keys are supported.
-                let sender_elgamal_keypair =
-                    ElGamalKeypair::new_from_signer(&*owner_signer, b"").unwrap();
-                let sender_aes_key = AeKey::new_from_signer(&*owner_signer, b"").unwrap();
+                let (sender_elgamal_keypair, sender_aes_key) =
+                    derive_confidential_keys(&*owner_signer, b"").unwrap();
 
                 // Sign-only mode is not yet supported for confidential transfers, so set
                 // recipient and auditor ElGamal public to `None` by default.
@@ -4863,8 +4863,7 @@ pub async fn process_command(
             //
             // NOTE:: Seed bytes are hardcoded to be empty bytes for now. They will be
             // updated once custom ElGamal and AES keys are supported.
-            let elgamal_keypair = ElGamalKeypair::new_from_signer(&*owner_signer, b"").unwrap();
-            let aes_key = AeKey::new_from_signer(&*owner_signer, b"").unwrap();
+            let (elgamal_keypair, aes_key) = derive_confidential_keys(&*owner_signer, b"").unwrap();
 
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(owner_signer, &mut bulk_signers);
@@ -4949,9 +4948,8 @@ pub async fn process_command(
                     //
                     // NOTE:: Seed bytes are hardcoded to be empty bytes for now. They will be
                     // updated once custom ElGamal and AES keys are supported.
-                    let elgamal_keypair =
-                        ElGamalKeypair::new_from_signer(&*owner_signer, b"").unwrap();
-                    let aes_key = AeKey::new_from_signer(&*owner_signer, b"").unwrap();
+                    let (elgamal_keypair, aes_key) =
+                        derive_confidential_keys(&*owner_signer, b"").unwrap();
 
                     (
                         ConfidentialInstructionType::Withdraw,
@@ -4993,8 +4991,7 @@ pub async fn process_command(
             //
             // NOTE:: Seed bytes are hardcoded to be empty bytes for now. They will be
             // updated once custom ElGamal and AES keys are supported.
-            let elgamal_keypair = ElGamalKeypair::new_from_signer(&*owner_signer, b"").unwrap();
-            let aes_key = AeKey::new_from_signer(&*owner_signer, b"").unwrap();
+            let (elgamal_keypair, aes_key) = derive_confidential_keys(&*owner_signer, b"").unwrap();
 
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(owner_signer, &mut bulk_signers);
