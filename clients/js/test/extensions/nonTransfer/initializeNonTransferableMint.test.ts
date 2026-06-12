@@ -1,16 +1,11 @@
 import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
 import { Mint, extension, fetchMint, getInitializeNonTransferableMintInstruction } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    generateKeyPairSignerWithSol,
-    getCreateMintInstructions,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
 
 it('initializes a non-transferable mint', async () => {
     // Given an authority and a mint account.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
 
     // When we create and initialize a mint account as non-transferable
@@ -22,7 +17,7 @@ it('initializes a non-transferable mint', async () => {
         payer: authority,
     });
 
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         createMintInstruction,
         getInitializeNonTransferableMintInstruction({
             mint: mint.address,

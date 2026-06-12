@@ -5,18 +5,17 @@ import {
     createConfidentialMint,
     createConfidentialTokenAccount,
     createConfidentialTokenAccountWithBalance,
-    createDefaultSolanaClient,
+    createValidatorClient,
     fetchAssociatedToken,
     generateKeyPairSignerWithSol,
     getTokenExtension,
-    sendAndConfirmInstructionPlan,
 } from '../../_setup';
 
 it('transfers tokens confidentially between two accounts', async () => {
     // Given a funded source account and an empty destination account.
-    const client = createDefaultSolanaClient();
-    const [payer, sourceOwner, destinationOwner] = await Promise.all([
-        generateKeyPairSignerWithSol(client),
+    const client = await createValidatorClient();
+    const payer = client.payer;
+    const [sourceOwner, destinationOwner] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSignerWithSol(client),
     ]);
@@ -38,9 +37,7 @@ it('transfers tokens confidentially between two accounts', async () => {
         fetchToken(client.rpc, source.token),
         fetchToken(client.rpc, destination.token),
     ]);
-    await sendAndConfirmInstructionPlan(
-        client,
-        payer,
+    await client.sendTransactions(
         await getConfidentialTransferInstructionPlan({
             payer,
             rpc: client.rpc,

@@ -4,28 +4,26 @@ import { getApplyConfidentialPendingBalanceInstructionFromToken } from '../../..
 import {
     createConfidentialMint,
     createConfidentialTokenAccount,
-    createDefaultSolanaClient,
+    createValidatorClient,
     fetchAssociatedToken,
-    generateKeyPairSignerWithSol,
     getTokenExtension,
-    sendAndConfirmInstructions,
 } from '../../_setup';
 
 it('applies the pending balance to the available balance', async () => {
     // Given a confidential token account with a deposited (pending) balance.
-    const client = createDefaultSolanaClient();
-    const owner = await generateKeyPairSignerWithSol(client);
+    const client = await createValidatorClient();
+    const owner = client.payer;
     const { mint, mintAuthority } = await createConfidentialMint({ client, payer: owner });
     const decimals = 2;
     const account = await createConfidentialTokenAccount({ client, payer: owner, owner, mint });
-    await sendAndConfirmInstructions(client, owner, [
+    await client.sendTransaction([
         getMintToInstruction({ mint, token: account.token, mintAuthority, amount: 1000n }),
         getConfidentialDepositInstruction({ token: account.token, mint, authority: owner, amount: 1000n, decimals }),
     ]);
 
     // When we apply the pending balance.
     const { data: tokenAccount } = await fetchToken(client.rpc, account.token);
-    await sendAndConfirmInstructions(client, owner, [
+    await client.sendTransaction([
         getApplyConfidentialPendingBalanceInstructionFromToken({
             token: account.token,
             tokenAccount,

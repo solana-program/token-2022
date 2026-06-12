@@ -1,16 +1,11 @@
 import { expect, it } from 'vitest';
 import { generateKeyPairSigner, none, some, unwrapOption } from '@solana/kit';
 import { extension, fetchMint, getUpdateTokenGroupUpdateAuthorityInstruction, isExtension } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    createMint,
-    generateKeyPairSignerWithSol,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, createMint, generateKeyPairSignerWithSol } from '../../_setup';
 
 it('updates the update authority of the token group extension', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, mint, updateAuthority, newUpdateAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -39,7 +34,7 @@ it('updates the update authority of the token group extension', async () => {
     });
 
     // When we change the update authority of the token group extension.
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         getUpdateTokenGroupUpdateAuthorityInstruction({
             group: mint.address,
             updateAuthority,
@@ -55,7 +50,7 @@ it('updates the update authority of the token group extension', async () => {
 
 it('removes the update authority of the token group extension', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, mint, updateAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -83,7 +78,7 @@ it('removes the update authority of the token group extension', async () => {
     });
 
     // When we remove the update authority of the token group extension.
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         getUpdateTokenGroupUpdateAuthorityInstruction({
             group: mint.address,
             updateAuthority,

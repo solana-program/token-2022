@@ -8,19 +8,13 @@ import {
     getMintToInstruction,
     getWithdrawExcessLamportsInstruction,
 } from '../src';
-import {
-    createDefaultSolanaClient,
-    createMint,
-    createToken,
-    generateKeyPairSignerWithSol,
-    sendAndConfirmInstructions,
-} from './_setup';
+import { createTestClient, createMint, createToken, generateKeyPairSignerWithSol } from './_setup';
 import { getTransferSolInstruction } from '@solana-program/system';
 import { generateKeyPairSigner } from '@solana/kit';
 
 it('withdraws excess lamports from an associated token account', async () => {
     // Given: A client, a payer, mint authority, token owner, and destination account
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [payer, mintAuthority, owner, destination] = await Promise.all([
         generateKeyPairSignerWithSol(client, 200_000_000n),
         generateKeyPairSigner(),
@@ -44,7 +38,7 @@ it('withdraws excess lamports from an associated token account', async () => {
         mintAuthority,
         amount: 100_000n,
     });
-    await sendAndConfirmInstructions(client, payer, [mintToInstruction]);
+    await client.sendTransaction([mintToInstruction]);
 
     // And an associated token account (ATA) is created for the owner
     const createAtaInstruction = await getCreateAssociatedTokenInstructionAsync({
@@ -52,7 +46,7 @@ it('withdraws excess lamports from an associated token account', async () => {
         mint,
         owner: owner.address,
     });
-    await sendAndConfirmInstructions(client, payer, [createAtaInstruction]);
+    await client.sendTransaction([createAtaInstruction]);
 
     const [ata] = await findAssociatedTokenPda({
         mint,
@@ -70,7 +64,7 @@ it('withdraws excess lamports from an associated token account', async () => {
         destination: ata,
         amount: 1_000_000n,
     });
-    await sendAndConfirmInstructions(client, payer, [transferSolInstruction]);
+    await client.sendTransaction([transferSolInstruction]);
 
     // Capture initial balances for comparison after withdrawal
     const lamportsBefore = await client.rpc.getBalance(destination.address).send();
@@ -82,7 +76,7 @@ it('withdraws excess lamports from an associated token account', async () => {
         destination: destination.address,
         authority: owner,
     });
-    await sendAndConfirmInstructions(client, payer, [withdrawInstruction]);
+    await client.sendTransaction([withdrawInstruction]);
 
     // Then: Verify that lamports were successfully withdrawn to the destination
     const lamportsAfter = await client.rpc.getBalance(destination.address).send();

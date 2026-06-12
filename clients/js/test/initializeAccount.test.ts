@@ -9,31 +9,25 @@ import {
     getInitializeAccountInstruction,
     getTokenSize,
 } from '../src';
-import {
-    createDefaultSolanaClient,
-    createMint,
-    generateKeyPairSignerWithSol,
-    sendAndConfirmInstructions,
-} from './_setup';
+import { createTestClient, createMint } from './_setup';
 
 it('creates and initializes a new token account', async () => {
     // Given a mint account, its mint authority and two generated keypairs
     // for the token to be created and its owner.
-    const client = createDefaultSolanaClient();
-    const [payer, mintAuthority, token, owner] = await Promise.all([
-        generateKeyPairSignerWithSol(client),
+    const client = await createTestClient();
+    const [mintAuthority, token, owner] = await Promise.all([
         generateKeyPairSigner(),
         generateKeyPairSigner(),
         generateKeyPairSigner(),
     ]);
-    const mint = await createMint({ client, payer, authority: mintAuthority });
+    const mint = await createMint({ client, payer: client.payer, authority: mintAuthority });
 
     // When we create and initialize a token account at this address.
     const space = BigInt(getTokenSize());
     const rent = await client.rpc.getMinimumBalanceForRentExemption(space).send();
     const instructions = [
         getCreateAccountInstruction({
-            payer,
+            payer: client.payer,
             newAccount: token,
             lamports: rent,
             space,
@@ -45,7 +39,7 @@ it('creates and initializes a new token account', async () => {
             owner: owner.address,
         }),
     ];
-    await sendAndConfirmInstructions(client, payer, instructions);
+    await client.sendTransaction(instructions);
 
     // Then we expect the token account to exist and have the following data.
     const tokenAccount = await fetchToken(client.rpc, token.address);

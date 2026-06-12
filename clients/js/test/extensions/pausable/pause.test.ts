@@ -1,17 +1,13 @@
 import { expect, it } from 'vitest';
 import { generateKeyPairSigner, isSome, some } from '@solana/kit';
 import { getInitializePausableConfigInstruction, extension, fetchMint, getPauseInstruction } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    generateKeyPairSignerWithSol,
-    getCreateMintInstructions,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, getCreateMintInstructions } from '../../_setup';
 
 it('pauses a mint', async () => {
     // Given a fresh client with no state the test cares about.
-    const client = createDefaultSolanaClient();
-    const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
+    const client = await createTestClient();
+    const authority = client.payer;
+    const mint = await generateKeyPairSigner();
 
     // And a pausable config extension.
     const pausableConfigExtension = extension('PausableConfig', {
@@ -28,7 +24,7 @@ it('pauses a mint', async () => {
         mint,
         payer: authority,
     });
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         createMintInstruction,
         getInitializePausableConfigInstruction({
             mint: mint.address,
@@ -42,7 +38,7 @@ it('pauses a mint', async () => {
         mint: mint.address,
         authority: authority.address,
     });
-    await sendAndConfirmInstructions(client, authority, [pauseInstruction]);
+    await client.sendTransaction([pauseInstruction]);
 
     // Then we expect the mint account to exist and have the pausable config extension.
     const mintAccount = await fetchMint(client.rpc, mint.address);

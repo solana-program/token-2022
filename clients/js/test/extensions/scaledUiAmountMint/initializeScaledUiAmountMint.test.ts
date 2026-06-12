@@ -1,16 +1,11 @@
 import { expect, it } from 'vitest';
-import {
-    createDefaultSolanaClient,
-    generateKeyPairSignerWithSol,
-    getCreateMintInstructions,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
 import { Account, generateKeyPairSigner, isSome } from '@solana/kit';
 import { extension, fetchMint, getInitializeScaledUiAmountMintInstruction, Mint } from '../../../src';
 
 it('initialize a mint account with a scaled ui amount mint extension', async () => {
     // Given a fresh client with no state the test cares about.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
 
     const multiplier = 1;
@@ -33,7 +28,7 @@ it('initialize a mint account with a scaled ui amount mint extension', async () 
         mint,
         payer: authority,
     });
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         createMintInstruction,
         getInitializeScaledUiAmountMintInstruction({
             mint: mint.address,

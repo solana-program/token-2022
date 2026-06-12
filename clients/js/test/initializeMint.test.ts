@@ -1,18 +1,18 @@
 import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, none, some } from '@solana/kit';
 import { Mint, TOKEN_2022_PROGRAM_ADDRESS, fetchMint, getInitializeMintInstruction, getMintSize } from '../src';
-import { createDefaultSolanaClient, generateKeyPairSignerWithSol, sendAndConfirmInstructions } from './_setup';
+import { createTestClient, generateKeyPairSignerWithSol } from './_setup';
 import { getCreateAccountInstruction } from '@solana-program/system';
 
 it('creates and initializes a new mint account', async () => {
     // Given an authority and a mint account.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
 
     // When we create and initialize a mint account at this address.
     const space = getMintSize();
     const rent = await client.rpc.getMinimumBalanceForRentExemption(BigInt(space)).send();
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         getCreateAccountInstruction({
             payer: authority,
             newAccount: mint,
@@ -43,9 +43,8 @@ it('creates and initializes a new mint account', async () => {
 
 it('creates a new mint account with a freeze authority', async () => {
     // Given an authority and a mint account.
-    const client = createDefaultSolanaClient();
-    const [payer, mintAuthority, freezeAuthority, mint] = await Promise.all([
-        generateKeyPairSignerWithSol(client),
+    const client = await createTestClient();
+    const [mintAuthority, freezeAuthority, mint] = await Promise.all([
         generateKeyPairSigner(),
         generateKeyPairSigner(),
         generateKeyPairSigner(),
@@ -54,9 +53,9 @@ it('creates a new mint account with a freeze authority', async () => {
     // When we create and initialize a mint account at this address.
     const space = getMintSize();
     const rent = await client.rpc.getMinimumBalanceForRentExemption(BigInt(space)).send();
-    await sendAndConfirmInstructions(client, payer, [
+    await client.sendTransaction([
         getCreateAccountInstruction({
-            payer,
+            payer: client.payer,
             newAccount: mint,
             lamports: rent,
             space,

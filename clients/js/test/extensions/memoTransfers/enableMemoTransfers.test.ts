@@ -2,17 +2,16 @@ import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
 import { Token, extension, fetchToken, getEnableMemoTransfersInstruction } from '../../../src';
 import {
-    createDefaultSolanaClient,
+    createTestClient,
     createMint,
     createToken,
     generateKeyPairSignerWithSol,
     getCreateTokenInstructions,
-    sendAndConfirmInstructions,
 } from '../../_setup';
 
 it('initializes a token account with an active memo transfers extension', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, token, owner] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -34,7 +33,7 @@ it('initializes a token account with an active memo transfers extension', async 
         payer: authority,
         token,
     });
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         createTokenInstruction,
         initTokenInstruction,
         getEnableMemoTransfersInstruction({ token: token.address, owner }),
@@ -52,7 +51,7 @@ it('initializes a token account with an active memo transfers extension', async 
 
 it('enables an disabled memo transfers extension', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, owner] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
 
     // And a token account with a disabled memo transfers extension.
@@ -66,7 +65,7 @@ it('enables an disabled memo transfers extension', async () => {
     });
 
     // When we enable the memo transfers extension.
-    await sendAndConfirmInstructions(client, authority, [getEnableMemoTransfersInstruction({ token, owner })]);
+    await client.sendTransaction([getEnableMemoTransfersInstruction({ token, owner })]);
 
     // Then we expect the token account to have the extension enabled.
     const tokenAccount = await fetchToken(client.rpc, token);

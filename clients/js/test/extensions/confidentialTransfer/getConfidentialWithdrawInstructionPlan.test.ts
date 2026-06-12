@@ -4,18 +4,15 @@ import { getConfidentialWithdrawInstructionPlan } from '../../../src/confidentia
 import {
     createConfidentialMint,
     createConfidentialTokenAccountWithBalance,
-    createDefaultSolanaClient,
+    createValidatorClient,
     generateKeyPairSignerWithSol,
-    sendAndConfirmInstructionPlan,
 } from '../../_setup';
 
 it('withdraws tokens from a confidential balance', async () => {
     // Given a confidential token account funded with an available confidential balance.
-    const client = createDefaultSolanaClient();
-    const [payer, owner] = await Promise.all([
-        generateKeyPairSignerWithSol(client),
-        generateKeyPairSignerWithSol(client),
-    ]);
+    const client = await createValidatorClient();
+    const payer = client.payer;
+    const owner = await generateKeyPairSignerWithSol(client);
     const { mint, mintAuthority } = await createConfidentialMint({ client, payer });
     const decimals = 2;
     const account = await createConfidentialTokenAccountWithBalance({
@@ -30,9 +27,7 @@ it('withdraws tokens from a confidential balance', async () => {
 
     // When we withdraw part of the confidential balance back to the public balance.
     const { data: tokenAccount } = await fetchToken(client.rpc, account.token);
-    await sendAndConfirmInstructionPlan(
-        client,
-        payer,
+    await client.sendTransactions(
         await getConfidentialWithdrawInstructionPlan({
             payer,
             rpc: client.rpc,

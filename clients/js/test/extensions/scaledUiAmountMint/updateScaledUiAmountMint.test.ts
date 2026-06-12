@@ -1,17 +1,12 @@
 import { expect, it } from 'vitest';
-import {
-    createDefaultSolanaClient,
-    createMint,
-    generateKeyPairSignerWithSol,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, createMint } from '../../_setup';
 import { isSome } from '@solana/kit';
 import { extension, fetchMint, getUpdateMultiplierScaledUiMintInstruction } from '../../../src';
 
 it('updates the multiplier of the scaled ui amount mint extension on a mint account', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
-    const [multiplierAuthority] = await Promise.all([generateKeyPairSignerWithSol(client)]);
+    const client = await createTestClient();
+    const multiplierAuthority = client.payer;
 
     const oldMultiplier = 1;
     const newMultiplier = 2;
@@ -32,7 +27,7 @@ it('updates the multiplier of the scaled ui amount mint extension on a mint acco
     });
 
     // When we update the scaled ui amount mint extension on the mint account
-    await sendAndConfirmInstructions(client, multiplierAuthority, [
+    await client.sendTransaction([
         getUpdateMultiplierScaledUiMintInstruction({
             mint,
             authority: multiplierAuthority.address,

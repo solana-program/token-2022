@@ -2,16 +2,15 @@ import { expect, it } from 'vitest';
 import {
     createConfidentialMint,
     createConfidentialTokenAccount,
-    createDefaultSolanaClient,
+    createValidatorClient,
     fetchAssociatedToken,
-    generateKeyPairSignerWithSol,
     getTokenExtension,
 } from '../../_setup';
 
 it('configures a token account for confidential transfers', async () => {
     // Given a confidential transfer mint and an account owner.
-    const client = createDefaultSolanaClient();
-    const owner = await generateKeyPairSignerWithSol(client);
+    const client = await createValidatorClient();
+    const owner = client.payer;
     const { mint } = await createConfidentialMint({ client, payer: owner });
 
     // When we create and configure an associated token account for confidential transfers.

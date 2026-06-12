@@ -8,17 +8,11 @@ import {
     Rpc,
 } from '@solana/kit';
 import { ExtensionType, getReallocateInstruction } from '../../src';
-import {
-    createDefaultSolanaClient,
-    createMint,
-    createToken,
-    generateKeyPairSignerWithSol,
-    sendAndConfirmInstructions,
-} from '../_setup';
+import { createTestClient, createMint, createToken, generateKeyPairSignerWithSol } from '../_setup';
 
 it('reallocates token accounts to fit the provided extensions', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, owner] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
 
     // And a token account with no extensions.
@@ -32,7 +26,7 @@ it('reallocates token accounts to fit the provided extensions', async () => {
     expect(await getAccountLength(client, token)).toBe(165);
 
     // When
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         getReallocateInstruction({
             token,
             owner,

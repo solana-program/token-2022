@@ -1,16 +1,11 @@
 import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, none, some } from '@solana/kit';
 import { Mint, extension, fetchMint, getInitializeTransferFeeConfigInstruction } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    generateKeyPairSignerWithSol,
-    getCreateMintInstructions,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
 
 it('initializes a mint account with transfer fee configurations', async () => {
     // Given an authority and a mint account.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
 
     // And a transfer fee config extension.
@@ -37,7 +32,7 @@ it('initializes a mint account with transfer fee configurations', async () => {
         mint,
         payer: authority,
     });
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         createMintInstruction,
         getInitializeTransferFeeConfigInstruction({
             mint: mint.address,

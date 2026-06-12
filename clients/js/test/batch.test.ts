@@ -4,9 +4,7 @@ import {
     AccountRole,
     decompileTransactionMessage,
     generateKeyPairSigner,
-    getBase64Encoder,
     getCompiledTransactionMessageDecoder,
-    getTransactionDecoder,
     Instruction,
     InstructionWithData,
     none,
@@ -29,13 +27,12 @@ import {
     Token2022Instruction,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '../src';
-import { createDefaultSolanaClient, generateKeyPairSignerWithSol, sendAndConfirmInstructions } from './_setup';
+import { createTestClient, getSingleTransactionContext } from './_setup';
 
 it('batches multiple token instructions together', async () => {
     // Given a client with some generated keypairs.
-    const client = createDefaultSolanaClient();
-    const [payer, mint, token, mintAuthority, tokenOwner] = await Promise.all([
-        generateKeyPairSignerWithSol(client),
+    const client = await createTestClient();
+    const [mint, token, mintAuthority, tokenOwner] = await Promise.all([
         generateKeyPairSigner(),
         generateKeyPairSigner(),
         generateKeyPairSigner(),
@@ -49,16 +46,16 @@ it('batches multiple token instructions together', async () => {
     ]);
 
     // When we send a transaction with multiple token instructions batched together.
-    await sendAndConfirmInstructions(client, payer, [
+    await client.sendTransaction([
         getCreateAccountInstruction({
-            payer,
+            payer: client.payer,
             newAccount: mint,
             space: mintSize,
             lamports: mintRent,
             programAddress: TOKEN_2022_PROGRAM_ADDRESS,
         }),
         getCreateAccountInstruction({
-            payer,
+            payer: client.payer,
             newAccount: token,
             space: tokenSize,
             lamports: tokenRent,
@@ -220,9 +217,8 @@ it('parses batch instructions including its inner instructions', async () => {
 
 it('parses batch instructions from a fetched transaction', async () => {
     // Given a client with some generated keypairs.
-    const client = createDefaultSolanaClient();
-    const [payer, mint, token, mintAuthority, tokenOwner] = await Promise.all([
-        generateKeyPairSignerWithSol(client),
+    const client = await createTestClient();
+    const [mint, token, mintAuthority, tokenOwner] = await Promise.all([
         generateKeyPairSigner(),
         generateKeyPairSigner(),
         generateKeyPairSigner(),
@@ -236,16 +232,16 @@ it('parses batch instructions from a fetched transaction', async () => {
     ]);
 
     // And a sent transaction with a batch instruction.
-    const signature = await sendAndConfirmInstructions(client, payer, [
+    const result = await client.sendTransaction([
         getCreateAccountInstruction({
-            payer,
+            payer: client.payer,
             newAccount: mint,
             space: mintSize,
             lamports: mintRent,
             programAddress: TOKEN_2022_PROGRAM_ADDRESS,
         }),
         getCreateAccountInstruction({
-            payer,
+            payer: client.payer,
             newAccount: token,
             space: tokenSize,
             lamports: tokenRent,
@@ -271,14 +267,9 @@ it('parses batch instructions from a fetched transaction', async () => {
         ]),
     ]);
 
-    // And given we access the batch instruction from the fetched transaction.
-    const transactionResult = await client.rpc
-        .getTransaction(signature, { encoding: 'base64', maxSupportedTransactionVersion: 0 })
-        .send();
-    expect(transactionResult).toBeTruthy();
-    const transactionBytes = getBase64Encoder().encode(transactionResult!.transaction[0]);
-    const transaction = getTransactionDecoder().decode(transactionBytes);
-    const compiledMessage = getCompiledTransactionMessageDecoder().decode(transaction.messageBytes);
+    // And given we access the batch instruction from the executed transaction.
+    const context = getSingleTransactionContext(result);
+    const compiledMessage = getCompiledTransactionMessageDecoder().decode(context.transaction.messageBytes);
     const message = decompileTransactionMessage(compiledMessage);
     const batchInstruction = message.instructions.find(
         instruction => instruction.programAddress === TOKEN_2022_PROGRAM_ADDRESS,

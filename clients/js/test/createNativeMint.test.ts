@@ -1,20 +1,19 @@
 import { expect, it } from 'vitest';
 import { Account, address, none } from '@solana/kit';
 import { Mint, fetchMint, getCreateNativeMintInstruction } from '../src';
-import { createDefaultSolanaClient, generateKeyPairSignerWithSol, sendAndConfirmInstructions } from './_setup';
+import { createTestClient } from './_setup';
 
 //Mint for native SOL Token accounts
 const NATIVE_MINT = address('9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP');
 
 it('creates a native mint account', async () => {
-    // Given a payer account.
-    const client = createDefaultSolanaClient();
-    const payer = await generateKeyPairSignerWithSol(client);
+    // Given a client.
+    const client = await createTestClient();
 
     // When we create a native mint account.
-    await sendAndConfirmInstructions(client, payer, [
+    await client.sendTransaction([
         getCreateNativeMintInstruction({
-            payer: payer,
+            payer: client.payer,
             nativeMint: NATIVE_MINT,
         }),
     ]);

@@ -8,16 +8,11 @@ import {
     isExtension,
     tokenMetadataField,
 } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    createMint,
-    generateKeyPairSignerWithSol,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, createMint, generateKeyPairSignerWithSol } from '../../_setup';
 
 it('removes a custom field on the token metadata extension', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, mint, updateAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -45,7 +40,7 @@ it('removes a custom field on the token metadata extension', async () => {
         mint,
         payer: authority,
     });
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         getUpdateTokenMetadataFieldInstruction({
             metadata: mint.address,
             updateAuthority: updateAuthority,
@@ -55,7 +50,7 @@ it('removes a custom field on the token metadata extension', async () => {
     ]);
 
     // When we remove the custom field from the token metadata extension.
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         getRemoveTokenMetadataKeyInstruction({
             metadata: mint.address,
             updateAuthority: updateAuthority,

@@ -1,16 +1,11 @@
 import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
 import { Mint, extension, fetchMint, getInitializePermissionedBurnInstruction } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    generateKeyPairSignerWithSol,
-    getCreateMintInstructions,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
 
 it('initializes a mint with permissioned burn', async () => {
     // Given a fresh client and signers
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, mint, permissionedBurnAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -31,7 +26,7 @@ it('initializes a mint with permissioned burn', async () => {
         payer: authority,
     });
 
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         createMintInstruction,
         getInitializePermissionedBurnInstruction({
             mint: mint.address,
