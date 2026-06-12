@@ -13,6 +13,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -29,19 +31,19 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import { getAccountStateDecoder, getAccountStateEncoder, type AccountState, type AccountStateArgs } from '../types';
 
 export const UPDATE_DEFAULT_ACCOUNT_STATE_DISCRIMINATOR = 28;
 
-export function getUpdateDefaultAccountStateDiscriminatorBytes() {
+export function getUpdateDefaultAccountStateDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(UPDATE_DEFAULT_ACCOUNT_STATE_DISCRIMINATOR);
 }
 
 export const UPDATE_DEFAULT_ACCOUNT_STATE_DEFAULT_ACCOUNT_STATE_DISCRIMINATOR = 1;
 
-export function getUpdateDefaultAccountStateDefaultAccountStateDiscriminatorBytes() {
+export function getUpdateDefaultAccountStateDefaultAccountStateDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(UPDATE_DEFAULT_ACCOUNT_STATE_DEFAULT_ACCOUNT_STATE_DISCRIMINATOR);
 }
 
@@ -139,7 +141,7 @@ export function getUpdateDefaultAccountStateInstruction<
         mint: { value: input.mint ?? null, isWritable: true },
         freezeAuthority: { value: input.freezeAuthority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -153,7 +155,11 @@ export function getUpdateDefaultAccountStateInstruction<
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.mint), getAccountMeta(accounts.freezeAuthority), ...remainingAccounts],
+        accounts: [
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('freezeAuthority', accounts.freezeAuthority),
+            ...remainingAccounts,
+        ],
         data: getUpdateDefaultAccountStateInstructionDataEncoder().encode(
             args as UpdateDefaultAccountStateInstructionDataArgs,
         ),
@@ -190,8 +196,10 @@ export function parseUpdateDefaultAccountStateInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedUpdateDefaultAccountStateInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 2) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 2,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

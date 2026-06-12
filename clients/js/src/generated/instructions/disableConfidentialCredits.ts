@@ -13,6 +13,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -29,18 +31,18 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const DISABLE_CONFIDENTIAL_CREDITS_DISCRIMINATOR = 27;
 
-export function getDisableConfidentialCreditsDiscriminatorBytes() {
+export function getDisableConfidentialCreditsDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(DISABLE_CONFIDENTIAL_CREDITS_DISCRIMINATOR);
 }
 
 export const DISABLE_CONFIDENTIAL_CREDITS_CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 10;
 
-export function getDisableConfidentialCreditsConfidentialTransferDiscriminatorBytes() {
+export function getDisableConfidentialCreditsConfidentialTransferDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(DISABLE_CONFIDENTIAL_CREDITS_CONFIDENTIAL_TRANSFER_DISCRIMINATOR);
 }
 
@@ -130,7 +132,7 @@ export function getDisableConfidentialCreditsInstruction<
         token: { value: input.token ?? null, isWritable: true },
         authority: { value: input.authority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -144,7 +146,11 @@ export function getDisableConfidentialCreditsInstruction<
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.token), getAccountMeta(accounts.authority), ...remainingAccounts],
+        accounts: [
+            getAccountMeta('token', accounts.token),
+            getAccountMeta('authority', accounts.authority),
+            ...remainingAccounts,
+        ],
         data: getDisableConfidentialCreditsInstructionDataEncoder().encode({}),
         programAddress,
     } as DisableConfidentialCreditsInstruction<
@@ -179,8 +185,10 @@ export function parseDisableConfidentialCreditsInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedDisableConfidentialCreditsInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 2) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 2,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

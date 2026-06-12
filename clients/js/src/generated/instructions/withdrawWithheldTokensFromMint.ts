@@ -13,6 +13,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -29,18 +31,18 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const WITHDRAW_WITHHELD_TOKENS_FROM_MINT_DISCRIMINATOR = 26;
 
-export function getWithdrawWithheldTokensFromMintDiscriminatorBytes() {
+export function getWithdrawWithheldTokensFromMintDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(WITHDRAW_WITHHELD_TOKENS_FROM_MINT_DISCRIMINATOR);
 }
 
 export const WITHDRAW_WITHHELD_TOKENS_FROM_MINT_TRANSFER_FEE_DISCRIMINATOR = 2;
 
-export function getWithdrawWithheldTokensFromMintTransferFeeDiscriminatorBytes() {
+export function getWithdrawWithheldTokensFromMintTransferFeeDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(WITHDRAW_WITHHELD_TOKENS_FROM_MINT_TRANSFER_FEE_DISCRIMINATOR);
 }
 
@@ -143,7 +145,7 @@ export function getWithdrawWithheldTokensFromMintInstruction<
         feeReceiver: { value: input.feeReceiver ?? null, isWritable: true },
         withdrawWithheldAuthority: { value: input.withdrawWithheldAuthority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -158,9 +160,9 @@ export function getWithdrawWithheldTokensFromMintInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.mint),
-            getAccountMeta(accounts.feeReceiver),
-            getAccountMeta(accounts.withdrawWithheldAuthority),
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('feeReceiver', accounts.feeReceiver),
+            getAccountMeta('withdrawWithheldAuthority', accounts.withdrawWithheldAuthority),
             ...remainingAccounts,
         ],
         data: getWithdrawWithheldTokensFromMintInstructionDataEncoder().encode({}),
@@ -204,8 +206,10 @@ export function parseWithdrawWithheldTokensFromMintInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedWithdrawWithheldTokensFromMintInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 3) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 3,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

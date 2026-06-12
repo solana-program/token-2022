@@ -18,6 +18,8 @@ import {
     getU32Encoder,
     getUtf8Decoder,
     getUtf8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -34,12 +36,14 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const INITIALIZE_TOKEN_METADATA_DISCRIMINATOR = new Uint8Array([210, 225, 30, 162, 88, 184, 77, 141]);
+export const INITIALIZE_TOKEN_METADATA_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
+    210, 225, 30, 162, 88, 184, 77, 141,
+]);
 
-export function getInitializeTokenMetadataDiscriminatorBytes() {
+export function getInitializeTokenMetadataDiscriminatorBytes(): ReadonlyUint8Array {
     return getBytesEncoder().encode(INITIALIZE_TOKEN_METADATA_DISCRIMINATOR);
 }
 
@@ -155,7 +159,7 @@ export function getInitializeTokenMetadataInstruction<
         mint: { value: input.mint ?? null, isWritable: false },
         mintAuthority: { value: input.mintAuthority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -163,10 +167,10 @@ export function getInitializeTokenMetadataInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.metadata),
-            getAccountMeta(accounts.updateAuthority),
-            getAccountMeta(accounts.mint),
-            getAccountMeta(accounts.mintAuthority),
+            getAccountMeta('metadata', accounts.metadata),
+            getAccountMeta('updateAuthority', accounts.updateAuthority),
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('mintAuthority', accounts.mintAuthority),
         ],
         data: getInitializeTokenMetadataInstructionDataEncoder().encode(
             args as InitializeTokenMetadataInstructionDataArgs,
@@ -204,8 +208,10 @@ export function parseInitializeTokenMetadataInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeTokenMetadataInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 4) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 4,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

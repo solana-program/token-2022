@@ -18,6 +18,8 @@ import {
     getStructEncoder,
     getU64Decoder,
     getU64Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -36,12 +38,14 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const INITIALIZE_TOKEN_GROUP_DISCRIMINATOR = new Uint8Array([121, 113, 108, 39, 54, 51, 0, 4]);
+export const INITIALIZE_TOKEN_GROUP_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
+    121, 113, 108, 39, 54, 51, 0, 4,
+]);
 
-export function getInitializeTokenGroupDiscriminatorBytes() {
+export function getInitializeTokenGroupDiscriminatorBytes(): ReadonlyUint8Array {
     return getBytesEncoder().encode(INITIALIZE_TOKEN_GROUP_DISCRIMINATOR);
 }
 
@@ -138,7 +142,7 @@ export function getInitializeTokenGroupInstruction<
         mint: { value: input.mint ?? null, isWritable: false },
         mintAuthority: { value: input.mintAuthority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -146,9 +150,9 @@ export function getInitializeTokenGroupInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.group),
-            getAccountMeta(accounts.mint),
-            getAccountMeta(accounts.mintAuthority),
+            getAccountMeta('group', accounts.group),
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('mintAuthority', accounts.mintAuthority),
         ],
         data: getInitializeTokenGroupInstructionDataEncoder().encode(args as InitializeTokenGroupInstructionDataArgs),
         programAddress,
@@ -177,8 +181,10 @@ export function parseInitializeTokenGroupInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeTokenGroupInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 3) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 3,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

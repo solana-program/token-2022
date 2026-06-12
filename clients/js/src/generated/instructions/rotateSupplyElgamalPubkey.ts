@@ -17,6 +17,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -33,18 +35,18 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const ROTATE_SUPPLY_ELGAMAL_PUBKEY_DISCRIMINATOR = 42;
 
-export function getRotateSupplyElgamalPubkeyDiscriminatorBytes() {
+export function getRotateSupplyElgamalPubkeyDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(ROTATE_SUPPLY_ELGAMAL_PUBKEY_DISCRIMINATOR);
 }
 
 export const ROTATE_SUPPLY_ELGAMAL_PUBKEY_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR = 1;
 
-export function getRotateSupplyElgamalPubkeyConfidentialMintBurnDiscriminatorBytes() {
+export function getRotateSupplyElgamalPubkeyConfidentialMintBurnDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(ROTATE_SUPPLY_ELGAMAL_PUBKEY_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR);
 }
 
@@ -177,7 +179,7 @@ export function getRotateSupplyElgamalPubkeyInstruction<
         instructionsSysvarOrContextState: { value: input.instructionsSysvarOrContextState ?? null, isWritable: false },
         authority: { value: input.authority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -198,9 +200,9 @@ export function getRotateSupplyElgamalPubkeyInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.mint),
-            getAccountMeta(accounts.instructionsSysvarOrContextState),
-            getAccountMeta(accounts.authority),
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('instructionsSysvarOrContextState', accounts.instructionsSysvarOrContextState),
+            getAccountMeta('authority', accounts.authority),
             ...remainingAccounts,
         ],
         data: getRotateSupplyElgamalPubkeyInstructionDataEncoder().encode(
@@ -247,8 +249,10 @@ export function parseRotateSupplyElgamalPubkeyInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedRotateSupplyElgamalPubkeyInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 3) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 3,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

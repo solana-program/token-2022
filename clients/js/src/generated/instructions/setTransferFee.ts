@@ -17,6 +17,8 @@ import {
     getU64Encoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -33,18 +35,18 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const SET_TRANSFER_FEE_DISCRIMINATOR = 26;
 
-export function getSetTransferFeeDiscriminatorBytes() {
+export function getSetTransferFeeDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(SET_TRANSFER_FEE_DISCRIMINATOR);
 }
 
 export const SET_TRANSFER_FEE_TRANSFER_FEE_DISCRIMINATOR = 5;
 
-export function getSetTransferFeeTransferFeeDiscriminatorBytes() {
+export function getSetTransferFeeTransferFeeDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(SET_TRANSFER_FEE_TRANSFER_FEE_DISCRIMINATOR);
 }
 
@@ -151,7 +153,7 @@ export function getSetTransferFeeInstruction<
         mint: { value: input.mint ?? null, isWritable: true },
         transferFeeConfigAuthority: { value: input.transferFeeConfigAuthority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -166,8 +168,8 @@ export function getSetTransferFeeInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.mint),
-            getAccountMeta(accounts.transferFeeConfigAuthority),
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('transferFeeConfigAuthority', accounts.transferFeeConfigAuthority),
             ...remainingAccounts,
         ],
         data: getSetTransferFeeInstructionDataEncoder().encode(args as SetTransferFeeInstructionDataArgs),
@@ -202,8 +204,10 @@ export function parseSetTransferFeeInstruction<TProgram extends string, TAccount
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSetTransferFeeInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 2) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 2,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

@@ -17,6 +17,8 @@ import {
     getU64Decoder,
     getU64Encoder,
     none,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type Address,
@@ -31,12 +33,14 @@ import {
     type ReadonlyAccount,
     type ReadonlyUint8Array,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const EMIT_TOKEN_METADATA_DISCRIMINATOR = new Uint8Array([250, 166, 180, 250, 13, 12, 184, 70]);
+export const EMIT_TOKEN_METADATA_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
+    250, 166, 180, 250, 13, 12, 184, 70,
+]);
 
-export function getEmitTokenMetadataDiscriminatorBytes() {
+export function getEmitTokenMetadataDiscriminatorBytes(): ReadonlyUint8Array {
     return getBytesEncoder().encode(EMIT_TOKEN_METADATA_DISCRIMINATOR);
 }
 
@@ -114,14 +118,14 @@ export function getEmitTokenMetadataInstruction<
 
     // Original accounts.
     const originalAccounts = { metadata: { value: input.metadata ?? null, isWritable: false } };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.metadata)],
+        accounts: [getAccountMeta('metadata', accounts.metadata)],
         data: getEmitTokenMetadataInstructionDataEncoder().encode(args as EmitTokenMetadataInstructionDataArgs),
         programAddress,
     } as EmitTokenMetadataInstruction<TProgramAddress, TAccountMetadata>);
@@ -147,8 +151,10 @@ export function parseEmitTokenMetadataInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedEmitTokenMetadataInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 1) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 1,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

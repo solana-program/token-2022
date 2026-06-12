@@ -17,6 +17,8 @@ import {
     getU8Decoder,
     getU8Encoder,
     none,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type Address,
@@ -32,12 +34,12 @@ import {
     type ReadonlyUint8Array,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const INITIALIZE_MINT_DISCRIMINATOR = 0;
 
-export function getInitializeMintDiscriminatorBytes() {
+export function getInitializeMintDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(INITIALIZE_MINT_DISCRIMINATOR);
 }
 
@@ -133,7 +135,7 @@ export function getInitializeMintInstruction<
         mint: { value: input.mint ?? null, isWritable: true },
         rent: { value: input.rent ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -146,7 +148,7 @@ export function getInitializeMintInstruction<
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.mint), getAccountMeta(accounts.rent)],
+        accounts: [getAccountMeta('mint', accounts.mint), getAccountMeta('rent', accounts.rent)],
         data: getInitializeMintInstructionDataEncoder().encode(args as InitializeMintInstructionDataArgs),
         programAddress,
     } as InitializeMintInstruction<TProgramAddress, TAccountMint, TAccountRent>);
@@ -172,8 +174,10 @@ export function parseInitializeMintInstruction<TProgram extends string, TAccount
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeMintInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 2) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 2,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

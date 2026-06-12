@@ -9,13 +9,140 @@
 import {
     assertIsInstructionWithAccounts,
     containsBytes,
+    extendClient,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT,
+    SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
+    SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE,
+    SolanaError,
     type Address,
+    type ClientWithRpc,
+    type ClientWithTransactionPlanning,
+    type ClientWithTransactionSending,
+    type GetAccountInfoApi,
+    type GetMultipleAccountsApi,
     type Instruction,
     type InstructionWithData,
     type ReadonlyUint8Array,
 } from '@solana/kit';
 import {
+    addSelfFetchFunctions,
+    addSelfPlanAndSendFunctions,
+    type SelfFetchFunctions,
+    type SelfPlanAndSendFunctions,
+} from '@solana/kit/program-client-core';
+import {
+    getMintCodec,
+    getMultisigCodec,
+    getTokenCodec,
+    type Mint,
+    type MintArgs,
+    type Multisig,
+    type MultisigArgs,
+    type Token,
+    type TokenArgs,
+} from '../accounts';
+import {
+    getAmountToUiAmountInstruction,
+    getApplyConfidentialPendingBalanceInstruction,
+    getApplyConfidentialPendingBurnInstruction,
+    getApproveCheckedInstruction,
+    getApproveConfidentialTransferAccountInstruction,
+    getApproveInstruction,
+    getBatchInstruction,
+    getBurnCheckedInstruction,
+    getBurnInstruction,
+    getCloseAccountInstruction,
+    getConfidentialBurnInstruction,
+    getConfidentialDepositInstruction,
+    getConfidentialMintInstruction,
+    getConfidentialTransferInstruction,
+    getConfidentialTransferWithFeeInstruction,
+    getConfidentialWithdrawInstruction,
+    getConfigureConfidentialTransferAccountInstruction,
+    getConfigureConfidentialTransferAccountWithRegistryInstruction,
+    getCreateNativeMintInstruction,
+    getDisableConfidentialCreditsInstruction,
+    getDisableCpiGuardInstruction,
+    getDisableHarvestToMintInstruction,
+    getDisableMemoTransfersInstruction,
+    getDisableNonConfidentialCreditsInstruction,
+    getEmitTokenMetadataInstruction,
+    getEmptyConfidentialTransferAccountInstruction,
+    getEnableConfidentialCreditsInstruction,
+    getEnableCpiGuardInstruction,
+    getEnableHarvestToMintInstruction,
+    getEnableMemoTransfersInstruction,
+    getEnableNonConfidentialCreditsInstruction,
+    getFreezeAccountInstruction,
+    getGetAccountDataSizeInstruction,
+    getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction,
+    getHarvestWithheldTokensToMintInstruction,
+    getInitializeAccount2Instruction,
+    getInitializeAccount3Instruction,
+    getInitializeAccountInstruction,
+    getInitializeConfidentialMintBurnInstruction,
+    getInitializeConfidentialTransferFeeInstruction,
+    getInitializeConfidentialTransferMintInstruction,
+    getInitializeDefaultAccountStateInstruction,
+    getInitializeGroupMemberPointerInstruction,
+    getInitializeGroupPointerInstruction,
+    getInitializeImmutableOwnerInstruction,
+    getInitializeInterestBearingMintInstruction,
+    getInitializeMetadataPointerInstruction,
+    getInitializeMint2Instruction,
+    getInitializeMintCloseAuthorityInstruction,
+    getInitializeMintInstruction,
+    getInitializeMultisig2Instruction,
+    getInitializeMultisigInstruction,
+    getInitializeNonTransferableMintInstruction,
+    getInitializePausableConfigInstruction,
+    getInitializePermanentDelegateInstruction,
+    getInitializePermissionedBurnInstruction,
+    getInitializeScaledUiAmountMintInstruction,
+    getInitializeTokenGroupInstruction,
+    getInitializeTokenGroupMemberInstruction,
+    getInitializeTokenMetadataInstruction,
+    getInitializeTransferFeeConfigInstruction,
+    getInitializeTransferHookInstruction,
+    getMintToCheckedInstruction,
+    getMintToInstruction,
+    getPauseInstruction,
+    getPermissionedBurnCheckedInstruction,
+    getPermissionedBurnInstruction,
+    getPermissionedConfidentialBurnInstruction,
+    getReallocateInstruction,
+    getRemoveTokenMetadataKeyInstruction,
+    getResumeInstruction,
+    getRevokeInstruction,
+    getRotateSupplyElgamalPubkeyInstruction,
+    getSetAuthorityInstruction,
+    getSetTransferFeeInstruction,
+    getSyncNativeInstruction,
+    getThawAccountInstruction,
+    getTransferCheckedInstruction,
+    getTransferCheckedWithFeeInstruction,
+    getTransferInstruction,
+    getUiAmountToAmountInstruction,
+    getUnwrapLamportsInstruction,
+    getUpdateConfidentialMintBurnDecryptableSupplyInstruction,
+    getUpdateConfidentialTransferMintInstruction,
+    getUpdateDefaultAccountStateInstruction,
+    getUpdateGroupMemberPointerInstruction,
+    getUpdateGroupPointerInstruction,
+    getUpdateMetadataPointerInstruction,
+    getUpdateMultiplierScaledUiMintInstruction,
+    getUpdateRateInterestBearingMintInstruction,
+    getUpdateTokenGroupMaxSizeInstruction,
+    getUpdateTokenGroupUpdateAuthorityInstruction,
+    getUpdateTokenMetadataFieldInstruction,
+    getUpdateTokenMetadataUpdateAuthorityInstruction,
+    getUpdateTransferHookInstruction,
+    getWithdrawExcessLamportsInstruction,
+    getWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruction,
+    getWithdrawWithheldTokensFromAccountsInstruction,
+    getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction,
+    getWithdrawWithheldTokensFromMintInstruction,
     parseAmountToUiAmountInstruction,
     parseApplyConfidentialPendingBalanceInstruction,
     parseApplyConfidentialPendingBurnInstruction,
@@ -116,6 +243,70 @@ import {
     parseWithdrawWithheldTokensFromAccountsInstruction,
     parseWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction,
     parseWithdrawWithheldTokensFromMintInstruction,
+    type AmountToUiAmountInput,
+    type ApplyConfidentialPendingBalanceInput,
+    type ApplyConfidentialPendingBurnInput,
+    type ApproveCheckedInput,
+    type ApproveConfidentialTransferAccountInput,
+    type ApproveInput,
+    type BatchInput,
+    type BurnCheckedInput,
+    type BurnInput,
+    type CloseAccountInput,
+    type ConfidentialBurnInput,
+    type ConfidentialDepositInput,
+    type ConfidentialMintInput,
+    type ConfidentialTransferInput,
+    type ConfidentialTransferWithFeeInput,
+    type ConfidentialWithdrawInput,
+    type ConfigureConfidentialTransferAccountInput,
+    type ConfigureConfidentialTransferAccountWithRegistryInput,
+    type CreateNativeMintInput,
+    type DisableConfidentialCreditsInput,
+    type DisableCpiGuardInput,
+    type DisableHarvestToMintInput,
+    type DisableMemoTransfersInput,
+    type DisableNonConfidentialCreditsInput,
+    type EmitTokenMetadataInput,
+    type EmptyConfidentialTransferAccountInput,
+    type EnableConfidentialCreditsInput,
+    type EnableCpiGuardInput,
+    type EnableHarvestToMintInput,
+    type EnableMemoTransfersInput,
+    type EnableNonConfidentialCreditsInput,
+    type FreezeAccountInput,
+    type GetAccountDataSizeInput,
+    type HarvestWithheldTokensToMintForConfidentialTransferFeeInput,
+    type HarvestWithheldTokensToMintInput,
+    type InitializeAccount2Input,
+    type InitializeAccount3Input,
+    type InitializeAccountInput,
+    type InitializeConfidentialMintBurnInput,
+    type InitializeConfidentialTransferFeeInput,
+    type InitializeConfidentialTransferMintInput,
+    type InitializeDefaultAccountStateInput,
+    type InitializeGroupMemberPointerInput,
+    type InitializeGroupPointerInput,
+    type InitializeImmutableOwnerInput,
+    type InitializeInterestBearingMintInput,
+    type InitializeMetadataPointerInput,
+    type InitializeMint2Input,
+    type InitializeMintCloseAuthorityInput,
+    type InitializeMintInput,
+    type InitializeMultisig2Input,
+    type InitializeMultisigInput,
+    type InitializeNonTransferableMintInput,
+    type InitializePausableConfigInput,
+    type InitializePermanentDelegateInput,
+    type InitializePermissionedBurnInput,
+    type InitializeScaledUiAmountMintInput,
+    type InitializeTokenGroupInput,
+    type InitializeTokenGroupMemberInput,
+    type InitializeTokenMetadataInput,
+    type InitializeTransferFeeConfigInput,
+    type InitializeTransferHookInput,
+    type MintToCheckedInput,
+    type MintToInput,
     type ParsedAmountToUiAmountInstruction,
     type ParsedApplyConfidentialPendingBalanceInstruction,
     type ParsedApplyConfidentialPendingBurnInstruction,
@@ -216,6 +407,42 @@ import {
     type ParsedWithdrawWithheldTokensFromAccountsInstruction,
     type ParsedWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction,
     type ParsedWithdrawWithheldTokensFromMintInstruction,
+    type PauseInput,
+    type PermissionedBurnCheckedInput,
+    type PermissionedBurnInput,
+    type PermissionedConfidentialBurnInput,
+    type ReallocateInput,
+    type RemoveTokenMetadataKeyInput,
+    type ResumeInput,
+    type RevokeInput,
+    type RotateSupplyElgamalPubkeyInput,
+    type SetAuthorityInput,
+    type SetTransferFeeInput,
+    type SyncNativeInput,
+    type ThawAccountInput,
+    type TransferCheckedInput,
+    type TransferCheckedWithFeeInput,
+    type TransferInput,
+    type UiAmountToAmountInput,
+    type UnwrapLamportsInput,
+    type UpdateConfidentialMintBurnDecryptableSupplyInput,
+    type UpdateConfidentialTransferMintInput,
+    type UpdateDefaultAccountStateInput,
+    type UpdateGroupMemberPointerInput,
+    type UpdateGroupPointerInput,
+    type UpdateMetadataPointerInput,
+    type UpdateMultiplierScaledUiMintInput,
+    type UpdateRateInterestBearingMintInput,
+    type UpdateTokenGroupMaxSizeInput,
+    type UpdateTokenGroupUpdateAuthorityInput,
+    type UpdateTokenMetadataFieldInput,
+    type UpdateTokenMetadataUpdateAuthorityInput,
+    type UpdateTransferHookInput,
+    type WithdrawExcessLamportsInput,
+    type WithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInput,
+    type WithdrawWithheldTokensFromAccountsInput,
+    type WithdrawWithheldTokensFromMintForConfidentialTransferFeeInput,
+    type WithdrawWithheldTokensFromMintInput,
 } from '../instructions';
 
 export const TOKEN_2022_PROGRAM_ADDRESS =
@@ -238,7 +465,10 @@ export function identifyToken2022Account(account: { data: ReadonlyUint8Array } |
     if (data.length === 355) {
         return Token2022Account.Multisig;
     }
-    throw new Error('The provided account could not be identified as a token-2022 account.');
+    throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT, {
+        accountData: data,
+        programName: 'token-2022',
+    });
 }
 
 export enum Token2022Instruction {
@@ -648,7 +878,10 @@ export function identifyToken2022Instruction(
     if (containsBytes(data, getU8Encoder().encode(255), 0)) {
         return Token2022Instruction.Batch;
     }
-    throw new Error('The provided instruction could not be identified as a token-2022 instruction.');
+    throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION, {
+        instructionData: data,
+        programName: 'token-2022',
+    });
 }
 
 export type ParsedToken2022Instruction<TProgram extends string = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'> =
@@ -1522,6 +1755,512 @@ export function parseToken2022Instruction<TProgram extends string>(
             return { instructionType: Token2022Instruction.Batch, ...parseBatchInstruction(instruction) };
         }
         default:
-            throw new Error(`Unrecognized instruction type: ${instructionType as string}`);
+            throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE, {
+                instructionType: instructionType as string,
+                programName: 'token-2022',
+            });
     }
+}
+
+export type Token2022Plugin = { accounts: Token2022PluginAccounts; instructions: Token2022PluginInstructions };
+
+export type Token2022PluginAccounts = {
+    mint: ReturnType<typeof getMintCodec> & SelfFetchFunctions<MintArgs, Mint>;
+    token: ReturnType<typeof getTokenCodec> & SelfFetchFunctions<TokenArgs, Token>;
+    multisig: ReturnType<typeof getMultisigCodec> & SelfFetchFunctions<MultisigArgs, Multisig>;
+};
+
+export type Token2022PluginInstructions = {
+    initializeMint: (
+        input: InitializeMintInput,
+    ) => ReturnType<typeof getInitializeMintInstruction> & SelfPlanAndSendFunctions;
+    initializeAccount: (
+        input: InitializeAccountInput,
+    ) => ReturnType<typeof getInitializeAccountInstruction> & SelfPlanAndSendFunctions;
+    initializeMultisig: (
+        input: InitializeMultisigInput,
+    ) => ReturnType<typeof getInitializeMultisigInstruction> & SelfPlanAndSendFunctions;
+    transfer: (input: TransferInput) => ReturnType<typeof getTransferInstruction> & SelfPlanAndSendFunctions;
+    approve: (input: ApproveInput) => ReturnType<typeof getApproveInstruction> & SelfPlanAndSendFunctions;
+    revoke: (input: RevokeInput) => ReturnType<typeof getRevokeInstruction> & SelfPlanAndSendFunctions;
+    setAuthority: (
+        input: SetAuthorityInput,
+    ) => ReturnType<typeof getSetAuthorityInstruction> & SelfPlanAndSendFunctions;
+    mintTo: (input: MintToInput) => ReturnType<typeof getMintToInstruction> & SelfPlanAndSendFunctions;
+    burn: (input: BurnInput) => ReturnType<typeof getBurnInstruction> & SelfPlanAndSendFunctions;
+    closeAccount: (
+        input: CloseAccountInput,
+    ) => ReturnType<typeof getCloseAccountInstruction> & SelfPlanAndSendFunctions;
+    freezeAccount: (
+        input: FreezeAccountInput,
+    ) => ReturnType<typeof getFreezeAccountInstruction> & SelfPlanAndSendFunctions;
+    thawAccount: (input: ThawAccountInput) => ReturnType<typeof getThawAccountInstruction> & SelfPlanAndSendFunctions;
+    transferChecked: (
+        input: TransferCheckedInput,
+    ) => ReturnType<typeof getTransferCheckedInstruction> & SelfPlanAndSendFunctions;
+    approveChecked: (
+        input: ApproveCheckedInput,
+    ) => ReturnType<typeof getApproveCheckedInstruction> & SelfPlanAndSendFunctions;
+    mintToChecked: (
+        input: MintToCheckedInput,
+    ) => ReturnType<typeof getMintToCheckedInstruction> & SelfPlanAndSendFunctions;
+    burnChecked: (input: BurnCheckedInput) => ReturnType<typeof getBurnCheckedInstruction> & SelfPlanAndSendFunctions;
+    initializeAccount2: (
+        input: InitializeAccount2Input,
+    ) => ReturnType<typeof getInitializeAccount2Instruction> & SelfPlanAndSendFunctions;
+    syncNative: (input: SyncNativeInput) => ReturnType<typeof getSyncNativeInstruction> & SelfPlanAndSendFunctions;
+    initializeAccount3: (
+        input: InitializeAccount3Input,
+    ) => ReturnType<typeof getInitializeAccount3Instruction> & SelfPlanAndSendFunctions;
+    initializeMultisig2: (
+        input: InitializeMultisig2Input,
+    ) => ReturnType<typeof getInitializeMultisig2Instruction> & SelfPlanAndSendFunctions;
+    initializeMint2: (
+        input: InitializeMint2Input,
+    ) => ReturnType<typeof getInitializeMint2Instruction> & SelfPlanAndSendFunctions;
+    getAccountDataSize: (
+        input: GetAccountDataSizeInput,
+    ) => ReturnType<typeof getGetAccountDataSizeInstruction> & SelfPlanAndSendFunctions;
+    initializeImmutableOwner: (
+        input: InitializeImmutableOwnerInput,
+    ) => ReturnType<typeof getInitializeImmutableOwnerInstruction> & SelfPlanAndSendFunctions;
+    amountToUiAmount: (
+        input: AmountToUiAmountInput,
+    ) => ReturnType<typeof getAmountToUiAmountInstruction> & SelfPlanAndSendFunctions;
+    uiAmountToAmount: (
+        input: UiAmountToAmountInput,
+    ) => ReturnType<typeof getUiAmountToAmountInstruction> & SelfPlanAndSendFunctions;
+    initializeMintCloseAuthority: (
+        input: InitializeMintCloseAuthorityInput,
+    ) => ReturnType<typeof getInitializeMintCloseAuthorityInstruction> & SelfPlanAndSendFunctions;
+    initializeTransferFeeConfig: (
+        input: InitializeTransferFeeConfigInput,
+    ) => ReturnType<typeof getInitializeTransferFeeConfigInstruction> & SelfPlanAndSendFunctions;
+    transferCheckedWithFee: (
+        input: TransferCheckedWithFeeInput,
+    ) => ReturnType<typeof getTransferCheckedWithFeeInstruction> & SelfPlanAndSendFunctions;
+    withdrawWithheldTokensFromMint: (
+        input: WithdrawWithheldTokensFromMintInput,
+    ) => ReturnType<typeof getWithdrawWithheldTokensFromMintInstruction> & SelfPlanAndSendFunctions;
+    withdrawWithheldTokensFromAccounts: (
+        input: WithdrawWithheldTokensFromAccountsInput,
+    ) => ReturnType<typeof getWithdrawWithheldTokensFromAccountsInstruction> & SelfPlanAndSendFunctions;
+    harvestWithheldTokensToMint: (
+        input: HarvestWithheldTokensToMintInput,
+    ) => ReturnType<typeof getHarvestWithheldTokensToMintInstruction> & SelfPlanAndSendFunctions;
+    setTransferFee: (
+        input: SetTransferFeeInput,
+    ) => ReturnType<typeof getSetTransferFeeInstruction> & SelfPlanAndSendFunctions;
+    initializeConfidentialTransferMint: (
+        input: InitializeConfidentialTransferMintInput,
+    ) => ReturnType<typeof getInitializeConfidentialTransferMintInstruction> & SelfPlanAndSendFunctions;
+    updateConfidentialTransferMint: (
+        input: UpdateConfidentialTransferMintInput,
+    ) => ReturnType<typeof getUpdateConfidentialTransferMintInstruction> & SelfPlanAndSendFunctions;
+    configureConfidentialTransferAccount: (
+        input: ConfigureConfidentialTransferAccountInput,
+    ) => ReturnType<typeof getConfigureConfidentialTransferAccountInstruction> & SelfPlanAndSendFunctions;
+    approveConfidentialTransferAccount: (
+        input: ApproveConfidentialTransferAccountInput,
+    ) => ReturnType<typeof getApproveConfidentialTransferAccountInstruction> & SelfPlanAndSendFunctions;
+    emptyConfidentialTransferAccount: (
+        input: EmptyConfidentialTransferAccountInput,
+    ) => ReturnType<typeof getEmptyConfidentialTransferAccountInstruction> & SelfPlanAndSendFunctions;
+    confidentialDeposit: (
+        input: ConfidentialDepositInput,
+    ) => ReturnType<typeof getConfidentialDepositInstruction> & SelfPlanAndSendFunctions;
+    confidentialWithdraw: (
+        input: ConfidentialWithdrawInput,
+    ) => ReturnType<typeof getConfidentialWithdrawInstruction> & SelfPlanAndSendFunctions;
+    confidentialTransfer: (
+        input: ConfidentialTransferInput,
+    ) => ReturnType<typeof getConfidentialTransferInstruction> & SelfPlanAndSendFunctions;
+    applyConfidentialPendingBalance: (
+        input: ApplyConfidentialPendingBalanceInput,
+    ) => ReturnType<typeof getApplyConfidentialPendingBalanceInstruction> & SelfPlanAndSendFunctions;
+    enableConfidentialCredits: (
+        input: EnableConfidentialCreditsInput,
+    ) => ReturnType<typeof getEnableConfidentialCreditsInstruction> & SelfPlanAndSendFunctions;
+    disableConfidentialCredits: (
+        input: DisableConfidentialCreditsInput,
+    ) => ReturnType<typeof getDisableConfidentialCreditsInstruction> & SelfPlanAndSendFunctions;
+    enableNonConfidentialCredits: (
+        input: EnableNonConfidentialCreditsInput,
+    ) => ReturnType<typeof getEnableNonConfidentialCreditsInstruction> & SelfPlanAndSendFunctions;
+    disableNonConfidentialCredits: (
+        input: DisableNonConfidentialCreditsInput,
+    ) => ReturnType<typeof getDisableNonConfidentialCreditsInstruction> & SelfPlanAndSendFunctions;
+    confidentialTransferWithFee: (
+        input: ConfidentialTransferWithFeeInput,
+    ) => ReturnType<typeof getConfidentialTransferWithFeeInstruction> & SelfPlanAndSendFunctions;
+    configureConfidentialTransferAccountWithRegistry: (
+        input: ConfigureConfidentialTransferAccountWithRegistryInput,
+    ) => ReturnType<typeof getConfigureConfidentialTransferAccountWithRegistryInstruction> & SelfPlanAndSendFunctions;
+    initializeDefaultAccountState: (
+        input: InitializeDefaultAccountStateInput,
+    ) => ReturnType<typeof getInitializeDefaultAccountStateInstruction> & SelfPlanAndSendFunctions;
+    updateDefaultAccountState: (
+        input: UpdateDefaultAccountStateInput,
+    ) => ReturnType<typeof getUpdateDefaultAccountStateInstruction> & SelfPlanAndSendFunctions;
+    reallocate: (input: ReallocateInput) => ReturnType<typeof getReallocateInstruction> & SelfPlanAndSendFunctions;
+    enableMemoTransfers: (
+        input: EnableMemoTransfersInput,
+    ) => ReturnType<typeof getEnableMemoTransfersInstruction> & SelfPlanAndSendFunctions;
+    disableMemoTransfers: (
+        input: DisableMemoTransfersInput,
+    ) => ReturnType<typeof getDisableMemoTransfersInstruction> & SelfPlanAndSendFunctions;
+    createNativeMint: (
+        input: CreateNativeMintInput,
+    ) => ReturnType<typeof getCreateNativeMintInstruction> & SelfPlanAndSendFunctions;
+    initializeNonTransferableMint: (
+        input: InitializeNonTransferableMintInput,
+    ) => ReturnType<typeof getInitializeNonTransferableMintInstruction> & SelfPlanAndSendFunctions;
+    initializeInterestBearingMint: (
+        input: InitializeInterestBearingMintInput,
+    ) => ReturnType<typeof getInitializeInterestBearingMintInstruction> & SelfPlanAndSendFunctions;
+    updateRateInterestBearingMint: (
+        input: UpdateRateInterestBearingMintInput,
+    ) => ReturnType<typeof getUpdateRateInterestBearingMintInstruction> & SelfPlanAndSendFunctions;
+    enableCpiGuard: (
+        input: EnableCpiGuardInput,
+    ) => ReturnType<typeof getEnableCpiGuardInstruction> & SelfPlanAndSendFunctions;
+    disableCpiGuard: (
+        input: DisableCpiGuardInput,
+    ) => ReturnType<typeof getDisableCpiGuardInstruction> & SelfPlanAndSendFunctions;
+    initializePermanentDelegate: (
+        input: InitializePermanentDelegateInput,
+    ) => ReturnType<typeof getInitializePermanentDelegateInstruction> & SelfPlanAndSendFunctions;
+    initializeTransferHook: (
+        input: InitializeTransferHookInput,
+    ) => ReturnType<typeof getInitializeTransferHookInstruction> & SelfPlanAndSendFunctions;
+    updateTransferHook: (
+        input: UpdateTransferHookInput,
+    ) => ReturnType<typeof getUpdateTransferHookInstruction> & SelfPlanAndSendFunctions;
+    initializeConfidentialTransferFee: (
+        input: InitializeConfidentialTransferFeeInput,
+    ) => ReturnType<typeof getInitializeConfidentialTransferFeeInstruction> & SelfPlanAndSendFunctions;
+    withdrawWithheldTokensFromMintForConfidentialTransferFee: (
+        input: WithdrawWithheldTokensFromMintForConfidentialTransferFeeInput,
+    ) => ReturnType<typeof getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction> &
+        SelfPlanAndSendFunctions;
+    withdrawWithheldTokensFromAccountsForConfidentialTransferFee: (
+        input: WithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInput,
+    ) => ReturnType<typeof getWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruction> &
+        SelfPlanAndSendFunctions;
+    harvestWithheldTokensToMintForConfidentialTransferFee: (
+        input: HarvestWithheldTokensToMintForConfidentialTransferFeeInput,
+    ) => ReturnType<typeof getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction> &
+        SelfPlanAndSendFunctions;
+    enableHarvestToMint: (
+        input: EnableHarvestToMintInput,
+    ) => ReturnType<typeof getEnableHarvestToMintInstruction> & SelfPlanAndSendFunctions;
+    disableHarvestToMint: (
+        input: DisableHarvestToMintInput,
+    ) => ReturnType<typeof getDisableHarvestToMintInstruction> & SelfPlanAndSendFunctions;
+    withdrawExcessLamports: (
+        input: WithdrawExcessLamportsInput,
+    ) => ReturnType<typeof getWithdrawExcessLamportsInstruction> & SelfPlanAndSendFunctions;
+    initializeMetadataPointer: (
+        input: InitializeMetadataPointerInput,
+    ) => ReturnType<typeof getInitializeMetadataPointerInstruction> & SelfPlanAndSendFunctions;
+    updateMetadataPointer: (
+        input: UpdateMetadataPointerInput,
+    ) => ReturnType<typeof getUpdateMetadataPointerInstruction> & SelfPlanAndSendFunctions;
+    initializeGroupPointer: (
+        input: InitializeGroupPointerInput,
+    ) => ReturnType<typeof getInitializeGroupPointerInstruction> & SelfPlanAndSendFunctions;
+    updateGroupPointer: (
+        input: UpdateGroupPointerInput,
+    ) => ReturnType<typeof getUpdateGroupPointerInstruction> & SelfPlanAndSendFunctions;
+    initializeGroupMemberPointer: (
+        input: InitializeGroupMemberPointerInput,
+    ) => ReturnType<typeof getInitializeGroupMemberPointerInstruction> & SelfPlanAndSendFunctions;
+    updateGroupMemberPointer: (
+        input: UpdateGroupMemberPointerInput,
+    ) => ReturnType<typeof getUpdateGroupMemberPointerInstruction> & SelfPlanAndSendFunctions;
+    initializeConfidentialMintBurn: (
+        input: InitializeConfidentialMintBurnInput,
+    ) => ReturnType<typeof getInitializeConfidentialMintBurnInstruction> & SelfPlanAndSendFunctions;
+    rotateSupplyElgamalPubkey: (
+        input: RotateSupplyElgamalPubkeyInput,
+    ) => ReturnType<typeof getRotateSupplyElgamalPubkeyInstruction> & SelfPlanAndSendFunctions;
+    updateConfidentialMintBurnDecryptableSupply: (
+        input: UpdateConfidentialMintBurnDecryptableSupplyInput,
+    ) => ReturnType<typeof getUpdateConfidentialMintBurnDecryptableSupplyInstruction> & SelfPlanAndSendFunctions;
+    confidentialMint: (
+        input: ConfidentialMintInput,
+    ) => ReturnType<typeof getConfidentialMintInstruction> & SelfPlanAndSendFunctions;
+    confidentialBurn: (
+        input: ConfidentialBurnInput,
+    ) => ReturnType<typeof getConfidentialBurnInstruction> & SelfPlanAndSendFunctions;
+    applyConfidentialPendingBurn: (
+        input: ApplyConfidentialPendingBurnInput,
+    ) => ReturnType<typeof getApplyConfidentialPendingBurnInstruction> & SelfPlanAndSendFunctions;
+    initializeScaledUiAmountMint: (
+        input: InitializeScaledUiAmountMintInput,
+    ) => ReturnType<typeof getInitializeScaledUiAmountMintInstruction> & SelfPlanAndSendFunctions;
+    updateMultiplierScaledUiMint: (
+        input: UpdateMultiplierScaledUiMintInput,
+    ) => ReturnType<typeof getUpdateMultiplierScaledUiMintInstruction> & SelfPlanAndSendFunctions;
+    initializePausableConfig: (
+        input: InitializePausableConfigInput,
+    ) => ReturnType<typeof getInitializePausableConfigInstruction> & SelfPlanAndSendFunctions;
+    pause: (input: PauseInput) => ReturnType<typeof getPauseInstruction> & SelfPlanAndSendFunctions;
+    resume: (input: ResumeInput) => ReturnType<typeof getResumeInstruction> & SelfPlanAndSendFunctions;
+    initializeTokenMetadata: (
+        input: InitializeTokenMetadataInput,
+    ) => ReturnType<typeof getInitializeTokenMetadataInstruction> & SelfPlanAndSendFunctions;
+    updateTokenMetadataField: (
+        input: UpdateTokenMetadataFieldInput,
+    ) => ReturnType<typeof getUpdateTokenMetadataFieldInstruction> & SelfPlanAndSendFunctions;
+    removeTokenMetadataKey: (
+        input: RemoveTokenMetadataKeyInput,
+    ) => ReturnType<typeof getRemoveTokenMetadataKeyInstruction> & SelfPlanAndSendFunctions;
+    updateTokenMetadataUpdateAuthority: (
+        input: UpdateTokenMetadataUpdateAuthorityInput,
+    ) => ReturnType<typeof getUpdateTokenMetadataUpdateAuthorityInstruction> & SelfPlanAndSendFunctions;
+    emitTokenMetadata: (
+        input: EmitTokenMetadataInput,
+    ) => ReturnType<typeof getEmitTokenMetadataInstruction> & SelfPlanAndSendFunctions;
+    initializeTokenGroup: (
+        input: InitializeTokenGroupInput,
+    ) => ReturnType<typeof getInitializeTokenGroupInstruction> & SelfPlanAndSendFunctions;
+    updateTokenGroupMaxSize: (
+        input: UpdateTokenGroupMaxSizeInput,
+    ) => ReturnType<typeof getUpdateTokenGroupMaxSizeInstruction> & SelfPlanAndSendFunctions;
+    updateTokenGroupUpdateAuthority: (
+        input: UpdateTokenGroupUpdateAuthorityInput,
+    ) => ReturnType<typeof getUpdateTokenGroupUpdateAuthorityInstruction> & SelfPlanAndSendFunctions;
+    initializeTokenGroupMember: (
+        input: InitializeTokenGroupMemberInput,
+    ) => ReturnType<typeof getInitializeTokenGroupMemberInstruction> & SelfPlanAndSendFunctions;
+    unwrapLamports: (
+        input: UnwrapLamportsInput,
+    ) => ReturnType<typeof getUnwrapLamportsInstruction> & SelfPlanAndSendFunctions;
+    initializePermissionedBurn: (
+        input: InitializePermissionedBurnInput,
+    ) => ReturnType<typeof getInitializePermissionedBurnInstruction> & SelfPlanAndSendFunctions;
+    permissionedBurn: (
+        input: PermissionedBurnInput,
+    ) => ReturnType<typeof getPermissionedBurnInstruction> & SelfPlanAndSendFunctions;
+    permissionedBurnChecked: (
+        input: PermissionedBurnCheckedInput,
+    ) => ReturnType<typeof getPermissionedBurnCheckedInstruction> & SelfPlanAndSendFunctions;
+    permissionedConfidentialBurn: (
+        input: PermissionedConfidentialBurnInput,
+    ) => ReturnType<typeof getPermissionedConfidentialBurnInstruction> & SelfPlanAndSendFunctions;
+    batch: (input: BatchInput) => ReturnType<typeof getBatchInstruction> & SelfPlanAndSendFunctions;
+};
+
+export type Token2022PluginRequirements = ClientWithRpc<GetAccountInfoApi & GetMultipleAccountsApi> &
+    ClientWithTransactionPlanning &
+    ClientWithTransactionSending;
+
+export function token2022Program() {
+    return <T extends Token2022PluginRequirements>(
+        client: T,
+    ): Omit<T, 'token2022'> & { token2022: Token2022Plugin } => {
+        return extendClient(client, {
+            token2022: <Token2022Plugin>{
+                accounts: {
+                    mint: addSelfFetchFunctions(client, getMintCodec()),
+                    token: addSelfFetchFunctions(client, getTokenCodec()),
+                    multisig: addSelfFetchFunctions(client, getMultisigCodec()),
+                },
+                instructions: {
+                    initializeMint: input => addSelfPlanAndSendFunctions(client, getInitializeMintInstruction(input)),
+                    initializeAccount: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeAccountInstruction(input)),
+                    initializeMultisig: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeMultisigInstruction(input)),
+                    transfer: input => addSelfPlanAndSendFunctions(client, getTransferInstruction(input)),
+                    approve: input => addSelfPlanAndSendFunctions(client, getApproveInstruction(input)),
+                    revoke: input => addSelfPlanAndSendFunctions(client, getRevokeInstruction(input)),
+                    setAuthority: input => addSelfPlanAndSendFunctions(client, getSetAuthorityInstruction(input)),
+                    mintTo: input => addSelfPlanAndSendFunctions(client, getMintToInstruction(input)),
+                    burn: input => addSelfPlanAndSendFunctions(client, getBurnInstruction(input)),
+                    closeAccount: input => addSelfPlanAndSendFunctions(client, getCloseAccountInstruction(input)),
+                    freezeAccount: input => addSelfPlanAndSendFunctions(client, getFreezeAccountInstruction(input)),
+                    thawAccount: input => addSelfPlanAndSendFunctions(client, getThawAccountInstruction(input)),
+                    transferChecked: input => addSelfPlanAndSendFunctions(client, getTransferCheckedInstruction(input)),
+                    approveChecked: input => addSelfPlanAndSendFunctions(client, getApproveCheckedInstruction(input)),
+                    mintToChecked: input => addSelfPlanAndSendFunctions(client, getMintToCheckedInstruction(input)),
+                    burnChecked: input => addSelfPlanAndSendFunctions(client, getBurnCheckedInstruction(input)),
+                    initializeAccount2: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeAccount2Instruction(input)),
+                    syncNative: input => addSelfPlanAndSendFunctions(client, getSyncNativeInstruction(input)),
+                    initializeAccount3: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeAccount3Instruction(input)),
+                    initializeMultisig2: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeMultisig2Instruction(input)),
+                    initializeMint2: input => addSelfPlanAndSendFunctions(client, getInitializeMint2Instruction(input)),
+                    getAccountDataSize: input =>
+                        addSelfPlanAndSendFunctions(client, getGetAccountDataSizeInstruction(input)),
+                    initializeImmutableOwner: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeImmutableOwnerInstruction(input)),
+                    amountToUiAmount: input =>
+                        addSelfPlanAndSendFunctions(client, getAmountToUiAmountInstruction(input)),
+                    uiAmountToAmount: input =>
+                        addSelfPlanAndSendFunctions(client, getUiAmountToAmountInstruction(input)),
+                    initializeMintCloseAuthority: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeMintCloseAuthorityInstruction(input)),
+                    initializeTransferFeeConfig: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeTransferFeeConfigInstruction(input)),
+                    transferCheckedWithFee: input =>
+                        addSelfPlanAndSendFunctions(client, getTransferCheckedWithFeeInstruction(input)),
+                    withdrawWithheldTokensFromMint: input =>
+                        addSelfPlanAndSendFunctions(client, getWithdrawWithheldTokensFromMintInstruction(input)),
+                    withdrawWithheldTokensFromAccounts: input =>
+                        addSelfPlanAndSendFunctions(client, getWithdrawWithheldTokensFromAccountsInstruction(input)),
+                    harvestWithheldTokensToMint: input =>
+                        addSelfPlanAndSendFunctions(client, getHarvestWithheldTokensToMintInstruction(input)),
+                    setTransferFee: input => addSelfPlanAndSendFunctions(client, getSetTransferFeeInstruction(input)),
+                    initializeConfidentialTransferMint: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeConfidentialTransferMintInstruction(input)),
+                    updateConfidentialTransferMint: input =>
+                        addSelfPlanAndSendFunctions(client, getUpdateConfidentialTransferMintInstruction(input)),
+                    configureConfidentialTransferAccount: input =>
+                        addSelfPlanAndSendFunctions(client, getConfigureConfidentialTransferAccountInstruction(input)),
+                    approveConfidentialTransferAccount: input =>
+                        addSelfPlanAndSendFunctions(client, getApproveConfidentialTransferAccountInstruction(input)),
+                    emptyConfidentialTransferAccount: input =>
+                        addSelfPlanAndSendFunctions(client, getEmptyConfidentialTransferAccountInstruction(input)),
+                    confidentialDeposit: input =>
+                        addSelfPlanAndSendFunctions(client, getConfidentialDepositInstruction(input)),
+                    confidentialWithdraw: input =>
+                        addSelfPlanAndSendFunctions(client, getConfidentialWithdrawInstruction(input)),
+                    confidentialTransfer: input =>
+                        addSelfPlanAndSendFunctions(client, getConfidentialTransferInstruction(input)),
+                    applyConfidentialPendingBalance: input =>
+                        addSelfPlanAndSendFunctions(client, getApplyConfidentialPendingBalanceInstruction(input)),
+                    enableConfidentialCredits: input =>
+                        addSelfPlanAndSendFunctions(client, getEnableConfidentialCreditsInstruction(input)),
+                    disableConfidentialCredits: input =>
+                        addSelfPlanAndSendFunctions(client, getDisableConfidentialCreditsInstruction(input)),
+                    enableNonConfidentialCredits: input =>
+                        addSelfPlanAndSendFunctions(client, getEnableNonConfidentialCreditsInstruction(input)),
+                    disableNonConfidentialCredits: input =>
+                        addSelfPlanAndSendFunctions(client, getDisableNonConfidentialCreditsInstruction(input)),
+                    confidentialTransferWithFee: input =>
+                        addSelfPlanAndSendFunctions(client, getConfidentialTransferWithFeeInstruction(input)),
+                    configureConfidentialTransferAccountWithRegistry: input =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getConfigureConfidentialTransferAccountWithRegistryInstruction(input),
+                        ),
+                    initializeDefaultAccountState: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeDefaultAccountStateInstruction(input)),
+                    updateDefaultAccountState: input =>
+                        addSelfPlanAndSendFunctions(client, getUpdateDefaultAccountStateInstruction(input)),
+                    reallocate: input => addSelfPlanAndSendFunctions(client, getReallocateInstruction(input)),
+                    enableMemoTransfers: input =>
+                        addSelfPlanAndSendFunctions(client, getEnableMemoTransfersInstruction(input)),
+                    disableMemoTransfers: input =>
+                        addSelfPlanAndSendFunctions(client, getDisableMemoTransfersInstruction(input)),
+                    createNativeMint: input =>
+                        addSelfPlanAndSendFunctions(client, getCreateNativeMintInstruction(input)),
+                    initializeNonTransferableMint: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeNonTransferableMintInstruction(input)),
+                    initializeInterestBearingMint: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeInterestBearingMintInstruction(input)),
+                    updateRateInterestBearingMint: input =>
+                        addSelfPlanAndSendFunctions(client, getUpdateRateInterestBearingMintInstruction(input)),
+                    enableCpiGuard: input => addSelfPlanAndSendFunctions(client, getEnableCpiGuardInstruction(input)),
+                    disableCpiGuard: input => addSelfPlanAndSendFunctions(client, getDisableCpiGuardInstruction(input)),
+                    initializePermanentDelegate: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializePermanentDelegateInstruction(input)),
+                    initializeTransferHook: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeTransferHookInstruction(input)),
+                    updateTransferHook: input =>
+                        addSelfPlanAndSendFunctions(client, getUpdateTransferHookInstruction(input)),
+                    initializeConfidentialTransferFee: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeConfidentialTransferFeeInstruction(input)),
+                    withdrawWithheldTokensFromMintForConfidentialTransferFee: input =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction(input),
+                        ),
+                    withdrawWithheldTokensFromAccountsForConfidentialTransferFee: input =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruction(input),
+                        ),
+                    harvestWithheldTokensToMintForConfidentialTransferFee: input =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction(input),
+                        ),
+                    enableHarvestToMint: input =>
+                        addSelfPlanAndSendFunctions(client, getEnableHarvestToMintInstruction(input)),
+                    disableHarvestToMint: input =>
+                        addSelfPlanAndSendFunctions(client, getDisableHarvestToMintInstruction(input)),
+                    withdrawExcessLamports: input =>
+                        addSelfPlanAndSendFunctions(client, getWithdrawExcessLamportsInstruction(input)),
+                    initializeMetadataPointer: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeMetadataPointerInstruction(input)),
+                    updateMetadataPointer: input =>
+                        addSelfPlanAndSendFunctions(client, getUpdateMetadataPointerInstruction(input)),
+                    initializeGroupPointer: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeGroupPointerInstruction(input)),
+                    updateGroupPointer: input =>
+                        addSelfPlanAndSendFunctions(client, getUpdateGroupPointerInstruction(input)),
+                    initializeGroupMemberPointer: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeGroupMemberPointerInstruction(input)),
+                    updateGroupMemberPointer: input =>
+                        addSelfPlanAndSendFunctions(client, getUpdateGroupMemberPointerInstruction(input)),
+                    initializeConfidentialMintBurn: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeConfidentialMintBurnInstruction(input)),
+                    rotateSupplyElgamalPubkey: input =>
+                        addSelfPlanAndSendFunctions(client, getRotateSupplyElgamalPubkeyInstruction(input)),
+                    updateConfidentialMintBurnDecryptableSupply: input =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUpdateConfidentialMintBurnDecryptableSupplyInstruction(input),
+                        ),
+                    confidentialMint: input =>
+                        addSelfPlanAndSendFunctions(client, getConfidentialMintInstruction(input)),
+                    confidentialBurn: input =>
+                        addSelfPlanAndSendFunctions(client, getConfidentialBurnInstruction(input)),
+                    applyConfidentialPendingBurn: input =>
+                        addSelfPlanAndSendFunctions(client, getApplyConfidentialPendingBurnInstruction(input)),
+                    initializeScaledUiAmountMint: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeScaledUiAmountMintInstruction(input)),
+                    updateMultiplierScaledUiMint: input =>
+                        addSelfPlanAndSendFunctions(client, getUpdateMultiplierScaledUiMintInstruction(input)),
+                    initializePausableConfig: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializePausableConfigInstruction(input)),
+                    pause: input => addSelfPlanAndSendFunctions(client, getPauseInstruction(input)),
+                    resume: input => addSelfPlanAndSendFunctions(client, getResumeInstruction(input)),
+                    initializeTokenMetadata: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeTokenMetadataInstruction(input)),
+                    updateTokenMetadataField: input =>
+                        addSelfPlanAndSendFunctions(client, getUpdateTokenMetadataFieldInstruction(input)),
+                    removeTokenMetadataKey: input =>
+                        addSelfPlanAndSendFunctions(client, getRemoveTokenMetadataKeyInstruction(input)),
+                    updateTokenMetadataUpdateAuthority: input =>
+                        addSelfPlanAndSendFunctions(client, getUpdateTokenMetadataUpdateAuthorityInstruction(input)),
+                    emitTokenMetadata: input =>
+                        addSelfPlanAndSendFunctions(client, getEmitTokenMetadataInstruction(input)),
+                    initializeTokenGroup: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeTokenGroupInstruction(input)),
+                    updateTokenGroupMaxSize: input =>
+                        addSelfPlanAndSendFunctions(client, getUpdateTokenGroupMaxSizeInstruction(input)),
+                    updateTokenGroupUpdateAuthority: input =>
+                        addSelfPlanAndSendFunctions(client, getUpdateTokenGroupUpdateAuthorityInstruction(input)),
+                    initializeTokenGroupMember: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializeTokenGroupMemberInstruction(input)),
+                    unwrapLamports: input => addSelfPlanAndSendFunctions(client, getUnwrapLamportsInstruction(input)),
+                    initializePermissionedBurn: input =>
+                        addSelfPlanAndSendFunctions(client, getInitializePermissionedBurnInstruction(input)),
+                    permissionedBurn: input =>
+                        addSelfPlanAndSendFunctions(client, getPermissionedBurnInstruction(input)),
+                    permissionedBurnChecked: input =>
+                        addSelfPlanAndSendFunctions(client, getPermissionedBurnCheckedInstruction(input)),
+                    permissionedConfidentialBurn: input =>
+                        addSelfPlanAndSendFunctions(client, getPermissionedConfidentialBurnInstruction(input)),
+                    batch: input => addSelfPlanAndSendFunctions(client, getBatchInstruction(input)),
+                },
+            },
+        });
+    };
 }

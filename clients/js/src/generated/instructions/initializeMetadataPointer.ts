@@ -16,6 +16,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type Address,
@@ -30,18 +32,18 @@ import {
     type ReadonlyUint8Array,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const INITIALIZE_METADATA_POINTER_DISCRIMINATOR = 39;
 
-export function getInitializeMetadataPointerDiscriminatorBytes() {
+export function getInitializeMetadataPointerDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(INITIALIZE_METADATA_POINTER_DISCRIMINATOR);
 }
 
 export const INITIALIZE_METADATA_POINTER_METADATA_POINTER_DISCRIMINATOR = 0;
 
-export function getInitializeMetadataPointerMetadataPointerDiscriminatorBytes() {
+export function getInitializeMetadataPointerMetadataPointerDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(INITIALIZE_METADATA_POINTER_METADATA_POINTER_DISCRIMINATOR);
 }
 
@@ -125,14 +127,14 @@ export function getInitializeMetadataPointerInstruction<
 
     // Original accounts.
     const originalAccounts = { mint: { value: input.mint ?? null, isWritable: true } };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.mint)],
+        accounts: [getAccountMeta('mint', accounts.mint)],
         data: getInitializeMetadataPointerInstructionDataEncoder().encode(
             args as InitializeMetadataPointerInstructionDataArgs,
         ),
@@ -161,8 +163,10 @@ export function parseInitializeMetadataPointerInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeMetadataPointerInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 1) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 1,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

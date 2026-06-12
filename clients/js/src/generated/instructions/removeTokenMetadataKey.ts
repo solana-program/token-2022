@@ -20,6 +20,8 @@ import {
     getU32Encoder,
     getUtf8Decoder,
     getUtf8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -35,12 +37,14 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const REMOVE_TOKEN_METADATA_KEY_DISCRIMINATOR = new Uint8Array([234, 18, 32, 56, 89, 141, 37, 181]);
+export const REMOVE_TOKEN_METADATA_KEY_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
+    234, 18, 32, 56, 89, 141, 37, 181,
+]);
 
-export function getRemoveTokenMetadataKeyDiscriminatorBytes() {
+export function getRemoveTokenMetadataKeyDiscriminatorBytes(): ReadonlyUint8Array {
     return getBytesEncoder().encode(REMOVE_TOKEN_METADATA_KEY_DISCRIMINATOR);
 }
 
@@ -141,14 +145,17 @@ export function getRemoveTokenMetadataKeyInstruction<
         metadata: { value: input.metadata ?? null, isWritable: true },
         updateAuthority: { value: input.updateAuthority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.metadata), getAccountMeta(accounts.updateAuthority)],
+        accounts: [
+            getAccountMeta('metadata', accounts.metadata),
+            getAccountMeta('updateAuthority', accounts.updateAuthority),
+        ],
         data: getRemoveTokenMetadataKeyInstructionDataEncoder().encode(
             args as RemoveTokenMetadataKeyInstructionDataArgs,
         ),
@@ -177,8 +184,10 @@ export function parseRemoveTokenMetadataKeyInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedRemoveTokenMetadataKeyInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 2) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 2,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

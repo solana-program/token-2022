@@ -12,6 +12,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -28,18 +30,18 @@ import {
     type WritableAccount,
     type WritableSignerAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const CONFIGURE_CONFIDENTIAL_TRANSFER_ACCOUNT_WITH_REGISTRY_DISCRIMINATOR = 27;
 
-export function getConfigureConfidentialTransferAccountWithRegistryDiscriminatorBytes() {
+export function getConfigureConfidentialTransferAccountWithRegistryDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(CONFIGURE_CONFIDENTIAL_TRANSFER_ACCOUNT_WITH_REGISTRY_DISCRIMINATOR);
 }
 
 export const CONFIGURE_CONFIDENTIAL_TRANSFER_ACCOUNT_WITH_REGISTRY_CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 14;
 
-export function getConfigureConfidentialTransferAccountWithRegistryConfidentialTransferDiscriminatorBytes() {
+export function getConfigureConfidentialTransferAccountWithRegistryConfidentialTransferDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(
         CONFIGURE_CONFIDENTIAL_TRANSFER_ACCOUNT_WITH_REGISTRY_CONFIDENTIAL_TRANSFER_DISCRIMINATOR,
     );
@@ -171,16 +173,16 @@ export function getConfigureConfidentialTransferAccountWithRegistryInstruction<
         payer: { value: input.payer ?? null, isWritable: true },
         systemProgram: { value: input.systemProgram ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'omitted');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.token),
-            getAccountMeta(accounts.mint),
-            getAccountMeta(accounts.elgamalRegistry),
-            getAccountMeta(accounts.payer),
-            getAccountMeta(accounts.systemProgram),
+            getAccountMeta('token', accounts.token),
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('elgamalRegistry', accounts.elgamalRegistry),
+            getAccountMeta('payer', accounts.payer),
+            getAccountMeta('systemProgram', accounts.systemProgram),
         ].filter(<T>(x: T | undefined): x is T => x !== undefined),
         data: getConfigureConfidentialTransferAccountWithRegistryInstructionDataEncoder().encode({}),
         programAddress,
@@ -223,8 +225,10 @@ export function parseConfigureConfidentialTransferAccountWithRegistryInstruction
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedConfigureConfidentialTransferAccountWithRegistryInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 3) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 3,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

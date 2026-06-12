@@ -12,6 +12,8 @@ import {
     getBytesEncoder,
     getStructDecoder,
     getStructEncoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -28,12 +30,14 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const INITIALIZE_TOKEN_GROUP_MEMBER_DISCRIMINATOR = new Uint8Array([152, 32, 222, 176, 223, 237, 116, 134]);
+export const INITIALIZE_TOKEN_GROUP_MEMBER_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
+    152, 32, 222, 176, 223, 237, 116, 134,
+]);
 
-export function getInitializeTokenGroupMemberDiscriminatorBytes() {
+export function getInitializeTokenGroupMemberDiscriminatorBytes(): ReadonlyUint8Array {
     return getBytesEncoder().encode(INITIALIZE_TOKEN_GROUP_MEMBER_DISCRIMINATOR);
 }
 
@@ -136,16 +140,16 @@ export function getInitializeTokenGroupMemberInstruction<
         group: { value: input.group ?? null, isWritable: true },
         groupUpdateAuthority: { value: input.groupUpdateAuthority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.member),
-            getAccountMeta(accounts.memberMint),
-            getAccountMeta(accounts.memberMintAuthority),
-            getAccountMeta(accounts.group),
-            getAccountMeta(accounts.groupUpdateAuthority),
+            getAccountMeta('member', accounts.member),
+            getAccountMeta('memberMint', accounts.memberMint),
+            getAccountMeta('memberMintAuthority', accounts.memberMintAuthority),
+            getAccountMeta('group', accounts.group),
+            getAccountMeta('groupUpdateAuthority', accounts.groupUpdateAuthority),
         ],
         data: getInitializeTokenGroupMemberInstructionDataEncoder().encode({}),
         programAddress,
@@ -183,8 +187,10 @@ export function parseInitializeTokenGroupMemberInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeTokenGroupMemberInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 5) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 5,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

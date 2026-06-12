@@ -15,6 +15,8 @@ import {
     getU64Encoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -31,12 +33,12 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const MINT_TO_DISCRIMINATOR = 7;
 
-export function getMintToDiscriminatorBytes() {
+export function getMintToDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(MINT_TO_DISCRIMINATOR);
 }
 
@@ -129,7 +131,7 @@ export function getMintToInstruction<
         token: { value: input.token ?? null, isWritable: true },
         mintAuthority: { value: input.mintAuthority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -144,9 +146,9 @@ export function getMintToInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.mint),
-            getAccountMeta(accounts.token),
-            getAccountMeta(accounts.mintAuthority),
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('token', accounts.token),
+            getAccountMeta('mintAuthority', accounts.mintAuthority),
             ...remainingAccounts,
         ],
         data: getMintToInstructionDataEncoder().encode(args as MintToInstructionDataArgs),
@@ -183,8 +185,10 @@ export function parseMintToInstruction<TProgram extends string, TAccountMetas ex
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedMintToInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 3) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 3,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

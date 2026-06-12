@@ -15,6 +15,8 @@ import {
     getU64Encoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -31,12 +33,12 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const BURN_CHECKED_DISCRIMINATOR = 15;
 
-export function getBurnCheckedDiscriminatorBytes() {
+export function getBurnCheckedDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(BURN_CHECKED_DISCRIMINATOR);
 }
 
@@ -139,7 +141,7 @@ export function getBurnCheckedInstruction<
         mint: { value: input.mint ?? null, isWritable: true },
         authority: { value: input.authority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -154,9 +156,9 @@ export function getBurnCheckedInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.account),
-            getAccountMeta(accounts.mint),
-            getAccountMeta(accounts.authority),
+            getAccountMeta('account', accounts.account),
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('authority', accounts.authority),
             ...remainingAccounts,
         ],
         data: getBurnCheckedInstructionDataEncoder().encode(args as BurnCheckedInstructionDataArgs),
@@ -193,8 +195,10 @@ export function parseBurnCheckedInstruction<TProgram extends string, TAccountMet
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedBurnCheckedInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 3) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 3,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

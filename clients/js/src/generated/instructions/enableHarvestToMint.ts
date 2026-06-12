@@ -13,6 +13,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -29,18 +31,18 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const ENABLE_HARVEST_TO_MINT_DISCRIMINATOR = 37;
 
-export function getEnableHarvestToMintDiscriminatorBytes() {
+export function getEnableHarvestToMintDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(ENABLE_HARVEST_TO_MINT_DISCRIMINATOR);
 }
 
 export const ENABLE_HARVEST_TO_MINT_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR = 4;
 
-export function getEnableHarvestToMintConfidentialTransferFeeDiscriminatorBytes() {
+export function getEnableHarvestToMintConfidentialTransferFeeDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(ENABLE_HARVEST_TO_MINT_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR);
 }
 
@@ -127,7 +129,7 @@ export function getEnableHarvestToMintInstruction<
         mint: { value: input.mint ?? null, isWritable: true },
         authority: { value: input.authority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -141,7 +143,11 @@ export function getEnableHarvestToMintInstruction<
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
-        accounts: [getAccountMeta(accounts.mint), getAccountMeta(accounts.authority), ...remainingAccounts],
+        accounts: [
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('authority', accounts.authority),
+            ...remainingAccounts,
+        ],
         data: getEnableHarvestToMintInstructionDataEncoder().encode({}),
         programAddress,
     } as EnableHarvestToMintInstruction<
@@ -176,8 +182,10 @@ export function parseEnableHarvestToMintInstruction<
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedEnableHarvestToMintInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 2) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 2,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

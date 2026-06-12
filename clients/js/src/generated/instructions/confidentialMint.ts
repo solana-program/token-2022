@@ -15,6 +15,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -31,8 +33,8 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import {
     getDecryptableBalanceDecoder,
     getDecryptableBalanceEncoder,
@@ -46,13 +48,13 @@ import {
 
 export const CONFIDENTIAL_MINT_DISCRIMINATOR = 42;
 
-export function getConfidentialMintDiscriminatorBytes() {
+export function getConfidentialMintDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(CONFIDENTIAL_MINT_DISCRIMINATOR);
 }
 
 export const CONFIDENTIAL_MINT_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR = 3;
 
-export function getConfidentialMintConfidentialMintBurnDiscriminatorBytes() {
+export function getConfidentialMintConfidentialMintBurnDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(CONFIDENTIAL_MINT_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR);
 }
 
@@ -293,7 +295,7 @@ export function getConfidentialMintInstruction<
         rangeRecord: { value: input.rangeRecord ?? null, isWritable: false },
         authority: { value: input.authority ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -308,13 +310,13 @@ export function getConfidentialMintInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'omitted');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.token),
-            getAccountMeta(accounts.mint),
-            getAccountMeta(accounts.instructionsSysvar),
-            getAccountMeta(accounts.equalityRecord),
-            getAccountMeta(accounts.ciphertextValidityRecord),
-            getAccountMeta(accounts.rangeRecord),
-            getAccountMeta(accounts.authority),
+            getAccountMeta('token', accounts.token),
+            getAccountMeta('mint', accounts.mint),
+            getAccountMeta('instructionsSysvar', accounts.instructionsSysvar),
+            getAccountMeta('equalityRecord', accounts.equalityRecord),
+            getAccountMeta('ciphertextValidityRecord', accounts.ciphertextValidityRecord),
+            getAccountMeta('rangeRecord', accounts.rangeRecord),
+            getAccountMeta('authority', accounts.authority),
             ...remainingAccounts,
         ].filter(<T>(x: T | undefined): x is T => x !== undefined),
         data: getConfidentialMintInstructionDataEncoder().encode(args as ConfidentialMintInstructionDataArgs),
@@ -376,8 +378,10 @@ export function parseConfidentialMintInstruction<TProgram extends string, TAccou
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedConfidentialMintInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 3) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 3,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

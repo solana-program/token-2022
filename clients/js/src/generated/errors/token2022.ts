@@ -78,7 +78,7 @@ export type Token2022Error =
     | typeof TOKEN_2022_ERROR__UNINITIALIZED_STATE;
 
 let token2022ErrorMessages: Record<Token2022Error, string> | undefined;
-if (process.env.NODE_ENV !== 'production') {
+if (process.env['NODE_ENV'] !== 'production') {
     token2022ErrorMessages = {
         [TOKEN_2022_ERROR__ACCOUNT_FROZEN]: `Account is frozen`,
         [TOKEN_2022_ERROR__ALREADY_IN_USE]: `Already in use`,
@@ -104,7 +104,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export function getToken2022ErrorMessage(code: Token2022Error): string {
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env['NODE_ENV'] !== 'production') {
         return (token2022ErrorMessages as Record<Token2022Error, string>)[code];
     }
 

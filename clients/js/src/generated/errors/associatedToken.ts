@@ -20,14 +20,14 @@ export const ASSOCIATED_TOKEN_ERROR__INVALID_OWNER = 0x0; // 0
 export type AssociatedTokenError = typeof ASSOCIATED_TOKEN_ERROR__INVALID_OWNER;
 
 let associatedTokenErrorMessages: Record<AssociatedTokenError, string> | undefined;
-if (process.env.NODE_ENV !== 'production') {
+if (process.env['NODE_ENV'] !== 'production') {
     associatedTokenErrorMessages = {
         [ASSOCIATED_TOKEN_ERROR__INVALID_OWNER]: `Associated token account owner does not match address derivation`,
     };
 }
 
 export function getAssociatedTokenErrorMessage(code: AssociatedTokenError): string {
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env['NODE_ENV'] !== 'production') {
         return (associatedTokenErrorMessages as Record<AssociatedTokenError, string>)[code];
     }
 
