@@ -7,17 +7,13 @@ import {
     getPauseInstruction,
     getResumeInstruction,
 } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    generateKeyPairSignerWithSol,
-    getCreateMintInstructions,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, getCreateMintInstructions } from '../../_setup';
 
 it('resumes a mint', async () => {
     // Given a fresh client with no state the test cares about.
-    const client = createDefaultSolanaClient();
-    const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
+    const client = await createTestClient();
+    const authority = client.payer;
+    const mint = await generateKeyPairSigner();
 
     // And a pausable config extension.
     const pausableConfigExtension = extension('PausableConfig', {
@@ -34,7 +30,7 @@ it('resumes a mint', async () => {
         mint,
         payer: authority,
     });
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         createMintInstruction,
         getInitializePausableConfigInstruction({
             mint: mint.address,
@@ -48,14 +44,14 @@ it('resumes a mint', async () => {
         mint: mint.address,
         authority: authority.address,
     });
-    await sendAndConfirmInstructions(client, authority, [pauseInstruction]);
+    await client.sendTransaction([pauseInstruction]);
 
     // And when resume the mint.
     const resumeInstruction = getResumeInstruction({
         mint: mint.address,
         authority: authority.address,
     });
-    await sendAndConfirmInstructions(client, authority, [resumeInstruction]);
+    await client.sendTransaction([resumeInstruction]);
 
     // Then we expect the mint account to exist and have the pausable config extension.
     const mintAccount = await fetchMint(client.rpc, mint.address);

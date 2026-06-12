@@ -1,16 +1,11 @@
 import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
 import { getInitializePausableConfigInstruction, extension, fetchMint, Mint } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    generateKeyPairSignerWithSol,
-    getCreateMintInstructions,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
 
 it('initializes a mint with a pausable config', async () => {
     // Given a fresh client with no state the test cares about.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
 
     // And a pausable config extension.
@@ -28,7 +23,7 @@ it('initializes a mint with a pausable config', async () => {
         mint,
         payer: authority,
     });
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         createMintInstruction,
         getInitializePausableConfigInstruction({
             mint: mint.address,

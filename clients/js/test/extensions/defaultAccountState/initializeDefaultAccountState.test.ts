@@ -9,17 +9,16 @@ import {
     getInitializeDefaultAccountStateInstruction,
 } from '../../../src';
 import {
-    createDefaultSolanaClient,
+    createTestClient,
     createMint,
     createToken,
     generateKeyPairSignerWithSol,
     getCreateMintInstructions,
-    sendAndConfirmInstructions,
 } from '../../_setup';
 
 it('initializes a mint account with a default account state extension', async () => {
     // Given an authority and a mint account.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, freezeAuthority, mint] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -40,7 +39,7 @@ it('initializes a mint account with a default account state extension', async ()
         mint,
         payer: authority,
     });
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         createMintInstruction,
         getInitializeDefaultAccountStateInstruction({
             mint: mint.address,
@@ -63,7 +62,7 @@ it('initializes a mint account with a default account state extension', async ()
 
 it('initializes a token account with the default state defined on the mint account', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, freezeAuthority, owner] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),

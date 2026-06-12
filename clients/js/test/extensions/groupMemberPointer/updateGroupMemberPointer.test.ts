@@ -1,16 +1,11 @@
 import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, some } from '@solana/kit';
 import { Mint, extension, fetchMint, getUpdateGroupMemberPointerInstruction } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    createMint,
-    generateKeyPairSignerWithSol,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, createMint, generateKeyPairSignerWithSol } from '../../_setup';
 
 it('updates the group member pointer extension on a mint account', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, groupMemberPointerAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -32,7 +27,7 @@ it('updates the group member pointer extension on a mint account', async () => {
     });
 
     // When we update the group member pointer on the mint account.
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         getUpdateGroupMemberPointerInstruction({
             mint,
             groupMemberPointerAuthority,

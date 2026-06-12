@@ -1,16 +1,11 @@
 import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, some } from '@solana/kit';
 import { Mint, extension, fetchMint, getUpdateTransferHookInstruction } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    generateKeyPairSignerWithSol,
-    createMint,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, generateKeyPairSignerWithSol, createMint } from '../../_setup';
 
 it('updates transfer hook program ID on a mint', async () => {
     // Given some signer accounts and client
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, hookAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -32,7 +27,7 @@ it('updates transfer hook program ID on a mint', async () => {
 
     // When we update the program ID
     const newProgramId = address('6sPR6MzvjMMP5LSZzEtTe4ZBVX9rhBmtM1dmfFtkNTbW');
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         getUpdateTransferHookInstruction({
             mint,
             authority: hookAuthority,

@@ -1,16 +1,11 @@
 import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, none, some } from '@solana/kit';
 import { Mint, extension, fetchMint, getUpdateConfidentialTransferMintInstruction } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    createMint,
-    generateKeyPairSignerWithSol,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, createMint, generateKeyPairSignerWithSol } from '../../_setup';
 
 it('updates a mint account with confidential transfer', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, confidentialTransferAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -31,7 +26,7 @@ it('updates a mint account with confidential transfer', async () => {
     });
 
     // When we update the mint account with new confidential transfer configs.
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         getUpdateConfidentialTransferMintInstruction({
             mint,
             authority: confidentialTransferAuthority,

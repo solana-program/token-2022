@@ -1,16 +1,11 @@
 import { expect, it } from 'vitest';
 import { generateKeyPairSigner, none, some, unwrapOption } from '@solana/kit';
 import { extension, fetchMint, getInitializeTokenGroupMemberInstruction, isExtension, Mint } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    createMint,
-    generateKeyPairSignerWithSol,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, createMint, generateKeyPairSignerWithSol } from '../../_setup';
 
 it('adds members to the token group extension', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, group, member, groupUpdateAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -59,7 +54,7 @@ it('adds members to the token group extension', async () => {
     });
 
     // When we initialize the member mint account as a member of the group mint account.
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         getInitializeTokenGroupMemberInstruction({
             member: member.address,
             memberMint: member.address,

@@ -2,17 +2,16 @@ import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
 import { Token, extension, fetchToken, getEnableCpiGuardInstruction } from '../../../src';
 import {
-    createDefaultSolanaClient,
+    createTestClient,
     createMint,
     createToken,
     generateKeyPairSignerWithSol,
     getCreateTokenInstructions,
-    sendAndConfirmInstructions,
 } from '../../_setup';
 
 it('initializes a token account with an enabled CPI guard extension', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, token, owner] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -34,7 +33,7 @@ it('initializes a token account with an enabled CPI guard extension', async () =
         payer: authority,
         token,
     });
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         createTokenInstruction,
         initTokenInstruction,
         getEnableCpiGuardInstruction({
@@ -55,7 +54,7 @@ it('initializes a token account with an enabled CPI guard extension', async () =
 
 it('enables CPI guard on a token account', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, owner] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSignerWithSol(client),
@@ -72,7 +71,7 @@ it('enables CPI guard on a token account', async () => {
     });
 
     // When we enable the CPI guard extension.
-    await sendAndConfirmInstructions(client, owner, [getEnableCpiGuardInstruction({ token, owner })]);
+    await client.sendTransaction([getEnableCpiGuardInstruction({ token, owner })]);
 
     // Then we expect the token account to have CPI guard enabled.
     const tokenAccount = await fetchToken(client.rpc, token);

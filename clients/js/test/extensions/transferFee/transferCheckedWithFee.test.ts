@@ -1,17 +1,11 @@
 import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, some } from '@solana/kit';
 import { Token, extension, fetchToken, getMintToInstruction, getTransferCheckedWithFeeInstruction } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    createMint,
-    generateKeyPairSignerWithSol,
-    getCreateTokenInstructions,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, createMint, generateKeyPairSignerWithSol, getCreateTokenInstructions } from '../../_setup';
 
 it('transfers tokens with pre-configured fees', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, ownerA, tokenA, ownerB, tokenB] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -64,7 +58,7 @@ it('transfers tokens with pre-configured fees', async () => {
             token: tokenB,
         }),
     ]);
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         ...createTokensInstructions.flat(),
         getMintToInstruction({
             mint,
@@ -75,7 +69,7 @@ it('transfers tokens with pre-configured fees', async () => {
     ]);
 
     // When we transfer 2.00 tokens from owner A to owner B with fees.
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         getTransferCheckedWithFeeInstruction({
             source: tokenA.address,
             mint,

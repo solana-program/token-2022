@@ -7,16 +7,11 @@ import {
     getInitializeMetadataPointerInstruction,
     getInitializeTokenMetadataInstruction,
 } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    generateKeyPairSignerWithSol,
-    getCreateMintInstructions,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
 
 it('initializes a mint account with a token metadata and metadata pointer extension', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, mint, updateAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -47,7 +42,7 @@ it('initializes a mint account with a token metadata and metadata pointer extens
         mint,
         payer: authority,
     });
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         createMintInstruction,
         getInitializeMetadataPointerInstruction({
             mint: mint.address,

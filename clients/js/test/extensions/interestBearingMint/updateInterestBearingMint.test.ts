@@ -1,16 +1,11 @@
 import { expect, it } from 'vitest';
-import {
-    createDefaultSolanaClient,
-    createMint,
-    generateKeyPairSignerWithSol,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, createMint, generateKeyPairSignerWithSol } from '../../_setup';
 import { Account, isSome } from '@solana/kit';
 import { extension, fetchMint, getUpdateRateInterestBearingMintInstruction, Mint } from '../../../src';
 
 it('updates the interest bearing mint extension on a mint account', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [rateAuthority] = await Promise.all([generateKeyPairSignerWithSol(client)]);
 
     const oldRate = 10000;
@@ -33,7 +28,7 @@ it('updates the interest bearing mint extension on a mint account', async () => 
     });
 
     // When we update the interest bearing mint extension on the mint account
-    await sendAndConfirmInstructions(client, rateAuthority, [
+    await client.sendTransaction([
         getUpdateRateInterestBearingMintInstruction({
             rateAuthority: rateAuthority,
             mint: mint,

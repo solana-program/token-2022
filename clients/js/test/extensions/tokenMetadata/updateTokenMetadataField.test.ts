@@ -7,16 +7,11 @@ import {
     isExtension,
     tokenMetadataField,
 } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    createMint,
-    generateKeyPairSignerWithSol,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, createMint, generateKeyPairSignerWithSol } from '../../_setup';
 
 it('updates a known field on the token metadata extension', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, mint, updateAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -46,7 +41,7 @@ it('updates a known field on the token metadata extension', async () => {
     });
 
     // When we change the name of the token metadata extension.
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         getUpdateTokenMetadataFieldInstruction({
             metadata: mint.address,
             updateAuthority: updateAuthority,
@@ -65,7 +60,7 @@ it('updates a known field on the token metadata extension', async () => {
 
 it('updates a custom field on the token metadata extension', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, mint, updateAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -100,7 +95,7 @@ it('updates a custom field on the token metadata extension', async () => {
     });
 
     // When we set the custom field on the token metadata extension.
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         getUpdateTokenMetadataFieldInstruction({
             metadata: mint.address,
             updateAuthority: updateAuthority,

@@ -8,16 +8,11 @@ import {
     getInitializeTransferFeeConfigInstruction,
     getInitializeConfidentialTransferMintInstruction,
 } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    generateKeyPairSignerWithSol,
-    getCreateMintInstructions,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
 
 it('initializes a mint with confidential transfer fee', async () => {
     // Given an authority and a mint account.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
 
     // And required extensions configuration
@@ -66,7 +61,7 @@ it('initializes a mint with confidential transfer fee', async () => {
         payer: authority,
     });
 
-    await sendAndConfirmInstructions(client, authority, [
+    await client.sendTransaction([
         createMintInstruction,
         // Initialize TransferFeeConfig first
         getInitializeTransferFeeConfigInstruction({

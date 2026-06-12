@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { generateKeyPairSigner } from '@solana/kit';
 import { AeKey, ElGamalKeypair } from '@solana/zk-sdk/bundler';
 import { getCreateConfidentialTransferAccountInstructionPlan } from '../../../src/confidential';
-import { createDefaultSolanaClient } from '../../_setup';
+import { createTestClient } from '../../_setup';
 
 it('rejects create helper authority that does not match the owner ATA flow', async () => {
     const [payer, owner, delegatedAuthority] = await Promise.all([
@@ -12,6 +12,7 @@ it('rejects create helper authority that does not match the owner ATA flow', asy
     ]);
     const elgamalKeypair = new ElGamalKeypair();
     const aesKey = new AeKey();
+    const client = await createTestClient();
 
     await expect(
         getCreateConfidentialTransferAccountInstructionPlan({
@@ -19,7 +20,7 @@ it('rejects create helper authority that does not match the owner ATA flow', asy
             owner,
             authority: delegatedAuthority,
             mint: payer.address,
-            rpc: createDefaultSolanaClient().rpc,
+            rpc: client.rpc,
             elgamalKeypair,
             aesKey,
         }),

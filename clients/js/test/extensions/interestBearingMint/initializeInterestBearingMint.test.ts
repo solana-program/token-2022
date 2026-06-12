@@ -1,16 +1,11 @@
 import { expect, it } from 'vitest';
-import {
-    createDefaultSolanaClient,
-    generateKeyPairSignerWithSol,
-    getCreateMintInstructions,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
 import { Account, generateKeyPairSigner, isSome } from '@solana/kit';
 import { extension, fetchMint, getInitializeInterestBearingMintInstruction, Mint } from '../../../src';
 
 it('initialize a mint account with an interest bearing mint extension', async () => {
     // Given a fresh client with no state the test cares about.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [rateAuthority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
 
     // in bips
@@ -33,7 +28,7 @@ it('initialize a mint account with an interest bearing mint extension', async ()
         mint,
         payer: rateAuthority,
     });
-    await sendAndConfirmInstructions(client, rateAuthority, [
+    await client.sendTransaction([
         createMintInstruction,
         getInitializeInterestBearingMintInstruction({
             rateAuthority: rateAuthority.address,

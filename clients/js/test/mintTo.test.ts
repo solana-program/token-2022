@@ -1,24 +1,14 @@
 import { expect, it } from 'vitest';
 import { generateKeyPairSigner } from '@solana/kit';
 import { Mint, Token, fetchMint, fetchToken, getMintToInstruction } from '../src';
-import {
-    createDefaultSolanaClient,
-    createMint,
-    createToken,
-    generateKeyPairSignerWithSol,
-    sendAndConfirmInstructions,
-} from './_setup';
+import { createTestClient, createMint, createToken } from './_setup';
 
 it('mints tokens to a token account', async () => {
     // Given a mint account and a token account.
-    const client = createDefaultSolanaClient();
-    const [payer, mintAuthority, owner] = await Promise.all([
-        generateKeyPairSignerWithSol(client),
-        generateKeyPairSigner(),
-        generateKeyPairSigner(),
-    ]);
-    const mint = await createMint({ client, payer, authority: mintAuthority });
-    const token = await createToken({ client, payer, mint, owner });
+    const client = await createTestClient();
+    const [mintAuthority, owner] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
+    const mint = await createMint({ client, payer: client.payer, authority: mintAuthority });
+    const token = await createToken({ client, payer: client.payer, mint, owner });
 
     // When the mint authority mints tokens to the token account.
     const mintTo = getMintToInstruction({
@@ -27,7 +17,7 @@ it('mints tokens to a token account', async () => {
         mintAuthority,
         amount: 100n,
     });
-    await sendAndConfirmInstructions(client, payer, [mintTo]);
+    await client.sendTransaction([mintTo]);
 
     // Then we expect the mint and token accounts to have the following updated data.
     const [{ data: mintData }, { data: tokenData }] = await Promise.all([

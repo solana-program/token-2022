@@ -1,28 +1,19 @@
+import path from 'node:path';
+
 import { getCreateAccountInstruction } from '@solana-program/system';
 import {
     Address,
-    TransactionMessage,
-    Commitment,
-    Instruction,
-    InstructionPlan,
-    Rpc,
-    RpcSubscriptions,
-    SolanaRpcApi,
-    SolanaRpcSubscriptionsApi,
-    TransactionMessageWithBlockhashLifetime,
-    TransactionMessageWithFeePayer,
+    Transaction,
     TransactionSigner,
-    airdropFactory,
-    appendTransactionMessageInstructions,
     assertIsSendableTransaction,
+    assertIsSingleTransactionPlanResult,
     assertIsTransactionWithBlockhashLifetime,
-    createSolanaRpc,
-    createSolanaRpcSubscriptions,
+    createClient,
     createTransactionMessage,
     createTransactionPlanExecutor,
     createTransactionPlanner,
+    extendClient,
     generateKeyPairSigner,
-    getSignatureFromTransaction,
     isSome,
     lamports,
     none,
@@ -33,6 +24,10 @@ import {
     signTransactionMessageWithSigners,
     some,
 } from '@solana/kit';
+import { planAndSendTransactions } from '@solana/kit-plugin-instruction-plan';
+import { TransactionMetadata, litesvm } from '@solana/kit-plugin-litesvm';
+import { solanaLocalRpc } from '@solana/kit-plugin-rpc';
+import { airdropSigner, generatedSigner } from '@solana/kit-plugin-signer';
 import { AeKey, ElGamalKeypair } from '@solana/zk-sdk/bundler';
 import {
     Extension,
@@ -57,86 +52,103 @@ import {
     getCreateConfidentialTransferAccountInstructionPlan,
 } from '../src/confidential';
 
-export type Client = {
-    rpc: Rpc<SolanaRpcApi>;
-    rpcSubscriptions: RpcSubscriptions<SolanaRpcSubscriptionsApi>;
+const TOKEN_2022_BINARY_PATH = path.resolve(__dirname, '..', '..', '..', 'target', 'deploy', 'spl_token_2022.so');
+
+// The default test client runs against an in-process LiteSVM instance. The
+// Token-2022 program is loaded from its compiled `.so`; the System, Associated
+// Token and ZK ElGamal Proof program accounts are LiteSVM builtins.
+export const createTestClient = () => {
+    return createClient()
+        .use(generatedSigner())
+        .use(litesvm())
+        .use(airdropSigner(lamports(1_000_000_000n)))
+        .use(client => {
+            // Must run after the `litesvm()` plugin so `client.svm` is available.
+            client.svm.addProgramFromFile(TOKEN_2022_PROGRAM_ADDRESS, TOKEN_2022_BINARY_PATH);
+            return client;
+        });
 };
 
-export const createDefaultSolanaClient = (): Client => {
-    const rpc = createSolanaRpc('http://127.0.0.1:8899');
-    const rpcSubscriptions = createSolanaRpcSubscriptions('ws://127.0.0.1:8900');
-    return { rpc, rpcSubscriptions };
+// A validator-backed client for the few confidential-transfer tests that
+// verify zero-knowledge proofs. LiteSVM's builtin ZK ElGamal Proof program
+// does not execute proof verification, so those tests must run against a local
+// `solana-test-validator` (started by `make test-js-clients-js`).
+//
+// The planner and executor are overridden so that no compute-unit-limit
+// instruction is added to any transaction. The default RPC planner reserves
+// ~40 bytes for a provisory compute-unit limit and the default RPC executor
+// estimates and sets a real one before sending; either is enough to push the
+// largest proof-verification transaction (the batched range proof, which must
+// share a transaction with its context-state account creation) past the
+// transaction size limit. Omitting it is safe: a versioned transaction with no
+// compute-unit limit still receives the per-instruction default budget.
+export const createValidatorClient = () => {
+    return (
+        createClient()
+            .use(generatedSigner())
+            .use(solanaLocalRpc())
+            .use(airdropSigner(lamports(1_000_000_000n)))
+            .use(client =>
+                extendClient(client, {
+                    // A planner that builds a bare versioned message with no
+                    // provisory compute-unit-limit instruction.
+                    transactionPlanner: createTransactionPlanner({
+                        createTransactionMessage: () =>
+                            pipe(createTransactionMessage({ version: 0 }), tx =>
+                                setTransactionMessageFeePayerSigner(client.payer, tx),
+                            ),
+                    }),
+                    // An executor that sets the blockhash, signs and sends — but
+                    // never estimates or sets a compute-unit limit (unlike the
+                    // default RPC executor, which would re-add the instruction at
+                    // execution time, after planning validated the size).
+                    transactionPlanExecutor: createTransactionPlanExecutor({
+                        executeTransactionMessage: async (_context, message) => {
+                            const { value: latestBlockhash } = await client.rpc.getLatestBlockhash().send();
+                            const transaction = await pipe(
+                                setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, message),
+                                tx => signTransactionMessageWithSigners(tx),
+                            );
+                            assertIsSendableTransaction(transaction);
+                            assertIsTransactionWithBlockhashLifetime(transaction);
+                            await sendAndConfirmTransactionFactory(client)(transaction, { commitment: 'confirmed' });
+                            return transaction;
+                        },
+                    }),
+                }),
+            )
+            // Re-wire `sendTransaction(s)` so they capture the client with the
+            // overridden planner and executor above.
+            .use(planAndSendTransactions())
+    );
 };
+
+export type LiteSvmClient = Awaited<ReturnType<typeof createTestClient>>;
+export type ValidatorClient = Awaited<ReturnType<typeof createValidatorClient>>;
+export type Client = LiteSvmClient | ValidatorClient;
 
 export const generateKeyPairSignerWithSol = async (client: Client, putativeLamports: bigint = 1_000_000_000n) => {
     const signer = await generateKeyPairSigner();
-    await airdropFactory(client)({
-        recipientAddress: signer.address,
-        lamports: lamports(putativeLamports),
-        commitment: 'confirmed',
-    });
+    await client.airdrop(signer.address, lamports(putativeLamports));
     return signer;
 };
 
-export const createDefaultTransaction = async (client: Client, feePayer: TransactionSigner) => {
-    const { value: latestBlockhash } = await client.rpc.getLatestBlockhash().send();
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        tx => setTransactionMessageFeePayerSigner(feePayer, tx),
-        tx => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
-    );
+type SingleSendResult = Awaited<ReturnType<LiteSvmClient['sendTransaction']>>;
+
+// The context of a single, successful LiteSVM transaction: the executed
+// transaction (with its compiled message bytes) and the LiteSVM
+// `TransactionMetadata` (return data, logs, etc.).
+type ExecutedTransactionContext = {
+    transaction: Transaction;
+    transactionMetadata: TransactionMetadata;
 };
 
-export const signAndSendTransaction = async (
-    client: Client,
-    transactionMessage: TransactionMessage & TransactionMessageWithFeePayer & TransactionMessageWithBlockhashLifetime,
-    commitment: Commitment = 'confirmed',
-) => {
-    const signedTransaction = await signTransactionMessageWithSigners(transactionMessage);
-    const signature = getSignatureFromTransaction(signedTransaction);
-    assertIsSendableTransaction(signedTransaction);
-    assertIsTransactionWithBlockhashLifetime(signedTransaction);
-    await sendAndConfirmTransactionFactory(client)(signedTransaction, { commitment });
-    return signature;
-};
-
-export const sendAndConfirmInstructions = async (
-    client: Client,
-    payer: TransactionSigner,
-    instructions: Instruction[],
-) => {
-    const signature = await pipe(
-        await createDefaultTransaction(client, payer),
-        tx => appendTransactionMessageInstructions(instructions, tx),
-        tx => signAndSendTransaction(client, tx),
-    );
-    return signature;
-};
-
-export const sendAndConfirmInstructionPlan = async (
-    client: Client,
-    payer: TransactionSigner,
-    instructionPlan: InstructionPlan,
-) => {
-    const planner = createTransactionPlanner({
-        createTransactionMessage: () =>
-            pipe(createTransactionMessage({ version: 0 }), tx => setTransactionMessageFeePayerSigner(payer, tx)),
-    });
-    const sendAndConfirmTransaction = sendAndConfirmTransactionFactory(client);
-    const executor = createTransactionPlanExecutor({
-        executeTransactionMessage: async (_context, message) => {
-            const { value: latestBlockhash } = await client.rpc.getLatestBlockhash().send();
-            const transaction = await pipe(setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, message), tx =>
-                signTransactionMessageWithSigners(tx),
-            );
-            assertIsSendableTransaction(transaction);
-            assertIsTransactionWithBlockhashLifetime(transaction);
-            await sendAndConfirmTransaction(transaction, { commitment: 'confirmed' });
-            return transaction;
-        },
-    });
-    const transactionPlan = await planner(instructionPlan);
-    return await executor(transactionPlan);
+// Narrows the result of `client.sendTransaction` to the context of its single,
+// successful transaction. Asserts the result is indeed a single transaction
+// plan result before exposing the LiteSVM-specific context typing.
+export const getSingleTransactionContext = (result: SingleSendResult): ExecutedTransactionContext => {
+    assertIsSingleTransactionPlanResult(result);
+    return result.context as unknown as ExecutedTransactionContext;
 };
 
 export const getCreateMintInstructions = async (input: {
@@ -211,7 +223,7 @@ export const createMint = async (
         authority: input.authority.address,
         mint,
     });
-    await sendAndConfirmInstructions(input.client, input.payer, [
+    await input.client.sendTransaction([
         createAccount,
         ...getPreInitializeInstructionsForMintExtensions(mint.address, input.extensions ?? []),
         initMint,
@@ -229,7 +241,7 @@ export const createToken = async (
         owner: input.owner.address,
         token,
     });
-    await sendAndConfirmInstructions(input.client, input.payer, [
+    await input.client.sendTransaction([
         createAccount,
         initToken,
         ...getPostInitializeInstructionsForTokenExtensions(token.address, input.owner, input.extensions ?? []),
@@ -250,7 +262,7 @@ export const createTokenWithAmount = async (
         owner: input.owner.address,
         token,
     });
-    await sendAndConfirmInstructions(input.client, input.payer, [
+    await input.client.sendTransaction([
         createAccount,
         initToken,
         ...getPostInitializeInstructionsForTokenExtensions(token.address, input.owner, input.extensions ?? []),
@@ -329,9 +341,7 @@ export const createConfidentialTokenAccount = async (input: {
         tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
         mint: input.mint,
     });
-    await sendAndConfirmInstructionPlan(
-        input.client,
-        input.payer,
+    await input.client.sendTransaction(
         await getCreateConfidentialTransferAccountInstructionPlan({
             payer: input.payer,
             owner: input.owner,
@@ -358,7 +368,7 @@ export const createConfidentialTokenAccountWithBalance = async (input: {
     const account = await createConfidentialTokenAccount(input);
 
     // Mint public tokens, then deposit them into the confidential pending balance.
-    await sendAndConfirmInstructions(input.client, input.payer, [
+    await input.client.sendTransaction([
         getMintToInstruction({
             mint: input.mint,
             token: account.token,
@@ -376,7 +386,7 @@ export const createConfidentialTokenAccountWithBalance = async (input: {
 
     // Apply the pending balance so the deposited amount becomes available.
     const { data: tokenAccount } = await fetchToken(input.client.rpc, account.token);
-    await sendAndConfirmInstructions(input.client, input.payer, [
+    await input.client.sendTransaction([
         getApplyConfidentialPendingBalanceInstructionFromToken({
             token: account.token,
             tokenAccount,

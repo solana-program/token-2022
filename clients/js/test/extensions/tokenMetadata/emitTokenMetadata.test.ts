@@ -1,16 +1,11 @@
 import { expect, it } from 'vitest';
-import { generateKeyPairSigner, getBase64Encoder } from '@solana/kit';
+import { generateKeyPairSigner } from '@solana/kit';
 import { extension, getEmitTokenMetadataInstruction, getExtensionEncoder } from '../../../src';
-import {
-    createDefaultSolanaClient,
-    createMint,
-    generateKeyPairSignerWithSol,
-    sendAndConfirmInstructions,
-} from '../../_setup';
+import { createTestClient, createMint, generateKeyPairSignerWithSol, getSingleTransactionContext } from '../../_setup';
 
 it('emits the token metadata extension as return data', async () => {
     // Given some signer accounts.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, mint, updateAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -41,18 +36,10 @@ it('emits the token metadata extension as return data', async () => {
     });
 
     // When we emit the token metadata extension.
-    const signature = await sendAndConfirmInstructions(client, authority, [
-        getEmitTokenMetadataInstruction({ metadata: mint.address }),
-    ]);
+    const result = await client.sendTransaction([getEmitTokenMetadataInstruction({ metadata: mint.address })]);
 
     // Then we expect the token metadata extension to be emitted as return data.
-    const transaction = await client.rpc
-        .getTransaction(signature, {
-            encoding: 'json',
-            maxSupportedTransactionVersion: 0,
-        })
-        .send();
-    const returnData = getBase64Encoder().encode(transaction?.meta?.returnData?.data?.[0] ?? '');
+    const returnData = getSingleTransactionContext(result).transactionMetadata.returnData().data();
     const expectedReturnData = getExtensionEncoder().encode(tokenMetadataExtension).slice(4); // Remove extension header.
-    expect(returnData).toEqual(expectedReturnData);
+    expect(returnData).toStrictEqual(expectedReturnData);
 });
