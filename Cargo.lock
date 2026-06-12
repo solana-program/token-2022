@@ -10568,6 +10568,7 @@ dependencies = [
  "solana-transaction",
  "solana-transaction-error",
  "solana-zk-sdk",
+ "spl-discriminator",
  "spl-elgamal-registry-interface",
  "spl-memo-interface",
  "spl-pod",

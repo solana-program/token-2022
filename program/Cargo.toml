@@ -41,6 +41,7 @@ solana-security-txt = "1.1.2"
 solana-sysvar = { version = "3.0.0", features = ["bincode"] }
 solana-system-interface = { version = "3.0.0", features = ["bincode"] }
 solana-zk-sdk = "4.0.0"
+spl-discriminator = { version = "0.5.1" }
 spl-elgamal-registry-interface = { version = "0.1.0", path = "../confidential/elgamal-registry-interface" }
 spl-memo-interface = { version = "2.0" }
 spl-token-2022-interface = { version = "2.1.0", path = "../interface" }

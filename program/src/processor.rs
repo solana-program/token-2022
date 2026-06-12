@@ -27,6 +27,7 @@ use {
     solana_sdk_ids::system_program,
     solana_system_interface::instruction as system_instruction,
     solana_sysvar::{Sysvar, SysvarSerialize},
+    spl_discriminator::SplDiscriminate,
     spl_pod::{
         bytemuck::{pod_from_bytes, pod_from_bytes_mut},
         primitives::{PodBool, PodU64},
@@ -69,18 +70,14 @@ use {
         state::{Account, AccountState, Mint, PackedSizeOf},
     },
     spl_token_group_interface::instruction::TokenGroupInstruction,
-    spl_token_metadata_interface::instruction::TokenMetadataInstruction,
+    spl_token_metadata_interface::instruction::{
+        Initialize, RemoveKey, TokenMetadataInstruction, UpdateField,
+    },
     std::convert::{TryFrom, TryInto},
 };
 
 const TOKEN_METADATA_DISCRIMINATOR_LENGTH: usize = 8;
 const U32_BYTES: usize = 4;
-const TOKEN_METADATA_INITIALIZE_DISCRIMINATOR: [u8; TOKEN_METADATA_DISCRIMINATOR_LENGTH] =
-    [0xd2, 0xe1, 0x1e, 0xa2, 0x58, 0xb8, 0x4d, 0x8d];
-const TOKEN_METADATA_UPDATE_FIELD_DISCRIMINATOR: [u8; TOKEN_METADATA_DISCRIMINATOR_LENGTH] =
-    [0xdd, 0xe9, 0x31, 0x2d, 0xb5, 0xca, 0xdc, 0xc8];
-const TOKEN_METADATA_REMOVE_KEY_DISCRIMINATOR: [u8; TOKEN_METADATA_DISCRIMINATOR_LENGTH] =
-    [0xea, 0x12, 0x20, 0x38, 0x59, 0x8d, 0x25, 0xb5];
 
 pub(crate) enum TransferInstruction {
     Unchecked,
@@ -183,13 +180,13 @@ impl Processor {
         }
 
         let (discriminator, rest) = input.split_at(TOKEN_METADATA_DISCRIMINATOR_LENGTH);
-        if discriminator == TOKEN_METADATA_INITIALIZE_DISCRIMINATOR.as_slice() {
+        if discriminator == Initialize::SPL_DISCRIMINATOR_SLICE {
             Self::validate_token_metadata_initialize_payload(rest)?;
             Ok(true)
-        } else if discriminator == TOKEN_METADATA_UPDATE_FIELD_DISCRIMINATOR.as_slice() {
+        } else if discriminator == UpdateField::SPL_DISCRIMINATOR_SLICE {
             Self::validate_token_metadata_update_field_payload(rest)?;
             Ok(true)
-        } else if discriminator == TOKEN_METADATA_REMOVE_KEY_DISCRIMINATOR.as_slice() {
+        } else if discriminator == RemoveKey::SPL_DISCRIMINATOR_SLICE {
             Self::validate_token_metadata_remove_key_payload(rest)?;
             Ok(true)
         } else {
