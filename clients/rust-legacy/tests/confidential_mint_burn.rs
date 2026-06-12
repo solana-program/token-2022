@@ -10,9 +10,8 @@ use {
         transaction::TransactionError,
         transport::TransportError,
     },
-    spl_token_2022::extension::confidential_mint_burn::account_info::{
-        BurnAccountInfo, SupplyAccountInfo,
-    },
+    solana_zk_sdk::encryption::{auth_encryption::*, elgamal::*},
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
     spl_token_2022_interface::{
         error::TokenError,
         extension::{
@@ -21,9 +20,6 @@ use {
             ExtensionType,
         },
         instruction::AuthorityType,
-        solana_zk_sdk::encryption::{
-            auth_encryption::*, elgamal::*, pod::elgamal::PodElGamalCiphertext,
-        },
     },
     spl_token_client::{
         client::{ProgramBanksClientProcessTransaction, SendTransaction, SimulateTransaction},
@@ -31,6 +27,7 @@ use {
             ExtensionInitializationParams, ProofAccountWithCiphertext, Token,
             TokenError as TokenClientError, TokenResult,
         },
+        zk_proofs::confidential_mint_burn::{BurnAccountInfo, SupplyAccountInfo},
     },
     spl_token_confidential_transfer_proof_generation::{burn::BurnProofData, mint::MintProofData},
     std::convert::TryInto,
@@ -280,6 +277,24 @@ async fn confidential_mint_burn_rotate_supply_elgamal_pubkey_with_option(
     let new_supply_elgamal_keypair = ElGamalKeypair::new_rand();
     let new_supply_elgamal_pubkey = new_supply_elgamal_keypair.pubkey();
 
+    let alice_meta = ConfidentialTokenAccountMeta::new(&token, &alice).await;
+    let mint_amount = 120;
+
+    mint_with_option(
+        &token,
+        &mint_authority.pubkey(),
+        &alice_meta.token_account,
+        mint_amount,
+        &supply_elgamal_keypair,
+        alice_meta.elgamal_keypair.pubkey(),
+        Some(auditor_elgamal_keypair.pubkey()),
+        &supply_aes_key,
+        &[&mint_authority],
+        option,
+    )
+    .await
+    .unwrap();
+
     rotate_supply_elgamal_pubkey(
         &token,
         &mint_authority.pubkey(),
@@ -308,27 +323,8 @@ async fn confidential_mint_burn_rotate_supply_elgamal_pubkey_with_option(
         confidential_supply
             .decrypt_u32(new_supply_elgamal_keypair.secret())
             .unwrap(),
-        0
+        mint_amount
     );
-
-    // check that rotation fails when pending burn is non-zero
-    let alice_meta = ConfidentialTokenAccountMeta::new(&token, &alice).await;
-    let mint_amount = 120;
-
-    mint_with_option(
-        &token,
-        &mint_authority.pubkey(),
-        &alice_meta.token_account,
-        mint_amount,
-        &new_supply_elgamal_keypair,
-        alice_meta.elgamal_keypair.pubkey(),
-        Some(auditor_elgamal_keypair.pubkey()),
-        &supply_aes_key,
-        &[&mint_authority],
-        option,
-    )
-    .await
-    .unwrap();
 
     token
         .confidential_transfer_apply_pending_balance(

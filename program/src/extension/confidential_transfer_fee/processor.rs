@@ -3,11 +3,13 @@
 use spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic;
 use {
     crate::processor::Processor,
+    bytemuck::Zeroable,
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_msg::msg,
+    solana_nullable::MaybeNull,
     solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -32,22 +34,19 @@ use {
         },
         instruction::{decode_instruction_data, decode_instruction_type},
         pod::{PodAccount, PodMint},
-        solana_zk_sdk::encryption::pod::elgamal::PodElGamalPubkey,
     },
     spl_token_confidential_transfer_proof_extraction::instruction::verify_and_extract_context,
 };
 
-#[cfg(not(target_arch = "wasm32"))]
-use bytemuck::Zeroable;
-
 /// Processes an [`InitializeConfidentialTransferFeeConfig`] instruction.
 fn process_initialize_confidential_transfer_fee_config(
     accounts: &[AccountInfo],
-    authority: &OptionalNonZeroPubkey,
+    authority: &MaybeNull<Address>,
     withdraw_withheld_authority_elgamal_pubkey: &PodElGamalPubkey,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_account_info = next_account_info(account_info_iter)?;
+    check_program_account(mint_account_info.owner)?;
 
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
@@ -64,7 +63,7 @@ fn process_initialize_confidential_transfer_fee_config(
 /// Processes a [`WithdrawWithheldTokensFromMint`] instruction.
 #[cfg(feature = "zk-ops")]
 fn process_withdraw_withheld_tokens_from_mint(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     new_decryptable_available_balance: &DecryptableBalance,
     proof_instruction_offset: i64,
@@ -92,7 +91,7 @@ fn process_withdraw_withheld_tokens_from_mint(
     {
         let transfer_fee_config = mint.get_extension::<TransferFeeConfig>()?;
         let withdraw_withheld_authority =
-            Option::<Pubkey>::from(transfer_fee_config.withdraw_withheld_authority)
+            Option::<Address>::from(transfer_fee_config.withdraw_withheld_authority)
                 .ok_or(TokenError::NoAuthorityExists)?;
         Processor::validate_owner(
             program_id,
@@ -170,7 +169,7 @@ fn process_withdraw_withheld_tokens_from_mint(
 /// Processes a [`WithdrawWithheldTokensFromAccounts`] instruction.
 #[cfg(feature = "zk-ops")]
 fn process_withdraw_withheld_tokens_from_accounts(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     num_token_accounts: u8,
     new_decryptable_available_balance: &DecryptableBalance,
@@ -202,7 +201,7 @@ fn process_withdraw_withheld_tokens_from_accounts(
     // mint must be extended for fees
     let transfer_fee_config = mint.get_extension::<TransferFeeConfig>()?;
     let withdraw_withheld_authority =
-        Option::<Pubkey>::from(transfer_fee_config.withdraw_withheld_authority)
+        Option::<Address>::from(transfer_fee_config.withdraw_withheld_authority)
             .ok_or(TokenError::NoAuthorityExists)?;
     Processor::validate_owner(
         program_id,
@@ -308,7 +307,7 @@ fn process_withdraw_withheld_tokens_from_accounts(
 
 #[cfg(feature = "zk-ops")]
 fn harvest_from_account<'b>(
-    mint_key: &'b Pubkey,
+    mint_key: &'b Address,
     token_account_info: &'b AccountInfo<'_>,
 ) -> Result<EncryptedWithheldAmount, TokenError> {
     let mut token_account_data = token_account_info.data.borrow_mut();
@@ -371,7 +370,7 @@ fn process_harvest_withheld_tokens_to_mint(accounts: &[AccountInfo]) -> ProgramR
 }
 
 /// Process a [`EnableHarvestToMint`] instruction.
-fn process_enable_harvest_to_mint(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+fn process_enable_harvest_to_mint(program_id: &Address, accounts: &[AccountInfo]) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_info = next_account_info(account_info_iter)?;
     let authority_info = next_account_info(account_info_iter)?;
@@ -383,7 +382,7 @@ fn process_enable_harvest_to_mint(program_id: &Pubkey, accounts: &[AccountInfo])
     let confidential_transfer_fee_mint =
         mint.get_extension_mut::<ConfidentialTransferFeeConfig>()?;
 
-    let maybe_confidential_transfer_fee_authority: Option<Pubkey> =
+    let maybe_confidential_transfer_fee_authority: Option<Address> =
         confidential_transfer_fee_mint.authority.into();
     let confidential_transfer_fee_authority =
         maybe_confidential_transfer_fee_authority.ok_or(TokenError::NoAuthorityExists)?;
@@ -401,7 +400,10 @@ fn process_enable_harvest_to_mint(program_id: &Pubkey, accounts: &[AccountInfo])
 }
 
 /// Process a [`DisableHarvestToMint`] instruction.
-fn process_disable_harvest_to_mint(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+fn process_disable_harvest_to_mint(
+    program_id: &Address,
+    accounts: &[AccountInfo],
+) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_info = next_account_info(account_info_iter)?;
     let authority_info = next_account_info(account_info_iter)?;
@@ -413,7 +415,7 @@ fn process_disable_harvest_to_mint(program_id: &Pubkey, accounts: &[AccountInfo]
     let confidential_transfer_fee_mint =
         mint.get_extension_mut::<ConfidentialTransferFeeConfig>()?;
 
-    let maybe_confidential_transfer_fee_authority: Option<Pubkey> =
+    let maybe_confidential_transfer_fee_authority: Option<Address> =
         confidential_transfer_fee_mint.authority.into();
     let confidential_transfer_fee_authority =
         maybe_confidential_transfer_fee_authority.ok_or(TokenError::NoAuthorityExists)?;
@@ -432,7 +434,7 @@ fn process_disable_harvest_to_mint(program_id: &Pubkey, accounts: &[AccountInfo]
 
 #[allow(dead_code)]
 pub(crate) fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     input: &[u8],
 ) -> ProgramResult {

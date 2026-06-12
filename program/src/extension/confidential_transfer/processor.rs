@@ -18,23 +18,24 @@ use {
     },
     bytemuck::Zeroable,
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_clock::Clock,
     solana_cpi::invoke,
     solana_msg::msg,
+    solana_nullable::MaybeNull,
     solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
     solana_rent::Rent,
     solana_system_interface::instruction as system_instruction,
     solana_sysvar::Sysvar,
-    solana_zk_sdk::encryption::pod::{
-        auth_encryption::PodAeCiphertext, elgamal::PodElGamalCiphertext,
+    solana_zero_copy::unaligned::{Bool, U64},
+    solana_zk_elgamal_proof_interface::proof_data::{
+        PubkeyValidityProofContext, ZeroCiphertextProofContext,
+    },
+    solana_zk_sdk_pod::encryption::{
+        auth_encryption::PodAeCiphertext,
+        elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
     },
     spl_elgamal_registry_interface::state::ElGamalRegistry,
-    spl_pod::{
-        bytemuck::pod_from_bytes,
-        optional_keys::{OptionalNonZeroElGamalPubkey, OptionalNonZeroPubkey},
-        primitives::{PodBool, PodU64},
-    },
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -65,9 +66,9 @@ use {
 /// Processes an [`InitializeMint`] instruction.
 fn process_initialize_mint(
     accounts: &[AccountInfo],
-    authority: &OptionalNonZeroPubkey,
-    auto_approve_new_account: PodBool,
-    auditor_encryption_pubkey: &OptionalNonZeroElGamalPubkey,
+    authority: &MaybeNull<Address>,
+    auto_approve_new_account: Bool,
+    auditor_encryption_pubkey: &MaybeNull<PodElGamalPubkey>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_info = next_account_info(account_info_iter)?;
@@ -87,8 +88,8 @@ fn process_initialize_mint(
 /// Processes an [`UpdateMint`] instruction.
 fn process_update_mint(
     accounts: &[AccountInfo],
-    auto_approve_new_account: PodBool,
-    auditor_encryption_pubkey: &OptionalNonZeroElGamalPubkey,
+    auto_approve_new_account: Bool,
+    auditor_encryption_pubkey: &MaybeNull<PodElGamalPubkey>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_info = next_account_info(account_info_iter)?;
@@ -98,7 +99,7 @@ fn process_update_mint(
     let mint_data = &mut mint_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(mint_data)?;
     let confidential_transfer_mint = mint.get_extension_mut::<ConfidentialTransferMint>()?;
-    let maybe_confidential_transfer_mint_authority: Option<Pubkey> =
+    let maybe_confidential_transfer_mint_authority: Option<Address> =
         confidential_transfer_mint.authority.into();
     let confidential_transfer_mint_authority =
         maybe_confidential_transfer_mint_authority.ok_or(TokenError::NoAuthorityExists)?;
@@ -123,7 +124,7 @@ enum ElGamalPubkeySource<'a> {
 
 /// Processes a [`ConfigureAccountWithRegistry`] instruction.
 fn process_configure_account_with_registry(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
@@ -145,7 +146,8 @@ fn process_configure_account_with_registry(
 
     let elgamal_registry_account_data = &elgamal_registry_account.data.borrow();
     let elgamal_registry_account =
-        pod_from_bytes::<ElGamalRegistry>(elgamal_registry_account_data)?;
+        bytemuck::try_from_bytes::<ElGamalRegistry>(elgamal_registry_account_data)
+            .map_err(|_| ProgramError::InvalidArgument)?;
 
     let decryptable_zero_balance = PodAeCiphertext::default();
     let maximum_pending_balance_credit_counter =
@@ -217,10 +219,10 @@ fn reallocate_for_configure_account_with_registry<'a>(
 
 /// Processes a [`ConfigureAccount`] instruction.
 fn process_configure_account(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     decryptable_zero_balance: &DecryptableBalance,
-    maximum_pending_balance_credit_counter: &PodU64,
+    maximum_pending_balance_credit_counter: &U64,
     elgamal_pubkey_source: ElGamalPubkeySource,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
@@ -331,7 +333,7 @@ fn process_approve_account(accounts: &[AccountInfo]) -> ProgramResult {
     let mint_data = &mint_info.data.borrow_mut();
     let mint = PodStateWithExtensions::<PodMint>::unpack(mint_data)?;
     let confidential_transfer_mint = mint.get_extension::<ConfidentialTransferMint>()?;
-    let maybe_confidential_transfer_mint_authority: Option<Pubkey> =
+    let maybe_confidential_transfer_mint_authority: Option<Address> =
         confidential_transfer_mint.authority.into();
     let confidential_transfer_mint_authority =
         maybe_confidential_transfer_mint_authority.ok_or(TokenError::NoAuthorityExists)?;
@@ -348,7 +350,7 @@ fn process_approve_account(accounts: &[AccountInfo]) -> ProgramResult {
 
 /// Processes an [`EmptyAccount`] instruction.
 fn process_empty_account(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     proof_instruction_offset: i64,
 ) -> ProgramResult {
@@ -402,7 +404,7 @@ fn process_empty_account(
 /// Processes a [`Deposit`] instruction.
 #[cfg(feature = "zk-ops")]
 fn process_deposit(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     amount: u64,
     expected_decimals: u8,
@@ -474,22 +476,22 @@ fn process_deposit(
     // A deposit amount must be a 48-bit number
     let (amount_lo, amount_hi) = verify_and_split_deposit_amount(amount)?;
 
-    // Prevent unnecessary ciphertext arithmetic syscalls if `amount_lo` or
-    // `amount_hi` is zero
-    if amount_lo > 0 {
-        confidential_transfer_account.pending_balance_lo = ciphertext_arithmetic::add_to(
-            &confidential_transfer_account.pending_balance_lo,
-            amount_lo,
-        )
-        .ok_or(TokenError::CiphertextArithmeticFailed)?;
-    }
-    if amount_hi > 0 {
-        confidential_transfer_account.pending_balance_hi = ciphertext_arithmetic::add_to(
-            &confidential_transfer_account.pending_balance_hi,
-            amount_hi,
-        )
-        .ok_or(TokenError::CiphertextArithmeticFailed)?;
-    }
+    // The ZK ElGamal Proof program does not accept all-zero ciphertext
+    // on ciphertext-commitment equality proof.
+    // Use ciphertext arithmetic with offset to prevent all-zero ciphertext
+    // from ocurring when a balance is deposited and immediately withdrawn
+    confidential_transfer_account.pending_balance_lo = ciphertext_arithmetic::add_to_with_offset(
+        &confidential_transfer_account.elgamal_pubkey,
+        &confidential_transfer_account.pending_balance_lo,
+        amount_lo,
+    )
+    .ok_or(TokenError::CiphertextArithmeticFailed)?;
+    confidential_transfer_account.pending_balance_hi = ciphertext_arithmetic::add_to_with_offset(
+        &confidential_transfer_account.elgamal_pubkey,
+        &confidential_transfer_account.pending_balance_hi,
+        amount_hi,
+    )
+    .ok_or(TokenError::CiphertextArithmeticFailed)?;
 
     confidential_transfer_account.increment_pending_balance_credit_counter()?;
 
@@ -511,7 +513,7 @@ pub fn verify_and_split_deposit_amount(amount: u64) -> Result<(u64, u64), TokenE
 /// Processes a [`Withdraw`] instruction.
 #[cfg(feature = "zk-ops")]
 fn process_withdraw(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     amount: u64,
     expected_decimals: u8,
@@ -624,7 +626,7 @@ fn process_withdraw(
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "zk-ops")]
 fn process_transfer(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     new_source_decryptable_available_balance: DecryptableBalance,
     transfer_amount_auditor_ciphertext_lo: &PodElGamalCiphertext,
@@ -680,9 +682,8 @@ fn process_transfer(
 
         // Check that the auditor encryption public key associated wth the confidential
         // mint is consistent with what was actually used to generate the zkp.
-        if !confidential_transfer_mint
-            .auditor_elgamal_pubkey
-            .equals(&proof_context.transfer_pubkeys.auditor)
+        if confidential_transfer_mint.auditor_elgamal_pubkey
+            != proof_context.transfer_pubkeys.auditor.into()
         {
             return Err(TokenError::ConfidentialTransferElGamalPubkeyMismatch.into());
         }
@@ -748,9 +749,8 @@ fn process_transfer(
         // Check that the encryption public keys associated with the mint confidential
         // transfer and confidential transfer fee extensions are consistent with
         // the keys that were used to generate the zkp.
-        if !confidential_transfer_mint
-            .auditor_elgamal_pubkey
-            .equals(&proof_context.transfer_with_fee_pubkeys.auditor)
+        if confidential_transfer_mint.auditor_elgamal_pubkey
+            != proof_context.transfer_with_fee_pubkeys.auditor.into()
         {
             return Err(TokenError::ConfidentialTransferElGamalPubkeyMismatch.into());
         }
@@ -846,7 +846,7 @@ fn process_transfer(
 /// Processes the changes for the sending party of a confidential transfer
 #[cfg(feature = "zk-ops")]
 fn process_source_for_transfer(
-    program_id: &Pubkey,
+    program_id: &Address,
     source_account_info: &AccountInfo,
     mint_info: &AccountInfo,
     authority_info: &AccountInfo,
@@ -993,7 +993,7 @@ fn process_destination_for_transfer(
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "zk-ops")]
 fn process_source_for_transfer_with_fee(
-    program_id: &Pubkey,
+    program_id: &Address,
     source_account_info: &AccountInfo,
     mint_info: &AccountInfo,
     authority_info: &AccountInfo,
@@ -1194,7 +1194,7 @@ fn process_destination_for_transfer_with_fee(
 /// Processes an [`ApplyPendingBalance`] instruction.
 #[cfg(feature = "zk-ops")]
 fn process_apply_pending_balance(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     ApplyPendingBalanceData {
         expected_pending_balance_credit_counter,
@@ -1248,7 +1248,7 @@ fn process_apply_pending_balance(
 /// Processes a [`DisableConfidentialCredits`] or [`EnableConfidentialCredits`]
 /// instruction.
 fn process_allow_confidential_credits(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     allow_confidential_credits: bool,
 ) -> ProgramResult {
@@ -1279,7 +1279,7 @@ fn process_allow_confidential_credits(
 /// Processes an [`DisableNonConfidentialCredits`] or
 /// [`EnableNonConfidentialCredits`] instruction.
 fn process_allow_non_confidential_credits(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     allow_non_confidential_credits: bool,
 ) -> ProgramResult {
@@ -1310,7 +1310,7 @@ fn process_allow_non_confidential_credits(
 
 #[allow(dead_code)]
 pub(crate) fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     input: &[u8],
 ) -> ProgramResult {

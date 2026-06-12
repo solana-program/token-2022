@@ -2,29 +2,29 @@
 //! instruction data in SPL crates
 
 use {
+    alloc::vec::Vec,
     bytemuck::Pod,
+    core::{num::NonZeroI8, slice::Iter},
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_instructions_sysvar::get_instruction_relative,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
-    solana_zk_sdk::zk_elgamal_proof_program::{
+    solana_zk_elgamal_proof_interface::{
         self,
         instruction::ProofInstruction,
         proof_data::{ProofType, ZkProofData},
         state::ProofContextState,
     },
-    spl_pod::bytemuck::pod_from_bytes,
-    std::{num::NonZeroI8, slice::Iter},
 };
 
 /// Checks that the supplied program ID is correct for the ZK ElGamal proof
 /// program
 pub fn check_zk_elgamal_proof_program_account(
-    zk_elgamal_proof_program_id: &Pubkey,
+    zk_elgamal_proof_program_id: &Address,
 ) -> ProgramResult {
-    if zk_elgamal_proof_program_id != &solana_zk_sdk::zk_elgamal_proof_program::id() {
+    if zk_elgamal_proof_program_id != &solana_zk_elgamal_proof_interface::id() {
         return Err(ProgramError::IncorrectProgramId);
     }
     Ok(())
@@ -36,7 +36,7 @@ pub fn decode_proof_instruction_context<T: Pod + ZkProofData<U>, U: Pod>(
     expected: ProofInstruction,
     instruction: &Instruction,
 ) -> Result<U, ProgramError> {
-    if instruction.program_id != zk_elgamal_proof_program::id()
+    if instruction.program_id != solana_zk_elgamal_proof_interface::id()
         || ProofInstruction::instruction_type(&instruction.data) != Some(expected)
     {
         msg!("Unexpected proof instruction");
@@ -55,7 +55,7 @@ pub enum ProofLocation<'a, T> {
     /// token-2022 instruction.
     InstructionOffset(NonZeroI8, &'a T),
     /// The proof is pre-verified into a context state account.
-    ContextStateAccount(&'a Pubkey),
+    ContextStateAccount(&'a Address),
 }
 
 impl<T> ProofLocation<'_, T> {
@@ -79,7 +79,9 @@ pub fn verify_and_extract_context<'a, T: Pod + ZkProofData<U>, U: Pod>(
         let context_state_account_info = next_account_info(account_info_iter)?;
         check_zk_elgamal_proof_program_account(context_state_account_info.owner)?;
         let context_state_account_data = context_state_account_info.data.borrow();
-        let context_state = pod_from_bytes::<ProofContextState<U>>(&context_state_account_data)?;
+        let context_state =
+            bytemuck::try_from_bytes::<ProofContextState<U>>(&context_state_account_data)
+                .map_err(|_| ProgramError::InvalidArgument)?;
 
         if context_state.proof_type != T::PROOF_TYPE.into() {
             return Err(ProgramError::InvalidInstructionData);

@@ -1,7 +1,7 @@
 use {
     bytemuck::{Pod, Zeroable},
-    solana_pubkey::Pubkey,
-    solana_zk_sdk::encryption::pod::elgamal::PodElGamalPubkey,
+    solana_address::Address,
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
 };
 
 pub const ELGAMAL_REGISTRY_ACCOUNT_LEN: usize = 64;
@@ -12,7 +12,7 @@ pub const ELGAMAL_REGISTRY_ACCOUNT_LEN: usize = 64;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct ElGamalRegistry {
     /// The owner of the registry
-    pub owner: Pubkey,
+    pub owner: Address,
     /// The ElGamal public key associated with an account
     pub elgamal_pubkey: PodElGamalPubkey,
 }

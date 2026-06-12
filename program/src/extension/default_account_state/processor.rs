@@ -1,9 +1,9 @@
 use {
     crate::processor::Processor,
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_msg::msg,
     solana_program_error::ProgramResult,
-    solana_pubkey::Pubkey,
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -33,6 +33,8 @@ fn process_initialize_default_account_state(
     check_valid_default_state(state)?;
     let account_info_iter = &mut accounts.iter();
     let mint_account_info = next_account_info(account_info_iter)?;
+    check_program_account(mint_account_info.owner)?;
+
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
     let extension = mint.init_extension::<DefaultAccountState>(true)?;
@@ -41,7 +43,7 @@ fn process_initialize_default_account_state(
 }
 
 fn process_update_default_account_state(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     state: AccountState,
 ) -> ProgramResult {
@@ -50,13 +52,14 @@ fn process_update_default_account_state(
     let mint_account_info = next_account_info(account_info_iter)?;
     let freeze_authority_info = next_account_info(account_info_iter)?;
     let freeze_authority_info_data_len = freeze_authority_info.data_len();
+    check_program_account(mint_account_info.owner)?;
 
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
 
     match &mint.base.freeze_authority {
         PodCOption {
-            option: PodCOption::<Pubkey>::SOME,
+            option: PodCOption::<Address>::SOME,
             value: freeze_authority,
         } => Processor::validate_owner(
             program_id,
@@ -74,7 +77,7 @@ fn process_update_default_account_state(
 }
 
 pub(crate) fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     input: &[u8],
 ) -> ProgramResult {

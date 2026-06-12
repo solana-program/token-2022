@@ -8,15 +8,12 @@ use {
         state::{AccountState, PackedSizeOf},
     },
     bytemuck::{Pod, Zeroable},
+    solana_address::Address,
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
     solana_program_option::COption,
     solana_program_pack::IsInitialized,
-    solana_pubkey::Pubkey,
-    spl_pod::{
-        bytemuck::pod_get_packed_len,
-        optional_keys::OptionalNonZeroPubkey,
-        primitives::{PodBool, PodU64},
-    },
+    solana_zero_copy::unaligned::{Bool, U64},
 };
 
 /// [crate::state::Mint] data stored as a Pod type
@@ -27,15 +24,15 @@ pub struct PodMint {
     /// be provided during mint creation. If no mint authority is present
     /// then the mint has a fixed supply and no further tokens may be
     /// minted.
-    pub mint_authority: PodCOption<Pubkey>,
+    pub mint_authority: PodCOption<Address>,
     /// Total supply of tokens.
-    pub supply: PodU64,
+    pub supply: U64,
     /// Number of base 10 digits to the right of the decimal place.
     pub decimals: u8,
     /// If `true`, this structure has been initialized
-    pub is_initialized: PodBool,
+    pub is_initialized: Bool,
     /// Optional authority to freeze token accounts.
-    pub freeze_authority: PodCOption<Pubkey>,
+    pub freeze_authority: PodCOption<Address>,
 }
 impl IsInitialized for PodMint {
     fn is_initialized(&self) -> bool {
@@ -43,7 +40,7 @@ impl IsInitialized for PodMint {
     }
 }
 impl PackedSizeOf for PodMint {
-    const SIZE_OF: usize = pod_get_packed_len::<Self>();
+    const SIZE_OF: usize = size_of::<Self>();
 }
 #[cfg(test)]
 impl From<Mint> for PodMint {
@@ -63,25 +60,25 @@ impl From<Mint> for PodMint {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct PodAccount {
     /// The mint associated with this account
-    pub mint: Pubkey,
+    pub mint: Address,
     /// The owner of this account.
-    pub owner: Pubkey,
+    pub owner: Address,
     /// The amount of tokens this account holds.
-    pub amount: PodU64,
+    pub amount: U64,
     /// If `delegate` is `Some` then `delegated_amount` represents
     /// the amount authorized by the delegate
-    pub delegate: PodCOption<Pubkey>,
+    pub delegate: PodCOption<Address>,
     /// The account's [`AccountState`], stored as a `u8`
     pub state: u8,
     /// If `is_some`, this is a native token, and the value logs the rent-exempt
     /// reserve. An Account is required to be rent-exempt, so the value is
     /// used by the Processor to ensure that wrapped SOL accounts do not
     /// drop below this threshold.
-    pub is_native: PodCOption<PodU64>,
+    pub is_native: PodCOption<U64>,
     /// The amount delegated
-    pub delegated_amount: PodU64,
+    pub delegated_amount: U64,
     /// Optional authority to close the account.
-    pub close_authority: PodCOption<Pubkey>,
+    pub close_authority: PodCOption<Address>,
 }
 impl PodAccount {
     /// Checks if account is frozen
@@ -105,7 +102,7 @@ impl IsInitialized for PodAccount {
     }
 }
 impl PackedSizeOf for PodAccount {
-    const SIZE_OF: usize = pod_get_packed_len::<Self>();
+    const SIZE_OF: usize = size_of::<Self>();
 }
 #[cfg(test)]
 impl From<Account> for PodAccount {
@@ -116,7 +113,7 @@ impl From<Account> for PodAccount {
             amount: account.amount.into(),
             delegate: account.delegate.into(),
             state: account.state.into(),
-            is_native: account.is_native.map(PodU64::from_primitive).into(),
+            is_native: account.is_native.map(U64::from_primitive).into(),
             delegated_amount: account.delegated_amount.into(),
             close_authority: account.close_authority.into(),
         }
@@ -132,9 +129,9 @@ pub struct PodMultisig {
     /// Number of valid signers
     pub n: u8,
     /// If `true`, this structure has been initialized
-    pub is_initialized: PodBool,
+    pub is_initialized: Bool,
     /// Signer public keys
-    pub signers: [Pubkey; MAX_SIGNERS],
+    pub signers: [Address; MAX_SIGNERS],
 }
 impl IsInitialized for PodMultisig {
     fn is_initialized(&self) -> bool {
@@ -142,7 +139,7 @@ impl IsInitialized for PodMultisig {
     }
 }
 impl PackedSizeOf for PodMultisig {
-    const SIZE_OF: usize = pod_get_packed_len::<Self>();
+    const SIZE_OF: usize = size_of::<Self>();
 }
 #[cfg(test)]
 impl From<Multisig> for PodMultisig {
@@ -180,7 +177,7 @@ where
 
     /// Create a `PodCOption` equivalent of `Option::None`
     ///
-    /// This could be made `const` by using `std::mem::zeroed`, but that would
+    /// This could be made `const` by using `core::mem::zeroed`, but that would
     /// require `unsafe` code, which is prohibited at the crate level.
     pub fn none() -> Self {
         Self {
@@ -242,22 +239,22 @@ impl<T: Pod + Default> From<COption<T>> for PodCOption<T> {
         }
     }
 }
-impl TryFrom<PodCOption<Pubkey>> for OptionalNonZeroPubkey {
+impl TryFrom<PodCOption<Address>> for MaybeNull<Address> {
     type Error = ProgramError;
-    fn try_from(p: PodCOption<Pubkey>) -> Result<Self, Self::Error> {
+    fn try_from(p: PodCOption<Address>) -> Result<Self, Self::Error> {
         match p {
             PodCOption {
-                option: PodCOption::<Pubkey>::SOME,
+                option: PodCOption::<Address>::SOME,
                 value,
-            } if value == Pubkey::default() => Err(ProgramError::InvalidArgument),
+            } if value == Address::default() => Err(ProgramError::InvalidArgument),
             PodCOption {
-                option: PodCOption::<Pubkey>::SOME,
+                option: PodCOption::<Address>::SOME,
                 value,
-            } => Ok(Self(value)),
+            } => Ok(Self::from(value)),
             PodCOption {
-                option: PodCOption::<Pubkey>::NONE,
+                option: PodCOption::<Address>::NONE,
                 value: _,
-            } => Ok(Self(Pubkey::default())),
+            } => Ok(Self::default()),
             _ => unreachable!(),
         }
     }
@@ -274,44 +271,43 @@ pub(crate) mod test {
             },
             AccountState,
         },
-        spl_pod::bytemuck::pod_from_bytes,
     };
 
     pub const TEST_POD_MINT: PodMint = PodMint {
-        mint_authority: PodCOption::some(Pubkey::new_from_array([1; 32])),
-        supply: PodU64::from_primitive(42),
+        mint_authority: PodCOption::some(Address::new_from_array([1; 32])),
+        supply: U64::from_primitive(42),
         decimals: 7,
-        is_initialized: PodBool::from_bool(true),
-        freeze_authority: PodCOption::some(Pubkey::new_from_array([2; 32])),
+        is_initialized: Bool::from_bool(true),
+        freeze_authority: PodCOption::some(Address::new_from_array([2; 32])),
     };
     pub const TEST_POD_ACCOUNT: PodAccount = PodAccount {
-        mint: Pubkey::new_from_array([1; 32]),
-        owner: Pubkey::new_from_array([2; 32]),
-        amount: PodU64::from_primitive(3),
-        delegate: PodCOption::some(Pubkey::new_from_array([4; 32])),
+        mint: Address::new_from_array([1; 32]),
+        owner: Address::new_from_array([2; 32]),
+        amount: U64::from_primitive(3),
+        delegate: PodCOption::some(Address::new_from_array([4; 32])),
         state: AccountState::Frozen as u8,
-        is_native: PodCOption::some(PodU64::from_primitive(5)),
-        delegated_amount: PodU64::from_primitive(6),
-        close_authority: PodCOption::some(Pubkey::new_from_array([7; 32])),
+        is_native: PodCOption::some(U64::from_primitive(5)),
+        delegated_amount: U64::from_primitive(6),
+        close_authority: PodCOption::some(Address::new_from_array([7; 32])),
     };
 
     #[test]
     fn pod_mint_to_mint_equality() {
-        let pod_mint = pod_from_bytes::<PodMint>(TEST_MINT_SLICE).unwrap();
+        let pod_mint = bytemuck::try_from_bytes::<PodMint>(TEST_MINT_SLICE).unwrap();
         assert_eq!(*pod_mint, PodMint::from(TEST_MINT));
         assert_eq!(*pod_mint, TEST_POD_MINT);
     }
 
     #[test]
     fn pod_account_to_account_equality() {
-        let pod_account = pod_from_bytes::<PodAccount>(TEST_ACCOUNT_SLICE).unwrap();
+        let pod_account = bytemuck::try_from_bytes::<PodAccount>(TEST_ACCOUNT_SLICE).unwrap();
         assert_eq!(*pod_account, PodAccount::from(TEST_ACCOUNT));
         assert_eq!(*pod_account, TEST_POD_ACCOUNT);
     }
 
     #[test]
     fn pod_multisig_to_multisig_equality() {
-        let pod_multisig = pod_from_bytes::<PodMultisig>(TEST_MULTISIG_SLICE).unwrap();
+        let pod_multisig = bytemuck::try_from_bytes::<PodMultisig>(TEST_MULTISIG_SLICE).unwrap();
         assert_eq!(*pod_multisig, PodMultisig::from(TEST_MULTISIG));
     }
 }

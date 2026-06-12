@@ -424,3 +424,182 @@ async fn self_owned_with_extensions() {
     context.init_token_with_native_mint().await.unwrap();
     run_self_owned_unwrap_lamports(context, TestMode::WithImmutableOwner).await;
 }
+
+async fn run_delegate_unwrap_lamports(context: TestContext, test_mode: TestMode) {
+    let TokenContext {
+        token, alice, bob, ..
+    } = context.token_context.unwrap();
+
+    let amount = 10000000000;
+    let account_space = match test_mode {
+        TestMode::Regular => Account::get_packed_len(),
+        TestMode::WithImmutableOwner => {
+            ExtensionType::try_calculate_account_len::<Account>(&[ExtensionType::ImmutableOwner])
+                .unwrap()
+        }
+    };
+
+    let rent_exempt_lamports = Rent::default().minimum_balance(account_space);
+
+    let alice_account = Keypair::new();
+    match test_mode {
+        TestMode::WithImmutableOwner => {
+            token
+                .wrap(
+                    &alice_account.pubkey(),
+                    &alice.pubkey(),
+                    amount,
+                    &[&alice_account],
+                )
+                .await
+                .unwrap();
+        }
+        TestMode::Regular => {
+            token
+                .wrap_with_mutable_ownership(
+                    &alice_account.pubkey(),
+                    &alice.pubkey(),
+                    amount,
+                    &[&alice_account],
+                )
+                .await
+                .unwrap();
+        }
+    }
+    let alice_account = alice_account.pubkey();
+    let bob_account = Keypair::new();
+    match test_mode {
+        TestMode::WithImmutableOwner => {
+            token
+                .wrap(
+                    &bob_account.pubkey(),
+                    &bob.pubkey(),
+                    amount,
+                    &[&bob_account],
+                )
+                .await
+                .unwrap();
+        }
+        TestMode::Regular => {
+            token
+                .wrap_with_mutable_ownership(
+                    &bob_account.pubkey(),
+                    &bob.pubkey(),
+                    amount,
+                    &[&bob_account],
+                )
+                .await
+                .unwrap();
+        }
+    }
+    let bob_account = bob_account.pubkey();
+
+    // set bob as a delegate of alice's account
+    token
+        .approve(
+            &alice_account,
+            &bob.pubkey(),
+            &alice.pubkey(),
+            amount,
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    // unwrap Some(1) lamports with a delegate is ok
+    token
+        .unwrap_lamports(
+            &alice_account,
+            &bob_account,
+            &bob.pubkey(),
+            Some(1),
+            &[&bob],
+        )
+        .await
+        .unwrap();
+
+    let alice_account_account = token.get_account(alice_account).await.unwrap();
+    let alice_account_token_account = token.get_account_info(&alice_account).await.unwrap();
+    assert_eq!(alice_account_account.lamports, amount - 1);
+    assert_eq!(
+        alice_account_token_account.base.amount,
+        amount - (rent_exempt_lamports + 1)
+    );
+
+    let bob_account_account = token.get_account(bob_account).await.unwrap();
+    assert_eq!(bob_account_account.lamports, amount + 1);
+
+    // unwrap too much lamports is not ok
+    let error = token
+        .unwrap_lamports(
+            &alice_account,
+            &bob_account,
+            &bob.pubkey(),
+            Some(amount),
+            &[&bob],
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error,
+        TokenClientError::Client(Box::new(TransportError::TransactionError(
+            TransactionError::InstructionError(
+                0,
+                InstructionError::Custom(TokenError::InsufficientFunds as u32)
+            )
+        )))
+    );
+
+    // wrong signer
+    let invalid_signer = Keypair::new();
+    let error = token
+        .unwrap_lamports(
+            &alice_account,
+            &bob_account,
+            &invalid_signer.pubkey(),
+            Some(1),
+            &[&invalid_signer],
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error,
+        TokenClientError::Client(Box::new(TransportError::TransactionError(
+            TransactionError::InstructionError(
+                0,
+                InstructionError::Custom(TokenError::OwnerMismatch as u32)
+            )
+        )))
+    );
+
+    // unwrap None lamports with a delegate is ok
+    token
+        .unwrap_lamports(&alice_account, &bob_account, &bob.pubkey(), None, &[&bob])
+        .await
+        .unwrap();
+
+    let alice_account_account = token.get_account(alice_account).await.unwrap();
+    let alice_account_token_account = token.get_account_info(&alice_account).await.unwrap();
+    assert_eq!(alice_account_account.lamports, rent_exempt_lamports);
+    assert_eq!(alice_account_token_account.base.amount, 0);
+
+    let bob_account_account = token.get_account(bob_account).await.unwrap();
+    assert_eq!(
+        bob_account_account.lamports,
+        amount + (amount - rent_exempt_lamports)
+    );
+}
+
+#[tokio::test]
+async fn delegate() {
+    let mut context = TestContext::new().await;
+    context.init_token_with_native_mint().await.unwrap();
+    run_delegate_unwrap_lamports(context, TestMode::Regular).await;
+}
+
+#[tokio::test]
+async fn delegate_with_extensions() {
+    let mut context = TestContext::new().await;
+    context.init_token_with_native_mint().await.unwrap();
+    run_delegate_unwrap_lamports(context, TestMode::WithImmutableOwner).await;
+}

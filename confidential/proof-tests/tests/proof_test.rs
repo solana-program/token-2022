@@ -1,7 +1,8 @@
 use {
+    solana_zk_elgamal_proof_interface::proof_data::ZkProofData,
     solana_zk_sdk::{
         encryption::{auth_encryption::AeKey, elgamal::ElGamalKeypair},
-        zk_elgamal_proof_program::proof_data::ZkProofData,
+        zk_elgamal_proof_program::VerifyZkProof,
     },
     spl_token_confidential_transfer_proof_extraction::{
         burn::BurnProofContext, mint::MintProofContext, transfer::TransferProofContext,

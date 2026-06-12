@@ -1,18 +1,21 @@
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use {
     crate::{
         check_program_account,
         extension::interest_bearing_mint::BasisPoints,
         instruction::{encode_instruction, TokenInstruction},
     },
+    alloc::vec,
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
-    std::convert::TryInto,
+};
+#[cfg(feature = "serde")]
+use {
+    serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 
 /// Interest-bearing mint extension instructions
@@ -63,16 +66,17 @@ pub enum InterestBearingMintInstruction {
 #[repr(C)]
 pub struct InitializeInstructionData {
     /// The public key for the account that can update the rate
-    pub rate_authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub rate_authority: MaybeNull<Address>,
     /// The initial interest rate
     pub rate: BasisPoints,
 }
 
 /// Create an `Initialize` instruction
 pub fn initialize(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    rate_authority: Option<Pubkey>,
+    token_program_id: &Address,
+    mint: &Address,
+    rate_authority: Option<Address>,
     rate: i16,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
@@ -83,7 +87,9 @@ pub fn initialize(
         TokenInstruction::InterestBearingMintExtension,
         InterestBearingMintInstruction::Initialize,
         &InitializeInstructionData {
-            rate_authority: rate_authority.try_into()?,
+            rate_authority: rate_authority
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
             rate: rate.into(),
         },
     ))
@@ -91,10 +97,10 @@ pub fn initialize(
 
 /// Create an `UpdateRate` instruction
 pub fn update_rate(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    rate_authority: &Pubkey,
-    signers: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    rate_authority: &Address,
+    signers: &[&Address],
     rate: i16,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;

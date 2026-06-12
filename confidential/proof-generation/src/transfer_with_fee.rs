@@ -46,12 +46,6 @@
 //!         balance (as a homomorphically computed ElGamal ciphertext) to a new Pedersen commitment.
 //!         This commitment is then used in the Range Proof to prove the sender's solvency.
 
-#[cfg(not(target_arch = "wasm32"))]
-use solana_zk_sdk::encryption::grouped_elgamal::GroupedElGamal;
-#[cfg(target_arch = "wasm32")]
-use solana_zk_sdk::encryption::grouped_elgamal::{
-    GroupedElGamalCiphertext2Handles, GroupedElGamalCiphertext3Handles,
-};
 use {
     crate::{
         encryption::{FeeCiphertext, TransferAmountCiphertext},
@@ -61,16 +55,22 @@ use {
         TRANSFER_AMOUNT_LO_BITS,
     },
     curve25519_dalek::scalar::Scalar,
+    solana_zk_elgamal_proof_interface::proof_data::{
+        BatchedGroupedCiphertext2HandlesValidityProofData, BatchedRangeProofU256Data,
+        CiphertextCommitmentEqualityProofData, PercentageWithCapProofData, ZkProofData,
+    },
     solana_zk_sdk::{
         encryption::{
             auth_encryption::{AeCiphertext, AeKey},
             elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey},
+            grouped_elgamal::GroupedElGamal,
             pedersen::{Pedersen, PedersenCommitment, PedersenOpening},
         },
-        zk_elgamal_proof_program::proof_data::{
-            BatchedGroupedCiphertext2HandlesValidityProofData,
-            BatchedGroupedCiphertext3HandlesValidityProofData, BatchedRangeProofU256Data,
-            CiphertextCommitmentEqualityProofData, PercentageWithCapProofData, ZkProofData,
+        zk_elgamal_proof_program::{
+            build_batched_grouped_ciphertext_2_handles_validity_proof_data,
+            build_batched_grouped_ciphertext_3_handles_validity_proof_data,
+            build_batched_range_proof_u256_data, build_ciphertext_commitment_equality_proof_data,
+            build_percentage_with_cap_proof_data,
         },
     },
 };
@@ -129,10 +129,12 @@ pub fn transfer_with_fee_split_proof_data(
     #[cfg(not(target_arch = "wasm32"))]
     let grouped_ciphertext_lo = transfer_amount_grouped_ciphertext_lo.0;
     #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_lo = GroupedElGamalCiphertext3Handles::encrypt_with_u64(
-        source_elgamal_keypair.pubkey(),
-        destination_elgamal_pubkey,
-        auditor_elgamal_pubkey,
+    let grouped_ciphertext_lo = GroupedElGamal::encrypt_with(
+        [
+            source_elgamal_keypair.pubkey(),
+            destination_elgamal_pubkey,
+            auditor_elgamal_pubkey,
+        ],
         transfer_amount_lo,
         &transfer_amount_opening_lo,
     );
@@ -147,10 +149,12 @@ pub fn transfer_with_fee_split_proof_data(
     #[cfg(not(target_arch = "wasm32"))]
     let grouped_ciphertext_hi = transfer_amount_grouped_ciphertext_hi.0;
     #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_hi = GroupedElGamalCiphertext3Handles::encrypt_with_u64(
-        source_elgamal_keypair.pubkey(),
-        destination_elgamal_pubkey,
-        auditor_elgamal_pubkey,
+    let grouped_ciphertext_hi = GroupedElGamal::encrypt_with(
+        [
+            source_elgamal_keypair.pubkey(),
+            destination_elgamal_pubkey,
+            auditor_elgamal_pubkey,
+        ],
         transfer_amount_hi,
         &transfer_amount_opening_hi,
     );
@@ -190,7 +194,7 @@ pub fn transfer_with_fee_split_proof_data(
         .ok_or(TokenProofGenerationError::IllegalAmountBitLength)?;
 
     // generate equality proof data
-    let equality_proof_data = CiphertextCommitmentEqualityProofData::new(
+    let equality_proof_data = build_ciphertext_commitment_equality_proof_data(
         source_elgamal_keypair,
         &new_available_balance_ciphertext,
         &new_available_balance_commitment,
@@ -201,7 +205,7 @@ pub fn transfer_with_fee_split_proof_data(
 
     // generate ciphertext validity data
     let transfer_amount_ciphertext_validity_proof_data =
-        BatchedGroupedCiphertext3HandlesValidityProofData::new(
+        build_batched_grouped_ciphertext_3_handles_validity_proof_data(
             source_elgamal_keypair.pubkey(),
             destination_elgamal_pubkey,
             auditor_elgamal_pubkey,
@@ -307,7 +311,7 @@ pub fn transfer_with_fee_split_proof_data(
     );
 
     // generate fee sigma proof
-    let percentage_with_cap_proof_data = PercentageWithCapProofData::new(
+    let percentage_with_cap_proof_data = build_percentage_with_cap_proof_data(
         &combined_fee_commitment,
         &combined_fee_opening,
         fee_amount,
@@ -322,7 +326,6 @@ pub fn transfer_with_fee_split_proof_data(
 
     // encrypt the fee amount under the destination and withdraw withheld authority
     // ElGamal public key
-    #[cfg(not(target_arch = "wasm32"))]
     let fee_destination_withdraw_withheld_authority_ciphertext_lo = GroupedElGamal::encrypt_with(
         [
             destination_elgamal_pubkey,
@@ -331,16 +334,7 @@ pub fn transfer_with_fee_split_proof_data(
         fee_amount_lo,
         &fee_opening_lo,
     );
-    #[cfg(target_arch = "wasm32")]
-    let fee_destination_withdraw_withheld_authority_ciphertext_lo =
-        GroupedElGamalCiphertext2Handles::encrypt_with_u64(
-            destination_elgamal_pubkey,
-            withdraw_withheld_authority_elgamal_pubkey,
-            fee_amount_lo,
-            &fee_opening_lo,
-        );
 
-    #[cfg(not(target_arch = "wasm32"))]
     let fee_destination_withdraw_withheld_authority_ciphertext_hi = GroupedElGamal::encrypt_with(
         [
             destination_elgamal_pubkey,
@@ -349,18 +343,10 @@ pub fn transfer_with_fee_split_proof_data(
         fee_amount_hi,
         &fee_opening_hi,
     );
-    #[cfg(target_arch = "wasm32")]
-    let fee_destination_withdraw_withheld_authority_ciphertext_hi =
-        GroupedElGamalCiphertext2Handles::encrypt_with_u64(
-            destination_elgamal_pubkey,
-            withdraw_withheld_authority_elgamal_pubkey,
-            fee_amount_hi,
-            &fee_opening_hi,
-        );
 
     // generate fee ciphertext validity data
     let fee_ciphertext_validity_proof_data =
-        BatchedGroupedCiphertext2HandlesValidityProofData::new(
+        build_batched_grouped_ciphertext_2_handles_validity_proof_data(
             destination_elgamal_pubkey,
             withdraw_withheld_authority_elgamal_pubkey,
             &fee_destination_withdraw_withheld_authority_ciphertext_lo,
@@ -385,7 +371,7 @@ pub fn transfer_with_fee_split_proof_data(
     #[allow(clippy::arithmetic_side_effects)]
     let claimed_complement_opening = PedersenOpening::default() - &claimed_opening;
 
-    let range_proof_data = BatchedRangeProofU256Data::new(
+    let range_proof_data = build_batched_range_proof_u256_data(
         vec![
             &new_available_balance_commitment,
             transfer_amount_grouped_ciphertext_lo.get_commitment(),

@@ -1,14 +1,14 @@
 use {
     solana_account::Account as SolanaAccount,
+    solana_address::Address,
     solana_program_pack::Pack,
-    solana_pubkey::Pubkey,
     solana_rent::Rent,
     spl_token_2022_interface::state::{Account, AccountState, Mint},
 };
 
 pub fn setup_mint_account(
-    mint_authority: Option<&Pubkey>,
-    freeze_authority: Option<&Pubkey>,
+    mint_authority: Option<&Address>,
+    freeze_authority: Option<&Address>,
     supply: u64,
     decimals: u8,
 ) -> SolanaAccount {
@@ -36,7 +36,7 @@ pub fn setup_mint_account(
     }
 }
 
-pub fn setup_token_account(mint: &Pubkey, owner: &Pubkey, amount: u64) -> SolanaAccount {
+pub fn setup_token_account(mint: &Address, owner: &Address, amount: u64) -> SolanaAccount {
     let data = {
         let mut data = vec![0; Account::LEN];
         let state = Account {

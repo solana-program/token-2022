@@ -1,5 +1,5 @@
 RUST_TOOLCHAIN_NIGHTLY = nightly-2026-01-22
-SOLANA_CLI_VERSION = 3.1.8
+SOLANA_CLI_VERSION = $(shell toml get ./Cargo.toml workspace.metadata.cli.solana)
 
 nightly = +${RUST_TOOLCHAIN_NIGHTLY}
 
@@ -25,7 +25,10 @@ audit:
 			--ignore RUSTSEC-2022-0093 \
 			--ignore RUSTSEC-2024-0421 \
 			--ignore RUSTSEC-2024-0344 \
-			--ignore RUSTSEC-2024-0376 $(ARGS)
+			--ignore RUSTSEC-2026-0098 \
+			--ignore RUSTSEC-2026-0099 \
+			--ignore RUSTSEC-2026-0104 \
+			$(ARGS)
 
 spellcheck:
 	cargo spellcheck --code 1 $(ARGS)
@@ -117,3 +120,11 @@ publish-rust-%:
 
 publish-rust-dry-run-%:
 	cd "$(call make-path,$*)" && cargo release $(LEVEL) --tag-name "$(call tag-name,$*)@v{{version}}"
+
+check-no-std-alloc-%:
+	cargo $(nightly) hack check \
+		--target bpfel-unknown-none \
+		--each-feature \
+		--manifest-path $(call make-path,$*)/Cargo.toml \
+		-Zbuild-std=alloc,core \
+		$(ARGS)

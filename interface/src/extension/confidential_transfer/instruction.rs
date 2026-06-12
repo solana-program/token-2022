@@ -1,10 +1,11 @@
-pub use solana_zk_sdk::zk_elgamal_proof_program::{
+pub use solana_zk_elgamal_proof_interface::{
     instruction::ProofInstruction, proof_data::*, state::ProofContextState,
 };
 #[cfg(feature = "serde")]
 use {
     crate::serialization::{aeciphertext_fromstr, elgamalciphertext_fromstr},
     serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 use {
     crate::{
@@ -12,12 +13,16 @@ use {
         extension::confidential_transfer::*,
         instruction::{encode_instruction, TokenInstruction},
     },
+    alloc::{vec, vec::Vec},
     bytemuck::Zeroable,
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
     solana_sdk_ids::{system_program, sysvar},
+    solana_zero_copy::unaligned::{Bool, U64},
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
     spl_token_confidential_transfer_proof_extraction::instruction::ProofLocation,
 };
 
@@ -134,7 +139,8 @@ pub enum ConfidentialTransferInstruction {
     /// instruction is not required prior to account closing if no
     /// instructions beyond
     /// `ConfidentialTransferInstruction::ConfigureAccount` have affected the
-    /// token account.
+    /// token account. Furthermore, if the available balance is already
+    /// empty, attempting to execute this instruction will fail.
     ///
     /// In order for this instruction to be successfully processed, it must be
     /// accompanied by the `VerifyZeroCiphertext` instruction of the
@@ -498,12 +504,13 @@ pub enum ConfidentialTransferInstruction {
 pub struct InitializeMintData {
     /// Authority to modify the `ConfidentialTransferMint` configuration and to
     /// approve new accounts.
-    pub authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub authority: MaybeNull<Address>,
     /// Determines if newly configured accounts must be approved by the
     /// `authority` before they may be used by the user.
-    pub auto_approve_new_accounts: PodBool,
+    pub auto_approve_new_accounts: Bool,
     /// New authority to decode any transfer amount in a confidential transfer.
-    pub auditor_elgamal_pubkey: OptionalNonZeroElGamalPubkey,
+    pub auditor_elgamal_pubkey: MaybeNull<PodElGamalPubkey>,
 }
 
 /// Data expected by `ConfidentialTransferInstruction::UpdateMint`
@@ -514,9 +521,9 @@ pub struct InitializeMintData {
 pub struct UpdateMintData {
     /// Determines if newly configured accounts must be approved by the
     /// `authority` before they may be used by the user.
-    pub auto_approve_new_accounts: PodBool,
+    pub auto_approve_new_accounts: Bool,
     /// New authority to decode any transfer amount in a confidential transfer.
-    pub auditor_elgamal_pubkey: OptionalNonZeroElGamalPubkey,
+    pub auditor_elgamal_pubkey: MaybeNull<PodElGamalPubkey>,
 }
 
 /// Data expected by `ConfidentialTransferInstruction::ConfigureAccount`
@@ -530,7 +537,7 @@ pub struct ConfigureAccountInstructionData {
     pub decryptable_zero_balance: DecryptableBalance,
     /// The maximum number of deposits and transfers that an account can receive
     /// before the `ApplyPendingBalance` is executed
-    pub maximum_pending_balance_credit_counter: PodU64,
+    pub maximum_pending_balance_credit_counter: U64,
     /// Relative location of the `ProofInstruction::ZeroCiphertextProof`
     /// instruction to the `ConfigureAccount` instruction in the
     /// transaction. If the offset is `0`, then use a context state account
@@ -557,7 +564,7 @@ pub struct EmptyAccountInstructionData {
 #[repr(C)]
 pub struct DepositInstructionData {
     /// The amount of tokens to deposit
-    pub amount: PodU64,
+    pub amount: U64,
     /// Expected number of base 10 digits to the right of the decimal place
     pub decimals: u8,
 }
@@ -569,7 +576,7 @@ pub struct DepositInstructionData {
 #[repr(C)]
 pub struct WithdrawInstructionData {
     /// The amount of tokens to withdraw
-    pub amount: PodU64,
+    pub amount: U64,
     /// Expected number of base 10 digits to the right of the decimal place
     pub decimals: u8,
     /// The new decryptable balance if the withdrawal succeeds
@@ -625,7 +632,7 @@ pub struct TransferInstructionData {
 pub struct ApplyPendingBalanceData {
     /// The expected number of pending balance credits since the last successful
     /// `ApplyPendingBalance` instruction
-    pub expected_pending_balance_credit_counter: PodU64,
+    pub expected_pending_balance_credit_counter: U64,
     /// The new decryptable balance if the pending balance is applied
     /// successfully
     #[cfg_attr(feature = "serde", serde(with = "aeciphertext_fromstr"))]
@@ -677,9 +684,9 @@ pub struct TransferWithFeeInstructionData {
 
 /// Create a `InitializeMint` instruction
 pub fn initialize_mint(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: Option<Pubkey>,
+    token_program_id: &Address,
+    mint: &Address,
+    authority: Option<Address>,
     auto_approve_new_accounts: bool,
     auditor_elgamal_pubkey: Option<PodElGamalPubkey>,
 ) -> Result<Instruction, ProgramError> {
@@ -692,19 +699,23 @@ pub fn initialize_mint(
         TokenInstruction::ConfidentialTransferExtension,
         ConfidentialTransferInstruction::InitializeMint,
         &InitializeMintData {
-            authority: authority.try_into()?,
+            authority: authority
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
             auto_approve_new_accounts: auto_approve_new_accounts.into(),
-            auditor_elgamal_pubkey: auditor_elgamal_pubkey.try_into()?,
+            auditor_elgamal_pubkey: auditor_elgamal_pubkey
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
         },
     ))
 }
 
 /// Create a `UpdateMint` instruction
 pub fn update_mint(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    authority: &Address,
+    multisig_signers: &[&Address],
     auto_approve_new_accounts: bool,
     auditor_elgamal_pubkey: Option<PodElGamalPubkey>,
 ) -> Result<Instruction, ProgramError> {
@@ -723,7 +734,9 @@ pub fn update_mint(
         ConfidentialTransferInstruction::UpdateMint,
         &UpdateMintData {
             auto_approve_new_accounts: auto_approve_new_accounts.into(),
-            auditor_elgamal_pubkey: auditor_elgamal_pubkey.try_into()?,
+            auditor_elgamal_pubkey: auditor_elgamal_pubkey
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
         },
     ))
 }
@@ -733,13 +746,13 @@ pub fn update_mint(
 /// This instruction is suitable for use with a cross-program `invoke`
 #[allow(clippy::too_many_arguments)]
 pub fn inner_configure_account(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    mint: &Pubkey,
+    token_program_id: &Address,
+    token_account: &Address,
+    mint: &Address,
     decryptable_zero_balance: &DecryptableBalance,
     maximum_pending_balance_credit_counter: u64,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
     proof_data_location: ProofLocation<PubkeyValidityProofData>,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
@@ -785,13 +798,13 @@ pub fn inner_configure_account(
 /// Create a `ConfigureAccount` instruction
 #[allow(clippy::too_many_arguments)]
 pub fn configure_account(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    mint: &Pubkey,
+    token_program_id: &Address,
+    token_account: &Address,
+    mint: &Address,
     decryptable_zero_balance: &DecryptableBalance,
     maximum_pending_balance_credit_counter: u64,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
     proof_data_location: ProofLocation<PubkeyValidityProofData>,
 ) -> Result<Vec<Instruction>, ProgramError> {
     let mut instructions = vec![inner_configure_account(
@@ -825,11 +838,11 @@ pub fn configure_account(
 
 /// Create an `ApproveAccount` instruction
 pub fn approve_account(
-    token_program_id: &Pubkey,
-    account_to_approve: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    token_program_id: &Address,
+    account_to_approve: &Address,
+    mint: &Address,
+    authority: &Address,
+    multisig_signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![
@@ -853,10 +866,10 @@ pub fn approve_account(
 ///
 /// This instruction is suitable for use with a cross-program `invoke`
 pub fn inner_empty_account(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    token_program_id: &Address,
+    token_account: &Address,
+    authority: &Address,
+    multisig_signers: &[&Address],
     proof_data_location: ProofLocation<ZeroCiphertextProofData>,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
@@ -895,10 +908,10 @@ pub fn inner_empty_account(
 
 /// Create a `EmptyAccount` instruction
 pub fn empty_account(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    token_program_id: &Address,
+    token_account: &Address,
+    authority: &Address,
+    multisig_signers: &[&Address],
     proof_data_location: ProofLocation<ZeroCiphertextProofData>,
 ) -> Result<Vec<Instruction>, ProgramError> {
     let mut instructions = vec![inner_empty_account(
@@ -930,13 +943,13 @@ pub fn empty_account(
 /// Create a `Deposit` instruction
 #[allow(clippy::too_many_arguments)]
 pub fn deposit(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    mint: &Pubkey,
+    token_program_id: &Address,
+    token_account: &Address,
+    mint: &Address,
     amount: u64,
     decimals: u8,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![
@@ -966,14 +979,14 @@ pub fn deposit(
 /// This instruction is suitable for use with a cross-program `invoke`
 #[allow(clippy::too_many_arguments)]
 pub fn inner_withdraw(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    mint: &Pubkey,
+    token_program_id: &Address,
+    token_account: &Address,
+    mint: &Address,
     amount: u64,
     decimals: u8,
     new_decryptable_available_balance: &DecryptableBalance,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
     equality_proof_data_location: ProofLocation<CiphertextCommitmentEqualityProofData>,
     range_proof_data_location: ProofLocation<BatchedRangeProofU64Data>,
 ) -> Result<Instruction, ProgramError> {
@@ -1038,14 +1051,14 @@ pub fn inner_withdraw(
 /// Create a `Withdraw` instruction
 #[allow(clippy::too_many_arguments)]
 pub fn withdraw(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    mint: &Pubkey,
+    token_program_id: &Address,
+    token_account: &Address,
+    mint: &Address,
     amount: u64,
     decimals: u8,
     new_decryptable_available_balance: &DecryptableBalance,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
     equality_proof_data_location: ProofLocation<CiphertextCommitmentEqualityProofData>,
     range_proof_data_location: ProofLocation<BatchedRangeProofU64Data>,
 ) -> Result<Vec<Instruction>, ProgramError> {
@@ -1098,15 +1111,15 @@ pub fn withdraw(
 /// This instruction is suitable for use with a cross-program `invoke`
 #[allow(clippy::too_many_arguments)]
 pub fn inner_transfer(
-    token_program_id: &Pubkey,
-    source_token_account: &Pubkey,
-    mint: &Pubkey,
-    destination_token_account: &Pubkey,
+    token_program_id: &Address,
+    source_token_account: &Address,
+    mint: &Address,
+    destination_token_account: &Address,
     new_source_decryptable_available_balance: &DecryptableBalance,
     transfer_amount_auditor_ciphertext_lo: &PodElGamalCiphertext,
     transfer_amount_auditor_ciphertext_hi: &PodElGamalCiphertext,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
     equality_proof_data_location: ProofLocation<CiphertextCommitmentEqualityProofData>,
     ciphertext_validity_proof_data_location: ProofLocation<
         BatchedGroupedCiphertext3HandlesValidityProofData,
@@ -1188,15 +1201,15 @@ pub fn inner_transfer(
 /// Create a `Transfer` instruction
 #[allow(clippy::too_many_arguments)]
 pub fn transfer(
-    token_program_id: &Pubkey,
-    source_token_account: &Pubkey,
-    mint: &Pubkey,
-    destination_token_account: &Pubkey,
+    token_program_id: &Address,
+    source_token_account: &Address,
+    mint: &Address,
+    destination_token_account: &Address,
     new_source_decryptable_available_balance: &DecryptableBalance,
     transfer_amount_auditor_ciphertext_lo: &PodElGamalCiphertext,
     transfer_amount_auditor_ciphertext_hi: &PodElGamalCiphertext,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
     equality_proof_data_location: ProofLocation<CiphertextCommitmentEqualityProofData>,
     ciphertext_validity_proof_data_location: ProofLocation<
         BatchedGroupedCiphertext3HandlesValidityProofData,
@@ -1267,12 +1280,12 @@ pub fn transfer(
 ///
 /// This instruction is suitable for use with a cross-program `invoke`
 pub fn inner_apply_pending_balance(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
+    token_program_id: &Address,
+    token_account: &Address,
     expected_pending_balance_credit_counter: u64,
     new_decryptable_available_balance: &DecryptableBalance,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![
@@ -1298,12 +1311,12 @@ pub fn inner_apply_pending_balance(
 
 /// Create a `ApplyPendingBalance` instruction
 pub fn apply_pending_balance(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
+    token_program_id: &Address,
+    token_account: &Address,
     pending_balance_instructions: u64,
     new_decryptable_available_balance: &DecryptableBalance,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     inner_apply_pending_balance(
         token_program_id,
@@ -1317,10 +1330,10 @@ pub fn apply_pending_balance(
 
 fn enable_or_disable_balance_credits(
     instruction: ConfidentialTransferInstruction,
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    token_program_id: &Address,
+    token_account: &Address,
+    authority: &Address,
+    multisig_signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![
@@ -1343,10 +1356,10 @@ fn enable_or_disable_balance_credits(
 
 /// Create a `EnableConfidentialCredits` instruction
 pub fn enable_confidential_credits(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    token_program_id: &Address,
+    token_account: &Address,
+    authority: &Address,
+    multisig_signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     enable_or_disable_balance_credits(
         ConfidentialTransferInstruction::EnableConfidentialCredits,
@@ -1359,10 +1372,10 @@ pub fn enable_confidential_credits(
 
 /// Create a `DisableConfidentialCredits` instruction
 pub fn disable_confidential_credits(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    token_program_id: &Address,
+    token_account: &Address,
+    authority: &Address,
+    multisig_signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     enable_or_disable_balance_credits(
         ConfidentialTransferInstruction::DisableConfidentialCredits,
@@ -1375,10 +1388,10 @@ pub fn disable_confidential_credits(
 
 /// Create a `EnableNonConfidentialCredits` instruction
 pub fn enable_non_confidential_credits(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    token_program_id: &Address,
+    token_account: &Address,
+    authority: &Address,
+    multisig_signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     enable_or_disable_balance_credits(
         ConfidentialTransferInstruction::EnableNonConfidentialCredits,
@@ -1391,10 +1404,10 @@ pub fn enable_non_confidential_credits(
 
 /// Create a `DisableNonConfidentialCredits` instruction
 pub fn disable_non_confidential_credits(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    token_program_id: &Address,
+    token_account: &Address,
+    authority: &Address,
+    multisig_signers: &[&Address],
 ) -> Result<Instruction, ProgramError> {
     enable_or_disable_balance_credits(
         ConfidentialTransferInstruction::DisableNonConfidentialCredits,
@@ -1410,15 +1423,15 @@ pub fn disable_non_confidential_credits(
 /// This instruction is suitable for use with a cross-program `invoke`
 #[allow(clippy::too_many_arguments)]
 pub fn inner_transfer_with_fee(
-    token_program_id: &Pubkey,
-    source_token_account: &Pubkey,
-    mint: &Pubkey,
-    destination_token_account: &Pubkey,
+    token_program_id: &Address,
+    source_token_account: &Address,
+    mint: &Address,
+    destination_token_account: &Address,
     new_source_decryptable_available_balance: &DecryptableBalance,
     transfer_amount_auditor_ciphertext_lo: &PodElGamalCiphertext,
     transfer_amount_auditor_ciphertext_hi: &PodElGamalCiphertext,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
     equality_proof_data_location: ProofLocation<CiphertextCommitmentEqualityProofData>,
     transfer_amount_ciphertext_validity_proof_data_location: ProofLocation<
         BatchedGroupedCiphertext3HandlesValidityProofData,
@@ -1529,15 +1542,15 @@ pub fn inner_transfer_with_fee(
 /// Create a `TransferWithFee` instruction
 #[allow(clippy::too_many_arguments)]
 pub fn transfer_with_fee(
-    token_program_id: &Pubkey,
-    source_token_account: &Pubkey,
-    mint: &Pubkey,
-    destination_token_account: &Pubkey,
+    token_program_id: &Address,
+    source_token_account: &Address,
+    mint: &Address,
+    destination_token_account: &Address,
     new_source_decryptable_available_balance: &DecryptableBalance,
     transfer_amount_auditor_ciphertext_lo: &PodElGamalCiphertext,
     transfer_amount_auditor_ciphertext_hi: &PodElGamalCiphertext,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
     equality_proof_data_location: ProofLocation<CiphertextCommitmentEqualityProofData>,
     transfer_amount_ciphertext_validity_proof_data_location: ProofLocation<
         BatchedGroupedCiphertext3HandlesValidityProofData,
@@ -1638,11 +1651,11 @@ pub fn transfer_with_fee(
 
 /// Create a `ConfigureAccountWithRegistry` instruction
 pub fn configure_account_with_registry(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    mint: &Pubkey,
-    elgamal_registry_account: &Pubkey,
-    payer: Option<&Pubkey>,
+    token_program_id: &Address,
+    token_account: &Address,
+    mint: &Address,
+    elgamal_registry_account: &Address,
+    payer: Option<&Address>,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![

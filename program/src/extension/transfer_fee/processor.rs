@@ -1,11 +1,11 @@
 use {
     crate::processor::{Processor, TransferInstruction},
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_clock::Clock,
     solana_msg::msg,
-    solana_program_error::ProgramResult,
+    solana_program_error::{ProgramError, ProgramResult},
     solana_program_option::COption,
-    solana_pubkey::Pubkey,
     solana_sysvar::Sysvar,
     spl_token_2022_interface::{
         check_program_account,
@@ -20,24 +20,28 @@ use {
         },
         pod::{PodAccount, PodMint},
     },
-    std::convert::TryInto,
 };
 
 fn process_initialize_transfer_fee_config(
     accounts: &[AccountInfo],
-    transfer_fee_config_authority: COption<Pubkey>,
-    withdraw_withheld_authority: COption<Pubkey>,
+    transfer_fee_config_authority: COption<Address>,
+    withdraw_withheld_authority: COption<Address>,
     transfer_fee_basis_points: u16,
     maximum_fee: u64,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_account_info = next_account_info(account_info_iter)?;
+    check_program_account(mint_account_info.owner)?;
 
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
     let extension = mint.init_extension::<TransferFeeConfig>(true)?;
-    extension.transfer_fee_config_authority = transfer_fee_config_authority.try_into()?;
-    extension.withdraw_withheld_authority = withdraw_withheld_authority.try_into()?;
+    extension.transfer_fee_config_authority = transfer_fee_config_authority
+        .try_into()
+        .map_err(|_| ProgramError::InvalidArgument)?;
+    extension.withdraw_withheld_authority = withdraw_withheld_authority
+        .try_into()
+        .map_err(|_| ProgramError::InvalidArgument)?;
     extension.withheld_amount = 0u64.into();
 
     if transfer_fee_basis_points > MAX_FEE_BASIS_POINTS {
@@ -58,7 +62,7 @@ fn process_initialize_transfer_fee_config(
 }
 
 fn process_set_transfer_fee(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     transfer_fee_basis_points: u16,
     maximum_fee: u64,
@@ -67,13 +71,14 @@ fn process_set_transfer_fee(
     let mint_account_info = next_account_info(account_info_iter)?;
     let authority_info = next_account_info(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
+    check_program_account(mint_account_info.owner)?;
 
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
     let extension = mint.get_extension_mut::<TransferFeeConfig>()?;
 
     let transfer_fee_config_authority =
-        Option::<Pubkey>::from(extension.transfer_fee_config_authority)
+        Option::<Address>::from(extension.transfer_fee_config_authority)
             .ok_or(TokenError::NoAuthorityExists)?;
     Processor::validate_owner(
         program_id,
@@ -110,7 +115,7 @@ fn process_set_transfer_fee(
 }
 
 fn process_withdraw_withheld_tokens_from_mint(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
@@ -121,13 +126,15 @@ fn process_withdraw_withheld_tokens_from_mint(
 
     // unnecessary check, but helps for clarity
     check_program_account(mint_account_info.owner)?;
+    check_program_account(destination_account_info.owner)?;
 
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
     let extension = mint.get_extension_mut::<TransferFeeConfig>()?;
 
-    let withdraw_withheld_authority = Option::<Pubkey>::from(extension.withdraw_withheld_authority)
-        .ok_or(TokenError::NoAuthorityExists)?;
+    let withdraw_withheld_authority =
+        Option::<Address>::from(extension.withdraw_withheld_authority)
+            .ok_or(TokenError::NoAuthorityExists)?;
     Processor::validate_owner(
         program_id,
         &withdraw_withheld_authority,
@@ -156,7 +163,7 @@ fn process_withdraw_withheld_tokens_from_mint(
 }
 
 fn harvest_from_account<'b>(
-    mint_key: &'b Pubkey,
+    mint_key: &'b Address,
     token_account_info: &'b AccountInfo<'_>,
 ) -> Result<u64, TokenError> {
     let mut token_account_data = token_account_info.data.borrow_mut();
@@ -179,6 +186,7 @@ fn process_harvest_withheld_tokens_to_mint(accounts: &[AccountInfo]) -> ProgramR
     let account_info_iter = &mut accounts.iter();
     let mint_account_info = next_account_info(account_info_iter)?;
     let token_account_infos = account_info_iter.as_slice();
+    check_program_account(mint_account_info.owner)?;
 
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
@@ -202,7 +210,7 @@ fn process_harvest_withheld_tokens_to_mint(accounts: &[AccountInfo]) -> ProgramR
 }
 
 fn process_withdraw_withheld_tokens_from_accounts(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     num_token_accounts: u8,
 ) -> ProgramResult {
@@ -218,13 +226,15 @@ fn process_withdraw_withheld_tokens_from_accounts(
 
     // unnecessary check, but helps for clarity
     check_program_account(mint_account_info.owner)?;
+    check_program_account(destination_account_info.owner)?;
 
     let mint_data = mint_account_info.data.borrow();
     let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
     let extension = mint.get_extension::<TransferFeeConfig>()?;
 
-    let withdraw_withheld_authority = Option::<Pubkey>::from(extension.withdraw_withheld_authority)
-        .ok_or(TokenError::NoAuthorityExists)?;
+    let withdraw_withheld_authority =
+        Option::<Address>::from(extension.withdraw_withheld_authority)
+            .ok_or(TokenError::NoAuthorityExists)?;
     Processor::validate_owner(
         program_id,
         &withdraw_withheld_authority,
@@ -273,7 +283,7 @@ fn process_withdraw_withheld_tokens_from_accounts(
 }
 
 pub(crate) fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     input: &[u8],
 ) -> ProgramResult {

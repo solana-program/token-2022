@@ -1,16 +1,17 @@
 use {
-    bytemuck::{Pod, Zeroable},
+    crate::zk_proofs::IntoTokenError,
+    solana_zk_elgamal_proof_interface::proof_data::CiphertextCiphertextEqualityProofData,
     solana_zk_sdk::{
         encryption::{
             auth_encryption::{AeCiphertext, AeKey},
             elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey},
             pedersen::PedersenOpening,
-            pod::{
-                auth_encryption::PodAeCiphertext,
-                elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
-            },
         },
-        zk_elgamal_proof_program::proof_data::CiphertextCiphertextEqualityProofData,
+        zk_elgamal_proof_program::build_ciphertext_ciphertext_equality_proof_data,
+    },
+    solana_zk_sdk_pod::encryption::{
+        auth_encryption::PodAeCiphertext,
+        elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
     },
     spl_token_2022_interface::{
         error::TokenError,
@@ -30,7 +31,7 @@ use {
 /// Confidential Mint Burn extension information needed to construct a
 /// `RotateSupplyElgamalPubkey` instruction.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SupplyAccountInfo {
     /// The available balance (encrypted by `supply_elgamal_pubkey`)
     pub current_supply: PodElGamalCiphertext,
@@ -99,7 +100,7 @@ impl SupplyAccountInfo {
         let new_supply_ciphertext =
             new_supply_elgamal_pubkey.encrypt_with(current_supply, &new_supply_opening);
 
-        CiphertextCiphertextEqualityProofData::new(
+        build_ciphertext_ciphertext_equality_proof_data(
             current_supply_elgamal_keypair,
             new_supply_elgamal_pubkey,
             &self
@@ -138,7 +139,7 @@ impl SupplyAccountInfo {
             destination_elgamal_pubkey,
             auditor_elgamal_pubkey,
         )
-        .map_err(|e| -> TokenError { e.into() })
+        .map_err(|e| -> TokenError { e.into_token_error() })
     }
 
     /// Compute the new decryptable supply.
@@ -160,7 +161,7 @@ impl SupplyAccountInfo {
 /// Confidential Mint Burn extension information needed to construct a
 /// `Burn` instruction.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BurnAccountInfo {
     /// The available balance (encrypted by `encryption_pubkey`)
     pub available_balance: EncryptedBalance,
@@ -206,7 +207,7 @@ impl BurnAccountInfo {
             supply_elgamal_pubkey,
             auditor_elgamal_pubkey,
         )
-        .map_err(|e| -> TokenError { e.into() })
+        .map_err(|e| -> TokenError { e.into_token_error() })
     }
 
     /// Compute the new decryptable supply.

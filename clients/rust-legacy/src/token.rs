@@ -1,11 +1,23 @@
 use {
-    crate::client::{
-        ProgramClient, ProgramClientError, SendTransaction, SimulateTransaction, SimulationResult,
+    crate::{
+        client::{
+            ProgramClient, ProgramClientError, SendTransaction, SimulateTransaction,
+            SimulationResult,
+        },
+        zk_proofs::{
+            confidential_mint_burn::{BurnAccountInfo, SupplyAccountInfo},
+            confidential_transfer::{
+                ApplyPendingBalanceAccountInfo, EmptyAccountAccountInfo, TransferAccountInfo,
+                WithdrawAccountInfo,
+            },
+            confidential_transfer_fee::WithheldTokensInfo,
+        },
     },
     bytemuck::{bytes_of, Pod},
     futures::future::join_all,
     futures_util::TryFutureExt,
     solana_account::Account as BaseAccount,
+    solana_address::Address,
     solana_compute_budget_interface::ComputeBudgetInstruction,
     solana_hash::Hash,
     solana_instruction::{AccountMeta, Instruction},
@@ -13,11 +25,27 @@ use {
     solana_packet::PACKET_DATA_SIZE,
     solana_program_error::ProgramError,
     solana_program_pack::Pack,
-    solana_pubkey::Pubkey,
     solana_signature::Signature,
     solana_signer::{signers::Signers, Signer, SignerError},
     solana_system_interface::instruction as system_instruction,
     solana_transaction::Transaction,
+    solana_zk_elgamal_proof_interface::{
+        self as zk_elgamal_proof_program,
+        instruction::{close_context_state, ContextStateInfo},
+        proof_data::*,
+        state::ProofContextState,
+    },
+    solana_zk_sdk::{
+        encryption::{
+            auth_encryption::AeKey,
+            elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey, ElGamalSecretKey},
+        },
+        zk_elgamal_proof_program::build_pubkey_validity_proof_data,
+    },
+    solana_zk_sdk_pod::encryption::{
+        auth_encryption::PodAeCiphertext,
+        elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
+    },
     spl_associated_token_account_interface::{
         address::get_associated_token_address_with_program_id,
         instruction::{
@@ -25,17 +53,7 @@ use {
         },
     },
     spl_record::state::RecordData,
-    spl_token_2022::{
-        extension::{
-            confidential_mint_burn::account_info::{BurnAccountInfo, SupplyAccountInfo},
-            confidential_transfer::account_info::{
-                ApplyPendingBalanceAccountInfo, EmptyAccountAccountInfo, TransferAccountInfo,
-                WithdrawAccountInfo,
-            },
-            confidential_transfer_fee::account_info::WithheldTokensInfo,
-        },
-        offchain,
-    },
+    spl_token_2022::offchain,
     spl_token_2022_interface::{
         extension::{
             confidential_mint_burn::{self, ConfidentialMintBurn},
@@ -49,22 +67,6 @@ use {
             ExtensionType, StateWithExtensionsOwned,
         },
         instruction,
-        solana_zk_sdk::{
-            encryption::{
-                auth_encryption::AeKey,
-                elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey, ElGamalSecretKey},
-                pod::{
-                    auth_encryption::PodAeCiphertext,
-                    elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
-                },
-            },
-            zk_elgamal_proof_program::{
-                self,
-                instruction::{close_context_state, ContextStateInfo},
-                proof_data::*,
-                state::ProofContextState,
-            },
-        },
         state::{Account, AccountState, Mint, Multisig},
     },
     spl_token_confidential_transfer_proof_extraction::instruction::{
@@ -75,7 +77,10 @@ use {
         transfer_with_fee::TransferWithFeeProofData, withdraw::WithdrawProofData,
     },
     spl_token_group_interface::state::{TokenGroup, TokenGroupMember},
-    spl_token_metadata_interface::state::{Field, TokenMetadata},
+    spl_token_metadata_interface::{
+        solana_nullable::MaybeNull,
+        state::{Field, TokenMetadata},
+    },
     std::{
         fmt, io,
         mem::size_of,
@@ -150,7 +155,7 @@ impl PartialEq for TokenError {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ExtensionInitializationParams {
     ConfidentialTransferMint {
-        authority: Option<Pubkey>,
+        authority: Option<Address>,
         auto_approve_new_accounts: bool,
         auditor_elgamal_pubkey: Option<PodElGamalPubkey>,
     },
@@ -158,51 +163,51 @@ pub enum ExtensionInitializationParams {
         state: AccountState,
     },
     MintCloseAuthority {
-        close_authority: Option<Pubkey>,
+        close_authority: Option<Address>,
     },
     TransferFeeConfig {
-        transfer_fee_config_authority: Option<Pubkey>,
-        withdraw_withheld_authority: Option<Pubkey>,
+        transfer_fee_config_authority: Option<Address>,
+        withdraw_withheld_authority: Option<Address>,
         transfer_fee_basis_points: u16,
         maximum_fee: u64,
     },
     InterestBearingConfig {
-        rate_authority: Option<Pubkey>,
+        rate_authority: Option<Address>,
         rate: i16,
     },
     NonTransferable,
     PermanentDelegate {
-        delegate: Pubkey,
+        delegate: Address,
     },
     TransferHook {
-        authority: Option<Pubkey>,
-        program_id: Option<Pubkey>,
+        authority: Option<Address>,
+        program_id: Option<Address>,
     },
     MetadataPointer {
-        authority: Option<Pubkey>,
-        metadata_address: Option<Pubkey>,
+        authority: Option<Address>,
+        metadata_address: Option<Address>,
     },
     ConfidentialTransferFeeConfig {
-        authority: Option<Pubkey>,
+        authority: Option<Address>,
         withdraw_withheld_authority_elgamal_pubkey: PodElGamalPubkey,
     },
     GroupPointer {
-        authority: Option<Pubkey>,
-        group_address: Option<Pubkey>,
+        authority: Option<Address>,
+        group_address: Option<Address>,
     },
     GroupMemberPointer {
-        authority: Option<Pubkey>,
-        member_address: Option<Pubkey>,
+        authority: Option<Address>,
+        member_address: Option<Address>,
     },
     ScaledUiAmountConfig {
-        authority: Option<Pubkey>,
+        authority: Option<Address>,
         multiplier: f64,
     },
     PausableConfig {
-        authority: Pubkey,
+        authority: Address,
     },
     PermissionedBurnConfig {
-        authority: Pubkey,
+        authority: Address,
     },
     ConfidentialMintBurn {
         supply_elgamal_pubkey: PodElGamalPubkey,
@@ -236,8 +241,8 @@ impl ExtensionInitializationParams {
     /// Generate an appropriate initialization instruction for the given mint
     pub fn instruction(
         self,
-        token_program_id: &Pubkey,
-        mint: &Pubkey,
+        token_program_id: &Address,
+        mint: &Address,
     ) -> Result<Instruction, ProgramError> {
         match self {
             Self::ConfidentialTransferMint {
@@ -373,7 +378,7 @@ pub type TokenResult<T> = Result<T, TokenError>;
 #[derive(Debug)]
 struct TokenMemo {
     text: String,
-    signers: Vec<Pubkey>,
+    signers: Vec<Address>,
 }
 impl TokenMemo {
     pub fn to_instruction(&self) -> Instruction {
@@ -393,18 +398,18 @@ pub enum ComputeUnitLimit {
 }
 
 pub struct ProofAccountWithCiphertext {
-    pub context_state_account: Pubkey,
+    pub context_state_account: Address,
     pub ciphertext_lo: PodElGamalCiphertext,
     pub ciphertext_hi: PodElGamalCiphertext,
 }
 
 pub struct Token<T> {
     client: Arc<dyn ProgramClient<T>>,
-    pubkey: Pubkey, /* token mint */
+    pubkey: Address, /* token mint */
     decimals: Option<u8>,
     payer: Arc<dyn Signer>,
-    program_id: Pubkey,
-    nonce_account: Option<Pubkey>,
+    program_id: Address,
+    nonce_account: Option<Address>,
     nonce_authority: Option<Arc<dyn Signer>>,
     nonce_blockhash: Option<Hash>,
     memo: Arc<RwLock<Option<TokenMemo>>>,
@@ -434,7 +439,7 @@ impl<T> fmt::Debug for Token<T> {
     }
 }
 
-fn native_mint(program_id: &Pubkey) -> Pubkey {
+fn native_mint(program_id: &Address) -> Address {
     if program_id == &spl_token_2022_interface::id() {
         spl_token_2022_interface::native_mint::id()
     } else if program_id == &spl_token_interface::id() {
@@ -444,7 +449,7 @@ fn native_mint(program_id: &Pubkey) -> Pubkey {
     }
 }
 
-fn native_mint_decimals(program_id: &Pubkey) -> u8 {
+fn native_mint_decimals(program_id: &Address) -> u8 {
     if program_id == &spl_token_2022_interface::id() {
         spl_token_2022_interface::native_mint::DECIMALS
     } else if program_id == &spl_token_interface::id() {
@@ -460,8 +465,8 @@ where
 {
     pub fn new(
         client: Arc<dyn ProgramClient<T>>,
-        program_id: &Pubkey,
-        address: &Pubkey,
+        program_id: &Address,
+        address: &Address,
         decimals: Option<u8>,
         payer: Arc<dyn Signer>,
     ) -> Self {
@@ -483,7 +488,7 @@ where
 
     pub fn new_native(
         client: Arc<dyn ProgramClient<T>>,
-        program_id: &Pubkey,
+        program_id: &Address,
         payer: Arc<dyn Signer>,
     ) -> Self {
         Self::new(
@@ -500,7 +505,7 @@ where
     }
 
     /// Get token address.
-    pub fn get_address(&self) -> &Pubkey {
+    pub fn get_address(&self) -> &Address {
         &self.pubkey
     }
 
@@ -511,7 +516,7 @@ where
 
     pub fn with_nonce(
         mut self,
-        nonce_account: &Pubkey,
+        nonce_account: &Address,
         nonce_authority: Arc<dyn Signer>,
         nonce_blockhash: &Hash,
     ) -> Self {
@@ -537,7 +542,7 @@ where
         self
     }
 
-    pub fn with_memo<M: AsRef<str>>(&self, memo: M, signers: Vec<Pubkey>) -> &Self {
+    pub fn with_memo<M: AsRef<str>>(&self, memo: M, signers: Vec<Address>) -> &Self {
         let mut w_memo = self.memo.write().unwrap();
         *w_memo = Some(TokenMemo {
             text: memo.as_ref().to_string(),
@@ -578,9 +583,9 @@ where
 
     fn get_multisig_signers<'a>(
         &self,
-        authority: &Pubkey,
-        signing_pubkeys: &'a [Pubkey],
-    ) -> Vec<&'a Pubkey> {
+        authority: &Address,
+        signing_pubkeys: &'a [Address],
+    ) -> Vec<&'a Address> {
         if signing_pubkeys == [*authority] {
             vec![]
         } else {
@@ -751,8 +756,8 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn create_mint<'a, S: Signers>(
         &self,
-        mint_authority: &'a Pubkey,
-        freeze_authority: Option<&'a Pubkey>,
+        mint_authority: &'a Address,
+        freeze_authority: Option<&'a Address>,
         extension_initialization_params: Vec<ExtensionInitializationParams>,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -793,7 +798,7 @@ where
     /// Create native mint
     pub async fn create_native_mint(
         client: Arc<dyn ProgramClient<T>>,
-        program_id: &Pubkey,
+        program_id: &Address,
         payer: Arc<dyn Signer>,
     ) -> TokenResult<Self> {
         let token = Self::new_native(client, program_id, payer);
@@ -814,7 +819,7 @@ where
     pub async fn create_multisig(
         &self,
         account: &dyn Signer,
-        multisig_members: &[&Pubkey],
+        multisig_members: &[&Address],
         minimum_signers: u8,
     ) -> TokenResult<T::Output> {
         let instructions = vec![
@@ -840,12 +845,12 @@ where
     }
 
     /// Get the address for the associated token account.
-    pub fn get_associated_token_address(&self, owner: &Pubkey) -> Pubkey {
+    pub fn get_associated_token_address(&self, owner: &Address) -> Address {
         get_associated_token_address_with_program_id(owner, &self.pubkey, &self.program_id)
     }
 
     /// Create and initialize the associated account.
-    pub async fn create_associated_token_account(&self, owner: &Pubkey) -> TokenResult<T::Output> {
+    pub async fn create_associated_token_account(&self, owner: &Address) -> TokenResult<T::Output> {
         self.process_ixs::<[&dyn Signer; 0]>(
             &[create_associated_token_account(
                 &self.payer.pubkey(),
@@ -862,7 +867,7 @@ where
     pub async fn create_auxiliary_token_account(
         &self,
         account: &dyn Signer,
-        owner: &Pubkey,
+        owner: &Address,
     ) -> TokenResult<T::Output> {
         self.create_auxiliary_token_account_with_extension_space(account, owner, vec![])
             .await
@@ -872,7 +877,7 @@ where
     pub async fn create_auxiliary_token_account_with_extension_space(
         &self,
         account: &dyn Signer,
-        owner: &Pubkey,
+        owner: &Address,
         extensions: Vec<ExtensionType>,
     ) -> TokenResult<T::Output> {
         let state = self.get_mint_info().await?;
@@ -914,7 +919,7 @@ where
     }
 
     /// Retrieve a raw account
-    pub async fn get_account(&self, account: Pubkey) -> TokenResult<BaseAccount> {
+    pub async fn get_account(&self, account: Address) -> TokenResult<BaseAccount> {
         self.client
             .get_account(account)
             .await
@@ -951,7 +956,7 @@ where
     /// Retrieve account information.
     pub async fn get_account_info(
         &self,
-        account: &Pubkey,
+        account: &Address,
     ) -> TokenResult<StateWithExtensionsOwned<Account>> {
         let account = self.get_account(*account).await?;
         if account.owner != self.program_id {
@@ -968,7 +973,7 @@ where
     /// Retrieve the associated account or create one if not found.
     pub async fn get_or_create_associated_account_info(
         &self,
-        owner: &Pubkey,
+        owner: &Address,
     ) -> TokenResult<StateWithExtensionsOwned<Account>> {
         let account = self.get_associated_token_address(owner);
         match self.get_account_info(&account).await {
@@ -985,9 +990,9 @@ where
     /// Assign a new authority to the account.
     pub async fn set_authority<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
-        new_authority: Option<&Pubkey>,
+        account: &Address,
+        authority: &Address,
+        new_authority: Option<&Address>,
         authority_type: instruction::AuthorityType,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -1011,8 +1016,8 @@ where
     /// Mint new tokens
     pub async fn mint_to<S: Signers>(
         &self,
-        destination: &Pubkey,
-        authority: &Pubkey,
+        destination: &Address,
+        authority: &Address,
         amount: u64,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -1047,9 +1052,9 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn transfer<S: Signers>(
         &self,
-        source: &Pubkey,
-        destination: &Pubkey,
-        authority: &Pubkey,
+        source: &Address,
+        destination: &Address,
+        authority: &Address,
         amount: u64,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -1111,10 +1116,10 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn create_recipient_associated_account_and_transfer<S: Signers>(
         &self,
-        source: &Pubkey,
-        destination: &Pubkey,
-        destination_owner: &Pubkey,
-        authority: &Pubkey,
+        source: &Address,
+        destination: &Address,
+        destination_owner: &Address,
+        authority: &Address,
         amount: u64,
         fee: Option<u64>,
         signing_keypairs: &S,
@@ -1204,9 +1209,9 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn transfer_with_fee<S: Signers>(
         &self,
-        source: &Pubkey,
-        destination: &Pubkey,
-        authority: &Pubkey,
+        source: &Address,
+        destination: &Address,
+        authority: &Address,
         amount: u64,
         fee: u64,
         signing_keypairs: &S,
@@ -1258,8 +1263,8 @@ where
     /// Burn tokens from account
     pub async fn burn<S: Signers>(
         &self,
-        source: &Pubkey,
-        authority: &Pubkey,
+        source: &Address,
+        authority: &Address,
         amount: u64,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -1293,9 +1298,9 @@ where
     /// Approve a delegate to spend tokens
     pub async fn approve<S: Signers>(
         &self,
-        source: &Pubkey,
-        delegate: &Pubkey,
-        authority: &Pubkey,
+        source: &Address,
+        delegate: &Address,
+        authority: &Address,
         amount: u64,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -1330,8 +1335,8 @@ where
     /// Revoke a delegate
     pub async fn revoke<S: Signers>(
         &self,
-        source: &Pubkey,
-        authority: &Pubkey,
+        source: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -1352,9 +1357,9 @@ where
     /// Close an empty account and reclaim its lamports
     pub async fn close_account<S: Signers>(
         &self,
-        account: &Pubkey,
-        lamports_destination: &Pubkey,
-        authority: &Pubkey,
+        account: &Address,
+        lamports_destination: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -1388,10 +1393,10 @@ where
     /// Close an account, reclaiming its lamports and tokens
     pub async fn empty_and_close_account<S: Signers>(
         &self,
-        account_to_close: &Pubkey,
-        lamports_destination: &Pubkey,
-        tokens_destination: &Pubkey,
-        authority: &Pubkey,
+        account_to_close: &Address,
+        lamports_destination: &Address,
+        tokens_destination: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -1456,8 +1461,8 @@ where
     /// Freeze a token account
     pub async fn freeze<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
+        account: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -1479,8 +1484,8 @@ where
     /// Thaw / unfreeze a token account
     pub async fn thaw<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
+        account: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -1502,8 +1507,8 @@ where
     /// Wrap lamports into native account
     pub async fn wrap<S: Signers>(
         &self,
-        account: &Pubkey,
-        owner: &Pubkey,
+        account: &Address,
+        owner: &Address,
         lamports: u64,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -1518,8 +1523,8 @@ where
     /// changed
     pub async fn wrap_with_mutable_ownership<S: Signers>(
         &self,
-        account: &Pubkey,
-        owner: &Pubkey,
+        account: &Address,
+        owner: &Address,
         lamports: u64,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -1530,8 +1535,8 @@ where
 
     fn wrap_ixs(
         &self,
-        account: &Pubkey,
-        owner: &Pubkey,
+        account: &Address,
+        owner: &Address,
         lamports: u64,
         immutable_owner: bool,
     ) -> TokenResult<Vec<Instruction>> {
@@ -1585,9 +1590,9 @@ where
     /// Unwrap lamports from native account
     pub async fn unwrap_lamports<S: Signers>(
         &self,
-        source: &Pubkey,
-        destination: &Pubkey,
-        authority: &Pubkey,
+        source: &Address,
+        destination: &Address,
+        authority: &Address,
         amount: Option<u64>,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -1609,7 +1614,7 @@ where
     }
 
     /// Sync native account lamports
-    pub async fn sync_native(&self, account: &Pubkey) -> TokenResult<T::Output> {
+    pub async fn sync_native(&self, account: &Address) -> TokenResult<T::Output> {
         self.process_ixs::<[&dyn Signer; 0]>(
             &[instruction::sync_native(&self.program_id, account)?],
             &[],
@@ -1620,7 +1625,7 @@ where
     /// Set transfer fee
     pub async fn set_transfer_fee<S: Signers>(
         &self,
-        authority: &Pubkey,
+        authority: &Address,
         transfer_fee_basis_points: u16,
         maximum_fee: u64,
         signing_keypairs: &S,
@@ -1645,7 +1650,7 @@ where
     /// Set default account state on mint
     pub async fn set_default_account_state<S: Signers>(
         &self,
-        authority: &Pubkey,
+        authority: &Address,
         state: &AccountState,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -1670,7 +1675,7 @@ where
     /// Harvest withheld tokens to mint
     pub async fn harvest_withheld_tokens_to_mint(
         &self,
-        sources: &[&Pubkey],
+        sources: &[&Address],
     ) -> TokenResult<T::Output> {
         self.process_ixs::<[&dyn Signer; 0]>(
             &[transfer_fee::instruction::harvest_withheld_tokens_to_mint(
@@ -1686,8 +1691,8 @@ where
     /// Withdraw withheld tokens from mint
     pub async fn withdraw_withheld_tokens_from_mint<S: Signers>(
         &self,
-        destination: &Pubkey,
-        authority: &Pubkey,
+        destination: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -1711,9 +1716,9 @@ where
     /// Withdraw withheld tokens from accounts
     pub async fn withdraw_withheld_tokens_from_accounts<S: Signers>(
         &self,
-        destination: &Pubkey,
-        authority: &Pubkey,
-        sources: &[&Pubkey],
+        destination: &Address,
+        authority: &Address,
+        sources: &[&Address],
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -1739,8 +1744,8 @@ where
     /// `ExtensionType`s
     pub async fn reallocate<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
+        account: &Address,
+        authority: &Address,
         extension_types: &[ExtensionType],
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -1764,8 +1769,8 @@ where
     /// Require memos on transfers into this account
     pub async fn enable_required_transfer_memos<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
+        account: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -1786,8 +1791,8 @@ where
     /// Stop requiring memos on transfers into this account
     pub async fn disable_required_transfer_memos<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
+        account: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -1808,7 +1813,7 @@ where
     /// Pause transferring, minting, and burning on the mint
     pub async fn pause<S: Signers>(
         &self,
-        authority: &Pubkey,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -1829,7 +1834,7 @@ where
     /// Resume transferring, minting, and burning on the mint
     pub async fn resume<S: Signers>(
         &self,
-        authority: &Pubkey,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -1850,8 +1855,8 @@ where
     /// Prevent unsafe usage of token account through CPI
     pub async fn enable_cpi_guard<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
+        account: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -1872,8 +1877,8 @@ where
     /// Stop preventing unsafe usage of token account through CPI
     pub async fn disable_cpi_guard<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
+        account: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -1894,7 +1899,7 @@ where
     /// Update interest rate
     pub async fn update_interest_rate<S: Signers>(
         &self,
-        authority: &Pubkey,
+        authority: &Address,
         new_rate: i16,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -1917,7 +1922,7 @@ where
     /// Update multiplier
     pub async fn update_multiplier<S: Signers>(
         &self,
-        authority: &Pubkey,
+        authority: &Address,
         new_multiplier: f64,
         new_multiplier_effective_timestamp: i64,
         signing_keypairs: &S,
@@ -1942,8 +1947,8 @@ where
     /// Update transfer hook program id
     pub async fn update_transfer_hook_program_id<S: Signers>(
         &self,
-        authority: &Pubkey,
-        new_program_id: Option<Pubkey>,
+        authority: &Address,
+        new_program_id: Option<Address>,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -1965,8 +1970,8 @@ where
     /// Update metadata pointer address
     pub async fn update_metadata_address<S: Signers>(
         &self,
-        authority: &Pubkey,
-        new_metadata_address: Option<Pubkey>,
+        authority: &Address,
+        new_metadata_address: Option<Address>,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -1988,8 +1993,8 @@ where
     /// Update group pointer address
     pub async fn update_group_address<S: Signers>(
         &self,
-        authority: &Pubkey,
-        new_group_address: Option<Pubkey>,
+        authority: &Address,
+        new_group_address: Option<Address>,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -2011,8 +2016,8 @@ where
     /// Update group member pointer address
     pub async fn update_group_member_address<S: Signers>(
         &self,
-        authority: &Pubkey,
-        new_member_address: Option<Pubkey>,
+        authority: &Address,
+        new_member_address: Option<Address>,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -2034,7 +2039,7 @@ where
     /// Update confidential transfer mint
     pub async fn confidential_transfer_update_mint<S: Signers>(
         &self,
-        authority: &Pubkey,
+        authority: &Address,
         auto_approve_new_account: bool,
         auditor_elgamal_pubkey: Option<PodElGamalPubkey>,
         signing_keypairs: &S,
@@ -2062,9 +2067,9 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn confidential_transfer_configure_token_account<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
-        context_state_account: Option<&Pubkey>,
+        account: &Address,
+        authority: &Address,
+        context_state_account: Option<&Address>,
         maximum_pending_balance_credit_counter: Option<u64>,
         elgamal_keypair: &ElGamalKeypair,
         aes_key: &AeKey,
@@ -2082,7 +2087,7 @@ where
             None
         } else {
             Some(
-                confidential_transfer::instruction::PubkeyValidityProofData::new(elgamal_keypair)
+                build_pubkey_validity_proof_data(elgamal_keypair)
                     .map_err(|_| TokenError::ProofGeneration)?,
             )
         };
@@ -2118,9 +2123,9 @@ where
     /// registry account
     pub async fn confidential_transfer_configure_token_account_with_registry(
         &self,
-        account: &Pubkey,
-        elgamal_registry_account: &Pubkey,
-        payer: Option<&Pubkey>,
+        account: &Address,
+        elgamal_registry_account: &Address,
+        payer: Option<&Address>,
     ) -> TokenResult<T::Output> {
         self.process_ixs::<[&dyn Signer; 0]>(
             &[
@@ -2140,8 +2145,8 @@ where
     /// Approves a token account for confidential transfers
     pub async fn confidential_transfer_approve_account<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
+        account: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -2164,9 +2169,9 @@ where
     /// closing
     pub async fn confidential_transfer_empty_account<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
-        context_state_account: Option<&Pubkey>,
+        account: &Address,
+        authority: &Address,
+        context_state_account: Option<&Address>,
         account_info: Option<EmptyAccountAccountInfo>,
         elgamal_keypair: &ElGamalKeypair,
         signing_keypairs: &S,
@@ -2219,8 +2224,8 @@ where
     /// account
     pub async fn confidential_transfer_deposit<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
+        account: &Address,
+        authority: &Address,
         amount: u64,
         decimals: u8,
         signing_keypairs: &S,
@@ -2248,10 +2253,10 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn confidential_transfer_withdraw<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
-        equality_proof_account: Option<&Pubkey>,
-        range_proof_account: Option<&Pubkey>,
+        account: &Address,
+        authority: &Address,
+        equality_proof_account: Option<&Address>,
+        range_proof_account: Option<&Address>,
         withdraw_amount: u64,
         decimals: u8,
         account_info: Option<WithdrawAccountInfo>,
@@ -2335,12 +2340,12 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn confidential_transfer_transfer<S: Signers>(
         &self,
-        source_account: &Pubkey,
-        destination_account: &Pubkey,
-        source_authority: &Pubkey,
-        equality_proof_account: Option<&Pubkey>,
+        source_account: &Address,
+        destination_account: &Address,
+        source_authority: &Address,
+        equality_proof_account: Option<&Address>,
         ciphertext_validity_proof_account_with_ciphertext: Option<&ProofAccountWithCiphertext>,
-        range_proof_account: Option<&Pubkey>,
+        range_proof_account: Option<&Address>,
         transfer_amount: u64,
         account_info: Option<TransferAccountInfo>,
         source_elgamal_keypair: &ElGamalKeypair,
@@ -2491,8 +2496,8 @@ where
         U: Pod,
     >(
         &self,
-        record_account: &Pubkey,
-        record_authority: &Pubkey,
+        record_account: &Address,
+        record_authority: &Address,
         proof_data: &ZK,
         record_account_signer: &S1,
         record_authority_signer: &S2,
@@ -2568,9 +2573,9 @@ where
     /// Close a record account.
     pub async fn confidential_transfer_close_record_account<S: Signers>(
         &self,
-        record_account: &Pubkey,
-        lamport_destination_account: &Pubkey,
-        record_account_authority: &Pubkey,
+        record_account: &Address,
+        lamport_destination_account: &Address,
+        record_account_authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         self.process_ixs(
@@ -2592,8 +2597,8 @@ where
         U: Pod,
     >(
         &self,
-        context_state_account: &Pubkey,
-        context_state_authority: &Pubkey,
+        context_state_account: &Address,
+        context_state_authority: &Address,
         proof_data: &ZK,
         split_account_creation_and_proof_verification: bool,
         signing_keypairs: &S,
@@ -2669,9 +2674,9 @@ where
         U: Pod,
     >(
         &self,
-        context_state_account: &Pubkey,
-        context_state_authority: &Pubkey,
-        record_account: &Pubkey,
+        context_state_account: &Address,
+        context_state_authority: &Address,
+        record_account: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         const RECORD_ACCOUNT_PROOF_OFFSET: u32 = 33;
@@ -2714,9 +2719,9 @@ where
     /// Close a ZK Token proof program context state
     pub async fn confidential_transfer_close_context_state_account<S: Signers>(
         &self,
-        context_state_account: &Pubkey,
-        lamport_destination_account: &Pubkey,
-        context_state_authority: &Pubkey,
+        context_state_account: &Address,
+        lamport_destination_account: &Address,
+        context_state_authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let context_state_info = ContextStateInfo {
@@ -2738,16 +2743,16 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn confidential_transfer_transfer_with_fee<S: Signers>(
         &self,
-        source_account: &Pubkey,
-        destination_account: &Pubkey,
-        source_authority: &Pubkey,
-        equality_proof_account: Option<&Pubkey>,
+        source_account: &Address,
+        destination_account: &Address,
+        source_authority: &Address,
+        equality_proof_account: Option<&Address>,
         transfer_amount_ciphertext_validity_proof_account_with_ciphertext: Option<
             &ProofAccountWithCiphertext,
         >,
-        percentage_with_cap_proof_account: Option<&Pubkey>,
-        fee_ciphertext_validity_proof_account: Option<&Pubkey>,
-        range_proof_account: Option<&Pubkey>,
+        percentage_with_cap_proof_account: Option<&Address>,
+        fee_ciphertext_validity_proof_account: Option<&Address>,
+        range_proof_account: Option<&Address>,
         transfer_amount: u64,
         account_info: Option<TransferAccountInfo>,
         source_elgamal_keypair: &ElGamalKeypair,
@@ -2933,8 +2938,8 @@ where
     /// balance
     pub async fn confidential_transfer_apply_pending_balance<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
+        account: &Address,
+        authority: &Address,
         account_info: Option<ApplyPendingBalanceAccountInfo>,
         elgamal_secret_key: &ElGamalSecretKey,
         aes_key: &AeKey,
@@ -2976,8 +2981,8 @@ where
     /// token account
     pub async fn confidential_transfer_enable_confidential_credits<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
+        account: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -3001,8 +3006,8 @@ where
     /// a token account
     pub async fn confidential_transfer_disable_confidential_credits<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
+        account: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -3026,8 +3031,8 @@ where
     /// non-confidential payments
     pub async fn confidential_transfer_enable_non_confidential_credits<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
+        account: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -3051,8 +3056,8 @@ where
     /// account
     pub async fn confidential_transfer_disable_non_confidential_credits<S: Signers>(
         &self,
-        account: &Pubkey,
-        authority: &Pubkey,
+        account: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -3076,9 +3081,9 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn confidential_transfer_withdraw_withheld_tokens_from_mint<S: Signers>(
         &self,
-        destination_account: &Pubkey,
-        withdraw_withheld_authority: &Pubkey,
-        context_state_account: Option<&Pubkey>,
+        destination_account: &Address,
+        withdraw_withheld_authority: &Address,
+        context_state_account: Option<&Address>,
         withheld_tokens_info: Option<WithheldTokensInfo>,
         withdraw_withheld_authority_elgamal_keypair: &ElGamalKeypair,
         destination_elgamal_pubkey: &ElGamalPubkey,
@@ -3139,14 +3144,14 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn confidential_transfer_withdraw_withheld_tokens_from_accounts<S: Signers>(
         &self,
-        destination_account: &Pubkey,
-        withdraw_withheld_authority: &Pubkey,
-        context_state_account: Option<&Pubkey>,
+        destination_account: &Address,
+        withdraw_withheld_authority: &Address,
+        context_state_account: Option<&Address>,
         withheld_tokens_info: Option<WithheldTokensInfo>,
         withdraw_withheld_authority_elgamal_keypair: &ElGamalKeypair,
         destination_elgamal_pubkey: &ElGamalPubkey,
         new_decryptable_available_balance: &DecryptableBalance,
-        sources: &[&Pubkey],
+        sources: &[&Address],
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -3213,7 +3218,7 @@ where
     /// Harvest withheld confidential tokens to mint
     pub async fn confidential_transfer_harvest_withheld_tokens_to_mint(
         &self,
-        sources: &[&Pubkey],
+        sources: &[&Address],
     ) -> TokenResult<T::Output> {
         self.process_ixs::<[&dyn Signer; 0]>(
             &[
@@ -3231,7 +3236,7 @@ where
     /// Enable harvest of confidential fees to mint
     pub async fn confidential_transfer_enable_harvest_to_mint<S: Signers>(
         &self,
-        withdraw_withheld_authority: &Pubkey,
+        withdraw_withheld_authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -3255,7 +3260,7 @@ where
     /// Disable harvest of confidential fees to mint
     pub async fn confidential_transfer_disable_harvest_to_mint<S: Signers>(
         &self,
-        withdraw_withheld_authority: &Pubkey,
+        withdraw_withheld_authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -3280,11 +3285,11 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn confidential_transfer_rotate_supply_elgamal_pubkey<S: Signers>(
         &self,
-        authority: &Pubkey,
+        authority: &Address,
         current_supply_elgamal_keypair: &ElGamalKeypair,
         new_supply_elgamal_pubkey: &ElGamalPubkey,
         aes_key: &AeKey,
-        context_state_account: Option<&Pubkey>,
+        context_state_account: Option<&Address>,
         account_info: Option<SupplyAccountInfo>,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -3340,7 +3345,7 @@ where
     /// Update decryptable supply in a confidential mint
     pub async fn confidential_transfer_update_decrypt_supply<S: Signers>(
         &self,
-        authority: &Pubkey,
+        authority: &Address,
         new_decryptable_supply: &DecryptableBalance,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -3366,11 +3371,11 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn confidential_transfer_mint<S: Signers>(
         &self,
-        authority: &Pubkey,
-        destination_account: &Pubkey,
-        equality_proof_account: Option<&Pubkey>,
+        authority: &Address,
+        destination_account: &Address,
+        equality_proof_account: Option<&Address>,
         ciphertext_validity_proof_account_with_ciphertext: Option<&ProofAccountWithCiphertext>,
-        range_proof_account: Option<&Pubkey>,
+        range_proof_account: Option<&Address>,
         mint_amount: u64,
         supply_elgamal_keypair: &ElGamalKeypair,
         destination_elgamal_pubkey: &ElGamalPubkey,
@@ -3503,12 +3508,12 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn confidential_transfer_permissioned_burn<S: Signers>(
         &self,
-        authority: &Pubkey,
-        source_account: &Pubkey,
-        permissioned_burn_authority: &Pubkey,
-        equality_proof_account: Option<&Pubkey>,
+        authority: &Address,
+        source_account: &Address,
+        permissioned_burn_authority: &Address,
+        equality_proof_account: Option<&Address>,
         ciphertext_validity_proof_account_with_ciphertext: Option<&ProofAccountWithCiphertext>,
-        range_proof_account: Option<&Pubkey>,
+        range_proof_account: Option<&Address>,
         burn_amount: u64,
         source_elgamal_keypair: &ElGamalKeypair,
         supply_elgamal_pubkey: &ElGamalPubkey,
@@ -3539,11 +3544,11 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn confidential_transfer_burn<S: Signers>(
         &self,
-        authority: &Pubkey,
-        source_account: &Pubkey,
-        equality_proof_account: Option<&Pubkey>,
+        authority: &Address,
+        source_account: &Address,
+        equality_proof_account: Option<&Address>,
         ciphertext_validity_proof_account_with_ciphertext: Option<&ProofAccountWithCiphertext>,
-        range_proof_account: Option<&Pubkey>,
+        range_proof_account: Option<&Address>,
         burn_amount: u64,
         source_elgamal_keypair: &ElGamalKeypair,
         supply_elgamal_pubkey: &ElGamalPubkey,
@@ -3574,12 +3579,12 @@ where
     #[allow(clippy::too_many_arguments)]
     async fn confidential_transfer_burn_inner<S: Signers>(
         &self,
-        authority: &Pubkey,
-        source_account: &Pubkey,
-        maybe_permissioned_burn_authority: Option<&Pubkey>,
-        equality_proof_account: Option<&Pubkey>,
+        authority: &Address,
+        source_account: &Address,
+        maybe_permissioned_burn_authority: Option<&Address>,
+        equality_proof_account: Option<&Address>,
         ciphertext_validity_proof_account_with_ciphertext: Option<&ProofAccountWithCiphertext>,
-        range_proof_account: Option<&Pubkey>,
+        range_proof_account: Option<&Address>,
         burn_amount: u64,
         source_elgamal_keypair: &ElGamalKeypair,
         supply_elgamal_pubkey: &ElGamalPubkey,
@@ -3727,7 +3732,7 @@ where
     /// Apply pending burn amount to the confidential supply amount
     pub async fn confidential_transfer_apply_pending_burn<S: Signers>(
         &self,
-        authority: &Pubkey,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -3749,7 +3754,7 @@ where
     // `proof_data` and `context_account` are `None`, then the result is `None`.
     fn confidential_transfer_create_proof_location<'a, ZK: ZkProofData<U>, U: Pod>(
         proof_data: Option<&'a ZK>,
-        context_account: Option<&'a Pubkey>,
+        context_account: Option<&'a Address>,
         instruction_offset: i8,
     ) -> Option<ProofLocation<'a, ZK>> {
         if let Some(proof_data) = proof_data {
@@ -3764,9 +3769,9 @@ where
 
     pub async fn withdraw_excess_lamports<S: Signers>(
         &self,
-        source: &Pubkey,
-        destination: &Pubkey,
-        authority: &Pubkey,
+        source: &Address,
+        destination: &Address,
+        authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let signing_pubkeys = signing_keypairs.pubkeys();
@@ -3790,8 +3795,8 @@ where
     /// Initialize token-metadata on a mint
     pub async fn token_metadata_initialize<S: Signers>(
         &self,
-        update_authority: &Pubkey,
-        mint_authority: &Pubkey,
+        update_authority: &Address,
+        mint_authority: &Address,
         name: String,
         symbol: String,
         uri: String,
@@ -3834,9 +3839,9 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn token_metadata_initialize_with_rent_transfer<S: Signers>(
         &self,
-        payer: &Pubkey,
-        update_authority: &Pubkey,
-        mint_authority: &Pubkey,
+        payer: &Address,
+        update_authority: &Address,
+        mint_authority: &Address,
         name: String,
         symbol: String,
         uri: String,
@@ -3875,7 +3880,7 @@ where
     /// Update a token-metadata field on a mint
     pub async fn token_metadata_update_field<S: Signers>(
         &self,
-        update_authority: &Pubkey,
+        update_authority: &Address,
         field: Field,
         value: String,
         signing_keypairs: &S,
@@ -3918,8 +3923,8 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn token_metadata_update_field_with_rent_transfer<S: Signers>(
         &self,
-        payer: &Pubkey,
-        update_authority: &Pubkey,
+        payer: &Address,
+        update_authority: &Address,
         field: Field,
         value: String,
         transfer_lamports: Option<u64>,
@@ -3952,8 +3957,8 @@ where
     /// Update the token-metadata authority in a mint
     pub async fn token_metadata_update_authority<S: Signers>(
         &self,
-        current_authority: &Pubkey,
-        new_authority: Option<Pubkey>,
+        current_authority: &Address,
+        new_authority: Option<Address>,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         self.process_ixs(
@@ -3961,7 +3966,7 @@ where
                 &self.program_id,
                 &self.pubkey,
                 current_authority,
-                new_authority.try_into()?,
+                MaybeNull::try_from(new_authority).map_err(|_| ProgramError::InvalidArgument)?,
             )],
             signing_keypairs,
         )
@@ -3971,7 +3976,7 @@ where
     /// Remove a token-metadata field on a mint
     pub async fn token_metadata_remove_key<S: Signers>(
         &self,
-        update_authority: &Pubkey,
+        update_authority: &Address,
         key: String,
         idempotent: bool,
         signing_keypairs: &S,
@@ -3992,8 +3997,8 @@ where
     /// Initialize token-group on a mint
     pub async fn token_group_initialize<S: Signers>(
         &self,
-        mint_authority: &Pubkey,
-        update_authority: &Pubkey,
+        mint_authority: &Address,
+        update_authority: &Address,
         max_size: u64,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -4033,9 +4038,9 @@ where
     /// Initialize token-group on a mint
     pub async fn token_group_initialize_with_rent_transfer<S: Signers>(
         &self,
-        payer: &Pubkey,
-        mint_authority: &Pubkey,
-        update_authority: &Pubkey,
+        payer: &Address,
+        mint_authority: &Address,
+        update_authority: &Address,
         max_size: u64,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -4064,7 +4069,7 @@ where
     /// Update a token-group max size on a mint
     pub async fn token_group_update_max_size<S: Signers>(
         &self,
-        update_authority: &Pubkey,
+        update_authority: &Address,
         new_max_size: u64,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
@@ -4085,8 +4090,8 @@ where
     /// Update the token-group authority in a mint
     pub async fn token_group_update_authority<S: Signers>(
         &self,
-        current_authority: &Pubkey,
-        new_authority: Option<Pubkey>,
+        current_authority: &Address,
+        new_authority: Option<Address>,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         self.process_ixs(
@@ -4106,9 +4111,9 @@ where
     /// Initialize a token-group member on a mint
     pub async fn token_group_initialize_member<S: Signers>(
         &self,
-        mint_authority: &Pubkey,
-        group_mint: &Pubkey,
-        group_update_authority: &Pubkey,
+        mint_authority: &Address,
+        group_mint: &Address,
+        group_update_authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         self.process_ixs(
@@ -4129,10 +4134,10 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn token_group_initialize_member_with_rent_transfer<S: Signers>(
         &self,
-        payer: &Pubkey,
-        mint_authority: &Pubkey,
-        group_mint: &Pubkey,
-        group_update_authority: &Pubkey,
+        payer: &Address,
+        mint_authority: &Address,
+        group_mint: &Address,
+        group_update_authority: &Address,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let additional_lamports = self
@@ -4163,7 +4168,7 @@ where
     /// into a single u64 value.
     pub async fn confidential_transfer_get_pending_balance(
         &self,
-        account: &Pubkey,
+        account: &Address,
         elgamal_secret_key: &ElGamalSecretKey,
     ) -> TokenResult<u64> {
         let account_info = self.get_account_info(account).await?;
@@ -4181,7 +4186,7 @@ where
     /// This decrypts the decryptable available balance using the provided AES key.
     pub async fn confidential_transfer_get_available_balance(
         &self,
-        account: &Pubkey,
+        account: &Address,
         aes_key: &AeKey,
     ) -> TokenResult<u64> {
         let account_info = self.get_account_info(account).await?;
@@ -4199,7 +4204,7 @@ where
     /// This combines both pending and available balances with overflow protection.
     pub async fn confidential_transfer_get_total_balance(
         &self,
-        account: &Pubkey,
+        account: &Address,
         elgamal_secret_key: &ElGamalSecretKey,
         aes_key: &AeKey,
     ) -> TokenResult<u64> {
@@ -4223,7 +4228,7 @@ where
     /// This checks whether the pending_balance_credit_counter is greater than zero.
     pub async fn confidential_transfer_has_pending_balance(
         &self,
-        account: &Pubkey,
+        account: &Address,
     ) -> TokenResult<bool> {
         let account_info = self.get_account_info(account).await?;
         let confidential_transfer_account =
@@ -4244,7 +4249,7 @@ where
     F: Fn(bool, &[u8], u64) -> Vec<Instruction>,
 {
     let ixs = create_record_instructions(first_instruction, &[], 0);
-    let message = Message::new_with_blockhash(&ixs, Some(&Pubkey::default()), &Hash::default());
+    let message = Message::new_with_blockhash(&ixs, Some(&Address::default()), &Hash::default());
     let tx_size = bincode::serialized_size(&Transaction {
         signatures: vec![Signature::default(); message.header.num_required_signatures as usize],
         message,

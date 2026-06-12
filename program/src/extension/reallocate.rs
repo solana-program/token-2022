@@ -1,15 +1,16 @@
 use {
     crate::processor::Processor,
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_cpi::invoke,
     solana_msg::msg,
     solana_program_error::ProgramResult,
     solana_program_option::COption,
-    solana_pubkey::Pubkey,
     solana_rent::Rent,
     solana_system_interface::instruction as system_instruction,
     solana_sysvar::Sysvar,
     spl_token_2022_interface::{
+        check_program_account,
         error::TokenError,
         extension::{
             set_account_type, AccountType, BaseStateWithExtensions, ExtensionType,
@@ -21,7 +22,7 @@ use {
 
 /// Processes a [Reallocate](enum.TokenInstruction.html) instruction
 pub fn process_reallocate(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     new_extension_types: Vec<ExtensionType>,
 ) -> ProgramResult {
@@ -31,6 +32,8 @@ pub fn process_reallocate(
     let system_program_info = next_account_info(account_info_iter)?;
     let authority_info = next_account_info(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
+
+    check_program_account(token_account_info.owner)?;
 
     // check that account is the right type and validate owner
     let (mut current_extension_types, native_token_amount) = {

@@ -496,7 +496,7 @@ async fn fail_unsupported_mint() {
     assert_eq!(
         error,
         TokenClientError::Client(Box::new(TransportError::TransactionError(
-            TransactionError::InstructionError(0, InstructionError::InvalidAccountData)
+            TransactionError::InstructionError(0, InstructionError::IncorrectProgramId)
         )))
     );
 }

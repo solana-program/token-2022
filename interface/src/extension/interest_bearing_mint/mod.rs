@@ -1,29 +1,33 @@
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use {
     crate::{
         extension::{Extension, ExtensionType},
         trim_ui_amount_string,
     },
+    alloc::{format, string::String},
     bytemuck::{Pod, Zeroable},
+    core::convert::TryInto,
+    num_traits::{pow, Float},
+    solana_address::Address,
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
-    spl_pod::{
-        optional_keys::OptionalNonZeroPubkey,
-        primitives::{PodI16, PodI64},
-    },
-    std::convert::TryInto,
+    solana_zero_copy::unaligned::{I16, I64},
+};
+#[cfg(feature = "serde")]
+use {
+    serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 
 /// Interest-bearing mint extension instructions
 pub mod instruction;
 
 /// Annual interest rate, expressed as basis points
-pub type BasisPoints = PodI16;
+pub type BasisPoints = I16;
 const ONE_IN_BASIS_POINTS: f64 = 10_000.;
 const SECONDS_PER_YEAR: f64 = 60. * 60. * 24. * 365.24;
 
 /// `UnixTimestamp` expressed with an alignment-independent type
-pub type UnixTimestamp = PodI64;
+pub type UnixTimestamp = I64;
 
 /// Interest-bearing extension data for mints
 ///
@@ -39,7 +43,8 @@ pub type UnixTimestamp = PodI64;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct InterestBearingConfig {
     /// Authority that can set the interest rate and authority
-    pub rate_authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub rate_authority: MaybeNull<Address>,
     /// Timestamp of initialization, from which to base interest calculations
     pub initialization_timestamp: UnixTimestamp,
     /// Average rate from initialization until the last time it was updated
@@ -58,7 +63,7 @@ impl InterestBearingConfig {
         let numerator = (i16::from(self.pre_update_average_rate) as i128)
             .checked_mul(self.pre_update_timespan()? as i128)? as f64;
         let exponent = numerator / SECONDS_PER_YEAR / ONE_IN_BASIS_POINTS;
-        Some(exponent.exp())
+        Some(Float::exp(exponent))
     }
 
     fn post_update_timespan(&self, unix_timestamp: i64) -> Option<i64> {
@@ -70,13 +75,13 @@ impl InterestBearingConfig {
             .checked_mul(self.post_update_timespan(unix_timestamp)? as i128)?
             as f64;
         let exponent = numerator / SECONDS_PER_YEAR / ONE_IN_BASIS_POINTS;
-        Some(exponent.exp())
+        Some(Float::exp(exponent))
     }
 
     fn total_scale(&self, decimals: u8, unix_timestamp: i64) -> Option<f64> {
         Some(
             self.pre_update_exp()? * self.post_update_exp(unix_timestamp)?
-                / 10_f64.powi(decimals as i32),
+                / pow(10_f64, decimals as usize),
         )
     }
 
@@ -114,7 +119,7 @@ impl InterestBearingConfig {
         } else {
             // this is important, if you round earlier, you'll get wrong "inf"
             // answers
-            Ok(amount.round() as u64)
+            Ok(Float::round(amount) as u64)
         }
     }
 
@@ -171,7 +176,7 @@ mod tests {
         const ONE: u64 = 1_000_000_000_000_000_000;
         // constant 5%
         let config = InterestBearingConfig {
-            rate_authority: OptionalNonZeroPubkey::default(),
+            rate_authority: MaybeNull::<Address>::default(),
             initialization_timestamp: 0.into(),
             pre_update_average_rate: 500.into(),
             last_update_timestamp: INT_SECONDS_PER_YEAR.into(),
@@ -201,11 +206,11 @@ mod tests {
 
         // negative
         let config = InterestBearingConfig {
-            rate_authority: OptionalNonZeroPubkey::default(),
+            rate_authority: MaybeNull::<Address>::default(),
             initialization_timestamp: 0.into(),
-            pre_update_average_rate: PodI16::from(-500),
+            pre_update_average_rate: I16::from(-500),
             last_update_timestamp: INT_SECONDS_PER_YEAR.into(),
-            current_rate: PodI16::from(-500),
+            current_rate: I16::from(-500),
         };
         // 1 year at -5% gives a total of exp(-0.05) = 0.951229424500714
         let ui_amount = config
@@ -215,11 +220,11 @@ mod tests {
 
         // net out
         let config = InterestBearingConfig {
-            rate_authority: OptionalNonZeroPubkey::default(),
+            rate_authority: MaybeNull::<Address>::default(),
             initialization_timestamp: 0.into(),
-            pre_update_average_rate: PodI16::from(-500),
+            pre_update_average_rate: I16::from(-500),
             last_update_timestamp: INT_SECONDS_PER_YEAR.into(),
-            current_rate: PodI16::from(500),
+            current_rate: I16::from(500),
         };
         // 1 year at -5% and 1 year at 5% gives a total of 1
         let ui_amount = config
@@ -229,11 +234,11 @@ mod tests {
 
         // huge values
         let config = InterestBearingConfig {
-            rate_authority: OptionalNonZeroPubkey::default(),
+            rate_authority: MaybeNull::<Address>::default(),
             initialization_timestamp: 0.into(),
-            pre_update_average_rate: PodI16::from(500),
+            pre_update_average_rate: I16::from(500),
             last_update_timestamp: INT_SECONDS_PER_YEAR.into(),
-            current_rate: PodI16::from(500),
+            current_rate: I16::from(500),
         };
         let ui_amount = config
             .amount_to_ui_amount(u64::MAX, 0, INT_SECONDS_PER_YEAR * 2)
@@ -250,7 +255,7 @@ mod tests {
     fn specific_ui_amount_to_amount() {
         // constant 5%
         let config = InterestBearingConfig {
-            rate_authority: OptionalNonZeroPubkey::default(),
+            rate_authority: MaybeNull::<Address>::default(),
             initialization_timestamp: 0.into(),
             pre_update_average_rate: 500.into(),
             last_update_timestamp: INT_SECONDS_PER_YEAR.into(),
@@ -280,11 +285,11 @@ mod tests {
 
         // negative
         let config = InterestBearingConfig {
-            rate_authority: OptionalNonZeroPubkey::default(),
+            rate_authority: MaybeNull::<Address>::default(),
             initialization_timestamp: 0.into(),
-            pre_update_average_rate: PodI16::from(-500),
+            pre_update_average_rate: I16::from(-500),
             last_update_timestamp: INT_SECONDS_PER_YEAR.into(),
-            current_rate: PodI16::from(-500),
+            current_rate: I16::from(-500),
         };
         // 1 year at -5% gives a total of exp(-0.05) = 0.951229424500714
         let amount = config
@@ -294,11 +299,11 @@ mod tests {
 
         // net out
         let config = InterestBearingConfig {
-            rate_authority: OptionalNonZeroPubkey::default(),
+            rate_authority: MaybeNull::<Address>::default(),
             initialization_timestamp: 0.into(),
-            pre_update_average_rate: PodI16::from(-500),
+            pre_update_average_rate: I16::from(-500),
             last_update_timestamp: INT_SECONDS_PER_YEAR.into(),
-            current_rate: PodI16::from(500),
+            current_rate: I16::from(500),
         };
         // 1 year at -5% and 1 year at 5% gives a total of 1
         let amount = config
@@ -308,11 +313,11 @@ mod tests {
 
         // huge values
         let config = InterestBearingConfig {
-            rate_authority: OptionalNonZeroPubkey::default(),
+            rate_authority: MaybeNull::<Address>::default(),
             initialization_timestamp: 0.into(),
-            pre_update_average_rate: PodI16::from(500),
+            pre_update_average_rate: I16::from(500),
             last_update_timestamp: INT_SECONDS_PER_YEAR.into(),
-            current_rate: PodI16::from(500),
+            current_rate: I16::from(500),
         };
         let amount = config
             .try_ui_amount_into_amount("20386805083448100000", 0, INT_SECONDS_PER_YEAR * 2)
@@ -350,7 +355,7 @@ mod tests {
     #[test]
     fn specific_amount_to_ui_amount_no_interest() {
         let config = InterestBearingConfig {
-            rate_authority: OptionalNonZeroPubkey::default(),
+            rate_authority: MaybeNull::<Address>::default(),
             initialization_timestamp: 0.into(),
             pre_update_average_rate: 0.into(),
             last_update_timestamp: INT_SECONDS_PER_YEAR.into(),
@@ -367,7 +372,7 @@ mod tests {
     #[test]
     fn specific_ui_amount_to_amount_no_interest() {
         let config = InterestBearingConfig {
-            rate_authority: OptionalNonZeroPubkey::default(),
+            rate_authority: MaybeNull::<Address>::default(),
             initialization_timestamp: 0.into(),
             pre_update_average_rate: 0.into(),
             last_update_timestamp: INT_SECONDS_PER_YEAR.into(),
@@ -423,7 +428,7 @@ mod tests {
             (initialization_timestamp, last_update_timestamp, current_timestamp) in low_middle_high(),
         ) {
             let config = InterestBearingConfig {
-                rate_authority: OptionalNonZeroPubkey::default(),
+                rate_authority: MaybeNull::<Address>::default(),
                 initialization_timestamp: initialization_timestamp.into(),
                 pre_update_average_rate: pre_update_average_rate.into(),
                 last_update_timestamp: last_update_timestamp.into(),
@@ -448,7 +453,7 @@ mod tests {
             decimals in 0u8..20u8,
         ) {
             let config = InterestBearingConfig {
-                rate_authority: OptionalNonZeroPubkey::default(),
+                rate_authority: MaybeNull::<Address>::default(),
                 initialization_timestamp: initialization_timestamp.into(),
                 pre_update_average_rate: pre_update_average_rate.into(),
                 last_update_timestamp: last_update_timestamp.into(),

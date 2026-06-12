@@ -1,18 +1,21 @@
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use {
     crate::{
         check_program_account,
         extension::scaled_ui_amount::{PodF64, UnixTimestamp},
         instruction::{encode_instruction, TokenInstruction},
     },
+    alloc::vec,
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
-    std::convert::TryInto,
+};
+#[cfg(feature = "serde")]
+use {
+    serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 
 /// Interesting-bearing mint extension instructions
@@ -73,7 +76,8 @@ pub enum ScaledUiAmountMintInstruction {
 #[repr(C)]
 pub struct InitializeInstructionData {
     /// The public key for the account that can update the multiplier
-    pub authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub authority: MaybeNull<Address>,
     /// The initial multiplier
     pub multiplier: PodF64,
 }
@@ -92,9 +96,9 @@ pub struct UpdateMultiplierInstructionData {
 
 /// Create an `Initialize` instruction
 pub fn initialize(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: Option<Pubkey>,
+    token_program_id: &Address,
+    mint: &Address,
+    authority: Option<Address>,
     multiplier: f64,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
@@ -105,7 +109,9 @@ pub fn initialize(
         TokenInstruction::ScaledUiAmountExtension,
         ScaledUiAmountMintInstruction::Initialize,
         &InitializeInstructionData {
-            authority: authority.try_into()?,
+            authority: authority
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
             multiplier: multiplier.into(),
         },
     ))
@@ -113,10 +119,10 @@ pub fn initialize(
 
 /// Create an `UpdateMultiplier` instruction
 pub fn update_multiplier(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-    signers: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    authority: &Address,
+    signers: &[&Address],
     multiplier: f64,
     effective_timestamp: i64,
 ) -> Result<Instruction, ProgramError> {

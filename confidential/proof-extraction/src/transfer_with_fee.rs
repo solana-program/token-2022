@@ -8,16 +8,14 @@ use {
         ristretto::{self, PodRistrettoPoint},
         scalar::PodScalar,
     },
-    solana_zk_sdk::{
-        encryption::pod::{
-            elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
-            pedersen::PodPedersenCommitment,
-        },
-        zk_elgamal_proof_program::proof_data::{
-            BatchedGroupedCiphertext2HandlesValidityProofContext,
-            BatchedGroupedCiphertext3HandlesValidityProofContext, BatchedRangeProofContext,
-            CiphertextCommitmentEqualityProofContext, PercentageWithCapProofContext,
-        },
+    solana_zk_elgamal_proof_interface::proof_data::{
+        BatchedGroupedCiphertext2HandlesValidityProofContext,
+        BatchedGroupedCiphertext3HandlesValidityProofContext, BatchedRangeProofContext,
+        CiphertextCommitmentEqualityProofContext, PercentageWithCapProofContext,
+    },
+    solana_zk_sdk_pod::encryption::{
+        elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
+        pedersen::PodPedersenCommitment,
     },
 };
 

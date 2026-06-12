@@ -3,13 +3,13 @@
 #![cfg(all(target_os = "solana", not(feature = "no-entrypoint")))]
 
 use {
-    solana_account_info::AccountInfo, solana_program_error::ProgramResult, solana_pubkey::Pubkey,
+    solana_account_info::AccountInfo, solana_address::Address, solana_program_error::ProgramResult,
     solana_security_txt::security_txt,
 };
 
 solana_program_entrypoint::entrypoint!(process_instruction);
 fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {

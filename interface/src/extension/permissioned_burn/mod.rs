@@ -1,9 +1,13 @@
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use {
     crate::extension::{Extension, ExtensionType},
     bytemuck::{Pod, Zeroable},
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
+    solana_address::Address,
+    solana_nullable::MaybeNull,
+};
+#[cfg(feature = "serde")]
+use {
+    serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 
 /// Instruction types for the permissioned burn extension
@@ -16,7 +20,8 @@ pub mod instruction;
 #[repr(C)]
 pub struct PermissionedBurnConfig {
     /// Authority that is required for burning
-    pub authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub authority: MaybeNull<Address>,
 }
 
 impl Extension for PermissionedBurnConfig {

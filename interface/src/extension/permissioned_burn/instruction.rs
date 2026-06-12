@@ -6,14 +6,14 @@ use {
         confidential_mint_burn::instruction::BurnInstructionData as ConfidentialBurnInstructionData,
         confidential_transfer::DecryptableBalance,
     },
-    solana_zk_sdk::encryption::pod::elgamal::PodElGamalCiphertext,
-    solana_zk_sdk::zk_elgamal_proof_program::{
+    solana_zk_elgamal_proof_interface::{
         instruction::ProofInstruction,
         proof_data::{
             BatchedGroupedCiphertext3HandlesValidityProofData, BatchedRangeProofU128Data,
             CiphertextCommitmentEqualityProofData,
         },
     },
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
     spl_token_confidential_transfer_proof_extraction::instruction::{
         process_proof_location, ProofLocation,
     },
@@ -23,12 +23,13 @@ use {
         check_program_account,
         instruction::{encode_instruction, TokenInstruction},
     },
+    alloc::{vec, vec::Vec},
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
-    spl_pod::primitives::PodU64,
+    solana_zero_copy::unaligned::U64,
 };
 
 /// Permissioned Burn extension instructions
@@ -128,7 +129,7 @@ pub enum PermissionedBurnInstruction {
 #[repr(C)]
 pub struct InitializeInstructionData {
     /// The public key for the account that is required for token burning.
-    pub authority: Pubkey,
+    pub authority: Address,
 }
 
 /// Data expected by `PermissionedBurnInstruction::Burn`
@@ -138,7 +139,7 @@ pub struct InitializeInstructionData {
 #[repr(C)]
 pub struct BurnInstructionData {
     /// The amount of tokens to burn.
-    pub amount: PodU64,
+    pub amount: U64,
 }
 
 /// Data expected by `PermissionedBurnInstruction::BurnChecked`
@@ -148,16 +149,16 @@ pub struct BurnInstructionData {
 #[repr(C)]
 pub struct BurnCheckedInstructionData {
     /// The amount of tokens to burn.
-    pub amount: PodU64,
+    pub amount: U64,
     /// Expected number of base 10 digits to the right of the decimal place.
     pub decimals: u8,
 }
 
 /// Create an `Initialize` instruction
 pub fn initialize(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
+    token_program_id: &Address,
+    mint: &Address,
+    authority: &Address,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let accounts = vec![AccountMeta::new(*mint, false)];
@@ -174,12 +175,12 @@ pub fn initialize(
 
 /// Create a `Burn` instruction using the permissioned burn extension.
 pub fn burn(
-    token_program_id: &Pubkey,
-    account: &Pubkey,
-    mint: &Pubkey,
-    permissioned_burn_authority: &Pubkey,
-    authority: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    account: &Address,
+    mint: &Address,
+    permissioned_burn_authority: &Address,
+    authority: &Address,
+    signer_pubkeys: &[&Address],
     amount: u64,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
@@ -214,12 +215,12 @@ pub fn burn(
 /// Create a `BurnChecked` instruction using the permissioned burn extension.
 #[allow(clippy::too_many_arguments)]
 pub fn burn_checked(
-    token_program_id: &Pubkey,
-    account: &Pubkey,
-    mint: &Pubkey,
-    permissioned_burn_authority: &Pubkey,
-    authority: &Pubkey,
-    signer_pubkeys: &[&Pubkey],
+    token_program_id: &Address,
+    account: &Address,
+    mint: &Address,
+    permissioned_burn_authority: &Address,
+    authority: &Address,
+    signer_pubkeys: &[&Address],
     amount: u64,
     decimals: u8,
 ) -> Result<Instruction, ProgramError> {
@@ -257,15 +258,15 @@ pub fn burn_checked(
 #[allow(clippy::too_many_arguments)]
 #[cfg(not(target_os = "solana"))]
 pub fn confidential_burn_with_split_proofs(
-    token_program_id: &Pubkey,
-    token_account: &Pubkey,
-    mint: &Pubkey,
-    permissioned_burn_authority: &Pubkey,
+    token_program_id: &Address,
+    token_account: &Address,
+    mint: &Address,
+    permissioned_burn_authority: &Address,
     new_decryptable_available_balance: &DecryptableBalance,
     burn_amount_auditor_ciphertext_lo: &PodElGamalCiphertext,
     burn_amount_auditor_ciphertext_hi: &PodElGamalCiphertext,
-    authority: &Pubkey,
-    multisig_signers: &[&Pubkey],
+    authority: &Address,
+    multisig_signers: &[&Address],
     equality_proof_location: ProofLocation<CiphertextCommitmentEqualityProofData>,
     ciphertext_validity_proof_location: ProofLocation<
         BatchedGroupedCiphertext3HandlesValidityProofData,

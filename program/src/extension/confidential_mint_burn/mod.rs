@@ -7,10 +7,6 @@ pub mod processor;
 /// Confidential Mint-Burn proof verification
 pub mod verify_proof;
 
-/// Confidential Mint Burn Extension supply information needed for instructions
-#[cfg(not(target_os = "solana"))]
-pub mod account_info;
-
 /// Confidential mint-burn mint configuration
 #[deprecated(
     since = "9.1.0",

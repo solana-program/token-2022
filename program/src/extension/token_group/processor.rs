@@ -2,10 +2,10 @@
 
 use {
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_msg::msg,
+    solana_nullable::MaybeNull,
     solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -27,12 +27,12 @@ use {
 
 fn check_update_authority(
     update_authority_info: &AccountInfo,
-    expected_update_authority: &OptionalNonZeroPubkey,
+    expected_update_authority: &MaybeNull<Address>,
 ) -> Result<(), ProgramError> {
     if !update_authority_info.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
-    let update_authority = Option::<Pubkey>::from(*expected_update_authority)
+    let update_authority = Option::<Address>::from(*expected_update_authority)
         .ok_or(TokenGroupError::ImmutableGroup)?;
     if update_authority != *update_authority_info.key {
         return Err(TokenGroupError::IncorrectUpdateAuthority.into());
@@ -43,7 +43,7 @@ fn check_update_authority(
 /// Processes a [`InitializeGroup`](enum.TokenGroupInstruction.html)
 /// instruction.
 pub fn process_initialize_group(
-    _program_id: &Pubkey,
+    _program_id: &Address,
     accounts: &[AccountInfo],
     data: InitializeGroup,
 ) -> ProgramResult {
@@ -62,8 +62,6 @@ pub fn process_initialize_group(
 
     // scope the mint authority check, since the mint is in the same account!
     {
-        // This check isn't really needed since we'll be writing into the account,
-        // but auditors like it
         check_program_account(mint_info.owner)?;
         let mint_data = mint_info.try_borrow_data()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
@@ -96,7 +94,7 @@ pub fn process_initialize_group(
 /// [`UpdateGroupMaxSize`](enum.TokenGroupInstruction.html)
 /// instruction
 pub fn process_update_group_max_size(
-    _program_id: &Pubkey,
+    _program_id: &Address,
     accounts: &[AccountInfo],
     data: UpdateGroupMaxSize,
 ) -> ProgramResult {
@@ -104,6 +102,7 @@ pub fn process_update_group_max_size(
 
     let group_info = next_account_info(account_info_iter)?;
     let update_authority_info = next_account_info(account_info_iter)?;
+    check_program_account(group_info.owner)?;
 
     let mut buffer = group_info.try_borrow_mut_data()?;
     let mut state = PodStateWithExtensionsMut::<PodMint>::unpack(&mut buffer)?;
@@ -120,7 +119,7 @@ pub fn process_update_group_max_size(
 /// [`UpdateGroupAuthority`](enum.TokenGroupInstruction.html)
 /// instruction
 pub fn process_update_group_authority(
-    _program_id: &Pubkey,
+    _program_id: &Address,
     accounts: &[AccountInfo],
     data: UpdateGroupAuthority,
 ) -> ProgramResult {
@@ -128,6 +127,7 @@ pub fn process_update_group_authority(
 
     let group_info = next_account_info(account_info_iter)?;
     let update_authority_info = next_account_info(account_info_iter)?;
+    check_program_account(group_info.owner)?;
 
     let mut buffer = group_info.try_borrow_mut_data()?;
     let mut state = PodStateWithExtensionsMut::<PodMint>::unpack(&mut buffer)?;
@@ -142,7 +142,7 @@ pub fn process_update_group_authority(
 
 /// Processes an [`InitializeMember`](enum.TokenGroupInstruction.html)
 /// instruction
-pub fn process_initialize_member(_program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+pub fn process_initialize_member(_program_id: &Address, accounts: &[AccountInfo]) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
 
     let member_info = next_account_info(account_info_iter)?;
@@ -150,6 +150,7 @@ pub fn process_initialize_member(_program_id: &Pubkey, accounts: &[AccountInfo])
     let member_mint_authority_info = next_account_info(account_info_iter)?;
     let group_info = next_account_info(account_info_iter)?;
     let group_update_authority_info = next_account_info(account_info_iter)?;
+    check_program_account(group_info.owner)?;
 
     // check that the mint and member accounts are the same, since the member
     // extension should only describe itself
@@ -160,8 +161,6 @@ pub fn process_initialize_member(_program_id: &Pubkey, accounts: &[AccountInfo])
 
     // scope the mint authority check, since the mint is in the same account!
     {
-        // This check isn't really needed since we'll be writing into the account,
-        // but auditors like it
         check_program_account(member_mint_info.owner)?;
         let member_mint_data = member_mint_info.try_borrow_data()?;
         let member_mint = PodStateWithExtensions::<PodMint>::unpack(&member_mint_data)?;
@@ -204,7 +203,7 @@ pub fn process_initialize_member(_program_id: &Pubkey, accounts: &[AccountInfo])
 
 /// Processes an [`Instruction`](enum.Instruction.html).
 pub fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     instruction: TokenGroupInstruction,
 ) -> ProgramResult {

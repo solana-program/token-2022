@@ -5,11 +5,12 @@ use {
         check_program_account, error::TokenError, instruction::TokenInstruction,
         state::AccountState,
     },
+    alloc::{vec, vec::Vec},
+    core::convert::TryFrom,
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
-    std::convert::TryFrom,
 };
 
 /// Default Account State extension instructions
@@ -69,7 +70,7 @@ pub fn decode_instruction(
 }
 
 fn encode_instruction(
-    token_program_id: &Pubkey,
+    token_program_id: &Address,
     accounts: Vec<AccountMeta>,
     instruction_type: DefaultAccountStateInstruction,
     state: &AccountState,
@@ -86,8 +87,8 @@ fn encode_instruction(
 
 /// Create an `Initialize` instruction
 pub fn initialize_default_account_state(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
+    token_program_id: &Address,
+    mint: &Address,
     state: &AccountState,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
@@ -102,10 +103,10 @@ pub fn initialize_default_account_state(
 
 /// Create an `Initialize` instruction
 pub fn update_default_account_state(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    freeze_authority: &Pubkey,
-    signers: &[&Pubkey],
+    token_program_id: &Address,
+    mint: &Address,
+    freeze_authority: &Address,
+    signers: &[&Address],
     state: &AccountState,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;

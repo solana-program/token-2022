@@ -1,17 +1,20 @@
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use {
     crate::{
         check_program_account,
         instruction::{encode_instruction, TokenInstruction},
     },
+    alloc::vec,
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
-    solana_pubkey::Pubkey,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
-    std::convert::TryInto,
+};
+#[cfg(feature = "serde")]
+use {
+    serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 
 /// Transfer hook extension instructions
@@ -62,9 +65,11 @@ pub enum TransferHookInstruction {
 #[repr(C)]
 pub struct InitializeInstructionData {
     /// The public key for the account that can update the program id
-    pub authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub authority: MaybeNull<Address>,
     /// The program id that performs logic during transfers
-    pub program_id: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub program_id: MaybeNull<Address>,
 }
 
 /// Data expected by `Update`
@@ -74,15 +79,16 @@ pub struct InitializeInstructionData {
 #[repr(C)]
 pub struct UpdateInstructionData {
     /// The program id that performs logic during transfers
-    pub program_id: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub program_id: MaybeNull<Address>,
 }
 
 /// Create an `Initialize` instruction
 pub fn initialize(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: Option<Pubkey>,
-    transfer_hook_program_id: Option<Pubkey>,
+    token_program_id: &Address,
+    mint: &Address,
+    authority: Option<Address>,
+    transfer_hook_program_id: Option<Address>,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let accounts = vec![AccountMeta::new(*mint, false)];
@@ -92,19 +98,23 @@ pub fn initialize(
         TokenInstruction::TransferHookExtension,
         TransferHookInstruction::Initialize,
         &InitializeInstructionData {
-            authority: authority.try_into()?,
-            program_id: transfer_hook_program_id.try_into()?,
+            authority: authority
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
+            program_id: transfer_hook_program_id
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
         },
     ))
 }
 
 /// Create an `Update` instruction
 pub fn update(
-    token_program_id: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-    signers: &[&Pubkey],
-    transfer_hook_program_id: Option<Pubkey>,
+    token_program_id: &Address,
+    mint: &Address,
+    authority: &Address,
+    signers: &[&Address],
+    transfer_hook_program_id: Option<Address>,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![
@@ -120,7 +130,9 @@ pub fn update(
         TokenInstruction::TransferHookExtension,
         TransferHookInstruction::Update,
         &UpdateInstructionData {
-            program_id: transfer_hook_program_id.try_into()?,
+            program_id: transfer_hook_program_id
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
         },
     ))
 }

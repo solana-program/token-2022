@@ -12,6 +12,7 @@ use {
         transaction::{Transaction, TransactionError},
     },
     solana_system_interface::instruction as system_instruction,
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
     spl_token_2022_interface::{
         error::TokenError,
         extension::{
@@ -20,7 +21,6 @@ use {
             ExtensionType,
         },
         instruction, native_mint,
-        solana_zk_sdk::encryption::pod::elgamal::PodElGamalPubkey,
         state::Mint,
     },
     spl_token_client::token::ExtensionInitializationParams,

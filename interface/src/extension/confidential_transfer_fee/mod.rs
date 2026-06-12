@@ -4,9 +4,11 @@ use {
         extension::{Extension, ExtensionType},
     },
     bytemuck::{Pod, Zeroable},
+    solana_address::Address,
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramResult,
-    solana_zk_sdk::encryption::pod::elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
-    spl_pod::{optional_keys::OptionalNonZeroPubkey, primitives::PodBool},
+    solana_zero_copy::unaligned::Bool,
+    solana_zk_sdk_pod::encryption::elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
     spl_token_confidential_transfer_proof_extraction::encryption::PodFeeCiphertext,
 };
 
@@ -23,7 +25,7 @@ pub type EncryptedWithheldAmount = PodElGamalCiphertext;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct ConfidentialTransferFeeConfig {
     /// Optional authority to set the withdraw withheld authority ElGamal key
-    pub authority: OptionalNonZeroPubkey,
+    pub authority: MaybeNull<Address>,
 
     /// Withheld fees from accounts must be encrypted with this ElGamal key.
     ///
@@ -34,7 +36,7 @@ pub struct ConfidentialTransferFeeConfig {
     pub withdraw_withheld_authority_elgamal_pubkey: PodElGamalPubkey,
 
     /// If `false`, the harvest of withheld tokens to mint is rejected.
-    pub harvest_to_mint_enabled: PodBool,
+    pub harvest_to_mint_enabled: Bool,
 
     /// Withheld confidential transfer fee tokens that have been moved to the
     /// mint for withdrawal.

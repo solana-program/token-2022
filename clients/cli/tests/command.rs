@@ -14,6 +14,7 @@ use {
     solana_sdk_ids::bpf_loader_upgradeable,
     solana_system_interface::{instruction as system_instruction, program as system_program},
     solana_test_validator::{TestValidator, TestValidatorGenesis, UpgradeableProgramInfo},
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     spl_token_2022_interface::{
         extension::{
@@ -35,7 +36,6 @@ use {
             BaseStateWithExtensions, ExtensionType, StateWithExtensionsOwned,
         },
         instruction::create_native_mint,
-        solana_zk_sdk::encryption::pod::elgamal::PodElGamalPubkey,
         state::{Account, AccountState, Mint, Multisig},
     },
     spl_token_cli::{
@@ -2909,7 +2909,7 @@ async fn transfer_fee_basis_point(test_validator: &TestValidator, payer: &Keypai
 }
 
 async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) {
-    use spl_token_2022_interface::solana_zk_sdk::encryption::elgamal::ElGamalKeypair;
+    use solana_zk_sdk::encryption::elgamal::ElGamalKeypair;
 
     let config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());

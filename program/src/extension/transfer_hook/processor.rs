@@ -1,10 +1,10 @@
 use {
     crate::processor::Processor,
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_msg::msg,
+    solana_nullable::MaybeNull,
     solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -23,24 +23,26 @@ use {
 };
 
 fn process_initialize(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
-    authority: &OptionalNonZeroPubkey,
-    transfer_hook_program_id: &OptionalNonZeroPubkey,
+    authority: &MaybeNull<Address>,
+    transfer_hook_program_id: &MaybeNull<Address>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_account_info = next_account_info(account_info_iter)?;
+    check_program_account(mint_account_info.owner)?;
+
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
 
     let extension = mint.init_extension::<TransferHook>(true)?;
     extension.authority = *authority;
 
-    if let Some(transfer_hook_program_id) = Option::<Pubkey>::from(*transfer_hook_program_id) {
+    if let Some(transfer_hook_program_id) = Option::<Address>::from(*transfer_hook_program_id) {
         if transfer_hook_program_id == *program_id {
             return Err(ProgramError::IncorrectProgramId);
         }
-    } else if Option::<Pubkey>::from(*authority).is_none() {
+    } else if Option::<Address>::from(*authority).is_none() {
         msg!("The transfer hook extension requires at least an authority or a program id for initialization, neither was provided");
         Err(TokenError::InvalidInstruction)?;
     }
@@ -49,20 +51,21 @@ fn process_initialize(
 }
 
 fn process_update(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
-    new_program_id: &OptionalNonZeroPubkey,
+    new_program_id: &MaybeNull<Address>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_account_info = next_account_info(account_info_iter)?;
     let owner_info = next_account_info(account_info_iter)?;
     let owner_info_data_len = owner_info.data_len();
+    check_program_account(mint_account_info.owner)?;
 
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
     let extension = mint.get_extension_mut::<TransferHook>()?;
     let authority =
-        Option::<Pubkey>::from(extension.authority).ok_or(TokenError::NoAuthorityExists)?;
+        Option::<Address>::from(extension.authority).ok_or(TokenError::NoAuthorityExists)?;
 
     Processor::validate_owner(
         program_id,
@@ -72,7 +75,7 @@ fn process_update(
         account_info_iter.as_slice(),
     )?;
 
-    if let Some(new_program_id) = Option::<Pubkey>::from(*new_program_id) {
+    if let Some(new_program_id) = Option::<Address>::from(*new_program_id) {
         if new_program_id == *program_id {
             return Err(ProgramError::IncorrectProgramId);
         }
@@ -83,7 +86,7 @@ fn process_update(
 }
 
 pub(crate) fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     input: &[u8],
 ) -> ProgramResult {

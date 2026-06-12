@@ -1,8 +1,11 @@
 #![allow(clippy::arithmetic_side_effects)]
 #![deny(missing_docs)]
+#![no_std]
 #![cfg_attr(not(test), warn(unsafe_code))]
 
 //! An ERC20-like Token program for the Solana blockchain
+
+extern crate alloc;
 
 pub mod error;
 pub mod extension;
@@ -16,16 +19,17 @@ pub mod state;
 
 // Export current sdk types for downstream users building with a different sdk
 // version
-pub use solana_zk_sdk;
+pub use solana_zk_elgamal_proof_interface;
 use {
+    alloc::string::{String, ToString},
+    solana_address::Address,
     solana_program_error::{ProgramError, ProgramResult},
-    solana_pubkey::Pubkey,
 };
 
-solana_pubkey::declare_id!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+solana_address::declare_id!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 
 /// Checks that the supplied program ID is correct for spl-token-2022
-pub fn check_program_account(spl_token_program_id: &Pubkey) -> ProgramResult {
+pub fn check_program_account(spl_token_program_id: &Address) -> ProgramResult {
     if spl_token_program_id != &id() {
         return Err(ProgramError::IncorrectProgramId);
     }
@@ -34,12 +38,12 @@ pub fn check_program_account(spl_token_program_id: &Pubkey) -> ProgramResult {
 
 /// In-lined spl token program id to avoid a dependency
 pub mod inline_spl_token {
-    solana_pubkey::declare_id!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+    solana_address::declare_id!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 }
 
 /// Checks that the supplied program ID is correct for spl-token or
 /// spl-token-2022
-pub fn check_spl_token_program_account(spl_token_program_id: &Pubkey) -> ProgramResult {
+pub fn check_spl_token_program_account(spl_token_program_id: &Address) -> ProgramResult {
     if spl_token_program_id != &id() && spl_token_program_id != &inline_spl_token::id() {
         return Err(ProgramError::IncorrectProgramId);
     }

@@ -11,6 +11,7 @@ env:
   SBPF_PROGRAM_PACKAGES: "['confidential-elgamal-registry', 'program']"
   RUST_PACKAGES: "['clients-cli', 'clients-rust-legacy', 'interface', 'program', 'confidential-ciphertext-arithmetic', 'confidential-elgamal-registry', 'confidential-elgamal-registry-interface', 'confidential-proof-extraction', 'confidential-proof-generation', 'confidential-proof-tests']"
   WASM_PACKAGES: "['confidential-elgamal-registry-interface', 'interface', 'program']"
+  NO_STD_ALLOC_PACKAGES: "['confidential-ciphertext-arithmetic', 'confidential-elgamal-registry-interface', 'confidential-proof-extraction', 'interface']"
 
 jobs:
   set_env:
@@ -21,11 +22,15 @@ jobs:
       SBPF_PROGRAM_PACKAGES: ${{ steps.compute.outputs.SBPF_PROGRAM_PACKAGES }}
       RUST_PACKAGES: ${{ steps.compute.outputs.RUST_PACKAGES }}
       WASM_PACKAGES: ${{ steps.compute.outputs.WASM_PACKAGES }}
+      NO_STD_ALLOC_PACKAGES: ${{ steps.compute.outputs.NO_STD_ALLOC_PACKAGES }}
       RUST_TOOLCHAIN_NIGHTLY: ${{ steps.compute.outputs.RUST_TOOLCHAIN_NIGHTLY }}
       SOLANA_CLI_VERSION: ${{ steps.compute.outputs.SOLANA_CLI_VERSION }}
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: solana-program/actions/setup-ubuntu@main
 
       - name: Compute variables
         id: compute
@@ -35,6 +40,7 @@ jobs:
           echo "SBPF_PROGRAM_PACKAGES=${{ env.SBPF_PROGRAM_PACKAGES }}" >> $GITHUB_OUTPUT
           echo "RUST_PACKAGES=${{ env.RUST_PACKAGES }}" >> $GITHUB_OUTPUT
           echo "WASM_PACKAGES=${{ env.WASM_PACKAGES }}" >> $GITHUB_OUTPUT
+          echo "NO_STD_ALLOC_PACKAGES=${{ env.NO_STD_ALLOC_PACKAGES }}" >> $GITHUB_OUTPUT
           echo "RUST_TOOLCHAIN_NIGHTLY=$(make rust-toolchain-nightly)" >> "$GITHUB_OUTPUT"
           echo "SOLANA_CLI_VERSION=$(make solana-cli-version)" >> "$GITHUB_OUTPUT"
 
@@ -49,3 +55,5 @@ jobs:
       rustfmt-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
       clippy-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
       solana-cli-version: ${{ needs.set_env.outputs.SOLANA_CLI_VERSION }}
+      no-std-toolchain: ${{ needs.set_env.outputs.RUST_TOOLCHAIN_NIGHTLY }}
+      no-std-alloc-packages: ${{ needs.set_env.outputs.NO_STD_ALLOC_PACKAGES }}

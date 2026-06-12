@@ -1,12 +1,12 @@
 use {
     crate::processor::Processor,
     solana_account_info::{next_account_info, AccountInfo},
+    solana_address::Address,
     solana_clock::Clock,
     solana_msg::msg,
+    solana_nullable::MaybeNull,
     solana_program_error::ProgramResult,
-    solana_pubkey::Pubkey,
     solana_sysvar::Sysvar,
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,
@@ -23,13 +23,15 @@ use {
 };
 
 fn process_initialize(
-    _program_id: &Pubkey,
+    _program_id: &Address,
     accounts: &[AccountInfo],
-    rate_authority: &OptionalNonZeroPubkey,
+    rate_authority: &MaybeNull<Address>,
     rate: &BasisPoints,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_account_info = next_account_info(account_info_iter)?;
+    check_program_account(mint_account_info.owner)?;
+
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
 
@@ -46,7 +48,7 @@ fn process_initialize(
 }
 
 fn process_update_rate(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     new_rate: &BasisPoints,
 ) -> ProgramResult {
@@ -54,12 +56,13 @@ fn process_update_rate(
     let mint_account_info = next_account_info(account_info_iter)?;
     let owner_info = next_account_info(account_info_iter)?;
     let owner_info_data_len = owner_info.data_len();
+    check_program_account(mint_account_info.owner)?;
 
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
     let extension = mint.get_extension_mut::<InterestBearingConfig>()?;
     let rate_authority =
-        Option::<Pubkey>::from(extension.rate_authority).ok_or(TokenError::NoAuthorityExists)?;
+        Option::<Address>::from(extension.rate_authority).ok_or(TokenError::NoAuthorityExists)?;
 
     Processor::validate_owner(
         program_id,
@@ -82,7 +85,7 @@ fn process_update_rate(
 }
 
 pub(crate) fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     input: &[u8],
 ) -> ProgramResult {

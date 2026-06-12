@@ -104,7 +104,7 @@ async fn fail_init_after_close_account() {
     assert_eq!(
         error,
         TokenClientError::Client(Box::new(TransportError::TransactionError(
-            TransactionError::InstructionError(2, InstructionError::InvalidAccountData,)
+            TransactionError::InstructionError(2, InstructionError::IncorrectProgramId,)
         )))
     );
     let error = token.get_account(destination).await.unwrap_err();
@@ -160,7 +160,7 @@ async fn fail_init_after_close_mint() {
     assert_eq!(
         error,
         TokenClientError::Client(Box::new(TransportError::TransactionError(
-            TransactionError::InstructionError(2, InstructionError::InvalidAccountData,)
+            TransactionError::InstructionError(2, InstructionError::IncorrectProgramId)
         )))
     );
     let error = token.get_account(destination).await.unwrap_err();

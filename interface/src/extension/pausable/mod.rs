@@ -1,9 +1,14 @@
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use {
     crate::extension::{Extension, ExtensionType},
     bytemuck::{Pod, Zeroable},
-    spl_pod::{optional_keys::OptionalNonZeroPubkey, primitives::PodBool},
+    solana_address::Address,
+    solana_nullable::MaybeNull,
+    solana_zero_copy::unaligned::Bool,
+};
+#[cfg(feature = "serde")]
+use {
+    serde::{Deserialize, Serialize},
+    serde_with::{As, DisplayFromStr},
 };
 
 /// Instruction types for the pausable extension
@@ -16,9 +21,10 @@ pub mod instruction;
 #[repr(C)]
 pub struct PausableConfig {
     /// Authority that can pause or resume activity on the mint
-    pub authority: OptionalNonZeroPubkey,
+    #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
+    pub authority: MaybeNull<Address>,
     /// Whether minting / transferring / burning tokens is paused
-    pub paused: PodBool,
+    pub paused: Bool,
 }
 
 /// Indicates that the tokens from this account belong to a pausable mint

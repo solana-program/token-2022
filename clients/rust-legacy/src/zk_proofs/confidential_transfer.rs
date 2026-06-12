@@ -1,13 +1,13 @@
 use {
-    bytemuck::{Pod, Zeroable},
+    crate::zk_proofs::IntoTokenError,
+    solana_zk_elgamal_proof_interface::proof_data::ZeroCiphertextProofData,
     solana_zk_sdk::{
         encryption::{
             auth_encryption::{AeCiphertext, AeKey},
             elgamal::{ElGamalKeypair, ElGamalPubkey, ElGamalSecretKey},
         },
-        zk_elgamal_proof_program::proof_data::ZeroCiphertextProofData,
+        zk_elgamal_proof_program::build_zero_ciphertext_proof_data,
     },
-    spl_pod::primitives::PodU64,
     spl_token_2022_interface::{
         error::TokenError,
         extension::confidential_transfer::{
@@ -25,7 +25,7 @@ use {
 /// Confidential transfer extension information needed to construct an
 /// `EmptyAccount` instruction.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct EmptyAccountAccountInfo {
     /// The available balance
     pub(crate) available_balance: EncryptedBalance,
@@ -49,19 +49,18 @@ impl EmptyAccountAccountInfo {
             .try_into()
             .map_err(|_| TokenError::MalformedCiphertext)?;
 
-        ZeroCiphertextProofData::new(elgamal_keypair, &available_balance)
+        build_zero_ciphertext_proof_data(elgamal_keypair, &available_balance)
             .map_err(|_| TokenError::ProofGeneration)
     }
 }
 
 /// Confidential Transfer extension information needed to construct an
 /// `ApplyPendingBalance` instruction.
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ApplyPendingBalanceAccountInfo {
     /// The total number of `Deposit` and `Transfer` instructions that have
     /// credited `pending_balance`
-    pub(crate) pending_balance_credit_counter: PodU64,
+    pub(crate) pending_balance_credit_counter: u64,
     /// The low 16 bits of the pending balance (encrypted by `elgamal_pubkey`)
     pub(crate) pending_balance_lo: EncryptedBalance,
     /// The high 32 bits of the pending balance (encrypted by `elgamal_pubkey`)
@@ -74,7 +73,7 @@ impl ApplyPendingBalanceAccountInfo {
     /// `ConfidentialTransferAccount`.
     pub fn new(account: &ConfidentialTransferAccount) -> Self {
         Self {
-            pending_balance_credit_counter: account.pending_balance_credit_counter,
+            pending_balance_credit_counter: account.pending_balance_credit_counter.into(),
             pending_balance_lo: account.pending_balance_lo,
             pending_balance_hi: account.pending_balance_hi,
             decryptable_available_balance: account.decryptable_available_balance,
@@ -83,7 +82,7 @@ impl ApplyPendingBalanceAccountInfo {
 
     /// Return the pending balance credit counter of the account.
     pub fn pending_balance_credit_counter(&self) -> u64 {
-        self.pending_balance_credit_counter.into()
+        self.pending_balance_credit_counter
     }
 
     fn decrypted_pending_balance_lo(
@@ -157,7 +156,7 @@ impl ApplyPendingBalanceAccountInfo {
 
     /// Check if this account has any pending balance.
     pub fn has_pending_balance(&self) -> bool {
-        u64::from(self.pending_balance_credit_counter) > 0
+        self.pending_balance_credit_counter > 0
     }
 
     /// Get the available balance for this account.
@@ -181,7 +180,7 @@ impl ApplyPendingBalanceAccountInfo {
 /// Confidential Transfer extension information needed to construct a `Withdraw`
 /// instruction.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct WithdrawAccountInfo {
     /// The available balance (encrypted by `encryption_pubkey`)
     pub available_balance: EncryptedBalance,
@@ -227,7 +226,7 @@ impl WithdrawAccountInfo {
             withdraw_amount,
             elgamal_keypair,
         )
-        .map_err(|e| -> TokenError { e.into() })
+        .map_err(|e| -> TokenError { e.into_token_error() })
     }
 
     /// Update the decryptable available balance.
@@ -248,7 +247,7 @@ impl WithdrawAccountInfo {
 /// Confidential Transfer extension information needed to construct a `Transfer`
 /// instruction.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct TransferAccountInfo {
     /// The available balance (encrypted by `encryption_pubkey`)
     pub available_balance: EncryptedBalance,
@@ -303,7 +302,7 @@ impl TransferAccountInfo {
             destination_elgamal_pubkey,
             auditor_elgamal_pubkey,
         )
-        .map_err(|e| -> TokenError { e.into() })
+        .map_err(|e| -> TokenError { e.into_token_error() })
     }
 
     /// Create a transfer proof data that is split into equality, ciphertext
@@ -342,7 +341,7 @@ impl TransferAccountInfo {
             fee_rate_basis_points,
             maximum_fee,
         )
-        .map_err(|e| -> TokenError { e.into() })
+        .map_err(|e| -> TokenError { e.into_token_error() })
     }
 
     /// Update the decryptable available balance.

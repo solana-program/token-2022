@@ -1,6 +1,6 @@
 use {
     crate::errors::TokenProofExtractionError,
-    solana_zk_sdk::encryption::pod::{
+    solana_zk_sdk_pod::encryption::{
         elgamal::PodElGamalCiphertext,
         grouped_elgamal::{
             PodGroupedElGamalCiphertext2Handles, PodGroupedElGamalCiphertext3Handles,

@@ -5,10 +5,8 @@
 use {
     base64::{prelude::BASE64_STANDARD, Engine},
     clap::ArgMatches,
-    spl_token_2022_interface::solana_zk_sdk::encryption::{
-        elgamal::{ElGamalKeypair, ElGamalPubkey},
-        pod::elgamal::PodElGamalPubkey,
-    },
+    solana_zk_sdk::encryption::elgamal::{ElGamalKeypair, ElGamalPubkey},
+    solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
 };
 
 const ELGAMAL_PUBKEY_MAX_BASE64_LEN: usize = 44;

@@ -10,7 +10,6 @@ use {
         transaction::{Transaction, TransactionError},
         transport::TransportError,
     },
-    spl_pod::optional_keys::OptionalNonZeroPubkey,
     spl_token_2022_interface::extension::BaseStateWithExtensions,
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
     spl_token_metadata_interface::{
@@ -85,9 +84,7 @@ async fn success_update() {
         .unwrap();
 
     let new_update_authority = Keypair::new();
-    let new_update_authority_pubkey =
-        OptionalNonZeroPubkey::try_from(Some(new_update_authority.pubkey())).unwrap();
-    token_metadata.update_authority = new_update_authority_pubkey;
+    token_metadata.update_authority = Some(new_update_authority.pubkey()).try_into().unwrap();
 
     token_context
         .token
