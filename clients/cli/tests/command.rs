@@ -65,13 +65,21 @@ macro_rules! async_trial {
         let local_test_validator = $test_validator.clone();
         let local_payer = $payer.clone();
         Trial::test(stringify!($test_func), move || {
-            tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
+            std::thread::Builder::new()
+                .name(stringify!($test_func).to_string())
+                .stack_size(3 * 1024 * 1024)
+                .spawn(move || {
+                    tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .unwrap()
+                        .block_on(async {
+                            $test_func(local_test_validator.as_ref(), local_payer.as_ref()).await
+                        });
+                })
                 .unwrap()
-                .block_on(async {
-                    $test_func(local_test_validator.as_ref(), local_payer.as_ref()).await
-                });
+                .join()
+                .unwrap();
             Ok(())
         })
     }};
