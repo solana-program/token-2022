@@ -1,42 +1,44 @@
 import { expect, it } from 'vitest';
-import { createTestClient, createMint } from '../../_setup';
-import { isSome } from '@solana/kit';
-import { extension, fetchMint, getUpdateMultiplierScaledUiMintInstruction } from '../../../src';
+import { createTestClient } from '../../_setup';
+import { generateKeyPairSigner, isSome } from '@solana/kit';
+import { extension, fetchMint } from '../../../src';
 
 it('updates the multiplier of the scaled ui amount mint extension on a mint account', async () => {
     // Given some signer accounts.
     const client = await createTestClient();
     const multiplierAuthority = client.payer;
+    const mint = await generateKeyPairSigner();
 
     const oldMultiplier = 1;
     const newMultiplier = 2;
 
     // And a mint with a scaled ui amount mint extension.
-    const mint = await createMint({
-        authority: multiplierAuthority,
-        client,
-        extensions: [
-            extension('ScaledUiAmountConfig', {
-                authority: multiplierAuthority.address,
-                multiplier: oldMultiplier,
-                newMultiplierEffectiveTimestamp: BigInt(Math.floor(new Date().getTime() * 2)),
-                newMultiplier: oldMultiplier,
-            }),
-        ],
-        payer: multiplierAuthority,
-    });
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            mintAuthority: multiplierAuthority,
+            extensions: [
+                extension('ScaledUiAmountConfig', {
+                    authority: multiplierAuthority.address,
+                    multiplier: oldMultiplier,
+                    newMultiplierEffectiveTimestamp: BigInt(Math.floor(new Date().getTime() * 2)),
+                    newMultiplier: oldMultiplier,
+                }),
+            ],
+        })
+        .sendTransaction();
 
     // When we update the scaled ui amount mint extension on the mint account
-    await client.sendTransaction([
-        getUpdateMultiplierScaledUiMintInstruction({
-            mint,
+    await client.token2022.instructions
+        .updateMultiplierScaledUiMint({
+            mint: mint.address,
             authority: multiplierAuthority.address,
             multiplier: newMultiplier,
             effectiveTimestamp: BigInt(Math.floor(new Date().getTime() / 1000)),
-        }),
-    ]);
+        })
+        .sendTransaction();
 
-    const mintAccount = await fetchMint(client.rpc, mint);
+    const mintAccount = await fetchMint(client.rpc, mint.address);
 
     // Then the mint account has a scaled ui amount mint extension.
     const extensions = mintAccount.data.extensions;

@@ -1,13 +1,7 @@
 import { expect, it } from 'vitest';
 import { generateKeyPairSigner, isSome, some } from '@solana/kit';
-import {
-    getInitializePausableConfigInstruction,
-    extension,
-    fetchMint,
-    getPauseInstruction,
-    getResumeInstruction,
-} from '../../../src';
-import { createTestClient, getCreateMintInstructions } from '../../_setup';
+import { extension, fetchMint } from '../../../src';
+import { createTestClient } from '../../_setup';
 
 it('resumes a mint', async () => {
     // Given a fresh client with no state the test cares about.
@@ -22,36 +16,20 @@ it('resumes a mint', async () => {
     });
 
     // When we initialize the mint with the pausable config extension.
-    const [createMintInstruction, initMintInstruction] = await getCreateMintInstructions({
-        authority: authority.address,
-        client,
-        decimals: 2,
-        extensions: [pausableConfigExtension],
-        mint,
-        payer: authority,
-    });
-    await client.sendTransaction([
-        createMintInstruction,
-        getInitializePausableConfigInstruction({
-            mint: mint.address,
-            authority: authority.address,
-        }),
-        initMintInstruction,
-    ]);
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            decimals: 2,
+            mintAuthority: authority,
+            extensions: [pausableConfigExtension],
+        })
+        .sendTransaction();
 
     // And when pause the mint.
-    const pauseInstruction = getPauseInstruction({
-        mint: mint.address,
-        authority: authority.address,
-    });
-    await client.sendTransaction([pauseInstruction]);
+    await client.token2022.instructions.pause({ mint: mint.address, authority: authority.address }).sendTransaction();
 
     // And when resume the mint.
-    const resumeInstruction = getResumeInstruction({
-        mint: mint.address,
-        authority: authority.address,
-    });
-    await client.sendTransaction([resumeInstruction]);
+    await client.token2022.instructions.resume({ mint: mint.address, authority: authority.address }).sendTransaction();
 
     // Then we expect the mint account to exist and have the pausable config extension.
     const mintAccount = await fetchMint(client.rpc, mint.address);

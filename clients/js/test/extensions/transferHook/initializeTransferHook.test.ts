@@ -1,12 +1,12 @@
 import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, some } from '@solana/kit';
-import { Mint, extension, fetchMint, getInitializeTransferHookInstruction } from '../../../src';
-import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
+import { Mint, extension, fetchMint } from '../../../src';
+import { createTestClient } from '../../_setup';
 
 it('initializes a mint with transfer hook extension', async () => {
     // Given some signer accounts
     const client = await createTestClient();
-    const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
+    const [authority, mint] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
 
     // And a transfer hook extension
     const transferHookAuthority = address('6sPR6MzvjMMP5LSZzEtTe4ZBVX9rhBmtM1dmfFtkNTbW');
@@ -17,23 +17,13 @@ it('initializes a mint with transfer hook extension', async () => {
     });
 
     // When we create and initialize a mint account with this extension
-    const [createMintInstruction, initMintInstruction] = await getCreateMintInstructions({
-        authority: authority.address,
-        client,
-        extensions: [transferHookExtension],
-        mint,
-        payer: authority,
-    });
-
-    await client.sendTransaction([
-        createMintInstruction,
-        getInitializeTransferHookInstruction({
-            mint: mint.address,
-            authority: some(transferHookAuthority),
-            programId: some(transferHookProgramId),
-        }),
-        initMintInstruction,
-    ]);
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            mintAuthority: authority,
+            extensions: [transferHookExtension],
+        })
+        .sendTransaction();
 
     // Then we expect the mint account to exist with the transfer hook extension
     const mintAccount = await fetchMint(client.rpc, mint.address);

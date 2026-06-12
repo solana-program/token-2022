@@ -1,44 +1,41 @@
 import { expect, it } from 'vitest';
-import { createTestClient, createMint, generateKeyPairSignerWithSol } from '../../_setup';
-import { Account, isSome } from '@solana/kit';
-import { extension, fetchMint, getUpdateRateInterestBearingMintInstruction, Mint } from '../../../src';
+import { createTestClient } from '../../_setup';
+import { Account, generateKeyPairSigner, isSome } from '@solana/kit';
+import { extension, fetchMint, Mint } from '../../../src';
 
 it('updates the interest bearing mint extension on a mint account', async () => {
     // Given some signer accounts.
     const client = await createTestClient();
-    const [rateAuthority] = await Promise.all([generateKeyPairSignerWithSol(client)]);
+    const [rateAuthority, mint] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
 
     const oldRate = 10000;
     const newRate = 20000;
 
     // And a mint with an interest bearing mint extension.
-    const mint = await createMint({
-        authority: rateAuthority,
-        client,
-        extensions: [
-            extension('InterestBearingConfig', {
-                rateAuthority: rateAuthority.address,
-                initializationTimestamp: BigInt(Math.floor(new Date().getTime() / 1000)),
-                lastUpdateTimestamp: BigInt(Math.floor(new Date().getTime() / 1000)),
-                preUpdateAverageRate: oldRate,
-                currentRate: oldRate,
-            }),
-        ],
-        payer: rateAuthority,
-    });
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            mintAuthority: rateAuthority,
+            extensions: [
+                extension('InterestBearingConfig', {
+                    rateAuthority: rateAuthority.address,
+                    initializationTimestamp: BigInt(Math.floor(new Date().getTime() / 1000)),
+                    lastUpdateTimestamp: BigInt(Math.floor(new Date().getTime() / 1000)),
+                    preUpdateAverageRate: oldRate,
+                    currentRate: oldRate,
+                }),
+            ],
+        })
+        .sendTransaction();
 
     // When we update the interest bearing mint extension on the mint account
-    await client.sendTransaction([
-        getUpdateRateInterestBearingMintInstruction({
-            rateAuthority: rateAuthority,
-            mint: mint,
-            rate: newRate,
-        }),
-    ]);
+    await client.token2022.instructions
+        .updateRateInterestBearingMint({ rateAuthority, mint: mint.address, rate: newRate })
+        .sendTransaction();
 
-    const mintAccount = await fetchMint(client.rpc, mint);
+    const mintAccount = await fetchMint(client.rpc, mint.address);
     expect(mintAccount).toMatchObject(<Account<Mint>>{
-        address: mint,
+        address: mint.address,
     });
 
     // Then the mint account has an interest bearing mint extension.

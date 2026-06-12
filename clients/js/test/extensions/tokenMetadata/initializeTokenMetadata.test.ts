@@ -1,19 +1,13 @@
 import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
-import {
-    Mint,
-    extension,
-    fetchMint,
-    getInitializeMetadataPointerInstruction,
-    getInitializeTokenMetadataInstruction,
-} from '../../../src';
-import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
+import { Mint, extension, fetchMint } from '../../../src';
+import { createTestClient } from '../../_setup';
 
 it('initializes a mint account with a token metadata and metadata pointer extension', async () => {
     // Given some signer accounts.
     const client = await createTestClient();
     const [authority, mint, updateAuthority] = await Promise.all([
-        generateKeyPairSignerWithSol(client),
+        generateKeyPairSigner(),
         generateKeyPairSigner(),
         generateKeyPairSigner(),
     ]);
@@ -35,31 +29,13 @@ it('initializes a mint account with a token metadata and metadata pointer extens
     });
 
     // When we create and initialize a mint account with these extensions.
-    const [createMintInstruction, initMintInstruction] = await getCreateMintInstructions({
-        authority: authority.address,
-        client,
-        extensions: [metadataPointerExtension, tokenMetadataExtension],
-        mint,
-        payer: authority,
-    });
-    await client.sendTransaction([
-        createMintInstruction,
-        getInitializeMetadataPointerInstruction({
-            mint: mint.address,
-            authority: authority.address,
-            metadataAddress: mint.address,
-        }),
-        initMintInstruction,
-        getInitializeTokenMetadataInstruction({
-            metadata: mint.address,
-            updateAuthority: updateAuthority.address,
-            mint: mint.address,
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
             mintAuthority: authority,
-            name: tokenMetadataExtension.name,
-            symbol: tokenMetadataExtension.symbol,
-            uri: tokenMetadataExtension.uri,
-        }),
-    ]);
+            extensions: [metadataPointerExtension, tokenMetadataExtension],
+        })
+        .sendTransaction();
 
     // Then we expect the mint account to exist and have the following extension.
     const mintAccount = await fetchMint(client.rpc, mint.address);

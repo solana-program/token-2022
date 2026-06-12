@@ -1,13 +1,14 @@
 import { expect, it } from 'vitest';
-import { Account, address, generateKeyPairSigner, some } from '@solana/kit';
-import { Token, extension, fetchToken, getMintToInstruction, getTransferCheckedWithFeeInstruction } from '../../../src';
-import { createTestClient, createMint, generateKeyPairSignerWithSol, getCreateTokenInstructions } from '../../_setup';
+import { Account, address, generateKeyPairSigner, sequentialInstructionPlan, some } from '@solana/kit';
+import { Token, extension, fetchToken, getCreateTokenInstructionPlan, getMintToInstruction } from '../../../src';
+import { createTestClient } from '../../_setup';
 
 it('transfers tokens with pre-configured fees', async () => {
     // Given some signer accounts.
     const client = await createTestClient();
-    const [authority, ownerA, tokenA, ownerB, tokenB] = await Promise.all([
-        generateKeyPairSignerWithSol(client),
+    const [authority, ownerA, tokenA, ownerB, tokenB, mint] = await Promise.all([
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
         generateKeyPairSigner(),
         generateKeyPairSigner(),
         generateKeyPairSigner(),
@@ -28,65 +29,63 @@ it('transfers tokens with pre-configured fees', async () => {
         // Used for transitioning configs. Starts by being the same as newerTransferFee.
         olderTransferFee: transferFees,
     });
-    const mint = await createMint({
-        authority,
-        client,
-        decimals: 2,
-        extensions: [transferFeeConfigExtension],
-        payer: authority,
-    });
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            decimals: 2,
+            mintAuthority: authority,
+            extensions: [transferFeeConfigExtension],
+        })
+        .sendTransaction();
 
     // And two token accounts with 10.00 and 0.00 tokens respectively.
     const transferFeeAmount = extension('TransferFeeAmount', {
         withheldAmount: 0n,
     });
-    const createTokensInstructions = await Promise.all([
-        getCreateTokenInstructions({
-            client,
-            extensions: [transferFeeAmount],
-            mint,
-            owner: ownerA.address,
-            payer: authority,
-            token: tokenA,
-        }),
-        getCreateTokenInstructions({
-            client,
-            extensions: [transferFeeAmount],
-            mint,
-            owner: ownerB.address,
-            payer: authority,
-            token: tokenB,
-        }),
-    ]);
-    await client.sendTransaction([
-        ...createTokensInstructions.flat(),
-        getMintToInstruction({
-            mint,
-            token: tokenA.address,
-            mintAuthority: authority,
-            amount: 1000n,
-        }),
-    ]);
+    await client.sendTransaction(
+        sequentialInstructionPlan([
+            getCreateTokenInstructionPlan({
+                payer: client.payer,
+                newToken: tokenA,
+                mint: mint.address,
+                owner: ownerA.address,
+                extensions: [transferFeeAmount],
+            }),
+            getCreateTokenInstructionPlan({
+                payer: client.payer,
+                newToken: tokenB,
+                mint: mint.address,
+                owner: ownerB.address,
+                extensions: [transferFeeAmount],
+            }),
+            getMintToInstruction({
+                mint: mint.address,
+                token: tokenA.address,
+                mintAuthority: authority,
+                amount: 1000n,
+            }),
+        ]),
+    );
 
     // When we transfer 2.00 tokens from owner A to owner B with fees.
-    await client.sendTransaction([
-        getTransferCheckedWithFeeInstruction({
+    await client.token2022.instructions
+        .transferCheckedWithFee({
             source: tokenA.address,
-            mint,
+            mint: mint.address,
             destination: tokenB.address,
             authority: ownerA,
             amount: 200n,
             decimals: 2,
             fee: 3n, // 1.5% of 2.00 is 0.03.
-        }),
-    ]);
+        })
+        .sendTransaction();
 
     // Then we expect token A to have 8.00 tokens and no fees withheld.
     const tokenAccountA = await fetchToken(client.rpc, tokenA.address);
     expect(tokenAccountA).toMatchObject(<Account<Token>>{
         address: tokenA.address,
         data: {
-            mint,
+            mint: mint.address,
             owner: ownerA.address,
             amount: 800n,
             extensions: some([extension('TransferFeeAmount', { withheldAmount: 0n })]),
@@ -98,7 +97,7 @@ it('transfers tokens with pre-configured fees', async () => {
     expect(tokenAccountB).toMatchObject(<Account<Token>>{
         address: tokenB.address,
         data: {
-            mint,
+            mint: mint.address,
             owner: ownerB.address,
             amount: 197n,
             extensions: some([extension('TransferFeeAmount', { withheldAmount: 3n })]),

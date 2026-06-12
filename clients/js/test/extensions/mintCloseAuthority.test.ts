@@ -1,12 +1,12 @@
 import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, none, some } from '@solana/kit';
-import { Mint, extension, fetchMint, getInitializeMintCloseAuthorityInstruction } from '../../src';
-import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../_setup';
+import { Mint, extension, fetchMint } from '../../src';
+import { createTestClient } from '../_setup';
 
 it('initializes a mint account with a close authority', async () => {
     // Given an authority and a mint account.
     const client = await createTestClient();
-    const [authority, mint] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
+    const [authority, mint] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
 
     // And a mint close authority extension.
     const mintCloseAuthorityExtension = extension('MintCloseAuthority', {
@@ -14,22 +14,14 @@ it('initializes a mint account with a close authority', async () => {
     });
 
     // When we create and initialize a mint account with this extension.
-    const [createMintInstruction, initMintInstruction] = await getCreateMintInstructions({
-        authority: authority.address,
-        client,
-        decimals: 2,
-        extensions: [mintCloseAuthorityExtension],
-        mint,
-        payer: authority,
-    });
-    await client.sendTransaction([
-        createMintInstruction,
-        getInitializeMintCloseAuthorityInstruction({
-            mint: mint.address,
-            closeAuthority: mintCloseAuthorityExtension.closeAuthority,
-        }),
-        initMintInstruction,
-    ]);
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            decimals: 2,
+            mintAuthority: authority,
+            extensions: [mintCloseAuthorityExtension],
+        })
+        .sendTransaction();
 
     // Then we expect the mint account to exist and have the following data.
     const mintAccount = await fetchMint(client.rpc, mint.address);

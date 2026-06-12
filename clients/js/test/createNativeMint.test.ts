@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { Account, address, none } from '@solana/kit';
-import { Mint, fetchMint, getCreateNativeMintInstruction } from '../src';
+import { Mint, fetchMint } from '../src';
 import { createTestClient } from './_setup';
 
 //Mint for native SOL Token accounts
@@ -11,12 +11,9 @@ it('creates a native mint account', async () => {
     const client = await createTestClient();
 
     // When we create a native mint account.
-    await client.sendTransaction([
-        getCreateNativeMintInstruction({
-            payer: client.payer,
-            nativeMint: NATIVE_MINT,
-        }),
-    ]);
+    await client.token2022.instructions
+        .createNativeMint({ payer: client.payer, nativeMint: NATIVE_MINT })
+        .sendTransaction();
 
     // Then we expect the native mint account to exist with the following data.
     const nativeMintAccount = await fetchMint(client.rpc, NATIVE_MINT);

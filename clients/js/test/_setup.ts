@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { getCreateAccountInstruction } from '@solana-program/system';
+import { systemProgram } from '@solana-program/system';
 import {
     Address,
     Transaction,
@@ -19,6 +19,7 @@ import {
     none,
     pipe,
     sendAndConfirmTransactionFactory,
+    sequentialInstructionPlan,
     setTransactionMessageFeePayerSigner,
     setTransactionMessageLifetimeUsingBlockhash,
     signTransactionMessageWithSigners,
@@ -34,18 +35,14 @@ import {
     ExtensionArgs,
     TOKEN_2022_PROGRAM_ADDRESS,
     Token,
+    associatedTokenProgram,
     extension,
     fetchToken,
     findAssociatedTokenPda,
     getConfidentialDepositInstruction,
-    getInitializeAccountInstruction,
-    getInitializeMintInstruction,
-    getMintSize,
+    getCreateTokenInstructionPlan,
     getMintToInstruction,
-    getPostInitializeInstructionsForMintExtensions,
-    getPostInitializeInstructionsForTokenExtensions,
-    getPreInitializeInstructionsForMintExtensions,
-    getTokenSize,
+    token2022Program,
 } from '../src';
 import {
     getApplyConfidentialPendingBalanceInstructionFromToken,
@@ -66,7 +63,10 @@ export const createTestClient = () => {
             // Must run after the `litesvm()` plugin so `client.svm` is available.
             client.svm.addProgramFromFile(TOKEN_2022_PROGRAM_ADDRESS, TOKEN_2022_BINARY_PATH);
             return client;
-        });
+        })
+        .use(systemProgram())
+        .use(token2022Program())
+        .use(associatedTokenProgram());
 };
 
 // A validator-backed client for the few confidential-transfer tests that
@@ -120,6 +120,9 @@ export const createValidatorClient = () => {
             // Re-wire `sendTransaction(s)` so they capture the client with the
             // overridden planner and executor above.
             .use(planAndSendTransactions())
+            .use(systemProgram())
+            .use(token2022Program())
+            .use(associatedTokenProgram())
     );
 };
 
@@ -151,129 +154,81 @@ export const getSingleTransactionContext = (result: SingleSendResult): ExecutedT
     return result.context as unknown as ExecutedTransactionContext;
 };
 
-export const getCreateMintInstructions = async (input: {
-    authority: Address;
+export const createToken = async (input: {
     client: Client;
-    decimals?: number;
-    extensions?: ExtensionArgs[];
-    freezeAuthority?: Address;
-    mint: TransactionSigner;
     payer: TransactionSigner;
-    programAddress?: Address;
-}) => {
-    const space = getMintSize(input.extensions);
-    const postInitializeExtensions: Extension['__kind'][] = ['TokenMetadata', 'TokenGroup', 'TokenGroupMember'];
-    const spaceWithoutPostInitializeExtensions = input.extensions
-        ? getMintSize(input.extensions.filter(e => !postInitializeExtensions.includes(e.__kind)))
-        : space;
-    const rent = await input.client.rpc.getMinimumBalanceForRentExemption(BigInt(space)).send();
-    return [
-        getCreateAccountInstruction({
-            payer: input.payer,
-            newAccount: input.mint,
-            lamports: rent,
-            space: spaceWithoutPostInitializeExtensions,
-            programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS,
-        }),
-        getInitializeMintInstruction({
-            mint: input.mint.address,
-            decimals: input.decimals ?? 0,
-            freezeAuthority: input.freezeAuthority,
-            mintAuthority: input.authority,
-        }),
-    ];
-};
-
-export const getCreateTokenInstructions = async (input: {
-    client: Client;
-    extensions?: ExtensionArgs[];
     mint: Address;
-    owner: Address;
-    payer: TransactionSigner;
-    programAddress?: Address;
-    token: TransactionSigner;
-}) => {
-    const space = getTokenSize(input.extensions);
-    const rent = await input.client.rpc.getMinimumBalanceForRentExemption(BigInt(space)).send();
-    return [
-        getCreateAccountInstruction({
+    owner: TransactionSigner;
+    extensions?: ExtensionArgs[];
+}): Promise<Address> => {
+    const token = await generateKeyPairSigner();
+    await input.client.token2022.instructions
+        .createToken({
             payer: input.payer,
-            newAccount: input.token,
-            lamports: rent,
-            space,
-            programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS,
-        }),
-        getInitializeAccountInstruction({
-            account: input.token.address,
+            newToken: token,
             mint: input.mint,
             owner: input.owner,
-        }),
-    ];
-};
-
-export const createMint = async (
-    input: Omit<Parameters<typeof getCreateMintInstructions>[0], 'authority' | 'mint'> & {
-        authority: TransactionSigner;
-        mint?: TransactionSigner;
-    },
-): Promise<Address> => {
-    const mint = input.mint ?? (await generateKeyPairSigner());
-    const [createAccount, initMint] = await getCreateMintInstructions({
-        ...input,
-        authority: input.authority.address,
-        mint,
-    });
-    await input.client.sendTransaction([
-        createAccount,
-        ...getPreInitializeInstructionsForMintExtensions(mint.address, input.extensions ?? []),
-        initMint,
-        ...getPostInitializeInstructionsForMintExtensions(mint.address, input.authority, input.extensions ?? []),
-    ]);
-    return mint.address;
-};
-
-export const createToken = async (
-    input: Omit<Parameters<typeof getCreateTokenInstructions>[0], 'token' | 'owner'> & { owner: TransactionSigner },
-): Promise<Address> => {
-    const token = await generateKeyPairSigner();
-    const [createAccount, initToken] = await getCreateTokenInstructions({
-        ...input,
-        owner: input.owner.address,
-        token,
-    });
-    await input.client.sendTransaction([
-        createAccount,
-        initToken,
-        ...getPostInitializeInstructionsForTokenExtensions(token.address, input.owner, input.extensions ?? []),
-    ]);
+            extensions: input.extensions,
+        })
+        .sendTransaction();
     return token.address;
 };
 
-export const createTokenWithAmount = async (
-    input: Omit<Parameters<typeof getCreateTokenInstructions>[0], 'token' | 'owner'> & {
-        amount: number | bigint;
-        mintAuthority: TransactionSigner;
-        owner: TransactionSigner;
-    },
-): Promise<Address> => {
+export const createTokenWithAmount = async (input: {
+    client: Client;
+    payer: TransactionSigner;
+    mint: Address;
+    owner: TransactionSigner;
+    mintAuthority: TransactionSigner;
+    amount: number | bigint;
+    extensions?: ExtensionArgs[];
+}): Promise<Address> => {
     const token = await generateKeyPairSigner();
-    const [createAccount, initToken] = await getCreateTokenInstructions({
-        ...input,
-        owner: input.owner.address,
-        token,
-    });
-    await input.client.sendTransaction([
-        createAccount,
-        initToken,
-        ...getPostInitializeInstructionsForTokenExtensions(token.address, input.owner, input.extensions ?? []),
-        getMintToInstruction({
+    await input.client.sendTransaction(
+        sequentialInstructionPlan([
+            getCreateTokenInstructionPlan({
+                payer: input.payer,
+                newToken: token,
+                mint: input.mint,
+                owner: input.owner,
+                extensions: input.extensions,
+            }),
+            getMintToInstruction({
+                mint: input.mint,
+                token: token.address,
+                mintAuthority: input.mintAuthority,
+                amount: input.amount,
+            }),
+        ]),
+    );
+    return token.address;
+};
+
+// Mints `amount` tokens to an owner's associated token account (created if
+// needed) via the plugin's `mintToATA` helper, and returns the ATA address.
+export const createTokenPdaWithAmount = async (input: {
+    client: Client;
+    mint: Address;
+    mintAuthority: TransactionSigner;
+    owner: Address;
+    amount: bigint;
+    decimals: number;
+}): Promise<Address> => {
+    await input.client.token2022.instructions
+        .mintToATA({
             mint: input.mint,
-            token: token.address,
+            owner: input.owner,
             mintAuthority: input.mintAuthority,
             amount: input.amount,
-        }),
-    ]);
-    return token.address;
+            decimals: input.decimals,
+        })
+        .sendTransaction();
+    const [token] = await findAssociatedTokenPda({
+        owner: input.owner,
+        tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+        mint: input.mint,
+    });
+    return token;
 };
 
 export const getTokenExtension = <TKind extends Extension['__kind']>(
@@ -304,21 +259,23 @@ export const createConfidentialMint = async (input: {
     payer: TransactionSigner;
     decimals?: number;
 }): Promise<{ mint: Address; mintAuthority: TransactionSigner }> => {
-    const mintAuthority = await generateKeyPairSigner();
-    const mint = await createMint({
-        client: input.client,
-        payer: input.payer,
-        authority: mintAuthority,
-        decimals: input.decimals ?? 2,
-        extensions: [
-            extension('ConfidentialTransferMint', {
-                authority: some(mintAuthority.address),
-                autoApproveNewAccounts: true,
-                auditorElgamalPubkey: none(),
-            }),
-        ],
-    });
-    return { mint, mintAuthority };
+    const [mintAuthority, mint] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
+    await input.client.token2022.instructions
+        .createMint({
+            payer: input.payer,
+            newMint: mint,
+            decimals: input.decimals ?? 2,
+            mintAuthority,
+            extensions: [
+                extension('ConfidentialTransferMint', {
+                    authority: some(mintAuthority.address),
+                    autoApproveNewAccounts: true,
+                    auditorElgamalPubkey: none(),
+                }),
+            ],
+        })
+        .sendTransaction();
+    return { mint: mint.address, mintAuthority };
 };
 
 export type ConfidentialTokenAccount = {

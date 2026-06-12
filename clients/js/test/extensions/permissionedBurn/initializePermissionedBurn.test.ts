@@ -1,13 +1,13 @@
 import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
-import { Mint, extension, fetchMint, getInitializePermissionedBurnInstruction } from '../../../src';
-import { createTestClient, generateKeyPairSignerWithSol, getCreateMintInstructions } from '../../_setup';
+import { Mint, extension, fetchMint } from '../../../src';
+import { createTestClient } from '../../_setup';
 
 it('initializes a mint with permissioned burn', async () => {
     // Given a fresh client and signers
     const client = await createTestClient();
     const [authority, mint, permissionedBurnAuthority] = await Promise.all([
-        generateKeyPairSignerWithSol(client),
+        generateKeyPairSigner(),
         generateKeyPairSigner(),
         generateKeyPairSigner(),
     ]);
@@ -18,22 +18,13 @@ it('initializes a mint with permissioned burn', async () => {
     });
 
     // When we create and initialize a mint account with this extension
-    const [createMintInstruction, initMintInstruction] = await getCreateMintInstructions({
-        authority: authority.address,
-        client,
-        extensions: [permissionedBurnExtension],
-        mint,
-        payer: authority,
-    });
-
-    await client.sendTransaction([
-        createMintInstruction,
-        getInitializePermissionedBurnInstruction({
-            mint: mint.address,
-            authority: permissionedBurnAuthority.address,
-        }),
-        initMintInstruction,
-    ]);
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            mintAuthority: authority,
+            extensions: [permissionedBurnExtension],
+        })
+        .sendTransaction();
 
     // Then we expect the mint account to exist with the permissioned burn config
     const mintAccount = await fetchMint(client.rpc, mint.address);
