@@ -15,5 +15,6 @@ export * from './createToken';
 export * from './getInitializeInstructionsForExtensions';
 export * from './getTokenSize';
 export * from './getMintSize';
+export * from './legacyToken';
 export * from './mintToATA';
 export * from './transferToATA';
