@@ -1705,6 +1705,12 @@ impl Processor {
                 authority_info.data_len(),
                 account_info_iter.as_slice(),
             )?;
+
+            if let Ok(cpi_guard) = account.get_extension::<CpiGuard>() {
+                if cpi_guard.lock_cpi.into() && in_cpi() {
+                    return Err(TokenError::CpiGuardTransferBlocked.into());
+                }
+            }
         } else if let Ok(mint) = PodStateWithExtensions::<PodMint>::unpack(&source_data) {
             match &mint.base.mint_authority {
                 PodCOption {
