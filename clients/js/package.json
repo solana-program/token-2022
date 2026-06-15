@@ -2,11 +2,25 @@
     "name": "@solana-program/token-2022",
     "version": "0.11.0",
     "description": "JavaScript client for the Token 2022 program",
-    "sideEffects": false,
-    "module": "./dist/src/index.mjs",
-    "main": "./dist/src/index.js",
-    "types": "./dist/types/index.d.ts",
+    "homepage": "https://github.com/solana-program/token-2022#readme",
+    "bugs": {
+        "url": "https://github.com/solana-program/token-2022/issues"
+    },
+    "license": "Apache-2.0",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/solana-program/token-2022.git"
+    },
+    "files": [
+        "./dist/src",
+        "./dist/types",
+        "./src/"
+    ],
     "type": "commonjs",
+    "sideEffects": false,
+    "main": "./dist/src/index.js",
+    "module": "./dist/src/index.mjs",
+    "types": "./dist/types/index.d.ts",
     "exports": {
         ".": {
             "types": "./dist/types/index.d.ts",
@@ -19,35 +33,44 @@
             "require": "./dist/src/confidential.js"
         }
     },
-    "files": [
-        "./dist/src",
-        "./dist/types",
-        "./src/"
-    ],
+    "publishConfig": {
+        "access": "public",
+        "registry": "https://registry.npmjs.org"
+    },
     "scripts": {
         "build": "rimraf dist && tsup && tsc -p ./tsconfig.declarations.json",
         "build:docs": "typedoc",
         "dev": "vitest",
         "test": "tsc --noEmit && vitest run",
-        "lint": "eslint --ext js,ts,tsx src",
-        "lint:fix": "eslint --fix --ext js,ts,tsx src",
-        "format": "prettier --check src test",
-        "format:fix": "prettier --write src test",
+        "lint": "oxlint",
+        "lint:fix": "oxlint --fix",
+        "format": "oxfmt --check",
+        "format:fix": "oxfmt",
         "prepublishOnly": "pnpm build"
     },
-    "publishConfig": {
-        "access": "public",
-        "registry": "https://registry.npmjs.org"
+    "dependencies": {
+        "@noble/curves": "^1.9.7",
+        "@solana-program/zk-elgamal-proof": "^0.1.0"
     },
-    "license": "Apache-2.0",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/solana-program/token-2022.git"
+    "devDependencies": {
+        "@solana-config/oxc": "^0.1.1",
+        "@solana-program/system": "^0.12.0",
+        "@solana/kit": "^6.4.0",
+        "@solana/kit-plugin-instruction-plan": "^0.10.0",
+        "@solana/kit-plugin-litesvm": "^0.10.0",
+        "@solana/kit-plugin-rpc": "^0.11.1",
+        "@solana/kit-plugin-signer": "^0.10.0",
+        "@solana/zk-sdk": "^0.4.2",
+        "@types/node": "^25",
+        "oxfmt": "^0.55.0",
+        "oxlint": "^1.70.0",
+        "oxlint-tsgolint": "^0.23.0",
+        "rimraf": "^6.0.1",
+        "tsup": "^8.1.2",
+        "typedoc": "^0.28.0",
+        "typescript": "^5.9.3",
+        "vitest": "^4.1.8"
     },
-    "bugs": {
-        "url": "https://github.com/solana-program/token-2022/issues"
-    },
-    "homepage": "https://github.com/solana-program/token-2022#readme",
     "peerDependencies": {
         "@solana/kit": "^6.4.0",
         "@solana/sysvars": "^5.0",
@@ -58,28 +81,7 @@
             "optional": true
         }
     },
-    "dependencies": {
-        "@noble/curves": "^1.9.7",
-        "@solana-program/zk-elgamal-proof": "^0.1.0"
-    },
-    "devDependencies": {
-        "@solana-program/system": "^0.12.0",
-        "@solana/eslint-config-solana": "^3.0.3",
-        "@solana/kit": "^6.4.0",
-        "@solana/kit-plugin-instruction-plan": "^0.10.0",
-        "@solana/kit-plugin-litesvm": "^0.10.0",
-        "@solana/kit-plugin-rpc": "^0.11.1",
-        "@solana/kit-plugin-signer": "^0.10.0",
-        "@solana/zk-sdk": "^0.4.2",
-        "@types/node": "^25",
-        "@typescript-eslint/eslint-plugin": "^7.16.1",
-        "@typescript-eslint/parser": "^7.16.1",
-        "eslint": "^8.57.0",
-        "prettier": "^3.8.1",
-        "rimraf": "^6.0.1",
-        "tsup": "^8.1.2",
-        "typedoc": "^0.28.0",
-        "typescript": "^5.9.3",
-        "vitest": "^4.1.8"
+    "engines": {
+        "node": ">=24.0.0"
     }
 }

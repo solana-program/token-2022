@@ -1,7 +1,8 @@
-import { expect, it } from 'vitest';
-import { createTestClient } from '../../_setup';
 import { generateKeyPairSigner, isSome } from '@solana/kit';
+import { expect, it } from 'vitest';
+
 import { extension, fetchMint } from '../../../src';
+import { createTestClient } from '../../_setup';
 
 it('updates the multiplier of the scaled ui amount mint extension on a mint account', async () => {
     // Given some signer accounts.

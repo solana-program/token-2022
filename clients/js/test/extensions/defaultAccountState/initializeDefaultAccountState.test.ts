@@ -1,5 +1,6 @@
-import { expect, it } from 'vitest';
 import { Account, generateKeyPairSigner, some } from '@solana/kit';
+import { expect, it } from 'vitest';
+
 import { AccountState, Mint, extension, fetchMint, fetchToken } from '../../../src';
 import { createTestClient, createToken, generateKeyPairSignerWithSol } from '../../_setup';
 

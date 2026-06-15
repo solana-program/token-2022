@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest';
+
 import { fetchToken } from '../../../src';
 import { getConfidentialTransferInstructionPlan } from '../../../src/confidential';
 import {

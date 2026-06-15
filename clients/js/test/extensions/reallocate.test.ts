@@ -1,4 +1,3 @@
-import { expect, it } from 'vitest';
 import {
     Address,
     assertAccountExists,
@@ -7,6 +6,8 @@ import {
     GetAccountInfoApi,
     Rpc,
 } from '@solana/kit';
+import { expect, it } from 'vitest';
+
 import { ExtensionType } from '../../src';
 import { createTestClient, createToken, generateKeyPairSignerWithSol } from '../_setup';
 

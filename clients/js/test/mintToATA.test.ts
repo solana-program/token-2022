@@ -1,5 +1,6 @@
 import { Account, generateKeyPairSigner, none } from '@solana/kit';
 import { expect, it } from 'vitest';
+
 import { AccountState, TOKEN_2022_PROGRAM_ADDRESS, Token, fetchToken, findAssociatedTokenPda } from '../src';
 import { createTestClient } from './_setup';
 

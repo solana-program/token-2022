@@ -1,5 +1,6 @@
-import { expect, it } from 'vitest';
 import { getBase16Encoder, getBase64Encoder, none, some } from '@solana/kit';
+import { expect, it } from 'vitest';
+
 import { AccountState, Token, getTokenDecoder } from '../../src';
 
 it('decodes a token account with extensions', () => {

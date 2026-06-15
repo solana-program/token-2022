@@ -1,6 +1,7 @@
-import { expect, it } from 'vitest';
-import { extension, getMintSize } from '../src';
 import { address } from '@solana/kit';
+import { expect, it } from 'vitest';
+
+import { extension, getMintSize } from '../src';
 
 it('returns the base size when no extensions are provided', () => {
     expect(getMintSize()).toBe(82 /* base size */);

@@ -1,4 +1,5 @@
 import { AccountMeta, Address, Instruction, InstructionWithData, ReadonlyUint8Array } from '@solana/kit';
+
 import {
     BATCH_DISCRIMINATOR,
     BatchInstruction as GeneratedBatchInstruction,

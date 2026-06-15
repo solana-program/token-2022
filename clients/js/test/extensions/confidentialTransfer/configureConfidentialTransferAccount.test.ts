@@ -1,5 +1,6 @@
-import { expect, it } from 'vitest';
 import { address, generateKeyPairSigner } from '@solana/kit';
+import { expect, it } from 'vitest';
+
 import { getConfigureConfidentialTransferAccountInstruction } from '../../../src';
 
 const SYSVAR_INSTRUCTIONS_ADDRESS = address('Sysvar1nstructions1111111111111111111111111');

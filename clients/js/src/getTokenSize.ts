@@ -1,4 +1,5 @@
 import { getArrayEncoder, getConstantEncoder, getHiddenPrefixEncoder, getU8Encoder } from '@solana/kit';
+
 import { ExtensionArgs, getExtensionEncoder } from './generated';
 
 const TOKEN_BASE_SIZE = 165;

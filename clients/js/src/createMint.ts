@@ -7,6 +7,7 @@ import {
     sequentialInstructionPlan,
     TransactionSigner,
 } from '@solana/kit';
+
 import { Extension, ExtensionArgs, getInitializeMintInstruction, TOKEN_2022_PROGRAM_ADDRESS } from './generated';
 import {
     getPostInitializeInstructionsForMintExtensions,

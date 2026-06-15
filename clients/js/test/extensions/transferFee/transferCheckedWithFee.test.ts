@@ -1,5 +1,6 @@
-import { expect, it } from 'vitest';
 import { Account, address, generateKeyPairSigner, sequentialInstructionPlan, some } from '@solana/kit';
+import { expect, it } from 'vitest';
+
 import { Token, extension, fetchToken, getCreateTokenInstructionPlan, getMintToInstruction } from '../../../src';
 import { createTestClient } from '../../_setup';
 

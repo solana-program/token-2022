@@ -1,6 +1,7 @@
-import { expect, it } from 'vitest';
 import { generateKeyPairSigner } from '@solana/kit';
 import { AeKey, ElGamalKeypair } from '@solana/zk-sdk/bundler';
+import { expect, it } from 'vitest';
+
 import { getCreateConfidentialTransferAccountInstructionPlan } from '../../../src/confidential';
 import { createTestClient } from '../../_setup';
 

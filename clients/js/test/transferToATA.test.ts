@@ -1,5 +1,6 @@
 import { generateKeyPairSigner } from '@solana/kit';
 import { expect, it } from 'vitest';
+
 import { Mint, TOKEN_2022_PROGRAM_ADDRESS, Token, fetchMint, fetchToken, findAssociatedTokenPda } from '../src';
 import { createTestClient, createTokenPdaWithAmount, createTokenWithAmount } from './_setup';
 

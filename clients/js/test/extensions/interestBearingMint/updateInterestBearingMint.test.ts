@@ -1,7 +1,8 @@
-import { expect, it } from 'vitest';
-import { createTestClient } from '../../_setup';
 import { Account, generateKeyPairSigner, isSome } from '@solana/kit';
+import { expect, it } from 'vitest';
+
 import { extension, fetchMint, Mint } from '../../../src';
+import { createTestClient } from '../../_setup';
 
 it('updates the interest bearing mint extension on a mint account', async () => {
     // Given some signer accounts.

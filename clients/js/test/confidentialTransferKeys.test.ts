@@ -1,4 +1,3 @@
-import { expect, it, test } from 'vitest';
 import {
     createKeyPairSignerFromPrivateKeyBytes,
     generateKeyPairSigner,
@@ -7,6 +6,8 @@ import {
     some,
     type MessagePartialSigner,
 } from '@solana/kit';
+import { expect, it, test } from 'vitest';
+
 import {
     getInitializeConfidentialTransferMintInstruction,
     parseInitializeConfidentialTransferMintInstruction,

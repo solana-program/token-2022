@@ -1,5 +1,6 @@
-import { expect, it } from 'vitest';
 import { getBase64Encoder, none, some } from '@solana/kit';
+import { expect, it } from 'vitest';
+
 import { AccountState, Mint, getMintDecoder } from '../../src';
 
 it('decodes a mint account with extensions', () => {

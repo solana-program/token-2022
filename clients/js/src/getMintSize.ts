@@ -1,4 +1,5 @@
 import { getArrayEncoder, getConstantEncoder, getHiddenPrefixEncoder, getU8Encoder, padLeftEncoder } from '@solana/kit';
+
 import { ExtensionArgs, getExtensionEncoder } from './generated';
 
 const MINT_BASE_SIZE = 82;

@@ -1,4 +1,7 @@
+import { getTransferSolInstruction } from '@solana-program/system';
+import { generateKeyPairSigner } from '@solana/kit';
 import { expect, it } from 'vitest';
+
 import {
     AccountState,
     TOKEN_2022_PROGRAM_ADDRESS,
@@ -7,8 +10,6 @@ import {
     getCreateAssociatedTokenInstructionAsync,
 } from '../src';
 import { createTestClient, createToken, generateKeyPairSignerWithSol } from './_setup';
-import { getTransferSolInstruction } from '@solana-program/system';
-import { generateKeyPairSigner } from '@solana/kit';
 
 it('withdraws excess lamports from an associated token account', async () => {
     // Given: A client, a payer, mint authority, token owner, and destination account
