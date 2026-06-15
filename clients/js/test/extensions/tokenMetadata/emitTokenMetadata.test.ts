@@ -1,5 +1,6 @@
-import { expect, it } from 'vitest';
 import { generateKeyPairSigner } from '@solana/kit';
+import { expect, it } from 'vitest';
+
 import { extension, getExtensionEncoder } from '../../../src';
 import { createTestClient, getSingleTransactionContext } from '../../_setup';
 

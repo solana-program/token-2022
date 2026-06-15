@@ -1,4 +1,3 @@
-import { expect, it } from 'vitest';
 import { getCreateAccountInstruction } from '@solana-program/system';
 import {
     AccountRole,
@@ -11,6 +10,8 @@ import {
     ReadonlyUint8Array,
     some,
 } from '@solana/kit';
+import { expect, it } from 'vitest';
+
 import {
     AccountState,
     fetchMint,

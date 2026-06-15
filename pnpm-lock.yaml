@@ -14,9 +14,6 @@ importers:
       '@codama/renderers-rust':
         specifier: ^3.1.0
         version: 3.1.0(typescript@5.9.3)
-      '@solana/prettier-config-solana':
-        specifier: 0.0.6
-        version: 0.0.6(prettier@3.8.4)
       codama:
         specifier: ^1.7.0
         version: 1.7.0
@@ -105,11 +102,6 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
-
-  '@solana/prettier-config-solana@0.0.6':
-    resolution: {integrity: sha512-/s55hDoAyh5QyltQh/jjNK3AgACEq885+DnC6lYhrmYZiV6I0iHITWYnKd8d23KRKs/RBjlaQH54MiafeoI9hw==}
-    peerDependencies:
-      prettier: ^3.7.4
 
   a-sync-waterfall@1.0.1:
     resolution: {integrity: sha512-RYTOHHdWipFUliRFMCS4X2Yn2X8M87V/OpSqWzKKOGhzqyUxzyVmhHDH9sAvG+ZuQf/TAOFsLCpMw09I1ufUnA==}
@@ -362,10 +354,6 @@ snapshots:
       commander: 14.0.3
     optionalDependencies:
       typescript: 5.9.3
-
-  '@solana/prettier-config-solana@0.0.6(prettier@3.8.4)':
-    dependencies:
-      prettier: 3.8.4
 
   a-sync-waterfall@1.0.1: {}
 

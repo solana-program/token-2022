@@ -1,6 +1,7 @@
-import { expect, it } from 'vitest';
 import { getCreateAccountInstruction } from '@solana-program/system';
 import { Account, generateKeyPairSigner, none } from '@solana/kit';
+import { expect, it } from 'vitest';
+
 import {
     AccountState,
     TOKEN_2022_PROGRAM_ADDRESS,

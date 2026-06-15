@@ -9,6 +9,13 @@ export default {
                 {
                     kitImportStrategy: 'rootOnly',
                     syncPackageJson: true,
+                    prettierOptions: {
+                        arrowParens: 'avoid',
+                        printWidth: 120,
+                        singleQuote: true,
+                        tabWidth: 4,
+                        trailingComma: 'all',
+                    },
                 },
             ],
         },

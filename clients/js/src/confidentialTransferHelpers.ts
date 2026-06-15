@@ -22,19 +22,6 @@ import {
     type Rpc,
 } from '@solana/kit';
 import {
-    ExtensionType,
-    Extension,
-    TOKEN_2022_PROGRAM_ADDRESS,
-    Token,
-    findAssociatedTokenPda,
-    getApplyConfidentialPendingBalanceInstruction,
-    getConfidentialTransferInstruction,
-    getConfidentialWithdrawInstruction,
-    getConfigureConfidentialTransferAccountInstruction,
-    getCreateAssociatedTokenIdempotentInstruction,
-    getReallocateInstruction,
-} from './generated';
-import {
     AeCiphertext,
     AeKey,
     BatchedGroupedCiphertext3HandlesValidityProofData,
@@ -50,11 +37,25 @@ import {
     PedersenOpening,
     PubkeyValidityProofData,
 } from '@solana/zk-sdk/bundler';
+
 import {
     extractCiphertextFromGroupedBytes,
     subtractAmountFromCiphertext,
     subtractWithLoHiCiphertexts,
 } from './confidentialTransferArithmetic';
+import {
+    ExtensionType,
+    Extension,
+    TOKEN_2022_PROGRAM_ADDRESS,
+    Token,
+    findAssociatedTokenPda,
+    getApplyConfidentialPendingBalanceInstruction,
+    getConfidentialTransferInstruction,
+    getConfidentialWithdrawInstruction,
+    getConfigureConfidentialTransferAccountInstruction,
+    getCreateAssociatedTokenIdempotentInstruction,
+    getReallocateInstruction,
+} from './generated';
 
 const DEFAULT_MAXIMUM_PENDING_BALANCE_CREDIT_COUNTER = 1n << 16n;
 const PENDING_BALANCE_LO_BIT_LENGTH = 16n;

@@ -1,8 +1,9 @@
-import { expect, it } from 'vitest';
+import { getCreateAccountInstruction } from '@solana-program/system';
 import { Account, generateKeyPairSigner, none, some } from '@solana/kit';
+import { expect, it } from 'vitest';
+
 import { Mint, TOKEN_2022_PROGRAM_ADDRESS, fetchMint, getInitializeMintInstruction, getMintSize } from '../src';
 import { createTestClient, generateKeyPairSignerWithSol } from './_setup';
-import { getCreateAccountInstruction } from '@solana-program/system';
 
 it('creates and initializes a new mint account', async () => {
     // Given an authority and a mint account.

@@ -1,5 +1,6 @@
 import { type GetAccountInfoApi, type Rpc, Address, UnixTimestamp, unwrapOption } from '@solana/kit';
 import { fetchSysvarClock } from '@solana/sysvars';
+
 import { fetchMint } from './generated';
 
 // Constants

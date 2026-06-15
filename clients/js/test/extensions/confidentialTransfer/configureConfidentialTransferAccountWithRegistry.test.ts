@@ -1,5 +1,6 @@
-import { expect, it } from 'vitest';
 import { address, generateKeyPairSigner, type AccountMeta } from '@solana/kit';
+import { expect, it } from 'vitest';
+
 import {
     getConfigureConfidentialTransferAccountWithRegistryInstruction,
     parseConfigureConfidentialTransferAccountWithRegistryInstruction,

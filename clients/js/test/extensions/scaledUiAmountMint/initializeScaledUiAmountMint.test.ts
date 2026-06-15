@@ -1,7 +1,8 @@
-import { expect, it } from 'vitest';
-import { createTestClient } from '../../_setup';
 import { Account, generateKeyPairSigner, isSome } from '@solana/kit';
+import { expect, it } from 'vitest';
+
 import { extension, fetchMint, Mint } from '../../../src';
+import { createTestClient } from '../../_setup';
 
 it('initialize a mint account with a scaled ui amount mint extension', async () => {
     // Given a fresh client with no state the test cares about.

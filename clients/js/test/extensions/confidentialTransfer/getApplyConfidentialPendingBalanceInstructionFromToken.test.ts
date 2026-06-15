@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest';
+
 import { fetchToken, getConfidentialDepositInstruction, getMintToInstruction } from '../../../src';
 import { getApplyConfidentialPendingBalanceInstructionFromToken } from '../../../src/confidential';
 import {

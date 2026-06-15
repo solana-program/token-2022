@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest';
+
 import { extension, getTokenSize } from '../src';
 
 it('returns the base size when no extensions are provided', () => {
