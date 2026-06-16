@@ -15,7 +15,7 @@ pub(crate) struct TlvLenAccumulator {
     /// Bitset of the extension types inserted so far
     seen: u64,
     /// Total TLV length of the distinct inserted types
-    total: usize,
+    byte_count: usize,
 }
 
 impl TlvLenAccumulator {
@@ -39,7 +39,9 @@ impl TlvLenAccumulator {
         let bit = Self::bit(extension_type);
         if self.seen & bit == 0 {
             self.seen |= bit;
-            self.total = self.total.saturating_add(extension_type.try_get_tlv_len()?);
+            self.byte_count = self
+                .byte_count
+                .saturating_add(extension_type.try_get_tlv_len()?);
         }
         Ok(())
     }
@@ -49,7 +51,7 @@ impl TlvLenAccumulator {
         if self.seen == 0 {
             S::SIZE_OF
         } else {
-            adjust_len_for_multisig(self.total.saturating_add(BASE_ACCOUNT_AND_TYPE_LENGTH))
+            adjust_len_for_multisig(self.byte_count.saturating_add(BASE_ACCOUNT_AND_TYPE_LENGTH))
         }
     }
 }
