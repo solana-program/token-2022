@@ -1,9 +1,12 @@
 import {
     closeContextStateProof,
+    verifyBatchedGroupedCiphertext2HandlesValidity,
     verifyBatchedGroupedCiphertext3HandlesValidity,
     verifyBatchedRangeProofU128,
+    verifyBatchedRangeProofU256,
     verifyBatchedRangeProofU64,
     verifyCiphertextCommitmentEquality,
+    verifyPercentageWithCap,
     verifyPubkeyValidity,
 } from '@solana-program/zk-elgamal-proof';
 import {
@@ -24,17 +27,21 @@ import {
 import {
     AeCiphertext,
     AeKey,
+    BatchedGroupedCiphertext2HandlesValidityProofData,
     BatchedGroupedCiphertext3HandlesValidityProofData,
     BatchedRangeProofU128Data,
+    BatchedRangeProofU256Data,
     BatchedRangeProofU64Data,
     CiphertextCommitmentEqualityProofData,
     ElGamalCiphertext,
     ElGamalKeypair,
     ElGamalPubkey,
     ElGamalSecretKey,
+    GroupedElGamalCiphertext2Handles,
     GroupedElGamalCiphertext3Handles,
     PedersenCommitment,
     PedersenOpening,
+    PercentageWithCapProofData,
     PubkeyValidityProofData,
 } from '@solana/zk-sdk/bundler';
 
@@ -46,11 +53,13 @@ import {
 import {
     ExtensionType,
     Extension,
+    Mint,
     TOKEN_2022_PROGRAM_ADDRESS,
     Token,
     findAssociatedTokenPda,
     getApplyConfidentialPendingBalanceInstruction,
     getConfidentialTransferInstruction,
+    getConfidentialTransferWithFeeInstruction,
     getConfidentialWithdrawInstruction,
     getConfigureConfidentialTransferAccountInstruction,
     getCreateAssociatedTokenIdempotentInstruction,
@@ -61,10 +70,33 @@ const DEFAULT_MAXIMUM_PENDING_BALANCE_CREDIT_COUNTER = 1n << 16n;
 const PENDING_BALANCE_LO_BIT_LENGTH = 16n;
 const TRANSFER_AMOUNT_LO_BIT_LENGTH = 16n;
 const TRANSFER_AMOUNT_HI_BIT_LENGTH = 32n;
+const FEE_AMOUNT_LO_BIT_LENGTH = 16n;
+const FEE_AMOUNT_HI_BIT_LENGTH = 32n;
 const REMAINING_BALANCE_BIT_LENGTH = 64;
 const RANGE_PROOF_PADDING_BIT_LENGTH = 16;
+const MAX_FEE_BASIS_POINTS_SUB_ONE = 9_999n;
+const MAX_FEE_BASIS_POINTS = 10_000n;
+const DELTA_BIT_LENGTH = 16;
+const NET_TRANSFER_AMOUNT_BIT_LENGTH = 64;
 
 type ConfidentialTransferAccountExtension = Extract<Extension, { __kind: 'ConfidentialTransferAccount' }>;
+type TransferFeeConfigExtension = Extract<Extension, { __kind: 'TransferFeeConfig' }>;
+type TransferFee = TransferFeeConfigExtension['olderTransferFee'];
+type PedersenCommitmentWithArithmetic = PedersenCommitment & {
+    subtract(other: PedersenCommitment): PedersenCommitment;
+    multiplyByU64(scalar: bigint): PedersenCommitment;
+};
+type PedersenCommitmentConstructorWithArithmetic = typeof PedersenCommitment & {
+    combineLoHi(lo: PedersenCommitment, hi: PedersenCommitment, bitLength: number): PedersenCommitment;
+};
+type PedersenOpeningWithArithmetic = PedersenOpening & {
+    subtract(other: PedersenOpening): PedersenOpening;
+    multiplyByU64(scalar: bigint): PedersenOpening;
+};
+type PedersenOpeningConstructorWithArithmetic = typeof PedersenOpening & {
+    zero(): PedersenOpening;
+    combineLoHi(lo: PedersenOpening, hi: PedersenOpening, bitLength: number): PedersenOpening;
+};
 
 type ContextStateProofMode = {
     /**
@@ -140,6 +172,14 @@ type GetConfidentialTransferInstructionPlanBaseInput = {
 export type GetConfidentialTransferInstructionPlanInput = GetConfidentialTransferInstructionPlanBaseInput &
     ContextStateProofMode;
 
+type GetConfidentialTransferWithFeeInstructionPlanBaseInput = GetConfidentialTransferInstructionPlanBaseInput & {
+    mintAccount: Mint;
+    currentEpoch: number | bigint;
+};
+
+export type GetConfidentialTransferWithFeeInstructionPlanInput =
+    GetConfidentialTransferWithFeeInstructionPlanBaseInput & ContextStateProofMode;
+
 function getTokenProgramAddress(programAddress?: Address) {
     return programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 }
@@ -165,6 +205,37 @@ function getRequiredConfidentialTransferAccountExtension(tokenAccount: Token): C
     }
 
     return extension;
+}
+
+function getRequiredMintExtension<TKind extends Extension['__kind']>(
+    mintAccount: Mint,
+    kind: TKind,
+): Extract<Extension, { __kind: TKind }> {
+    if (!isSome(mintAccount.extensions)) {
+        throw new Error('Mint account is missing extensions.');
+    }
+
+    const extension = mintAccount.extensions.value.find(candidate => candidate.__kind === kind) as
+        | Extract<Extension, { __kind: TKind }>
+        | undefined;
+    if (!extension) {
+        throw new Error(`Mint account is missing the ${kind} extension.`);
+    }
+
+    return extension;
+}
+
+function getOptionalMintExtension<TKind extends Extension['__kind']>(
+    mintAccount: Mint,
+    kind: TKind,
+): Extract<Extension, { __kind: TKind }> | undefined {
+    if (!isSome(mintAccount.extensions)) {
+        return;
+    }
+
+    return mintAccount.extensions.value.find(candidate => candidate.__kind === kind) as
+        | Extract<Extension, { __kind: TKind }>
+        | undefined;
 }
 
 function parseAeCiphertext(bytes: ReadonlyUint8Array) {
@@ -204,6 +275,21 @@ function getDestinationElGamalPubkey(input: GetConfidentialTransferInstructionPl
     );
 }
 
+function getAuditorElGamalPubkey(input: { auditorElgamalPubkey?: Address; mintAccount?: Mint }) {
+    if (input.auditorElgamalPubkey) {
+        return getElGamalPubkeyFromAddress(input.auditorElgamalPubkey);
+    }
+
+    const confidentialTransferMint = input.mintAccount
+        ? getOptionalMintExtension(input.mintAccount, 'ConfidentialTransferMint')
+        : undefined;
+    if (confidentialTransferMint && isSome(confidentialTransferMint.auditorElgamalPubkey)) {
+        return getElGamalPubkeyFromAddress(confidentialTransferMint.auditorElgamalPubkey.value);
+    }
+
+    return getDefaultAuditorElGamalPubkey();
+}
+
 function splitAmount(amount: bigint, bitLength: bigint): [bigint, bigint] {
     const mask = (1n << bitLength) - 1n;
     return [amount & mask, amount >> bitLength];
@@ -241,6 +327,12 @@ function assertNonNegativeAmount(amount: bigint): void {
     }
 }
 
+function assertU64Amount(amount: bigint, name: string): void {
+    if (amount > (1n << 64n) - 1n) {
+        throw new Error(`${name} must fit in a u64.`);
+    }
+}
+
 function computeNewAvailableBalance(currentBalance: bigint, amount: bigint): bigint {
     assertNonNegativeAmount(amount);
     const newBalance = currentBalance - amount;
@@ -248,6 +340,90 @@ function computeNewAvailableBalance(currentBalance: bigint, amount: bigint): big
         throw new Error('Insufficient funds.');
     }
     return newBalance;
+}
+
+function getEpochTransferFee(
+    transferFeeConfig: TransferFeeConfigExtension,
+    currentEpoch: number | bigint,
+): TransferFee {
+    return BigInt(currentEpoch) >= transferFeeConfig.newerTransferFee.epoch
+        ? transferFeeConfig.newerTransferFee
+        : transferFeeConfig.olderTransferFee;
+}
+
+function calculateFee(transferAmount: bigint, transferFeeBasisPoints: number): [bigint, bigint] {
+    const numerator = transferAmount * BigInt(transferFeeBasisPoints);
+    const fee = (numerator + MAX_FEE_BASIS_POINTS - 1n) / MAX_FEE_BASIS_POINTS;
+    const deltaFee = fee * MAX_FEE_BASIS_POINTS - numerator;
+    return [fee, deltaFee];
+}
+
+function calculateTransferWithFeeAmounts(transferAmount: bigint, transferFeeBasisPoints: number, maximumFee: bigint) {
+    const [rawFeeAmount, rawDeltaFee] = calculateFee(transferAmount, transferFeeBasisPoints);
+    const [feeAmount, claimedDeltaFee] = maximumFee < rawFeeAmount ? [maximumFee, 0n] : [rawFeeAmount, rawDeltaFee];
+    const netTransferAmount = transferAmount - feeAmount;
+    if (netTransferAmount < 0n) {
+        throw new Error('Fee exceeds transfer amount.');
+    }
+
+    return { feeAmount, claimedDeltaFee, netTransferAmount };
+}
+
+function combineLoHiCommitments(lo: PedersenCommitment, hi: PedersenCommitment, bitLength: bigint): PedersenCommitment {
+    const PedersenCommitmentWithArithmetic =
+        PedersenCommitment as unknown as PedersenCommitmentConstructorWithArithmetic;
+    if (typeof PedersenCommitmentWithArithmetic.combineLoHi !== 'function') {
+        throw new Error('Confidential transfer with fee requires @solana/zk-sdk Pedersen commitment arithmetic.');
+    }
+    return PedersenCommitmentWithArithmetic.combineLoHi(lo, hi, Number(bitLength));
+}
+
+function combineLoHiOpenings(lo: PedersenOpening, hi: PedersenOpening, bitLength: bigint): PedersenOpening {
+    const PedersenOpeningWithArithmetic = PedersenOpening as unknown as PedersenOpeningConstructorWithArithmetic;
+    if (typeof PedersenOpeningWithArithmetic.combineLoHi !== 'function') {
+        throw new Error('Confidential transfer with fee requires @solana/zk-sdk Pedersen opening arithmetic.');
+    }
+    return PedersenOpeningWithArithmetic.combineLoHi(lo, hi, Number(bitLength));
+}
+
+function getZeroOpening(): PedersenOpening {
+    const PedersenOpeningWithArithmetic = PedersenOpening as unknown as PedersenOpeningConstructorWithArithmetic;
+    if (typeof PedersenOpeningWithArithmetic.zero !== 'function') {
+        throw new Error('Confidential transfer with fee requires @solana/zk-sdk Pedersen opening arithmetic.');
+    }
+    return PedersenOpeningWithArithmetic.zero();
+}
+
+function subtractCommitments(left: PedersenCommitment, right: PedersenCommitment): PedersenCommitment {
+    const leftWithArithmetic = left as PedersenCommitmentWithArithmetic;
+    if (typeof leftWithArithmetic.subtract !== 'function') {
+        throw new Error('Confidential transfer with fee requires @solana/zk-sdk Pedersen commitment arithmetic.');
+    }
+    return leftWithArithmetic.subtract(right);
+}
+
+function subtractOpenings(left: PedersenOpening, right: PedersenOpening): PedersenOpening {
+    const leftWithArithmetic = left as PedersenOpeningWithArithmetic;
+    if (typeof leftWithArithmetic.subtract !== 'function') {
+        throw new Error('Confidential transfer with fee requires @solana/zk-sdk Pedersen opening arithmetic.');
+    }
+    return leftWithArithmetic.subtract(right);
+}
+
+function multiplyCommitment(commitment: PedersenCommitment, scalar: bigint): PedersenCommitment {
+    const commitmentWithArithmetic = commitment as PedersenCommitmentWithArithmetic;
+    if (typeof commitmentWithArithmetic.multiplyByU64 !== 'function') {
+        throw new Error('Confidential transfer with fee requires @solana/zk-sdk Pedersen commitment arithmetic.');
+    }
+    return commitmentWithArithmetic.multiplyByU64(scalar);
+}
+
+function multiplyOpening(opening: PedersenOpening, scalar: bigint): PedersenOpening {
+    const openingWithArithmetic = opening as PedersenOpeningWithArithmetic;
+    if (typeof openingWithArithmetic.multiplyByU64 !== 'function') {
+        throw new Error('Confidential transfer with fee requires @solana/zk-sdk Pedersen opening arithmetic.');
+    }
+    return openingWithArithmetic.multiplyByU64(scalar);
 }
 
 async function buildContextStateProofPlan(
@@ -461,9 +637,7 @@ export async function getConfidentialTransferInstructionPlan(
 
     const sourcePubkey = input.sourceElgamalKeypair.pubkey();
     const destinationPubkey = getDestinationElGamalPubkey(input);
-    const auditorPubkey = input.auditorElgamalPubkey
-        ? getElGamalPubkeyFromAddress(input.auditorElgamalPubkey)
-        : getDefaultAuditorElGamalPubkey();
+    const auditorPubkey = getAuditorElGamalPubkey(input);
 
     const openingLo = new PedersenOpening();
     const openingHi = new PedersenOpening();
@@ -579,6 +753,314 @@ export async function getConfidentialTransferInstructionPlan(
         parallelInstructionPlan([
             equalityProofPlan.cleanup,
             ciphertextValidityProofPlan.cleanup,
+            rangeProofPlan.cleanup,
+        ]),
+    ]);
+}
+
+/**
+ * Returns an instruction plan that confidentially transfers tokens between
+ * two accounts when the mint is configured for confidential transfer fees.
+ * Builds and verifies the five proofs required by `TransferWithFee` via
+ * context-state accounts.
+ *
+ * This helper requires the Pedersen arithmetic helpers added to
+ * `@solana/zk-sdk` after v0.4.2.
+ */
+export async function getConfidentialTransferWithFeeInstructionPlan(
+    input: GetConfidentialTransferWithFeeInstructionPlanInput,
+): Promise<InstructionPlan> {
+    const sourceAccount = getRequiredConfidentialTransferAccountExtension(input.sourceTokenAccount);
+    const amount = BigInt(input.amount);
+    assertNonNegativeAmount(amount);
+    assertU64Amount(amount, 'Amount');
+
+    const transferFeeConfig = getRequiredMintExtension(input.mintAccount, 'TransferFeeConfig');
+    const confidentialTransferFee = getRequiredMintExtension(input.mintAccount, 'ConfidentialTransferFee');
+    const transferFee = getEpochTransferFee(transferFeeConfig, input.currentEpoch);
+    const maximumFee = BigInt(transferFee.maximumFee);
+    const { feeAmount, claimedDeltaFee, netTransferAmount } = calculateTransferWithFeeAmounts(
+        amount,
+        transferFee.transferFeeBasisPoints,
+        maximumFee,
+    );
+
+    assertU64Amount(feeAmount, 'Fee amount');
+    assertU64Amount(claimedDeltaFee, 'Claimed delta fee');
+    assertU64Amount(netTransferAmount, 'Net transfer amount');
+
+    const [transferAmountLo, transferAmountHi] = splitAmount(amount, TRANSFER_AMOUNT_LO_BIT_LENGTH);
+    const [feeAmountLo, feeAmountHi] = splitAmount(feeAmount, FEE_AMOUNT_LO_BIT_LENGTH);
+
+    const sourcePubkey = input.sourceElgamalKeypair.pubkey();
+    const destinationPubkey = getDestinationElGamalPubkey(input);
+    const auditorPubkey = getAuditorElGamalPubkey(input);
+    const withdrawWithheldAuthorityPubkey = getElGamalPubkeyFromAddress(confidentialTransferFee.elgamalPubkey);
+
+    const transferAmountOpeningLo = new PedersenOpening();
+    const transferAmountOpeningHi = new PedersenOpening();
+    const transferAmountGroupedCiphertextLo = GroupedElGamalCiphertext3Handles.encryptWith(
+        sourcePubkey,
+        destinationPubkey,
+        auditorPubkey,
+        transferAmountLo,
+        transferAmountOpeningLo,
+    );
+    const transferAmountGroupedCiphertextHi = GroupedElGamalCiphertext3Handles.encryptWith(
+        sourcePubkey,
+        destinationPubkey,
+        auditorPubkey,
+        transferAmountHi,
+        transferAmountOpeningHi,
+    );
+
+    const transferAmountGroupedCiphertextLoBytes = transferAmountGroupedCiphertextLo.toBytes();
+    const transferAmountGroupedCiphertextHiBytes = transferAmountGroupedCiphertextHi.toBytes();
+    const transferAmountSourceCiphertextLo = extractCiphertextFromGroupedBytes(
+        transferAmountGroupedCiphertextLoBytes,
+        0,
+    );
+    const transferAmountSourceCiphertextHi = extractCiphertextFromGroupedBytes(
+        transferAmountGroupedCiphertextHiBytes,
+        0,
+    );
+    const transferAmountAuditorCiphertextLo = extractCiphertextFromGroupedBytes(
+        transferAmountGroupedCiphertextLoBytes,
+        2,
+    );
+    const transferAmountAuditorCiphertextHi = extractCiphertextFromGroupedBytes(
+        transferAmountGroupedCiphertextHiBytes,
+        2,
+    );
+
+    const currentAvailableBalance = decryptAvailableBalance(sourceAccount, input.aesKey);
+    const newAvailableBalance = computeNewAvailableBalance(currentAvailableBalance, amount);
+    assertU64Amount(newAvailableBalance, 'New available balance');
+
+    const newAvailableBalanceOpening = new PedersenOpening();
+    const newAvailableBalanceCommitment = PedersenCommitment.from(newAvailableBalance, newAvailableBalanceOpening);
+    const newAvailableBalanceCiphertext = parseElGamalCiphertext(
+        subtractWithLoHiCiphertexts(
+            sourceAccount.availableBalance,
+            transferAmountSourceCiphertextLo,
+            transferAmountSourceCiphertextHi,
+            TRANSFER_AMOUNT_LO_BIT_LENGTH,
+        ),
+    );
+
+    const equalityProofData = new CiphertextCommitmentEqualityProofData(
+        input.sourceElgamalKeypair,
+        newAvailableBalanceCiphertext,
+        newAvailableBalanceCommitment,
+        newAvailableBalanceOpening,
+        newAvailableBalance,
+    );
+    const transferAmountCiphertextValidityProofData = new BatchedGroupedCiphertext3HandlesValidityProofData(
+        sourcePubkey,
+        destinationPubkey,
+        auditorPubkey,
+        transferAmountGroupedCiphertextLo,
+        transferAmountGroupedCiphertextHi,
+        transferAmountLo,
+        transferAmountHi,
+        transferAmountOpeningLo,
+        transferAmountOpeningHi,
+    );
+
+    const transferAmountCommitmentLo = PedersenCommitment.fromBytes(
+        transferAmountGroupedCiphertextLoBytes.slice(0, 32),
+    );
+    const transferAmountCommitmentHi = PedersenCommitment.fromBytes(
+        transferAmountGroupedCiphertextHiBytes.slice(0, 32),
+    );
+    const combinedTransferAmountCommitment = combineLoHiCommitments(
+        transferAmountCommitmentLo,
+        transferAmountCommitmentHi,
+        TRANSFER_AMOUNT_LO_BIT_LENGTH,
+    );
+    const combinedTransferAmountOpening = combineLoHiOpenings(
+        transferAmountOpeningLo,
+        transferAmountOpeningHi,
+        TRANSFER_AMOUNT_LO_BIT_LENGTH,
+    );
+
+    const feeOpeningLo = new PedersenOpening();
+    const feeOpeningHi = new PedersenOpening();
+    const feeGroupedCiphertextLo = GroupedElGamalCiphertext2Handles.encryptWith(
+        destinationPubkey,
+        withdrawWithheldAuthorityPubkey,
+        feeAmountLo,
+        feeOpeningLo,
+    );
+    const feeGroupedCiphertextHi = GroupedElGamalCiphertext2Handles.encryptWith(
+        destinationPubkey,
+        withdrawWithheldAuthorityPubkey,
+        feeAmountHi,
+        feeOpeningHi,
+    );
+    const feeGroupedCiphertextLoBytes = feeGroupedCiphertextLo.toBytes();
+    const feeGroupedCiphertextHiBytes = feeGroupedCiphertextHi.toBytes();
+    const feeCommitmentLo = PedersenCommitment.fromBytes(feeGroupedCiphertextLoBytes.slice(0, 32));
+    const feeCommitmentHi = PedersenCommitment.fromBytes(feeGroupedCiphertextHiBytes.slice(0, 32));
+    const combinedFeeCommitment = combineLoHiCommitments(feeCommitmentLo, feeCommitmentHi, FEE_AMOUNT_LO_BIT_LENGTH);
+    const combinedFeeOpening = combineLoHiOpenings(feeOpeningLo, feeOpeningHi, FEE_AMOUNT_LO_BIT_LENGTH);
+
+    const netTransferAmountCommitment = subtractCommitments(combinedTransferAmountCommitment, combinedFeeCommitment);
+    const netTransferAmountOpening = subtractOpenings(combinedTransferAmountOpening, combinedFeeOpening);
+    const claimedOpening = new PedersenOpening();
+    const claimedCommitment = PedersenCommitment.from(claimedDeltaFee, claimedOpening);
+    const deltaCommitment = subtractCommitments(
+        multiplyCommitment(combinedFeeCommitment, MAX_FEE_BASIS_POINTS),
+        multiplyCommitment(combinedTransferAmountCommitment, BigInt(transferFee.transferFeeBasisPoints)),
+    );
+    const deltaOpening = subtractOpenings(
+        multiplyOpening(combinedFeeOpening, MAX_FEE_BASIS_POINTS),
+        multiplyOpening(combinedTransferAmountOpening, BigInt(transferFee.transferFeeBasisPoints)),
+    );
+    const percentageWithCapProofData = new PercentageWithCapProofData(
+        combinedFeeCommitment,
+        combinedFeeOpening,
+        feeAmount,
+        deltaCommitment,
+        deltaOpening,
+        claimedDeltaFee,
+        claimedCommitment,
+        claimedOpening,
+        maximumFee,
+    );
+    const feeCiphertextValidityProofData = new BatchedGroupedCiphertext2HandlesValidityProofData(
+        destinationPubkey,
+        withdrawWithheldAuthorityPubkey,
+        feeGroupedCiphertextLo,
+        feeGroupedCiphertextHi,
+        feeAmountLo,
+        feeAmountHi,
+        feeOpeningLo,
+        feeOpeningHi,
+    );
+
+    const zeroOpening = getZeroOpening();
+    const maxFeeBasisPointsSubOneCommitment = PedersenCommitment.from(MAX_FEE_BASIS_POINTS_SUB_ONE, zeroOpening);
+    const claimedComplementCommitment = subtractCommitments(maxFeeBasisPointsSubOneCommitment, claimedCommitment);
+    const claimedComplementOpening = subtractOpenings(zeroOpening, claimedOpening);
+    const deltaFeeComplement = MAX_FEE_BASIS_POINTS_SUB_ONE - claimedDeltaFee;
+    if (deltaFeeComplement < 0n) {
+        throw new Error('Claimed delta fee exceeds maximum range.');
+    }
+
+    const rangeProofData = new BatchedRangeProofU256Data(
+        [
+            newAvailableBalanceCommitment,
+            transferAmountCommitmentLo,
+            transferAmountCommitmentHi,
+            claimedCommitment,
+            claimedComplementCommitment,
+            feeCommitmentLo,
+            feeCommitmentHi,
+            netTransferAmountCommitment,
+        ],
+        new BigUint64Array([
+            newAvailableBalance,
+            transferAmountLo,
+            transferAmountHi,
+            claimedDeltaFee,
+            deltaFeeComplement,
+            feeAmountLo,
+            feeAmountHi,
+            netTransferAmount,
+        ]),
+        Uint8Array.from([
+            REMAINING_BALANCE_BIT_LENGTH,
+            Number(TRANSFER_AMOUNT_LO_BIT_LENGTH),
+            Number(TRANSFER_AMOUNT_HI_BIT_LENGTH),
+            DELTA_BIT_LENGTH,
+            DELTA_BIT_LENGTH,
+            Number(FEE_AMOUNT_LO_BIT_LENGTH),
+            Number(FEE_AMOUNT_HI_BIT_LENGTH),
+            NET_TRANSFER_AMOUNT_BIT_LENGTH,
+        ]),
+        [
+            newAvailableBalanceOpening,
+            transferAmountOpeningLo,
+            transferAmountOpeningHi,
+            claimedOpening,
+            claimedComplementOpening,
+            feeOpeningLo,
+            feeOpeningHi,
+            netTransferAmountOpening,
+        ],
+    );
+
+    const [
+        equalityProofPlan,
+        transferAmountCiphertextValidityProofPlan,
+        percentageWithCapProofPlan,
+        feeCiphertextValidityProofPlan,
+        rangeProofPlan,
+    ] = await Promise.all([
+        buildContextStateProofPlan(
+            equalityProofData.toBytes(),
+            verifyCiphertextCommitmentEquality,
+            input.payer,
+            input.rpc,
+        ),
+        buildContextStateProofPlan(
+            transferAmountCiphertextValidityProofData.toBytes(),
+            verifyBatchedGroupedCiphertext3HandlesValidity,
+            input.payer,
+            input.rpc,
+        ),
+        buildContextStateProofPlan(
+            percentageWithCapProofData.toBytes(),
+            verifyPercentageWithCap,
+            input.payer,
+            input.rpc,
+        ),
+        buildContextStateProofPlan(
+            feeCiphertextValidityProofData.toBytes(),
+            verifyBatchedGroupedCiphertext2HandlesValidity,
+            input.payer,
+            input.rpc,
+        ),
+        buildContextStateProofPlan(rangeProofData.toBytes(), verifyBatchedRangeProofU256, input.payer, input.rpc),
+    ]);
+
+    return sequentialInstructionPlan([
+        parallelInstructionPlan([
+            equalityProofPlan.setup,
+            transferAmountCiphertextValidityProofPlan.setup,
+            percentageWithCapProofPlan.setup,
+            feeCiphertextValidityProofPlan.setup,
+            rangeProofPlan.setup,
+        ]),
+        getConfidentialTransferWithFeeInstruction(
+            {
+                sourceToken: input.sourceToken,
+                mint: input.mint,
+                destinationToken: input.destinationToken,
+                equalityRecord: equalityProofPlan.address,
+                transferAmountCiphertextValidityRecord: transferAmountCiphertextValidityProofPlan.address,
+                feeSigmaRecord: percentageWithCapProofPlan.address,
+                feeCiphertextValidityRecord: feeCiphertextValidityProofPlan.address,
+                rangeRecord: rangeProofPlan.address,
+                authority: input.authority,
+                newSourceDecryptableAvailableBalance: input.aesKey.encrypt(newAvailableBalance).toBytes(),
+                transferAmountAuditorCiphertextLo,
+                transferAmountAuditorCiphertextHi,
+                equalityProofInstructionOffset: 0,
+                transferAmountCiphertextValidityProofInstructionOffset: 0,
+                feeSigmaProofInstructionOffset: 0,
+                feeCiphertextValidityProofInstructionOffset: 0,
+                rangeProofInstructionOffset: 0,
+                multiSigners: input.multiSigners,
+            },
+            { programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS },
+        ),
+        parallelInstructionPlan([
+            equalityProofPlan.cleanup,
+            transferAmountCiphertextValidityProofPlan.cleanup,
+            percentageWithCapProofPlan.cleanup,
+            feeCiphertextValidityProofPlan.cleanup,
             rangeProofPlan.cleanup,
         ]),
     ]);
