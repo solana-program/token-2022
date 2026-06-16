@@ -1310,6 +1310,10 @@ impl ExtensionType {
 
     /// Based on a set of `AccountType::Mint` `ExtensionType`s, get the list of
     /// `AccountType::Account` `ExtensionType`s required on `InitializeAccount`
+    #[deprecated(
+        since = "3.0.1",
+        note = "Use `account_len::try_for_each_required_init_account_extension` instead"
+    )]
     pub fn get_required_init_account_extensions(mint_extension_types: &[Self]) -> Vec<Self> {
         mint_extension_types
             .iter()
@@ -2424,6 +2428,7 @@ mod test {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_get_required_init_account_extensions() {
         // Some mint extensions with no required account extensions
         let mint_extensions = vec![

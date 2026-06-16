@@ -882,6 +882,7 @@ where
     ) -> TokenResult<T::Output> {
         let state = self.get_mint_info().await?;
         let mint_extensions: Vec<ExtensionType> = state.get_extension_types()?;
+        #[allow(deprecated)]
         let mut required_extensions =
             ExtensionType::get_required_init_account_extensions(&mint_extensions);
         for extension_type in extensions.into_iter() {
