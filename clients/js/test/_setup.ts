@@ -291,6 +291,7 @@ export const createConfidentialTokenAccount = async (input: {
     payer: TransactionSigner;
     owner: TransactionSigner;
     mint: Address;
+    includeConfidentialTransferFeeAmount?: boolean;
 }): Promise<ConfidentialTokenAccount> => {
     const elgamalKeypair = new ElGamalKeypair();
     const aesKey = new AeKey();
@@ -307,6 +308,7 @@ export const createConfidentialTokenAccount = async (input: {
             rpc: input.client.rpc,
             elgamalKeypair,
             aesKey,
+            includeConfidentialTransferFeeAmount: input.includeConfidentialTransferFeeAmount,
         }),
     );
     return { token, elgamalKeypair, aesKey };
@@ -322,6 +324,7 @@ export const createConfidentialTokenAccountWithBalance = async (input: {
     mintAuthority: TransactionSigner;
     decimals: number;
     amount: bigint;
+    includeConfidentialTransferFeeAmount?: boolean;
 }): Promise<ConfidentialTokenAccount> => {
     const account = await createConfidentialTokenAccount(input);
 

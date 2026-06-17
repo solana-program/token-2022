@@ -10,8 +10,16 @@ import {
     verifyPubkeyValidity,
 } from '@solana-program/zk-elgamal-proof';
 import {
+    RECORD_CHUNK_SIZE_POST_INITIALIZE,
+    RECORD_META_DATA_SIZE,
+    createCloseRecordInstruction,
+    createRecord,
+    createWriteInstruction,
+} from '@solana-program/record';
+import {
     Address,
     Instruction,
+    KeyPairSigner,
     TransactionSigner,
     generateKeyPairSigner,
     getAddressEncoder,
@@ -19,6 +27,7 @@ import {
     nonDivisibleSequentialInstructionPlan,
     parallelInstructionPlan,
     sequentialInstructionPlan,
+    singleInstructionPlan,
     type GetMinimumBalanceForRentExemptionApi,
     type InstructionPlan,
     type ReadonlyUint8Array,
@@ -78,6 +87,9 @@ const MAX_FEE_BASIS_POINTS_SUB_ONE = 9_999n;
 const MAX_FEE_BASIS_POINTS = 10_000n;
 const DELTA_BIT_LENGTH = 16;
 const NET_TRANSFER_AMOUNT_BIT_LENGTH = 64;
+const COMPUTE_BUDGET_PROGRAM_ADDRESS =
+    'ComputeBudget111111111111111111111111111111' as Address<'ComputeBudget111111111111111111111111111111'>;
+const MAX_COMPUTE_UNIT_LIMIT = 1_400_000;
 
 type ConfidentialTransferAccountExtension = Extract<Extension, { __kind: 'ConfidentialTransferAccount' }>;
 type TransferFeeConfigExtension = Extract<Extension, { __kind: 'TransferFeeConfig' }>;
@@ -97,6 +109,8 @@ type PedersenOpeningConstructorWithArithmetic = typeof PedersenOpening & {
     zero(): PedersenOpening;
     combineLoHi(lo: PedersenOpening, hi: PedersenOpening, bitLength: number): PedersenOpening;
 };
+type ProofDataInput = Uint8Array | { account: Address; offset: number };
+type ContextStateProofPlan = Readonly<{ address: Address; setup: InstructionPlan; cleanup: InstructionPlan }>;
 
 type ContextStateProofMode = {
     /**
@@ -122,6 +136,7 @@ export type GetCreateConfidentialTransferAccountInstructionPlanInput = {
     elgamalKeypair: ElGamalKeypair;
     aesKey: AeKey;
     maximumPendingBalanceCreditCounter?: number | bigint;
+    includeConfidentialTransferFeeAmount?: boolean;
     multiSigners?: Array<TransactionSigner>;
     programAddress?: Address;
 };
@@ -426,23 +441,93 @@ function multiplyOpening(opening: PedersenOpening, scalar: bigint): PedersenOpen
     return openingWithArithmetic.multiplyByU64(scalar);
 }
 
+function getRecordWriteInstructions(
+    recordAccount: Address,
+    authority: TransactionSigner,
+    proofData: Uint8Array,
+): Instruction[] {
+    const instructions: Instruction[] = [];
+    for (let offset = 0; offset < proofData.length; offset += RECORD_CHUNK_SIZE_POST_INITIALIZE) {
+        instructions.push(
+            createWriteInstruction({
+                recordAccount,
+                authority,
+                offset: BigInt(offset),
+                data: proofData.slice(offset, offset + RECORD_CHUNK_SIZE_POST_INITIALIZE),
+            }),
+        );
+    }
+    return instructions;
+}
+
+function getSetComputeUnitLimitInstruction(units: number): Instruction {
+    const data = new Uint8Array(5);
+    data[0] = 2;
+    new DataView(data.buffer).setUint32(1, units, true);
+    return { programAddress: COMPUTE_BUDGET_PROGRAM_ADDRESS, data };
+}
+
 async function buildContextStateProofPlan(
     proofData: ReadonlyUint8Array,
     verifyAction: (args: {
         rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
         payer: TransactionSigner;
-        proofData: Uint8Array;
+        proofData: ProofDataInput;
         contextState: { contextAccount: Awaited<ReturnType<typeof generateKeyPairSigner>>; authority: Address };
     }) => Promise<Instruction[]>,
     payer: TransactionSigner,
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>,
     contextStateAuthority: TransactionSigner = payer,
-): Promise<{ address: Address; setup: InstructionPlan; cleanup: Instruction }> {
+    useRecordAccount = false,
+): Promise<ContextStateProofPlan> {
     const contextAccount = await generateKeyPairSigner();
+    const proofDataBytes = new Uint8Array(proofData);
+    if (useRecordAccount) {
+        const recordAuthority = await generateKeyPairSigner();
+        const { recordKeypair, ixs: createRecordInstructions } = await createRecord({
+            rpc,
+            payer: payer as KeyPairSigner,
+            authority: recordAuthority.address,
+            dataLength: BigInt(proofDataBytes.length),
+        });
+        const verifyInstructions = await verifyAction({
+            rpc,
+            payer,
+            proofData: {
+                account: recordKeypair.address,
+                offset: Number(RECORD_META_DATA_SIZE),
+            },
+            contextState: { contextAccount, authority: contextStateAuthority.address },
+        });
+        return {
+            address: contextAccount.address,
+            setup: sequentialInstructionPlan([
+                ...createRecordInstructions,
+                ...getRecordWriteInstructions(recordKeypair.address, recordAuthority, proofDataBytes),
+                nonDivisibleSequentialInstructionPlan([
+                    getSetComputeUnitLimitInstruction(MAX_COMPUTE_UNIT_LIMIT),
+                    ...verifyInstructions,
+                ]),
+            ]),
+            cleanup: sequentialInstructionPlan([
+                closeContextStateProof({
+                    contextState: contextAccount.address,
+                    authority: contextStateAuthority,
+                    destination: payer.address,
+                }),
+                createCloseRecordInstruction({
+                    recordAccount: recordKeypair.address,
+                    authority: recordAuthority,
+                    receiver: payer.address,
+                }),
+            ]),
+        };
+    }
+
     const setupInstructions = await verifyAction({
         rpc,
         payer,
-        proofData: new Uint8Array(proofData),
+        proofData: proofDataBytes,
         contextState: { contextAccount, authority: contextStateAuthority.address },
     });
     return {
@@ -453,11 +538,13 @@ async function buildContextStateProofPlan(
         // transaction planner decides how to pack them; the verify only needs
         // the account to exist, which is true once create-account is confirmed.
         setup: sequentialInstructionPlan(setupInstructions),
-        cleanup: closeContextStateProof({
-            contextState: contextAccount.address,
-            authority: contextStateAuthority,
-            destination: payer.address,
-        }),
+        cleanup: singleInstructionPlan(
+            closeContextStateProof({
+                contextState: contextAccount.address,
+                authority: contextStateAuthority,
+                destination: payer.address,
+            }),
+        ),
     };
 }
 
@@ -465,6 +552,9 @@ async function buildContextStateProofPlan(
  * Returns a single-transaction plan that creates the ATA, reallocates it
  * for the confidential-transfer extension, configures the account, and
  * verifies the ZK pubkey-validity proof.
+ *
+ * Set `includeConfidentialTransferFeeAmount` when configuring accounts for
+ * mints that also include confidential transfer fees.
  */
 export async function getCreateConfidentialTransferAccountInstructionPlan(
     input: GetCreateConfidentialTransferAccountInstructionPlanInput,
@@ -504,7 +594,9 @@ export async function getCreateConfidentialTransferAccountInstructionPlan(
                 token,
                 payer: input.payer,
                 owner: authority,
-                newExtensionTypes: [ExtensionType.ConfidentialTransferAccount],
+                newExtensionTypes: input.includeConfidentialTransferFeeAmount
+                    ? [ExtensionType.ConfidentialTransferAccount, ExtensionType.ConfidentialTransferFeeAmount]
+                    : [ExtensionType.ConfidentialTransferAccount],
                 multiSigners: input.multiSigners,
             },
             { programAddress },
@@ -1003,26 +1095,34 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
             verifyCiphertextCommitmentEquality,
             input.payer,
             input.rpc,
+            input.payer,
+            true,
         ),
         buildContextStateProofPlan(
             transferAmountCiphertextValidityProofData.toBytes(),
             verifyBatchedGroupedCiphertext3HandlesValidity,
             input.payer,
             input.rpc,
+            input.payer,
+            true,
         ),
         buildContextStateProofPlan(
             percentageWithCapProofData.toBytes(),
             verifyPercentageWithCap,
             input.payer,
             input.rpc,
+            input.payer,
+            true,
         ),
         buildContextStateProofPlan(
             feeCiphertextValidityProofData.toBytes(),
             verifyBatchedGroupedCiphertext2HandlesValidity,
             input.payer,
             input.rpc,
+            input.payer,
+            true,
         ),
-        buildContextStateProofPlan(rangeProofData.toBytes(), verifyBatchedRangeProofU256, input.payer, input.rpc),
+        buildContextStateProofPlan(rangeProofData.toBytes(), verifyBatchedRangeProofU256, input.payer, input.rpc, input.payer, true),
     ]);
 
     return sequentialInstructionPlan([
