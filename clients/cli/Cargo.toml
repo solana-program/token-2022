@@ -37,7 +37,7 @@ spl-associated-token-account-interface = { version = "2.0.0" }
 spl-memo-interface = "2.1.0"
 spl-record = { version = "0.4.0", features = ["no-entrypoint"] }
 spl-token-interface = "3.0.0"
-spl-token-2022-interface = { version = "3.0.0", path = "../../interface" }
+spl-token-2022-interface = { version = "3.1.0", path = "../../interface" }
 spl-token-2022 = { version = "11.0.0", path = "../../program", features = ["no-entrypoint"] }
 spl-token-client = { version = "0.19.0", path = "../rust-legacy" }
 spl-token-confidential-transfer-proof-generation = { version = "0.6.0", path = "../../confidential/proof-generation" }
