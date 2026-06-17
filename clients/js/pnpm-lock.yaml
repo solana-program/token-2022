@@ -12,8 +12,8 @@ importers:
         specifier: ^1.9.7
         version: 1.9.7
       '@solana-program/zk-elgamal-proof':
-        specifier: ^0.1.0
-        version: 0.1.0(@solana/kit@6.9.0(typescript@5.9.3))
+        specifier: ^0.2.0
+        version: 0.2.0(@solana/kit@6.9.0(typescript@5.9.3))
       '@solana/sysvars':
         specifier: ^5.0
         version: 5.5.1(typescript@5.9.3)
@@ -781,8 +781,8 @@ packages:
     peerDependencies:
       '@solana/kit': ^6.5.0
 
-  '@solana-program/zk-elgamal-proof@0.1.0':
-    resolution: {integrity: sha512-MKyeapz8P7SqkkC7h53ARFLoanb59ylVzokSMyINDH7hxY3JyiZs92/VfPa/qedhLAEHLd8jcc8sQ3pr3GyXtw==}
+  '@solana-program/zk-elgamal-proof@0.2.0':
+    resolution: {integrity: sha512-znu1asnySKVp0VyOlfXCLZhpdWvyq/tJ7GRrX61Z6vyXXqJ/OMizv2BkgYL/VbzDKkFmUiYfiFwF3gDtZHv7VA==}
     peerDependencies:
       '@solana/kit': ^5.0
 
@@ -2416,7 +2416,7 @@ snapshots:
       '@solana-program/system': 0.12.2(@solana/kit@6.9.0(typescript@5.9.3))
       '@solana/kit': 6.9.0(typescript@5.9.3)
 
-  '@solana-program/zk-elgamal-proof@0.1.0(@solana/kit@6.9.0(typescript@5.9.3))':
+  '@solana-program/zk-elgamal-proof@0.2.0(@solana/kit@6.9.0(typescript@5.9.3))':
     dependencies:
       '@solana-program/system': 0.12.2(@solana/kit@6.9.0(typescript@5.9.3))
       '@solana/kit': 6.9.0(typescript@5.9.3)
