@@ -75,6 +75,9 @@ jobs:
   main:
     needs: set_env
     uses: solana-program/actions/.github/workflows/publish-rust.yml@main
+    permissions:
+      contents: write
+      id-token: write
     with:
       sbpf-program-packages: "program confidential-elgamal-registry"
       solana-cli-version: ${{ needs.set_env.outputs.SOLANA_CLI_VERSION }}
