@@ -7,7 +7,14 @@ import {
     some,
     type ReadonlyUint8Array,
 } from '@solana/kit';
-import { AeCiphertext, AeKey, ElGamalCiphertext, ElGamalKeypair } from '@solana/zk-sdk/bundler';
+import {
+    AeCiphertext,
+    AeKey,
+    ElGamalCiphertext,
+    ElGamalKeypair,
+    PedersenCommitment,
+    PedersenOpening,
+} from '@solana/zk-sdk/bundler';
 import { expect, it } from 'vitest';
 
 import { ExtensionArgs, Token, extension, fetchMint, fetchToken } from '../../../src';
@@ -57,6 +64,23 @@ function decryptWithheldAmount(tokenAccount: Token, withdrawWithheldAuthorityElG
     const confidentialTransferFeeAmount = getTokenExtension(tokenAccount, 'ConfidentialTransferFeeAmount');
     const ciphertext = parseElGamalCiphertext(confidentialTransferFeeAmount.withheldAmount);
     return withdrawWithheldAuthorityElGamalKeypair.secret().decrypt(ciphertext);
+}
+
+function hasPedersenArithmetic() {
+    const opening = new PedersenOpening() as PedersenOpening & Record<string, unknown>;
+    const commitment = PedersenCommitment.from(0n, new PedersenOpening()) as PedersenCommitment &
+        Record<string, unknown>;
+    const PedersenOpeningConstructor = PedersenOpening as unknown as Record<string, unknown>;
+    const PedersenCommitmentConstructor = PedersenCommitment as unknown as Record<string, unknown>;
+    return (
+        typeof PedersenOpeningConstructor.zero === 'function' &&
+        typeof PedersenOpeningConstructor.combineLoHi === 'function' &&
+        typeof opening.subtract === 'function' &&
+        typeof opening.multiplyByU64 === 'function' &&
+        typeof PedersenCommitmentConstructor.combineLoHi === 'function' &&
+        typeof commitment.subtract === 'function' &&
+        typeof commitment.multiplyByU64 === 'function'
+    );
 }
 
 async function createConfidentialTransferFeeMint(input: {
@@ -158,23 +182,28 @@ it('transfers tokens confidentially with fees', async () => {
             fetchMint(client.rpc, mint),
             client.rpc.getEpochInfo().send(),
         ]);
-    await client.sendTransactions(
-        await getConfidentialTransferWithFeeInstructionPlan({
-            payer,
-            rpc: client.rpc,
-            sourceToken: source.token,
-            mint,
-            destinationToken: destination.token,
-            sourceTokenAccount,
-            destinationTokenAccount,
-            mintAccount,
-            currentEpoch: epochInfo.epoch,
-            authority: sourceOwner,
-            amount: 200n,
-            sourceElgamalKeypair: source.elgamalKeypair,
-            aesKey: source.aesKey,
-        }),
-    );
+    const transferPlanPromise = getConfidentialTransferWithFeeInstructionPlan({
+        payer,
+        rpc: client.rpc,
+        sourceToken: source.token,
+        mint,
+        destinationToken: destination.token,
+        sourceTokenAccount,
+        destinationTokenAccount,
+        mintAccount,
+        currentEpoch: epochInfo.epoch,
+        authority: sourceOwner,
+        amount: 200n,
+        sourceElgamalKeypair: source.elgamalKeypair,
+        aesKey: source.aesKey,
+    });
+    if (!hasPedersenArithmetic()) {
+        await expect(transferPlanPromise).rejects.toThrow(
+            'Confidential transfer with fee requires @solana/zk-sdk Pedersen commitment arithmetic.',
+        );
+        return;
+    }
+    await client.sendTransactions(await transferPlanPromise);
 
     // Then the source is debited by the gross amount, the destination receives the net amount,
     // and the confidential fee amount is withheld on the destination account.
