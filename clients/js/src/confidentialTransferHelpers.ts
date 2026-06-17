@@ -1,4 +1,11 @@
 import {
+    RECORD_CHUNK_SIZE_POST_INITIALIZE,
+    RECORD_META_DATA_SIZE,
+    createCloseRecordInstruction,
+    createRecord,
+    createWriteInstruction,
+} from '@solana-program/record';
+import {
     closeContextStateProof,
     verifyBatchedGroupedCiphertext2HandlesValidity,
     verifyBatchedGroupedCiphertext3HandlesValidity,
@@ -9,13 +16,6 @@ import {
     verifyPercentageWithCap,
     verifyPubkeyValidity,
 } from '@solana-program/zk-elgamal-proof';
-import {
-    RECORD_CHUNK_SIZE_POST_INITIALIZE,
-    RECORD_META_DATA_SIZE,
-    createCloseRecordInstruction,
-    createRecord,
-    createWriteInstruction,
-} from '@solana-program/record';
 import {
     Address,
     Instruction,
@@ -1122,7 +1122,14 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
             input.payer,
             true,
         ),
-        buildContextStateProofPlan(rangeProofData.toBytes(), verifyBatchedRangeProofU256, input.payer, input.rpc, input.payer, true),
+        buildContextStateProofPlan(
+            rangeProofData.toBytes(),
+            verifyBatchedRangeProofU256,
+            input.payer,
+            input.rpc,
+            input.payer,
+            true,
+        ),
     ]);
 
     return sequentialInstructionPlan([
