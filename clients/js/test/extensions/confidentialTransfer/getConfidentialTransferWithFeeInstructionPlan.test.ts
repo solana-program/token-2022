@@ -140,12 +140,14 @@ it('transfers tokens confidentially with fees', async () => {
         mintAuthority,
         decimals,
         amount: 1000n,
+        includeConfidentialTransferFeeAmount: true,
     });
     const destination = await createConfidentialTokenAccount({
         client,
         payer,
         owner: destinationOwner,
         mint,
+        includeConfidentialTransferFeeAmount: true,
     });
 
     // When the source confidentially transfers 2.00 tokens with a 1.5% fee.

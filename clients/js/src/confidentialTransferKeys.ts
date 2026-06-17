@@ -8,6 +8,7 @@ import {
     type ReadonlyUint8Array,
 } from '@solana/kit';
 import { AeKey, ElGamalKeypair } from '@solana/zk-sdk/bundler';
+import * as ZkSdk from '@solana/zk-sdk/bundler';
 
 export type DerivedElGamalKeypair = Readonly<{
     elgamalPubkey: Address;
@@ -21,6 +22,29 @@ async function signDerivationMessage(signer: MessagePartialSigner, message: Uint
         throw new Error(`Signer ${signer.address} did not return a signature`);
     }
     return new Uint8Array(signature);
+}
+
+type ConfidentialKeysInstance = Readonly<{
+    ae(): AeKey;
+    elgamal(): ElGamalKeypair;
+}>;
+type ConfidentialKeysConstructor = Readonly<{
+    fromSignature(signature: Uint8Array): ConfidentialKeysInstance;
+    signerMessage(publicSeed: Uint8Array): Uint8Array;
+}>;
+type LegacyAeKeyConstructor = typeof AeKey &
+    Readonly<{
+        fromSignature?: (signature: Uint8Array) => AeKey;
+        signerMessage?: (publicSeed: Uint8Array) => Uint8Array;
+    }>;
+type LegacyElGamalKeypairConstructor = typeof ElGamalKeypair &
+    Readonly<{
+        fromSignature?: (signature: Uint8Array) => ElGamalKeypair;
+        signerMessage?: (publicSeed: Uint8Array) => Uint8Array;
+    }>;
+
+function getConfidentialKeysConstructor(): ConfidentialKeysConstructor | undefined {
+    return (ZkSdk as unknown as { ConfidentialKeys?: ConfidentialKeysConstructor }).ConfidentialKeys;
 }
 
 function ownerMintSeed(owner: Address, mint: Address): ReadonlyUint8Array {
@@ -38,9 +62,19 @@ export async function deriveElGamalKeypair({
     signer: MessagePartialSigner;
     publicSeed?: ReadonlyUint8Array;
 }): Promise<DerivedElGamalKeypair> {
-    const message = ElGamalKeypair.signerMessage(new Uint8Array(publicSeed));
+    const confidentialKeys = getConfidentialKeysConstructor();
+    const legacyElGamal = ElGamalKeypair as LegacyElGamalKeypairConstructor;
+    const message =
+        confidentialKeys?.signerMessage(new Uint8Array(publicSeed)) ??
+        legacyElGamal.signerMessage?.(new Uint8Array(publicSeed));
+    if (message == null) {
+        throw new Error('The installed @solana/zk-sdk does not expose confidential key derivation.');
+    }
     const signature = await signDerivationMessage(signer, message);
-    const keypair = ElGamalKeypair.fromSignature(signature);
+    const keypair = confidentialKeys?.fromSignature(signature).elgamal() ?? legacyElGamal.fromSignature?.(signature);
+    if (keypair == null) {
+        throw new Error('The installed @solana/zk-sdk does not expose ElGamal key derivation.');
+    }
     const secretKey = new Uint8Array(keypair.secret().toBytes());
     const elgamalPubkey = getAddressDecoder().decode(new Uint8Array(keypair.pubkey().toBytes()));
     return { elgamalPubkey, secretKey };
@@ -75,9 +109,19 @@ export async function deriveAeKey({
     signer: MessagePartialSigner;
     publicSeed?: ReadonlyUint8Array;
 }): Promise<Uint8Array> {
-    const message = AeKey.signerMessage(new Uint8Array(publicSeed));
+    const confidentialKeys = getConfidentialKeysConstructor();
+    const legacyAeKey = AeKey as LegacyAeKeyConstructor;
+    const message =
+        confidentialKeys?.signerMessage(new Uint8Array(publicSeed)) ??
+        legacyAeKey.signerMessage?.(new Uint8Array(publicSeed));
+    if (message == null) {
+        throw new Error('The installed @solana/zk-sdk does not expose confidential key derivation.');
+    }
     const signature = await signDerivationMessage(signer, message);
-    const aeKey = AeKey.fromSignature(signature);
+    const aeKey = confidentialKeys?.fromSignature(signature).ae() ?? legacyAeKey.fromSignature?.(signature);
+    if (aeKey == null) {
+        throw new Error('The installed @solana/zk-sdk does not expose AES key derivation.');
+    }
     return new Uint8Array(aeKey.toBytes());
 }
 
