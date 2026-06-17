@@ -33,6 +33,9 @@ use {
         signature::{Keypair, Signer},
     },
     solana_system_interface::program as system_program,
+    solana_zk_elgamal_proof_interface::proof_data::{
+        BatchedRangeProofContext, BatchedRangeProofU128Data, BatchedRangeProofU256Data,
+    },
     solana_zk_sdk::encryption::{
         auth_encryption::AeKey,
         derivation::derive_confidential_keys,
@@ -72,7 +75,8 @@ use {
         },
     },
     spl_token_confidential_transfer_proof_generation::{
-        transfer::TransferProofData, withdraw::WithdrawProofData,
+        transfer::TransferProofData, transfer_with_fee::TransferWithFeeProofData,
+        withdraw::WithdrawProofData,
     },
     spl_token_group_interface::state::TokenGroup,
     spl_token_metadata_interface::state::{Field, TokenMetadata},
@@ -1701,14 +1705,11 @@ async fn command_transfer(
             let create_ciphertext_validity_proof_context_signer =
                 &[&ciphertext_validity_proof_context_state_account];
 
+            // Upload the range proof using record account in chunks
+            let range_proof_record_account = Keypair::new();
+            let range_proof_record_pubkey = range_proof_record_account.pubkey();
+
             let _ = try_join!(
-                token.confidential_transfer_create_context_state_account(
-                    &range_proof_pubkey,
-                    &context_state_authority_pubkey,
-                    &range_proof_data,
-                    true,
-                    create_range_proof_context_signer
-                ),
                 token.confidential_transfer_create_context_state_account(
                     &equality_proof_pubkey,
                     &context_state_authority_pubkey,
@@ -1722,7 +1723,31 @@ async fn command_transfer(
                     &ciphertext_validity_proof_data_with_ciphertext.proof_data,
                     false,
                     create_ciphertext_validity_proof_context_signer
-                )
+                ),
+                // Range proof too large, so we must explicitly send them in chunks
+                async {
+                    token
+                        .confidential_transfer_create_record_account(
+                            &range_proof_record_pubkey,
+                            &context_state_authority_pubkey,
+                            &range_proof_data,
+                            &range_proof_record_account,
+                            &context_state_authority,
+                        )
+                        .await?;
+
+                    token.confidential_transfer_create_context_state_account_from_record::<
+                        _,
+                        BatchedRangeProofU128Data,
+                        BatchedRangeProofContext,
+                    >(
+                        &range_proof_pubkey,
+                        &context_state_authority_pubkey,
+                        &range_proof_record_pubkey,
+                        create_range_proof_context_signer,
+                    )
+                    .await
+                }
             )?;
 
             // do the transfer
@@ -1775,8 +1800,233 @@ async fn command_transfer(
 
             transfer_result
         }
-        (None, Some(_), Some(_)) => {
-            panic!("Confidential transfer with fee is not yet supported.");
+        (None, Some(_), Some(args)) => {
+            let recipient_elgamal_pubkey: elgamal::ElGamalPubkey = recipient_elgamal_pubkey
+                .unwrap()
+                .try_into()
+                .expect("Invalid recipient ElGamalPubkey");
+            let auditor_elgamal_pubkey = auditor_elgamal_pubkey.map(|pubkey| {
+                let auditor_elgamal_pubkey: elgamal::ElGamalPubkey =
+                    pubkey.try_into().expect("Invalid auditor ElGamal pubkey");
+                auditor_elgamal_pubkey
+            });
+
+            // Fetch mint state to extract the active fee configurations
+            let mint_account = config.get_account_checked(&token_pubkey).await?;
+            let mint_state = StateWithExtensionsOwned::<Mint>::unpack(mint_account.data)
+                .map_err(|_| format!("Could not deserialize token mint {}", token_pubkey))?;
+
+            let transfer_fee_config = mint_state
+                .get_extension::<TransferFeeConfig>()
+                .map_err(|_| "Mint does not support transfer fees")?;
+
+            let epoch_info = config.rpc_client.get_epoch_info().await?;
+            let transfer_fee = transfer_fee_config.get_epoch_fee(epoch_info.epoch);
+
+            let confidential_transfer_fee_config = mint_state
+                .get_extension::<ConfidentialTransferFeeConfig>()
+                .map_err(|_| "Mint does not support confidential transfer fees")?;
+
+            let withdraw_withheld_authority_elgamal_pubkey: elgamal::ElGamalPubkey =
+                confidential_transfer_fee_config
+                    .withdraw_withheld_authority_elgamal_pubkey
+                    .try_into()
+                    .expect("Invalid withdraw withheld authority ElGamal pubkey");
+
+            // Prepare context state accounts for the five proofs
+            let context_state_authority = config.fee_payer()?;
+            let context_state_authority_pubkey = context_state_authority.pubkey();
+
+            let equality_proof_context_state_account = Keypair::new();
+            let equality_proof_pubkey = equality_proof_context_state_account.pubkey();
+
+            let ciphertext_validity_proof_context_state_account = Keypair::new();
+            let ciphertext_validity_proof_pubkey =
+                ciphertext_validity_proof_context_state_account.pubkey();
+
+            let percentage_with_cap_proof_context_state_account = Keypair::new();
+            let percentage_with_cap_proof_pubkey =
+                percentage_with_cap_proof_context_state_account.pubkey();
+
+            let fee_ciphertext_validity_proof_context_state_account = Keypair::new();
+            let fee_ciphertext_validity_proof_pubkey =
+                fee_ciphertext_validity_proof_context_state_account.pubkey();
+
+            let range_proof_context_state_account = Keypair::new();
+            let range_proof_pubkey = range_proof_context_state_account.pubkey();
+
+            // Generate the split proofs
+            let state = token.get_account_info(&sender).await.unwrap();
+            let extension = state
+                .get_extension::<ConfidentialTransferAccount>()
+                .unwrap();
+            let transfer_account_info = TransferAccountInfo::new(extension);
+
+            let TransferWithFeeProofData {
+                equality_proof_data,
+                transfer_amount_ciphertext_validity_proof_data_with_ciphertext,
+                percentage_with_cap_proof_data,
+                fee_ciphertext_validity_proof_data,
+                range_proof_data,
+            } = transfer_account_info
+                .generate_split_transfer_with_fee_proof_data(
+                    transfer_balance,
+                    &args.sender_elgamal_keypair,
+                    &args.sender_aes_key,
+                    &recipient_elgamal_pubkey,
+                    auditor_elgamal_pubkey.as_ref(),
+                    &withdraw_withheld_authority_elgamal_pubkey,
+                    u16::from(transfer_fee.transfer_fee_basis_points),
+                    u64::from(transfer_fee.maximum_fee),
+                )
+                .unwrap();
+
+            let transfer_amount_auditor_ciphertext_lo =
+                transfer_amount_ciphertext_validity_proof_data_with_ciphertext.ciphertext_lo;
+            let transfer_amount_auditor_ciphertext_hi =
+                transfer_amount_ciphertext_validity_proof_data_with_ciphertext.ciphertext_hi;
+
+            // Initialize the proof context state accounts
+            let create_equality_proof_context_signer = &[&equality_proof_context_state_account];
+            let create_ciphertext_validity_proof_context_signer =
+                &[&ciphertext_validity_proof_context_state_account];
+            let create_percentage_with_cap_proof_context_signer =
+                &[&percentage_with_cap_proof_context_state_account];
+            let create_fee_ciphertext_validity_proof_context_signer =
+                &[&fee_ciphertext_validity_proof_context_state_account];
+            let create_range_proof_context_signer = &[&range_proof_context_state_account];
+
+            // Upload the range proof using record account in chunks
+            let range_proof_record_account = Keypair::new();
+            let range_proof_record_pubkey = range_proof_record_account.pubkey();
+
+            let _ = try_join!(
+                token.confidential_transfer_create_context_state_account(
+                    &equality_proof_pubkey,
+                    &context_state_authority_pubkey,
+                    &equality_proof_data,
+                    false,
+                    create_equality_proof_context_signer
+                ),
+                token.confidential_transfer_create_context_state_account(
+                    &ciphertext_validity_proof_pubkey,
+                    &context_state_authority_pubkey,
+                    &transfer_amount_ciphertext_validity_proof_data_with_ciphertext.proof_data,
+                    false,
+                    create_ciphertext_validity_proof_context_signer
+                ),
+                token.confidential_transfer_create_context_state_account(
+                    &percentage_with_cap_proof_pubkey,
+                    &context_state_authority_pubkey,
+                    &percentage_with_cap_proof_data,
+                    false,
+                    create_percentage_with_cap_proof_context_signer
+                ),
+                token.confidential_transfer_create_context_state_account(
+                    &fee_ciphertext_validity_proof_pubkey,
+                    &context_state_authority_pubkey,
+                    &fee_ciphertext_validity_proof_data,
+                    false,
+                    create_fee_ciphertext_validity_proof_context_signer
+                ),
+                // Range proof too large, so we must explicitly send them in chunks
+                async {
+                    token
+                        .confidential_transfer_create_record_account(
+                            &range_proof_record_pubkey,
+                            &context_state_authority_pubkey,
+                            &range_proof_data,
+                            &range_proof_record_account,
+                            &context_state_authority,
+                        )
+                        .await?;
+
+                    token.confidential_transfer_create_context_state_account_from_record::<
+                        _,
+                        BatchedRangeProofU256Data,
+                        BatchedRangeProofContext,
+                    >(
+                        &range_proof_pubkey,
+                        &context_state_authority_pubkey,
+                        &range_proof_record_pubkey,
+                        create_range_proof_context_signer,
+                    )
+                    .await
+                }
+            )?;
+
+            // Execute the actual transfer
+            let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
+                context_state_account: ciphertext_validity_proof_pubkey,
+                ciphertext_lo: transfer_amount_auditor_ciphertext_lo,
+                ciphertext_hi: transfer_amount_auditor_ciphertext_hi,
+            };
+
+            let transfer_result = token
+                .confidential_transfer_transfer_with_fee(
+                    &sender,
+                    &recipient_token_account,
+                    &sender_owner,
+                    Some(&equality_proof_pubkey),
+                    Some(&ciphertext_validity_proof_account_with_ciphertext),
+                    Some(&percentage_with_cap_proof_pubkey),
+                    Some(&fee_ciphertext_validity_proof_pubkey),
+                    Some(&range_proof_pubkey),
+                    transfer_balance,
+                    Some(transfer_account_info),
+                    &args.sender_elgamal_keypair,
+                    &args.sender_aes_key,
+                    &recipient_elgamal_pubkey,
+                    auditor_elgamal_pubkey.as_ref(),
+                    &withdraw_withheld_authority_elgamal_pubkey,
+                    u16::from(transfer_fee.transfer_fee_basis_points),
+                    u64::from(transfer_fee.maximum_fee),
+                    &bulk_signers,
+                )
+                .await?;
+
+            // Cleanup the context state accounts to recover SOL
+            let close_context_state_signer = &[&context_state_authority];
+            let _ = try_join!(
+                token.confidential_transfer_close_context_state_account(
+                    &equality_proof_pubkey,
+                    &sender,
+                    &context_state_authority_pubkey,
+                    close_context_state_signer
+                ),
+                token.confidential_transfer_close_context_state_account(
+                    &ciphertext_validity_proof_pubkey,
+                    &sender,
+                    &context_state_authority_pubkey,
+                    close_context_state_signer
+                ),
+                token.confidential_transfer_close_context_state_account(
+                    &percentage_with_cap_proof_pubkey,
+                    &sender,
+                    &context_state_authority_pubkey,
+                    close_context_state_signer
+                ),
+                token.confidential_transfer_close_context_state_account(
+                    &fee_ciphertext_validity_proof_pubkey,
+                    &sender,
+                    &context_state_authority_pubkey,
+                    close_context_state_signer
+                ),
+                token.confidential_transfer_close_context_state_account(
+                    &range_proof_pubkey,
+                    &sender,
+                    &context_state_authority_pubkey,
+                    close_context_state_signer
+                ),
+                token.confidential_transfer_close_record_account(
+                    &range_proof_record_pubkey,
+                    &sender,
+                    &context_state_authority_pubkey,
+                    close_context_state_signer
+                ),
+            )?;
+
+            transfer_result
         }
         (None, None, None) => {
             token
