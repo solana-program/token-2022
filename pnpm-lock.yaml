@@ -9,8 +9,8 @@ importers:
   .:
     devDependencies:
       '@codama/renderers-js':
-        specifier: ^2.2.0
-        version: 2.2.0(typescript@5.9.3)
+        specifier: ^2.3.0
+        version: 2.3.0(typescript@5.9.3)
       '@codama/renderers-rust':
         specifier: ^3.1.0
         version: 3.1.0(typescript@5.9.3)
@@ -38,6 +38,9 @@ packages:
   '@codama/fragments@0.1.0':
     resolution: {integrity: sha512-rWnSKw4UA9LS7mMQyzKnR1woibVEYrYgp66+i+JB+O1lnvU/i/KCH4TmoV+S6Y3ADL2WyznrwfDA3rBET6U5Cg==}
 
+  '@codama/fragments@0.1.1':
+    resolution: {integrity: sha512-+DeC2YklyYf+qjRkoTKeG6HFgwsW7hiQko7er18dgsxF15M316EwYL2W40nKDPWlEhB/iME+sZR5++VQPUO/6w==}
+
   '@codama/node-types@1.7.0':
     resolution: {integrity: sha512-VDytcSgN6jOGEh4aJ1LgSnqCe1drSEUSdAeKOV92aU0MOYiDi2s2B18+Gx7dx40mex2GfVc3zamu7KGzTlxegA==}
 
@@ -53,8 +56,11 @@ packages:
   '@codama/renderers-core@1.3.8':
     resolution: {integrity: sha512-xy9Qb5BLYTi1OyvlRhRD7n0HUevOQ3QcHSPq9N3kqoUOgL2ziXPXvoejzzLC0OkvA16M7WvK3ihNx/nf4UEClQ==}
 
-  '@codama/renderers-js@2.2.0':
-    resolution: {integrity: sha512-/GWVnB329kMkeqlOqX+NWQAmd1k6yybVOp7C5X+LEvrZ2A5w1saQwWFbBMCq/EQPqnFU+CRFoG/+7KubAEa73Q==}
+  '@codama/renderers-core@1.3.9':
+    resolution: {integrity: sha512-DwMxltM+cldAK+rgtE3jVOmrGZuP7fA/ZLu6vgrsQYBp5dkOXCyiGBdpAz0VlhxaN4lB5TzT2Ia+EVv5G4YdGQ==}
+
+  '@codama/renderers-js@2.3.0':
+    resolution: {integrity: sha512-PSvoLATBx7EomzZgCXegPTn5TxaFjA+NIraNUx22vNZ6rxPxu5Tctq8KxeXaaPCnKLpBUKcwmhUPRO4QLNQlvg==}
     engines: {node: '>=20.18.0'}
 
   '@codama/renderers-rust@3.1.0':
@@ -284,6 +290,10 @@ snapshots:
     dependencies:
       '@codama/errors': 1.7.0
 
+  '@codama/fragments@0.1.1':
+    dependencies:
+      '@codama/errors': 1.8.0
+
   '@codama/node-types@1.7.0': {}
 
   '@codama/node-types@1.8.0': {}
@@ -305,12 +315,19 @@ snapshots:
       '@codama/nodes': 1.7.0
       '@codama/visitors-core': 1.7.0
 
-  '@codama/renderers-js@2.2.0(typescript@5.9.3)':
+  '@codama/renderers-core@1.3.9':
     dependencies:
-      '@codama/errors': 1.7.0
-      '@codama/nodes': 1.7.0
-      '@codama/renderers-core': 1.3.8
-      '@codama/visitors-core': 1.7.0
+      '@codama/errors': 1.8.0
+      '@codama/fragments': 0.1.1
+      '@codama/nodes': 1.8.0
+      '@codama/visitors-core': 1.8.0
+
+  '@codama/renderers-js@2.3.0(typescript@5.9.3)':
+    dependencies:
+      '@codama/errors': 1.8.0
+      '@codama/nodes': 1.8.0
+      '@codama/renderers-core': 1.3.9
+      '@codama/visitors-core': 1.8.0
       '@solana/codecs-strings': 6.9.0(typescript@5.9.3)
       prettier: 3.8.4
       semver: 7.8.4

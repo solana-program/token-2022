@@ -55,7 +55,7 @@
     "devDependencies": {
         "@solana-config/oxc": "^0.1.1",
         "@solana-program/system": "^0.12.0",
-        "@solana/kit": "^6.4.0",
+        "@solana/kit": "^6.10.0",
         "@solana/kit-plugin-instruction-plan": "^0.10.0",
         "@solana/kit-plugin-litesvm": "^0.10.0",
         "@solana/kit-plugin-rpc": "^0.11.1",
@@ -72,7 +72,7 @@
         "vitest": "^4.1.8"
     },
     "peerDependencies": {
-        "@solana/kit": "^6.4.0",
+        "@solana/kit": "^6.10.0",
         "@solana/sysvars": "^5.0",
         "@solana/zk-sdk": "^0.4.2"
     },

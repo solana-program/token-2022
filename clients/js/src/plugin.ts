@@ -1,4 +1,4 @@
-import { ClientWithPayer, pipe } from '@solana/kit';
+import { ClientWithPayer, extendClient, pipe } from '@solana/kit';
 import { addSelfPlanAndSendFunctions, SelfPlanAndSendFunctions } from '@solana/kit/program-client-core';
 
 import { getBatchInstruction } from './batch';
@@ -66,38 +66,43 @@ export type Token2022PluginInstructions = Omit<GeneratedToken2022PluginInstructi
 
 export function token2022Program() {
     return <T extends Token2022PluginRequirements>(client: T) => {
-        return pipe(client, generatedToken2022Program(), c => ({
-            ...c,
-            token2022: <Token2022Plugin>{
-                ...c.token2022,
-                instructions: {
-                    ...c.token2022.instructions,
-                    batch: (input, config) => addSelfPlanAndSendFunctions(client, getBatchInstruction(input, config)),
-                    createMint: (input, config) =>
-                        addSelfPlanAndSendFunctions(
-                            client,
-                            getCreateMintInstructionPlan({ ...input, payer: input.payer ?? client.payer }, config),
-                        ),
-                    createToken: (input, config) =>
-                        addSelfPlanAndSendFunctions(
-                            client,
-                            getCreateTokenInstructionPlan({ ...input, payer: input.payer ?? client.payer }, config),
-                        ),
-                    mintToATA: (input, config) =>
-                        addSelfPlanAndSendFunctions(
-                            client,
-                            getMintToATAInstructionPlanAsync({ ...input, payer: input.payer ?? client.payer }, config),
-                        ),
-                    transferToATA: (input, config) =>
-                        addSelfPlanAndSendFunctions(
-                            client,
-                            getTransferToATAInstructionPlanAsync(
-                                { ...input, payer: input.payer ?? client.payer },
-                                config,
+        return pipe(client, generatedToken2022Program(), c =>
+            extendClient(c, {
+                token2022: <Token2022Plugin>{
+                    ...c.token2022,
+                    instructions: {
+                        ...c.token2022.instructions,
+                        batch: (input, config) =>
+                            addSelfPlanAndSendFunctions(client, getBatchInstruction(input, config)),
+                        createMint: (input, config) =>
+                            addSelfPlanAndSendFunctions(
+                                client,
+                                getCreateMintInstructionPlan({ ...input, payer: input.payer ?? client.payer }, config),
                             ),
-                        ),
+                        createToken: (input, config) =>
+                            addSelfPlanAndSendFunctions(
+                                client,
+                                getCreateTokenInstructionPlan({ ...input, payer: input.payer ?? client.payer }, config),
+                            ),
+                        mintToATA: (input, config) =>
+                            addSelfPlanAndSendFunctions(
+                                client,
+                                getMintToATAInstructionPlanAsync(
+                                    { ...input, payer: input.payer ?? client.payer },
+                                    config,
+                                ),
+                            ),
+                        transferToATA: (input, config) =>
+                            addSelfPlanAndSendFunctions(
+                                client,
+                                getTransferToATAInstructionPlanAsync(
+                                    { ...input, payer: input.payer ?? client.payer },
+                                    config,
+                                ),
+                            ),
+                    },
                 },
-            },
-        }));
+            }),
+        );
     };
 }
