@@ -34,7 +34,7 @@ use {
     },
     solana_system_interface::program as system_program,
     solana_zk_elgamal_proof_interface::proof_data::{
-        BatchedRangeProofContext, BatchedRangeProofU256Data,
+        BatchedRangeProofContext, BatchedRangeProofU128Data, BatchedRangeProofU256Data,
     },
     solana_zk_sdk::encryption::{
         auth_encryption::AeKey,
@@ -1705,14 +1705,11 @@ async fn command_transfer(
             let create_ciphertext_validity_proof_context_signer =
                 &[&ciphertext_validity_proof_context_state_account];
 
+            // Upload the range proof using record account in chunks
+            let range_proof_record_account = Keypair::new();
+            let range_proof_record_pubkey = range_proof_record_account.pubkey();
+
             let _ = try_join!(
-                token.confidential_transfer_create_context_state_account(
-                    &range_proof_pubkey,
-                    &context_state_authority_pubkey,
-                    &range_proof_data,
-                    true,
-                    create_range_proof_context_signer
-                ),
                 token.confidential_transfer_create_context_state_account(
                     &equality_proof_pubkey,
                     &context_state_authority_pubkey,
@@ -1726,7 +1723,31 @@ async fn command_transfer(
                     &ciphertext_validity_proof_data_with_ciphertext.proof_data,
                     false,
                     create_ciphertext_validity_proof_context_signer
-                )
+                ),
+                // Range proof too large, so we must explicitly send them in chunks
+                async {
+                    token
+                        .confidential_transfer_create_record_account(
+                            &range_proof_record_pubkey,
+                            &context_state_authority_pubkey,
+                            &range_proof_data,
+                            &range_proof_record_account,
+                            &context_state_authority,
+                        )
+                        .await?;
+
+                    token.confidential_transfer_create_context_state_account_from_record::<
+                        _,
+                        BatchedRangeProofU128Data,
+                        BatchedRangeProofContext,
+                    >(
+                        &range_proof_pubkey,
+                        &context_state_authority_pubkey,
+                        &range_proof_record_pubkey,
+                        create_range_proof_context_signer,
+                    )
+                    .await
+                }
             )?;
 
             // do the transfer
@@ -1875,6 +1896,10 @@ async fn command_transfer(
                 &[&fee_ciphertext_validity_proof_context_state_account];
             let create_range_proof_context_signer = &[&range_proof_context_state_account];
 
+            // Upload the range proof using record account in chunks
+            let range_proof_record_account = Keypair::new();
+            let range_proof_record_pubkey = range_proof_record_account.pubkey();
+
             let _ = try_join!(
                 token.confidential_transfer_create_context_state_account(
                     &equality_proof_pubkey,
@@ -1905,34 +1930,30 @@ async fn command_transfer(
                     create_fee_ciphertext_validity_proof_context_signer
                 ),
                 // Range proof too large, so we must explicitly send them in chunks
+                async {
+                    token
+                        .confidential_transfer_create_record_account(
+                            &range_proof_record_pubkey,
+                            &context_state_authority_pubkey,
+                            &range_proof_data,
+                            &range_proof_record_account,
+                            &context_state_authority,
+                        )
+                        .await?;
+
+                    token.confidential_transfer_create_context_state_account_from_record::<
+                        _,
+                        BatchedRangeProofU256Data,
+                        BatchedRangeProofContext,
+                    >(
+                        &range_proof_pubkey,
+                        &context_state_authority_pubkey,
+                        &range_proof_record_pubkey,
+                        create_range_proof_context_signer,
+                    )
+                    .await
+                }
             )?;
-
-            // Upload the range proof using record account in chunks
-            let range_proof_record_account = Keypair::new();
-            let range_proof_record_pubkey = range_proof_record_account.pubkey();
-
-            token
-                .confidential_transfer_create_record_account(
-                    &range_proof_record_pubkey,
-                    &context_state_authority_pubkey,
-                    &range_proof_data,
-                    &range_proof_record_account,
-                    &context_state_authority,
-                )
-                .await?;
-
-            token
-                .confidential_transfer_create_context_state_account_from_record::<
-                    _,
-                    BatchedRangeProofU256Data,
-                    BatchedRangeProofContext,
-                >(
-                    &range_proof_pubkey,
-                    &context_state_authority_pubkey,
-                    &range_proof_record_pubkey,
-                    create_range_proof_context_signer,
-                )
-                .await?;
 
             // Execute the actual transfer
             let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
