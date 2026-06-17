@@ -32,6 +32,10 @@ use {
         check_program_account,
         error::TokenError,
         extension::{
+            account_len::{
+                try_calculate_account_len_from_mint_data,
+                try_for_each_required_init_account_extension,
+            },
             confidential_mint_burn::ConfidentialMintBurn,
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
             confidential_transfer_fee::{
@@ -53,7 +57,7 @@ use {
             scaled_ui_amount::ScaledUiAmountConfig,
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::{TransferHook, TransferHookAccount},
-            AccountType, BaseStateWithExtensions, BaseStateWithExtensionsMut, ExtensionType,
+            BaseStateWithExtensions, BaseStateWithExtensionsMut, ExtensionType,
             PodStateWithExtensions, PodStateWithExtensionsMut,
         },
         inline_spl_token,
@@ -63,7 +67,7 @@ use {
         },
         native_mint,
         pod::{PodAccount, PodCOption, PodMint, PodMultisig},
-        state::{Account, AccountState, Mint, PackedSizeOf},
+        state::{AccountState, Mint, PackedSizeOf},
     },
     spl_token_group_interface::instruction::TokenGroupInstruction,
     spl_token_metadata_interface::instruction::TokenMetadataInstruction,
@@ -195,7 +199,6 @@ impl Processor {
             return Err(TokenError::NotRentExempt.into());
         }
 
-        // get_required_account_extensions checks mint validity
         let mint_data = mint_info.data.borrow();
         let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)
             .map_err(|_| Into::<ProgramError>::into(TokenError::InvalidMint))?;
@@ -206,16 +209,20 @@ impl Processor {
         {
             msg!("Warning: Mint has a permanent delegate, so tokens in this account may be seized at any time");
         }
-        let required_extensions =
-            Self::get_required_account_extensions_from_unpacked_mint(mint_info.owner, &mint)?;
-        if ExtensionType::try_calculate_account_len::<Account>(&required_extensions)?
-            > new_account_info_data_len
-        {
+
+        check_program_account(mint_info.owner)?;
+
+        // Sizing walks every TLV entry, which also validates the extension data. It is only a
+        // lower bound since it skips extensions already initialized on the account (e.g.
+        // `ImmutableOwner`), but each init call below still verifies the space for its own write.
+        // Passing the initialized types as `additional_account_extensions` would make it exact.
+        let required_account_len = try_calculate_account_len_from_mint_data(&mint_data, &[])?;
+        if required_account_len > new_account_info_data_len {
             return Err(ProgramError::InvalidAccountData);
         }
-        for extension in required_extensions {
-            account.init_account_extension_from_type(extension)?;
-        }
+        try_for_each_required_init_account_extension(mint.get_tlv_data(), |extension_type| {
+            account.init_account_extension_from_type(extension_type)
+        })?;
 
         let starting_state =
             if let Ok(default_account_state) = mint.get_extension::<DefaultAccountState>() {
@@ -1506,24 +1513,14 @@ impl Processor {
         accounts: &[AccountInfo],
         new_extension_types: &[ExtensionType],
     ) -> ProgramResult {
-        if new_extension_types
-            .iter()
-            .any(|&t| t.get_account_type() != AccountType::Account)
-        {
-            return Err(TokenError::ExtensionTypeMismatch.into());
-        }
-
         let account_info_iter = &mut accounts.iter();
         let mint_account_info = next_account_info(account_info_iter)?;
 
         check_program_account(mint_account_info.owner)?;
 
-        let mut account_extensions = Self::get_required_account_extensions(mint_account_info)?;
-        // ExtensionType::try_calculate_account_len() dedupes types, so just a dumb
-        // concatenation is fine here
-        account_extensions.extend_from_slice(new_extension_types);
-
-        let account_len = ExtensionType::try_calculate_account_len::<Account>(&account_extensions)?;
+        let mint_data = mint_account_info.data.borrow();
+        let account_len =
+            try_calculate_account_len_from_mint_data(&mint_data, new_extension_types)?;
         set_return_data(&account_len.to_le_bytes());
 
         Ok(())
@@ -2290,26 +2287,6 @@ impl Processor {
         }
         Ok(())
     }
-
-    fn get_required_account_extensions(
-        mint_account_info: &AccountInfo,
-    ) -> Result<Vec<ExtensionType>, ProgramError> {
-        let mint_data = mint_account_info.data.borrow();
-        let state = PodStateWithExtensions::<PodMint>::unpack(&mint_data)
-            .map_err(|_| Into::<ProgramError>::into(TokenError::InvalidMint))?;
-        Self::get_required_account_extensions_from_unpacked_mint(mint_account_info.owner, &state)
-    }
-
-    fn get_required_account_extensions_from_unpacked_mint(
-        token_program_id: &Address,
-        state: &PodStateWithExtensions<PodMint>,
-    ) -> Result<Vec<ExtensionType>, ProgramError> {
-        check_program_account(token_program_id)?;
-        let mint_extensions = state.get_extension_types()?;
-        Ok(ExtensionType::get_required_init_account_extensions(
-            &mint_extensions,
-        ))
-    }
 }
 
 /// Helper function to mostly delete an account in a test environment.  We could
@@ -2353,7 +2330,7 @@ mod tests {
                 ExtensionType,
             },
             instruction::*,
-            state::Multisig,
+            state::{Account, Multisig},
         },
         std::sync::{Arc, RwLock},
     };
