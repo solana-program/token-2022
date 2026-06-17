@@ -18,6 +18,7 @@ import {
     type ClientWithPayer,
     type ClientWithTransactionPlanning,
     type ClientWithTransactionSending,
+    type ExtendedClient,
     type Instruction,
     type InstructionWithData,
     type ReadonlyUint8Array,
@@ -115,6 +116,8 @@ export function parseAssociatedTokenInstruction<TProgram extends string>(
 export type AssociatedTokenPlugin = {
     instructions: AssociatedTokenPluginInstructions;
     pdas: AssociatedTokenPluginPdas;
+    identifyInstruction: typeof identifyAssociatedTokenInstruction;
+    parseInstruction: typeof parseAssociatedTokenInstruction;
 };
 
 export type AssociatedTokenPluginInstructions = {
@@ -138,7 +141,7 @@ export type AssociatedTokenPluginRequirements = ClientWithPayer &
 export function associatedTokenProgram() {
     return <T extends AssociatedTokenPluginRequirements>(
         client: T,
-    ): Omit<T, 'associatedToken'> & { associatedToken: AssociatedTokenPlugin } => {
+    ): ExtendedClient<T, { associatedToken: AssociatedTokenPlugin }> => {
         return extendClient(client, {
             associatedToken: <AssociatedTokenPlugin>{
                 instructions: {
@@ -159,6 +162,8 @@ export function associatedTokenProgram() {
                         addSelfPlanAndSendFunctions(client, getRecoverNestedAssociatedTokenInstructionAsync(input)),
                 },
                 pdas: { associatedToken: findAssociatedTokenPda },
+                identifyInstruction: identifyAssociatedTokenInstruction,
+                parseInstruction: parseAssociatedTokenInstruction,
             },
         });
     };

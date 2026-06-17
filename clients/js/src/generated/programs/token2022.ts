@@ -19,6 +19,7 @@ import {
     type ClientWithRpc,
     type ClientWithTransactionPlanning,
     type ClientWithTransactionSending,
+    type ExtendedClient,
     type GetAccountInfoApi,
     type GetMultipleAccountsApi,
     type Instruction,
@@ -1762,7 +1763,13 @@ export function parseToken2022Instruction<TProgram extends string>(
     }
 }
 
-export type Token2022Plugin = { accounts: Token2022PluginAccounts; instructions: Token2022PluginInstructions };
+export type Token2022Plugin = {
+    accounts: Token2022PluginAccounts;
+    instructions: Token2022PluginInstructions;
+    identifyAccount: typeof identifyToken2022Account;
+    identifyInstruction: typeof identifyToken2022Instruction;
+    parseInstruction: typeof parseToken2022Instruction;
+};
 
 export type Token2022PluginAccounts = {
     mint: ReturnType<typeof getMintCodec> & SelfFetchFunctions<MintArgs, Mint>;
@@ -2057,9 +2064,7 @@ export type Token2022PluginRequirements = ClientWithRpc<GetAccountInfoApi & GetM
     ClientWithTransactionSending;
 
 export function token2022Program() {
-    return <T extends Token2022PluginRequirements>(
-        client: T,
-    ): Omit<T, 'token2022'> & { token2022: Token2022Plugin } => {
+    return <T extends Token2022PluginRequirements>(client: T): ExtendedClient<T, { token2022: Token2022Plugin }> => {
         return extendClient(client, {
             token2022: <Token2022Plugin>{
                 accounts: {
@@ -2260,6 +2265,9 @@ export function token2022Program() {
                         addSelfPlanAndSendFunctions(client, getPermissionedConfidentialBurnInstruction(input)),
                     batch: input => addSelfPlanAndSendFunctions(client, getBatchInstruction(input)),
                 },
+                identifyAccount: identifyToken2022Account,
+                identifyInstruction: identifyToken2022Instruction,
+                parseInstruction: parseToken2022Instruction,
             },
         });
     };
