@@ -1567,7 +1567,8 @@ pub fn app<'a>(
                     Arg::with_name("confidential")
                     .long("confidential")
                     .takes_value(false)
-                    .help("Burn tokens confidentially."),
+                    .help("Burn tokens confidentially. Required for \
+                            offline signing on confidential mints."),
                 )
                 .arg(multisig_signer_arg())
                 .mint_args()
@@ -1632,7 +1633,8 @@ pub fn app<'a>(
                     Arg::with_name("confidential")
                         .long("confidential")
                         .takes_value(false)
-                        .help("Mint tokens confidentially."),
+                        .help("Mint tokens confidentially. Required for \
+                            offline signing on confidential mints."),
                 )
                 .arg(mint_decimals_arg())
                 .arg(multisig_signer_arg())

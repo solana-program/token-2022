@@ -18,7 +18,10 @@ use {
     },
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     spl_token_2022_interface::{
-        extension::StateWithExtensionsOwned,
+        extension::{
+            confidential_mint_burn::ConfidentialMintBurn, BaseStateWithExtensions,
+            StateWithExtensionsOwned,
+        },
         state::{Account, Mint},
     },
     spl_token_client::{
@@ -67,6 +70,7 @@ pub(crate) struct MintInfo {
     pub program_id: Pubkey,
     pub address: Pubkey,
     pub decimals: u8,
+    pub has_confidential_mint_burn: bool,
 }
 
 const DEFAULT_RPC_TIMEOUT: Duration = Duration::from_secs(30);
@@ -525,6 +529,7 @@ impl<'a> Config<'a> {
                 program_id: self.program_id,
                 address: *mint,
                 decimals: mint_decimals.unwrap_or_default(),
+                has_confidential_mint_burn: false,
             })
         } else {
             let account = self.get_account_checked(mint).await?;
@@ -539,10 +544,15 @@ impl<'a> Config<'a> {
                     .into());
                 }
             }
+
+            let has_confidential_mint_burn =
+                mint_account.get_extension::<ConfidentialMintBurn>().is_ok();
+
             Ok(MintInfo {
                 program_id: account.owner,
                 address: *mint,
                 decimals: mint_account.base.decimals,
+                has_confidential_mint_burn,
             })
         }
     }

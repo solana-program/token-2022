@@ -2081,7 +2081,7 @@ async fn command_burn(
     permissioned_burn_authority: Option<Pubkey>,
     memo: Option<String>,
     bulk_signers: BulkSigners,
-    confidential_burn_args: Option<(ElGamalKeypair, AeKey)>,
+    confidential: bool,
 ) -> CommandResult {
     let mint_address = config.check_account(&account, mint_address).await?;
     let mint_info = config.get_mint_info(&mint_address, mint_decimals).await?;
@@ -2092,6 +2092,21 @@ async fn command_burn(
     };
 
     let token = token_client_from_config(config, &mint_info.address, decimals)?;
+
+    let use_confidential = confidential || mint_info.has_confidential_mint_burn;
+
+    if use_confidential && config.sign_only && !confidential {
+        return Err("Confidential mints require the --confidential \
+            flag for offline signing"
+            .to_string()
+            .into());
+    }
+
+    let confidential_burn_args = if use_confidential {
+        Some(derive_confidential_keys(config.default_signer()?.as_ref(), b"").unwrap())
+    } else {
+        None
+    };
 
     let amount = match ui_amount {
         Amount::Raw(ui_amount) => ui_amount,
@@ -2194,6 +2209,10 @@ async fn command_burn(
             &[&ciphertext_validity_proof_context_state_account];
         let create_range_proof_context_signer = &[&range_proof_context_state_account];
 
+        // Upload range proof via record account
+        let range_proof_record_account = Keypair::new();
+        let range_proof_record_pubkey = range_proof_record_account.pubkey();
+
         let _ = try_join!(
             token.confidential_transfer_create_context_state_account(
                 &equality_proof_pubkey,
@@ -2208,29 +2227,27 @@ async fn command_burn(
                 &ciphertext_validity_proof_data_with_ciphertext.proof_data,
                 false,
                 create_ciphertext_validity_proof_context_signer
-            )
+            ),
+            // Range proof too large, so we must explicitly send them in chunks
+            async {
+                token
+                    .confidential_transfer_create_record_account(
+                        &range_proof_record_pubkey,
+                        &context_state_authority_pubkey,
+                        &range_proof_data,
+                        &range_proof_record_account,
+                        &context_state_authority,
+                    )
+                    .await?;
+
+                token.confidential_transfer_create_context_state_account_from_record::<_, BatchedRangeProofU128Data, BatchedRangeProofContext>(
+                    &range_proof_pubkey,
+                    &context_state_authority_pubkey,
+                    &range_proof_record_pubkey,
+                    create_range_proof_context_signer,
+                ).await
+            }
         )?;
-
-        // Upload range proof via record account
-        let range_proof_record_account = Keypair::new();
-        let range_proof_record_pubkey = range_proof_record_account.pubkey();
-
-        token
-            .confidential_transfer_create_record_account(
-                &range_proof_record_pubkey,
-                &context_state_authority_pubkey,
-                &range_proof_data,
-                &range_proof_record_account,
-                &context_state_authority,
-            )
-            .await?;
-
-        token.confidential_transfer_create_context_state_account_from_record::<_, BatchedRangeProofU128Data, BatchedRangeProofContext>(
-            &range_proof_pubkey,
-            &context_state_authority_pubkey,
-            &range_proof_record_pubkey,
-            create_range_proof_context_signer,
-        ).await?;
 
         let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
             context_state_account: ciphertext_validity_proof_pubkey,
@@ -2306,14 +2323,12 @@ async fn command_burn(
         )?;
 
         burn_result?
+    } else if let Some(authority) = permissioned_burn_authority {
+        token
+            .permissioned_burn(&account, &authority, &owner, amount, &bulk_signers)
+            .await?
     } else {
-        if let Some(authority) = permissioned_burn_authority {
-            token
-                .permissioned_burn(&account, &authority, &owner, amount, &bulk_signers)
-                .await?
-        } else {
-            token.burn(&account, &owner, amount, &bulk_signers).await?
-        }
+        token.burn(&account, &owner, amount, &bulk_signers).await?
     };
 
     let tx_return = finish_tx(config, &res, false).await?;
@@ -2338,7 +2353,7 @@ async fn command_mint(
     use_unchecked_instruction: bool,
     memo: Option<String>,
     bulk_signers: BulkSigners,
-    confidential_mint_args: Option<(ElGamalKeypair, AeKey)>,
+    confidential: bool,
 ) -> CommandResult {
     let amount = amount_to_raw_amount(ui_amount, mint_info.decimals, None, "TOKEN_AMOUNT");
 
@@ -2351,6 +2366,21 @@ async fn command_mint(
             recipient
         ),
     );
+
+    let use_confidential = confidential || mint_info.has_confidential_mint_burn;
+
+    if use_confidential && config.sign_only && !confidential {
+        return Err("Confidential mints require the --confidential \
+            flag for offline signing"
+            .to_string()
+            .into());
+    }
+
+    let confidential_mint_args = if use_confidential {
+        Some(derive_confidential_keys(config.default_signer()?.as_ref(), b"").unwrap())
+    } else {
+        None
+    };
 
     let res = if let Some((supply_elgamal_keypair, supply_aes_key)) = confidential_mint_args {
         // Fetch mint info to get auditor pubkey and supply extension
@@ -2421,6 +2451,10 @@ async fn command_mint(
             &[&ciphertext_validity_proof_context_state_account];
         let create_range_proof_context_signer = &[&range_proof_context_state_account];
 
+        // Upload range proof via record account
+        let range_proof_record_account = Keypair::new();
+        let range_proof_record_pubkey = range_proof_record_account.pubkey();
+
         let token = token_client_from_config(config, &mint_info.address, None)?;
 
         let _ = try_join!(
@@ -2437,29 +2471,27 @@ async fn command_mint(
                 &ciphertext_validity_proof_data_with_ciphertext.proof_data,
                 false,
                 create_ciphertext_validity_proof_context_signer
-            )
+            ),
+            // Range proof too large, so we must explicitly send them in chunks
+            async {
+                token
+                    .confidential_transfer_create_record_account(
+                        &range_proof_record_pubkey,
+                        &context_state_authority_pubkey,
+                        &range_proof_data,
+                        &range_proof_record_account,
+                        &context_state_authority,
+                    )
+                    .await?;
+
+                token.confidential_transfer_create_context_state_account_from_record::<_, BatchedRangeProofU128Data, BatchedRangeProofContext>(
+                    &range_proof_pubkey,
+                    &context_state_authority_pubkey,
+                    &range_proof_record_pubkey,
+                    create_range_proof_context_signer,
+                ).await
+            }
         )?;
-
-        // Upload range proof via record account
-        let range_proof_record_account = Keypair::new();
-        let range_proof_record_pubkey = range_proof_record_account.pubkey();
-
-        token
-            .confidential_transfer_create_record_account(
-                &range_proof_record_pubkey,
-                &context_state_authority_pubkey,
-                &range_proof_data,
-                &range_proof_record_account,
-                &context_state_authority,
-            )
-            .await?;
-
-        token.confidential_transfer_create_context_state_account_from_record::<_, BatchedRangeProofU128Data, BatchedRangeProofContext>(
-            &range_proof_pubkey,
-            &context_state_authority_pubkey,
-            &range_proof_record_pubkey,
-            create_range_proof_context_signer,
-        ).await?;
 
         let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
             context_state_account: ciphertext_validity_proof_pubkey,
@@ -4935,11 +4967,6 @@ pub async fn process_command(
             let use_unchecked_instruction = arg_matches.is_present("use_unchecked_instruction");
             let memo = value_t!(arg_matches, "memo", String).ok();
             let confidential = arg_matches.is_present("confidential");
-            let confidential_burn_args = if confidential {
-                Some(derive_confidential_keys(config.default_signer()?.as_ref(), b"").unwrap())
-            } else {
-                None
-            };
             command_burn(
                 config,
                 account,
@@ -4951,7 +4978,7 @@ pub async fn process_command(
                 permissioned_burn_authority,
                 memo,
                 bulk_signers,
-                confidential_burn_args,
+                confidential,
             )
             .await
         }
@@ -4988,11 +5015,6 @@ pub async fn process_command(
             let use_unchecked_instruction = arg_matches.is_present("use_unchecked_instruction");
             let memo = value_t!(arg_matches, "memo", String).ok();
             let confidential = arg_matches.is_present("confidential");
-            let confidential_mint_args = if confidential {
-                Some(derive_confidential_keys(config.default_signer()?.as_ref(), b"").unwrap())
-            } else {
-                None
-            };
             command_mint(
                 config,
                 token,
@@ -5003,7 +5025,7 @@ pub async fn process_command(
                 use_unchecked_instruction,
                 memo,
                 bulk_signers,
-                confidential_mint_args,
+                confidential,
             )
             .await
         }

@@ -5037,7 +5037,6 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
             &token_pubkey.to_string(),
             &mint_amount.to_string(),
             &account.to_string(),
-            "--confidential",
         ],
     )
     .await
@@ -5066,7 +5065,6 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
             CommandName::Burn.into(),
             &account.to_string(),
             &burn_amount.to_string(),
-            "--confidential",
         ],
     )
     .await
