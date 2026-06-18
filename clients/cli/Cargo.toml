@@ -32,7 +32,6 @@ solana-sdk = "3.0.0"
 solana-system-interface = "3.2.0"
 solana-zk-elgamal-proof-interface = "0.1.3"
 solana-zk-sdk = "7.0.1"
-solana-zk-elgamal-proof-interface = "0.1.3"
 solana-zk-sdk-pod = "0.1.2"
 spl-associated-token-account-interface = { version = "2.0.0" }
 spl-memo-interface = "2.1.0"
