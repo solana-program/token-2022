@@ -427,7 +427,7 @@ impl<'a> Config<'a> {
         }
 
         let token = token.unwrap();
-        let program_id = self.get_mint_info(&token, None).await?.program_id;
+        let program_id = self.get_mint_info(&token, None, None).await?.program_id;
         let owner = self.pubkey_or_default(arg_matches, "owner", wallet_manager)?;
         self.associated_token_address_for_token_and_program(&token, &owner, &program_id)
     }
@@ -523,13 +523,14 @@ impl<'a> Config<'a> {
         &self,
         mint: &Pubkey,
         mint_decimals: Option<u8>,
+        has_confidential_mint_burn: Option<bool>,
     ) -> Result<MintInfo, Error> {
         if self.sign_only {
             Ok(MintInfo {
                 program_id: self.program_id,
                 address: *mint,
                 decimals: mint_decimals.unwrap_or_default(),
-                has_confidential_mint_burn: false,
+                has_confidential_mint_burn: has_confidential_mint_burn.unwrap_or(false),
             })
         } else {
             let account = self.get_account_checked(mint).await?;

@@ -1313,7 +1313,9 @@ async fn command_transfer(
     transfer_hook_accounts: Option<Vec<AccountMeta>>,
     confidential_transfer_args: Option<&ConfidentialTransferArgs>,
 ) -> CommandResult {
-    let mint_info = config.get_mint_info(&token_pubkey, mint_decimals).await?;
+    let mint_info = config
+        .get_mint_info(&token_pubkey, mint_decimals, None)
+        .await?;
 
     // if the user got the decimals wrong, they may well have calculated the
     // transfer amount wrong we only check in online mode, because in offline,
@@ -2084,7 +2086,9 @@ async fn command_burn(
     confidential: bool,
 ) -> CommandResult {
     let mint_address = config.check_account(&account, mint_address).await?;
-    let mint_info = config.get_mint_info(&mint_address, mint_decimals).await?;
+    let mint_info = config
+        .get_mint_info(&mint_address, mint_decimals, Some(confidential))
+        .await?;
     let decimals = if use_unchecked_instruction {
         None
     } else {
@@ -2094,13 +2098,6 @@ async fn command_burn(
     let token = token_client_from_config(config, &mint_info.address, decimals)?;
 
     let use_confidential = confidential || mint_info.has_confidential_mint_burn;
-
-    if use_confidential && config.sign_only && !confidential {
-        return Err("Confidential mints require the --confidential \
-            flag for offline signing"
-            .to_string()
-            .into());
-    }
 
     let confidential_burn_args = if use_confidential {
         Some(derive_confidential_keys(config.default_signer()?.as_ref(), b"").unwrap())
@@ -2368,14 +2365,6 @@ async fn command_mint(
     );
 
     let use_confidential = confidential || mint_info.has_confidential_mint_burn;
-
-    if use_confidential && config.sign_only && !confidential {
-        return Err("Confidential mints require the --confidential \
-            flag for offline signing"
-            .to_string()
-            .into());
-    }
-
     let confidential_mint_args = if use_confidential {
         Some(derive_confidential_keys(config.default_signer()?.as_ref(), b"").unwrap())
     } else {
@@ -2583,7 +2572,7 @@ async fn command_freeze(
     bulk_signers: BulkSigners,
 ) -> CommandResult {
     let mint_address = config.check_account(&account, mint_address).await?;
-    let mint_info = config.get_mint_info(&mint_address, None).await?;
+    let mint_info = config.get_mint_info(&mint_address, None, None).await?;
 
     println_display(
         config,
@@ -2619,7 +2608,7 @@ async fn command_thaw(
     bulk_signers: BulkSigners,
 ) -> CommandResult {
     let mint_address = config.check_account(&account, mint_address).await?;
-    let mint_info = config.get_mint_info(&mint_address, None).await?;
+    let mint_info = config.get_mint_info(&mint_address, None, None).await?;
 
     println_display(
         config,
@@ -2888,7 +2877,9 @@ async fn command_approve(
     bulk_signers: BulkSigners,
 ) -> CommandResult {
     let mint_address = config.check_account(&account, mint_address).await?;
-    let mint_info = config.get_mint_info(&mint_address, mint_decimals).await?;
+    let mint_info = config
+        .get_mint_info(&mint_address, mint_decimals, None)
+        .await?;
     let amount = amount_to_raw_amount(ui_amount, mint_info.decimals, None, "TOKEN_AMOUNT");
     let decimals = if use_unchecked_instruction {
         None
@@ -3115,7 +3106,7 @@ async fn command_accounts(
     print_addresses_only: bool,
 ) -> CommandResult {
     let filters = if let Some(token_pubkey) = maybe_token {
-        let _ = config.get_mint_info(&token_pubkey, None).await?;
+        let _ = config.get_mint_info(&token_pubkey, None, None).await?;
         vec![TokenAccountsFilter::Mint(token_pubkey)]
     } else if config.restrict_to_program_id {
         vec![TokenAccountsFilter::ProgramId(config.program_id)]
@@ -3163,7 +3154,7 @@ async fn command_address(
         ..CliWalletAddress::default()
     };
     if let Some(token) = token {
-        config.get_mint_info(&token, None).await?;
+        config.get_mint_info(&token, None, None).await?;
         let associated_token_address =
             get_associated_token_address_with_program_id(&owner, &token, &config.program_id);
         cli_address.associated_token_address = Some(associated_token_address.to_string());
@@ -4117,7 +4108,9 @@ async fn command_deposit_withdraw_confidential_tokens(
     }
 
     // check if mint decimals provided is consistent
-    let mint_info = config.get_mint_info(&token_pubkey, mint_decimals).await?;
+    let mint_info = config
+        .get_mint_info(&token_pubkey, mint_decimals, None)
+        .await?;
 
     if let Some(decimals) = mint_decimals {
         if !config.sign_only && decimals != mint_info.decimals {
@@ -4994,7 +4987,10 @@ pub async fn process_command(
                 .unwrap();
             let amount = *arg_matches.get_one::<Amount>("amount").unwrap();
             let mint_decimals = arg_matches.get_one::<u8>(MINT_DECIMALS_ARG.name).copied();
-            let mint_info = config.get_mint_info(&token, mint_decimals).await?;
+            let confidential = arg_matches.is_present("confidential");
+            let mint_info = config
+                .get_mint_info(&token, mint_decimals, Some(confidential))
+                .await?;
             let recipient = if let Some(address) =
                 pubkey_of_signer(arg_matches, "recipient", &mut wallet_manager).unwrap()
             {
@@ -5014,7 +5010,6 @@ pub async fn process_command(
             config.check_account(&recipient, Some(token)).await?;
             let use_unchecked_instruction = arg_matches.is_present("use_unchecked_instruction");
             let memo = value_t!(arg_matches, "memo", String).ok();
-            let confidential = arg_matches.is_present("confidential");
             command_mint(
                 config,
                 token,

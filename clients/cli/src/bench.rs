@@ -247,7 +247,7 @@ async fn command_deposit_into_or_withdraw_from(
     println!("Scanning accounts...");
     let program_id = get_valid_mint_program_id(rpc_client, token).await?;
 
-    let mint_info = config.get_mint_info(token, None).await?;
+    let mint_info = config.get_mint_info(token, None, None).await?;
     let from_or_to = from_or_to
         .unwrap_or_else(|| get_associated_token_address_with_program_id(owner, token, &program_id));
     config.check_account(&from_or_to, Some(*token)).await?;
