@@ -1,3 +1,18 @@
+#[cfg(not(target_os = "solana"))]
+use {
+    crate::error::TokenError,
+    solana_sdk_ids::sysvar,
+    solana_zk_elgamal_proof_interface::{
+        instruction::ProofInstruction,
+        proof_data::{
+            BatchedGroupedCiphertext3HandlesValidityProofData, BatchedRangeProofU128Data,
+            CiphertextCiphertextEqualityProofData, CiphertextCommitmentEqualityProofData,
+        },
+    },
+    spl_token_confidential_transfer_proof_extraction::instruction::{
+        process_proof_location, ProofLocation,
+    },
+};
 #[cfg(feature = "serde")]
 use {
     crate::serialization::{
@@ -20,19 +35,6 @@ use {
     solana_zk_sdk_pod::encryption::{
         auth_encryption::PodAeCiphertext,
         elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
-    },
-};
-#[cfg(not(target_os = "solana"))]
-use {
-    solana_zk_elgamal_proof_interface::{
-        instruction::ProofInstruction,
-        proof_data::{
-            BatchedGroupedCiphertext3HandlesValidityProofData, BatchedRangeProofU128Data,
-            CiphertextCiphertextEqualityProofData, CiphertextCommitmentEqualityProofData,
-        },
-    },
-    spl_token_confidential_transfer_proof_extraction::instruction::{
-        process_proof_location, ProofLocation,
     },
 };
 
@@ -410,6 +412,94 @@ pub struct MintSplitContextStateAccounts<'a> {
     pub authority: &'a Address,
 }
 
+/// Create an inner `ConfidentialMint` instruction
+#[allow(clippy::too_many_arguments)]
+#[cfg(not(target_os = "solana"))]
+pub fn inner_confidential_mint(
+    token_program_id: &Address,
+    token_account: &Address,
+    mint: &Address,
+    mint_amount_auditor_ciphertext_lo: &PodElGamalCiphertext,
+    mint_amount_auditor_ciphertext_hi: &PodElGamalCiphertext,
+    authority: &Address,
+    multisig_signers: &[&Address],
+    equality_proof_location: ProofLocation<CiphertextCommitmentEqualityProofData>,
+    ciphertext_validity_proof_location: ProofLocation<
+        BatchedGroupedCiphertext3HandlesValidityProofData,
+    >,
+    range_proof_location: ProofLocation<BatchedRangeProofU128Data>,
+    new_decryptable_supply: &DecryptableBalance,
+) -> Result<Instruction, ProgramError> {
+    check_program_account(token_program_id)?;
+    let mut accounts = vec![
+        AccountMeta::new(*token_account, false),
+        AccountMeta::new(*mint, false),
+    ];
+
+    // If at least one of the proof locations is an instruction offset, the sysvar
+    // account is needed.
+    if equality_proof_location.is_instruction_offset()
+        || ciphertext_validity_proof_location.is_instruction_offset()
+        || range_proof_location.is_instruction_offset()
+    {
+        accounts.push(AccountMeta::new_readonly(sysvar::instructions::id(), false));
+    }
+
+    let equality_proof_instruction_offset = match equality_proof_location {
+        ProofLocation::InstructionOffset(proof_instruction_offset, _) => {
+            proof_instruction_offset.into()
+        }
+        ProofLocation::ContextStateAccount(context_state_account) => {
+            accounts.push(AccountMeta::new_readonly(*context_state_account, false));
+            0
+        }
+    };
+
+    let ciphertext_validity_proof_instruction_offset = match ciphertext_validity_proof_location {
+        ProofLocation::InstructionOffset(proof_instruction_offset, _) => {
+            proof_instruction_offset.into()
+        }
+        ProofLocation::ContextStateAccount(context_state_account) => {
+            accounts.push(AccountMeta::new_readonly(*context_state_account, false));
+            0
+        }
+    };
+
+    let range_proof_instruction_offset = match range_proof_location {
+        ProofLocation::InstructionOffset(proof_instruction_offset, _) => {
+            proof_instruction_offset.into()
+        }
+        ProofLocation::ContextStateAccount(context_state_account) => {
+            accounts.push(AccountMeta::new_readonly(*context_state_account, false));
+            0
+        }
+    };
+
+    accounts.push(AccountMeta::new_readonly(
+        *authority,
+        multisig_signers.is_empty(),
+    ));
+
+    for multisig_signer in multisig_signers.iter() {
+        accounts.push(AccountMeta::new_readonly(**multisig_signer, true));
+    }
+
+    Ok(encode_instruction(
+        token_program_id,
+        accounts,
+        TokenInstruction::ConfidentialMintBurnExtension,
+        ConfidentialMintBurnInstruction::Mint,
+        &MintInstructionData {
+            new_decryptable_supply: *new_decryptable_supply,
+            mint_amount_auditor_ciphertext_lo: *mint_amount_auditor_ciphertext_lo,
+            mint_amount_auditor_ciphertext_hi: *mint_amount_auditor_ciphertext_hi,
+            equality_proof_instruction_offset,
+            ciphertext_validity_proof_instruction_offset,
+            range_proof_instruction_offset,
+        },
+    ))
+}
+
 /// Create a `ConfidentialMint` instruction
 #[allow(clippy::too_many_arguments)]
 #[cfg(not(target_os = "solana"))]
@@ -428,71 +518,152 @@ pub fn confidential_mint_with_split_proofs(
     range_proof_location: ProofLocation<BatchedRangeProofU128Data>,
     new_decryptable_supply: &DecryptableBalance,
 ) -> Result<Vec<Instruction>, ProgramError> {
+    let mut instructions = vec![inner_confidential_mint(
+        token_program_id,
+        token_account,
+        mint,
+        mint_amount_auditor_ciphertext_lo,
+        mint_amount_auditor_ciphertext_hi,
+        authority,
+        multisig_signers,
+        equality_proof_location,
+        ciphertext_validity_proof_location,
+        range_proof_location,
+        new_decryptable_supply,
+    )?];
+
+    let mut expected_instruction_offset = 1;
+
+    if let ProofLocation::InstructionOffset(proof_instruction_offset, proof_data) =
+        equality_proof_location
+    {
+        let proof_instruction_offset: i8 = proof_instruction_offset.into();
+        if proof_instruction_offset != expected_instruction_offset {
+            return Err(TokenError::InvalidProofInstructionOffset.into());
+        }
+        instructions.push(
+            ProofInstruction::VerifyCiphertextCommitmentEquality
+                .encode_verify_proof(None, proof_data),
+        );
+        expected_instruction_offset += 1;
+    }
+
+    if let ProofLocation::InstructionOffset(proof_instruction_offset, proof_data) =
+        ciphertext_validity_proof_location
+    {
+        let proof_instruction_offset: i8 = proof_instruction_offset.into();
+        if proof_instruction_offset != expected_instruction_offset {
+            return Err(TokenError::InvalidProofInstructionOffset.into());
+        }
+        instructions.push(
+            ProofInstruction::VerifyBatchedGroupedCiphertext3HandlesValidity
+                .encode_verify_proof(None, proof_data),
+        );
+        expected_instruction_offset += 1;
+    }
+
+    if let ProofLocation::InstructionOffset(proof_instruction_offset, proof_data) =
+        range_proof_location
+    {
+        let proof_instruction_offset: i8 = proof_instruction_offset.into();
+        if proof_instruction_offset != expected_instruction_offset {
+            return Err(TokenError::InvalidProofInstructionOffset.into());
+        }
+        instructions.push(
+            ProofInstruction::VerifyBatchedRangeProofU128.encode_verify_proof(None, proof_data),
+        );
+    }
+
+    Ok(instructions)
+}
+
+/// Create an inner `ConfidentialBurn` instruction
+#[allow(clippy::too_many_arguments)]
+#[cfg(not(target_os = "solana"))]
+pub fn inner_confidential_burn(
+    token_program_id: &Address,
+    token_account: &Address,
+    mint: &Address,
+    new_decryptable_available_balance: &DecryptableBalance,
+    burn_amount_auditor_ciphertext_lo: &PodElGamalCiphertext,
+    burn_amount_auditor_ciphertext_hi: &PodElGamalCiphertext,
+    authority: &Address,
+    multisig_signers: &[&Address],
+    equality_proof_location: ProofLocation<CiphertextCommitmentEqualityProofData>,
+    ciphertext_validity_proof_location: ProofLocation<
+        BatchedGroupedCiphertext3HandlesValidityProofData,
+    >,
+    range_proof_location: ProofLocation<BatchedRangeProofU128Data>,
+) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![
         AccountMeta::new(*token_account, false),
         AccountMeta::new(*mint, false),
     ];
 
-    let mut expected_instruction_offset = 1;
-    let mut proof_instructions = vec![];
+    if equality_proof_location.is_instruction_offset()
+        || ciphertext_validity_proof_location.is_instruction_offset()
+        || range_proof_location.is_instruction_offset()
+    {
+        accounts.push(AccountMeta::new_readonly(sysvar::instructions::id(), false));
+    }
 
-    let equality_proof_instruction_offset = process_proof_location(
-        &mut accounts,
-        &mut expected_instruction_offset,
-        &mut proof_instructions,
-        equality_proof_location,
-        true,
-        ProofInstruction::VerifyCiphertextCommitmentEquality,
-    )?;
+    let equality_proof_instruction_offset = match equality_proof_location {
+        ProofLocation::InstructionOffset(proof_instruction_offset, _) => {
+            proof_instruction_offset.into()
+        }
+        ProofLocation::ContextStateAccount(context_state_account) => {
+            accounts.push(AccountMeta::new_readonly(*context_state_account, false));
+            0
+        }
+    };
 
-    let ciphertext_validity_proof_instruction_offset = process_proof_location(
-        &mut accounts,
-        &mut expected_instruction_offset,
-        &mut proof_instructions,
-        ciphertext_validity_proof_location,
-        false,
-        ProofInstruction::VerifyBatchedGroupedCiphertext3HandlesValidity,
-    )?;
+    let ciphertext_validity_proof_instruction_offset = match ciphertext_validity_proof_location {
+        ProofLocation::InstructionOffset(proof_instruction_offset, _) => {
+            proof_instruction_offset.into()
+        }
+        ProofLocation::ContextStateAccount(context_state_account) => {
+            accounts.push(AccountMeta::new_readonly(*context_state_account, false));
+            0
+        }
+    };
 
-    let range_proof_instruction_offset = process_proof_location(
-        &mut accounts,
-        &mut expected_instruction_offset,
-        &mut proof_instructions,
-        range_proof_location,
-        false,
-        ProofInstruction::VerifyBatchedRangeProofU128,
-    )?;
+    let range_proof_instruction_offset = match range_proof_location {
+        ProofLocation::InstructionOffset(proof_instruction_offset, _) => {
+            proof_instruction_offset.into()
+        }
+        ProofLocation::ContextStateAccount(context_state_account) => {
+            accounts.push(AccountMeta::new_readonly(*context_state_account, false));
+            0
+        }
+    };
 
     accounts.push(AccountMeta::new_readonly(
         *authority,
         multisig_signers.is_empty(),
     ));
+
     for multisig_signer in multisig_signers.iter() {
         accounts.push(AccountMeta::new_readonly(**multisig_signer, true));
     }
 
-    let mut instructions = vec![encode_instruction(
+    Ok(encode_instruction(
         token_program_id,
         accounts,
         TokenInstruction::ConfidentialMintBurnExtension,
-        ConfidentialMintBurnInstruction::Mint,
-        &MintInstructionData {
-            new_decryptable_supply: *new_decryptable_supply,
-            mint_amount_auditor_ciphertext_lo: *mint_amount_auditor_ciphertext_lo,
-            mint_amount_auditor_ciphertext_hi: *mint_amount_auditor_ciphertext_hi,
+        ConfidentialMintBurnInstruction::Burn,
+        &BurnInstructionData {
+            new_decryptable_available_balance: *new_decryptable_available_balance,
+            burn_amount_auditor_ciphertext_lo: *burn_amount_auditor_ciphertext_lo,
+            burn_amount_auditor_ciphertext_hi: *burn_amount_auditor_ciphertext_hi,
             equality_proof_instruction_offset,
             ciphertext_validity_proof_instruction_offset,
             range_proof_instruction_offset,
         },
-    )];
-
-    instructions.extend(proof_instructions);
-
-    Ok(instructions)
+    ))
 }
 
-/// Create a inner `ConfidentialBurn` instruction
+/// Create a `ConfidentialBurn` instruction
 #[allow(clippy::too_many_arguments)]
 #[cfg(not(target_os = "solana"))]
 pub fn confidential_burn_with_split_proofs(
@@ -510,67 +681,61 @@ pub fn confidential_burn_with_split_proofs(
     >,
     range_proof_location: ProofLocation<BatchedRangeProofU128Data>,
 ) -> Result<Vec<Instruction>, ProgramError> {
-    check_program_account(token_program_id)?;
-    let mut accounts = vec![
-        AccountMeta::new(*token_account, false),
-        AccountMeta::new(*mint, false),
-    ];
+    let mut instructions = vec![inner_confidential_burn(
+        token_program_id,
+        token_account,
+        mint,
+        new_decryptable_available_balance,
+        burn_amount_auditor_ciphertext_lo,
+        burn_amount_auditor_ciphertext_hi,
+        authority,
+        multisig_signers,
+        equality_proof_location,
+        ciphertext_validity_proof_location,
+        range_proof_location,
+    )?];
 
     let mut expected_instruction_offset = 1;
-    let mut proof_instructions = vec![];
 
-    let equality_proof_instruction_offset = process_proof_location(
-        &mut accounts,
-        &mut expected_instruction_offset,
-        &mut proof_instructions,
-        equality_proof_location,
-        true,
-        ProofInstruction::VerifyCiphertextCommitmentEquality,
-    )?;
-
-    let ciphertext_validity_proof_instruction_offset = process_proof_location(
-        &mut accounts,
-        &mut expected_instruction_offset,
-        &mut proof_instructions,
-        ciphertext_validity_proof_location,
-        false,
-        ProofInstruction::VerifyBatchedGroupedCiphertext3HandlesValidity,
-    )?;
-
-    let range_proof_instruction_offset = process_proof_location(
-        &mut accounts,
-        &mut expected_instruction_offset,
-        &mut proof_instructions,
-        range_proof_location,
-        false,
-        ProofInstruction::VerifyBatchedRangeProofU128,
-    )?;
-
-    accounts.push(AccountMeta::new_readonly(
-        *authority,
-        multisig_signers.is_empty(),
-    ));
-
-    for multisig_signer in multisig_signers.iter() {
-        accounts.push(AccountMeta::new_readonly(**multisig_signer, true));
+    if let ProofLocation::InstructionOffset(proof_instruction_offset, proof_data) =
+        equality_proof_location
+    {
+        let proof_instruction_offset: i8 = proof_instruction_offset.into();
+        if proof_instruction_offset != expected_instruction_offset {
+            return Err(TokenError::InvalidProofInstructionOffset.into());
+        }
+        instructions.push(
+            ProofInstruction::VerifyCiphertextCommitmentEquality
+                .encode_verify_proof(None, proof_data),
+        );
+        expected_instruction_offset += 1;
     }
 
-    let mut instructions = vec![encode_instruction(
-        token_program_id,
-        accounts,
-        TokenInstruction::ConfidentialMintBurnExtension,
-        ConfidentialMintBurnInstruction::Burn,
-        &BurnInstructionData {
-            new_decryptable_available_balance: *new_decryptable_available_balance,
-            burn_amount_auditor_ciphertext_lo: *burn_amount_auditor_ciphertext_lo,
-            burn_amount_auditor_ciphertext_hi: *burn_amount_auditor_ciphertext_hi,
-            equality_proof_instruction_offset,
-            ciphertext_validity_proof_instruction_offset,
-            range_proof_instruction_offset,
-        },
-    )];
+    if let ProofLocation::InstructionOffset(proof_instruction_offset, proof_data) =
+        ciphertext_validity_proof_location
+    {
+        let proof_instruction_offset: i8 = proof_instruction_offset.into();
+        if proof_instruction_offset != expected_instruction_offset {
+            return Err(TokenError::InvalidProofInstructionOffset.into());
+        }
+        instructions.push(
+            ProofInstruction::VerifyBatchedGroupedCiphertext3HandlesValidity
+                .encode_verify_proof(None, proof_data),
+        );
+        expected_instruction_offset += 1;
+    }
 
-    instructions.extend(proof_instructions);
+    if let ProofLocation::InstructionOffset(proof_instruction_offset, proof_data) =
+        range_proof_location
+    {
+        let proof_instruction_offset: i8 = proof_instruction_offset.into();
+        if proof_instruction_offset != expected_instruction_offset {
+            return Err(TokenError::InvalidProofInstructionOffset.into());
+        }
+        instructions.push(
+            ProofInstruction::VerifyBatchedRangeProofU128.encode_verify_proof(None, proof_data),
+        );
+    }
 
     Ok(instructions)
 }
