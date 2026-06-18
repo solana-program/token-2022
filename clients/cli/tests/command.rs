@@ -158,6 +158,7 @@ async fn main() {
         async_trial!(scaled_ui_amount, test_validator, payer),
         async_trial!(pause, test_validator, payer),
         async_trial!(permissioned_burn, test_validator, payer),
+        async_trial!(confidential_mint_burn, test_validator, payer),
         // GC messes with every other test, so have it on its own test validator
         async_trial!(gc, gc_test_validator, gc_payer),
     ];
@@ -4978,6 +4979,105 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
             "10",
             "--permissioned-burn-authority",
             burn_authority_keypair_file.path().to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap();
+}
+
+async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair) {
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+
+    // Create a token with both confidential transfers and confidential
+    // mint/burn enabled
+    let token = Keypair::new();
+    let token_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&token, &token_keypair_file).unwrap();
+    let token_pubkey = token.pubkey();
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::CreateToken.into(),
+            token_keypair_file.path().to_str().unwrap(),
+            "--enable-confidential-transfers",
+            "auto",
+            "--enable-confidential-mint-burn",
+        ],
+    )
+    .await
+    .unwrap();
+
+    // Create and configure an associated token account
+    let account = create_associated_account(&config, payer, &token_pubkey, &payer.pubkey()).await;
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ConfigureConfidentialTransferAccount.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    // Mint confidentially
+    let mint_amount = 100.0;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Mint.into(),
+            &token_pubkey.to_string(),
+            &mint_amount.to_string(),
+            &account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    // Apply the pending balance so we can burn it
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    // Burn confidentially
+    let burn_amount = 50.0;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Burn.into(),
+            &account.to_string(),
+            &burn_amount.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    // Apply pending burn to the mint's supply
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBurn.into(),
+            &token_pubkey.to_string(),
         ],
     )
     .await

@@ -167,6 +167,7 @@ pub enum CommandName {
     DepositConfidentialTokens,
     WithdrawConfidentialTokens,
     ApplyPendingBalance,
+    ApplyPendingBurn,
     UpdateGroupAddress,
     UpdateMemberAddress,
     UpdateUiAmountMultiplier,
@@ -943,6 +944,16 @@ pub fn app<'a>(
                         .conflicts_with("enable_permissioned_burn")
                         .help("Specify a permissioned burn authority for the mint. Defaults to the mint authority.")
                 )
+                .arg(
+                    Arg::with_name("enable_confidential_mint_burn")
+                        .long("enable-confidential-mint-burn")
+                        .takes_value(false)
+                        .requires("enable_confidential_transfers")
+                        .help(
+                            "Enable the confidential mint and burn extension. \
+                            Requires confidential transfers to be enabled."
+                        ),
+                )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
                 .arg(memo_arg())
@@ -1552,6 +1563,13 @@ pub fn app<'a>(
                              This may be a keypair file or the ASK keyword."
                         ),
                 )
+                .arg(
+                    Arg::with_name("confidential")
+                    .long("confidential")
+                    .takes_value(false)
+                    .help("Burn tokens confidentially. Required for \
+                            offline signing on confidential mints."),
+                )
                 .arg(multisig_signer_arg())
                 .mint_args()
                 .nonce_args(true)
@@ -1610,6 +1628,13 @@ pub fn app<'a>(
                              This may be a keypair file or the ASK keyword. \
                              Defaults to the client keypair."
                         ),
+                )
+                .arg(
+                    Arg::with_name("confidential")
+                        .long("confidential")
+                        .takes_value(false)
+                        .help("Mint tokens confidentially. Required for \
+                            offline signing on confidential mints."),
                 )
                 .arg(mint_decimals_arg())
                 .arg(multisig_signer_arg())
@@ -2801,6 +2826,29 @@ pub fn app<'a>(
                 )
                 .arg(
                     owner_address_arg()
+                )
+                .arg(multisig_signer_arg())
+                .nonce_args(true)
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::ApplyPendingBurn.into())
+                .about("Apply pending burn amount to the confidential supply")
+                .arg(
+                    Arg::with_name("token")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("The token mint address"),
+                )
+                .arg(
+                    owner_keypair_arg_with_value_name("MINT_AUTHORITY_KEYPAIR")
+                        .help(
+                            "Specify the mint authority keypair. \
+                            This may be a keypair file or the ASK keyword. \
+                            Defaults to the client keypair."
+                        )
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
