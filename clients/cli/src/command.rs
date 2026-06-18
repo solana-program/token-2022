@@ -79,8 +79,8 @@ use {
         },
     },
     spl_token_confidential_transfer_proof_generation::{
-        transfer::TransferProofData, transfer_with_fee::TransferWithFeeProofData,
-        withdraw::WithdrawProofData, burn::BurnProofData, mint::MintProofData,
+        burn::BurnProofData, mint::MintProofData, transfer::TransferProofData,
+        transfer_with_fee::TransferWithFeeProofData, withdraw::WithdrawProofData,
     },
     spl_token_group_interface::state::TokenGroup,
     spl_token_metadata_interface::state::{Field, TokenMetadata},
