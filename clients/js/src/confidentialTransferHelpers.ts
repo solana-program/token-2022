@@ -16,6 +16,7 @@ import {
     nonDivisibleSequentialInstructionPlan,
     parallelInstructionPlan,
     sequentialInstructionPlan,
+    type GetAccountInfoApi,
     type GetMinimumBalanceForRentExemptionApi,
     type InstructionPlan,
     type ReadonlyUint8Array,
@@ -46,8 +47,10 @@ import {
 import {
     ExtensionType,
     Extension,
+    Mint,
     TOKEN_2022_PROGRAM_ADDRESS,
     Token,
+    fetchMint,
     findAssociatedTokenPda,
     getApplyConfidentialPendingBalanceInstruction,
     getConfidentialTransferInstruction,
@@ -65,6 +68,7 @@ const REMAINING_BALANCE_BIT_LENGTH = 64;
 const RANGE_PROOF_PADDING_BIT_LENGTH = 16;
 
 type ConfidentialTransferAccountExtension = Extract<Extension, { __kind: 'ConfidentialTransferAccount' }>;
+type ConfidentialTransferMintExtension = Extract<Extension, { __kind: 'ConfidentialTransferMint' }>;
 
 type ContextStateProofMode = {
     /**
@@ -78,6 +82,20 @@ type ContextStateProofMode = {
     proofMode?: 'context-state';
     payer: TransactionSigner;
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
+};
+
+type ConfidentialTransferContextStateProofMode = {
+    /**
+     * The strategy used to provide zero-knowledge proofs to the program.
+     *
+     * Currently, only `context-state` is supported, where each proof is verified
+     * into a dedicated context-state account before the instruction is executed.
+     * Additional modes — such as `instruction-data`, where proofs are provided
+     * inline within the same transaction — may be supported in the future.
+     */
+    proofMode?: 'context-state';
+    payer: TransactionSigner;
+    rpc: Rpc<GetMinimumBalanceForRentExemptionApi & GetAccountInfoApi>;
 };
 
 export type GetCreateConfidentialTransferAccountInstructionPlanInput = {
@@ -138,7 +156,7 @@ type GetConfidentialTransferInstructionPlanBaseInput = {
 );
 
 export type GetConfidentialTransferInstructionPlanInput = GetConfidentialTransferInstructionPlanBaseInput &
-    ContextStateProofMode;
+    ConfidentialTransferContextStateProofMode;
 
 function getTokenProgramAddress(programAddress?: Address) {
     return programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
@@ -167,6 +185,21 @@ function getRequiredConfidentialTransferAccountExtension(tokenAccount: Token): C
     return extension;
 }
 
+function getRequiredConfidentialTransferMintExtension(mint: Mint): ConfidentialTransferMintExtension {
+    if (!isSome(mint.extensions)) {
+        throw new Error('Mint account is missing extensions.');
+    }
+
+    const extension = mint.extensions.value.find(candidate => candidate.__kind === 'ConfidentialTransferMint') as
+        | ConfidentialTransferMintExtension
+        | undefined;
+    if (!extension) {
+        throw new Error('Mint account is missing the ConfidentialTransferMint extension.');
+    }
+
+    return extension;
+}
+
 function parseAeCiphertext(bytes: ReadonlyUint8Array) {
     const ciphertext = AeCiphertext.fromBytes(new Uint8Array(bytes));
     if (!ciphertext) {
@@ -189,6 +222,18 @@ function getElGamalPubkeyFromAddress(value: Address) {
 
 function getDefaultAuditorElGamalPubkey() {
     return ElGamalPubkey.fromBytes(new Uint8Array(32));
+}
+
+async function getAuditorElGamalPubkey(input: GetConfidentialTransferInstructionPlanInput) {
+    if (input.auditorElgamalPubkey) {
+        return getElGamalPubkeyFromAddress(input.auditorElgamalPubkey);
+    }
+
+    const { data: mint } = await fetchMint(input.rpc, input.mint);
+    const extension = getRequiredConfidentialTransferMintExtension(mint);
+    return isSome(extension.auditorElgamalPubkey)
+        ? getElGamalPubkeyFromAddress(extension.auditorElgamalPubkey.value)
+        : getDefaultAuditorElGamalPubkey();
 }
 
 function getDestinationElGamalPubkey(input: GetConfidentialTransferInstructionPlanInput) {
@@ -461,9 +506,7 @@ export async function getConfidentialTransferInstructionPlan(
 
     const sourcePubkey = input.sourceElgamalKeypair.pubkey();
     const destinationPubkey = getDestinationElGamalPubkey(input);
-    const auditorPubkey = input.auditorElgamalPubkey
-        ? getElGamalPubkeyFromAddress(input.auditorElgamalPubkey)
-        : getDefaultAuditorElGamalPubkey();
+    const auditorPubkey = await getAuditorElGamalPubkey(input);
 
     const openingLo = new PedersenOpening();
     const openingHi = new PedersenOpening();
