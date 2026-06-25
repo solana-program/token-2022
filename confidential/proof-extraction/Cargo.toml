@@ -14,7 +14,7 @@ solana-account-info = "3.1.1"
 solana-address = "2.6.1"
 solana-curve25519 = "4.0.1"
 solana-instruction = "3.0.0"
-solana-instructions-sysvar = "3.0.1"
+solana-instructions-sysvar = "4.0.0"
 solana-msg = { version = "3.1.0", default-features = false, features = ["alloc"] }
 solana-program-error = "3.0.1"
 solana-sdk-ids = "3.1.0"

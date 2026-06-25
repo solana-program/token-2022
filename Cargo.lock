@@ -4408,7 +4408,7 @@ dependencies = [
  "solana-hash 3.1.0",
  "solana-instruction",
  "solana-instruction-error",
- "solana-instructions-sysvar",
+ "solana-instructions-sysvar 3.0.1",
  "solana-loader-v3-interface",
  "solana-loader-v4-interface",
  "solana-logger",
@@ -7885,6 +7885,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "solana-instructions-sysvar"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e38363a181313d607f7a118df2b401bb27b477a0104b09283cbf504f5f0f00cc"
+dependencies = [
+ "bitflags 2.11.1",
+ "solana-account-info",
+ "solana-instruction",
+ "solana-instruction-error",
+ "solana-program-error",
+ "solana-sanitize",
+ "solana-sdk-ids",
+ "solana-serialize-utils",
+ "solana-sysvar-id",
+]
+
+[[package]]
 name = "solana-keccak-hasher"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8452,7 +8469,7 @@ dependencies = [
  "solana-hash 3.1.0",
  "solana-instruction",
  "solana-instruction-error",
- "solana-instructions-sysvar",
+ "solana-instructions-sysvar 3.0.1",
  "solana-keccak-hasher",
  "solana-last-restart-slot",
  "solana-msg",
@@ -9686,7 +9703,7 @@ dependencies = [
  "solana-fee-structure",
  "solana-hash 4.2.0",
  "solana-instruction",
- "solana-instructions-sysvar",
+ "solana-instructions-sysvar 3.0.1",
  "solana-loader-v3-interface",
  "solana-loader-v4-interface",
  "solana-loader-v4-program",
@@ -10160,7 +10177,7 @@ dependencies = [
  "serde",
  "solana-account",
  "solana-instruction",
- "solana-instructions-sysvar",
+ "solana-instructions-sysvar 3.0.1",
  "solana-pubkey 3.0.0",
  "solana-rent 3.0.0",
  "solana-sbpf 0.13.1",
@@ -10177,7 +10194,7 @@ dependencies = [
  "serde",
  "solana-account",
  "solana-instruction",
- "solana-instructions-sysvar",
+ "solana-instructions-sysvar 3.0.1",
  "solana-pubkey 4.2.0",
  "solana-rent 3.0.0",
  "solana-sbpf 0.14.4",
@@ -11127,7 +11144,7 @@ dependencies = [
  "solana-account-info",
  "solana-curve25519 3.1.4",
  "solana-instruction",
- "solana-instructions-sysvar",
+ "solana-instructions-sysvar 3.0.1",
  "solana-msg",
  "solana-program-error",
  "solana-pubkey 3.0.0",
@@ -11146,7 +11163,7 @@ dependencies = [
  "solana-address 2.6.1",
  "solana-curve25519 4.0.1",
  "solana-instruction",
- "solana-instructions-sysvar",
+ "solana-instructions-sysvar 4.0.0",
  "solana-msg",
  "solana-program-error",
  "solana-sdk-ids",
@@ -12602,7 +12619,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
