@@ -193,7 +193,6 @@ async fn rotate_supply_elgamal_pubkey<S: Signers>(
                     &context_account.pubkey(),
                     &context_account_authority.pubkey(),
                     &proof_data,
-                    false,
                     &[&context_account],
                 )
                 .await
@@ -495,7 +494,6 @@ async fn mint_with_option<S: Signers>(
                     &equality_proof_context_account.pubkey(),
                     &context_account_authority.pubkey(),
                     &equality_proof_data,
-                    false,
                     &[&equality_proof_context_account],
                 )
                 .await
@@ -506,7 +504,6 @@ async fn mint_with_option<S: Signers>(
                     &ciphertext_validity_proof_context_account.pubkey(),
                     &context_account_authority.pubkey(),
                     &ciphertext_validity_proof_data_with_ciphertext.proof_data,
-                    false,
                     &[&ciphertext_validity_proof_context_account],
                 )
                 .await
@@ -517,7 +514,6 @@ async fn mint_with_option<S: Signers>(
                     &range_proof_context_account.pubkey(),
                     &context_account_authority.pubkey(),
                     &range_proof_data,
-                    false,
                     &[&range_proof_context_account],
                 )
                 .await
@@ -671,7 +667,6 @@ async fn burn_with_option<S: Signers>(
                     &equality_proof_context_account.pubkey(),
                     &context_account_authority.pubkey(),
                     &equality_proof_data,
-                    false,
                     &[&equality_proof_context_account],
                 )
                 .await
@@ -682,7 +677,6 @@ async fn burn_with_option<S: Signers>(
                     &ciphertext_validity_proof_context_account.pubkey(),
                     &context_account_authority.pubkey(),
                     &ciphertext_validity_proof_data_with_ciphertext.proof_data,
-                    false,
                     &[&ciphertext_validity_proof_context_account],
                 )
                 .await
@@ -693,7 +687,6 @@ async fn burn_with_option<S: Signers>(
                     &range_proof_context_account.pubkey(),
                     &context_account_authority.pubkey(),
                     &range_proof_data,
-                    false,
                     &[&range_proof_context_account],
                 )
                 .await

@@ -500,7 +500,6 @@ async fn withdraw_withheld_tokens_from_mint_with_option<S: Signers>(
                     &context_account.pubkey(),
                     &context_account_authority.pubkey(),
                     &equality_proof,
-                    false,
                     &[&context_account],
                 )
                 .await
@@ -729,7 +728,6 @@ async fn withdraw_withheld_tokens_from_accounts_with_option<S: Signers>(
                     &context_account.pubkey(),
                     &context_account_authority.pubkey(),
                     &equality_proof,
-                    false,
                     &[&context_account],
                 )
                 .await
