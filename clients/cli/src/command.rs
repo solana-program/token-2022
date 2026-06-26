@@ -1814,6 +1814,12 @@ async fn command_transfer(
                     &context_state_authority_pubkey,
                     close_context_state_signer
                 ),
+                token.confidential_transfer_close_record_account(
+                    &range_proof_record_pubkey,
+                    &sender,
+                    &context_state_authority_pubkey,
+                    close_context_state_signer
+                )
             )?;
 
             transfer_result
@@ -4254,12 +4260,7 @@ async fn command_deposit_withdraw_confidential_tokens(
                         create_range_proof_signer,
                     )
                     .await
-                } // token.confidential_transfer_create_context_state_account(
-                  //     &range_proof_context_state_pubkey,
-                  //     &context_state_authority_pubkey,
-                  //     &range_proof_data,
-                  //     create_range_proof_signer,
-                  // )
+                }
             )?;
 
             // do the withdrawal
@@ -4289,6 +4290,12 @@ async fn command_deposit_withdraw_confidential_tokens(
                 ),
                 token.confidential_transfer_close_context_state_account(
                     &range_proof_context_state_pubkey,
+                    &token_account_address,
+                    &context_state_authority_pubkey,
+                    close_context_state_signer
+                ),
+                token.confidential_transfer_close_record_account(
+                    &range_proof_record_pubkey,
                     &token_account_address,
                     &context_state_authority_pubkey,
                     close_context_state_signer
