@@ -259,6 +259,7 @@ export const createConfidentialMint = async (input: {
     client: Client;
     payer: TransactionSigner;
     decimals?: number;
+    auditorElgamalPubkey?: Address;
 }): Promise<{ mint: Address; mintAuthority: TransactionSigner }> => {
     const [mintAuthority, mint] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
     await input.client.token2022.instructions
@@ -271,7 +272,7 @@ export const createConfidentialMint = async (input: {
                 extension('ConfidentialTransferMint', {
                     authority: some(mintAuthority.address),
                     autoApproveNewAccounts: true,
-                    auditorElgamalPubkey: none(),
+                    auditorElgamalPubkey: input.auditorElgamalPubkey ? some(input.auditorElgamalPubkey) : none(),
                 }),
             ],
         })
