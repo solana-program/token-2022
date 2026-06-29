@@ -11,6 +11,9 @@ importers:
       '@noble/curves':
         specifier: ^1.9.7
         version: 1.9.7
+      '@solana-program/record':
+        specifier: ^0.1.0
+        version: 0.1.0(@solana/kit@6.10.0(typescript@5.9.3))
       '@solana-program/zk-elgamal-proof':
         specifier: ^0.2.0
         version: 0.2.0(@solana/kit@6.10.0(typescript@5.9.3))
@@ -770,6 +773,11 @@ packages:
         optional: true
       oxlint:
         optional: true
+
+  '@solana-program/record@0.1.0':
+    resolution: {integrity: sha512-g7Ub3wYnzU9+Q/srLxhxMMfiDpt2lKjkG2XPGoXHToM7eOhGWY7fKfMaK8rv1mhpzoKEJwAC+HuK6pcnHVIciQ==}
+    peerDependencies:
+      '@solana/kit': ^5.0
 
   '@solana-program/system@0.12.2':
     resolution: {integrity: sha512-MaBeOxlvTruQhA7UYkOb3hVTEHPPagOtd+PvTm6a8rGgvEAP0kD4BbC37NceOaR4ABNqdaCmD5OMVRKgrE6KAg==}
@@ -2411,6 +2419,10 @@ snapshots:
     optionalDependencies:
       oxfmt: 0.56.0
       oxlint: 1.70.0(oxlint-tsgolint@0.23.0)
+
+  '@solana-program/record@0.1.0(@solana/kit@6.10.0(typescript@5.9.3))':
+    dependencies:
+      '@solana/kit': 6.10.0(typescript@5.9.3)
 
   '@solana-program/system@0.12.2(@solana/kit@6.10.0(typescript@5.9.3))':
     dependencies:
