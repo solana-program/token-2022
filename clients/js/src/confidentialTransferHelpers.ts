@@ -97,6 +97,8 @@ const NET_TRANSFER_AMOUNT_BIT_LENGTH = 64;
 const COMPUTE_BUDGET_PROGRAM_ADDRESS =
     'ComputeBudget111111111111111111111111111111' as Address<'ComputeBudget111111111111111111111111111111'>;
 const MAX_COMPUTE_UNIT_LIMIT = 1_400_000;
+const PEDERSEN_ARITHMETIC_ERROR =
+    'Confidential transfer with fee requires @solana/zk-sdk Pedersen commitment and opening arithmetic.';
 
 type ConfidentialTransferAccountExtension = Extract<Extension, { __kind: 'ConfidentialTransferAccount' }>;
 type ConfidentialTransferMintExtension = Extract<Extension, { __kind: 'ConfidentialTransferMint' }>;
@@ -257,8 +259,12 @@ type GetConfidentialTransferWithFeeInstructionPlanBaseInput = GetConfidentialTra
     currentEpoch: number | bigint;
 };
 
+type RecordBackedContextStateProofMode = Omit<ContextStateProofMode, 'payer'> & {
+    payer: KeyPairSigner;
+};
+
 export type GetConfidentialTransferWithFeeInstructionPlanInput =
-    GetConfidentialTransferWithFeeInstructionPlanBaseInput & ContextStateProofMode;
+    GetConfidentialTransferWithFeeInstructionPlanBaseInput & RecordBackedContextStateProofMode;
 
 function getTokenProgramAddress(programAddress?: Address) {
     return programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
@@ -399,13 +405,6 @@ function assertCreateHelperOwnerMatchesAuthority(
     }
 }
 
-/**
- * Builds the setup-and-cleanup instruction plans for a single proof's
- * context-state account. The setup plan creates the context-state account
- * and verifies the proof into it (these two instructions must share a
- * transaction). The cleanup plan closes the context-state account to recover
- * its rent.
- */
 function assertNonNegativeAmount(amount: bigint): void {
     if (amount < 0n) {
         throw new Error('Amount must be non-negative.');
@@ -413,6 +412,9 @@ function assertNonNegativeAmount(amount: bigint): void {
 }
 
 function assertU64Amount(amount: bigint, name: string): void {
+    if (amount < 0n) {
+        throw new Error(`${name} must be non-negative.`);
+    }
     if (amount > (1n << 64n) - 1n) {
         throw new Error(`${name} must fit in a u64.`);
     }
@@ -454,60 +456,57 @@ function calculateTransferWithFeeAmounts(transferAmount: bigint, transferFeeBasi
     return { feeAmount, claimedDeltaFee, netTransferAmount };
 }
 
+function assertPedersenArithmeticAvailable(): void {
+    const commitmentConstructor = PedersenCommitment as unknown as PedersenCommitmentConstructorWithArithmetic;
+    const openingConstructor = PedersenOpening as unknown as PedersenOpeningConstructorWithArithmetic;
+    const commitment = PedersenCommitment.from(0n, new PedersenOpening()) as PedersenCommitmentWithArithmetic;
+    const opening = new PedersenOpening() as PedersenOpeningWithArithmetic;
+    if (
+        typeof commitmentConstructor.combineLoHi !== 'function' ||
+        typeof openingConstructor.combineLoHi !== 'function' ||
+        typeof openingConstructor.zero !== 'function' ||
+        typeof commitment.subtract !== 'function' ||
+        typeof commitment.multiplyByU64 !== 'function' ||
+        typeof opening.subtract !== 'function' ||
+        typeof opening.multiplyByU64 !== 'function'
+    ) {
+        throw new Error(PEDERSEN_ARITHMETIC_ERROR);
+    }
+}
+
 function combineLoHiCommitments(lo: PedersenCommitment, hi: PedersenCommitment, bitLength: bigint): PedersenCommitment {
     const PedersenCommitmentWithArithmetic =
         PedersenCommitment as unknown as PedersenCommitmentConstructorWithArithmetic;
-    if (typeof PedersenCommitmentWithArithmetic.combineLoHi !== 'function') {
-        throw new Error('Confidential transfer with fee requires @solana/zk-sdk Pedersen commitment arithmetic.');
-    }
     return PedersenCommitmentWithArithmetic.combineLoHi(lo, hi, Number(bitLength));
 }
 
 function combineLoHiOpenings(lo: PedersenOpening, hi: PedersenOpening, bitLength: bigint): PedersenOpening {
     const PedersenOpeningWithArithmetic = PedersenOpening as unknown as PedersenOpeningConstructorWithArithmetic;
-    if (typeof PedersenOpeningWithArithmetic.combineLoHi !== 'function') {
-        throw new Error('Confidential transfer with fee requires @solana/zk-sdk Pedersen opening arithmetic.');
-    }
     return PedersenOpeningWithArithmetic.combineLoHi(lo, hi, Number(bitLength));
 }
 
 function getZeroOpening(): PedersenOpening {
     const PedersenOpeningWithArithmetic = PedersenOpening as unknown as PedersenOpeningConstructorWithArithmetic;
-    if (typeof PedersenOpeningWithArithmetic.zero !== 'function') {
-        throw new Error('Confidential transfer with fee requires @solana/zk-sdk Pedersen opening arithmetic.');
-    }
     return PedersenOpeningWithArithmetic.zero();
 }
 
 function subtractCommitments(left: PedersenCommitment, right: PedersenCommitment): PedersenCommitment {
     const leftWithArithmetic = left as PedersenCommitmentWithArithmetic;
-    if (typeof leftWithArithmetic.subtract !== 'function') {
-        throw new Error('Confidential transfer with fee requires @solana/zk-sdk Pedersen commitment arithmetic.');
-    }
     return leftWithArithmetic.subtract(right);
 }
 
 function subtractOpenings(left: PedersenOpening, right: PedersenOpening): PedersenOpening {
     const leftWithArithmetic = left as PedersenOpeningWithArithmetic;
-    if (typeof leftWithArithmetic.subtract !== 'function') {
-        throw new Error('Confidential transfer with fee requires @solana/zk-sdk Pedersen opening arithmetic.');
-    }
     return leftWithArithmetic.subtract(right);
 }
 
 function multiplyCommitment(commitment: PedersenCommitment, scalar: bigint): PedersenCommitment {
     const commitmentWithArithmetic = commitment as PedersenCommitmentWithArithmetic;
-    if (typeof commitmentWithArithmetic.multiplyByU64 !== 'function') {
-        throw new Error('Confidential transfer with fee requires @solana/zk-sdk Pedersen commitment arithmetic.');
-    }
     return commitmentWithArithmetic.multiplyByU64(scalar);
 }
 
 function multiplyOpening(opening: PedersenOpening, scalar: bigint): PedersenOpening {
     const openingWithArithmetic = opening as PedersenOpeningWithArithmetic;
-    if (typeof openingWithArithmetic.multiplyByU64 !== 'function') {
-        throw new Error('Confidential transfer with fee requires @solana/zk-sdk Pedersen opening arithmetic.');
-    }
     return openingWithArithmetic.multiplyByU64(scalar);
 }
 
@@ -537,6 +536,13 @@ function getSetComputeUnitLimitInstruction(units: number): Instruction {
     return { programAddress: COMPUTE_BUDGET_PROGRAM_ADDRESS, data };
 }
 
+/**
+ * Builds the setup-and-cleanup instruction plans for a single proof's
+ * context-state account. The setup plan creates the context-state account
+ * and verifies the proof into it (these two instructions must share a
+ * transaction). The cleanup plan closes the context-state account to recover
+ * its rent.
+ */
 async function buildContextStateProofPlan(
     proofData: ReadonlyUint8Array,
     verifyAction: (args: {
@@ -548,15 +554,15 @@ async function buildContextStateProofPlan(
     payer: TransactionSigner,
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>,
     contextStateAuthority: TransactionSigner = payer,
-    useRecordAccount = false,
+    recordPayer?: KeyPairSigner,
 ): Promise<ContextStateProofPlan> {
     const contextAccount = await generateKeyPairSigner();
     const proofDataBytes = new Uint8Array(proofData);
-    if (useRecordAccount) {
+    if (recordPayer) {
         const recordAuthority = await generateKeyPairSigner();
         const { recordKeypair, ixs: createRecordInstructions } = await createRecord({
             rpc,
-            payer: payer as KeyPairSigner,
+            payer: recordPayer,
             authority: recordAuthority.address,
             dataLength: BigInt(proofDataBytes.length),
         });
@@ -1015,6 +1021,7 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
     assertU64Amount(feeAmount, 'Fee amount');
     assertU64Amount(claimedDeltaFee, 'Claimed delta fee');
     assertU64Amount(netTransferAmount, 'Net transfer amount');
+    assertPedersenArithmeticAvailable();
 
     const [transferAmountLo, transferAmountHi] = splitAmount(amount, TRANSFER_AMOUNT_LO_BIT_LENGTH);
     const [feeAmountLo, feeAmountHi] = splitAmount(feeAmount, FEE_AMOUNT_LO_BIT_LENGTH);
@@ -1230,32 +1237,24 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
             verifyCiphertextCommitmentEquality,
             input.payer,
             input.rpc,
-            input.payer,
-            true,
         ),
         buildContextStateProofPlan(
             transferAmountCiphertextValidityProofData.toBytes(),
             verifyBatchedGroupedCiphertext3HandlesValidity,
             input.payer,
             input.rpc,
-            input.payer,
-            true,
         ),
         buildContextStateProofPlan(
             percentageWithCapProofData.toBytes(),
             verifyPercentageWithCap,
             input.payer,
             input.rpc,
-            input.payer,
-            true,
         ),
         buildContextStateProofPlan(
             feeCiphertextValidityProofData.toBytes(),
             verifyBatchedGroupedCiphertext2HandlesValidity,
             input.payer,
             input.rpc,
-            input.payer,
-            true,
         ),
         buildContextStateProofPlan(
             rangeProofData.toBytes(),
@@ -1263,7 +1262,7 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
             input.payer,
             input.rpc,
             input.payer,
-            true,
+            input.payer,
         ),
     ]);
 

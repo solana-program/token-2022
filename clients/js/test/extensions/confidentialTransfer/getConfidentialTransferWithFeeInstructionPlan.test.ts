@@ -17,7 +17,7 @@ import {
 } from '@solana/zk-sdk/bundler';
 import { expect, it } from 'vitest';
 
-import { ExtensionArgs, Token, extension, fetchMint, fetchToken } from '../../../src';
+import { ExtensionArgs, Mint, Token, extension, fetchMint, fetchToken } from '../../../src';
 import { getConfidentialTransferWithFeeInstructionPlan } from '../../../src/confidential';
 import {
     createConfidentialTokenAccount,
@@ -27,6 +27,9 @@ import {
     getTokenExtension,
     type ValidatorClient,
 } from '../../_setup';
+
+const PEDERSEN_ARITHMETIC_ERROR =
+    'Confidential transfer with fee requires @solana/zk-sdk Pedersen commitment and opening arithmetic.';
 
 function elgamalPubkeyAsAddress(keypair: ElGamalKeypair): Address {
     return getAddressDecoder().decode(new Uint8Array(keypair.pubkey().toBytes()));
@@ -198,9 +201,10 @@ it('transfers tokens confidentially with fees', async () => {
         aesKey: source.aesKey,
     });
     if (!hasPedersenArithmetic()) {
-        await expect(transferPlanPromise).rejects.toThrow(
-            'Confidential transfer with fee requires @solana/zk-sdk Pedersen commitment arithmetic.',
-        );
+        // Published @solana/zk-sdk@0.4.2 does not expose the Pedersen arithmetic
+        // needed for the success path. Once it does, this test runs through the
+        // full transfer and balance assertions below.
+        await expect(transferPlanPromise).rejects.toThrow(PEDERSEN_ARITHMETIC_ERROR);
         return;
     }
     await client.sendTransactions(await transferPlanPromise);
@@ -215,4 +219,48 @@ it('transfers tokens confidentially with fees', async () => {
     expect(decryptPendingBalance(updatedDestination, destination.elgamalKeypair)).toBe(197n);
     expect(decryptWithheldAmount(updatedDestination, withdrawWithheldAuthorityElGamalKeypair)).toBe(3n);
     expect(getTokenExtension(updatedDestination, 'ConfidentialTransferAccount').pendingBalanceCreditCounter).toBe(1n);
+});
+
+it('rejects when the fee exceeds the transfer amount', async () => {
+    const [payer, sourceToken, mint, destinationToken] = await Promise.all([
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+    ]);
+    const elgamalKeypair = new ElGamalKeypair();
+    const sourceTokenAccount = {
+        extensions: some([{ __kind: 'ConfidentialTransferAccount' }]),
+    } as Token;
+    const mintAccount = {
+        extensions: some([
+            {
+                __kind: 'TransferFeeConfig',
+                olderTransferFee: { epoch: 0n, maximumFee: 1_000n, transferFeeBasisPoints: 20_000 },
+                newerTransferFee: { epoch: 0n, maximumFee: 1_000n, transferFeeBasisPoints: 20_000 },
+            },
+            {
+                __kind: 'ConfidentialTransferFee',
+                elgamalPubkey: elgamalPubkeyAsAddress(elgamalKeypair),
+            },
+        ]),
+    } as Mint;
+
+    await expect(
+        getConfidentialTransferWithFeeInstructionPlan({
+            payer,
+            rpc: {} as ValidatorClient['rpc'],
+            sourceToken: sourceToken.address,
+            mint: mint.address,
+            destinationToken: destinationToken.address,
+            sourceTokenAccount,
+            destinationElgamalPubkey: elgamalPubkeyAsAddress(elgamalKeypair),
+            mintAccount,
+            currentEpoch: 0n,
+            authority: payer,
+            amount: 1n,
+            sourceElgamalKeypair: elgamalKeypair,
+            aesKey: new AeKey(),
+        }),
+    ).rejects.toThrow('Fee exceeds transfer amount.');
 });
