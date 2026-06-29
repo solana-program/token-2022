@@ -62,7 +62,7 @@
         "@solana/kit-plugin-signer": "^0.10.0",
         "@solana/zk-sdk": "^0.4.2",
         "@types/node": "^26",
-        "oxfmt": "^0.55.0",
+        "oxfmt": "^0.56.0",
         "oxlint": "^1.70.0",
         "oxlint-tsgolint": "^0.23.0",
         "rimraf": "^6.0.1",
