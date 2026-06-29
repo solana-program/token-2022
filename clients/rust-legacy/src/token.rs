@@ -2641,7 +2641,6 @@ where
         context_state_account: &Address,
         context_state_authority: &Address,
         proof_data: &ZK,
-        split_account_creation_and_proof_verification: bool,
         signing_keypairs: &S,
     ) -> TokenResult<T::Output> {
         let instruction_type = zk_proof_type_to_instruction(ZK::PROOF_TYPE)?;
@@ -2657,54 +2656,20 @@ where
             context_state_authority,
         };
 
-        // Some proof instructions are right at the transaction size limit, but in the
-        // future it might be able to support the transfer too
-        if split_account_creation_and_proof_verification {
-            self.process_ixs(
-                &[system_instruction::create_account(
+        self.process_ixs(
+            &[
+                system_instruction::create_account(
                     &self.payer.pubkey(),
                     context_state_account,
                     rent,
                     space as u64,
                     &zk_elgamal_proof_program::id(),
-                )],
-                signing_keypairs,
-            )
-            .await?;
-
-            let blockhash = self
-                .client
-                .get_latest_blockhash()
-                .await
-                .map_err(TokenError::Client)?;
-
-            let transaction = Transaction::new_signed_with_payer(
-                &[instruction_type.encode_verify_proof(Some(context_state_info), proof_data)],
-                Some(&self.payer.pubkey()),
-                &[self.payer.as_ref()],
-                blockhash,
-            );
-
-            self.client
-                .send_transaction(&transaction)
-                .await
-                .map_err(TokenError::Client)
-        } else {
-            self.process_ixs(
-                &[
-                    system_instruction::create_account(
-                        &self.payer.pubkey(),
-                        context_state_account,
-                        rent,
-                        space as u64,
-                        &zk_elgamal_proof_program::id(),
-                    ),
-                    instruction_type.encode_verify_proof(Some(context_state_info), proof_data),
-                ],
-                signing_keypairs,
-            )
-            .await
-        }
+                ),
+                instruction_type.encode_verify_proof(Some(context_state_info), proof_data),
+            ],
+            signing_keypairs,
+        )
+        .await
     }
 
     /// Create a context state account from another account containing

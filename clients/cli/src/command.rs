@@ -35,6 +35,7 @@ use {
     solana_system_interface::program as system_program,
     solana_zk_elgamal_proof_interface::proof_data::{
         BatchedRangeProofContext, BatchedRangeProofU128Data, BatchedRangeProofU256Data,
+        BatchedRangeProofU64Data,
     },
     solana_zk_sdk::encryption::{
         auth_encryption::AeKey,
@@ -1733,14 +1734,12 @@ async fn command_transfer(
                     &equality_proof_pubkey,
                     &context_state_authority_pubkey,
                     &equality_proof_data,
-                    false,
                     create_equality_proof_context_signer
                 ),
                 token.confidential_transfer_create_context_state_account(
                     &ciphertext_validity_proof_pubkey,
                     &context_state_authority_pubkey,
                     &ciphertext_validity_proof_data_with_ciphertext.proof_data,
-                    false,
                     create_ciphertext_validity_proof_context_signer
                 ),
                 // Range proof too large, so we must explicitly send them in chunks
@@ -1815,6 +1814,12 @@ async fn command_transfer(
                     &context_state_authority_pubkey,
                     close_context_state_signer
                 ),
+                token.confidential_transfer_close_record_account(
+                    &range_proof_record_pubkey,
+                    &sender,
+                    &context_state_authority_pubkey,
+                    close_context_state_signer
+                )
             )?;
 
             transfer_result
@@ -1924,28 +1929,24 @@ async fn command_transfer(
                     &equality_proof_pubkey,
                     &context_state_authority_pubkey,
                     &equality_proof_data,
-                    false,
                     create_equality_proof_context_signer
                 ),
                 token.confidential_transfer_create_context_state_account(
                     &ciphertext_validity_proof_pubkey,
                     &context_state_authority_pubkey,
                     &transfer_amount_ciphertext_validity_proof_data_with_ciphertext.proof_data,
-                    false,
                     create_ciphertext_validity_proof_context_signer
                 ),
                 token.confidential_transfer_create_context_state_account(
                     &percentage_with_cap_proof_pubkey,
                     &context_state_authority_pubkey,
                     &percentage_with_cap_proof_data,
-                    false,
                     create_percentage_with_cap_proof_context_signer
                 ),
                 token.confidential_transfer_create_context_state_account(
                     &fee_ciphertext_validity_proof_pubkey,
                     &context_state_authority_pubkey,
                     &fee_ciphertext_validity_proof_data,
-                    false,
                     create_fee_ciphertext_validity_proof_context_signer
                 ),
                 // Range proof too large, so we must explicitly send them in chunks
@@ -2215,14 +2216,12 @@ async fn command_burn(
                 &equality_proof_pubkey,
                 &context_state_authority_pubkey,
                 &equality_proof_data,
-                false,
                 create_equality_proof_context_signer
             ),
             token.confidential_transfer_create_context_state_account(
                 &ciphertext_validity_proof_pubkey,
                 &context_state_authority_pubkey,
                 &ciphertext_validity_proof_data_with_ciphertext.proof_data,
-                false,
                 create_ciphertext_validity_proof_context_signer
             ),
             // Range proof too large, so we must explicitly send them in chunks
@@ -2451,14 +2450,12 @@ async fn command_mint(
                 &equality_proof_pubkey,
                 &context_state_authority_pubkey,
                 &equality_proof_data,
-                false,
                 create_equality_proof_context_signer
             ),
             token.confidential_transfer_create_context_state_account(
                 &ciphertext_validity_proof_pubkey,
                 &context_state_authority_pubkey,
                 &ciphertext_validity_proof_data_with_ciphertext.proof_data,
-                false,
                 create_ciphertext_validity_proof_context_signer
             ),
             // Range proof too large, so we must explicitly send them in chunks
@@ -4230,21 +4227,40 @@ async fn command_deposit_withdraw_confidential_tokens(
             let create_equality_proof_signer = &[&equality_proof_context_state_keypair];
             let create_range_proof_signer = &[&range_proof_context_state_keypair];
 
+            // Upload the range proof using record account in chunks
+            let range_proof_record_account = Keypair::new();
+            let range_proof_record_pubkey = range_proof_record_account.pubkey();
+
             let _ = try_join!(
                 token.confidential_transfer_create_context_state_account(
                     &equality_proof_context_state_pubkey,
                     &context_state_authority_pubkey,
                     &equality_proof_data,
-                    false,
                     create_equality_proof_signer
                 ),
-                token.confidential_transfer_create_context_state_account(
-                    &range_proof_context_state_pubkey,
-                    &context_state_authority_pubkey,
-                    &range_proof_data,
-                    true,
-                    create_range_proof_signer,
-                )
+                async {
+                    token
+                        .confidential_transfer_create_record_account(
+                            &range_proof_record_pubkey,
+                            &context_state_authority_pubkey,
+                            &range_proof_data,
+                            &range_proof_record_account,
+                            &context_state_authority,
+                        )
+                        .await?;
+
+                    token.confidential_transfer_create_context_state_account_from_record::<
+                        _,
+                        BatchedRangeProofU64Data,
+                        BatchedRangeProofContext,
+                    >(
+                        &range_proof_context_state_pubkey,
+                        &context_state_authority_pubkey,
+                        &range_proof_record_pubkey,
+                        create_range_proof_signer,
+                    )
+                    .await
+                }
             )?;
 
             // do the withdrawal
@@ -4274,6 +4290,12 @@ async fn command_deposit_withdraw_confidential_tokens(
                 ),
                 token.confidential_transfer_close_context_state_account(
                     &range_proof_context_state_pubkey,
+                    &token_account_address,
+                    &context_state_authority_pubkey,
+                    close_context_state_signer
+                ),
+                token.confidential_transfer_close_record_account(
+                    &range_proof_record_pubkey,
                     &token_account_address,
                     &context_state_authority_pubkey,
                     close_context_state_signer
