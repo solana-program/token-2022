@@ -141,8 +141,20 @@ export type GetConfidentialWithdrawInstructionPlanInput = GetConfidentialWithdra
 type GetConfidentialTransferInstructionPlanBaseInput = {
     sourceToken: Address;
     mint: Address;
+    /**
+     * Decoded mint account used to resolve the configured auditor key when
+     * `auditorElgamalPubkey` is omitted. Supplying this avoids an extra mint
+     * fetch for callers that already have the mint account loaded.
+     */
+    mintAccount?: Mint;
     destinationToken: Address;
     sourceTokenAccount: Token;
+    /**
+     * Auditor ElGamal public key to use for the auditor ciphertexts. When
+     * omitted, the helper resolves the key from `mintAccount`, then by fetching
+     * the mint account. If the mint has no auditor configured, the zero auditor
+     * key is used.
+     */
     auditorElgamalPubkey?: Address;
     authority: Address | TransactionSigner;
     amount: number | bigint;
@@ -229,7 +241,7 @@ async function getAuditorElGamalPubkey(input: GetConfidentialTransferInstruction
         return getElGamalPubkeyFromAddress(input.auditorElgamalPubkey);
     }
 
-    const { data: mint } = await fetchMint(input.rpc, input.mint);
+    const mint = input.mintAccount ?? (await fetchMint(input.rpc, input.mint)).data;
     const extension = getRequiredConfidentialTransferMintExtension(mint);
     return isSome(extension.auditorElgamalPubkey)
         ? getElGamalPubkeyFromAddress(extension.auditorElgamalPubkey.value)
