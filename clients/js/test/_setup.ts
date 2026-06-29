@@ -5,14 +5,24 @@ import {
     Address,
     Transaction,
     TransactionSigner,
+    assertIsSendableTransaction,
     assertIsSingleTransactionPlanResult,
+    assertIsTransactionWithBlockhashLifetime,
     createClient,
+    createTransactionMessage,
+    createTransactionPlanExecutor,
+    createTransactionPlanner,
+    extendClient,
     generateKeyPairSigner,
     isSome,
     lamports,
     none,
     sequentialInstructionPlan,
+    sendAndConfirmTransactionFactory,
     some,
+    setTransactionMessageFeePayerSigner,
+    setTransactionMessageLifetimeUsingBlockhash,
+    signTransactionMessageWithSigners,
 } from '@solana/kit';
 import { planAndSendTransactions } from '@solana/kit-plugin-instruction-plan';
 import { TransactionMetadata, litesvm } from '@solana/kit-plugin-litesvm';
@@ -35,7 +45,6 @@ import {
     token2022Program,
 } from '../src';
 import {
-    confidentialTransferProofTransactionPlanning,
     getApplyConfidentialPendingBalanceInstructionFromToken,
     getCreateConfidentialTransferAccountInstructionPlan,
 } from '../src/confidential';
@@ -65,13 +74,50 @@ export const createTestClient = () => {
 // does not execute proof verification, so those tests must run against a local
 // `solana-test-validator` (started by `make test-js-clients-js`).
 //
+// The planner and executor are overridden so that no compute-unit-limit
+// instruction is added to any transaction. The default RPC planner reserves
+// space for a provisional compute-unit-limit instruction, and the default RPC
+// executor estimates and sets a real one before sending; either can push the
+// largest proof-verification transactions past the message size limit. Omitting
+// it is safe: a versioned transaction with no compute-unit limit still receives
+// the per-instruction default budget. This should move to a Kit planner/executor
+// config option instead of becoming a token-2022 API.
 export const createValidatorClient = () => {
     return (
         createClient()
             .use(generatedSigner())
             .use(solanaLocalRpc())
             .use(airdropSigner(lamports(1_000_000_000n)))
-            .use(confidentialTransferProofTransactionPlanning())
+            .use(client => {
+                const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({
+                    rpc: client.rpc,
+                    rpcSubscriptions: client.rpcSubscriptions,
+                });
+                return extendClient(client, {
+                    transactionPlanner: createTransactionPlanner({
+                        createTransactionMessage: () =>
+                            setTransactionMessageFeePayerSigner(client.payer, createTransactionMessage({ version: 0 })),
+                    }),
+                    transactionPlanExecutor: createTransactionPlanExecutor({
+                        executeTransactionMessage: async (_context, message, executorConfig) => {
+                            const { value: latestBlockhash } = await client.rpc
+                                .getLatestBlockhash()
+                                .send(executorConfig);
+                            const transaction = await signTransactionMessageWithSigners(
+                                setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, message),
+                                executorConfig,
+                            );
+                            assertIsSendableTransaction(transaction);
+                            assertIsTransactionWithBlockhashLifetime(transaction);
+                            await sendAndConfirmTransaction(transaction, {
+                                commitment: 'confirmed',
+                                ...executorConfig,
+                            });
+                            return transaction;
+                        },
+                    }),
+                });
+            })
             // Re-wire `sendTransaction(s)` so they capture the client with the
             // overridden planner and executor above.
             .use(planAndSendTransactions())
