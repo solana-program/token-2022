@@ -56,7 +56,7 @@
         "@solana-config/oxc": "^0.1.1",
         "@solana-program/system": "^0.12.0",
         "@solana/kit": "^6.10.0",
-        "@solana/kit-plugin-instruction-plan": "^0.10.0",
+        "@solana/kit-plugin-instruction-plan": "^0.12.1",
         "@solana/kit-plugin-litesvm": "^0.10.0",
         "@solana/kit-plugin-rpc": "^0.11.1",
         "@solana/kit-plugin-signer": "^0.10.0",
