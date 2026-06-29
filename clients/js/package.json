@@ -59,7 +59,7 @@
         "@solana/kit-plugin-instruction-plan": "^0.10.0",
         "@solana/kit-plugin-litesvm": "^0.10.0",
         "@solana/kit-plugin-rpc": "^0.11.1",
-        "@solana/kit-plugin-signer": "^0.10.0",
+        "@solana/kit-plugin-signer": "^0.12.1",
         "@solana/zk-sdk": "^0.4.2",
         "@types/node": "^26",
         "oxfmt": "^0.55.0",
