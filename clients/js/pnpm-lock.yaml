@@ -28,8 +28,8 @@ importers:
         specifier: ^6.10.0
         version: 6.10.0(typescript@5.9.3)
       '@solana/kit-plugin-instruction-plan':
-        specifier: ^0.10.0
-        version: 0.10.0(@solana/kit@6.10.0(typescript@5.9.3))
+        specifier: ^0.12.1
+        version: 0.12.1(@solana/kit@6.10.0(typescript@5.9.3))
       '@solana/kit-plugin-litesvm':
         specifier: ^0.10.0
         version: 0.10.0(@solana/kit@6.10.0(typescript@5.9.3))(typescript@5.9.3)
@@ -1014,6 +1014,11 @@ packages:
     resolution: {integrity: sha512-h99B+1Vp5QWU/M/q0UXlTxKJt781vWw5aAopnbgVCy0F3hNaSDZ/gio126Oz0/cipGOnyaJf3NnV79GvxaEqZA==}
     peerDependencies:
       '@solana/kit': ^6.8.0
+
+  '@solana/kit-plugin-instruction-plan@0.12.1':
+    resolution: {integrity: sha512-+uDMOHwFEEYAP5hWleWAaBMQYMiJmczRotTDZY1h/7yILHESZHUBFdn1FHFHKOv6JxXfC9Xp8siWKB4PsAymXw==}
+    peerDependencies:
+      '@solana/kit': ^6.10.0
 
   '@solana/kit-plugin-litesvm@0.10.0':
     resolution: {integrity: sha512-ks/sbFyYJOpa4BrdzEpp2karA66N4b1DFnWol3bui/UzJm+YJZ65xnOyeX9U8PC8uF/TPVkgf6oYvsxyLqrxIw==}
@@ -2629,6 +2634,10 @@ snapshots:
       - fastestsmallesttextencoderdecoder
 
   '@solana/kit-plugin-instruction-plan@0.10.0(@solana/kit@6.10.0(typescript@5.9.3))':
+    dependencies:
+      '@solana/kit': 6.10.0(typescript@5.9.3)
+
+  '@solana/kit-plugin-instruction-plan@0.12.1(@solana/kit@6.10.0(typescript@5.9.3))':
     dependencies:
       '@solana/kit': 6.10.0(typescript@5.9.3)
 
