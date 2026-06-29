@@ -5,6 +5,7 @@ import {
     verifyBatchedRangeProofU64,
     verifyCiphertextCommitmentEquality,
     verifyPubkeyValidity,
+    verifyZeroCiphertext,
 } from '@solana-program/zk-elgamal-proof';
 import {
     Address,
@@ -17,6 +18,7 @@ import {
     parallelInstructionPlan,
     sequentialInstructionPlan,
     type GetMinimumBalanceForRentExemptionApi,
+    type FetchAccountConfig,
     type InstructionPlan,
     type ReadonlyUint8Array,
     type Rpc,
@@ -36,6 +38,7 @@ import {
     PedersenCommitment,
     PedersenOpening,
     PubkeyValidityProofData,
+    ZeroCiphertextProofData,
 } from '@solana/zk-sdk/bundler';
 
 import {
@@ -54,7 +57,9 @@ import {
     getConfidentialWithdrawInstruction,
     getConfigureConfidentialTransferAccountInstruction,
     getCreateAssociatedTokenIdempotentInstruction,
+    getEmptyConfidentialTransferAccountInstruction,
     getReallocateInstruction,
+    fetchToken,
 } from './generated';
 
 const DEFAULT_MAXIMUM_PENDING_BALANCE_CREDIT_COUNTER = 1n << 16n;
@@ -104,6 +109,28 @@ export type GetApplyConfidentialPendingBalanceInstructionFromTokenInput = {
     programAddress?: Address;
 };
 
+export type DecryptConfidentialTransferBalanceInput = {
+    tokenAccount: Token;
+    elgamalSecretKey: ElGamalSecretKey;
+    aesKey: AeKey;
+};
+
+export type FetchConfidentialTransferBalanceInput = Omit<DecryptConfidentialTransferBalanceInput, 'tokenAccount'> & {
+    token: Address;
+    rpc: Parameters<typeof fetchToken>[0];
+    config?: FetchAccountConfig;
+};
+
+export type ConfidentialTransferBalance = {
+    availableBalance: bigint;
+    pendingBalance: bigint;
+    totalBalance: bigint;
+    pendingBalanceCreditCounter: bigint;
+    maximumPendingBalanceCreditCounter: bigint;
+    expectedPendingBalanceCreditCounter: bigint;
+    actualPendingBalanceCreditCounter: bigint;
+};
+
 type GetConfidentialWithdrawInstructionPlanBaseInput = {
     token: Address;
     mint: Address;
@@ -119,6 +146,15 @@ type GetConfidentialWithdrawInstructionPlanBaseInput = {
 
 export type GetConfidentialWithdrawInstructionPlanInput = GetConfidentialWithdrawInstructionPlanBaseInput &
     ContextStateProofMode;
+
+export type GetEmptyConfidentialTransferAccountInstructionPlanInput = {
+    token: Address;
+    tokenAccount: Token;
+    authority: Address | TransactionSigner;
+    elgamalKeypair: ElGamalKeypair;
+    multiSigners?: Array<TransactionSigner>;
+    programAddress?: Address;
+} & ContextStateProofMode;
 
 type GetConfidentialTransferInstructionPlanBaseInput = {
     sourceToken: Address;
@@ -215,6 +251,12 @@ function combineAmounts(amountLo: bigint, amountHi: bigint, bitLength: bigint): 
 
 function decryptAvailableBalance(account: ConfidentialTransferAccountExtension, aesKey: AeKey) {
     return aesKey.decrypt(parseAeCiphertext(account.decryptableAvailableBalance));
+}
+
+function decryptPendingBalance(account: ConfidentialTransferAccountExtension, elgamalSecretKey: ElGamalSecretKey) {
+    const pendingBalanceLo = elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceLow));
+    const pendingBalanceHi = elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceHigh));
+    return combineAmounts(pendingBalanceLo, pendingBalanceHi, PENDING_BALANCE_LO_BIT_LENGTH);
 }
 
 function assertCreateHelperOwnerMatchesAuthority(
@@ -351,6 +393,40 @@ export async function getCreateConfidentialTransferAccountInstructionPlan(
 }
 
 /**
+ * Decrypts a decoded token account's confidential-transfer balances.
+ */
+export function decryptConfidentialTransferBalance(
+    input: DecryptConfidentialTransferBalanceInput,
+): ConfidentialTransferBalance {
+    const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
+    const availableBalance = decryptAvailableBalance(account, input.aesKey);
+    const pendingBalance = decryptPendingBalance(account, input.elgamalSecretKey);
+    return {
+        availableBalance,
+        pendingBalance,
+        totalBalance: availableBalance + pendingBalance,
+        pendingBalanceCreditCounter: account.pendingBalanceCreditCounter,
+        maximumPendingBalanceCreditCounter: account.maximumPendingBalanceCreditCounter,
+        expectedPendingBalanceCreditCounter: account.expectedPendingBalanceCreditCounter,
+        actualPendingBalanceCreditCounter: account.actualPendingBalanceCreditCounter,
+    };
+}
+
+/**
+ * Fetches a token account and decrypts its confidential-transfer balances.
+ */
+export async function fetchConfidentialTransferBalance(
+    input: FetchConfidentialTransferBalanceInput,
+): Promise<ConfidentialTransferBalance> {
+    const { data: tokenAccount } = await fetchToken(input.rpc, input.token, input.config);
+    return decryptConfidentialTransferBalance({
+        tokenAccount,
+        elgamalSecretKey: input.elgamalSecretKey,
+        aesKey: input.aesKey,
+    });
+}
+
+/**
  * Builds an `ApplyPendingBalance` instruction plan from a decoded token
  * account, decrypting the pending balance and re-encrypting the new
  * available balance locally.
@@ -359,13 +435,9 @@ export function getApplyConfidentialPendingBalanceInstructionFromToken(
     input: GetApplyConfidentialPendingBalanceInstructionFromTokenInput,
 ): Instruction {
     const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
-    const pendingBalanceLo = input.elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceLow));
-    const pendingBalanceHi = input.elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceHigh));
+    const pendingBalance = decryptPendingBalance(account, input.elgamalSecretKey);
     const newDecryptableAvailableBalance = input.aesKey
-        .encrypt(
-            decryptAvailableBalance(account, input.aesKey) +
-                combineAmounts(pendingBalanceLo, pendingBalanceHi, PENDING_BALANCE_LO_BIT_LENGTH),
-        )
+        .encrypt(decryptAvailableBalance(account, input.aesKey) + pendingBalance)
         .toBytes();
 
     return getApplyConfidentialPendingBalanceInstruction(
@@ -378,6 +450,41 @@ export function getApplyConfidentialPendingBalanceInstructionFromToken(
         },
         { programAddress: getTokenProgramAddress(input.programAddress) },
     );
+}
+
+/**
+ * Returns an instruction plan that empties the confidential-transfer
+ * extension state once the available encrypted balance decrypts to zero.
+ */
+export async function getEmptyConfidentialTransferAccountInstructionPlan(
+    input: GetEmptyConfidentialTransferAccountInstructionPlanInput,
+): Promise<InstructionPlan> {
+    const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
+    const zeroCiphertextProofData = new ZeroCiphertextProofData(
+        input.elgamalKeypair,
+        parseElGamalCiphertext(account.availableBalance),
+    );
+    const proofPlan = await buildContextStateProofPlan(
+        zeroCiphertextProofData.toBytes(),
+        verifyZeroCiphertext,
+        input.payer,
+        input.rpc,
+    );
+
+    return sequentialInstructionPlan([
+        proofPlan.setup,
+        getEmptyConfidentialTransferAccountInstruction(
+            {
+                token: input.token,
+                instructionsSysvarOrContextState: proofPlan.address,
+                authority: input.authority,
+                proofInstructionOffset: 0,
+                multiSigners: input.multiSigners,
+            },
+            { programAddress: getTokenProgramAddress(input.programAddress) },
+        ),
+        proofPlan.cleanup,
+    ]);
 }
 
 /**
