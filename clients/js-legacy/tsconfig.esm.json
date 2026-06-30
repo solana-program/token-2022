@@ -8,6 +8,7 @@
         "module": "ES2020",
         "sourceMap": true,
         "declaration": true,
-        "declarationMap": true
+        "declarationMap": true,
+        "rootDir": "./src"
     }
 }

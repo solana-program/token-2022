@@ -3,6 +3,7 @@
     "include": ["src", "test"],
     "compilerOptions": {
         "noEmit": true,
-        "skipLibCheck": true
+        "skipLibCheck": true,
+        "types": ["node", "mocha"]
     }
 }
