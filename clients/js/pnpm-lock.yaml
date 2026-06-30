@@ -34,8 +34,8 @@ importers:
         specifier: ^0.12.1
         version: 0.12.1(@solana/kit@6.10.0(typescript@5.9.3))(typescript@5.9.3)
       '@solana/kit-plugin-rpc':
-        specifier: ^0.11.1
-        version: 0.11.1(@solana/kit@6.10.0(typescript@5.9.3))
+        specifier: ^0.12.1
+        version: 0.12.1(@solana/kit@6.10.0(typescript@5.9.3))
       '@solana/kit-plugin-signer':
         specifier: ^0.12.1
         version: 0.12.1(@solana/kit@6.10.0(typescript@5.9.3))
@@ -1011,11 +1011,6 @@ packages:
       typescript:
         optional: true
 
-  '@solana/kit-plugin-instruction-plan@0.10.0':
-    resolution: {integrity: sha512-h99B+1Vp5QWU/M/q0UXlTxKJt781vWw5aAopnbgVCy0F3hNaSDZ/gio126Oz0/cipGOnyaJf3NnV79GvxaEqZA==}
-    peerDependencies:
-      '@solana/kit': ^6.8.0
-
   '@solana/kit-plugin-instruction-plan@0.12.1':
     resolution: {integrity: sha512-+uDMOHwFEEYAP5hWleWAaBMQYMiJmczRotTDZY1h/7yILHESZHUBFdn1FHFHKOv6JxXfC9Xp8siWKB4PsAymXw==}
     peerDependencies:
@@ -1026,10 +1021,10 @@ packages:
     peerDependencies:
       '@solana/kit': ^6.10.0
 
-  '@solana/kit-plugin-rpc@0.11.1':
-    resolution: {integrity: sha512-NpCKBY6y3lmOOZjzm5dvk/+iZsKOH+Wc9TQx5yKZ0RzNOXC6V9i0Inn+niVdkX5ECDJOmClfa64bLcImFJWLuQ==}
+  '@solana/kit-plugin-rpc@0.12.1':
+    resolution: {integrity: sha512-bNRK6NPsUwdfjGBhd/5WIK9Y2IE+1OBQzJ9vTkz2ro+Y1KjxXIHP8zX71DLAXSg6dj4zeC20drRJF7jM2AN5WA==}
     peerDependencies:
-      '@solana/kit': ^6.8.0
+      '@solana/kit': ^6.10.0
 
   '@solana/kit-plugin-signer@0.12.1':
     resolution: {integrity: sha512-D+9LXVEDVRNu6ALCmxdCyFNemxowfxkB63Jq4rJ0HYRJhiMyA34vrvQPn8UuF8iBac1tWdlt7lT6pCWQuHzFSw==}
@@ -2634,10 +2629,6 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/kit-plugin-instruction-plan@0.10.0(@solana/kit@6.10.0(typescript@5.9.3))':
-    dependencies:
-      '@solana/kit': 6.10.0(typescript@5.9.3)
-
   '@solana/kit-plugin-instruction-plan@0.12.1(@solana/kit@6.10.0(typescript@5.9.3))':
     dependencies:
       '@solana/kit': 6.10.0(typescript@5.9.3)
@@ -2653,10 +2644,10 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@solana/kit-plugin-rpc@0.11.1(@solana/kit@6.10.0(typescript@5.9.3))':
+  '@solana/kit-plugin-rpc@0.12.1(@solana/kit@6.10.0(typescript@5.9.3))':
     dependencies:
       '@solana/kit': 6.10.0(typescript@5.9.3)
-      '@solana/kit-plugin-instruction-plan': 0.10.0(@solana/kit@6.10.0(typescript@5.9.3))
+      '@solana/kit-plugin-instruction-plan': 0.12.1(@solana/kit@6.10.0(typescript@5.9.3))
 
   '@solana/kit-plugin-signer@0.12.1(@solana/kit@6.10.0(typescript@5.9.3))':
     dependencies:
