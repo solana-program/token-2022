@@ -73,7 +73,7 @@
     },
     "peerDependencies": {
         "@solana/kit": "^6.10.0",
-        "@solana/sysvars": "^5.0",
+        "@solana/sysvars": "^6.10.0",
         "@solana/zk-sdk": "^0.4.2"
     },
     "peerDependenciesMeta": {
