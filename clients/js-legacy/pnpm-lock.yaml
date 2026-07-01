@@ -28,8 +28,8 @@ importers:
         specifier: 6.10.0
         version: 6.10.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@6.0.3)
       '@solana/prettier-config-solana':
-        specifier: 0.0.6
-        version: 0.0.6(prettier@3.8.4)
+        specifier: 0.0.7
+        version: 0.0.7(prettier@3.8.4)
       '@solana/spl-memo':
         specifier: 0.2.5
         version: 0.2.5(@solana/web3.js@1.98.4(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10))
@@ -315,8 +315,8 @@ packages:
     peerDependencies:
       typescript: '>=5'
 
-  '@solana/prettier-config-solana@0.0.6':
-    resolution: {integrity: sha512-/s55hDoAyh5QyltQh/jjNK3AgACEq885+DnC6lYhrmYZiV6I0iHITWYnKd8d23KRKs/RBjlaQH54MiafeoI9hw==}
+  '@solana/prettier-config-solana@0.0.7':
+    resolution: {integrity: sha512-uJyzzvVVZ04e4K6ukCLSQccL4N9RYQ9GG9rK8S0QoCttD5D9FukToaIUNxWtA4RIswGcNCq0yusaLjmbG7I0SA==}
     deprecated: This package is deprecated. It has been replaced by @solana-config/prettier, part of the @solana-foundation/js-configs monorepo (https://github.com/solana-foundation/js-configs). Please migrate to the new package; this one will no longer receive updates.
     peerDependencies:
       prettier: ^3.7.4
@@ -1903,7 +1903,7 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/prettier-config-solana@0.0.6(prettier@3.8.4)':
+  '@solana/prettier-config-solana@0.0.7(prettier@3.8.4)':
     dependencies:
       prettier: 3.8.4
 
