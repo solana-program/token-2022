@@ -64,7 +64,7 @@
         "@types/node": "^26",
         "oxfmt": "^0.57.0",
         "oxlint": "^1.70.0",
-        "oxlint-tsgolint": "^0.23.0",
+        "oxlint-tsgolint": "^0.24.0",
         "rimraf": "^6.0.1",
         "tsup": "^8.1.2",
         "typedoc": "^0.28.0",
