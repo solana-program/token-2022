@@ -4765,7 +4765,7 @@ async fn compute_budget(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn scaled_ui_amount(test_validator: &TestValidator, payer: &Keypair) {
-    let config =
+    let mut config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     // create token with scaled ui amount extension
@@ -4793,6 +4793,22 @@ async fn scaled_ui_amount(test_validator: &TestValidator, payer: &Keypair) {
     let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
     let extension = test_mint.get_extension::<ScaledUiAmountConfig>().unwrap();
     assert_eq!(f64::from(extension.multiplier), ui_multiplier);
+
+    config.output_format = OutputFormat::Display;
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Display.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    assert!(result.contains("Scaled UI amount:"));
+    assert!(result.contains("Multiplier:"));
+    config.output_format = OutputFormat::JsonCompact;
 
     // update multiplier
     let new_ui_multiplier = 5.0;
@@ -4844,7 +4860,7 @@ async fn scaled_ui_amount(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn pause(test_validator: &TestValidator, payer: &Keypair) {
-    let config =
+    let mut config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     // create token with pausable extension
@@ -4869,6 +4885,22 @@ async fn pause(test_validator: &TestValidator, payer: &Keypair) {
     let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
     let extension = test_mint.get_extension::<PausableConfig>().unwrap();
     assert!(!bool::from(extension.paused));
+
+    config.output_format = OutputFormat::Display;
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Display.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    assert!(result.contains("Pausable:"));
+    assert!(result.contains("Status: Active"));
+    config.output_format = OutputFormat::JsonCompact;
 
     // pause the mint
     process_test_command(
