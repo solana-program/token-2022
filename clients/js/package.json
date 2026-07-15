@@ -1,6 +1,6 @@
 {
     "name": "@solana-program/token-2022",
-    "version": "0.12.0",
+    "version": "0.13.0",
     "description": "JavaScript client for the Token 2022 program",
     "homepage": "https://github.com/solana-program/token-2022#readme",
     "bugs": {
