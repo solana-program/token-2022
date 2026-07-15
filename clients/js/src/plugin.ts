@@ -1,4 +1,4 @@
-import { ClientWithPayer, extendClient, pipe } from '@solana/kit';
+import { ClientWithGetMinimumBalance, ClientWithPayer, extendClient, pipe } from '@solana/kit';
 import { addSelfPlanAndSendFunctions, SelfPlanAndSendFunctions } from '@solana/kit/program-client-core';
 
 import { getBatchInstruction } from './batch';
@@ -30,7 +30,9 @@ import {
 } from './transferToATA';
 import { MakeOptional } from './types';
 
-export type Token2022PluginRequirements = GeneratedToken2022PluginRequirements & ClientWithPayer;
+export type Token2022PluginRequirements = GeneratedToken2022PluginRequirements &
+    ClientWithPayer &
+    ClientWithGetMinimumBalance;
 
 export type Token2022Plugin = Omit<GeneratedToken2022Plugin, 'instructions'> & {
     instructions: Token2022PluginInstructions;
@@ -77,12 +79,20 @@ export function token2022Program() {
                         createMint: (input, config) =>
                             addSelfPlanAndSendFunctions(
                                 client,
-                                getCreateMintInstructionPlan({ ...input, payer: input.payer ?? client.payer }, config),
+                                getCreateMintInstructionPlan(
+                                    client,
+                                    { ...input, payer: input.payer ?? client.payer },
+                                    config,
+                                ),
                             ),
                         createToken: (input, config) =>
                             addSelfPlanAndSendFunctions(
                                 client,
-                                getCreateTokenInstructionPlan({ ...input, payer: input.payer ?? client.payer }, config),
+                                getCreateTokenInstructionPlan(
+                                    client,
+                                    { ...input, payer: input.payer ?? client.payer },
+                                    config,
+                                ),
                             ),
                         mintToATA: (input, config) =>
                             addSelfPlanAndSendFunctions(

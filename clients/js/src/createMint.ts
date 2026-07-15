@@ -1,7 +1,7 @@
 import { getCreateAccountInstruction } from '@solana-program/system';
 import {
     Address,
-    getMinimumBalanceForRentExemption,
+    ClientWithGetMinimumBalance,
     InstructionPlan,
     OptionOrNullable,
     sequentialInstructionPlan,
@@ -50,10 +50,11 @@ export type CreateMintInstructionPlanConfig = {
     tokenProgram?: Address;
 };
 
-export function getCreateMintInstructionPlan(
+export async function getCreateMintInstructionPlan(
+    client: ClientWithGetMinimumBalance,
     input: CreateMintInstructionPlanInput,
     config?: CreateMintInstructionPlanConfig,
-): InstructionPlan {
+): Promise<InstructionPlan> {
     const extensions = input.extensions ?? [];
     // The account is allocated without the post-initialize extensions (which
     // reallocate the account as needed). `undefined` (no extensions) must be
@@ -62,12 +63,13 @@ export function getCreateMintInstructionPlan(
         ? getMintSize(input.extensions.filter(e => !POST_INITIALIZE_EXTENSIONS.includes(e.__kind)))
         : getMintSize();
     const rentSpace = getMintSize(input.extensions);
+    const lamports = input.mintAccountLamports ?? (await client.getMinimumBalance(rentSpace));
     return sequentialInstructionPlan([
         getCreateAccountInstruction(
             {
                 payer: input.payer,
                 newAccount: input.newMint,
-                lamports: input.mintAccountLamports ?? getMinimumBalanceForRentExemption(BigInt(rentSpace)),
+                lamports,
                 space,
                 programAddress: config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
             },
