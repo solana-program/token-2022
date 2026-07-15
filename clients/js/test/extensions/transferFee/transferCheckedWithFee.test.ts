@@ -43,22 +43,24 @@ it('transfers tokens with pre-configured fees', async () => {
     const transferFeeAmount = extension('TransferFeeAmount', {
         withheldAmount: 0n,
     });
+    const createTokenAPlan = await getCreateTokenInstructionPlan(client, {
+        payer: client.payer,
+        newToken: tokenA,
+        mint: mint.address,
+        owner: ownerA.address,
+        extensions: [transferFeeAmount],
+    });
+    const createTokenBPlan = await getCreateTokenInstructionPlan(client, {
+        payer: client.payer,
+        newToken: tokenB,
+        mint: mint.address,
+        owner: ownerB.address,
+        extensions: [transferFeeAmount],
+    });
     await client.sendTransaction(
         sequentialInstructionPlan([
-            getCreateTokenInstructionPlan({
-                payer: client.payer,
-                newToken: tokenA,
-                mint: mint.address,
-                owner: ownerA.address,
-                extensions: [transferFeeAmount],
-            }),
-            getCreateTokenInstructionPlan({
-                payer: client.payer,
-                newToken: tokenB,
-                mint: mint.address,
-                owner: ownerB.address,
-                extensions: [transferFeeAmount],
-            }),
+            createTokenAPlan,
+            createTokenBPlan,
             getMintToInstruction({
                 mint: mint.address,
                 token: tokenA.address,

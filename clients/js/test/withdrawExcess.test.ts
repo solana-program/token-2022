@@ -52,7 +52,7 @@ it('withdraws excess lamports from an associated token account', async () => {
     expect(initialTokenAccount.data.state).toBe(AccountState.Initialized);
 
     // When: SOL is mistakenly transferred to the ATA
-    const transferSolInstruction = await getTransferSolInstruction({
+    const transferSolInstruction = getTransferSolInstruction({
         source: payer,
         destination: ata,
         amount: 1_000_000n,

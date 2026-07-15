@@ -1,7 +1,7 @@
 import { getCreateAccountInstruction } from '@solana-program/system';
 import {
     Address,
-    getMinimumBalanceForRentExemption,
+    ClientWithGetMinimumBalance,
     InstructionPlan,
     sequentialInstructionPlan,
     TransactionSigner,
@@ -35,19 +35,21 @@ export type CreateTokenInstructionPlanConfig = {
     tokenProgram?: Address;
 };
 
-export function getCreateTokenInstructionPlan(
+export async function getCreateTokenInstructionPlan(
+    client: ClientWithGetMinimumBalance,
     input: CreateTokenInstructionPlanInput,
     config?: CreateTokenInstructionPlanConfig,
-): InstructionPlan {
+): Promise<InstructionPlan> {
     const extensions = input.extensions ?? [];
     const space = getTokenSize(input.extensions);
     const owner = typeof input.owner === 'string' ? input.owner : input.owner.address;
+    const lamports = input.tokenAccountLamports ?? (await client.getMinimumBalance(space));
     return sequentialInstructionPlan([
         getCreateAccountInstruction(
             {
                 payer: input.payer,
                 newAccount: input.newToken,
-                lamports: input.tokenAccountLamports ?? getMinimumBalanceForRentExemption(BigInt(space)),
+                lamports,
                 space,
                 programAddress: config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
             },

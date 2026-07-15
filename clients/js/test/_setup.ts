@@ -185,15 +185,16 @@ export const createTokenWithAmount = async (input: {
     extensions?: ExtensionArgs[];
 }): Promise<Address> => {
     const token = await generateKeyPairSigner();
+    const createTokenPlan = await getCreateTokenInstructionPlan(input.client, {
+        payer: input.payer,
+        newToken: token,
+        mint: input.mint,
+        owner: input.owner,
+        extensions: input.extensions,
+    });
     await input.client.sendTransaction(
         sequentialInstructionPlan([
-            getCreateTokenInstructionPlan({
-                payer: input.payer,
-                newToken: token,
-                mint: input.mint,
-                owner: input.owner,
-                extensions: input.extensions,
-            }),
+            createTokenPlan,
             getMintToInstruction({
                 mint: input.mint,
                 token: token.address,
