@@ -14,6 +14,7 @@ import {
     createTransactionPlanner,
     extendClient,
     generateKeyPairSigner,
+    getAddressDecoder,
     isSome,
     lamports,
     none,
@@ -278,6 +279,52 @@ export const createConfidentialMint = async (input: {
         })
         .sendTransaction();
     return { mint: mint.address, mintAuthority };
+};
+
+// Creates a mint configured for confidential mint/burn: it carries both the
+// `ConfidentialTransferMint` extension (auto-approve, required by mint/burn) and
+// the `ConfidentialMintBurn` extension with a fresh supply ElGamal keypair and
+// AES key and a zero-initialized encrypted/decryptable supply.
+export const createConfidentialMintBurnMint = async (input: {
+    client: Client;
+    payer: TransactionSigner;
+    decimals?: number;
+    auditorElgamalPubkey?: Address;
+}): Promise<{
+    mint: Address;
+    mintAuthority: TransactionSigner;
+    supplyElgamalKeypair: ElGamalKeypair;
+    supplyAesKey: AeKey;
+}> => {
+    const [mintAuthority, mint] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
+    const supplyElgamalKeypair = new ElGamalKeypair();
+    const supplyAesKey = new AeKey();
+    const supplyElgamalPubkey = getAddressDecoder().decode(new Uint8Array(supplyElgamalKeypair.pubkey().toBytes()));
+
+    await input.client.token2022.instructions
+        .createMint({
+            payer: input.payer,
+            newMint: mint,
+            decimals: input.decimals ?? 2,
+            mintAuthority,
+            extensions: [
+                extension('ConfidentialTransferMint', {
+                    authority: some(mintAuthority.address),
+                    autoApproveNewAccounts: true,
+                    auditorElgamalPubkey: input.auditorElgamalPubkey ? some(input.auditorElgamalPubkey) : none(),
+                }),
+                extension('ConfidentialMintBurn', {
+                    // The confidential supply and pending burn are zero-initialized;
+                    // the decryptable supply is an AES encryption of zero.
+                    confidentialSupply: new Uint8Array(64).fill(0),
+                    decryptableSupply: supplyAesKey.encrypt(0n).toBytes(),
+                    supplyElgamalPubkey,
+                    pendingBurn: new Uint8Array(64).fill(0),
+                }),
+            ],
+        })
+        .sendTransaction();
+    return { mint: mint.address, mintAuthority, supplyElgamalKeypair, supplyAesKey };
 };
 
 export type ConfidentialTokenAccount = {
