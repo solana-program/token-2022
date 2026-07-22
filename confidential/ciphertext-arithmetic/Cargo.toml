@@ -16,4 +16,4 @@ solana-zk-sdk-pod = "0.1.2"
 [dev-dependencies]
 spl-token-confidential-transfer-proof-generation = { version = "0.6.0", path = "../proof-generation" }
 solana-zk-sdk = "7.0.1"
-curve25519-dalek = "4.1.3"
+curve25519-dalek = "5.0.0"
