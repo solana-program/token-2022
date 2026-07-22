@@ -4576,6 +4576,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-derive"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4e98dc3b890f6c23a0f9d3d491a2823d0dea0fa656302a13dd225fa924112a8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.2",
+]
+
+[[package]]
 name = "num-integer"
 version = "0.1.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8824,7 +8835,7 @@ dependencies = [
  "dialoguer 0.10.4",
  "hidapi",
  "log",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "parking_lot 0.12.3",
  "qstring",
@@ -8847,7 +8858,7 @@ dependencies = [
  "console 0.16.4",
  "dialoguer 0.12.0",
  "log",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "parking_lot 0.12.3",
  "semver",
@@ -9117,7 +9128,7 @@ dependencies = [
  "memmap2 0.9.10",
  "mockall",
  "modular-bitfield",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "num_cpus",
  "num_enum",
@@ -9529,7 +9540,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "36329bba208f0e41954389ae4ad5d973fe15952672cfd71a9b49deb7d2ecbc2f"
 dependencies = [
  "bitvec",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
 ]
 
@@ -10479,7 +10490,7 @@ checksum = "56590ed45c393149100643bd8184c0e56831f576cab8e99fe4088a82aed9ac4b"
 dependencies = [
  "bincode",
  "cfg_eval",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "serde",
  "serde_derive",
@@ -10506,7 +10517,7 @@ dependencies = [
  "agave-feature-set 4.0.0-rc.0",
  "bincode",
  "log",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "serde",
  "solana-account",
@@ -10552,7 +10563,7 @@ checksum = "d8da7f01db2148a1dc16261ff1dc6f3930a1e255a33cece4f1b56658694f27f7"
 dependencies = [
  "bytemuck",
  "bytemuck_derive",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "solana-address 2.6.1",
  "solana-instruction",
@@ -10568,7 +10579,7 @@ checksum = "26b8f26ba5f12d9ee9f7f1712947c91acb131063265356e2681c2b1feb4a99b5"
 dependencies = [
  "agave-feature-set 4.0.0-rc.0",
  "bytemuck",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "solana-instruction",
  "solana-program-runtime 4.0.0-rc.0",
@@ -10593,7 +10604,7 @@ dependencies = [
  "itertools 0.12.1",
  "js-sys",
  "merlin",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "rand 0.8.6",
  "serde",
@@ -10628,7 +10639,7 @@ dependencies = [
  "curve25519-dalek 4.1.3",
  "itertools 0.14.0",
  "merlin",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "rand 0.8.6",
  "serde",
@@ -10844,7 +10855,7 @@ dependencies = [
  "borsh",
  "bytemuck",
  "bytemuck_derive",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "num_enum",
  "solana-program-error",
@@ -10861,7 +10872,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c4f6cf26cb6768110bf024bc7224326c720d711f7ad25d16f40f6cee40edb2d"
 dependencies = [
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "num_enum",
  "solana-msg",
@@ -10889,7 +10900,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fda0eb42ca6387770d7f0e764ecd8fa863f4529e9ff35fbf146576b5f4372587"
 dependencies = [
  "bytemuck",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "solana-account-info",
  "solana-instruction",
@@ -10910,7 +10921,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6927f613c9d7ce20835d3cefb602137cab2518e383a047c0eaa58054a60644c8"
 dependencies = [
  "bytemuck",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "num_enum",
  "solana-account-info",
@@ -10976,7 +10987,7 @@ checksum = "2fcd81188211f4b3c8a5eba7fd534c7142f9dd026123b3472492782cc72f4dc6"
 dependencies = [
  "arrayref",
  "bytemuck",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "num_enum",
  "solana-account-info",
@@ -11004,7 +11015,7 @@ dependencies = [
  "base64 0.22.1",
  "bytemuck",
  "getrandom 0.2.15",
- "num-derive",
+ "num-derive 0.5.1",
  "num-traits",
  "num_enum",
  "proptest",
@@ -11225,7 +11236,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "841cbd6f2322d02719be4da1affedbe6495b1048b7b985ec9796032564026e22"
 dependencies = [
  "bytemuck",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "num_enum",
  "solana-address 2.6.1",
@@ -11245,7 +11256,7 @@ checksum = "8c564ac05a7c8d8b12e988a37d82695b5ba4db376d07ea98bc4882c81f96c7f3"
 dependencies = [
  "arrayref",
  "bytemuck",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "num_enum",
  "solana-instruction",
@@ -11265,7 +11276,7 @@ checksum = "7143c4e676984047a400e2fbd7ac29a1659f2b1b52b897cfde19316b562e4589"
 dependencies = [
  "arrayref",
  "bytemuck",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "num_enum",
  "solana-instruction",
@@ -11284,7 +11295,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c467c7c3bd056f8fe60119e7ec34ddd6f23052c2fa8f1f51999098063b72676"
 dependencies = [
  "borsh",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "solana-borsh",
  "solana-instruction",
@@ -11303,7 +11314,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d3d96f175e7022ff200464dfa75a3708a4e9b70c83c4ecd04fe52ee479f4fef"
 dependencies = [
  "borsh",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "num_enum",
  "solana-address 2.6.1",
@@ -11324,7 +11335,7 @@ checksum = "c34b46b8f39bc64a9ab177a0ea8e9a58826db76f8d9d154a2400ee60baef7b1e"
 dependencies = [
  "arrayref",
  "bytemuck",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "solana-account-info",
  "solana-cpi",
@@ -11349,7 +11360,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2504631748c48d2a937414d64a12dcac4588d34bd07d355d648619c189d29435"
 dependencies = [
  "bytemuck",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "num_enum",
  "solana-account-info",
