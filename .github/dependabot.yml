@@ -12,6 +12,11 @@ updates:
     time: "08:00"
     timezone: UTC
   open-pull-requests-limit: 6
+  ignore:
+    # Ignore Solana dependencies and wincode for now, to avoid introducing
+    # incompatibilities in libraries used by Agave
+    - dependency-name: "solana-*"
+    - dependency-name: "wincode"
 - package-ecosystem: npm
   directories:
     - "/"
