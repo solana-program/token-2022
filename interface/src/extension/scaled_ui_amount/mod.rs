@@ -75,19 +75,15 @@ impl ScaledUiAmountConfig {
     }
 
     /// Convert a raw amount to its UI representation using the given decimals
-    /// field.
-    ///
-    /// The value is converted to a float and then truncated towards 0. Excess
-    /// zeroes or unneeded decimal point are trimmed.
+    /// field. Excess zeroes or unneeded decimal point are trimmed.
     pub fn amount_to_ui_amount(
         &self,
         amount: u64,
         decimals: u8,
         unix_timestamp: i64,
     ) -> Option<String> {
-        let scaled_amount = (amount as f64) * self.current_multiplier(unix_timestamp);
-        let truncated_amount = Float::trunc(scaled_amount) / pow(10_f64, decimals as usize);
-        let ui_amount = format!("{truncated_amount:.*}", decimals as usize);
+        let scaled_amount = (amount as f64) * self.total_multiplier(decimals, unix_timestamp);
+        let ui_amount = format!("{scaled_amount:.*}", decimals as usize);
         Some(trim_ui_amount_string(ui_amount, decimals))
     }
 
@@ -181,15 +177,33 @@ mod tests {
         let ui_amount = config.amount_to_ui_amount(u64::MAX, 0, 0).unwrap();
         assert_eq!(ui_amount, "inf");
 
-        // truncation
+        // rounding
         let config = ScaledUiAmountConfig {
             multiplier: PodF64::from(0.99),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
             ..Default::default()
         };
-        // This is really 0.99999... but it gets truncated
+        // This is really 0.9999, which rounds up at 2 decimal places
         let ui_amount = config.amount_to_ui_amount(101, 2, 0).unwrap();
-        assert_eq!(ui_amount, "0.99");
+        assert_eq!(ui_amount, "1");
+
+        // multipliers below one keep sub-unit amounts visible
+        let config = ScaledUiAmountConfig {
+            multiplier: PodF64::from(0.001),
+            new_multiplier_effective_timestamp: UnixTimestamp::from(1),
+            ..Default::default()
+        };
+        let ui_amount = config.amount_to_ui_amount(500, 6, 0).unwrap();
+        assert_eq!(ui_amount, "0.000001");
+        let ui_amount = config.amount_to_ui_amount(1500, 6, 0).unwrap();
+        assert_eq!(ui_amount, "0.000002");
+        let config = ScaledUiAmountConfig {
+            multiplier: PodF64::from(0.5),
+            new_multiplier_effective_timestamp: UnixTimestamp::from(1),
+            ..Default::default()
+        };
+        let ui_amount = config.amount_to_ui_amount(1, 2, 0).unwrap();
+        assert_eq!(ui_amount, "0.01");
     }
 
     #[test]
