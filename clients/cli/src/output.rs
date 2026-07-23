@@ -10,8 +10,9 @@ use {
             UiConfidentialTransferFeeConfig, UiConfidentialTransferMint, UiCpiGuard,
             UiDefaultAccountState, UiExtension, UiGroupMemberPointer, UiGroupPointer,
             UiInterestBearingConfig, UiMemoTransfer, UiMetadataPointer, UiMintCloseAuthority,
-            UiPermanentDelegate, UiTokenGroup, UiTokenGroupMember, UiTokenMetadata,
-            UiTransferFeeAmount, UiTransferFeeConfig, UiTransferHook, UiTransferHookAccount,
+            UiPausableConfig, UiPermanentDelegate, UiScaledUiAmountConfig, UiTokenGroup,
+            UiTokenGroupMember, UiTokenMetadata, UiTransferFeeAmount, UiTransferFeeConfig,
+            UiTransferHook, UiTransferHookAccount,
         },
     },
     solana_cli_output::{display::writeln_name_value, OutputFormat, QuietDisplay, VerboseDisplay},
@@ -668,6 +669,36 @@ fn display_ui_extension(
                 rate_authority.as_ref().unwrap_or(&String::new()),
             )
         }
+        UiExtension::ScaledUiAmountConfig(UiScaledUiAmountConfig {
+            authority,
+            multiplier,
+            new_multiplier_effective_timestamp,
+            new_multiplier,
+        }) => {
+            writeln!(f, "  {}", style("Scaled UI amount:").bold())?;
+            writeln_name_value(
+                f,
+                "    Authority:",
+                authority.as_ref().unwrap_or(&String::new()),
+            )?;
+            writeln_name_value(f, "    Multiplier:", multiplier)?;
+            writeln_name_value(
+                f,
+                "    New multiplier effective timestamp:",
+                &new_multiplier_effective_timestamp.to_string(),
+            )?;
+            writeln_name_value(f, "    New multiplier:", new_multiplier)
+        }
+        UiExtension::PausableConfig(UiPausableConfig { authority, paused }) => {
+            writeln!(f, "  {}", style("Pausable:").bold())?;
+            writeln_name_value(
+                f,
+                "    Authority:",
+                authority.as_ref().unwrap_or(&String::new()),
+            )?;
+            writeln_name_value(f, "    Status:", if *paused { "Paused" } else { "Active" })
+        }
+        UiExtension::PausableAccount => writeln!(f, "  {}", style("Pausable account").bold()),
         UiExtension::CpiGuard(UiCpiGuard { lock_cpi }) => writeln_name_value(
             f,
             "  CPI Guard:",
