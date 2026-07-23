@@ -157,6 +157,7 @@ async fn main() {
         async_trial!(compute_budget, test_validator, payer),
         async_trial!(scaled_ui_amount, test_validator, payer),
         async_trial!(pause, test_validator, payer),
+        async_trial!(multisig_pause, test_validator, payer),
         async_trial!(permissioned_burn, test_validator, payer),
         async_trial!(confidential_mint_burn, test_validator, payer),
         // GC messes with every other test, so have it on its own test validator
@@ -4957,6 +4958,119 @@ async fn pause(test_validator: &TestValidator, payer: &Keypair) {
     let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
     let extension = test_mint.get_extension::<PausableConfig>().unwrap();
     assert_eq!(Option::<Pubkey>::from(extension.authority), None,);
+}
+
+async fn multisig_pause(test_validator: &TestValidator, payer: &Keypair) {
+    let m = 2;
+    let n = 3u8;
+    let (multisig_members, multisig_paths): (Vec<_>, Vec<_>) = std::iter::repeat_with(Keypair::new)
+        .take(n as usize)
+        .map(|s| {
+            let keypair_file = NamedTempFile::new().unwrap();
+            write_keypair_file(&s, &keypair_file).unwrap();
+            (s.pubkey(), keypair_file)
+        })
+        .unzip();
+
+    let fee_payer_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(payer, &fee_payer_keypair_file).unwrap();
+
+    let program_id = &spl_token_2022_interface::id();
+    let config = test_config_with_default_signer(test_validator, payer, program_id);
+
+    let multisig = Arc::new(Keypair::new());
+    let multisig_pubkey = multisig.pubkey();
+    let multisig_path = NamedTempFile::new().unwrap();
+    write_keypair_file(&multisig, &multisig_path).unwrap();
+
+    let multisig_strings = multisig_members
+        .iter()
+        .map(|p| p.to_string())
+        .collect::<Vec<_>>();
+    process_test_command(
+        &config,
+        payer,
+        [
+            "spl-token",
+            CommandName::CreateMultisig.into(),
+            "--address-keypair",
+            multisig_path.path().to_str().unwrap(),
+            "--program-id",
+            &program_id.to_string(),
+            &m.to_string(),
+        ]
+        .into_iter()
+        .chain(multisig_strings.iter().map(|p| p.as_str())),
+    )
+    .await
+    .unwrap();
+
+    let token = Keypair::new();
+    let token_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&token, &token_keypair_file).unwrap();
+    let token_pubkey = token.pubkey();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::CreateToken.into(),
+            token_keypair_file.path().to_str().unwrap(),
+            "--enable-pause",
+            "--owner",
+            &multisig_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    exec_test_cmd(
+        &config,
+        &[
+            "spl-token",
+            CommandName::Pause.into(),
+            &token_pubkey.to_string(),
+            "--pause-authority",
+            &multisig_pubkey.to_string(),
+            "--multisig-signer",
+            multisig_paths[0].path().to_str().unwrap(),
+            "--multisig-signer",
+            multisig_paths[1].path().to_str().unwrap(),
+            "--fee-payer",
+            fee_payer_keypair_file.path().to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
+    let extension = test_mint.get_extension::<PausableConfig>().unwrap();
+    assert!(bool::from(extension.paused));
+
+    exec_test_cmd(
+        &config,
+        &[
+            "spl-token",
+            CommandName::Resume.into(),
+            &token_pubkey.to_string(),
+            "--pause-authority",
+            &multisig_pubkey.to_string(),
+            "--multisig-signer",
+            multisig_paths[0].path().to_str().unwrap(),
+            "--multisig-signer",
+            multisig_paths[1].path().to_str().unwrap(),
+            "--fee-payer",
+            fee_payer_keypair_file.path().to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let test_mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
+    let extension = test_mint.get_extension::<PausableConfig>().unwrap();
+    assert!(!bool::from(extension.paused));
 }
 
 async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
