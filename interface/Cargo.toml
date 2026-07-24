@@ -42,7 +42,7 @@ serde_with = { version = "3.21.0", optional = true, default-features = false }
 getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
-base64 = "0.22.1"
+base64 = "0.23.0"
 proptest = "1.11"
 serde_json = "1.0.150"
 solana-address = { version = "2.6.1", features = ["curve25519"] }

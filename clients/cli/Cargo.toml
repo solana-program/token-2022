@@ -14,7 +14,7 @@ edition = { workspace = true }
 walkdir = "2"
 
 [dependencies]
-base64 = "0.22.1"
+base64 = "0.23.0"
 clap = "3.2.23"
 console = "0.16.3"
 futures = "0.3"
