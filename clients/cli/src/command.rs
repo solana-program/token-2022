@@ -5763,7 +5763,9 @@ pub async fn process_command(
                 .unwrap();
             let (pause_authority_signer, pause_authority_pubkey) =
                 config.signer_or_default(arg_matches, "pause_authority", &mut wallet_manager);
-            let bulk_signers = vec![pause_authority_signer];
+            if config.multisigner_pubkeys.is_empty() {
+                push_signer_with_dedup(pause_authority_signer, &mut bulk_signers);
+            }
 
             let allow_mint_burn_transfer = match c {
                 CommandName::Pause => false,
