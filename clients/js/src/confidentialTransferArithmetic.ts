@@ -51,6 +51,15 @@ export function extractCiphertextFromGroupedBytes(groupedCiphertext: ReadonlyUin
     return ciphertext;
 }
 
+function addCiphertexts(left: ReadonlyUint8Array, right: ReadonlyUint8Array) {
+    const leftPoints = ciphertextToPoints(left);
+    const rightPoints = ciphertextToPoints(right);
+    return pointsToCiphertext(
+        leftPoints.commitment.add(rightPoints.commitment),
+        leftPoints.handle.add(rightPoints.handle),
+    );
+}
+
 function subtractCiphertexts(left: ReadonlyUint8Array, right: ReadonlyUint8Array) {
     const leftPoints = ciphertextToPoints(left);
     const rightPoints = ciphertextToPoints(right);
@@ -68,6 +77,20 @@ function combineLoHiCiphertexts(ciphertextLo: ReadonlyUint8Array, ciphertextHi: 
         loPoints.commitment.add(hiPoints.commitment.multiply(scale)),
         loPoints.handle.add(hiPoints.handle.multiply(scale)),
     );
+}
+
+/**
+ * Combines lo/hi ciphertext halves (hi << bitLength + lo) and adds the result
+ * to `left`. Used to compute the new encrypted supply ciphertext after a
+ * confidential mint.
+ */
+export function addWithLoHiCiphertexts(
+    left: ReadonlyUint8Array,
+    ciphertextLo: ReadonlyUint8Array,
+    ciphertextHi: ReadonlyUint8Array,
+    bitLength: bigint,
+) {
+    return addCiphertexts(left, combineLoHiCiphertexts(ciphertextLo, ciphertextHi, bitLength));
 }
 
 /**
