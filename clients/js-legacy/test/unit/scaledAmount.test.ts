@@ -250,7 +250,25 @@ describe('Scaled UI Amount Extension', () => {
                 mint,
                 BigInt(Number.MAX_SAFE_INTEGER),
             );
-            expect(result).to.equal('Infinity');
+            expect(result).to.equal('inf');
         });
+    });
+});
+
+describe('exact conversions matching the on-chain program', () => {
+    it('shows sub-unit amounts for multipliers below one', () => {
+        expect(amountToUiAmountForScaledUiAmountMintWithoutSimulation(500n, 6, 0.001)).to.equal('0.000001');
+        expect(amountToUiAmountForScaledUiAmountMintWithoutSimulation(1500n, 6, 0.001)).to.equal('0.000002');
+        expect(amountToUiAmountForScaledUiAmountMintWithoutSimulation(1n, 2, 0.5)).to.equal('0.01');
+    });
+
+    it('rejects malformed ui amounts', () => {
+        for (const badUiAmount of ['abc', '1.5oops', '', '0x10']) {
+            expect(() => uiAmountToAmountForScaledUiAmountMintWithoutSimulation(badUiAmount, 2, 0.5)).to.throw();
+        }
+    });
+
+    it('rejects converted amounts above the u64 range', () => {
+        expect(() => uiAmountToAmountForScaledUiAmountMintWithoutSimulation('18446744073709551615', 0, 0.1)).to.throw();
     });
 });
