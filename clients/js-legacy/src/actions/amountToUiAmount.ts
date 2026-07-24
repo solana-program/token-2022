@@ -81,7 +81,7 @@ function getDecimalFactor(decimals: number): number {
     return Math.pow(10, decimals);
 }
 
-const U64_MAX = 18446744073709551615n;
+const U64_MAX = BigInt('18446744073709551615');
 
 // Matches Rust's f64 grammar: optional sign, digits with optional fraction,
 // optional exponent, or inf/infinity/nan.
@@ -125,24 +125,24 @@ function formatUiAmountString(value: number, decimals: number): string {
     const view = new DataView(new ArrayBuffer(8));
     view.setFloat64(0, Math.abs(value));
     const bits = view.getBigUint64(0);
-    const biasedExponent = Number((bits >> 52n) & 0x7ffn);
-    const fractionBits = bits & 0xfffffffffffffn;
-    const mantissa = biasedExponent === 0 ? fractionBits : fractionBits | (1n << 52n);
+    const biasedExponent = Number((bits >> BigInt(52)) & BigInt(0x7ff));
+    const fractionBits = bits & BigInt('0xfffffffffffff');
+    const mantissa = biasedExponent === 0 ? fractionBits : fractionBits | (BigInt(1) << BigInt(52));
     const exponent = (biasedExponent === 0 ? -1074 : biasedExponent - 1075) + 0;
     // |value| * 10^decimals as the exact fraction numerator/denominator
-    let numerator = mantissa * 10n ** BigInt(decimals);
-    let denominator = 1n;
+    let numerator = mantissa * BigInt(10) ** BigInt(decimals);
+    let denominator = BigInt(1);
     if (exponent >= 0) {
         numerator <<= BigInt(exponent);
     } else {
-        denominator = 1n << BigInt(-exponent);
+        denominator = BigInt(1) << BigInt(-exponent);
     }
     let quotient = numerator / denominator;
-    const doubledRemainder = (numerator % denominator) * 2n;
-    if (doubledRemainder > denominator || (doubledRemainder === denominator && (quotient & 1n) === 1n)) {
-        quotient += 1n;
+    const doubledRemainder = (numerator % denominator) * BigInt(2);
+    if (doubledRemainder > denominator || (doubledRemainder === denominator && (quotient & BigInt(1)) === BigInt(1))) {
+        quotient += BigInt(1);
     }
-    const sign = value < 0 && quotient > 0n ? '-' : '';
+    const sign = value < 0 && quotient > BigInt(0) ? '-' : '';
     if (decimals === 0) {
         return sign + quotient.toString();
     }
