@@ -6,6 +6,8 @@ import {
     getProgramDerivedAddress,
     getU64Encoder,
     lamports,
+    none,
+    some,
     type Address,
     type ReadonlyUint8Array,
 } from '@solana/kit';
@@ -14,11 +16,15 @@ import { generatedSigner } from '@solana/kit-plugin-signer';
 import { expect, it } from 'vitest';
 
 import {
+    createTransferCheckedWithTransferHookInstruction,
     deEscalateAccountMeta,
     findExtraAccountMetaListPda,
     getExtraAccountMetas,
+    getMintEncoder,
+    getTransferCheckedInstruction,
     resolveExtraAccountMeta,
     resolveExtraAccountMetasForExecute,
+    TOKEN_2022_PROGRAM_ADDRESS,
     unpackPubkeyData,
     unpackSeeds,
     type ExtraAccountMeta,
@@ -497,5 +503,109 @@ it('resolveExtraAccountMetasForExecute resolves a validation account mixing lite
         { address: pdaFromLiteralAndInstructionData, role: AccountRole.READONLY },
         { address: transferHookProgramId, role: AccountRole.READONLY },
         { address: validateStatePubkey, role: AccountRole.READONLY },
+    ]);
+});
+
+function mintAccountData(transferHookProgramAddress?: Address): Uint8Array {
+    const hookAuthority = address('BQWWFhzBdw2vKKBUX17NHeFbCoFQHfRARpdztPE2tDJ7');
+    return new Uint8Array(
+        getMintEncoder().encode({
+            decimals: 6,
+            extensions: transferHookProgramAddress
+                ? some([{ __kind: 'TransferHook', authority: hookAuthority, programId: transferHookProgramAddress }])
+                : none(),
+            freezeAuthority: none(),
+            isInitialized: true,
+            mintAuthority: none(),
+            supply: 0n,
+        }),
+    );
+}
+
+it('createTransferCheckedWithTransferHookInstruction appends resolved extras when the mint has a hook', async () => {
+    const { rpc, svm } = await createTestRpc();
+    const source = plainAddress;
+    const destination = address('C1ockyE1TGaXK1gN3iF6Fz9tnhr2Q3vsdjPHXm44rQnU');
+    const authority = address('D5jyaVjrWuq7ostc8JYywr3QDPtM6y6TZKG1TgRhZYSp');
+    const literalExtra = address('AKPu7hnbAfsjixnPvGReDbmAYUJErkw8H6cRc3ohh2xf');
+    const amount = 1000n;
+
+    setAccountData(svm, mint, mintAccountData(transferHookProgramId));
+
+    const [validateStatePubkey] = await findExtraAccountMetaListPda(
+        { mint },
+        { programAddress: transferHookProgramId },
+    );
+    setAccountData(
+        svm,
+        validateStatePubkey,
+        validateStateAccountData([
+            extraAccountMetaBytes(0, addressConfigOf(getAddressEncoder().encode(literalExtra)), false, true),
+            // PDA off the transfer hook program, seeded by the account key at index 0 (source).
+            extraAccountMetaBytes(1, addressConfigOf(new Uint8Array([3, 0, 0])), false, false),
+        ]),
+    );
+
+    const [pdaFromSource] = await getProgramDerivedAddress({
+        programAddress: transferHookProgramId,
+        seeds: [getAddressEncoder().encode(source)],
+    });
+
+    const instruction = await createTransferCheckedWithTransferHookInstruction({
+        amount,
+        authority,
+        decimals: 6,
+        destination,
+        mint,
+        rpc,
+        source,
+    });
+
+    const referenceData = getTransferCheckedInstruction({
+        amount,
+        authority,
+        decimals: 6,
+        destination,
+        mint,
+        source,
+    }).data;
+
+    expect(instruction.programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS);
+    expect(instruction.data).toStrictEqual(referenceData);
+    expect(instruction.accounts).toStrictEqual([
+        { address: source, role: AccountRole.WRITABLE },
+        { address: mint, role: AccountRole.READONLY },
+        { address: destination, role: AccountRole.WRITABLE },
+        { address: authority, role: AccountRole.READONLY },
+        { address: literalExtra, role: AccountRole.WRITABLE },
+        { address: pdaFromSource, role: AccountRole.READONLY },
+        { address: transferHookProgramId, role: AccountRole.READONLY },
+        { address: validateStatePubkey, role: AccountRole.READONLY },
+    ]);
+});
+
+it('createTransferCheckedWithTransferHookInstruction returns a plain transfer when the mint has no hook', async () => {
+    const { rpc, svm } = await createTestRpc();
+    const source = plainAddress;
+    const destination = address('C1ockyE1TGaXK1gN3iF6Fz9tnhr2Q3vsdjPHXm44rQnU');
+    const authority = address('D5jyaVjrWuq7ostc8JYywr3QDPtM6y6TZKG1TgRhZYSp');
+
+    setAccountData(svm, mint, mintAccountData());
+
+    const instruction = await createTransferCheckedWithTransferHookInstruction({
+        amount: 1000n,
+        authority,
+        decimals: 6,
+        destination,
+        mint,
+        rpc,
+        source,
+    });
+
+    expect(instruction.accounts).toStrictEqual([
+        { address: source, role: AccountRole.WRITABLE },
+        { address: mint, role: AccountRole.READONLY },
+        { address: destination, role: AccountRole.WRITABLE },
+        { address: authority, role: AccountRole.READONLY },
     ]);
 });

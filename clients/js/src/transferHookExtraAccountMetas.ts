@@ -18,14 +18,19 @@ import {
     isSignerRole,
     isWritableRole,
     mergeRoles,
+    unwrapOption,
     type Address,
     type AccountMeta,
     type Codec,
     type GetAccountInfoApi,
+    type Instruction,
     type ProgramDerivedAddress,
     type ReadonlyUint8Array,
     type Rpc,
+    type TransactionSigner,
 } from '@solana/kit';
+
+import { fetchMint, getTransferCheckedInstruction, TOKEN_2022_PROGRAM_ADDRESS, type Extension } from './generated';
 
 const EXTRA_ACCOUNT_METAS_SEED = 'extra-account-metas';
 
@@ -468,4 +473,72 @@ export async function resolveExtraAccountMetasForExecute(
         { address: input.transferHookProgramAddress, role: AccountRole.READONLY },
         { address: validateStatePubkey, role: AccountRole.READONLY },
     ];
+}
+
+export type CreateTransferCheckedWithTransferHookInstructionInput = {
+    rpc: Rpc<GetAccountInfoApi>;
+    /** The source account. */
+    source: Address;
+    /** The token mint. */
+    mint: Address;
+    /** The destination account. */
+    destination: Address;
+    /** The source account's owner/delegate, or its multisignature account. */
+    authority: Address | TransactionSigner;
+    amount: number | bigint;
+    decimals: number;
+    /** The signer accounts for a multisignature authority. */
+    multiSigners?: TransactionSigner[];
+    /** The token program the mint belongs to. Defaults to Token-2022. */
+    programAddress?: Address;
+};
+
+/**
+ * Builds a `transferChecked` instruction for `mint`, appending the extra accounts its transfer hook
+ * program's `Execute` CPI needs when the mint has the transfer hook extension configured.
+ *
+ * Fetches the mint to discover whether a transfer hook is set and, if so, its program address, then
+ * resolves and de-escalates the extra accounts (via `resolveExtraAccountMetasForExecute`) and
+ * appends them, followed by the hook program and its validation account. When the mint has no
+ * transfer hook the returned instruction is a plain `transferChecked`.
+ *
+ * Mirrors the legacy `createTransferCheckedWithTransferHookInstruction`, adapted to `@solana/kit`.
+ */
+export async function createTransferCheckedWithTransferHookInstruction(
+    input: CreateTransferCheckedWithTransferHookInstructionInput,
+): Promise<Instruction> {
+    const programAddress = input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const instruction = getTransferCheckedInstruction(
+        {
+            amount: input.amount,
+            authority: input.authority,
+            decimals: input.decimals,
+            destination: input.destination,
+            mint: input.mint,
+            multiSigners: input.multiSigners,
+            source: input.source,
+        },
+        { programAddress },
+    );
+
+    const { data: mint } = await fetchMint(input.rpc, input.mint);
+    const transferHook = (unwrapOption(mint.extensions) ?? []).find(
+        (extension): extension is Extract<Extension, { __kind: 'TransferHook' }> => extension.__kind === 'TransferHook',
+    );
+    if (!transferHook) {
+        return instruction;
+    }
+
+    const owner = typeof input.authority === 'string' ? input.authority : input.authority.address;
+    const extraMetas = await resolveExtraAccountMetasForExecute({
+        amount: input.amount,
+        destination: input.destination,
+        mint: input.mint,
+        owner,
+        rpc: input.rpc,
+        source: input.source,
+        transferHookProgramAddress: transferHook.programId,
+    });
+
+    return { ...instruction, accounts: [...instruction.accounts, ...extraMetas] };
 }
