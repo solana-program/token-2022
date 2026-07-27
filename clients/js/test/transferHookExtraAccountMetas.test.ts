@@ -4,6 +4,7 @@ import {
     createClient,
     getAddressEncoder,
     getProgramDerivedAddress,
+    getU64Encoder,
     lamports,
     type Address,
     type ReadonlyUint8Array,
@@ -415,6 +416,85 @@ it('resolveExtraAccountMetasForExecute de-escalates an extra account duplicating
 
     expect(resolved).toEqual([
         { address: owner, role: AccountRole.READONLY },
+        { address: transferHookProgramId, role: AccountRole.READONLY },
+        { address: validateStatePubkey, role: AccountRole.READONLY },
+    ]);
+});
+
+it('resolveExtraAccountMetasForExecute resolves a validation account mixing literal, chained-PDA, and instruction-data-seeded extras', async () => {
+    const { rpc, svm } = await createTestRpc();
+    const source = plainAddress;
+    const mintAddress = mint;
+    const destination = address('C1ockyE1TGaXK1gN3iF6Fz9tnhr2Q3vsdjPHXm44rQnU');
+    const owner = address('D5jyaVjrWuq7ostc8JYywr3QDPtM6y6TZKG1TgRhZYSp');
+    const amount = 100n;
+
+    // Three unrelated literal-pubkey extras, resolved into base account indices 5, 6, 7.
+    const extraMeta1 = address('So11111111111111111111111111111111111111112');
+    const extraMeta2 = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    const extraMeta3 = address('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+
+    const [validateStatePubkey] = await findExtraAccountMetaListPda(
+        { mint: mintAddress },
+        { programAddress: transferHookProgramId },
+    );
+
+    setAccountData(
+        svm,
+        validateStatePubkey,
+        validateStateAccountData([
+            extraAccountMetaBytes(0, addressConfigOf(getAddressEncoder().encode(extraMeta1)), false, false),
+            extraAccountMetaBytes(0, addressConfigOf(getAddressEncoder().encode(extraMeta2)), false, false),
+            extraAccountMetaBytes(0, addressConfigOf(getAddressEncoder().encode(extraMeta3)), false, false),
+            // PDA off the transfer hook program, seeded by account keys at index 0 (source) and 4
+            // (the validation state account itself).
+            extraAccountMetaBytes(1, addressConfigOf(new Uint8Array([3, 0, 3, 4, 0])), false, false),
+            // PDA off the transfer hook program, seeded by account keys at index 5 and 6 -- the
+            // two literal extras resolved just above, exercising the previously-resolved-account
+            // chaining that a single-extra test can't reach.
+            extraAccountMetaBytes(1, addressConfigOf(new Uint8Array([3, 5, 3, 6, 0])), false, false),
+            // PDA off the transfer hook program, seeded by the literal "prefix" followed by
+            // instruction data bytes 8..16 (the execute instruction's `amount`).
+            extraAccountMetaBytes(
+                1,
+                addressConfigOf(new Uint8Array([1, 6, 112, 114, 101, 102, 105, 120, 2, 8, 8, 0])),
+                false,
+                false,
+            ),
+        ]),
+    );
+
+    const amountBytes = getU64Encoder().encode(amount);
+    const [pdaFromBaseAccounts] = await getProgramDerivedAddress({
+        programAddress: transferHookProgramId,
+        seeds: [getAddressEncoder().encode(source), getAddressEncoder().encode(validateStatePubkey)],
+    });
+    const [pdaFromChainedExtras] = await getProgramDerivedAddress({
+        programAddress: transferHookProgramId,
+        seeds: [getAddressEncoder().encode(extraMeta1), getAddressEncoder().encode(extraMeta2)],
+    });
+    const [pdaFromLiteralAndInstructionData] = await getProgramDerivedAddress({
+        programAddress: transferHookProgramId,
+        seeds: [new Uint8Array([112, 114, 101, 102, 105, 120]), amountBytes],
+    });
+
+    const resolved = await resolveExtraAccountMetasForExecute({
+        amount,
+        destination,
+        mint: mintAddress,
+        owner,
+        rpc,
+        source,
+        transferHookProgramAddress: transferHookProgramId,
+    });
+
+    expect(resolved).toEqual([
+        { address: extraMeta1, role: AccountRole.READONLY },
+        { address: extraMeta2, role: AccountRole.READONLY },
+        { address: extraMeta3, role: AccountRole.READONLY },
+        { address: pdaFromBaseAccounts, role: AccountRole.READONLY },
+        { address: pdaFromChainedExtras, role: AccountRole.READONLY },
+        { address: pdaFromLiteralAndInstructionData, role: AccountRole.READONLY },
         { address: transferHookProgramId, role: AccountRole.READONLY },
         { address: validateStatePubkey, role: AccountRole.READONLY },
     ]);
