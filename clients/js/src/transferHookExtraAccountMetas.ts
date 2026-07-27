@@ -426,10 +426,7 @@ export async function resolveExtraAccountMetasForExecute(
 ): Promise<AccountMeta<Address>[]> {
     const [validateStatePubkey] = input.validateStatePubkey
         ? [input.validateStatePubkey]
-        : await findExtraAccountMetaListPda(
-              { mint: input.mint },
-              { programAddress: input.transferHookProgramAddress },
-          );
+        : await findExtraAccountMetaListPda({ mint: input.mint }, { programAddress: input.transferHookProgramAddress });
 
     const validateStateAccount = await fetchEncodedAccount(input.rpc, validateStatePubkey);
     if (!validateStateAccount.exists) {

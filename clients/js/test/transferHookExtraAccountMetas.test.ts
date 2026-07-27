@@ -382,7 +382,7 @@ it('resolveExtraAccountMetasForExecute appends the resolved extras, hook program
     ]);
 });
 
-it("resolveExtraAccountMetasForExecute de-escalates an extra account duplicating the owner", async () => {
+it('resolveExtraAccountMetasForExecute de-escalates an extra account duplicating the owner', async () => {
     const { rpc, svm } = await createTestRpc();
     const source = plainAddress;
     const mintAddress = mint;
