@@ -285,3 +285,58 @@ export async function unpackPubkeyData(
             throw new Error(`Invalid transfer hook pubkey data: unknown discriminator ${discriminator}.`);
     }
 }
+
+/** An `ExtraAccountMeta` resolved into the real account it refers to. */
+export type ResolvedExtraAccountMeta = {
+    address: Address;
+    isSigner: boolean;
+    isWritable: boolean;
+};
+
+const EXTRA_ACCOUNT_META_ACCOUNT_INDEX_DISCRIMINATOR_OFFSET = 1 << 7;
+
+/**
+ * Resolves one `ExtraAccountMeta` (as returned by `getExtraAccountMetas`) into the real account
+ * it refers to: a literal pubkey, a pubkey read via `unpackPubkeyData`, or a PDA derived from
+ * `unpackSeeds` off either the transfer hook program itself or a previously resolved account.
+ *
+ * `previousMetas` must contain every account already resolved for this instruction, in order,
+ * since seed/pubkey-data configs and PDA-owner account-index configs can reference them.
+ */
+export async function resolveExtraAccountMeta(
+    extraMeta: ExtraAccountMeta,
+    previousMetas: Address[],
+    instructionData: ReadonlyUint8Array,
+    transferHookProgramAddress: Address,
+    rpc: Rpc<GetAccountInfoApi>,
+): Promise<ResolvedExtraAccountMeta> {
+    const { isSigner, isWritable } = extraMeta;
+
+    if (extraMeta.discriminator === 0) {
+        return { address: getAddressDecoder().decode(extraMeta.addressConfig), isSigner, isWritable };
+    }
+
+    if (extraMeta.discriminator === 2) {
+        const address = await unpackPubkeyData(extraMeta.addressConfig, previousMetas, instructionData, rpc);
+        return { address, isSigner, isWritable };
+    }
+
+    let programAddress: Address;
+    if (extraMeta.discriminator === 1) {
+        programAddress = transferHookProgramAddress;
+    } else {
+        const accountIndex = extraMeta.discriminator - EXTRA_ACCOUNT_META_ACCOUNT_INDEX_DISCRIMINATOR_OFFSET;
+        if (accountIndex < 0 || previousMetas.length <= accountIndex) {
+            throw new Error(
+                'Invalid transfer hook extra account meta: discriminator ' +
+                    `${extraMeta.discriminator} references an out-of-bounds account index.`,
+            );
+        }
+        programAddress = previousMetas[accountIndex];
+    }
+
+    const seeds = await unpackSeeds(extraMeta.addressConfig, previousMetas, instructionData, rpc);
+    const [address] = await getProgramDerivedAddress({ programAddress, seeds });
+
+    return { address, isSigner, isWritable };
+}

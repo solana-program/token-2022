@@ -5,12 +5,20 @@ import {
     getProgramDerivedAddress,
     lamports,
     type Address,
+    type ReadonlyUint8Array,
 } from '@solana/kit';
 import { litesvm } from '@solana/kit-plugin-litesvm';
 import { generatedSigner } from '@solana/kit-plugin-signer';
 import { expect, it } from 'vitest';
 
-import { findExtraAccountMetaListPda, getExtraAccountMetas, unpackPubkeyData, unpackSeeds } from '../src';
+import {
+    findExtraAccountMetaListPda,
+    getExtraAccountMetas,
+    resolveExtraAccountMeta,
+    unpackPubkeyData,
+    unpackSeeds,
+    type ExtraAccountMeta,
+} from '../src';
 
 const plainAddress = address('6c5q79ccBTWvZTEx3JkdHThtMa2eALba5bfvHGf8kA2c');
 const transferHookProgramId = address('7N4HggYEJAtCLJdnHGCtFqfxcB5rhQCsQTze3ftYstVj');
@@ -46,6 +54,21 @@ function extraAccountMetaBytes(
     isWritable: boolean,
 ) {
     return new Uint8Array([discriminator, ...addressConfig, isSigner ? 1 : 0, isWritable ? 1 : 0]);
+}
+
+function addressConfigOf(bytes: ReadonlyUint8Array): Uint8Array {
+    const addressConfig = new Uint8Array(32);
+    addressConfig.set(bytes, 0);
+    return addressConfig;
+}
+
+function extraAccountMeta(
+    discriminator: number,
+    addressConfig: Uint8Array,
+    isSigner: boolean,
+    isWritable: boolean,
+): ExtraAccountMeta {
+    return { addressConfig, discriminator, isSigner, isWritable };
 }
 
 it('finds the same PDA as a manual derivation off the "extra-account-metas" seed', async () => {
@@ -208,4 +231,60 @@ it('unpackPubkeyData throws when the referenced account does not exist', async (
     const { rpc } = await createTestRpc();
 
     await expect(unpackPubkeyData(new Uint8Array([2, 0, 0]), [plainAddress], new Uint8Array(), rpc)).rejects.toThrow();
+});
+
+it('resolveExtraAccountMeta resolves a literal-pubkey (discriminator 0) meta', async () => {
+    const { rpc } = await createTestRpc();
+    const meta = extraAccountMeta(0, addressConfigOf(getAddressEncoder().encode(plainAddress)), true, false);
+
+    const resolved = await resolveExtraAccountMeta(meta, [], new Uint8Array(), transferHookProgramId, rpc);
+
+    expect(resolved).toEqual({ address: plainAddress, isSigner: true, isWritable: false });
+});
+
+it('resolveExtraAccountMeta resolves a pubkey-data (discriminator 2) meta', async () => {
+    const { rpc } = await createTestRpc();
+    const addressBytes = getAddressEncoder().encode(mint);
+    const instructionData = new Uint8Array([0xff, ...addressBytes]);
+    // pubkey-data source: instruction-data, offset 1
+    const meta = extraAccountMeta(2, addressConfigOf(new Uint8Array([1, 1])), false, true);
+
+    const resolved = await resolveExtraAccountMeta(meta, [], instructionData, transferHookProgramId, rpc);
+
+    expect(resolved).toEqual({ address: mint, isSigner: false, isWritable: true });
+});
+
+it('resolveExtraAccountMeta derives a PDA off the transfer hook program (discriminator 1)', async () => {
+    const { rpc } = await createTestRpc();
+    // seeds: one literal seed [0xaa, 0xbb], then terminator
+    const meta = extraAccountMeta(1, addressConfigOf(new Uint8Array([1, 2, 0xaa, 0xbb, 0])), false, true);
+
+    const [expected] = await getProgramDerivedAddress({
+        programAddress: transferHookProgramId,
+        seeds: [new Uint8Array([0xaa, 0xbb])],
+    });
+    const resolved = await resolveExtraAccountMeta(meta, [], new Uint8Array(), transferHookProgramId, rpc);
+
+    expect(resolved).toEqual({ address: expected, isSigner: false, isWritable: true });
+});
+
+it('resolveExtraAccountMeta derives a PDA owned by a previously resolved account', async () => {
+    const { rpc } = await createTestRpc();
+    // account index 0 -> previousMetas[0] is the PDA program; seeds: literal [0xaa], terminator
+    const meta = extraAccountMeta(1 << 7, addressConfigOf(new Uint8Array([1, 1, 0xaa, 0])), false, false);
+
+    const [expected] = await getProgramDerivedAddress({
+        programAddress: mint,
+        seeds: [new Uint8Array([0xaa])],
+    });
+    const resolved = await resolveExtraAccountMeta(meta, [mint], new Uint8Array(), transferHookProgramId, rpc);
+
+    expect(resolved).toEqual({ address: expected, isSigner: false, isWritable: false });
+});
+
+it('resolveExtraAccountMeta throws when the account-index discriminator is out of bounds', async () => {
+    const { rpc } = await createTestRpc();
+    const meta = extraAccountMeta((1 << 7) + 2, addressConfigOf(new Uint8Array([0])), false, false);
+
+    await expect(resolveExtraAccountMeta(meta, [], new Uint8Array(), transferHookProgramId, rpc)).rejects.toThrow();
 });
