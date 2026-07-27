@@ -17,4 +17,5 @@ export * from './getTokenSize';
 export * from './getMintSize';
 export * from './legacyToken';
 export * from './mintToATA';
+export * from './transferHookExtraAccountMetas';
 export * from './transferToATA';
