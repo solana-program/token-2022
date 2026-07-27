@@ -1,4 +1,7 @@
 import {
+    AccountRole,
+    downgradeRoleToNonSigner,
+    downgradeRoleToReadonly,
     fetchEncodedAccount,
     fixCodecSize,
     getAddressDecoder,
@@ -10,8 +13,13 @@ import {
     getStructCodec,
     getU32Codec,
     getU64Codec,
+    getU64Encoder,
     getU8Codec,
+    isSignerRole,
+    isWritableRole,
+    mergeRoles,
     type Address,
+    type AccountMeta,
     type Codec,
     type GetAccountInfoApi,
     type ProgramDerivedAddress,
@@ -339,4 +347,128 @@ export async function resolveExtraAccountMeta(
     const [address] = await getProgramDerivedAddress({ programAddress, seeds });
 
     return { address, isSigner, isWritable };
+}
+
+function accountRoleFromBooleans(isSigner: boolean, isWritable: boolean): AccountRole {
+    if (isSigner && isWritable) return AccountRole.WRITABLE_SIGNER;
+    if (isSigner) return AccountRole.READONLY_SIGNER;
+    if (isWritable) return AccountRole.WRITABLE;
+    return AccountRole.READONLY;
+}
+
+/**
+ * De-escalates `accountMeta`'s role to match the highest privileges already granted to the same
+ * address elsewhere in `accountMetas`, so a transfer hook's extra account never claims signer or
+ * writable status beyond what the transaction already grants that address.
+ *
+ * Mirrors the legacy `deEscalateAccountMeta`, adapted from `isSigner`/`isWritable` booleans to
+ * kit's `AccountRole`.
+ */
+export function deEscalateAccountMeta(
+    accountMeta: AccountMeta<Address>,
+    accountMetas: readonly AccountMeta<Address>[],
+): AccountMeta<Address> {
+    const highestExistingRole = accountMetas
+        .filter(x => x.address === accountMeta.address)
+        .reduce<AccountRole | undefined>((acc, x) => (acc === undefined ? x.role : mergeRoles(acc, x.role)), undefined);
+
+    if (highestExistingRole === undefined) {
+        return accountMeta;
+    }
+
+    let role = accountMeta.role;
+    if (!isSignerRole(highestExistingRole) && isSignerRole(role)) {
+        role = downgradeRoleToNonSigner(role);
+    }
+    if (!isWritableRole(highestExistingRole) && isWritableRole(role)) {
+        role = downgradeRoleToReadonly(role);
+    }
+
+    return { address: accountMeta.address, role };
+}
+
+const EXECUTE_INSTRUCTION_DISCRIMINATOR = new Uint8Array([105, 37, 101, 197, 75, 251, 102, 26]);
+
+function getExecuteInstructionData(amount: bigint): ReadonlyUint8Array {
+    const data = new Uint8Array(16);
+    data.set(EXECUTE_INSTRUCTION_DISCRIMINATOR, 0);
+    data.set(getU64Encoder().encode(amount), 8);
+    return data;
+}
+
+export type ResolveExtraAccountMetasForExecuteInput = {
+    rpc: Rpc<GetAccountInfoApi>;
+    transferHookProgramAddress: Address;
+    source: Address;
+    mint: Address;
+    destination: Address;
+    owner: Address;
+    amount: number | bigint;
+    /** The transfer hook's validation account. Derived via `findExtraAccountMetaListPda` if omitted. */
+    validateStatePubkey?: Address;
+};
+
+/**
+ * Resolves the extra accounts a transfer hook program's `Execute` CPI needs, ready to append to
+ * a `transferChecked`-family instruction: each configured extra account (resolved and
+ * de-escalated against the transfer's base accounts and each other), followed by the transfer
+ * hook program and its validation account.
+ *
+ * Returns an empty array if the mint has no transfer hook validation account, mirroring the
+ * legacy `addExtraAccountMetasForExecute`'s no-op when none is configured.
+ *
+ * Mirrors legacy's `addExtraAccountMetasForExecute`, adapted from mutating a
+ * `TransactionInstruction`'s `keys` array to returning the additional `AccountMeta`s for the
+ * caller to append, since kit instructions are immutable.
+ */
+export async function resolveExtraAccountMetasForExecute(
+    input: ResolveExtraAccountMetasForExecuteInput,
+): Promise<AccountMeta<Address>[]> {
+    const [validateStatePubkey] = input.validateStatePubkey
+        ? [input.validateStatePubkey]
+        : await findExtraAccountMetaListPda(
+              { mint: input.mint },
+              { programAddress: input.transferHookProgramAddress },
+          );
+
+    const validateStateAccount = await fetchEncodedAccount(input.rpc, validateStatePubkey);
+    if (!validateStateAccount.exists) {
+        return [];
+    }
+
+    const validateStateData = getExtraAccountMetas(validateStateAccount.data);
+    const instructionData = getExecuteInstructionData(BigInt(input.amount));
+
+    const baseMetas: AccountMeta<Address>[] = [
+        input.source,
+        input.mint,
+        input.destination,
+        input.owner,
+        validateStatePubkey,
+    ].map(address => ({ address, role: AccountRole.READONLY }));
+    const previousAddresses: Address[] = baseMetas.map(meta => meta.address);
+    const resolvedMetas: AccountMeta<Address>[] = [];
+
+    for (const extraAccountMeta of validateStateData) {
+        const resolved = await resolveExtraAccountMeta(
+            extraAccountMeta,
+            previousAddresses,
+            instructionData,
+            input.transferHookProgramAddress,
+            input.rpc,
+        );
+        const role = accountRoleFromBooleans(resolved.isSigner, resolved.isWritable);
+        const deEscalated = deEscalateAccountMeta({ address: resolved.address, role }, [
+            ...baseMetas,
+            ...resolvedMetas,
+        ]);
+        resolvedMetas.push(deEscalated);
+        previousAddresses.push(resolved.address);
+    }
+
+    return [
+        ...resolvedMetas,
+        { address: input.transferHookProgramAddress, role: AccountRole.READONLY },
+        { address: validateStatePubkey, role: AccountRole.READONLY },
+    ];
 }

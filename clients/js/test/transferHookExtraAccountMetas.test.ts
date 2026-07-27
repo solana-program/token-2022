@@ -1,5 +1,6 @@
 import {
     address,
+    AccountRole,
     createClient,
     getAddressEncoder,
     getProgramDerivedAddress,
@@ -12,9 +13,11 @@ import { generatedSigner } from '@solana/kit-plugin-signer';
 import { expect, it } from 'vitest';
 
 import {
+    deEscalateAccountMeta,
     findExtraAccountMetaListPda,
     getExtraAccountMetas,
     resolveExtraAccountMeta,
+    resolveExtraAccountMetasForExecute,
     unpackPubkeyData,
     unpackSeeds,
     type ExtraAccountMeta,
@@ -69,6 +72,18 @@ function extraAccountMeta(
     isWritable: boolean,
 ): ExtraAccountMeta {
     return { addressConfig, discriminator, isSigner, isWritable };
+}
+
+function validateStateAccountData(extraAccounts: Uint8Array[]): Uint8Array {
+    return new Uint8Array([
+        ...new Array(8).fill(0), // u64 instructionDiscriminator (unused by getExtraAccountMetas)
+        ...new Array(4).fill(0), // u32 length (unused by getExtraAccountMetas)
+        extraAccounts.length,
+        0,
+        0,
+        0, // u32 count
+        ...extraAccounts.flatMap(entry => [...entry]),
+    ]);
 }
 
 it('finds the same PDA as a manual derivation off the "extra-account-metas" seed', async () => {
@@ -287,4 +302,120 @@ it('resolveExtraAccountMeta throws when the account-index discriminator is out o
     const meta = extraAccountMeta((1 << 7) + 2, addressConfigOf(new Uint8Array([0])), false, false);
 
     await expect(resolveExtraAccountMeta(meta, [], new Uint8Array(), transferHookProgramId, rpc)).rejects.toThrow();
+});
+
+it('deEscalateAccountMeta returns the meta unchanged when its address has no prior occurrence', () => {
+    const meta = { address: plainAddress, role: AccountRole.WRITABLE_SIGNER };
+
+    expect(deEscalateAccountMeta(meta, [{ address: mint, role: AccountRole.READONLY }])).toEqual(meta);
+});
+
+it('deEscalateAccountMeta strips signer and writable when a prior occurrence is read-only', () => {
+    const meta = { address: plainAddress, role: AccountRole.WRITABLE_SIGNER };
+
+    const deEscalated = deEscalateAccountMeta(meta, [{ address: plainAddress, role: AccountRole.READONLY }]);
+
+    expect(deEscalated).toEqual({ address: plainAddress, role: AccountRole.READONLY });
+});
+
+it('deEscalateAccountMeta keeps the highest privilege seen across multiple prior occurrences', () => {
+    const meta = { address: plainAddress, role: AccountRole.WRITABLE_SIGNER };
+
+    const deEscalated = deEscalateAccountMeta(meta, [
+        { address: plainAddress, role: AccountRole.READONLY_SIGNER },
+        { address: plainAddress, role: AccountRole.WRITABLE },
+    ]);
+
+    expect(deEscalated).toEqual(meta);
+});
+
+it('resolveExtraAccountMetasForExecute returns no accounts when the mint has no validation account', async () => {
+    const { rpc } = await createTestRpc();
+
+    const resolved = await resolveExtraAccountMetasForExecute({
+        amount: 1n,
+        destination: address('C1ockyE1TGaXK1gN3iF6Fz9tnhr2Q3vsdjPHXm44rQnU'),
+        mint,
+        owner: address('D5jyaVjrWuq7ostc8JYywr3QDPtM6y6TZKG1TgRhZYSp'),
+        rpc,
+        source: plainAddress,
+        transferHookProgramAddress: transferHookProgramId,
+    });
+
+    expect(resolved).toEqual([]);
+});
+
+it('resolveExtraAccountMetasForExecute appends the resolved extras, hook program, and validation state', async () => {
+    const { rpc, svm } = await createTestRpc();
+    const source = plainAddress;
+    const mintAddress = mint;
+    const destination = address('C1ockyE1TGaXK1gN3iF6Fz9tnhr2Q3vsdjPHXm44rQnU');
+    const owner = address('D5jyaVjrWuq7ostc8JYywr3QDPtM6y6TZKG1TgRhZYSp');
+    const extraAccount = address('AKPu7hnbAfsjixnPvGReDbmAYUJErkw8H6cRc3ohh2xf');
+
+    const [validateStatePubkey] = await findExtraAccountMetaListPda(
+        { mint: mintAddress },
+        { programAddress: transferHookProgramId },
+    );
+    setAccountData(
+        svm,
+        validateStatePubkey,
+        validateStateAccountData([
+            extraAccountMetaBytes(0, addressConfigOf(getAddressEncoder().encode(extraAccount)), false, true),
+        ]),
+    );
+
+    const resolved = await resolveExtraAccountMetasForExecute({
+        amount: 1n,
+        destination,
+        mint: mintAddress,
+        owner,
+        rpc,
+        source,
+        transferHookProgramAddress: transferHookProgramId,
+    });
+
+    expect(resolved).toEqual([
+        { address: extraAccount, role: AccountRole.WRITABLE },
+        { address: transferHookProgramId, role: AccountRole.READONLY },
+        { address: validateStatePubkey, role: AccountRole.READONLY },
+    ]);
+});
+
+it("resolveExtraAccountMetasForExecute de-escalates an extra account duplicating the owner", async () => {
+    const { rpc, svm } = await createTestRpc();
+    const source = plainAddress;
+    const mintAddress = mint;
+    const destination = address('C1ockyE1TGaXK1gN3iF6Fz9tnhr2Q3vsdjPHXm44rQnU');
+    const owner = address('D5jyaVjrWuq7ostc8JYywr3QDPtM6y6TZKG1TgRhZYSp');
+
+    const [validateStatePubkey] = await findExtraAccountMetaListPda(
+        { mint: mintAddress },
+        { programAddress: transferHookProgramId },
+    );
+    // Configured as a writable signer, but it duplicates `owner`, which the base transfer only
+    // grants read-only (unrelated to this helper's own signer/writable status).
+    setAccountData(
+        svm,
+        validateStatePubkey,
+        validateStateAccountData([
+            extraAccountMetaBytes(0, addressConfigOf(getAddressEncoder().encode(owner)), true, true),
+        ]),
+    );
+
+    const resolved = await resolveExtraAccountMetasForExecute({
+        amount: 1n,
+        destination,
+        mint: mintAddress,
+        owner,
+        rpc,
+        source,
+        transferHookProgramAddress: transferHookProgramId,
+    });
+
+    expect(resolved).toEqual([
+        { address: owner, role: AccountRole.READONLY },
+        { address: transferHookProgramId, role: AccountRole.READONLY },
+        { address: validateStatePubkey, role: AccountRole.READONLY },
+    ]);
 });
