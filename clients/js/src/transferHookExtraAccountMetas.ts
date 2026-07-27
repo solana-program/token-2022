@@ -80,7 +80,9 @@ const EXTRA_ACCOUNT_METAS_ACCOUNT_DATA_PREFIX_SIZE = getU64Codec().fixedSize + g
  * `ExtraAccountMeta`s configured for the mint.
  */
 export function getExtraAccountMetas(data: ReadonlyUint8Array): ExtraAccountMeta[] {
-    const extraAccountsList = getExtraAccountMetaListCodec().decode(data.slice(EXTRA_ACCOUNT_METAS_ACCOUNT_DATA_PREFIX_SIZE));
+    const extraAccountsList = getExtraAccountMetaListCodec().decode(
+        data.slice(EXTRA_ACCOUNT_METAS_ACCOUNT_DATA_PREFIX_SIZE),
+    );
     return extraAccountsList.extraAccounts.slice(0, extraAccountsList.count);
 }
 
@@ -113,7 +115,9 @@ function unpackSeedInstructionArg(seed: ReadonlyUint8Array, instructionData: Rea
     }
     const [index, length] = seed;
     if (instructionData.length < index + length) {
-        throw new Error("Invalid transfer hook seed: instruction data is shorter than the seed's declared offset/length.");
+        throw new Error(
+            "Invalid transfer hook seed: instruction data is shorter than the seed's declared offset/length.",
+        );
     }
     return {
         data: instructionData.slice(index, index + length),
@@ -152,7 +156,8 @@ async function unpackSeedAccountData(
     const account = await fetchEncodedAccount(rpc, previousMetas[accountIndex]);
     if (!account.exists) {
         throw new Error(
-            `Invalid transfer hook seed: account ${previousMetas[accountIndex]} required by an account-data seed was not found.`,
+            `Invalid transfer hook seed: account ${previousMetas[accountIndex]} required by an account-data ` +
+                'seed was not found.',
         );
     }
     if (account.data.length < dataOffset + length) {
@@ -183,7 +188,7 @@ async function unpackFirstSeed(
         case 3:
             return unpackSeedAccountKey(remaining, previousMetas);
         case 4:
-            return unpackSeedAccountData(remaining, previousMetas, rpc);
+            return await unpackSeedAccountData(remaining, previousMetas, rpc);
         default:
             throw new Error(`Invalid transfer hook seed: unknown discriminator ${discriminator}.`);
     }
@@ -215,14 +220,18 @@ export async function unpackSeeds(
     return unpackedSeeds;
 }
 
-function unpackPubkeyDataFromInstructionData(remaining: ReadonlyUint8Array, instructionData: ReadonlyUint8Array): Address {
+function unpackPubkeyDataFromInstructionData(
+    remaining: ReadonlyUint8Array,
+    instructionData: ReadonlyUint8Array,
+): Address {
     if (remaining.length < 1) {
         throw new Error('Invalid transfer hook pubkey data: instruction-data source is missing its offset byte.');
     }
     const dataIndex = remaining[0];
     if (instructionData.length < dataIndex + PUBLIC_KEY_LENGTH) {
         throw new Error(
-            'Invalid transfer hook pubkey data: instruction data is too small to contain a pubkey at the declared offset.',
+            'Invalid transfer hook pubkey data: instruction data is too small to contain a pubkey at the ' +
+                'declared offset.',
         );
     }
     return getAddressDecoder().decode(instructionData, dataIndex);
@@ -238,7 +247,9 @@ async function unpackPubkeyDataFromAccountData(
     }
     const [accountIndex, dataIndex] = remaining;
     if (previousMetas.length <= accountIndex) {
-        throw new Error('Invalid transfer hook pubkey data: account-data source references an out-of-bounds account index.');
+        throw new Error(
+            'Invalid transfer hook pubkey data: account-data source references an out-of-bounds account index.',
+        );
     }
     const account = await fetchEncodedAccount(rpc, previousMetas[accountIndex]);
     if (!account.exists) {
@@ -269,7 +280,7 @@ export async function unpackPubkeyData(
         case 1:
             return unpackPubkeyDataFromInstructionData(remaining, instructionData);
         case 2:
-            return unpackPubkeyDataFromAccountData(remaining, previousMetas, rpc);
+            return await unpackPubkeyDataFromAccountData(remaining, previousMetas, rpc);
         default:
             throw new Error(`Invalid transfer hook pubkey data: unknown discriminator ${discriminator}.`);
     }

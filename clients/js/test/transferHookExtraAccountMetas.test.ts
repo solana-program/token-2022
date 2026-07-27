@@ -1,6 +1,13 @@
+import {
+    address,
+    createClient,
+    getAddressEncoder,
+    getProgramDerivedAddress,
+    lamports,
+    type Address,
+} from '@solana/kit';
 import { litesvm } from '@solana/kit-plugin-litesvm';
 import { generatedSigner } from '@solana/kit-plugin-signer';
-import { address, createClient, getAddressEncoder, getProgramDerivedAddress, lamports, type Address } from '@solana/kit';
 import { expect, it } from 'vitest';
 
 import { findExtraAccountMetaListPda, getExtraAccountMetas, unpackPubkeyData, unpackSeeds } from '../src';
@@ -17,7 +24,11 @@ async function createTestRpc() {
     return { rpc: client.rpc, svm: client.svm };
 }
 
-function setAccountData(svm: Awaited<ReturnType<typeof createTestRpc>>['svm'], accountAddress: Address, data: Uint8Array) {
+function setAccountData(
+    svm: Awaited<ReturnType<typeof createTestRpc>>['svm'],
+    accountAddress: Address,
+    data: Uint8Array,
+) {
     svm.setAccount({
         address: accountAddress,
         data,
@@ -28,7 +39,12 @@ function setAccountData(svm: Awaited<ReturnType<typeof createTestRpc>>['svm'], a
     });
 }
 
-function extraAccountMetaBytes(discriminator: number, addressConfig: Uint8Array, isSigner: boolean, isWritable: boolean) {
+function extraAccountMetaBytes(
+    discriminator: number,
+    addressConfig: Uint8Array,
+    isSigner: boolean,
+    isWritable: boolean,
+) {
     return new Uint8Array([discriminator, ...addressConfig, isSigner ? 1 : 0, isWritable ? 1 : 0]);
 }
 
@@ -53,7 +69,10 @@ it('parses extra account metas from validation account data, ignoring trailing b
     const data = new Uint8Array([
         ...new Array(8).fill(0), // u64 instructionDiscriminator
         ...new Array(4).fill(0), // u32 length
-        1, 0, 0, 0, // u32 count -- only the first entry is "in bounds"
+        1,
+        0,
+        0,
+        0, // u32 count -- only the first entry is "in bounds"
         ...plainExtraAccount,
         ...pdaExtraAccount, // trailing bytes past `count`, should be dropped
     ]);
@@ -106,7 +125,7 @@ it('unpackSeeds resolves an account-data seed by fetching the account over rpc',
     expect(resolved).toEqual([new Uint8Array([0xde, 0xad, 0xbe, 0xef])]);
 });
 
-it('unpackSeeds resolves multiple seeds in sequence, advancing by each seed\'s packed length', async () => {
+it("unpackSeeds resolves multiple seeds in sequence, advancing by each seed's packed length", async () => {
     const { rpc } = await createTestRpc();
     const seeds = new Uint8Array([
         1,
@@ -161,7 +180,7 @@ it('unpackPubkeyData resolves an address from instruction data', async () => {
     expect(resolved).toBe(mint);
 });
 
-it('unpackPubkeyData resolves an address from a previously resolved account\'s data', async () => {
+it("unpackPubkeyData resolves an address from a previously resolved account's data", async () => {
     const { rpc, svm } = await createTestRpc();
     const addressBytes = getAddressEncoder().encode(mint);
     const accountData = new Uint8Array([0xff, ...addressBytes]);
