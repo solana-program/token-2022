@@ -1,9 +1,8 @@
 import {
-    RECORD_CHUNK_SIZE_POST_INITIALIZE,
     RECORD_META_DATA_SIZE,
-    createCloseRecordInstruction,
-    createRecord,
-    createWriteInstruction,
+    getCloseAccountInstruction,
+    getCreateRecordInstructionPlan,
+    getWriteInstructionPlan,
 } from '@solana-program/record';
 import {
     closeContextStateProof,
@@ -259,7 +258,7 @@ type GetConfidentialTransferWithFeeInstructionPlanBaseInput = GetConfidentialTra
     currentEpoch: number | bigint;
 };
 
-type RecordBackedContextStateProofMode = Omit<ContextStateProofMode, 'payer'> & {
+type RecordBackedContextStateProofMode = Omit<ConfidentialTransferContextStateProofMode, 'payer'> & {
     payer: KeyPairSigner;
 };
 
@@ -510,25 +509,6 @@ function multiplyOpening(opening: PedersenOpening, scalar: bigint): PedersenOpen
     return openingWithArithmetic.multiplyByU64(scalar);
 }
 
-function getRecordWriteInstructions(
-    recordAccount: Address,
-    authority: TransactionSigner,
-    proofData: Uint8Array,
-): Instruction[] {
-    const instructions: Instruction[] = [];
-    for (let offset = 0; offset < proofData.length; offset += RECORD_CHUNK_SIZE_POST_INITIALIZE) {
-        instructions.push(
-            createWriteInstruction({
-                recordAccount,
-                authority,
-                offset: BigInt(offset),
-                data: proofData.slice(offset, offset + RECORD_CHUNK_SIZE_POST_INITIALIZE),
-            }),
-        );
-    }
-    return instructions;
-}
-
 function getSetComputeUnitLimitInstruction(units: number): Instruction {
     const data = new Uint8Array(5);
     data[0] = 2;
@@ -560,9 +540,13 @@ async function buildContextStateProofPlan(
     const proofDataBytes = new Uint8Array(proofData);
     if (recordPayer) {
         const recordAuthority = await generateKeyPairSigner();
-        const { recordKeypair, ixs: createRecordInstructions } = await createRecord({
-            rpc,
+        const recordKeypair = await generateKeyPairSigner();
+        const recordClient = {
+            getMinimumBalance: (space: number) => rpc.getMinimumBalanceForRentExemption(BigInt(space)).send(),
+        };
+        const createRecordPlan = await getCreateRecordInstructionPlan(recordClient, {
             payer: recordPayer,
+            newRecord: recordKeypair,
             authority: recordAuthority.address,
             dataLength: BigInt(proofDataBytes.length),
         });
@@ -578,8 +562,12 @@ async function buildContextStateProofPlan(
         return {
             address: contextAccount.address,
             setup: sequentialInstructionPlan([
-                ...createRecordInstructions,
-                ...getRecordWriteInstructions(recordKeypair.address, recordAuthority, proofDataBytes),
+                createRecordPlan,
+                getWriteInstructionPlan({
+                    recordAccount: recordKeypair.address,
+                    authority: recordAuthority,
+                    data: proofDataBytes,
+                }),
                 nonDivisibleSequentialInstructionPlan([
                     getSetComputeUnitLimitInstruction(MAX_COMPUTE_UNIT_LIMIT),
                     ...verifyInstructions,
@@ -591,7 +579,7 @@ async function buildContextStateProofPlan(
                     authority: contextStateAuthority,
                     destination: payer.address,
                 }),
-                createCloseRecordInstruction({
+                getCloseAccountInstruction({
                     recordAccount: recordKeypair.address,
                     authority: recordAuthority,
                     receiver: payer.address,
