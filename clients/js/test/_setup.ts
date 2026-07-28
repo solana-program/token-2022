@@ -291,6 +291,12 @@ export const createConfidentialMintBurnMint = async (input: {
     payer: TransactionSigner;
     decimals?: number;
     auditorElgamalPubkey?: Address;
+    /**
+     * When provided, the mint additionally carries the `PermissionedBurn`
+     * extension with this authority — which forces confidential burns to use
+     * the permissioned variant.
+     */
+    permissionedBurnAuthority?: TransactionSigner;
 }): Promise<{
     mint: Address;
     mintAuthority: TransactionSigner;
@@ -322,6 +328,9 @@ export const createConfidentialMintBurnMint = async (input: {
                     supplyElgamalPubkey,
                     pendingBurn: new Uint8Array(64).fill(0),
                 }),
+                ...(input.permissionedBurnAuthority
+                    ? [extension('PermissionedBurn', { authority: some(input.permissionedBurnAuthority.address) })]
+                    : []),
             ],
         })
         .sendTransaction();

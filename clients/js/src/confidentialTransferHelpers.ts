@@ -80,6 +80,7 @@ import {
     getConfigureConfidentialTransferAccountInstruction,
     getCreateAssociatedTokenIdempotentInstruction,
     getEmptyConfidentialTransferAccountInstruction,
+    getPermissionedConfidentialBurnInstruction,
     getReallocateInstruction,
     getUpdateConfidentialMintBurnDecryptableSupplyInstruction,
     fetchToken,
@@ -327,6 +328,15 @@ type GetConfidentialBurnInstructionPlanBaseInput = {
 
 export type GetConfidentialBurnInstructionPlanInput = GetConfidentialBurnInstructionPlanBaseInput &
     ConfidentialTransferContextStateProofMode;
+
+export type GetPermissionedConfidentialBurnInstructionPlanInput = GetConfidentialBurnInstructionPlanInput & {
+    /**
+     * The authority configured on the mint's `PermissionedBurn` extension. It
+     * must sign every permissioned burn; the token-2022 program rejects the
+     * standard burn variant when this extension is present.
+     */
+    permissionedBurnAuthority: TransactionSigner;
+};
 
 export type GetUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupplyInput = {
     mint: Address;
@@ -1524,18 +1534,18 @@ export async function getConfidentialMintInstructionPlan(
 }
 
 /**
- * Returns an instruction plan that confidentially burns `amount` tokens from a
- * token account's available balance, encrypting the amount on-chain and
- * advancing the mint's encrypted pending burn. Symmetric to
- * `getConfidentialMintInstructionPlan`.
+ * Computes the three burn proofs (equality, grouped-ciphertext validity, U128
+ * range), builds their context-state setup/cleanup plans, and assembles the
+ * burn-instruction arguments shared by both the standard and permissioned burn
+ * variants. Shared by {@link getConfidentialBurnInstructionPlan} and
+ * {@link getPermissionedConfidentialBurnInstructionPlan} — the two differ only
+ * in which middle instruction they emit and its signer set, not in the proofs.
  *
  * The amount is grouped-encrypted under `[source, supply, auditor]`; the source
  * handle (index 0) is homomorphically subtracted from the account's available
  * balance, and the auditor handle (index 2) is carried by the instruction.
  */
-export async function getConfidentialBurnInstructionPlan(
-    input: GetConfidentialBurnInstructionPlanInput,
-): Promise<InstructionPlan> {
+async function buildConfidentialBurnProofPlan(input: GetConfidentialBurnInstructionPlanInput) {
     const sourceAccount = getRequiredConfidentialTransferAccountExtension(input.sourceTokenAccount);
     const mintBurnExtension = getRequiredMintExtension(input.mintAccount, 'ConfidentialMintBurn');
     const amount = BigInt(input.amount);
@@ -1638,31 +1648,80 @@ export async function getConfidentialBurnInstructionPlan(
         buildContextStateProofPlan(rangeProofData.toBytes(), verifyBatchedRangeProofU128, input.payer, input.rpc),
     ]);
 
-    return sequentialInstructionPlan([
-        parallelInstructionPlan([equalityProofPlan.setup, ciphertextValidityProofPlan.setup, rangeProofPlan.setup]),
-        getConfidentialBurnInstruction(
-            {
-                token: input.token,
-                mint: input.mint,
-                equalityRecord: equalityProofPlan.address,
-                ciphertextValidityRecord: ciphertextValidityProofPlan.address,
-                rangeRecord: rangeProofPlan.address,
-                authority: input.authority,
-                newDecryptableAvailableBalance: input.aesKey.encrypt(remainingBalance).toBytes(),
-                burnAmountAuditorCiphertextLo,
-                burnAmountAuditorCiphertextHi,
-                equalityProofInstructionOffset: 0,
-                ciphertextValidityProofInstructionOffset: 0,
-                rangeProofInstructionOffset: 0,
-                multiSigners: input.multiSigners,
-            },
-            { programAddress: getTokenProgramAddress(input.programAddress) },
-        ),
-        parallelInstructionPlan([
+    return {
+        setup: parallelInstructionPlan([
+            equalityProofPlan.setup,
+            ciphertextValidityProofPlan.setup,
+            rangeProofPlan.setup,
+        ]),
+        cleanup: parallelInstructionPlan([
             equalityProofPlan.cleanup,
             ciphertextValidityProofPlan.cleanup,
             rangeProofPlan.cleanup,
         ]),
+        // Arguments common to both burn instruction variants. The account owner
+        // (`authority`) always signs; the variant-specific signer field
+        // (`multiSigners` / `permissionedBurnAuthority`) is added by the caller.
+        burnArgs: {
+            token: input.token,
+            mint: input.mint,
+            equalityRecord: equalityProofPlan.address,
+            ciphertextValidityRecord: ciphertextValidityProofPlan.address,
+            rangeRecord: rangeProofPlan.address,
+            authority: input.authority,
+            newDecryptableAvailableBalance: input.aesKey.encrypt(remainingBalance).toBytes(),
+            burnAmountAuditorCiphertextLo,
+            burnAmountAuditorCiphertextHi,
+            equalityProofInstructionOffset: 0,
+            ciphertextValidityProofInstructionOffset: 0,
+            rangeProofInstructionOffset: 0,
+        },
+    };
+}
+
+/**
+ * Returns an instruction plan that confidentially burns `amount` tokens from a
+ * token account's available balance, encrypting the amount on-chain and
+ * advancing the mint's encrypted pending burn. Symmetric to
+ * `getConfidentialMintInstructionPlan`.
+ *
+ * Emits the **standard** `ConfidentialBurn` instruction. For mints carrying the
+ * `PermissionedBurn` extension the token-2022 program rejects this variant — use
+ * {@link getPermissionedConfidentialBurnInstructionPlan} instead.
+ */
+export async function getConfidentialBurnInstructionPlan(
+    input: GetConfidentialBurnInstructionPlanInput,
+): Promise<InstructionPlan> {
+    const { setup, cleanup, burnArgs } = await buildConfidentialBurnProofPlan(input);
+    return sequentialInstructionPlan([
+        setup,
+        getConfidentialBurnInstruction(
+            { ...burnArgs, multiSigners: input.multiSigners },
+            { programAddress: getTokenProgramAddress(input.programAddress) },
+        ),
+        cleanup,
+    ]);
+}
+
+/**
+ * Like {@link getConfidentialBurnInstructionPlan}, but emits the **permissioned**
+ * burn variant, which token-2022 requires for mints carrying the
+ * `PermissionedBurn` extension (it rejects the standard variant on such mints
+ * with `TokenError::InvalidInstruction`). Identical proofs; the only difference
+ * is the mint's configured `permissionedBurnAuthority` co-signs alongside the
+ * account owner (`authority`).
+ */
+export async function getPermissionedConfidentialBurnInstructionPlan(
+    input: GetPermissionedConfidentialBurnInstructionPlanInput,
+): Promise<InstructionPlan> {
+    const { setup, cleanup, burnArgs } = await buildConfidentialBurnProofPlan(input);
+    return sequentialInstructionPlan([
+        setup,
+        getPermissionedConfidentialBurnInstruction(
+            { ...burnArgs, permissionedBurnAuthority: input.permissionedBurnAuthority },
+            { programAddress: getTokenProgramAddress(input.programAddress) },
+        ),
+        cleanup,
     ]);
 }
 
