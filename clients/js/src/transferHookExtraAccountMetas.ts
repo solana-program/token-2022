@@ -1,27 +1,39 @@
 import {
     AccountRole,
+    combineCodec,
+    createDecoder,
     downgradeRoleToNonSigner,
     downgradeRoleToReadonly,
     fetchEncodedAccount,
-    fixCodecSize,
+    fixDecoderSize,
+    fixEncoderSize,
     getAddressDecoder,
     getAddressEncoder,
-    getArrayCodec,
-    getBooleanCodec,
-    getBytesCodec,
+    getArrayDecoder,
+    getArrayEncoder,
+    getBooleanDecoder,
+    getBooleanEncoder,
+    getBytesDecoder,
+    getBytesEncoder,
     getProgramDerivedAddress,
-    getStructCodec,
-    getU32Codec,
-    getU64Codec,
+    getStructDecoder,
+    getStructEncoder,
+    getU32Decoder,
+    getU32Encoder,
     getU64Encoder,
-    getU8Codec,
+    getU8Decoder,
+    getU8Encoder,
     isSignerRole,
     isWritableRole,
     mergeRoles,
+    padLeftDecoder,
+    padLeftEncoder,
     unwrapOption,
     type Address,
     type AccountMeta,
     type Codec,
+    type Decoder,
+    type Encoder,
     type GetAccountInfoApi,
     type Instruction,
     type ProgramDerivedAddress,
@@ -63,40 +75,72 @@ export type ExtraAccountMeta = {
     isWritable: boolean;
 };
 
+export function getExtraAccountMetaEncoder(): Encoder<ExtraAccountMeta> {
+    return getStructEncoder([
+        ['discriminator', getU8Encoder()],
+        ['addressConfig', fixEncoderSize(getBytesEncoder(), 32)],
+        ['isSigner', getBooleanEncoder()],
+        ['isWritable', getBooleanEncoder()],
+    ]);
+}
+
+export function getExtraAccountMetaDecoder(): Decoder<ExtraAccountMeta> {
+    return getStructDecoder([
+        ['discriminator', getU8Decoder()],
+        ['addressConfig', fixDecoderSize(getBytesDecoder(), 32)],
+        ['isSigner', getBooleanDecoder()],
+        ['isWritable', getBooleanDecoder()],
+    ]);
+}
+
 export function getExtraAccountMetaCodec(): Codec<ExtraAccountMeta> {
-    return getStructCodec([
-        ['discriminator', getU8Codec()],
-        ['addressConfig', fixCodecSize(getBytesCodec(), 32)],
-        ['isSigner', getBooleanCodec()],
-        ['isWritable', getBooleanCodec()],
-    ]);
+    return combineCodec(getExtraAccountMetaEncoder(), getExtraAccountMetaDecoder());
 }
 
-export type ExtraAccountMetaList = {
-    count: number;
-    extraAccounts: ExtraAccountMeta[];
-};
-
-function getExtraAccountMetaListCodec(): Codec<ExtraAccountMetaList> {
-    return getStructCodec([
-        ['count', getU32Codec()],
-        ['extraAccounts', getArrayCodec(getExtraAccountMetaCodec(), { size: 'remainder' })],
-    ]);
-}
-
-// `ExtraAccountMetaAccountData` is prefixed with an 8-byte account discriminator and a 4-byte
-// length before the extra account meta list itself.
-const EXTRA_ACCOUNT_METAS_ACCOUNT_DATA_PREFIX_SIZE = getU64Codec().fixedSize + getU32Codec().fixedSize;
+// A transfer hook validation account is prefixed with an 8-byte account discriminator and a 4-byte
+// length before the list of extra account metas itself.
+const EXTRA_ACCOUNT_METAS_ACCOUNT_DATA_PREFIX_SIZE = 8 + 4;
 
 /**
- * Unpacks a transfer hook validation account and parses its data into the list of
- * `ExtraAccountMeta`s configured for the mint.
+ * Encodes a list of `ExtraAccountMeta`s into a transfer hook validation account's data, skipping
+ * the 8-byte account discriminator and 4-byte length prefix and writing the list's `u32` count.
  */
-export function getExtraAccountMetas(data: ReadonlyUint8Array): ExtraAccountMeta[] {
-    const extraAccountsList = getExtraAccountMetaListCodec().decode(
-        data.slice(EXTRA_ACCOUNT_METAS_ACCOUNT_DATA_PREFIX_SIZE),
+export function getExtraAccountMetasEncoder(): Encoder<ExtraAccountMeta[]> {
+    return padLeftEncoder(
+        getArrayEncoder(getExtraAccountMetaEncoder(), { size: getU32Encoder() }),
+        EXTRA_ACCOUNT_METAS_ACCOUNT_DATA_PREFIX_SIZE,
     );
-    return extraAccountsList.extraAccounts.slice(0, extraAccountsList.count);
+}
+
+/**
+ * Decodes a transfer hook validation account's data into its list of `ExtraAccountMeta`s, skipping
+ * the 8-byte account discriminator and 4-byte length prefix and bounding the list by its `u32`
+ * count.
+ *
+ * Asserts the data is at least as long as the account prefix before reading, so a malformed
+ * validation account fails with a clear error rather than decoding garbage.
+ */
+export function getExtraAccountMetasDecoder(): Decoder<ExtraAccountMeta[]> {
+    const decoder = padLeftDecoder(
+        getArrayDecoder(getExtraAccountMetaDecoder(), { size: getU32Decoder() }),
+        EXTRA_ACCOUNT_METAS_ACCOUNT_DATA_PREFIX_SIZE,
+    );
+    return createDecoder({
+        ...decoder,
+        read: (bytes, offset) => {
+            if (bytes.length - offset < EXTRA_ACCOUNT_METAS_ACCOUNT_DATA_PREFIX_SIZE) {
+                throw new Error(
+                    'Invalid transfer hook validation account: data is shorter than the expected ' +
+                        `${EXTRA_ACCOUNT_METAS_ACCOUNT_DATA_PREFIX_SIZE}-byte account prefix.`,
+                );
+            }
+            return decoder.read(bytes, offset);
+        },
+    });
+}
+
+export function getExtraAccountMetasCodec(): Codec<ExtraAccountMeta[]> {
+    return combineCodec(getExtraAccountMetasEncoder(), getExtraAccountMetasDecoder());
 }
 
 const PUBLIC_KEY_LENGTH = 32;
@@ -309,7 +353,7 @@ export type ResolvedExtraAccountMeta = {
 const EXTRA_ACCOUNT_META_ACCOUNT_INDEX_DISCRIMINATOR_OFFSET = 1 << 7;
 
 /**
- * Resolves one `ExtraAccountMeta` (as returned by `getExtraAccountMetas`) into the real account
+ * Resolves one `ExtraAccountMeta` (as returned by `getExtraAccountMetasDecoder`) into the real account
  * it refers to: a literal pubkey, a pubkey read via `unpackPubkeyData`, or a PDA derived from
  * `unpackSeeds` off either the transfer hook program itself or a previously resolved account.
  *
@@ -438,7 +482,7 @@ export async function resolveExtraAccountMetasForExecute(
         return [];
     }
 
-    const validateStateData = getExtraAccountMetas(validateStateAccount.data);
+    const validateStateData = getExtraAccountMetasDecoder().decode(validateStateAccount.data);
     const instructionData = getExecuteInstructionData(BigInt(input.amount));
 
     const baseMetas: AccountMeta<Address>[] = [

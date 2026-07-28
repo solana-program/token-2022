@@ -19,7 +19,7 @@ import {
     createTransferCheckedWithTransferHookInstruction,
     deEscalateAccountMeta,
     findExtraAccountMetaListPda,
-    getExtraAccountMetas,
+    getExtraAccountMetasDecoder,
     getMintEncoder,
     getTransferCheckedInstruction,
     resolveExtraAccountMeta,
@@ -83,8 +83,8 @@ function extraAccountMeta(
 
 function validateStateAccountData(extraAccounts: Uint8Array[]): Uint8Array {
     return new Uint8Array([
-        ...new Array(8).fill(0), // u64 instructionDiscriminator (unused by getExtraAccountMetas)
-        ...new Array(4).fill(0), // u32 length (unused by getExtraAccountMetas)
+        ...new Array(8).fill(0), // u64 instructionDiscriminator (skipped when decoding)
+        ...new Array(4).fill(0), // u32 length (skipped when decoding)
         extraAccounts.length,
         0,
         0,
@@ -122,13 +122,17 @@ it('parses extra account metas from validation account data, ignoring trailing b
         ...pdaExtraAccount, // trailing bytes past `count`, should be dropped
     ]);
 
-    const parsed = getExtraAccountMetas(data);
+    const parsed = getExtraAccountMetasDecoder().decode(data);
 
     expect(parsed).toHaveLength(1);
     expect(parsed[0].discriminator).toBe(0);
     expect(parsed[0].addressConfig).toEqual(addressConfig);
     expect(parsed[0].isSigner).toBe(false);
     expect(parsed[0].isWritable).toBe(false);
+});
+
+it('throws when decoding validation account data shorter than the account prefix', () => {
+    expect(() => getExtraAccountMetasDecoder().decode(new Uint8Array(8))).toThrow();
 });
 
 it('unpackSeeds resolves a literal seed followed by the terminator', async () => {
