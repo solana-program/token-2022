@@ -273,20 +273,15 @@ type RecordBackedContextStateProofMode = Omit<ConfidentialTransferContextStatePr
 export type GetConfidentialTransferWithFeeInstructionPlanInput =
     GetConfidentialTransferWithFeeInstructionPlanBaseInput & RecordBackedContextStateProofMode;
 
-type GetConfidentialMintInstructionPlanBaseInput = {
-    /** The token account minted into (its confidential pending balance). */
+/** Fields shared by the confidential mint and burn instruction plan inputs. */
+type GetConfidentialMintBurnInstructionPlanBaseInput = {
+    /** The token account the amount is minted into or burnt from. */
     token: Address;
     mint: Address;
     /** Decoded mint account, read for the `ConfidentialMintBurn` supply state and auditor key. */
     mintAccount: Mint;
-    /** Decoded destination token account, read for its ElGamal public key. */
-    destinationTokenAccount: Token;
     authority: Address | TransactionSigner;
     amount: number | bigint;
-    /** The supply ElGamal keypair (backs the equality proof; encrypts the new supply). */
-    supplyElgamalKeypair: ElGamalKeypair;
-    /** The supply AES key (decrypts the current supply and encrypts the new decryptable supply). */
-    supplyAesKey: AeKey;
     /**
      * Auditor ElGamal public key to use for the auditor ciphertexts. When
      * omitted, the helper resolves the key from `mintAccount`'s
@@ -298,32 +293,25 @@ type GetConfidentialMintInstructionPlanBaseInput = {
     programAddress?: Address;
 };
 
+type GetConfidentialMintInstructionPlanBaseInput = GetConfidentialMintBurnInstructionPlanBaseInput & {
+    /** Decoded destination token account, read for its ElGamal public key. */
+    destinationTokenAccount: Token;
+    /** The supply ElGamal keypair (backs the equality proof; encrypts the new supply). */
+    supplyElgamalKeypair: ElGamalKeypair;
+    /** The supply AES key (decrypts the current supply and encrypts the new decryptable supply). */
+    supplyAesKey: AeKey;
+};
+
 export type GetConfidentialMintInstructionPlanInput = GetConfidentialMintInstructionPlanBaseInput &
     ConfidentialTransferContextStateProofMode;
 
-type GetConfidentialBurnInstructionPlanBaseInput = {
-    /** The token account burnt from (its confidential available balance). */
-    token: Address;
-    mint: Address;
-    /** Decoded mint account, read for the `ConfidentialMintBurn` supply ElGamal pubkey and auditor key. */
-    mintAccount: Mint;
+type GetConfidentialBurnInstructionPlanBaseInput = GetConfidentialMintBurnInstructionPlanBaseInput & {
     /** Decoded source token account, read for its available-balance ciphertext and ElGamal public key. */
     sourceTokenAccount: Token;
-    authority: Address | TransactionSigner;
-    amount: number | bigint;
     /** The source account's ElGamal keypair (backs the equality proof). */
     sourceElgamalKeypair: ElGamalKeypair;
     /** The source account's AES key (decrypts and re-encrypts the available balance). */
     aesKey: AeKey;
-    /**
-     * Auditor ElGamal public key to use for the auditor ciphertexts. When
-     * omitted, the helper resolves the key from `mintAccount`'s
-     * `ConfidentialTransferMint` extension. If the mint has no auditor
-     * configured, the zero auditor key is used.
-     */
-    auditorElgamalPubkey?: Address;
-    multiSigners?: Array<TransactionSigner>;
-    programAddress?: Address;
 };
 
 export type GetConfidentialBurnInstructionPlanInput = GetConfidentialBurnInstructionPlanBaseInput &
@@ -1397,6 +1385,13 @@ function assertMintBurnAmount(amount: bigint, label: 'Mint' | 'Burn'): void {
  * The amount is grouped-encrypted under `[destination, supply, auditor]`; the
  * supply handle (index 1) is homomorphically added to the mint's current supply
  * ciphertext, and the auditor handle (index 2) is carried by the instruction.
+ *
+ * **The mint's two supply representations must be in sync.** The equality proof
+ * asserts that the mint's `confidentialSupply` ElGamal ciphertext plus `amount`
+ * equals `AES_decrypt(decryptableSupply) + amount`. If the two have drifted —
+ * e.g. after `ApplyPendingBurn`, which advances the ElGamal supply but cannot
+ * re-encrypt the AES form — the proof is rejected on-chain. Re-sync first with
+ * {@link getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply}.
  */
 export async function getConfidentialMintInstructionPlan(
     input: GetConfidentialMintInstructionPlanInput,
@@ -1718,7 +1713,11 @@ export async function getPermissionedConfidentialBurnInstructionPlan(
     return sequentialInstructionPlan([
         setup,
         getPermissionedConfidentialBurnInstruction(
-            { ...burnArgs, permissionedBurnAuthority: input.permissionedBurnAuthority },
+            {
+                ...burnArgs,
+                multiSigners: input.multiSigners,
+                permissionedBurnAuthority: input.permissionedBurnAuthority,
+            },
             { programAddress: getTokenProgramAddress(input.programAddress) },
         ),
         cleanup,

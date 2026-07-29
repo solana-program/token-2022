@@ -1,8 +1,6 @@
-import { isSome } from '@solana/kit';
-import { AeCiphertext } from '@solana/zk-sdk/bundler';
 import { expect, it } from 'vitest';
 
-import { Mint, fetchMint, fetchToken, getApplyConfidentialPendingBurnInstruction } from '../../../src';
+import { fetchMint, fetchToken, getApplyConfidentialPendingBurnInstruction } from '../../../src';
 import {
     decryptConfidentialTransferBalance,
     getApplyConfidentialPendingBalanceInstructionFromToken,
@@ -14,23 +12,13 @@ import {
     createConfidentialMintBurnMint,
     createConfidentialTokenAccount,
     createValidatorClient,
+    fetchDecryptableSupply,
     generateKeyPairSignerWithSol,
 } from '../../_setup';
 
 const DECIMALS = 2;
 const MINT_AMOUNT = 500n;
 const BURN_AMOUNT = 200n;
-
-function getConfidentialMintBurnExtension(mint: Mint) {
-    if (!isSome(mint.extensions)) {
-        throw new Error('Mint account is missing extensions.');
-    }
-    const extension = mint.extensions.value.find(candidate => candidate.__kind === 'ConfidentialMintBurn');
-    if (!extension || extension.__kind !== 'ConfidentialMintBurn') {
-        throw new Error('Mint account is missing the ConfidentialMintBurn extension.');
-    }
-    return extension;
-}
 
 it('confidentially mints into, applies, burns from, and re-syncs the supply of a mint-burn mint', async () => {
     // Given a mint-burn mint (both ConfidentialTransferMint + ConfidentialMintBurn)
@@ -130,11 +118,5 @@ it('confidentially mints into, applies, burns from, and re-syncs the supply of a
         }),
     ]);
 
-    const { data: finalMint } = await fetchMint(client.rpc, mint);
-    const mintBurnExtension = getConfidentialMintBurnExtension(finalMint);
-    const decryptableSupplyCiphertext = AeCiphertext.fromBytes(new Uint8Array(mintBurnExtension.decryptableSupply));
-    if (!decryptableSupplyCiphertext) {
-        throw new Error('Failed to decode the decryptable supply ciphertext.');
-    }
-    expect(supplyAesKey.decrypt(decryptableSupplyCiphertext)).toBe(MINT_AMOUNT - BURN_AMOUNT);
+    expect(await fetchDecryptableSupply({ client, mint, supplyAesKey })).toBe(MINT_AMOUNT - BURN_AMOUNT);
 });

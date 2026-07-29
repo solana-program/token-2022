@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { systemProgram } from '@solana-program/system';
+import { getCreateAccountInstruction, systemProgram } from '@solana-program/system';
 import {
     Address,
     Transaction,
@@ -30,20 +30,24 @@ import { planAndSendTransactions } from '@solana/kit-plugin-instruction-plan';
 import { TransactionMetadata, litesvm } from '@solana/kit-plugin-litesvm';
 import { solanaLocalRpc } from '@solana/kit-plugin-rpc';
 import { airdropSigner, generatedSigner } from '@solana/kit-plugin-signer';
-import { AeKey, ElGamalKeypair } from '@solana/zk-sdk/bundler';
+import { AeCiphertext, AeKey, ElGamalKeypair } from '@solana/zk-sdk/bundler';
 
 import {
     Extension,
     ExtensionArgs,
+    Mint,
     TOKEN_2022_PROGRAM_ADDRESS,
     Token,
     associatedTokenProgram,
     extension,
+    fetchMint,
     fetchToken,
     findAssociatedTokenPda,
     getConfidentialDepositInstruction,
     getCreateTokenInstructionPlan,
+    getInitializeMultisig2Instruction,
     getMintToInstruction,
+    getMultisigSize,
     token2022Program,
 } from '../src';
 import {
@@ -337,6 +341,65 @@ export const createConfidentialMintBurnMint = async (input: {
     return { mint: mint.address, mintAuthority, supplyElgamalKeypair, supplyAesKey };
 };
 
+// Returns the `ConfidentialMintBurn` extension of a decoded mint, throwing if the
+// mint does not carry it.
+export const getConfidentialMintBurnExtension = (mint: Mint) => {
+    if (!isSome(mint.extensions)) {
+        throw new Error('Mint account is missing extensions.');
+    }
+    const extension = mint.extensions.value.find(candidate => candidate.__kind === 'ConfidentialMintBurn');
+    if (!extension || extension.__kind !== 'ConfidentialMintBurn') {
+        throw new Error('Mint account is missing the ConfidentialMintBurn extension.');
+    }
+    return extension;
+};
+
+// Fetches a mint-burn mint and decrypts its AES `decryptableSupply` — the
+// cheap-to-decrypt supply representation the mint authority re-asserts via
+// `UpdateDecryptableSupply`.
+export const fetchDecryptableSupply = async (input: {
+    client: Client;
+    mint: Address;
+    supplyAesKey: AeKey;
+}): Promise<bigint> => {
+    const { data: mintAccount } = await fetchMint(input.client.rpc, input.mint);
+    const mintBurnExtension = getConfidentialMintBurnExtension(mintAccount);
+    const ciphertext = AeCiphertext.fromBytes(new Uint8Array(mintBurnExtension.decryptableSupply));
+    if (!ciphertext) {
+        throw new Error('Failed to decode the decryptable supply ciphertext.');
+    }
+    return input.supplyAesKey.decrypt(ciphertext);
+};
+
+// Creates an M-of-N Token-2022 multisig account owned by `signers`. Instructions
+// authorized by the multisig pass its address as the authority and the signing
+// members as `multiSigners`.
+export const createMultisig = async (input: {
+    client: Client;
+    payer: TransactionSigner;
+    signers: Array<TransactionSigner>;
+    m?: number;
+}): Promise<Address> => {
+    const multisig = await generateKeyPairSigner();
+    const space = getMultisigSize();
+    const rent = await input.client.rpc.getMinimumBalanceForRentExemption(BigInt(space)).send();
+    await input.client.sendTransaction([
+        getCreateAccountInstruction({
+            payer: input.payer,
+            newAccount: multisig,
+            lamports: rent,
+            space,
+            programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+        }),
+        getInitializeMultisig2Instruction({
+            multisig: multisig.address,
+            m: input.m ?? input.signers.length,
+            signers: input.signers.map(signer => signer.address),
+        }),
+    ]);
+    return multisig.address;
+};
+
 export type ConfidentialTokenAccount = {
     token: Address;
     elgamalKeypair: ElGamalKeypair;
@@ -344,17 +407,20 @@ export type ConfidentialTokenAccount = {
 };
 
 // Creates and configures an associated token account for confidential transfers.
+// The owner may be a multisig address, in which case its signing members must be
+// passed as `multiSigners`.
 export const createConfidentialTokenAccount = async (input: {
     client: Client;
     payer: TransactionSigner;
-    owner: TransactionSigner;
+    owner: Address | TransactionSigner;
     mint: Address;
     includeConfidentialTransferFeeAmount?: boolean;
+    multiSigners?: Array<TransactionSigner>;
 }): Promise<ConfidentialTokenAccount> => {
     const elgamalKeypair = new ElGamalKeypair();
     const aesKey = new AeKey();
     const [token] = await findAssociatedTokenPda({
-        owner: input.owner.address,
+        owner: typeof input.owner === 'string' ? input.owner : input.owner.address,
         tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
         mint: input.mint,
     });
@@ -367,6 +433,7 @@ export const createConfidentialTokenAccount = async (input: {
             elgamalKeypair,
             aesKey,
             includeConfidentialTransferFeeAmount: input.includeConfidentialTransferFeeAmount,
+            multiSigners: input.multiSigners,
         }),
     );
     return { token, elgamalKeypair, aesKey };

@@ -1,8 +1,6 @@
-import { isSome } from '@solana/kit';
-import { AeCiphertext } from '@solana/zk-sdk/bundler';
 import { expect, it } from 'vitest';
 
-import { Mint, fetchMint, fetchToken, getApplyConfidentialPendingBurnInstruction } from '../../../src';
+import { fetchMint, fetchToken, getApplyConfidentialPendingBurnInstruction } from '../../../src';
 import {
     decryptConfidentialTransferBalance,
     getApplyConfidentialPendingBalanceInstructionFromToken,
@@ -13,24 +11,15 @@ import {
 import {
     createConfidentialMintBurnMint,
     createConfidentialTokenAccount,
+    createMultisig,
     createValidatorClient,
+    fetchDecryptableSupply,
     generateKeyPairSignerWithSol,
 } from '../../_setup';
 
 const DECIMALS = 2;
 const MINT_AMOUNT = 500n;
 const BURN_AMOUNT = 200n;
-
-function getConfidentialMintBurnExtension(mint: Mint) {
-    if (!isSome(mint.extensions)) {
-        throw new Error('Mint account is missing extensions.');
-    }
-    const extension = mint.extensions.value.find(candidate => candidate.__kind === 'ConfidentialMintBurn');
-    if (!extension || extension.__kind !== 'ConfidentialMintBurn') {
-        throw new Error('Mint account is missing the ConfidentialMintBurn extension.');
-    }
-    return extension;
-}
 
 it('confidentially burns from a mint carrying the PermissionedBurn extension', async () => {
     // Given a mint-burn mint that ALSO carries the PermissionedBurn extension
@@ -124,11 +113,100 @@ it('confidentially burns from a mint carrying the PermissionedBurn extension', a
         }),
     ]);
 
-    const { data: finalMint } = await fetchMint(client.rpc, mint);
-    const mintBurnExtension = getConfidentialMintBurnExtension(finalMint);
-    const decryptableSupplyCiphertext = AeCiphertext.fromBytes(new Uint8Array(mintBurnExtension.decryptableSupply));
-    if (!decryptableSupplyCiphertext) {
-        throw new Error('Failed to decode the decryptable supply ciphertext.');
-    }
-    expect(supplyAesKey.decrypt(decryptableSupplyCiphertext)).toBe(MINT_AMOUNT - BURN_AMOUNT);
+    expect(await fetchDecryptableSupply({ client, mint, supplyAesKey })).toBe(MINT_AMOUNT - BURN_AMOUNT);
+});
+
+it('confidentially burns from an account owned by a multisig via the permissioned variant', async () => {
+    // Given a mint-burn + PermissionedBurn mint and a confidential token account
+    // owned by a 2-of-2 multisig, so the burn's `authority` is the multisig
+    // address and both members must be passed as `multiSigners`.
+    const client = await createValidatorClient();
+    const payer = client.payer;
+    const permissionedBurnAuthority = await generateKeyPairSignerWithSol(client);
+    const [signerA, signerB] = await Promise.all([
+        generateKeyPairSignerWithSol(client),
+        generateKeyPairSignerWithSol(client),
+    ]);
+    const multiSigners = [signerA, signerB];
+    const { mint, mintAuthority, supplyElgamalKeypair, supplyAesKey } = await createConfidentialMintBurnMint({
+        client,
+        payer,
+        decimals: DECIMALS,
+        permissionedBurnAuthority,
+    });
+    const multisig = await createMultisig({ client, payer, signers: multiSigners });
+    const account = await createConfidentialTokenAccount({
+        client,
+        payer,
+        owner: multisig,
+        mint,
+        multiSigners,
+    });
+
+    // When the mint authority confidentially mints into the multisig-owned account
+    // and the multisig members apply the pending balance.
+    const [{ data: destinationTokenAccount }, { data: mintAccount }] = await Promise.all([
+        fetchToken(client.rpc, account.token),
+        fetchMint(client.rpc, mint),
+    ]);
+    await client.sendTransactions(
+        await getConfidentialMintInstructionPlan({
+            payer,
+            rpc: client.rpc,
+            token: account.token,
+            mint,
+            mintAccount,
+            destinationTokenAccount,
+            authority: mintAuthority,
+            amount: MINT_AMOUNT,
+            supplyElgamalKeypair,
+            supplyAesKey,
+        }),
+    );
+
+    const { data: afterMint } = await fetchToken(client.rpc, account.token);
+    await client.sendTransaction([
+        getApplyConfidentialPendingBalanceInstructionFromToken({
+            token: account.token,
+            tokenAccount: afterMint,
+            authority: multisig,
+            multiSigners,
+            elgamalSecretKey: account.elgamalKeypair.secret(),
+            aesKey: account.aesKey,
+        }),
+    ]);
+
+    // And the multisig members burn part of the available balance, co-signed by
+    // the mint's permissioned burn authority.
+    const [{ data: sourceTokenAccount }, { data: mintForBurn }] = await Promise.all([
+        fetchToken(client.rpc, account.token),
+        fetchMint(client.rpc, mint),
+    ]);
+    await client.sendTransactions(
+        await getPermissionedConfidentialBurnInstructionPlan({
+            payer,
+            rpc: client.rpc,
+            token: account.token,
+            mint,
+            mintAccount: mintForBurn,
+            sourceTokenAccount,
+            authority: multisig,
+            multiSigners,
+            permissionedBurnAuthority,
+            amount: BURN_AMOUNT,
+            sourceElgamalKeypair: account.elgamalKeypair,
+            aesKey: account.aesKey,
+        }),
+    );
+
+    // Then the available balance drops by the burnt amount — which only holds if
+    // the plan forwarded `multiSigners` to the permissioned burn instruction.
+    const { data: afterBurn } = await fetchToken(client.rpc, account.token);
+    expect(
+        decryptConfidentialTransferBalance({
+            tokenAccount: afterBurn,
+            elgamalSecretKey: account.elgamalKeypair.secret(),
+            aesKey: account.aesKey,
+        }).availableBalance,
+    ).toBe(MINT_AMOUNT - BURN_AMOUNT);
 });
