@@ -39,6 +39,7 @@ import {
     unwrapOption,
     type Address,
     type AccountMeta,
+    type AccountSignerMeta,
     type ClientWithRpc,
     type Codec,
     type Decoder,
@@ -699,6 +700,112 @@ export async function resolveExtraAccountMetasForExecute(
         { address: input.transferHookProgramAddress, role: AccountRole.READONLY },
         { address: validateStatePubkey, role: AccountRole.READONLY },
     ];
+}
+
+// The default system program address, used when initializing a validation account.
+const SYSTEM_PROGRAM_ADDRESS = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+
+// `spl-transfer-hook-interface:initialize-extra-account-metas` and `...:update-extra-account-metas`,
+// as `sha256(namespace)[0..8]`. The instruction data is the discriminator followed by the extra
+// account meta list (`u32` count + packed entries).
+const INITIALIZE_EXTRA_ACCOUNT_META_LIST_DISCRIMINATOR = new Uint8Array([43, 34, 13, 49, 167, 88, 235, 235]);
+const UPDATE_EXTRA_ACCOUNT_META_LIST_DISCRIMINATOR = new Uint8Array([157, 105, 42, 146, 102, 85, 241, 174]);
+
+function getExtraAccountMetaListInstructionData(
+    discriminator: ReadonlyUint8Array,
+    extraAccountMetas: ExtraAccountMeta[],
+): ReadonlyUint8Array {
+    const metasData = getArrayEncoder(getExtraAccountMetaEncoder(), { size: getU32Encoder() }).encode(
+        extraAccountMetas,
+    );
+    const data = new Uint8Array(discriminator.length + metasData.length);
+    data.set(discriminator, 0);
+    data.set(metasData, discriminator.length);
+    return data;
+}
+
+export type DefaultExtraAccountMetaListInstructionAsyncInput = {
+    /** The mint the transfer hook is configured for. */
+    mint: Address;
+    /** The transfer hook program's extra-account-meta-list update authority. */
+    authority: Address | TransactionSigner;
+    /** The extra accounts to write into the validation account. */
+    extraAccountMetas: ExtraAccountMeta[];
+    /** The transfer hook program that owns the validation account. */
+    transferHookProgram: Address;
+    /** The validation account. Derived via `findExtraAccountMetaListPda` if omitted. */
+    extraAccountMetaList?: Address;
+};
+
+export type DefaultInitializeExtraAccountMetaListInstructionAsyncConfig = {
+    /** The system program. Defaults to the canonical system program address. */
+    systemProgram?: Address;
+};
+
+function getAuthorityMeta(authority: Address | TransactionSigner): AccountMeta<Address> | AccountSignerMeta<Address> {
+    return typeof authority === 'string'
+        ? { address: authority, role: AccountRole.READONLY_SIGNER }
+        : { address: authority.address, role: AccountRole.READONLY_SIGNER, signer: authority };
+}
+
+/**
+ * Builds the transfer hook interface's `InitializeExtraAccountMetaList` instruction, which creates
+ * and populates a mint's validation account with the given extra account metas.
+ *
+ * This is the interface-standard instruction. A specific transfer hook program may expose its own
+ * initialize helper (e.g. one that also creates program-specific accounts); prefer that when the
+ * program provides one, and use this default only for hooks that follow the plain interface.
+ */
+export async function getDefaultInitializeExtraAccountMetaListInstructionAsync(
+    input: DefaultExtraAccountMetaListInstructionAsyncInput,
+    config?: DefaultInitializeExtraAccountMetaListInstructionAsyncConfig,
+): Promise<Instruction> {
+    const [extraAccountMetaList] = input.extraAccountMetaList
+        ? [input.extraAccountMetaList]
+        : await findExtraAccountMetaListPda({ mint: input.mint }, { programAddress: input.transferHookProgram });
+
+    return {
+        accounts: [
+            { address: extraAccountMetaList, role: AccountRole.WRITABLE },
+            { address: input.mint, role: AccountRole.READONLY },
+            getAuthorityMeta(input.authority),
+            { address: config?.systemProgram ?? SYSTEM_PROGRAM_ADDRESS, role: AccountRole.READONLY },
+        ],
+        data: getExtraAccountMetaListInstructionData(
+            INITIALIZE_EXTRA_ACCOUNT_META_LIST_DISCRIMINATOR,
+            input.extraAccountMetas,
+        ),
+        programAddress: input.transferHookProgram,
+    };
+}
+
+/**
+ * Builds the transfer hook interface's `UpdateExtraAccountMetaList` instruction, which overwrites
+ * the extra account metas stored in a mint's existing validation account.
+ *
+ * This is the interface-standard instruction. A specific transfer hook program may expose its own
+ * update helper; prefer that when the program provides one, and use this default only for hooks that
+ * follow the plain interface.
+ */
+export async function getDefaultUpdateExtraAccountMetaListInstructionAsync(
+    input: DefaultExtraAccountMetaListInstructionAsyncInput,
+): Promise<Instruction> {
+    const [extraAccountMetaList] = input.extraAccountMetaList
+        ? [input.extraAccountMetaList]
+        : await findExtraAccountMetaListPda({ mint: input.mint }, { programAddress: input.transferHookProgram });
+
+    return {
+        accounts: [
+            { address: extraAccountMetaList, role: AccountRole.WRITABLE },
+            { address: input.mint, role: AccountRole.READONLY },
+            getAuthorityMeta(input.authority),
+        ],
+        data: getExtraAccountMetaListInstructionData(
+            UPDATE_EXTRA_ACCOUNT_META_LIST_DISCRIMINATOR,
+            input.extraAccountMetas,
+        ),
+        programAddress: input.transferHookProgram,
+    };
 }
 
 export type TransferCheckedWithTransferHookInstructionAsyncInput = {
