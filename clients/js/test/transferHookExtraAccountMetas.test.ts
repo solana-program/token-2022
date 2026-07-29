@@ -225,22 +225,31 @@ it('decodes a program-PDA meta with an empty seed list when its address config i
     expect(meta.config).toEqual({ __kind: 'ProgramPda', seeds: [] });
 });
 
-it('throws when decoding a meta whose seed list has an unknown discriminator', () => {
+it('throws a clear error when decoding a meta whose seed list has an unknown discriminator', () => {
     // Discriminator 1 (program PDA) whose packed seeds start with an unknown seed discriminator 9.
+    // The error names the actual on-chain discriminator, not kit's internal variant index.
     expect(() =>
         getExtraAccountMetaDecoder().decode(
             extraAccountMetaBytes(1, addressConfigOf(new Uint8Array([9])), false, false),
         ),
-    ).toThrow();
+    ).toThrow('unknown discriminator 9');
 });
 
-it('throws when decoding a meta whose pubkey data has an unknown discriminator', () => {
+it('throws a clear error when decoding a meta whose pubkey data has an unknown discriminator', () => {
     // Discriminator 2 (pubkey data) whose config starts with an unknown pubkey-data discriminator 9.
     expect(() =>
         getExtraAccountMetaDecoder().decode(
             extraAccountMetaBytes(2, addressConfigOf(new Uint8Array([9])), false, false),
         ),
-    ).toThrow();
+    ).toThrow('unknown discriminator 9');
+});
+
+it('throws a clear error when decoding a meta with a discriminator in the unused 3..127 range', () => {
+    // Discriminators 3..127 are neither a known kind nor an account-index PDA (which start at 128),
+    // so they must be rejected as unknown rather than misreported as an out-of-bounds account index.
+    expect(() =>
+        getExtraAccountMetaDecoder().decode(extraAccountMetaBytes(5, addressConfigOf(new Uint8Array()), false, false)),
+    ).toThrow('unknown discriminator 5');
 });
 
 it('resolveSeeds resolves a literal seed', async () => {

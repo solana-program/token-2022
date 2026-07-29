@@ -334,9 +334,15 @@ function getExtraAccountMetaSeedDecoder(): Decoder<ExtraAccountMetaSeed> {
                 }),
             ),
         ],
-        // Peek the `u8` discriminator (1..4) and map it to the variant array index (0..3). An
-        // unknown or `0` (terminator) discriminator maps out of range and throws.
-        (bytes, offset) => getU8Decoder().read(bytes, offset)[0] - 1,
+        // Peek the `u8` discriminator (1..4) and map it to the variant array index (0..3), throwing
+        // a clear error for an unknown discriminator rather than kit's index-based one.
+        (bytes, offset) => {
+            const discriminator = getU8Decoder().read(bytes, offset)[0];
+            if (discriminator < 1 || discriminator > 4) {
+                throw new Error(`Invalid transfer hook seed: unknown discriminator ${discriminator}.`);
+            }
+            return discriminator - 1;
+        },
     );
 }
 
@@ -470,9 +476,15 @@ function getExtraAccountMetaPubkeyDataDecoder(): Decoder<ExtraAccountMetaPubkeyD
                 }),
             ),
         ],
-        // Peek the `u8` discriminator (1..2) and map it to the variant array index (0..1). A `0` or
-        // unknown discriminator maps out of range and throws.
-        (bytes, offset) => getU8Decoder().read(bytes, offset)[0] - 1,
+        // Peek the `u8` discriminator (1..2) and map it to the variant array index (0..1), throwing
+        // a clear error for a `0` or unknown discriminator rather than kit's index-based one.
+        (bytes, offset) => {
+            const discriminator = getU8Decoder().read(bytes, offset)[0];
+            if (discriminator < 1 || discriminator > 2) {
+                throw new Error(`Invalid transfer hook pubkey data: unknown discriminator ${discriminator}.`);
+            }
+            return discriminator - 1;
+        },
     );
 }
 
