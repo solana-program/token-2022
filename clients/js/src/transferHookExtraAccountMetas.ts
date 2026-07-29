@@ -1,5 +1,7 @@
 import {
     AccountRole,
+    addDecoderSizePrefix,
+    addEncoderSizePrefix,
     combineCodec,
     createDecoder,
     downgradeRoleToNonSigner,
@@ -18,16 +20,22 @@ import {
     getProgramDerivedAddress,
     getStructDecoder,
     getStructEncoder,
+    getTupleDecoder,
+    getTupleEncoder,
     getU32Decoder,
     getU32Encoder,
     getU64Encoder,
     getU8Decoder,
     getU8Encoder,
+    getUnionDecoder,
+    getUnionEncoder,
     isSignerRole,
     isWritableRole,
     mergeRoles,
     padLeftDecoder,
     padLeftEncoder,
+    transformDecoder,
+    transformEncoder,
     unwrapOption,
     type Address,
     type AccountMeta,
@@ -67,30 +75,133 @@ export async function findExtraAccountMetaListPda(
     });
 }
 
-/** An `ExtraAccountMeta` as stored by a transfer hook program's validation account. */
+const PUBLIC_KEY_LENGTH = 32;
+
+// The `addressConfig` field of an `ExtraAccountMeta` is a fixed 32-byte slot whose meaning depends
+// on the meta's discriminator: a literal pubkey, a packed seed list, or a packed pubkey-data
+// config. Seed and pubkey-data configs are shorter than 32 bytes and zero-padded to fill the slot.
+const ADDRESS_CONFIG_SIZE = 32;
+
+// The `ExtraAccountMeta` discriminator that flags a PDA derived off the transfer hook program.
+const PROGRAM_PDA_DISCRIMINATOR = 1;
+// PDAs derived off a previously resolved account use a discriminator of `128 + accountIndex`, so
+// discriminators `128..255` select the account at index `discriminator - 128`.
+const ACCOUNT_PDA_DISCRIMINATOR_OFFSET = 1 << 7;
+
+/**
+ * The interpreted `addressConfig` of an {@link ExtraAccountMeta}, describing how its account address
+ * is derived. Mirrors the transfer hook interface's address-config discriminators:
+ *
+ * - `Literal`: the `addressConfig` is the account address itself.
+ * - `PubkeyData`: the address is read from the instruction data or a resolved account's data.
+ * - `ProgramPda`: the address is a PDA derived off the transfer hook program from `seeds`.
+ * - `AccountPda`: the address is a PDA derived off a previously resolved account (at `accountIndex`)
+ *   from `seeds`.
+ */
+export type ExtraAccountMetaConfig =
+    | { __kind: 'Literal'; address: Address }
+    | { __kind: 'PubkeyData'; pubkeyData: ExtraAccountMetaPubkeyData }
+    | { __kind: 'ProgramPda'; seeds: ExtraAccountMetaSeed[] }
+    | { __kind: 'AccountPda'; accountIndex: number; seeds: ExtraAccountMetaSeed[] };
+
+/**
+ * An `ExtraAccountMeta` as stored by a transfer hook program's validation account, with its packed
+ * `addressConfig` already interpreted into an {@link ExtraAccountMetaConfig}.
+ */
 export type ExtraAccountMeta = {
+    config: ExtraAccountMetaConfig;
+    isSigner: boolean;
+    isWritable: boolean;
+};
+
+// The raw on-chain layout of an `ExtraAccountMeta`, before its `addressConfig` is interpreted.
+type RawExtraAccountMeta = {
     discriminator: number;
     addressConfig: ReadonlyUint8Array;
     isSigner: boolean;
     isWritable: boolean;
 };
 
-export function getExtraAccountMetaEncoder(): Encoder<ExtraAccountMeta> {
+function getRawExtraAccountMetaEncoder(): Encoder<RawExtraAccountMeta> {
     return getStructEncoder([
         ['discriminator', getU8Encoder()],
-        ['addressConfig', fixEncoderSize(getBytesEncoder(), 32)],
+        ['addressConfig', fixEncoderSize(getBytesEncoder(), ADDRESS_CONFIG_SIZE)],
         ['isSigner', getBooleanEncoder()],
         ['isWritable', getBooleanEncoder()],
     ]);
 }
 
-export function getExtraAccountMetaDecoder(): Decoder<ExtraAccountMeta> {
+function getRawExtraAccountMetaDecoder(): Decoder<RawExtraAccountMeta> {
     return getStructDecoder([
         ['discriminator', getU8Decoder()],
-        ['addressConfig', fixDecoderSize(getBytesDecoder(), 32)],
+        ['addressConfig', fixDecoderSize(getBytesDecoder(), ADDRESS_CONFIG_SIZE)],
         ['isSigner', getBooleanDecoder()],
         ['isWritable', getBooleanDecoder()],
     ]);
+}
+
+// Packs an interpreted `ExtraAccountMetaConfig` back into its raw `discriminator` + `addressConfig`.
+function packAddressConfig(
+    config: ExtraAccountMetaConfig,
+): Pick<RawExtraAccountMeta, 'discriminator' | 'addressConfig'> {
+    switch (config.__kind) {
+        case 'Literal':
+            return { discriminator: 0, addressConfig: getAddressEncoder().encode(config.address) };
+        case 'PubkeyData':
+            return {
+                discriminator: 2,
+                addressConfig: getExtraAccountMetaPubkeyDataEncoder().encode(config.pubkeyData),
+            };
+        case 'ProgramPda':
+            return {
+                discriminator: PROGRAM_PDA_DISCRIMINATOR,
+                addressConfig: getExtraAccountMetaSeedsEncoder().encode(config.seeds),
+            };
+        case 'AccountPda':
+            return {
+                discriminator: ACCOUNT_PDA_DISCRIMINATOR_OFFSET + config.accountIndex,
+                addressConfig: getExtraAccountMetaSeedsEncoder().encode(config.seeds),
+            };
+    }
+}
+
+// Interprets a raw `discriminator` + `addressConfig` into an `ExtraAccountMetaConfig`.
+function unpackAddressConfig(discriminator: number, addressConfig: ReadonlyUint8Array): ExtraAccountMetaConfig {
+    if (discriminator === 0) {
+        return { __kind: 'Literal', address: getAddressDecoder().decode(addressConfig) };
+    }
+    if (discriminator === 2) {
+        return { __kind: 'PubkeyData', pubkeyData: getExtraAccountMetaPubkeyDataDecoder().decode(addressConfig) };
+    }
+    if (discriminator === PROGRAM_PDA_DISCRIMINATOR) {
+        return { __kind: 'ProgramPda', seeds: getExtraAccountMetaSeedsDecoder().decode(addressConfig) };
+    }
+    const accountIndex = discriminator - ACCOUNT_PDA_DISCRIMINATOR_OFFSET;
+    if (accountIndex < 0) {
+        throw new Error(`Invalid transfer hook extra account meta: unknown discriminator ${discriminator}.`);
+    }
+    return { __kind: 'AccountPda', accountIndex, seeds: getExtraAccountMetaSeedsDecoder().decode(addressConfig) };
+}
+
+export function getExtraAccountMetaEncoder(): Encoder<ExtraAccountMeta> {
+    return transformEncoder(getRawExtraAccountMetaEncoder(), (meta: ExtraAccountMeta) => {
+        const { discriminator, addressConfig } = packAddressConfig(meta.config);
+        if (addressConfig.length > ADDRESS_CONFIG_SIZE) {
+            throw new Error(
+                `Invalid transfer hook extra account meta: encoded address config is ${addressConfig.length} bytes, ` +
+                    `which exceeds the ${ADDRESS_CONFIG_SIZE}-byte limit.`,
+            );
+        }
+        return { addressConfig, discriminator, isSigner: meta.isSigner, isWritable: meta.isWritable };
+    });
+}
+
+export function getExtraAccountMetaDecoder(): Decoder<ExtraAccountMeta> {
+    return transformDecoder(getRawExtraAccountMetaDecoder(), raw => ({
+        config: unpackAddressConfig(raw.discriminator, raw.addressConfig),
+        isSigner: raw.isSigner,
+        isWritable: raw.isWritable,
+    }));
 }
 
 export function getExtraAccountMetaCodec(): Codec<ExtraAccountMeta> {
@@ -143,204 +254,265 @@ export function getExtraAccountMetasCodec(): Codec<ExtraAccountMeta[]> {
     return combineCodec(getExtraAccountMetasEncoder(), getExtraAccountMetasDecoder());
 }
 
-const PUBLIC_KEY_LENGTH = 32;
+/**
+ * A single entry in an `ExtraAccountMeta`'s packed seed configuration, as decoded from its
+ * `addressConfig`. Mirrors the transfer hook interface's `Seed` enum, minus the `Uninitialized`
+ * terminator that ends the packed list.
+ *
+ * A `Literal` seed carries its bytes directly, whereas the other variants reference the
+ * instruction data or a previously resolved account and are resolved by {@link resolveSeeds}.
+ */
+export type ExtraAccountMetaSeed =
+    | { __kind: 'Literal'; bytes: ReadonlyUint8Array }
+    | { __kind: 'InstructionData'; index: number; length: number }
+    | { __kind: 'AccountKey'; index: number }
+    | { __kind: 'AccountData'; accountIndex: number; dataIndex: number; length: number };
 
-type Seed = {
-    data: ReadonlyUint8Array;
-    packedLength: number;
-};
-
-function unpackSeedLiteral(seed: ReadonlyUint8Array): Seed {
-    if (seed.length < 1) {
-        throw new Error('Invalid transfer hook seed: literal seed is missing its length byte.');
-    }
-    const length = seed[0];
-    const rest = seed.slice(1);
-    if (rest.length < length) {
-        throw new Error("Invalid transfer hook seed: literal seed's data is shorter than its declared length.");
-    }
-    return {
-        data: rest.slice(0, length),
-        // discriminator (1) + length (1) + the literal bytes themselves.
-        packedLength: 2 + length,
-    };
+// The transfer hook interface packs each seed as a `u8` discriminator (1-based, since `0` is the
+// `Uninitialized` terminator) followed by its operands. `getUnionEncoder`/`getUnionDecoder` let us
+// map the on-chain discriminators (1..4) to the variant array indices (0..3) without modelling the
+// terminator as a variant: the list codec handles termination via the fixed 32-byte slot instead.
+function getExtraAccountMetaSeedEncoder(): Encoder<ExtraAccountMetaSeed> {
+    return getUnionEncoder(
+        [
+            transformEncoder(
+                getTupleEncoder([getU8Encoder(), addEncoderSizePrefix(getBytesEncoder(), getU8Encoder())]),
+                (seed: Extract<ExtraAccountMetaSeed, { __kind: 'Literal' }>) => [1, seed.bytes] as const,
+            ),
+            transformEncoder(
+                getTupleEncoder([getU8Encoder(), getU8Encoder(), getU8Encoder()]),
+                (seed: Extract<ExtraAccountMetaSeed, { __kind: 'InstructionData' }>) =>
+                    [2, seed.index, seed.length] as const,
+            ),
+            transformEncoder(
+                getTupleEncoder([getU8Encoder(), getU8Encoder()]),
+                (seed: Extract<ExtraAccountMetaSeed, { __kind: 'AccountKey' }>) => [3, seed.index] as const,
+            ),
+            transformEncoder(
+                getTupleEncoder([getU8Encoder(), getU8Encoder(), getU8Encoder(), getU8Encoder()]),
+                (seed: Extract<ExtraAccountMetaSeed, { __kind: 'AccountData' }>) =>
+                    [4, seed.accountIndex, seed.dataIndex, seed.length] as const,
+            ),
+        ],
+        seed => {
+            switch (seed.__kind) {
+                case 'Literal':
+                    return 0;
+                case 'InstructionData':
+                    return 1;
+                case 'AccountKey':
+                    return 2;
+                case 'AccountData':
+                    return 3;
+            }
+        },
+    );
 }
 
-function unpackSeedInstructionArg(seed: ReadonlyUint8Array, instructionData: ReadonlyUint8Array): Seed {
-    if (seed.length < 2) {
-        throw new Error('Invalid transfer hook seed: instruction-arg seed is missing its offset/length bytes.');
-    }
-    const [index, length] = seed;
-    if (instructionData.length < index + length) {
-        throw new Error(
-            "Invalid transfer hook seed: instruction data is shorter than the seed's declared offset/length.",
-        );
-    }
-    return {
-        data: instructionData.slice(index, index + length),
-        // discriminator (1) + offset (1) + length (1).
-        packedLength: 3,
-    };
+function getExtraAccountMetaSeedDecoder(): Decoder<ExtraAccountMetaSeed> {
+    return getUnionDecoder(
+        [
+            transformDecoder(
+                getTupleDecoder([getU8Decoder(), addDecoderSizePrefix(getBytesDecoder(), getU8Decoder())]),
+                ([, bytes]): ExtraAccountMetaSeed => ({ __kind: 'Literal', bytes }),
+            ),
+            transformDecoder(
+                getTupleDecoder([getU8Decoder(), getU8Decoder(), getU8Decoder()]),
+                ([, index, length]): ExtraAccountMetaSeed => ({ __kind: 'InstructionData', index, length }),
+            ),
+            transformDecoder(
+                getTupleDecoder([getU8Decoder(), getU8Decoder()]),
+                ([, index]): ExtraAccountMetaSeed => ({ __kind: 'AccountKey', index }),
+            ),
+            transformDecoder(
+                getTupleDecoder([getU8Decoder(), getU8Decoder(), getU8Decoder(), getU8Decoder()]),
+                ([, accountIndex, dataIndex, length]): ExtraAccountMetaSeed => ({
+                    __kind: 'AccountData',
+                    accountIndex,
+                    dataIndex,
+                    length,
+                }),
+            ),
+        ],
+        // Peek the `u8` discriminator (1..4) and map it to the variant array index (0..3). An
+        // unknown or `0` (terminator) discriminator maps out of range and throws.
+        (bytes, offset) => getU8Decoder().read(bytes, offset)[0] - 1,
+    );
 }
 
-function unpackSeedAccountKey(seed: ReadonlyUint8Array, previousMetas: Address[]): Seed {
-    if (seed.length < 1) {
-        throw new Error('Invalid transfer hook seed: account-key seed is missing its index byte.');
-    }
-    const [index] = seed;
-    if (previousMetas.length <= index) {
-        throw new Error('Invalid transfer hook seed: account-key seed references an out-of-bounds account index.');
-    }
-    return {
-        data: getAddressEncoder().encode(previousMetas[index]),
-        // discriminator (1) + account index (1).
-        packedLength: 2,
-    };
+// Encodes a list of seeds, relying on the meta encoder's zero-padding to the 32-byte `addressConfig`
+// slot to terminate the list: the on-chain unpacker stops at a `0` discriminator or the 32-byte
+// bound, so no explicit terminator is written (which would wrongly reject a maximal 32-byte list).
+function getExtraAccountMetaSeedsEncoder(): Encoder<ExtraAccountMetaSeed[]> {
+    return getArrayEncoder(getExtraAccountMetaSeedEncoder(), { size: 'remainder' });
 }
 
-async function unpackSeedAccountData(
-    seed: ReadonlyUint8Array,
-    previousMetas: Address[],
-    rpc: Rpc<GetAccountInfoApi>,
-): Promise<Seed> {
-    if (seed.length < 3) {
-        throw new Error('Invalid transfer hook seed: account-data seed is missing its account/offset/length bytes.');
-    }
-    const [accountIndex, dataOffset, length] = seed;
-    if (previousMetas.length <= accountIndex) {
-        throw new Error('Invalid transfer hook seed: account-data seed references an out-of-bounds account index.');
-    }
-    const account = await fetchEncodedAccount(rpc, previousMetas[accountIndex]);
-    if (!account.exists) {
-        throw new Error(
-            `Invalid transfer hook seed: account ${previousMetas[accountIndex]} required by an account-data ` +
-                'seed was not found.',
-        );
-    }
-    if (account.data.length < dataOffset + length) {
-        throw new Error("Invalid transfer hook seed: account data is shorter than the seed's declared offset/length.");
-    }
-    return {
-        data: account.data.slice(dataOffset, dataOffset + length),
-        // discriminator (1) + account index (1) + data offset (1) + length (1).
-        packedLength: 4,
-    };
+// Decodes a list of seeds, stopping at a `0` (`Uninitialized`) discriminator or the end of the
+// (32-byte) `addressConfig` slot, mirroring the on-chain unpacker's `while i < 32` bound.
+function getExtraAccountMetaSeedsDecoder(): Decoder<ExtraAccountMetaSeed[]> {
+    const seedDecoder = getExtraAccountMetaSeedDecoder();
+    return createDecoder({
+        read: (bytes, offset) => {
+            const seeds: ExtraAccountMetaSeed[] = [];
+            while (offset < bytes.length && bytes[offset] !== 0) {
+                const [seed, nextOffset] = seedDecoder.read(bytes, offset);
+                seeds.push(seed);
+                offset = nextOffset;
+            }
+            return [seeds, offset];
+        },
+    });
 }
 
-async function unpackFirstSeed(
-    seeds: ReadonlyUint8Array,
+async function resolveSeed(
+    seed: ExtraAccountMetaSeed,
     previousMetas: Address[],
     instructionData: ReadonlyUint8Array,
     rpc: Rpc<GetAccountInfoApi>,
-): Promise<Seed | null> {
-    const discriminator = seeds[0];
-    const remaining = seeds.slice(1);
-    switch (discriminator) {
-        case 0:
-            return null;
-        case 1:
-            return unpackSeedLiteral(remaining);
-        case 2:
-            return unpackSeedInstructionArg(remaining, instructionData);
-        case 3:
-            return unpackSeedAccountKey(remaining, previousMetas);
-        case 4:
-            return await unpackSeedAccountData(remaining, previousMetas, rpc);
-        default:
-            throw new Error(`Invalid transfer hook seed: unknown discriminator ${discriminator}.`);
+): Promise<ReadonlyUint8Array> {
+    switch (seed.__kind) {
+        case 'Literal':
+            return seed.bytes;
+        case 'InstructionData':
+            if (instructionData.length < seed.index + seed.length) {
+                throw new Error(
+                    "Invalid transfer hook seed: instruction data is shorter than the seed's declared offset/length.",
+                );
+            }
+            return instructionData.slice(seed.index, seed.index + seed.length);
+        case 'AccountKey':
+            if (previousMetas.length <= seed.index) {
+                throw new Error(
+                    'Invalid transfer hook seed: account-key seed references an out-of-bounds account index.',
+                );
+            }
+            return getAddressEncoder().encode(previousMetas[seed.index]);
+        case 'AccountData': {
+            if (previousMetas.length <= seed.accountIndex) {
+                throw new Error(
+                    'Invalid transfer hook seed: account-data seed references an out-of-bounds account index.',
+                );
+            }
+            const account = await fetchEncodedAccount(rpc, previousMetas[seed.accountIndex]);
+            if (!account.exists) {
+                throw new Error(
+                    `Invalid transfer hook seed: account ${previousMetas[seed.accountIndex]} required by an ` +
+                        'account-data seed was not found.',
+                );
+            }
+            if (account.data.length < seed.dataIndex + seed.length) {
+                throw new Error(
+                    "Invalid transfer hook seed: account data is shorter than the seed's declared offset/length.",
+                );
+            }
+            return account.data.slice(seed.dataIndex, seed.dataIndex + seed.length);
+        }
     }
 }
 
 /**
- * Resolves an `ExtraAccountMeta`'s packed seed configuration (its `addressConfig`, for a PDA
- * address config) into the ordered list of byte segments used to derive the account's PDA.
- *
- * Mirrors the transfer hook interface's `Seed` enum: a literal, a slice of the instruction
- * data, a previously resolved account's key, or a slice of a previously resolved account's data.
+ * Resolves a decoded list of {@link ExtraAccountMetaSeed}s into the ordered byte segments used to
+ * derive a PDA: a literal, a slice of the instruction data, a previously resolved account's key, or
+ * a slice of a previously resolved account's data.
  */
-export async function unpackSeeds(
-    seeds: ReadonlyUint8Array,
+export async function resolveSeeds(
+    seeds: ExtraAccountMetaSeed[],
     previousMetas: Address[],
     instructionData: ReadonlyUint8Array,
     rpc: Rpc<GetAccountInfoApi>,
 ): Promise<ReadonlyUint8Array[]> {
-    const unpackedSeeds: ReadonlyUint8Array[] = [];
-    let i = 0;
-    while (i < 32) {
-        const seed = await unpackFirstSeed(seeds.slice(i), previousMetas, instructionData, rpc);
-        if (seed == null) {
-            break;
-        }
-        unpackedSeeds.push(seed.data);
-        i += seed.packedLength;
-    }
-    return unpackedSeeds;
+    return await Promise.all(seeds.map(seed => resolveSeed(seed, previousMetas, instructionData, rpc)));
 }
 
-function unpackPubkeyDataFromInstructionData(
-    remaining: ReadonlyUint8Array,
-    instructionData: ReadonlyUint8Array,
-): Address {
-    if (remaining.length < 1) {
-        throw new Error('Invalid transfer hook pubkey data: instruction-data source is missing its offset byte.');
-    }
-    const dataIndex = remaining[0];
-    if (instructionData.length < dataIndex + PUBLIC_KEY_LENGTH) {
-        throw new Error(
-            'Invalid transfer hook pubkey data: instruction data is too small to contain a pubkey at the ' +
-                'declared offset.',
-        );
-    }
-    return getAddressDecoder().decode(instructionData, dataIndex);
+/**
+ * An `ExtraAccountMeta`'s packed pubkey-data configuration, as decoded from its `addressConfig`.
+ * Mirrors the transfer hook interface's `PubkeyData` enum: the `Address` is read either from the
+ * instruction data or from a previously resolved account's data, and is resolved by
+ * {@link resolvePubkeyData}.
+ */
+export type ExtraAccountMetaPubkeyData =
+    | { __kind: 'InstructionData'; index: number }
+    | { __kind: 'AccountData'; accountIndex: number; dataIndex: number };
+
+// The pubkey-data discriminators are 1-based (`1` = instruction data, `2` = account data); `0` is
+// unused by the interface. As with seeds, `getUnionEncoder`/`getUnionDecoder` map those to the
+// variant array indices (0..1) so `0` and unknown discriminators throw instead of decoding.
+function getExtraAccountMetaPubkeyDataEncoder(): Encoder<ExtraAccountMetaPubkeyData> {
+    return getUnionEncoder(
+        [
+            transformEncoder(
+                getTupleEncoder([getU8Encoder(), getU8Encoder()]),
+                (data: Extract<ExtraAccountMetaPubkeyData, { __kind: 'InstructionData' }>) => [1, data.index] as const,
+            ),
+            transformEncoder(
+                getTupleEncoder([getU8Encoder(), getU8Encoder(), getU8Encoder()]),
+                (data: Extract<ExtraAccountMetaPubkeyData, { __kind: 'AccountData' }>) =>
+                    [2, data.accountIndex, data.dataIndex] as const,
+            ),
+        ],
+        data => (data.__kind === 'InstructionData' ? 0 : 1),
+    );
 }
 
-async function unpackPubkeyDataFromAccountData(
-    remaining: ReadonlyUint8Array,
+function getExtraAccountMetaPubkeyDataDecoder(): Decoder<ExtraAccountMetaPubkeyData> {
+    return getUnionDecoder(
+        [
+            transformDecoder(
+                getTupleDecoder([getU8Decoder(), getU8Decoder()]),
+                ([, index]): ExtraAccountMetaPubkeyData => ({ __kind: 'InstructionData', index }),
+            ),
+            transformDecoder(
+                getTupleDecoder([getU8Decoder(), getU8Decoder(), getU8Decoder()]),
+                ([, accountIndex, dataIndex]): ExtraAccountMetaPubkeyData => ({
+                    __kind: 'AccountData',
+                    accountIndex,
+                    dataIndex,
+                }),
+            ),
+        ],
+        // Peek the `u8` discriminator (1..2) and map it to the variant array index (0..1). A `0` or
+        // unknown discriminator maps out of range and throws.
+        (bytes, offset) => getU8Decoder().read(bytes, offset)[0] - 1,
+    );
+}
+
+/**
+ * Resolves a decoded {@link ExtraAccountMetaPubkeyData} into the actual `Address` it points to:
+ * either a slice of the instruction data, or a slice of a previously resolved account's data.
+ */
+export async function resolvePubkeyData(
+    config: ExtraAccountMetaPubkeyData,
     previousMetas: Address[],
+    instructionData: ReadonlyUint8Array,
     rpc: Rpc<GetAccountInfoApi>,
 ): Promise<Address> {
-    if (remaining.length < 2) {
-        throw new Error('Invalid transfer hook pubkey data: account-data source is missing its account/offset bytes.');
+    if (config.__kind === 'InstructionData') {
+        if (instructionData.length < config.index + PUBLIC_KEY_LENGTH) {
+            throw new Error(
+                'Invalid transfer hook pubkey data: instruction data is too small to contain a pubkey at the ' +
+                    'declared offset.',
+            );
+        }
+        return getAddressDecoder().decode(instructionData, config.index);
     }
-    const [accountIndex, dataIndex] = remaining;
-    if (previousMetas.length <= accountIndex) {
+
+    if (previousMetas.length <= config.accountIndex) {
         throw new Error(
             'Invalid transfer hook pubkey data: account-data source references an out-of-bounds account index.',
         );
     }
-    const account = await fetchEncodedAccount(rpc, previousMetas[accountIndex]);
+    const account = await fetchEncodedAccount(rpc, previousMetas[config.accountIndex]);
     if (!account.exists) {
-        throw new Error(`Invalid transfer hook pubkey data: account ${previousMetas[accountIndex]} was not found.`);
+        throw new Error(
+            `Invalid transfer hook pubkey data: account ${previousMetas[config.accountIndex]} was not found.`,
+        );
     }
-    if (account.data.length < dataIndex + PUBLIC_KEY_LENGTH) {
+    if (account.data.length < config.dataIndex + PUBLIC_KEY_LENGTH) {
         throw new Error(
             'Invalid transfer hook pubkey data: account data is too small to contain a pubkey at the declared offset.',
         );
     }
-    return getAddressDecoder().decode(account.data, dataIndex);
-}
-
-/**
- * Resolves an `ExtraAccountMeta`'s packed pubkey-data config (its `addressConfig`, for a
- * literal-pubkey address config) into the actual `Address` it points to: either a slice of the
- * instruction data, or a slice of a previously resolved account's data.
- */
-export async function unpackPubkeyData(
-    keyDataConfig: ReadonlyUint8Array,
-    previousMetas: Address[],
-    instructionData: ReadonlyUint8Array,
-    rpc: Rpc<GetAccountInfoApi>,
-): Promise<Address> {
-    const discriminator = keyDataConfig[0];
-    const remaining = keyDataConfig.slice(1);
-    switch (discriminator) {
-        case 1:
-            return unpackPubkeyDataFromInstructionData(remaining, instructionData);
-        case 2:
-            return await unpackPubkeyDataFromAccountData(remaining, previousMetas, rpc);
-        default:
-            throw new Error(`Invalid transfer hook pubkey data: unknown discriminator ${discriminator}.`);
-    }
+    return getAddressDecoder().decode(account.data, config.dataIndex);
 }
 
 /** An `ExtraAccountMeta` resolved into the real account it refers to. */
@@ -350,15 +522,13 @@ export type ResolvedExtraAccountMeta = {
     isWritable: boolean;
 };
 
-const EXTRA_ACCOUNT_META_ACCOUNT_INDEX_DISCRIMINATOR_OFFSET = 1 << 7;
-
 /**
- * Resolves one `ExtraAccountMeta` (as returned by `getExtraAccountMetasDecoder`) into the real account
- * it refers to: a literal pubkey, a pubkey read via `unpackPubkeyData`, or a PDA derived from
- * `unpackSeeds` off either the transfer hook program itself or a previously resolved account.
+ * Resolves one `ExtraAccountMeta` (as returned by `getExtraAccountMetasDecoder`) into the real
+ * account it refers to: a literal pubkey, a pubkey read via `resolvePubkeyData`, or a PDA derived
+ * from `resolveSeeds` off either the transfer hook program itself or a previously resolved account.
  *
  * `previousMetas` must contain every account already resolved for this instruction, in order,
- * since seed/pubkey-data configs and PDA-owner account-index configs can reference them.
+ * since seed/pubkey-data configs and `AccountPda` account-index configs can reference them.
  */
 export async function resolveExtraAccountMeta(
     extraMeta: ExtraAccountMeta,
@@ -367,35 +537,34 @@ export async function resolveExtraAccountMeta(
     transferHookProgramAddress: Address,
     rpc: Rpc<GetAccountInfoApi>,
 ): Promise<ResolvedExtraAccountMeta> {
-    const { isSigner, isWritable } = extraMeta;
+    const { config, isSigner, isWritable } = extraMeta;
 
-    if (extraMeta.discriminator === 0) {
-        return { address: getAddressDecoder().decode(extraMeta.addressConfig), isSigner, isWritable };
-    }
-
-    if (extraMeta.discriminator === 2) {
-        const address = await unpackPubkeyData(extraMeta.addressConfig, previousMetas, instructionData, rpc);
-        return { address, isSigner, isWritable };
-    }
-
-    let programAddress: Address;
-    if (extraMeta.discriminator === 1) {
-        programAddress = transferHookProgramAddress;
-    } else {
-        const accountIndex = extraMeta.discriminator - EXTRA_ACCOUNT_META_ACCOUNT_INDEX_DISCRIMINATOR_OFFSET;
-        if (accountIndex < 0 || previousMetas.length <= accountIndex) {
-            throw new Error(
-                'Invalid transfer hook extra account meta: discriminator ' +
-                    `${extraMeta.discriminator} references an out-of-bounds account index.`,
-            );
+    switch (config.__kind) {
+        case 'Literal':
+            return { address: config.address, isSigner, isWritable };
+        case 'PubkeyData': {
+            const address = await resolvePubkeyData(config.pubkeyData, previousMetas, instructionData, rpc);
+            return { address, isSigner, isWritable };
         }
-        programAddress = previousMetas[accountIndex];
+        case 'ProgramPda':
+        case 'AccountPda': {
+            let programAddress: Address;
+            if (config.__kind === 'ProgramPda') {
+                programAddress = transferHookProgramAddress;
+            } else {
+                if (previousMetas.length <= config.accountIndex) {
+                    throw new Error(
+                        'Invalid transfer hook extra account meta: account-index config references an ' +
+                            'out-of-bounds account index.',
+                    );
+                }
+                programAddress = previousMetas[config.accountIndex];
+            }
+            const seeds = await resolveSeeds(config.seeds, previousMetas, instructionData, rpc);
+            const [address] = await getProgramDerivedAddress({ programAddress, seeds });
+            return { address, isSigner, isWritable };
+        }
     }
-
-    const seeds = await unpackSeeds(extraMeta.addressConfig, previousMetas, instructionData, rpc);
-    const [address] = await getProgramDerivedAddress({ programAddress, seeds });
-
-    return { address, isSigner, isWritable };
 }
 
 function accountRoleFromBooleans(isSigner: boolean, isWritable: boolean): AccountRole {

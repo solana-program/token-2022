@@ -19,15 +19,21 @@ import {
     createTransferCheckedWithTransferHookInstruction,
     deEscalateAccountMeta,
     findExtraAccountMetaListPda,
+    getExtraAccountMetaCodec,
+    getExtraAccountMetaDecoder,
+    getExtraAccountMetaEncoder,
+    getExtraAccountMetasCodec,
     getExtraAccountMetasDecoder,
     getMintEncoder,
     getTransferCheckedInstruction,
     resolveExtraAccountMeta,
     resolveExtraAccountMetasForExecute,
+    resolvePubkeyData,
+    resolveSeeds,
     TOKEN_2022_PROGRAM_ADDRESS,
-    unpackPubkeyData,
-    unpackSeeds,
     type ExtraAccountMeta,
+    type ExtraAccountMetaPubkeyData,
+    type ExtraAccountMetaSeed,
 } from '../src';
 
 const plainAddress = address('6c5q79ccBTWvZTEx3JkdHThtMa2eALba5bfvHGf8kA2c');
@@ -72,13 +78,17 @@ function addressConfigOf(bytes: ReadonlyUint8Array): Uint8Array {
     return addressConfig;
 }
 
+// Builds an `ExtraAccountMeta` by encoding the raw discriminator + address config to bytes and
+// decoding them back, so the resolution tests exercise the real `addressConfig` interpretation.
 function extraAccountMeta(
     discriminator: number,
     addressConfig: Uint8Array,
     isSigner: boolean,
     isWritable: boolean,
 ): ExtraAccountMeta {
-    return { addressConfig, discriminator, isSigner, isWritable };
+    return getExtraAccountMetaDecoder().decode(
+        extraAccountMetaBytes(discriminator, addressConfig, isSigner, isWritable),
+    );
 }
 
 function validateStateAccountData(extraAccounts: Uint8Array[]): Uint8Array {
@@ -125,138 +135,214 @@ it('parses extra account metas from validation account data, ignoring trailing b
     const parsed = getExtraAccountMetasDecoder().decode(data);
 
     expect(parsed).toHaveLength(1);
-    expect(parsed[0].discriminator).toBe(0);
-    expect(parsed[0].addressConfig).toEqual(addressConfig);
-    expect(parsed[0].isSigner).toBe(false);
-    expect(parsed[0].isWritable).toBe(false);
+    expect(parsed[0]).toEqual({
+        config: { __kind: 'Literal', address: plainAddress },
+        isSigner: false,
+        isWritable: false,
+    });
 });
 
 it('throws when decoding validation account data shorter than the account prefix', () => {
     expect(() => getExtraAccountMetasDecoder().decode(new Uint8Array(8))).toThrow();
 });
 
-it('unpackSeeds resolves a literal seed followed by the terminator', async () => {
-    const { rpc } = await createTestRpc();
-    const seeds = new Uint8Array([1, 3, 0xaa, 0xbb, 0xcc, 0]);
+it('round-trips a validation account with every ExtraAccountMetaConfig variant', () => {
+    const codec = getExtraAccountMetasCodec();
+    const metas: ExtraAccountMeta[] = [
+        { config: { __kind: 'Literal', address: plainAddress }, isSigner: true, isWritable: false },
+        {
+            config: { __kind: 'PubkeyData', pubkeyData: { __kind: 'InstructionData', index: 8 } },
+            isSigner: false,
+            isWritable: true,
+        },
+        {
+            config: {
+                __kind: 'ProgramPda',
+                seeds: [
+                    { __kind: 'Literal', bytes: new Uint8Array([0xaa, 0xbb]) },
+                    { __kind: 'AccountKey', index: 3 },
+                ],
+            },
+            isSigner: false,
+            isWritable: false,
+        },
+        {
+            config: {
+                __kind: 'AccountPda',
+                accountIndex: 5,
+                seeds: [{ __kind: 'InstructionData', index: 8, length: 8 }],
+            },
+            isSigner: true,
+            isWritable: true,
+        },
+    ];
 
-    const resolved = await unpackSeeds(seeds, [], new Uint8Array(), rpc);
+    expect(codec.decode(codec.encode(metas))).toEqual(metas);
+});
+
+it('round-trips a maximal seed list that fills the whole address config with no terminator', () => {
+    // Two 14-byte literals pack to 2 * (1 discriminator + 1 length + 14) = 32 bytes exactly, leaving
+    // no room for a `0` terminator. This mirrors the on-chain packer, which allows seeds to fill all
+    // 32 bytes; the decoder must stop at the 32-byte bound rather than requiring a terminator.
+    const codec = getExtraAccountMetaCodec();
+    const meta: ExtraAccountMeta = {
+        config: {
+            __kind: 'ProgramPda',
+            seeds: [
+                { __kind: 'Literal', bytes: new Uint8Array(14).fill(0xaa) },
+                { __kind: 'Literal', bytes: new Uint8Array(14).fill(0xbb) },
+            ],
+        },
+        isSigner: false,
+        isWritable: false,
+    };
+
+    const encoded = codec.encode(meta);
+    // discriminator (1) + addressConfig (32) + isSigner (1) + isWritable (1).
+    expect(encoded).toHaveLength(35);
+    expect(codec.decode(encoded)).toEqual(meta);
+});
+
+it('throws when encoding an ExtraAccountMeta whose packed seeds exceed the address config size', () => {
+    // A single literal seed of 31 bytes packs to 1 (discriminator) + 1 (length) + 31 = 33 bytes,
+    // overflowing the 32-byte address config slot.
+    const meta: ExtraAccountMeta = {
+        config: { __kind: 'ProgramPda', seeds: [{ __kind: 'Literal', bytes: new Uint8Array(31) }] },
+        isSigner: false,
+        isWritable: false,
+    };
+
+    expect(() => getExtraAccountMetaEncoder().encode(meta)).toThrow();
+});
+
+it('decodes a program-PDA meta with an empty seed list when its address config is all zeroes', () => {
+    // Discriminator 1 (program PDA) with an all-zero address config: the seed list terminates
+    // immediately, leaving no seeds.
+    const meta = getExtraAccountMetaDecoder().decode(
+        extraAccountMetaBytes(1, addressConfigOf(new Uint8Array()), false, false),
+    );
+
+    expect(meta.config).toEqual({ __kind: 'ProgramPda', seeds: [] });
+});
+
+it('throws when decoding a meta whose seed list has an unknown discriminator', () => {
+    // Discriminator 1 (program PDA) whose packed seeds start with an unknown seed discriminator 9.
+    expect(() =>
+        getExtraAccountMetaDecoder().decode(
+            extraAccountMetaBytes(1, addressConfigOf(new Uint8Array([9])), false, false),
+        ),
+    ).toThrow();
+});
+
+it('throws when decoding a meta whose pubkey data has an unknown discriminator', () => {
+    // Discriminator 2 (pubkey data) whose config starts with an unknown pubkey-data discriminator 9.
+    expect(() =>
+        getExtraAccountMetaDecoder().decode(
+            extraAccountMetaBytes(2, addressConfigOf(new Uint8Array([9])), false, false),
+        ),
+    ).toThrow();
+});
+
+it('resolveSeeds resolves a literal seed', async () => {
+    const { rpc } = await createTestRpc();
+    const seeds: ExtraAccountMetaSeed[] = [{ __kind: 'Literal', bytes: new Uint8Array([0xaa, 0xbb, 0xcc]) }];
+
+    const resolved = await resolveSeeds(seeds, [], new Uint8Array(), rpc);
 
     expect(resolved).toEqual([new Uint8Array([0xaa, 0xbb, 0xcc])]);
 });
 
-it('unpackSeeds resolves an instruction-arg seed', async () => {
+it('resolveSeeds resolves an instruction-data seed to a slice of the instruction data', async () => {
     const { rpc } = await createTestRpc();
     const instructionData = new Uint8Array([10, 20, 30, 40, 50]);
-    const seeds = new Uint8Array([2, 1, 3, 0]); // offset 1, length 3 -> [20, 30, 40]
+    const seeds: ExtraAccountMetaSeed[] = [{ __kind: 'InstructionData', index: 1, length: 3 }];
 
-    const resolved = await unpackSeeds(seeds, [], instructionData, rpc);
+    const resolved = await resolveSeeds(seeds, [], instructionData, rpc);
 
     expect(resolved).toEqual([new Uint8Array([20, 30, 40])]);
 });
 
-it('unpackSeeds resolves an account-key seed to a previously resolved account address', async () => {
+it('resolveSeeds resolves an account-key seed to a previously resolved account address', async () => {
     const { rpc } = await createTestRpc();
-    const seeds = new Uint8Array([3, 1, 0]); // account index 1
+    const seeds: ExtraAccountMetaSeed[] = [{ __kind: 'AccountKey', index: 1 }];
 
-    const resolved = await unpackSeeds(seeds, [plainAddress, mint], new Uint8Array(), rpc);
+    const resolved = await resolveSeeds(seeds, [plainAddress, mint], new Uint8Array(), rpc);
 
     expect(resolved).toEqual([getAddressEncoder().encode(mint)]);
 });
 
-it('unpackSeeds resolves an account-data seed by fetching the account over rpc', async () => {
+it('resolveSeeds resolves an account-data seed by fetching the account over rpc', async () => {
     const { rpc, svm } = await createTestRpc();
     const accountData = new Uint8Array([0, 0, 0xde, 0xad, 0xbe, 0xef, 0, 0]);
     setAccountData(svm, plainAddress, accountData);
-    const seeds = new Uint8Array([4, 0, 2, 4, 0]); // account index 0, data offset 2, length 4
+    const seeds: ExtraAccountMetaSeed[] = [{ __kind: 'AccountData', accountIndex: 0, dataIndex: 2, length: 4 }];
 
-    const resolved = await unpackSeeds(seeds, [plainAddress], new Uint8Array(), rpc);
+    const resolved = await resolveSeeds(seeds, [plainAddress], new Uint8Array(), rpc);
 
     expect(resolved).toEqual([new Uint8Array([0xde, 0xad, 0xbe, 0xef])]);
 });
 
-it("unpackSeeds resolves multiple seeds in sequence, advancing by each seed's packed length", async () => {
+it('resolveSeeds resolves multiple seeds in order', async () => {
     const { rpc } = await createTestRpc();
-    const seeds = new Uint8Array([
-        1,
-        2,
-        0x01,
-        0x02, // literal [0x01, 0x02]
-        3,
-        0, // account key at index 0
-        0, // terminator
-    ]);
+    const seeds: ExtraAccountMetaSeed[] = [
+        { __kind: 'Literal', bytes: new Uint8Array([0x01, 0x02]) },
+        { __kind: 'AccountKey', index: 0 },
+    ];
 
-    const resolved = await unpackSeeds(seeds, [plainAddress], new Uint8Array(), rpc);
+    const resolved = await resolveSeeds(seeds, [plainAddress], new Uint8Array(), rpc);
 
     expect(resolved).toEqual([new Uint8Array([0x01, 0x02]), getAddressEncoder().encode(plainAddress)]);
 });
 
-it('unpackSeeds returns an empty list when the first seed is the terminator', async () => {
+it('resolveSeeds throws when an account-key seed references an out-of-bounds account index', async () => {
     const { rpc } = await createTestRpc();
+    const seeds: ExtraAccountMetaSeed[] = [{ __kind: 'AccountKey', index: 0 }];
 
-    const resolved = await unpackSeeds(new Uint8Array([0]), [], new Uint8Array(), rpc);
-
-    expect(resolved).toEqual([]);
+    await expect(resolveSeeds(seeds, [], new Uint8Array(), rpc)).rejects.toThrow();
 });
 
-it('unpackSeeds throws on an unknown seed discriminator', async () => {
+it('resolveSeeds throws when an account-data seed references an account that does not exist', async () => {
     const { rpc } = await createTestRpc();
+    const seeds: ExtraAccountMetaSeed[] = [{ __kind: 'AccountData', accountIndex: 0, dataIndex: 0, length: 1 }];
 
-    await expect(unpackSeeds(new Uint8Array([9]), [], new Uint8Array(), rpc)).rejects.toThrow();
+    await expect(resolveSeeds(seeds, [plainAddress], new Uint8Array(), rpc)).rejects.toThrow();
 });
 
-it('unpackSeeds throws when an account-key seed references an out-of-bounds account index', async () => {
-    const { rpc } = await createTestRpc();
-
-    await expect(unpackSeeds(new Uint8Array([3, 0]), [], new Uint8Array(), rpc)).rejects.toThrow();
-});
-
-it('unpackSeeds throws when an account-data seed references an account that does not exist', async () => {
-    const { rpc } = await createTestRpc();
-    const seeds = new Uint8Array([4, 0, 0, 1, 0]);
-
-    await expect(unpackSeeds(seeds, [plainAddress], new Uint8Array(), rpc)).rejects.toThrow();
-});
-
-it('unpackPubkeyData resolves an address from instruction data', async () => {
+it('resolvePubkeyData resolves an address from instruction data', async () => {
     const { rpc } = await createTestRpc();
     const addressBytes = getAddressEncoder().encode(mint);
     const instructionData = new Uint8Array([0xff, ...addressBytes]);
-    const keyDataConfig = new Uint8Array([1, 1]); // instruction-data source, offset 1
+    const config: ExtraAccountMetaPubkeyData = { __kind: 'InstructionData', index: 1 };
 
-    const resolved = await unpackPubkeyData(keyDataConfig, [], instructionData, rpc);
+    const resolved = await resolvePubkeyData(config, [], instructionData, rpc);
 
     expect(resolved).toBe(mint);
 });
 
-it("unpackPubkeyData resolves an address from a previously resolved account's data", async () => {
+it("resolvePubkeyData resolves an address from a previously resolved account's data", async () => {
     const { rpc, svm } = await createTestRpc();
     const addressBytes = getAddressEncoder().encode(mint);
     const accountData = new Uint8Array([0xff, ...addressBytes]);
     setAccountData(svm, plainAddress, accountData);
-    const keyDataConfig = new Uint8Array([2, 0, 1]); // account-data source, account index 0, offset 1
+    const config: ExtraAccountMetaPubkeyData = { __kind: 'AccountData', accountIndex: 0, dataIndex: 1 };
 
-    const resolved = await unpackPubkeyData(keyDataConfig, [plainAddress], new Uint8Array(), rpc);
+    const resolved = await resolvePubkeyData(config, [plainAddress], new Uint8Array(), rpc);
 
     expect(resolved).toBe(mint);
 });
 
-it('unpackPubkeyData throws on an unknown pubkey-data discriminator', async () => {
+it('resolvePubkeyData throws when instruction data is too small for a pubkey at the declared offset', async () => {
     const { rpc } = await createTestRpc();
+    const config: ExtraAccountMetaPubkeyData = { __kind: 'InstructionData', index: 0 };
 
-    await expect(unpackPubkeyData(new Uint8Array([9]), [], new Uint8Array(), rpc)).rejects.toThrow();
+    await expect(resolvePubkeyData(config, [], new Uint8Array(4), rpc)).rejects.toThrow();
 });
 
-it('unpackPubkeyData throws when instruction data is too small for a pubkey at the declared offset', async () => {
+it('resolvePubkeyData throws when the referenced account does not exist', async () => {
     const { rpc } = await createTestRpc();
+    const config: ExtraAccountMetaPubkeyData = { __kind: 'AccountData', accountIndex: 0, dataIndex: 0 };
 
-    await expect(unpackPubkeyData(new Uint8Array([1, 0]), [], new Uint8Array(4), rpc)).rejects.toThrow();
-});
-
-it('unpackPubkeyData throws when the referenced account does not exist', async () => {
-    const { rpc } = await createTestRpc();
-
-    await expect(unpackPubkeyData(new Uint8Array([2, 0, 0]), [plainAddress], new Uint8Array(), rpc)).rejects.toThrow();
+    await expect(resolvePubkeyData(config, [plainAddress], new Uint8Array(), rpc)).rejects.toThrow();
 });
 
 it('resolveExtraAccountMeta resolves a literal-pubkey (discriminator 0) meta', async () => {
