@@ -16,7 +16,6 @@ import { generatedSigner } from '@solana/kit-plugin-signer';
 import { expect, it } from 'vitest';
 
 import {
-    createTransferCheckedWithTransferHookInstruction,
     deEscalateAccountMeta,
     findExtraAccountMetaListPda,
     getExtraAccountMetaCodec,
@@ -26,6 +25,7 @@ import {
     getExtraAccountMetasDecoder,
     getMintEncoder,
     getTransferCheckedInstruction,
+    getTransferCheckedWithTransferHookInstructionAsync,
     resolveExtraAccountMeta,
     resolveExtraAccountMetasForExecute,
     resolvePubkeyData,
@@ -621,7 +621,7 @@ function mintAccountData(transferHookProgramAddress?: Address): Uint8Array {
     );
 }
 
-it('createTransferCheckedWithTransferHookInstruction appends resolved extras when the mint has a hook', async () => {
+it('getTransferCheckedWithTransferHookInstructionAsync appends resolved extras when the mint has a hook', async () => {
     const { rpc, svm } = await createTestRpc();
     const source = plainAddress;
     const destination = address('C1ockyE1TGaXK1gN3iF6Fz9tnhr2Q3vsdjPHXm44rQnU');
@@ -650,15 +650,10 @@ it('createTransferCheckedWithTransferHookInstruction appends resolved extras whe
         seeds: [getAddressEncoder().encode(source)],
     });
 
-    const instruction = await createTransferCheckedWithTransferHookInstruction({
-        amount,
-        authority,
-        decimals: 6,
-        destination,
-        mint,
-        rpc,
-        source,
-    });
+    const instruction = await getTransferCheckedWithTransferHookInstructionAsync(
+        { rpc },
+        { amount, authority, decimals: 6, destination, mint, source },
+    );
 
     const referenceData = getTransferCheckedInstruction({
         amount,
@@ -683,7 +678,7 @@ it('createTransferCheckedWithTransferHookInstruction appends resolved extras whe
     ]);
 });
 
-it('createTransferCheckedWithTransferHookInstruction returns a plain transfer when the mint has no hook', async () => {
+it('getTransferCheckedWithTransferHookInstructionAsync returns a plain transfer when the mint has no hook', async () => {
     const { rpc, svm } = await createTestRpc();
     const source = plainAddress;
     const destination = address('C1ockyE1TGaXK1gN3iF6Fz9tnhr2Q3vsdjPHXm44rQnU');
@@ -691,15 +686,10 @@ it('createTransferCheckedWithTransferHookInstruction returns a plain transfer wh
 
     setAccountData(svm, mint, mintAccountData());
 
-    const instruction = await createTransferCheckedWithTransferHookInstruction({
-        amount: 1000n,
-        authority,
-        decimals: 6,
-        destination,
-        mint,
-        rpc,
-        source,
-    });
+    const instruction = await getTransferCheckedWithTransferHookInstructionAsync(
+        { rpc },
+        { amount: 1000n, authority, decimals: 6, destination, mint, source },
+    );
 
     expect(instruction.accounts).toStrictEqual([
         { address: source, role: AccountRole.WRITABLE },

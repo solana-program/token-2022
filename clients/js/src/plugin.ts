@@ -24,6 +24,11 @@ import {
     MintToATAInstructionPlanConfig,
 } from './mintToATA';
 import {
+    getTransferCheckedWithTransferHookInstructionAsync,
+    TransferCheckedWithTransferHookInstructionAsyncConfig,
+    TransferCheckedWithTransferHookInstructionAsyncInput,
+} from './transferHookExtraAccountMetas';
+import {
     getTransferToATAInstructionPlanAsync,
     TransferToATAInstructionPlanAsyncInput,
     TransferToATAInstructionPlanConfig,
@@ -64,6 +69,11 @@ export type Token2022PluginInstructions = Omit<GeneratedToken2022PluginInstructi
         input: MakeOptional<TransferToATAInstructionPlanAsyncInput, 'payer'>,
         config?: TransferToATAInstructionPlanConfig,
     ) => ReturnType<typeof getTransferToATAInstructionPlanAsync> & SelfPlanAndSendFunctions;
+    /** Transfer tokens, appending the extra accounts the mint's transfer hook needs (if any). */
+    transferCheckedWithTransferHook: (
+        input: TransferCheckedWithTransferHookInstructionAsyncInput,
+        config?: TransferCheckedWithTransferHookInstructionAsyncConfig,
+    ) => ReturnType<typeof getTransferCheckedWithTransferHookInstructionAsync> & SelfPlanAndSendFunctions;
 };
 
 export function token2022Program() {
@@ -109,6 +119,11 @@ export function token2022Program() {
                                     { ...input, payer: input.payer ?? client.payer },
                                     config,
                                 ),
+                            ),
+                        transferCheckedWithTransferHook: (input, config) =>
+                            addSelfPlanAndSendFunctions(
+                                client,
+                                getTransferCheckedWithTransferHookInstructionAsync(client, input, config),
                             ),
                     },
                 },

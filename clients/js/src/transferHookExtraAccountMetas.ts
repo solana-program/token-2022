@@ -39,6 +39,7 @@ import {
     unwrapOption,
     type Address,
     type AccountMeta,
+    type ClientWithRpc,
     type Codec,
     type Decoder,
     type Encoder,
@@ -700,8 +701,7 @@ export async function resolveExtraAccountMetasForExecute(
     ];
 }
 
-export type CreateTransferCheckedWithTransferHookInstructionInput = {
-    rpc: Rpc<GetAccountInfoApi>;
+export type TransferCheckedWithTransferHookInstructionAsyncInput = {
     /** The source account. */
     source: Address;
     /** The token mint. */
@@ -714,8 +714,11 @@ export type CreateTransferCheckedWithTransferHookInstructionInput = {
     decimals: number;
     /** The signer accounts for a multisignature authority. */
     multiSigners?: TransactionSigner[];
+};
+
+export type TransferCheckedWithTransferHookInstructionAsyncConfig = {
     /** The token program the mint belongs to. Defaults to Token-2022. */
-    programAddress?: Address;
+    tokenProgram?: Address;
 };
 
 /**
@@ -727,12 +730,17 @@ export type CreateTransferCheckedWithTransferHookInstructionInput = {
  * appends them, followed by the hook program and its validation account. When the mint has no
  * transfer hook the returned instruction is a plain `transferChecked`.
  *
+ * The transfer hook branch is only exercised for Token-2022 mints. When `tokenProgram` points at
+ * the classic Token program, the mint has no extensions and this returns a plain `transferChecked`.
+ *
  * Mirrors the legacy `createTransferCheckedWithTransferHookInstruction`, adapted to `@solana/kit`.
  */
-export async function createTransferCheckedWithTransferHookInstruction(
-    input: CreateTransferCheckedWithTransferHookInstructionInput,
+export async function getTransferCheckedWithTransferHookInstructionAsync(
+    client: ClientWithRpc<GetAccountInfoApi>,
+    input: TransferCheckedWithTransferHookInstructionAsyncInput,
+    config?: TransferCheckedWithTransferHookInstructionAsyncConfig,
 ): Promise<Instruction> {
-    const programAddress = input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS;
     const instruction = getTransferCheckedInstruction(
         {
             amount: input.amount,
@@ -746,7 +754,7 @@ export async function createTransferCheckedWithTransferHookInstruction(
         { programAddress },
     );
 
-    const { data: mint } = await fetchMint(input.rpc, input.mint);
+    const { data: mint } = await fetchMint(client.rpc, input.mint);
     const transferHook = (unwrapOption(mint.extensions) ?? []).find(
         (extension): extension is Extract<Extension, { __kind: 'TransferHook' }> => extension.__kind === 'TransferHook',
     );
@@ -760,7 +768,7 @@ export async function createTransferCheckedWithTransferHookInstruction(
         destination: input.destination,
         mint: input.mint,
         owner,
-        rpc: input.rpc,
+        rpc: client.rpc,
         source: input.source,
         transferHookProgramAddress: transferHook.programId,
     });
