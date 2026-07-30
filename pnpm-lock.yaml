@@ -12,8 +12,8 @@ importers:
         specifier: ^2.3.0
         version: 2.3.0(typescript@7.0.2)
       '@codama/renderers-rust':
-        specifier: ^3.1.2
-        version: 3.1.2(typescript@7.0.2)
+        specifier: ^3.1.3
+        version: 3.1.3(typescript@7.0.2)
       codama:
         specifier: ^1.10.0
         version: 1.10.0
@@ -63,8 +63,8 @@ packages:
     resolution: {integrity: sha512-PSvoLATBx7EomzZgCXegPTn5TxaFjA+NIraNUx22vNZ6rxPxu5Tctq8KxeXaaPCnKLpBUKcwmhUPRO4QLNQlvg==}
     engines: {node: '>=20.18.0'}
 
-  '@codama/renderers-rust@3.1.2':
-    resolution: {integrity: sha512-Yh/6VsvKSqzYHzApJkUAxTV9tUIxvAxbfXKj1ghTJovLyoXb8H9pGtYtTRSJ6MbaLZHeqFp7qeZ8jkl9xNublg==}
+  '@codama/renderers-rust@3.1.3':
+    resolution: {integrity: sha512-z5hPKlqT/0umZOdVMZfRw03mfN/GkdZ0z646cIComcosDk4VKTO4AFr98sg1L/aO5MXfoBrTfNOqYzD1fyUotg==}
     engines: {node: '>=20.18.0'}
 
   '@codama/validators@1.10.0':
@@ -504,7 +504,7 @@ snapshots:
       - fastestsmallesttextencoderdecoder
       - typescript
 
-  '@codama/renderers-rust@3.1.2(typescript@7.0.2)':
+  '@codama/renderers-rust@3.1.3(typescript@7.0.2)':
     dependencies:
       '@codama/errors': 1.10.0
       '@codama/nodes': 1.10.0

@@ -2,7 +2,7 @@
     "private": true,
     "devDependencies": {
         "@codama/renderers-js": "^2.3.0",
-        "@codama/renderers-rust": "^3.1.2",
+        "@codama/renderers-rust": "^3.1.3",
         "codama": "^1.10.0",
         "typescript": "^7.0.2"
     },
