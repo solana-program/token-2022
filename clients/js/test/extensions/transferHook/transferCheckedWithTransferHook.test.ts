@@ -96,7 +96,7 @@ describe('transferCheckedWithTransferHook', () => {
         });
 
         // When the source owner transfers 40 tokens, resolving and appending the hook's extra accounts.
-        const transfer = client.token2022.instructions.transferCheckedWithTransferHook({
+        const instruction = await client.token2022.instructions.transferCheckedWithTransferHook({
             source,
             mint: mint.address,
             destination,
@@ -104,7 +104,6 @@ describe('transferCheckedWithTransferHook', () => {
             amount: 40n,
             decimals,
         });
-        const instruction = await transfer;
 
         // The resolved instruction carries the base transfer accounts plus the hook's extra account,
         // its program, and its validation account.
@@ -119,7 +118,7 @@ describe('transferCheckedWithTransferHook', () => {
             validateStatePubkey,
         ]);
 
-        await transfer.sendTransaction();
+        await client.sendTransaction(instruction);
 
         // Then the tokens move and the hook's `Execute` CPI succeeds.
         const [{ data: sourceData }, { data: destinationData }] = await Promise.all([
