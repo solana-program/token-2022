@@ -1,3 +1,4 @@
+import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 import { address, AccountRole, generateKeyPairSigner } from '@solana/kit';
 import { describe, expect, it } from 'vitest';
 
@@ -10,7 +11,6 @@ import {
 const transferHookProgramId = address('7N4HggYEJAtCLJdnHGCtFqfxcB5rhQCsQTze3ftYstVj');
 const mint = address('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 const plainAddress = address('6c5q79ccBTWvZTEx3JkdHThtMa2eALba5bfvHGf8kA2c');
-const systemProgramAddress = address('11111111111111111111111111111111');
 
 describe('getDefaultInitializeExtraAccountMetaListInstructionAsync', () => {
     it('builds the interface initialize instruction', async () => {
@@ -34,7 +34,7 @@ describe('getDefaultInitializeExtraAccountMetaListInstructionAsync', () => {
             { address: extraAccountMetaList, role: AccountRole.WRITABLE },
             { address: mint, role: AccountRole.READONLY },
             { address: authority, role: AccountRole.READONLY_SIGNER },
-            { address: systemProgramAddress, role: AccountRole.READONLY },
+            { address: SYSTEM_PROGRAM_ADDRESS, role: AccountRole.READONLY },
         ]);
     });
 
