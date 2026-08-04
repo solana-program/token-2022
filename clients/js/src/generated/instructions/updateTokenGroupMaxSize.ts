@@ -8,6 +8,8 @@
 
 import {
     combineCodec,
+    fixDecoderSize,
+    fixEncoderSize,
     getBytesDecoder,
     getBytesEncoder,
     getStructDecoder,
@@ -20,9 +22,9 @@ import {
     type AccountMeta,
     type AccountSignerMeta,
     type Address,
-    type Codec,
-    type Decoder,
-    type Encoder,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -39,7 +41,7 @@ export const UPDATE_TOKEN_GROUP_MAX_SIZE_DISCRIMINATOR: ReadonlyUint8Array = new
 ]);
 
 export function getUpdateTokenGroupMaxSizeDiscriminatorBytes(): ReadonlyUint8Array {
-    return getBytesEncoder().encode(UPDATE_TOKEN_GROUP_MAX_SIZE_DISCRIMINATOR);
+    return fixEncoderSize(getBytesEncoder(), 8).encode(UPDATE_TOKEN_GROUP_MAX_SIZE_DISCRIMINATOR);
 }
 
 export type UpdateTokenGroupMaxSizeInstruction<
@@ -70,24 +72,24 @@ export type UpdateTokenGroupMaxSizeInstructionDataArgs = {
     maxSize: number | bigint;
 };
 
-export function getUpdateTokenGroupMaxSizeInstructionDataEncoder(): Encoder<UpdateTokenGroupMaxSizeInstructionDataArgs> {
+export function getUpdateTokenGroupMaxSizeInstructionDataEncoder(): FixedSizeEncoder<UpdateTokenGroupMaxSizeInstructionDataArgs> {
     return transformEncoder(
         getStructEncoder([
-            ['discriminator', getBytesEncoder()],
+            ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
             ['maxSize', getU64Encoder()],
         ]),
         value => ({ ...value, discriminator: UPDATE_TOKEN_GROUP_MAX_SIZE_DISCRIMINATOR }),
     );
 }
 
-export function getUpdateTokenGroupMaxSizeInstructionDataDecoder(): Decoder<UpdateTokenGroupMaxSizeInstructionData> {
+export function getUpdateTokenGroupMaxSizeInstructionDataDecoder(): FixedSizeDecoder<UpdateTokenGroupMaxSizeInstructionData> {
     return getStructDecoder([
-        ['discriminator', getBytesDecoder()],
+        ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
         ['maxSize', getU64Decoder()],
     ]);
 }
 
-export function getUpdateTokenGroupMaxSizeInstructionDataCodec(): Codec<
+export function getUpdateTokenGroupMaxSizeInstructionDataCodec(): FixedSizeCodec<
     UpdateTokenGroupMaxSizeInstructionDataArgs,
     UpdateTokenGroupMaxSizeInstructionData
 > {

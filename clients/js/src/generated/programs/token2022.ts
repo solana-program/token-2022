@@ -10,6 +10,8 @@ import {
     assertIsInstructionWithAccounts,
     containsBytes,
     extendClient,
+    fixEncoderSize,
+    getBytesEncoder,
     getU8Encoder,
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT,
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
@@ -834,31 +836,85 @@ export function identifyToken2022Instruction(
     if (containsBytes(data, getU8Encoder().encode(44), 0) && containsBytes(data, getU8Encoder().encode(2), 1)) {
         return Token2022Instruction.Resume;
     }
-    if (containsBytes(data, new Uint8Array([210, 225, 30, 162, 88, 184, 77, 141]), 0)) {
+    if (
+        containsBytes(
+            data,
+            fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([210, 225, 30, 162, 88, 184, 77, 141])),
+            0,
+        )
+    ) {
         return Token2022Instruction.InitializeTokenMetadata;
     }
-    if (containsBytes(data, new Uint8Array([221, 233, 49, 45, 181, 202, 220, 200]), 0)) {
+    if (
+        containsBytes(
+            data,
+            fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([221, 233, 49, 45, 181, 202, 220, 200])),
+            0,
+        )
+    ) {
         return Token2022Instruction.UpdateTokenMetadataField;
     }
-    if (containsBytes(data, new Uint8Array([234, 18, 32, 56, 89, 141, 37, 181]), 0)) {
+    if (
+        containsBytes(
+            data,
+            fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([234, 18, 32, 56, 89, 141, 37, 181])),
+            0,
+        )
+    ) {
         return Token2022Instruction.RemoveTokenMetadataKey;
     }
-    if (containsBytes(data, new Uint8Array([215, 228, 166, 228, 84, 100, 86, 123]), 0)) {
+    if (
+        containsBytes(
+            data,
+            fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([215, 228, 166, 228, 84, 100, 86, 123])),
+            0,
+        )
+    ) {
         return Token2022Instruction.UpdateTokenMetadataUpdateAuthority;
     }
-    if (containsBytes(data, new Uint8Array([250, 166, 180, 250, 13, 12, 184, 70]), 0)) {
+    if (
+        containsBytes(
+            data,
+            fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([250, 166, 180, 250, 13, 12, 184, 70])),
+            0,
+        )
+    ) {
         return Token2022Instruction.EmitTokenMetadata;
     }
-    if (containsBytes(data, new Uint8Array([121, 113, 108, 39, 54, 51, 0, 4]), 0)) {
+    if (
+        containsBytes(
+            data,
+            fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([121, 113, 108, 39, 54, 51, 0, 4])),
+            0,
+        )
+    ) {
         return Token2022Instruction.InitializeTokenGroup;
     }
-    if (containsBytes(data, new Uint8Array([108, 37, 171, 143, 248, 30, 18, 110]), 0)) {
+    if (
+        containsBytes(
+            data,
+            fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([108, 37, 171, 143, 248, 30, 18, 110])),
+            0,
+        )
+    ) {
         return Token2022Instruction.UpdateTokenGroupMaxSize;
     }
-    if (containsBytes(data, new Uint8Array([161, 105, 88, 1, 237, 221, 216, 203]), 0)) {
+    if (
+        containsBytes(
+            data,
+            fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([161, 105, 88, 1, 237, 221, 216, 203])),
+            0,
+        )
+    ) {
         return Token2022Instruction.UpdateTokenGroupUpdateAuthority;
     }
-    if (containsBytes(data, new Uint8Array([152, 32, 222, 176, 223, 237, 116, 134]), 0)) {
+    if (
+        containsBytes(
+            data,
+            fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([152, 32, 222, 176, 223, 237, 116, 134])),
+            0,
+        )
+    ) {
         return Token2022Instruction.InitializeTokenGroupMember;
     }
     if (containsBytes(data, getU8Encoder().encode(45), 0)) {

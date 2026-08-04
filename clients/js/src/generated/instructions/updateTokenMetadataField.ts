@@ -10,6 +10,8 @@ import {
     addDecoderSizePrefix,
     addEncoderSizePrefix,
     combineCodec,
+    fixDecoderSize,
+    fixEncoderSize,
     getBytesDecoder,
     getBytesEncoder,
     getStructDecoder,
@@ -49,7 +51,7 @@ export const UPDATE_TOKEN_METADATA_FIELD_DISCRIMINATOR: ReadonlyUint8Array = new
 ]);
 
 export function getUpdateTokenMetadataFieldDiscriminatorBytes(): ReadonlyUint8Array {
-    return getBytesEncoder().encode(UPDATE_TOKEN_METADATA_FIELD_DISCRIMINATOR);
+    return fixEncoderSize(getBytesEncoder(), 8).encode(UPDATE_TOKEN_METADATA_FIELD_DISCRIMINATOR);
 }
 
 export type UpdateTokenMetadataFieldInstruction<
@@ -87,7 +89,7 @@ export type UpdateTokenMetadataFieldInstructionDataArgs = {
 export function getUpdateTokenMetadataFieldInstructionDataEncoder(): Encoder<UpdateTokenMetadataFieldInstructionDataArgs> {
     return transformEncoder(
         getStructEncoder([
-            ['discriminator', getBytesEncoder()],
+            ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
             ['field', getTokenMetadataFieldEncoder()],
             ['value', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
         ]),
@@ -97,7 +99,7 @@ export function getUpdateTokenMetadataFieldInstructionDataEncoder(): Encoder<Upd
 
 export function getUpdateTokenMetadataFieldInstructionDataDecoder(): Decoder<UpdateTokenMetadataFieldInstructionData> {
     return getStructDecoder([
-        ['discriminator', getBytesDecoder()],
+        ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
         ['field', getTokenMetadataFieldDecoder()],
         ['value', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
     ]);

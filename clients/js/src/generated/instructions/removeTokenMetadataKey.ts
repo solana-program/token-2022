@@ -10,6 +10,8 @@ import {
     addDecoderSizePrefix,
     addEncoderSizePrefix,
     combineCodec,
+    fixDecoderSize,
+    fixEncoderSize,
     getBooleanDecoder,
     getBooleanEncoder,
     getBytesDecoder,
@@ -45,7 +47,7 @@ export const REMOVE_TOKEN_METADATA_KEY_DISCRIMINATOR: ReadonlyUint8Array = new U
 ]);
 
 export function getRemoveTokenMetadataKeyDiscriminatorBytes(): ReadonlyUint8Array {
-    return getBytesEncoder().encode(REMOVE_TOKEN_METADATA_KEY_DISCRIMINATOR);
+    return fixEncoderSize(getBytesEncoder(), 8).encode(REMOVE_TOKEN_METADATA_KEY_DISCRIMINATOR);
 }
 
 export type RemoveTokenMetadataKeyInstruction<
@@ -89,7 +91,7 @@ export type RemoveTokenMetadataKeyInstructionDataArgs = {
 export function getRemoveTokenMetadataKeyInstructionDataEncoder(): Encoder<RemoveTokenMetadataKeyInstructionDataArgs> {
     return transformEncoder(
         getStructEncoder([
-            ['discriminator', getBytesEncoder()],
+            ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
             ['idempotent', getBooleanEncoder()],
             ['key', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
         ]),
@@ -103,7 +105,7 @@ export function getRemoveTokenMetadataKeyInstructionDataEncoder(): Encoder<Remov
 
 export function getRemoveTokenMetadataKeyInstructionDataDecoder(): Decoder<RemoveTokenMetadataKeyInstructionData> {
     return getStructDecoder([
-        ['discriminator', getBytesDecoder()],
+        ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
         ['idempotent', getBooleanDecoder()],
         ['key', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
     ]);

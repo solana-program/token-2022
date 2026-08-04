@@ -8,6 +8,8 @@
 
 import {
     combineCodec,
+    fixDecoderSize,
+    fixEncoderSize,
     getBytesDecoder,
     getBytesEncoder,
     getOptionDecoder,
@@ -41,7 +43,7 @@ export const EMIT_TOKEN_METADATA_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Ar
 ]);
 
 export function getEmitTokenMetadataDiscriminatorBytes(): ReadonlyUint8Array {
-    return getBytesEncoder().encode(EMIT_TOKEN_METADATA_DISCRIMINATOR);
+    return fixEncoderSize(getBytesEncoder(), 8).encode(EMIT_TOKEN_METADATA_DISCRIMINATOR);
 }
 
 export type EmitTokenMetadataInstruction<
@@ -72,7 +74,7 @@ export type EmitTokenMetadataInstructionDataArgs = {
 export function getEmitTokenMetadataInstructionDataEncoder(): Encoder<EmitTokenMetadataInstructionDataArgs> {
     return transformEncoder(
         getStructEncoder([
-            ['discriminator', getBytesEncoder()],
+            ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
             ['start', getOptionEncoder(getU64Encoder())],
             ['end', getOptionEncoder(getU64Encoder())],
         ]),
@@ -87,7 +89,7 @@ export function getEmitTokenMetadataInstructionDataEncoder(): Encoder<EmitTokenM
 
 export function getEmitTokenMetadataInstructionDataDecoder(): Decoder<EmitTokenMetadataInstructionData> {
     return getStructDecoder([
-        ['discriminator', getBytesDecoder()],
+        ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
         ['start', getOptionDecoder(getU64Decoder())],
         ['end', getOptionDecoder(getU64Decoder())],
     ]);
