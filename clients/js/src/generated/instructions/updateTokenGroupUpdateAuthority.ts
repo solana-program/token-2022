@@ -8,6 +8,8 @@
 
 import {
     combineCodec,
+    fixDecoderSize,
+    fixEncoderSize,
     getAddressDecoder,
     getAddressEncoder,
     getBytesDecoder,
@@ -22,9 +24,9 @@ import {
     type AccountMeta,
     type AccountSignerMeta,
     type Address,
-    type Codec,
-    type Decoder,
-    type Encoder,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -43,7 +45,7 @@ export const UPDATE_TOKEN_GROUP_UPDATE_AUTHORITY_DISCRIMINATOR: ReadonlyUint8Arr
 ]);
 
 export function getUpdateTokenGroupUpdateAuthorityDiscriminatorBytes(): ReadonlyUint8Array {
-    return getBytesEncoder().encode(UPDATE_TOKEN_GROUP_UPDATE_AUTHORITY_DISCRIMINATOR);
+    return fixEncoderSize(getBytesEncoder(), 8).encode(UPDATE_TOKEN_GROUP_UPDATE_AUTHORITY_DISCRIMINATOR);
 }
 
 export type UpdateTokenGroupUpdateAuthorityInstruction<
@@ -74,24 +76,24 @@ export type UpdateTokenGroupUpdateAuthorityInstructionDataArgs = {
     newUpdateAuthority: OptionOrNullable<Address>;
 };
 
-export function getUpdateTokenGroupUpdateAuthorityInstructionDataEncoder(): Encoder<UpdateTokenGroupUpdateAuthorityInstructionDataArgs> {
+export function getUpdateTokenGroupUpdateAuthorityInstructionDataEncoder(): FixedSizeEncoder<UpdateTokenGroupUpdateAuthorityInstructionDataArgs> {
     return transformEncoder(
         getStructEncoder([
-            ['discriminator', getBytesEncoder()],
+            ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
             ['newUpdateAuthority', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
         ]),
         value => ({ ...value, discriminator: UPDATE_TOKEN_GROUP_UPDATE_AUTHORITY_DISCRIMINATOR }),
     );
 }
 
-export function getUpdateTokenGroupUpdateAuthorityInstructionDataDecoder(): Decoder<UpdateTokenGroupUpdateAuthorityInstructionData> {
+export function getUpdateTokenGroupUpdateAuthorityInstructionDataDecoder(): FixedSizeDecoder<UpdateTokenGroupUpdateAuthorityInstructionData> {
     return getStructDecoder([
-        ['discriminator', getBytesDecoder()],
+        ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
         ['newUpdateAuthority', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
     ]);
 }
 
-export function getUpdateTokenGroupUpdateAuthorityInstructionDataCodec(): Codec<
+export function getUpdateTokenGroupUpdateAuthorityInstructionDataCodec(): FixedSizeCodec<
     UpdateTokenGroupUpdateAuthorityInstructionDataArgs,
     UpdateTokenGroupUpdateAuthorityInstructionData
 > {
