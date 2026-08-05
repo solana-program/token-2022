@@ -9,6 +9,7 @@ ARGS=(
   -q
   --bpf-program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb ./target/deploy/spl_token_2022.so
   --bpf-program TokenHookExampLe8smaVNrxTBezWTRbEwxwb1Zykrb ./clients/rust-legacy/tests/fixtures/spl_transfer_hook_example_no_default_features.so
+  --bpf-program recr1L3PCGKLbckBqMNcJhuuyU1zgo8nBhfLVsJNwr5 ./clients/rust-legacy/tests/fixtures/spl_record.so
 )
 PORT=8899
 PID=$(lsof -t -i:$PORT)

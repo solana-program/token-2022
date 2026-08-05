@@ -96,28 +96,10 @@ const NET_TRANSFER_AMOUNT_BIT_LENGTH = 64;
 const COMPUTE_BUDGET_PROGRAM_ADDRESS =
     'ComputeBudget111111111111111111111111111111' as Address<'ComputeBudget111111111111111111111111111111'>;
 const MAX_COMPUTE_UNIT_LIMIT = 1_400_000;
-const PEDERSEN_ARITHMETIC_ERROR =
-    'Confidential transfer with fee requires @solana/zk-sdk Pedersen commitment and opening arithmetic.';
-
 type ConfidentialTransferAccountExtension = Extract<Extension, { __kind: 'ConfidentialTransferAccount' }>;
 type ConfidentialTransferMintExtension = Extract<Extension, { __kind: 'ConfidentialTransferMint' }>;
 type TransferFeeConfigExtension = Extract<Extension, { __kind: 'TransferFeeConfig' }>;
 type TransferFee = TransferFeeConfigExtension['olderTransferFee'];
-type PedersenCommitmentWithArithmetic = PedersenCommitment & {
-    subtract(other: PedersenCommitment): PedersenCommitment;
-    multiplyByU64(scalar: bigint): PedersenCommitment;
-};
-type PedersenCommitmentConstructorWithArithmetic = typeof PedersenCommitment & {
-    combineLoHi(lo: PedersenCommitment, hi: PedersenCommitment, bitLength: number): PedersenCommitment;
-};
-type PedersenOpeningWithArithmetic = PedersenOpening & {
-    subtract(other: PedersenOpening): PedersenOpening;
-    multiplyByU64(scalar: bigint): PedersenOpening;
-};
-type PedersenOpeningConstructorWithArithmetic = typeof PedersenOpening & {
-    zero(): PedersenOpening;
-    combineLoHi(lo: PedersenOpening, hi: PedersenOpening, bitLength: number): PedersenOpening;
-};
 type ProofDataInput = Uint8Array | { account: Address; offset: number };
 type ContextStateProofPlan = Readonly<{ address: Address; setup: InstructionPlan; cleanup: InstructionPlan }>;
 
@@ -453,60 +435,6 @@ function calculateTransferWithFeeAmounts(transferAmount: bigint, transferFeeBasi
     }
 
     return { feeAmount, claimedDeltaFee, netTransferAmount };
-}
-
-function assertPedersenArithmeticAvailable(): void {
-    const commitmentConstructor = PedersenCommitment as unknown as PedersenCommitmentConstructorWithArithmetic;
-    const openingConstructor = PedersenOpening as unknown as PedersenOpeningConstructorWithArithmetic;
-    const commitment = PedersenCommitment.from(0n, new PedersenOpening()) as PedersenCommitmentWithArithmetic;
-    const opening = new PedersenOpening() as PedersenOpeningWithArithmetic;
-    if (
-        typeof commitmentConstructor.combineLoHi !== 'function' ||
-        typeof openingConstructor.combineLoHi !== 'function' ||
-        typeof openingConstructor.zero !== 'function' ||
-        typeof commitment.subtract !== 'function' ||
-        typeof commitment.multiplyByU64 !== 'function' ||
-        typeof opening.subtract !== 'function' ||
-        typeof opening.multiplyByU64 !== 'function'
-    ) {
-        throw new Error(PEDERSEN_ARITHMETIC_ERROR);
-    }
-}
-
-function combineLoHiCommitments(lo: PedersenCommitment, hi: PedersenCommitment, bitLength: bigint): PedersenCommitment {
-    const PedersenCommitmentWithArithmetic =
-        PedersenCommitment as unknown as PedersenCommitmentConstructorWithArithmetic;
-    return PedersenCommitmentWithArithmetic.combineLoHi(lo, hi, Number(bitLength));
-}
-
-function combineLoHiOpenings(lo: PedersenOpening, hi: PedersenOpening, bitLength: bigint): PedersenOpening {
-    const PedersenOpeningWithArithmetic = PedersenOpening as unknown as PedersenOpeningConstructorWithArithmetic;
-    return PedersenOpeningWithArithmetic.combineLoHi(lo, hi, Number(bitLength));
-}
-
-function getZeroOpening(): PedersenOpening {
-    const PedersenOpeningWithArithmetic = PedersenOpening as unknown as PedersenOpeningConstructorWithArithmetic;
-    return PedersenOpeningWithArithmetic.zero();
-}
-
-function subtractCommitments(left: PedersenCommitment, right: PedersenCommitment): PedersenCommitment {
-    const leftWithArithmetic = left as PedersenCommitmentWithArithmetic;
-    return leftWithArithmetic.subtract(right);
-}
-
-function subtractOpenings(left: PedersenOpening, right: PedersenOpening): PedersenOpening {
-    const leftWithArithmetic = left as PedersenOpeningWithArithmetic;
-    return leftWithArithmetic.subtract(right);
-}
-
-function multiplyCommitment(commitment: PedersenCommitment, scalar: bigint): PedersenCommitment {
-    const commitmentWithArithmetic = commitment as PedersenCommitmentWithArithmetic;
-    return commitmentWithArithmetic.multiplyByU64(scalar);
-}
-
-function multiplyOpening(opening: PedersenOpening, scalar: bigint): PedersenOpening {
-    const openingWithArithmetic = opening as PedersenOpeningWithArithmetic;
-    return openingWithArithmetic.multiplyByU64(scalar);
 }
 
 function getSetComputeUnitLimitInstruction(units: number): Instruction {
@@ -983,10 +911,8 @@ export async function getConfidentialTransferInstructionPlan(
  * Returns an instruction plan that confidentially transfers tokens between
  * two accounts when the mint is configured for confidential transfer fees.
  * Builds and verifies the five proofs required by `TransferWithFee` via
- * context-state accounts.
- *
- * This helper requires the Pedersen arithmetic helpers added to
- * `@solana/zk-sdk` after v0.4.2.
+ * context-state accounts, using the `@solana/zk-sdk` Pedersen arithmetic API
+ * to derive the combined fee and net-transfer commitments.
  */
 export async function getConfidentialTransferWithFeeInstructionPlan(
     input: GetConfidentialTransferWithFeeInstructionPlanInput,
@@ -1009,7 +935,6 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
     assertU64Amount(feeAmount, 'Fee amount');
     assertU64Amount(claimedDeltaFee, 'Claimed delta fee');
     assertU64Amount(netTransferAmount, 'Net transfer amount');
-    assertPedersenArithmeticAvailable();
 
     const [transferAmountLo, transferAmountHi] = splitAmount(amount, TRANSFER_AMOUNT_LO_BIT_LENGTH);
     const [feeAmountLo, feeAmountHi] = splitAmount(feeAmount, FEE_AMOUNT_LO_BIT_LENGTH);
@@ -1095,15 +1020,15 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
     const transferAmountCommitmentHi = PedersenCommitment.fromBytes(
         transferAmountGroupedCiphertextHiBytes.slice(0, 32),
     );
-    const combinedTransferAmountCommitment = combineLoHiCommitments(
+    const combinedTransferAmountCommitment = PedersenCommitment.combineLoHi(
         transferAmountCommitmentLo,
         transferAmountCommitmentHi,
-        TRANSFER_AMOUNT_LO_BIT_LENGTH,
+        Number(TRANSFER_AMOUNT_LO_BIT_LENGTH),
     );
-    const combinedTransferAmountOpening = combineLoHiOpenings(
+    const combinedTransferAmountOpening = PedersenOpening.combineLoHi(
         transferAmountOpeningLo,
         transferAmountOpeningHi,
-        TRANSFER_AMOUNT_LO_BIT_LENGTH,
+        Number(TRANSFER_AMOUNT_LO_BIT_LENGTH),
     );
 
     const feeOpeningLo = new PedersenOpening();
@@ -1124,21 +1049,27 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
     const feeGroupedCiphertextHiBytes = feeGroupedCiphertextHi.toBytes();
     const feeCommitmentLo = PedersenCommitment.fromBytes(feeGroupedCiphertextLoBytes.slice(0, 32));
     const feeCommitmentHi = PedersenCommitment.fromBytes(feeGroupedCiphertextHiBytes.slice(0, 32));
-    const combinedFeeCommitment = combineLoHiCommitments(feeCommitmentLo, feeCommitmentHi, FEE_AMOUNT_LO_BIT_LENGTH);
-    const combinedFeeOpening = combineLoHiOpenings(feeOpeningLo, feeOpeningHi, FEE_AMOUNT_LO_BIT_LENGTH);
+    const combinedFeeCommitment = PedersenCommitment.combineLoHi(
+        feeCommitmentLo,
+        feeCommitmentHi,
+        Number(FEE_AMOUNT_LO_BIT_LENGTH),
+    );
+    const combinedFeeOpening = PedersenOpening.combineLoHi(
+        feeOpeningLo,
+        feeOpeningHi,
+        Number(FEE_AMOUNT_LO_BIT_LENGTH),
+    );
 
-    const netTransferAmountCommitment = subtractCommitments(combinedTransferAmountCommitment, combinedFeeCommitment);
-    const netTransferAmountOpening = subtractOpenings(combinedTransferAmountOpening, combinedFeeOpening);
+    const netTransferAmountCommitment = combinedTransferAmountCommitment.subtract(combinedFeeCommitment);
+    const netTransferAmountOpening = combinedTransferAmountOpening.subtract(combinedFeeOpening);
     const claimedOpening = new PedersenOpening();
     const claimedCommitment = PedersenCommitment.from(claimedDeltaFee, claimedOpening);
-    const deltaCommitment = subtractCommitments(
-        multiplyCommitment(combinedFeeCommitment, MAX_FEE_BASIS_POINTS),
-        multiplyCommitment(combinedTransferAmountCommitment, BigInt(transferFee.transferFeeBasisPoints)),
-    );
-    const deltaOpening = subtractOpenings(
-        multiplyOpening(combinedFeeOpening, MAX_FEE_BASIS_POINTS),
-        multiplyOpening(combinedTransferAmountOpening, BigInt(transferFee.transferFeeBasisPoints)),
-    );
+    const deltaCommitment = combinedFeeCommitment
+        .multiplyByU64(MAX_FEE_BASIS_POINTS)
+        .subtract(combinedTransferAmountCommitment.multiplyByU64(BigInt(transferFee.transferFeeBasisPoints)));
+    const deltaOpening = combinedFeeOpening
+        .multiplyByU64(MAX_FEE_BASIS_POINTS)
+        .subtract(combinedTransferAmountOpening.multiplyByU64(BigInt(transferFee.transferFeeBasisPoints)));
     const percentageWithCapProofData = new PercentageWithCapProofData(
         combinedFeeCommitment,
         combinedFeeOpening,
@@ -1161,10 +1092,10 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
         feeOpeningHi,
     );
 
-    const zeroOpening = getZeroOpening();
+    const zeroOpening = PedersenOpening.zero();
     const maxFeeBasisPointsSubOneCommitment = PedersenCommitment.from(MAX_FEE_BASIS_POINTS_SUB_ONE, zeroOpening);
-    const claimedComplementCommitment = subtractCommitments(maxFeeBasisPointsSubOneCommitment, claimedCommitment);
-    const claimedComplementOpening = subtractOpenings(zeroOpening, claimedOpening);
+    const claimedComplementCommitment = maxFeeBasisPointsSubOneCommitment.subtract(claimedCommitment);
+    const claimedComplementOpening = zeroOpening.subtract(claimedOpening);
     const deltaFeeComplement = MAX_FEE_BASIS_POINTS_SUB_ONE - claimedDeltaFee;
     if (deltaFeeComplement < 0n) {
         throw new Error('Claimed delta fee exceeds maximum range.');

@@ -7,14 +7,7 @@ import {
     some,
     type ReadonlyUint8Array,
 } from '@solana/kit';
-import {
-    AeCiphertext,
-    AeKey,
-    ElGamalCiphertext,
-    ElGamalKeypair,
-    PedersenCommitment,
-    PedersenOpening,
-} from '@solana/zk-sdk/bundler';
+import { AeCiphertext, AeKey, ElGamalCiphertext, ElGamalKeypair } from '@solana/zk-sdk/bundler';
 import { expect, it } from 'vitest';
 
 import { ExtensionArgs, Mint, Token, extension, fetchMint, fetchToken } from '../../../src';
@@ -27,9 +20,6 @@ import {
     getTokenExtension,
     type ValidatorClient,
 } from '../../_setup';
-
-const PEDERSEN_ARITHMETIC_ERROR =
-    'Confidential transfer with fee requires @solana/zk-sdk Pedersen commitment and opening arithmetic.';
 
 function elgamalPubkeyAsAddress(keypair: ElGamalKeypair): Address {
     return getAddressDecoder().decode(new Uint8Array(keypair.pubkey().toBytes()));
@@ -67,23 +57,6 @@ function decryptWithheldAmount(tokenAccount: Token, withdrawWithheldAuthorityElG
     const confidentialTransferFeeAmount = getTokenExtension(tokenAccount, 'ConfidentialTransferFeeAmount');
     const ciphertext = parseElGamalCiphertext(confidentialTransferFeeAmount.withheldAmount);
     return withdrawWithheldAuthorityElGamalKeypair.secret().decrypt(ciphertext);
-}
-
-function hasPedersenArithmetic() {
-    const opening = new PedersenOpening() as PedersenOpening & Record<string, unknown>;
-    const commitment = PedersenCommitment.from(0n, new PedersenOpening()) as PedersenCommitment &
-        Record<string, unknown>;
-    const PedersenOpeningConstructor = PedersenOpening as unknown as Record<string, unknown>;
-    const PedersenCommitmentConstructor = PedersenCommitment as unknown as Record<string, unknown>;
-    return (
-        typeof PedersenOpeningConstructor.zero === 'function' &&
-        typeof PedersenOpeningConstructor.combineLoHi === 'function' &&
-        typeof opening.subtract === 'function' &&
-        typeof opening.multiplyByU64 === 'function' &&
-        typeof PedersenCommitmentConstructor.combineLoHi === 'function' &&
-        typeof commitment.subtract === 'function' &&
-        typeof commitment.multiplyByU64 === 'function'
-    );
 }
 
 async function createConfidentialTransferFeeMint(input: {
@@ -143,8 +116,23 @@ async function createConfidentialTransferFeeMint(input: {
     return { mint: mint.address, mintAuthority, withdrawWithheldAuthorityElGamalKeypair };
 }
 
-it('transfers tokens confidentially with fees', async () => {
-    // Given a confidential-transfer-fee mint, a funded source account, and an empty destination account.
+/**
+ * Sets up a confidential-transfer-fee mint with a funded source account and an
+ * empty destination account, confidentially transfers `amount` from source to
+ * destination, and returns the decrypted post-transfer balances so each test
+ * can assert its own expected values.
+ */
+async function runTransferWithFee(input: {
+    initialSourceAmount: bigint;
+    amount: bigint;
+    maximumFee: bigint;
+    transferFeeBasisPoints: number;
+}): Promise<{
+    sourceAvailableBalance: bigint;
+    destinationPendingBalance: bigint;
+    destinationWithheldAmount: bigint;
+    destinationPendingBalanceCreditCounter: bigint;
+}> {
     const client = await createValidatorClient();
     const payer = client.payer;
     const [sourceOwner, destinationOwner] = await Promise.all([
@@ -156,8 +144,8 @@ it('transfers tokens confidentially with fees', async () => {
         client,
         payer,
         decimals,
-        maximumFee: 1_000_000_000n,
-        transferFeeBasisPoints: 150,
+        maximumFee: input.maximumFee,
+        transferFeeBasisPoints: input.transferFeeBasisPoints,
     });
     const source = await createConfidentialTokenAccountWithBalance({
         client,
@@ -166,7 +154,7 @@ it('transfers tokens confidentially with fees', async () => {
         mint,
         mintAuthority,
         decimals,
-        amount: 1000n,
+        amount: input.initialSourceAmount,
         includeConfidentialTransferFeeAmount: true,
     });
     const destination = await createConfidentialTokenAccount({
@@ -177,7 +165,6 @@ it('transfers tokens confidentially with fees', async () => {
         includeConfidentialTransferFeeAmount: true,
     });
 
-    // When the source confidentially transfers 2.00 tokens with a 1.5% fee.
     const [{ data: sourceTokenAccount }, { data: destinationTokenAccount }, { data: mintAccount }, epochInfo] =
         await Promise.all([
             fetchToken(client.rpc, source.token),
@@ -185,40 +172,87 @@ it('transfers tokens confidentially with fees', async () => {
             fetchMint(client.rpc, mint),
             client.rpc.getEpochInfo().send(),
         ]);
-    const transferPlanPromise = getConfidentialTransferWithFeeInstructionPlan({
-        payer,
-        rpc: client.rpc,
-        sourceToken: source.token,
-        mint,
-        destinationToken: destination.token,
-        sourceTokenAccount,
-        destinationTokenAccount,
-        mintAccount,
-        currentEpoch: epochInfo.epoch,
-        authority: sourceOwner,
-        amount: 200n,
-        sourceElgamalKeypair: source.elgamalKeypair,
-        aesKey: source.aesKey,
-    });
-    if (!hasPedersenArithmetic()) {
-        // Published @solana/zk-sdk@0.4.2 does not expose the Pedersen arithmetic
-        // needed for the success path. Once it does, this test runs through the
-        // full transfer and balance assertions below.
-        await expect(transferPlanPromise).rejects.toThrow(PEDERSEN_ARITHMETIC_ERROR);
-        return;
-    }
-    await client.sendTransactions(await transferPlanPromise);
+    await client.sendTransactions(
+        await getConfidentialTransferWithFeeInstructionPlan({
+            payer,
+            rpc: client.rpc,
+            sourceToken: source.token,
+            mint,
+            destinationToken: destination.token,
+            sourceTokenAccount,
+            destinationTokenAccount,
+            mintAccount,
+            currentEpoch: epochInfo.epoch,
+            authority: sourceOwner,
+            amount: input.amount,
+            sourceElgamalKeypair: source.elgamalKeypair,
+            aesKey: source.aesKey,
+        }),
+    );
 
-    // Then the source is debited by the gross amount, the destination receives the net amount,
-    // and the confidential fee amount is withheld on the destination account.
     const [{ data: updatedSource }, { data: updatedDestination }] = await Promise.all([
         fetchToken(client.rpc, source.token),
         fetchToken(client.rpc, destination.token),
     ]);
-    expect(decryptAvailableBalance(updatedSource, source.aesKey)).toBe(800n);
-    expect(decryptPendingBalance(updatedDestination, destination.elgamalKeypair)).toBe(197n);
-    expect(decryptWithheldAmount(updatedDestination, withdrawWithheldAuthorityElGamalKeypair)).toBe(3n);
-    expect(getTokenExtension(updatedDestination, 'ConfidentialTransferAccount').pendingBalanceCreditCounter).toBe(1n);
+    return {
+        sourceAvailableBalance: decryptAvailableBalance(updatedSource, source.aesKey),
+        destinationPendingBalance: decryptPendingBalance(updatedDestination, destination.elgamalKeypair),
+        destinationWithheldAmount: decryptWithheldAmount(updatedDestination, withdrawWithheldAuthorityElGamalKeypair),
+        destinationPendingBalanceCreditCounter: getTokenExtension(updatedDestination, 'ConfidentialTransferAccount')
+            .pendingBalanceCreditCounter,
+    };
+}
+
+it('transfers tokens confidentially with fees', async () => {
+    // When the source confidentially transfers 2.00 tokens with a 1.5% fee (uncapped).
+    // fee = ceil(200 * 150 / 10_000) = 3, net = 197.
+    const result = await runTransferWithFee({
+        initialSourceAmount: 1000n,
+        amount: 200n,
+        maximumFee: 1_000_000_000n,
+        transferFeeBasisPoints: 150,
+    });
+
+    // Then the source is debited by the gross amount, the destination receives the net amount,
+    // and the confidential fee amount is withheld on the destination account.
+    expect(result.sourceAvailableBalance).toBe(800n);
+    expect(result.destinationPendingBalance).toBe(197n);
+    expect(result.destinationWithheldAmount).toBe(3n);
+    expect(result.destinationPendingBalanceCreditCounter).toBe(1n);
+});
+
+it('caps the confidential fee at the maximum fee', async () => {
+    // When the raw 1.5% fee (3) exceeds the maximum fee (2), the fee is capped at 2 and
+    // `claimedDeltaFee` is 0. net = 200 - 2 = 198.
+    const result = await runTransferWithFee({
+        initialSourceAmount: 1000n,
+        amount: 200n,
+        maximumFee: 2n,
+        transferFeeBasisPoints: 150,
+    });
+
+    // Then the source is still debited by the gross amount, the destination receives the
+    // capped net amount, and only the maximum fee is withheld.
+    expect(result.sourceAvailableBalance).toBe(800n);
+    expect(result.destinationPendingBalance).toBe(198n);
+    expect(result.destinationWithheldAmount).toBe(2n);
+    expect(result.destinationPendingBalanceCreditCounter).toBe(1n);
+});
+
+it('transfers the full amount when the fee basis points are zero', async () => {
+    // When the fee basis points are 0, no fee is charged. net = 200.
+    const result = await runTransferWithFee({
+        initialSourceAmount: 1000n,
+        amount: 200n,
+        maximumFee: 1_000_000_000n,
+        transferFeeBasisPoints: 0,
+    });
+
+    // Then the destination receives the full amount and nothing is withheld.
+    expect(result.sourceAvailableBalance).toBe(800n);
+    expect(result.destinationPendingBalance).toBe(200n);
+    expect(result.destinationWithheldAmount).toBe(0n);
+    expect(result.destinationPendingBalanceCreditCounter).toBe(1n);
 });
 
 it('rejects when the fee exceeds the transfer amount', async () => {
