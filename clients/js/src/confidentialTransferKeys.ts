@@ -7,8 +7,7 @@ import {
     type MessagePartialSigner,
     type ReadonlyUint8Array,
 } from '@solana/kit';
-import { AeKey, ElGamalKeypair } from '@solana/zk-sdk/bundler';
-import * as ZkSdk from '@solana/zk-sdk/bundler';
+import { ConfidentialKeys } from '@solana/zk-sdk/bundler';
 
 export type DerivedElGamalKeypair = Readonly<{
     elgamalPubkey: Address;
@@ -24,36 +23,14 @@ async function signDerivationMessage(signer: MessagePartialSigner, message: Uint
     return new Uint8Array(signature);
 }
 
-type ConfidentialKeysInstance = Readonly<{
-    ae(): AeKey;
-    elgamal(): ElGamalKeypair;
-}>;
-type ConfidentialKeysConstructor = Readonly<{
-    fromSignature(signature: Uint8Array): ConfidentialKeysInstance;
-    signerMessage(publicSeed: Uint8Array): Uint8Array;
-}>;
-type LegacyAeKeyConstructor = typeof AeKey &
-    Readonly<{
-        fromSignature?: (signature: Uint8Array) => AeKey;
-        signerMessage?: (publicSeed: Uint8Array) => Uint8Array;
-    }>;
-type LegacyElGamalKeypairConstructor = typeof ElGamalKeypair &
-    Readonly<{
-        fromSignature?: (signature: Uint8Array) => ElGamalKeypair;
-        signerMessage?: (publicSeed: Uint8Array) => Uint8Array;
-    }>;
-
-function getConfidentialKeysConstructor(): ConfidentialKeysConstructor | undefined {
-    return (ZkSdk as unknown as { ConfidentialKeys?: ConfidentialKeysConstructor }).ConfidentialKeys;
-}
-
 function ownerMintSeed(owner: Address, mint: Address): ReadonlyUint8Array {
     return getTupleEncoder([getAddressEncoder(), getAddressEncoder()]).encode([owner, mint]);
 }
 
 /**
- * Derives an ElGamal keypair by having the signer sign a domain-separated
- * message and feeding the resulting Ed25519 signature into the WASM ZK SDK.
+ * Derives an ElGamal keypair following the `solana-conf-bal/v1` standard: the
+ * signer signs a domain-separated message and the resulting Ed25519 signature
+ * is fed into the WASM ZK SDK's `ConfidentialKeys` to derive the keypair.
  */
 export async function deriveElGamalKeypair({
     signer,
@@ -62,19 +39,9 @@ export async function deriveElGamalKeypair({
     signer: MessagePartialSigner;
     publicSeed?: ReadonlyUint8Array;
 }): Promise<DerivedElGamalKeypair> {
-    const confidentialKeys = getConfidentialKeysConstructor();
-    const legacyElGamal = ElGamalKeypair as LegacyElGamalKeypairConstructor;
-    const message =
-        confidentialKeys?.signerMessage(new Uint8Array(publicSeed)) ??
-        legacyElGamal.signerMessage?.(new Uint8Array(publicSeed));
-    if (message == null) {
-        throw new Error('The installed @solana/zk-sdk does not expose confidential key derivation.');
-    }
+    const message = ConfidentialKeys.signerMessage(new Uint8Array(publicSeed));
     const signature = await signDerivationMessage(signer, message);
-    const keypair = confidentialKeys?.fromSignature(signature).elgamal() ?? legacyElGamal.fromSignature?.(signature);
-    if (keypair == null) {
-        throw new Error('The installed @solana/zk-sdk does not expose ElGamal key derivation.');
-    }
+    const keypair = ConfidentialKeys.fromSignature(signature).elgamal();
     const secretKey = new Uint8Array(keypair.secret().toBytes());
     const elgamalPubkey = getAddressDecoder().decode(new Uint8Array(keypair.pubkey().toBytes()));
     return { elgamalPubkey, secretKey };
@@ -98,9 +65,9 @@ export async function deriveElGamalKeypairForOwnerMint({
 }
 
 /**
- * Derives an AES-128 authenticated-encryption key by having the signer
- * sign a domain-separated message and feeding the signature into the
- * WASM ZK SDK.
+ * Derives an AES-128 authenticated-encryption key following the
+ * `solana-conf-bal/v1` standard: the signer signs a domain-separated message
+ * and the resulting signature is fed into the WASM ZK SDK's `ConfidentialKeys`.
  */
 export async function deriveAeKey({
     signer,
@@ -109,19 +76,9 @@ export async function deriveAeKey({
     signer: MessagePartialSigner;
     publicSeed?: ReadonlyUint8Array;
 }): Promise<Uint8Array> {
-    const confidentialKeys = getConfidentialKeysConstructor();
-    const legacyAeKey = AeKey as LegacyAeKeyConstructor;
-    const message =
-        confidentialKeys?.signerMessage(new Uint8Array(publicSeed)) ??
-        legacyAeKey.signerMessage?.(new Uint8Array(publicSeed));
-    if (message == null) {
-        throw new Error('The installed @solana/zk-sdk does not expose confidential key derivation.');
-    }
+    const message = ConfidentialKeys.signerMessage(new Uint8Array(publicSeed));
     const signature = await signDerivationMessage(signer, message);
-    const aeKey = confidentialKeys?.fromSignature(signature).ae() ?? legacyAeKey.fromSignature?.(signature);
-    if (aeKey == null) {
-        throw new Error('The installed @solana/zk-sdk does not expose AES key derivation.');
-    }
+    const aeKey = ConfidentialKeys.fromSignature(signature).ae();
     return new Uint8Array(aeKey.toBytes());
 }
 

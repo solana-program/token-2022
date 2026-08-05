@@ -61,7 +61,7 @@
         "@solana/kit-plugin-litesvm": "^0.15.0",
         "@solana/kit-plugin-rpc": "^0.15.0",
         "@solana/kit-plugin-signer": "^0.13.0",
-        "@solana/zk-sdk": "^0.4.2",
+        "@solana/zk-sdk": "^0.5.1",
         "@types/node": "^26",
         "oxfmt": "^0.61.0",
         "oxlint": "^1.70.0",
@@ -75,7 +75,7 @@
     "peerDependencies": {
         "@solana/kit": "^7.0.0",
         "@solana/sysvars": "^7.0.0",
-        "@solana/zk-sdk": "^0.4.2"
+        "@solana/zk-sdk": "^0.5.1"
     },
     "peerDependenciesMeta": {
         "@solana/zk-sdk": {
