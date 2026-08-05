@@ -5,27 +5,15 @@ import {
     Address,
     Transaction,
     TransactionSigner,
-    assertIsSendableTransaction,
     assertIsSingleTransactionPlanResult,
-    assertIsTransactionWithBlockhashLifetime,
     createClient,
-    createTransactionMessage,
-    createTransactionPlanExecutor,
-    createTransactionPlanner,
-    extendClient,
     generateKeyPairSigner,
     isSome,
     lamports,
     none,
-    pipe,
-    sendAndConfirmTransactionFactory,
     sequentialInstructionPlan,
-    setTransactionMessageFeePayerSigner,
-    setTransactionMessageLifetimeUsingBlockhash,
-    signTransactionMessageWithSigners,
     some,
 } from '@solana/kit';
-import { planAndSendTransactions } from '@solana/kit-plugin-instruction-plan';
 import { TransactionMetadata, litesvm } from '@solana/kit-plugin-litesvm';
 import { solanaLocalRpc } from '@solana/kit-plugin-rpc';
 import { airdropSigner, generatedSigner } from '@solana/kit-plugin-signer';
@@ -75,56 +63,21 @@ export const createTestClient = () => {
 // does not execute proof verification, so those tests must run against a local
 // `solana-test-validator` (started by `make test-js-clients-js`).
 //
-// The planner and executor are overridden so that no compute-unit-limit
-// instruction is added to any transaction. The default RPC planner reserves
-// ~40 bytes for a provisory compute-unit limit and the default RPC executor
-// estimates and sets a real one before sending; either is enough to push the
-// largest proof-verification transaction (the batched range proof, which must
-// share a transaction with its context-state account creation) past the
-// transaction size limit. Omitting it is safe: a versioned transaction with no
-// compute-unit limit still receives the per-instruction default budget.
+// Resource-limit estimation is disabled (`estimateResourceLimits: false`).
+// The inline range-proof transactions (e.g. the transfer `BatchedRangeProofU128`)
+// carry the proof in the verify instruction data and already sit within a few
+// bytes of the transaction size limit, so they cannot also accommodate the
+// provisory `SetComputeUnitLimit` instruction the planner would otherwise
+// reserve. Disabling estimation keeps those transactions sendable; the proofs
+// verify within the default compute budget.
 export const createValidatorClient = () => {
-    return (
-        createClient()
-            .use(generatedSigner())
-            .use(solanaLocalRpc())
-            .use(airdropSigner(lamports(1_000_000_000n)))
-            .use(client =>
-                extendClient(client, {
-                    // A planner that builds a bare versioned message with no
-                    // provisory compute-unit-limit instruction.
-                    transactionPlanner: createTransactionPlanner({
-                        createTransactionMessage: () =>
-                            pipe(createTransactionMessage({ version: 0 }), tx =>
-                                setTransactionMessageFeePayerSigner(client.payer, tx),
-                            ),
-                    }),
-                    // An executor that sets the blockhash, signs and sends — but
-                    // never estimates or sets a compute-unit limit (unlike the
-                    // default RPC executor, which would re-add the instruction at
-                    // execution time, after planning validated the size).
-                    transactionPlanExecutor: createTransactionPlanExecutor({
-                        executeTransactionMessage: async (_context, message) => {
-                            const { value: latestBlockhash } = await client.rpc.getLatestBlockhash().send();
-                            const transaction = await pipe(
-                                setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, message),
-                                tx => signTransactionMessageWithSigners(tx),
-                            );
-                            assertIsSendableTransaction(transaction);
-                            assertIsTransactionWithBlockhashLifetime(transaction);
-                            await sendAndConfirmTransactionFactory(client)(transaction, { commitment: 'confirmed' });
-                            return transaction;
-                        },
-                    }),
-                }),
-            )
-            // Re-wire `sendTransaction(s)` so they capture the client with the
-            // overridden planner and executor above.
-            .use(planAndSendTransactions())
-            .use(systemProgram())
-            .use(token2022Program())
-            .use(associatedTokenProgram())
-    );
+    return createClient()
+        .use(generatedSigner())
+        .use(solanaLocalRpc({ transactionConfig: { estimateResourceLimits: false } }))
+        .use(airdropSigner(lamports(1_000_000_000n)))
+        .use(systemProgram())
+        .use(token2022Program())
+        .use(associatedTokenProgram());
 };
 
 export type LiteSvmClient = Awaited<ReturnType<typeof createTestClient>>;

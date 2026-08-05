@@ -93,9 +93,6 @@ const MAX_FEE_BASIS_POINTS_SUB_ONE = 9_999n;
 const MAX_FEE_BASIS_POINTS = 10_000n;
 const DELTA_BIT_LENGTH = 16;
 const NET_TRANSFER_AMOUNT_BIT_LENGTH = 64;
-const COMPUTE_BUDGET_PROGRAM_ADDRESS =
-    'ComputeBudget111111111111111111111111111111' as Address<'ComputeBudget111111111111111111111111111111'>;
-const MAX_COMPUTE_UNIT_LIMIT = 1_400_000;
 type ConfidentialTransferAccountExtension = Extract<Extension, { __kind: 'ConfidentialTransferAccount' }>;
 type ConfidentialTransferMintExtension = Extract<Extension, { __kind: 'ConfidentialTransferMint' }>;
 type TransferFeeConfigExtension = Extract<Extension, { __kind: 'TransferFeeConfig' }>;
@@ -437,13 +434,6 @@ function calculateTransferWithFeeAmounts(transferAmount: bigint, transferFeeBasi
     return { feeAmount, claimedDeltaFee, netTransferAmount };
 }
 
-function getSetComputeUnitLimitInstruction(units: number): Instruction {
-    const data = new Uint8Array(5);
-    data[0] = 2;
-    new DataView(data.buffer).setUint32(1, units, true);
-    return { programAddress: COMPUTE_BUDGET_PROGRAM_ADDRESS, data };
-}
-
 /**
  * Builds the setup-and-cleanup instruction plans for a single proof's
  * context-state account. The setup plan creates the context-state account
@@ -496,10 +486,7 @@ async function buildContextStateProofPlan(
                     authority: recordAuthority,
                     data: proofDataBytes,
                 }),
-                nonDivisibleSequentialInstructionPlan([
-                    getSetComputeUnitLimitInstruction(MAX_COMPUTE_UNIT_LIMIT),
-                    ...verifyInstructions,
-                ]),
+                nonDivisibleSequentialInstructionPlan(verifyInstructions),
             ]),
             cleanup: sequentialInstructionPlan([
                 closeContextStateProof({
