@@ -39,7 +39,7 @@ using the following commands.
 
 ```sh
 pnpm install # only need to run this once
-pnpm generate:clients
+make generate-clients
 ```
 
 ## Managing clients
