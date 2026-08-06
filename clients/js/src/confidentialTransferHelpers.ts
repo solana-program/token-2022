@@ -19,7 +19,6 @@ import {
 import {
     Address,
     Instruction,
-    KeyPairSigner,
     TransactionSigner,
     generateKeyPairSigner,
     getAddressEncoder,
@@ -100,34 +99,6 @@ type TransferFee = TransferFeeConfigExtension['olderTransferFee'];
 type ProofDataInput = Uint8Array | { account: Address; offset: number };
 type ContextStateProofPlan = Readonly<{ address: Address; setup: InstructionPlan; cleanup: InstructionPlan }>;
 
-type ContextStateProofMode = {
-    /**
-     * The strategy used to provide zero-knowledge proofs to the program.
-     *
-     * Currently, only `context-state` is supported, where each proof is verified
-     * into a dedicated context-state account before the instruction is executed.
-     * Additional modes — such as `instruction-data`, where proofs are provided
-     * inline within the same transaction — may be supported in the future.
-     */
-    proofMode?: 'context-state';
-    payer: TransactionSigner;
-    rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
-};
-
-type ConfidentialTransferContextStateProofMode = {
-    /**
-     * The strategy used to provide zero-knowledge proofs to the program.
-     *
-     * Currently, only `context-state` is supported, where each proof is verified
-     * into a dedicated context-state account before the instruction is executed.
-     * Additional modes — such as `instruction-data`, where proofs are provided
-     * inline within the same transaction — may be supported in the future.
-     */
-    proofMode?: 'context-state';
-    payer: TransactionSigner;
-    rpc: Rpc<GetMinimumBalanceForRentExemptionApi & GetAccountInfoApi>;
-};
-
 export type GetCreateConfidentialTransferAccountInstructionPlanInput = {
     payer: TransactionSigner;
     owner: Address | TransactionSigner;
@@ -175,7 +146,7 @@ export type ConfidentialTransferBalance = {
     actualPendingBalanceCreditCounter: bigint;
 };
 
-type GetConfidentialWithdrawInstructionPlanBaseInput = {
+export type GetConfidentialWithdrawInstructionPlanInput = {
     token: Address;
     mint: Address;
     tokenAccount: Token;
@@ -186,10 +157,19 @@ type GetConfidentialWithdrawInstructionPlanBaseInput = {
     aesKey: AeKey;
     multiSigners?: Array<TransactionSigner>;
     programAddress?: Address;
+    payer: TransactionSigner;
+    rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
 };
 
-export type GetConfidentialWithdrawInstructionPlanInput = GetConfidentialWithdrawInstructionPlanBaseInput &
-    ContextStateProofMode;
+/** Input for {@link getConfidentialWithdrawWithRecordInstructionPlan}. */
+export type GetConfidentialWithdrawWithRecordInstructionPlanInput = GetConfidentialWithdrawInstructionPlanInput & {
+    /** Funds the record account that stages the range proof. Defaults to `payer`. */
+    recordPayer?: TransactionSigner;
+    /** Signs the record account's write and close. Defaults to an ephemeral signer. */
+    recordAuthority?: TransactionSigner;
+    /** Receives the record account's reclaimed rent on close. Defaults to the record payer. */
+    recordRentReceiver?: Address;
+};
 
 export type GetEmptyConfidentialTransferAccountInstructionPlanInput = {
     token: Address;
@@ -198,9 +178,11 @@ export type GetEmptyConfidentialTransferAccountInstructionPlanInput = {
     elgamalKeypair: ElGamalKeypair;
     multiSigners?: Array<TransactionSigner>;
     programAddress?: Address;
-} & ContextStateProofMode;
+    payer: TransactionSigner;
+    rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
+};
 
-type GetConfidentialTransferInstructionPlanBaseInput = {
+export type GetConfidentialTransferInstructionPlanInput = {
     sourceToken: Address;
     mint: Address;
     /**
@@ -224,25 +206,29 @@ type GetConfidentialTransferInstructionPlanBaseInput = {
     aesKey: AeKey;
     multiSigners?: Array<TransactionSigner>;
     programAddress?: Address;
+    payer: TransactionSigner;
+    // The transfer helpers may need to read the mint account to resolve the
+    // auditor ElGamal key, so the RPC must support account reads as well.
+    rpc: Rpc<GetMinimumBalanceForRentExemptionApi & GetAccountInfoApi>;
 } & (
     | { destinationTokenAccount: Token; destinationElgamalPubkey?: Address }
     | { destinationElgamalPubkey: Address; destinationTokenAccount?: never }
 );
 
-export type GetConfidentialTransferInstructionPlanInput = GetConfidentialTransferInstructionPlanBaseInput &
-    ConfidentialTransferContextStateProofMode;
+/** Input for {@link getConfidentialTransferWithRecordInstructionPlan}. */
+export type GetConfidentialTransferWithRecordInstructionPlanInput = GetConfidentialTransferInstructionPlanInput & {
+    /** Funds the record account that stages the range proof. Defaults to `payer`. */
+    recordPayer?: TransactionSigner;
+    /** Signs the record account's write and close. Defaults to an ephemeral signer. */
+    recordAuthority?: TransactionSigner;
+    /** Receives the record account's reclaimed rent on close. Defaults to the record payer. */
+    recordRentReceiver?: Address;
+};
 
-type GetConfidentialTransferWithFeeInstructionPlanBaseInput = GetConfidentialTransferInstructionPlanBaseInput & {
+export type GetConfidentialTransferWithFeeInstructionPlanInput = GetConfidentialTransferInstructionPlanInput & {
     mintAccount: Mint;
     currentEpoch: number | bigint;
 };
-
-type RecordBackedContextStateProofMode = Omit<ConfidentialTransferContextStateProofMode, 'payer'> & {
-    payer: KeyPairSigner;
-};
-
-export type GetConfidentialTransferWithFeeInstructionPlanInput =
-    GetConfidentialTransferWithFeeInstructionPlanBaseInput & RecordBackedContextStateProofMode;
 
 function getTokenProgramAddress(programAddress?: Address) {
     return programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
@@ -440,6 +426,13 @@ function calculateTransferWithFeeAmounts(transferAmount: bigint, transferFeeBasi
  * and verifies the proof into it (these two instructions must share a
  * transaction). The cleanup plan closes the context-state account to recover
  * its rent.
+ *
+ * When `recordPayer` is provided, the proof is staged in an SPL Record account
+ * (created, written and closed by the setup/cleanup plans) rather than passed
+ * inline in the verify instruction data. `recordAuthority` signs the record's
+ * write and close (defaulting to an ephemeral generated signer), and the
+ * record's reclaimed rent is sent to `recordRentReceiver` (defaulting to the
+ * record payer, so whoever funded the account is reimbursed).
  */
 async function buildContextStateProofPlan(
     proofData: ReadonlyUint8Array,
@@ -452,12 +445,15 @@ async function buildContextStateProofPlan(
     payer: TransactionSigner,
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>,
     contextStateAuthority: TransactionSigner = payer,
-    recordPayer?: KeyPairSigner,
+    recordPayer?: TransactionSigner,
+    recordAuthority?: TransactionSigner,
+    recordRentReceiver?: Address,
 ): Promise<ContextStateProofPlan> {
     const contextAccount = await generateKeyPairSigner();
     const proofDataBytes = new Uint8Array(proofData);
     if (recordPayer) {
-        const recordAuthority = await generateKeyPairSigner();
+        const resolvedRecordAuthority = recordAuthority ?? (await generateKeyPairSigner());
+        const resolvedRecordRentReceiver = recordRentReceiver ?? recordPayer.address;
         const recordKeypair = await generateKeyPairSigner();
         const recordClient = {
             getMinimumBalance: (space: number) => rpc.getMinimumBalanceForRentExemption(BigInt(space)).send(),
@@ -465,7 +461,7 @@ async function buildContextStateProofPlan(
         const createRecordPlan = await getCreateRecordInstructionPlan(recordClient, {
             payer: recordPayer,
             newRecord: recordKeypair,
-            authority: recordAuthority.address,
+            authority: resolvedRecordAuthority.address,
             dataLength: BigInt(proofDataBytes.length),
         });
         const verifyInstructions = await verifyAction({
@@ -483,7 +479,7 @@ async function buildContextStateProofPlan(
                 createRecordPlan,
                 getWriteInstructionPlan({
                     recordAccount: recordKeypair.address,
-                    authority: recordAuthority,
+                    authority: resolvedRecordAuthority,
                     data: proofDataBytes,
                 }),
                 nonDivisibleSequentialInstructionPlan(verifyInstructions),
@@ -496,8 +492,8 @@ async function buildContextStateProofPlan(
                 }),
                 getCloseAccountInstruction({
                     recordAccount: recordKeypair.address,
-                    authority: recordAuthority,
-                    receiver: payer.address,
+                    authority: resolvedRecordAuthority,
+                    receiver: resolvedRecordRentReceiver,
                 }),
             ]),
         };
@@ -692,14 +688,17 @@ export async function getEmptyConfidentialTransferAccountInstructionPlan(
     ]);
 }
 
-/**
- * Returns an instruction plan that moves tokens from the encrypted
- * available balance back to the plaintext balance. Generates and verifies
- * the equality and batched range proofs via context-state accounts.
- */
-export async function getConfidentialWithdrawInstructionPlan(
+// The proof data and instruction fields for a confidential withdraw, derived
+// from the input independently of how each proof is delivered on-chain.
+type ConfidentialWithdrawProofData = {
+    equalityProofData: CiphertextCommitmentEqualityProofData;
+    rangeProofData: BatchedRangeProofU64Data;
+    newAvailableBalance: bigint;
+};
+
+function buildConfidentialWithdrawProofData(
     input: GetConfidentialWithdrawInstructionPlanInput,
-): Promise<InstructionPlan> {
+): ConfidentialWithdrawProofData {
     const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
     const amount = BigInt(input.amount);
     assertNonNegativeAmount(amount);
@@ -725,16 +724,15 @@ export async function getConfidentialWithdrawInstructionPlan(
         [remainingBalanceOpening],
     );
 
-    const [equalityProofPlan, rangeProofPlan] = await Promise.all([
-        buildContextStateProofPlan(
-            equalityProofData.toBytes(),
-            verifyCiphertextCommitmentEquality,
-            input.payer,
-            input.rpc,
-        ),
-        buildContextStateProofPlan(rangeProofData.toBytes(), verifyBatchedRangeProofU64, input.payer, input.rpc),
-    ]);
+    return { equalityProofData, rangeProofData, newAvailableBalance };
+}
 
+function assembleConfidentialWithdrawPlan(
+    input: GetConfidentialWithdrawInstructionPlanInput,
+    proofData: ConfidentialWithdrawProofData,
+    proofPlans: { equalityProofPlan: ContextStateProofPlan; rangeProofPlan: ContextStateProofPlan },
+): InstructionPlan {
+    const { equalityProofPlan, rangeProofPlan } = proofPlans;
     return sequentialInstructionPlan([
         parallelInstructionPlan([equalityProofPlan.setup, rangeProofPlan.setup]),
         getConfidentialWithdrawInstruction(
@@ -744,9 +742,9 @@ export async function getConfidentialWithdrawInstructionPlan(
                 equalityRecord: equalityProofPlan.address,
                 rangeRecord: rangeProofPlan.address,
                 authority: input.authority,
-                amount,
+                amount: BigInt(input.amount),
                 decimals: input.decimals,
-                newDecryptableAvailableBalance: input.aesKey.encrypt(newAvailableBalance).toBytes(),
+                newDecryptableAvailableBalance: input.aesKey.encrypt(proofData.newAvailableBalance).toBytes(),
                 equalityProofInstructionOffset: 0,
                 rangeProofInstructionOffset: 0,
                 multiSigners: input.multiSigners,
@@ -758,14 +756,90 @@ export async function getConfidentialWithdrawInstructionPlan(
 }
 
 /**
- * Returns an instruction plan that confidentially transfers tokens between
- * two accounts. Splits the amount into lo/hi halves and verifies the three
- * required proofs (equality, grouped-ciphertext validity, batched range)
- * via context-state accounts.
+ * Returns an instruction plan that moves tokens from the encrypted
+ * available balance back to the plaintext balance. Generates and verifies
+ * the equality and batched range proofs via context-state accounts.
+ *
+ * The range proof is provided inline in the verify instruction data. This keeps
+ * the flow to a minimal number of transactions, but the range-proof transaction
+ * sits close to the transaction size limit and cannot accommodate an extra
+ * compute-unit-limit instruction. Callers that send with a transaction plan
+ * executor which sets compute-unit limits (e.g. by simulating) should either
+ * disable that estimation or use {@link getConfidentialWithdrawWithRecordInstructionPlan},
+ * which stages the range proof in a record account first.
  */
-export async function getConfidentialTransferInstructionPlan(
-    input: GetConfidentialTransferInstructionPlanInput,
+export async function getConfidentialWithdrawInstructionPlan(
+    input: GetConfidentialWithdrawInstructionPlanInput,
 ): Promise<InstructionPlan> {
+    const proofData = buildConfidentialWithdrawProofData(input);
+    const [equalityProofPlan, rangeProofPlan] = await Promise.all([
+        buildContextStateProofPlan(
+            proofData.equalityProofData.toBytes(),
+            verifyCiphertextCommitmentEquality,
+            input.payer,
+            input.rpc,
+        ),
+        buildContextStateProofPlan(
+            proofData.rangeProofData.toBytes(),
+            verifyBatchedRangeProofU64,
+            input.payer,
+            input.rpc,
+        ),
+    ]);
+    return assembleConfidentialWithdrawPlan(input, proofData, { equalityProofPlan, rangeProofPlan });
+}
+
+/**
+ * Like {@link getConfidentialWithdrawInstructionPlan}, but stages the batched
+ * range proof in an SPL Record account before verifying it, rather than passing
+ * it inline in the verify instruction data.
+ *
+ * This shrinks the range-proof verification transaction so it leaves room for a
+ * compute-unit-limit instruction, at the cost of extra transactions to create,
+ * write and close the record account. Prefer this variant when sending with the
+ * default transaction plan executor, which reserves a compute-unit-limit
+ * instruction that would otherwise push the inline transaction over the size
+ * limit.
+ */
+export async function getConfidentialWithdrawWithRecordInstructionPlan(
+    input: GetConfidentialWithdrawWithRecordInstructionPlanInput,
+): Promise<InstructionPlan> {
+    const proofData = buildConfidentialWithdrawProofData(input);
+    const [equalityProofPlan, rangeProofPlan] = await Promise.all([
+        buildContextStateProofPlan(
+            proofData.equalityProofData.toBytes(),
+            verifyCiphertextCommitmentEquality,
+            input.payer,
+            input.rpc,
+        ),
+        buildContextStateProofPlan(
+            proofData.rangeProofData.toBytes(),
+            verifyBatchedRangeProofU64,
+            input.payer,
+            input.rpc,
+            input.payer,
+            input.recordPayer ?? input.payer,
+            input.recordAuthority,
+            input.recordRentReceiver,
+        ),
+    ]);
+    return assembleConfidentialWithdrawPlan(input, proofData, { equalityProofPlan, rangeProofPlan });
+}
+
+// The proof data and instruction fields for a confidential transfer, derived
+// from the input independently of how each proof is delivered on-chain.
+type ConfidentialTransferProofData = {
+    equalityProofData: CiphertextCommitmentEqualityProofData;
+    ciphertextValidityProofData: BatchedGroupedCiphertext3HandlesValidityProofData;
+    rangeProofData: BatchedRangeProofU128Data;
+    transferAmountAuditorCiphertextLo: ReadonlyUint8Array;
+    transferAmountAuditorCiphertextHi: ReadonlyUint8Array;
+    newAvailableBalance: bigint;
+};
+
+async function buildConfidentialTransferProofData(
+    input: GetConfidentialTransferInstructionPlanInput,
+): Promise<ConfidentialTransferProofData> {
     const sourceAccount = getRequiredConfidentialTransferAccountExtension(input.sourceTokenAccount);
     const amount = BigInt(input.amount);
     assertNonNegativeAmount(amount);
@@ -849,22 +923,26 @@ export async function getConfidentialTransferInstructionPlan(
         [newAvailableBalanceOpening, openingLo, openingHi, paddingOpening],
     );
 
-    const [equalityProofPlan, ciphertextValidityProofPlan, rangeProofPlan] = await Promise.all([
-        buildContextStateProofPlan(
-            equalityProofData.toBytes(),
-            verifyCiphertextCommitmentEquality,
-            input.payer,
-            input.rpc,
-        ),
-        buildContextStateProofPlan(
-            ciphertextValidityProofData.toBytes(),
-            verifyBatchedGroupedCiphertext3HandlesValidity,
-            input.payer,
-            input.rpc,
-        ),
-        buildContextStateProofPlan(rangeProofData.toBytes(), verifyBatchedRangeProofU128, input.payer, input.rpc),
-    ]);
+    return {
+        equalityProofData,
+        ciphertextValidityProofData,
+        rangeProofData,
+        transferAmountAuditorCiphertextLo,
+        transferAmountAuditorCiphertextHi,
+        newAvailableBalance,
+    };
+}
 
+function assembleConfidentialTransferPlan(
+    input: GetConfidentialTransferInstructionPlanInput,
+    proofData: ConfidentialTransferProofData,
+    proofPlans: {
+        equalityProofPlan: ContextStateProofPlan;
+        ciphertextValidityProofPlan: ContextStateProofPlan;
+        rangeProofPlan: ContextStateProofPlan;
+    },
+): InstructionPlan {
+    const { equalityProofPlan, ciphertextValidityProofPlan, rangeProofPlan } = proofPlans;
     return sequentialInstructionPlan([
         parallelInstructionPlan([equalityProofPlan.setup, ciphertextValidityProofPlan.setup, rangeProofPlan.setup]),
         getConfidentialTransferInstruction(
@@ -876,9 +954,9 @@ export async function getConfidentialTransferInstructionPlan(
                 ciphertextValidityRecord: ciphertextValidityProofPlan.address,
                 rangeRecord: rangeProofPlan.address,
                 authority: input.authority,
-                newSourceDecryptableAvailableBalance: input.aesKey.encrypt(newAvailableBalance).toBytes(),
-                transferAmountAuditorCiphertextLo,
-                transferAmountAuditorCiphertextHi,
+                newSourceDecryptableAvailableBalance: input.aesKey.encrypt(proofData.newAvailableBalance).toBytes(),
+                transferAmountAuditorCiphertextLo: proofData.transferAmountAuditorCiphertextLo,
+                transferAmountAuditorCiphertextHi: proofData.transferAmountAuditorCiphertextHi,
                 equalityProofInstructionOffset: 0,
                 ciphertextValidityProofInstructionOffset: 0,
                 rangeProofInstructionOffset: 0,
@@ -892,6 +970,98 @@ export async function getConfidentialTransferInstructionPlan(
             rangeProofPlan.cleanup,
         ]),
     ]);
+}
+
+/**
+ * Returns an instruction plan that confidentially transfers tokens between
+ * two accounts. Splits the amount into lo/hi halves and verifies the three
+ * required proofs (equality, grouped-ciphertext validity, batched range)
+ * via context-state accounts.
+ *
+ * The range proof is provided inline in the verify instruction data. This keeps
+ * the flow to a minimal number of transactions, but the range-proof transaction
+ * sits close to the transaction size limit and cannot accommodate an extra
+ * compute-unit-limit instruction. Callers that send with a transaction plan
+ * executor which sets compute-unit limits (e.g. by simulating) should either
+ * disable that estimation or use {@link getConfidentialTransferWithRecordInstructionPlan},
+ * which stages the range proof in a record account first.
+ */
+export async function getConfidentialTransferInstructionPlan(
+    input: GetConfidentialTransferInstructionPlanInput,
+): Promise<InstructionPlan> {
+    const proofData = await buildConfidentialTransferProofData(input);
+    const [equalityProofPlan, ciphertextValidityProofPlan, rangeProofPlan] = await Promise.all([
+        buildContextStateProofPlan(
+            proofData.equalityProofData.toBytes(),
+            verifyCiphertextCommitmentEquality,
+            input.payer,
+            input.rpc,
+        ),
+        buildContextStateProofPlan(
+            proofData.ciphertextValidityProofData.toBytes(),
+            verifyBatchedGroupedCiphertext3HandlesValidity,
+            input.payer,
+            input.rpc,
+        ),
+        buildContextStateProofPlan(
+            proofData.rangeProofData.toBytes(),
+            verifyBatchedRangeProofU128,
+            input.payer,
+            input.rpc,
+        ),
+    ]);
+    return assembleConfidentialTransferPlan(input, proofData, {
+        equalityProofPlan,
+        ciphertextValidityProofPlan,
+        rangeProofPlan,
+    });
+}
+
+/**
+ * Like {@link getConfidentialTransferInstructionPlan}, but stages the batched
+ * range proof in an SPL Record account before verifying it, rather than passing
+ * it inline in the verify instruction data.
+ *
+ * This shrinks the range-proof verification transaction so it leaves room for a
+ * compute-unit-limit instruction, at the cost of extra transactions to create,
+ * write and close the record account. Prefer this variant when sending with the
+ * default transaction plan executor, which reserves a compute-unit-limit
+ * instruction that would otherwise push the inline transaction over the size
+ * limit.
+ */
+export async function getConfidentialTransferWithRecordInstructionPlan(
+    input: GetConfidentialTransferWithRecordInstructionPlanInput,
+): Promise<InstructionPlan> {
+    const proofData = await buildConfidentialTransferProofData(input);
+    const [equalityProofPlan, ciphertextValidityProofPlan, rangeProofPlan] = await Promise.all([
+        buildContextStateProofPlan(
+            proofData.equalityProofData.toBytes(),
+            verifyCiphertextCommitmentEquality,
+            input.payer,
+            input.rpc,
+        ),
+        buildContextStateProofPlan(
+            proofData.ciphertextValidityProofData.toBytes(),
+            verifyBatchedGroupedCiphertext3HandlesValidity,
+            input.payer,
+            input.rpc,
+        ),
+        buildContextStateProofPlan(
+            proofData.rangeProofData.toBytes(),
+            verifyBatchedRangeProofU128,
+            input.payer,
+            input.rpc,
+            input.payer,
+            input.recordPayer ?? input.payer,
+            input.recordAuthority,
+            input.recordRentReceiver,
+        ),
+    ]);
+    return assembleConfidentialTransferPlan(input, proofData, {
+        equalityProofPlan,
+        ciphertextValidityProofPlan,
+        rangeProofPlan,
+    });
 }
 
 /**

@@ -23,7 +23,7 @@ function getElGamalPubkeyAddress() {
 
 it('transfers tokens confidentially between two accounts', async () => {
     // Given a funded source account and an empty destination account.
-    const client = await createValidatorClient();
+    const client = await createValidatorClient({ estimateResourceLimits: false });
     const payer = client.payer;
     const [sourceOwner, destinationOwner] = await Promise.all([
         generateKeyPairSignerWithSol(client),
@@ -71,7 +71,7 @@ it('transfers tokens confidentially between two accounts', async () => {
 
 it('fetches the mint auditor ElGamal pubkey when omitted', async () => {
     // Given a confidential transfer mint configured with an auditor.
-    const client = await createValidatorClient();
+    const client = await createValidatorClient({ estimateResourceLimits: false });
     const payer = client.payer;
     const [sourceOwner, destinationOwner] = await Promise.all([
         generateKeyPairSignerWithSol(client),
@@ -124,7 +124,7 @@ it('fetches the mint auditor ElGamal pubkey when omitted', async () => {
 
 it('uses a provided mint account to resolve the auditor ElGamal pubkey', async () => {
     // Given a confidential transfer mint configured with an auditor.
-    const client = await createValidatorClient();
+    const client = await createValidatorClient({ estimateResourceLimits: false });
     const payer = client.payer;
     const [sourceOwner, destinationOwner] = await Promise.all([
         generateKeyPairSignerWithSol(client),
