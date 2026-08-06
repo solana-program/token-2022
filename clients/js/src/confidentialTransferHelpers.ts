@@ -228,6 +228,12 @@ export type GetConfidentialTransferWithRecordInstructionPlanInput = GetConfident
 export type GetConfidentialTransferWithFeeInstructionPlanInput = GetConfidentialTransferInstructionPlanInput & {
     mintAccount: Mint;
     currentEpoch: number | bigint;
+    /** Funds the record account that stages the range proof. Defaults to `payer`. */
+    recordPayer?: TransactionSigner;
+    /** Signs the record account's write and close. Defaults to an ephemeral signer. */
+    recordAuthority?: TransactionSigner;
+    /** Receives the record account's reclaimed rent on close. Defaults to the record payer. */
+    recordRentReceiver?: Address;
 };
 
 function getTokenProgramAddress(programAddress?: Address) {
@@ -694,6 +700,7 @@ type ConfidentialWithdrawProofData = {
     equalityProofData: CiphertextCommitmentEqualityProofData;
     rangeProofData: BatchedRangeProofU64Data;
     newAvailableBalance: bigint;
+    amount: bigint;
 };
 
 function buildConfidentialWithdrawProofData(
@@ -724,7 +731,7 @@ function buildConfidentialWithdrawProofData(
         [remainingBalanceOpening],
     );
 
-    return { equalityProofData, rangeProofData, newAvailableBalance };
+    return { equalityProofData, rangeProofData, newAvailableBalance, amount };
 }
 
 function assembleConfidentialWithdrawPlan(
@@ -742,7 +749,7 @@ function assembleConfidentialWithdrawPlan(
                 equalityRecord: equalityProofPlan.address,
                 rangeRecord: rangeProofPlan.address,
                 authority: input.authority,
-                amount: BigInt(input.amount),
+                amount: proofData.amount,
                 decimals: input.decimals,
                 newDecryptableAvailableBalance: input.aesKey.encrypt(proofData.newAvailableBalance).toBytes(),
                 equalityProofInstructionOffset: 0,
@@ -1338,7 +1345,9 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
             input.payer,
             input.rpc,
             input.payer,
-            input.payer,
+            input.recordPayer ?? input.payer,
+            input.recordAuthority,
+            input.recordRentReceiver,
         ),
     ]);
 
