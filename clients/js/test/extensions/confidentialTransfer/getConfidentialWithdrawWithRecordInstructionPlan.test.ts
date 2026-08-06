@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 
 import { fetchToken } from '../../../src';
-import { getConfidentialWithdrawInstructionPlan } from '../../../src/confidential';
+import { getConfidentialWithdrawWithRecordInstructionPlan } from '../../../src/confidential';
 import {
     createConfidentialMint,
     createConfidentialTokenAccountWithBalance,
@@ -9,9 +9,10 @@ import {
     generateKeyPairSignerWithSol,
 } from '../../_setup';
 
-it('withdraws tokens from a confidential balance', async () => {
-    // Given a confidential token account funded with an available confidential balance.
-    const client = await createValidatorClient({ estimateResourceLimits: false });
+it('withdraws tokens from a confidential balance with the range proof staged in a record account', async () => {
+    // Given a client with the default resource-limit estimation, so the planner
+    // reserves a provisory compute-unit-limit instruction on every transaction.
+    const client = await createValidatorClient();
     const payer = client.payer;
     const owner = await generateKeyPairSignerWithSol(client);
     const { mint, mintAuthority } = await createConfidentialMint({ client, payer });
@@ -27,9 +28,11 @@ it('withdraws tokens from a confidential balance', async () => {
     });
 
     // When we withdraw part of the confidential balance back to the public balance.
+    // The record-backed range proof keeps the verify transaction small enough to also
+    // carry the compute-unit-limit instruction the executor sets from its estimate.
     const { data: tokenAccount } = await fetchToken(client.rpc, account.token);
     await client.sendTransactions(
-        await getConfidentialWithdrawInstructionPlan({
+        await getConfidentialWithdrawWithRecordInstructionPlan({
             payer,
             rpc: client.rpc,
             token: account.token,
