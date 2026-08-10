@@ -59,7 +59,7 @@
         "@solana/kit": "^7.0.0",
         "@solana/kit-plugin-instruction-plan": "^0.13.0",
         "@solana/kit-plugin-litesvm": "^0.15.0",
-        "@solana/kit-plugin-rpc": "^0.15.0",
+        "@solana/kit-plugin-rpc": "^0.16.0",
         "@solana/kit-plugin-signer": "^0.13.0",
         "@solana/zk-sdk": "^0.5.1",
         "@types/node": "^26",
