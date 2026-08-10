@@ -141,6 +141,7 @@ pub enum CommandName {
     AccountInfo,
     MultisigInfo,
     Display,
+    RecoverNested,
     Gc,
     SyncNative,
     EnableRequiredTransferMemos,
@@ -2126,6 +2127,34 @@ pub fn app<'a>(
                     .required(true)
                     .help("The address of the SPL Token mint, account, or multisig to query"),
                 ),
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::RecoverNested.into())
+                .about("Recover tokens from a nested associated token account")
+                .arg(
+                    Arg::with_name("owner_token_mint")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("OWNER_TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("Mint of the associated token account that owns the nested account"),
+                )
+                .arg(
+                    Arg::with_name("nested_token_mint")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("NESTED_TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(2)
+                        .required(true)
+                        .help(
+                            "Mint of the tokens held in the nested associated token account; may \
+                             be the same as OWNER_TOKEN_MINT_ADDRESS",
+                        ),
+                )
+                .arg(owner_keypair_arg())
+                .nonce_args(true)
+                .offline_args(),
         )
         .subcommand(
             SubCommand::with_name(CommandName::Gc.into())
