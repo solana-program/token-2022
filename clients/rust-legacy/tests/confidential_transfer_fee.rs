@@ -1256,7 +1256,7 @@ async fn test_withdraw_withheld_tokens_with_max_pending_counter() {
         .await
         .unwrap();
 
-    // Saturate destinaion pending counter
+    // Saturate destination pending counter
     token
         .mint_to(
             &fee_collector_account.pubkey(),
