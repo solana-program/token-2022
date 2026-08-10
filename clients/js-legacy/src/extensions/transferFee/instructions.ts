@@ -677,7 +677,7 @@ export function decodeWithdrawWithheldTokensFromAccountsInstructionUnchecked({
         keys[0],
         keys[1],
         keys[2],
-        keys.slice(3, 3 + numTokenAccounts),
+        keys.slice(3, keys.length - numTokenAccounts),
         keys.slice(-1 * numTokenAccounts),
     ];
     return {
