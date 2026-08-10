@@ -215,6 +215,8 @@ async fn main() {
             test_validator,
             payer
         ),
+        async_trial!(recover_nested, test_validator, payer),
+        async_trial!(recover_nested_preflight, test_validator, payer),
         // GC messes with every other test, so have it on its own test validator
         async_trial!(gc, gc_test_validator, gc_payer),
     ];
@@ -512,6 +514,57 @@ async fn mint_tokens(
         ],
     )
     .await
+}
+
+async fn close_associated_account(
+    config: &Config<'_>,
+    payer: &Keypair,
+    account: Pubkey,
+    owner_keypair_file: &NamedTempFile,
+) {
+    process_test_command(
+        config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Close.into(),
+            "--address",
+            &account.to_string(),
+            "--close-authority",
+            owner_keypair_file.path().to_str().unwrap(),
+            "--recipient",
+            &payer.pubkey().to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+}
+
+async fn recover_nested_cmd(
+    config: &Config<'_>,
+    owner_token_mint: Pubkey,
+    nested_token_mint: Pubkey,
+    owner_keypair_file: &NamedTempFile,
+    fee_payer_keypair_file: &NamedTempFile,
+    program_id: &Pubkey,
+    create_missing_associated_accounts: bool,
+) -> CommandResult {
+    let mut args = vec![
+        "spl-token".to_string(),
+        CommandName::RecoverNested.as_ref().to_string(),
+        owner_token_mint.to_string(),
+        nested_token_mint.to_string(),
+        "--owner".to_string(),
+        owner_keypair_file.path().to_str().unwrap().to_string(),
+        "--fee-payer".to_string(),
+        fee_payer_keypair_file.path().to_str().unwrap().to_string(),
+        "--program-id".to_string(),
+        program_id.to_string(),
+    ];
+    if create_missing_associated_accounts {
+        args.push("--create-missing-associated-accounts".to_string());
+    }
+    exec_test_cmd(config, &args).await
 }
 
 async fn run_transfer_test(config: &Config<'_>, payer: &Keypair) {
@@ -1830,6 +1883,345 @@ async fn disable_mint_authority(test_validator: &TestValidator, payer: &Keypair)
         let account = config.rpc_client.get_account(&token).await.unwrap();
         let mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
         assert_eq!(mint.base.mint_authority, COption::None);
+    }
+}
+
+async fn recover_nested(test_validator: &TestValidator, payer: &Keypair) {
+    for program_id in VALID_TOKEN_PROGRAM_IDS.iter() {
+        for same_mint in [false, true] {
+            for close_owner in [false, true] {
+                for close_destination in [false, true] {
+                    if same_mint && close_destination {
+                        continue;
+                    }
+
+                    let config =
+                        test_config_with_default_signer(test_validator, payer, program_id);
+                    let owner = Keypair::new();
+                    let owner_keypair_file = NamedTempFile::new().unwrap();
+                    write_keypair_file(&owner, &owner_keypair_file).unwrap();
+                    let fee_payer_keypair_file = NamedTempFile::new().unwrap();
+                    write_keypair_file(payer, &fee_payer_keypair_file).unwrap();
+                    let blockhash = config.rpc_client.get_latest_blockhash().await.unwrap();
+                    let transaction = Transaction::new_signed_with_payer(
+                        &[system_instruction::transfer(
+                            &payer.pubkey(),
+                            &owner.pubkey(),
+                            1_000_000,
+                        )],
+                        Some(&payer.pubkey()),
+                        &[payer],
+                        blockhash,
+                    );
+                    config
+                        .rpc_client
+                        .send_and_confirm_transaction(&transaction)
+                        .await
+                        .unwrap();
+
+                    let owner_token_mint = create_token(&config, payer).await;
+                    let nested_token_mint = if same_mint {
+                        owner_token_mint
+                    } else {
+                        create_token(&config, payer).await
+                    };
+                    let owner_associated_account = create_associated_account(
+                        &config,
+                        payer,
+                        &owner_token_mint,
+                        &owner.pubkey(),
+                    )
+                    .await;
+                    let destination_associated_account = if same_mint {
+                        owner_associated_account
+                    } else {
+                        create_associated_account(
+                            &config,
+                            payer,
+                            &nested_token_mint,
+                            &owner.pubkey(),
+                        )
+                        .await
+                    };
+                    let nested_associated_account = create_associated_account(
+                        &config,
+                        payer,
+                        &nested_token_mint,
+                        &owner_associated_account,
+                    )
+                    .await;
+
+                    mint_tokens(
+                        &config,
+                        payer,
+                        nested_token_mint,
+                        1.0,
+                        nested_associated_account,
+                    )
+                    .await
+                    .unwrap();
+
+                    for token_account in [
+                        owner_associated_account,
+                        destination_associated_account,
+                        nested_associated_account,
+                    ] {
+                        assert_eq!(
+                            config
+                                .rpc_client
+                                .get_account(&token_account)
+                                .await
+                                .unwrap()
+                                .owner,
+                            *program_id,
+                            "token account {token_account} has the wrong program owner"
+                        );
+                    }
+
+                    if close_owner {
+                        close_associated_account(
+                            &config,
+                            payer,
+                            owner_associated_account,
+                            &owner_keypair_file,
+                        )
+                        .await;
+                    }
+                    if close_destination {
+                        close_associated_account(
+                            &config,
+                            payer,
+                            destination_associated_account,
+                            &owner_keypair_file,
+                        )
+                        .await;
+                    }
+
+                    let nested_account_lamports = config
+                        .rpc_client
+                        .get_account(&nested_associated_account)
+                        .await
+                        .unwrap()
+                        .lamports;
+                    let owner_lamports_before = config
+                        .rpc_client
+                        .get_balance(&owner.pubkey())
+                        .await
+                        .unwrap();
+                    let missing_required_account = close_owner || close_destination;
+
+                    if missing_required_account {
+                        let error = recover_nested_cmd(
+                            &config,
+                            owner_token_mint,
+                            nested_token_mint,
+                            &owner_keypair_file,
+                            &fee_payer_keypair_file,
+                            program_id,
+                            false,
+                        )
+                        .await
+                        .expect_err("recover-nested should fail when a required ATA is missing")
+                        .to_string();
+                        assert!(
+                            error.contains(
+                                "cannot recover nested tokens because required associated token \
+                                 accounts are missing"
+                            ),
+                            "unexpected error: {error}"
+                        );
+                        assert!(
+                            error.contains("spl-token create-account"),
+                            "error does not include creation guidance: {error}"
+                        );
+                        assert!(
+                            error.contains("--create-missing-associated-accounts"),
+                            "error does not mention the creation flag: {error}"
+                        );
+                        if close_owner {
+                            assert!(
+                                error.contains(&owner_associated_account.to_string()),
+                                "error does not identify the parent ATA: {error}"
+                            );
+                        }
+                        if close_destination {
+                            assert!(
+                                error.contains(&destination_associated_account.to_string()),
+                                "error does not identify the destination ATA: {error}"
+                            );
+                        }
+                        assert!(
+                            config
+                                .rpc_client
+                                .get_account(&nested_associated_account)
+                                .await
+                                .is_ok(),
+                            "nested account changed after failed recovery"
+                        );
+                        for (account, was_closed) in [
+                            (owner_associated_account, close_owner),
+                            (destination_associated_account, close_destination),
+                        ] {
+                            if was_closed {
+                                config
+                                    .rpc_client
+                                    .get_account(&account)
+                                    .await
+                                    .unwrap_err();
+                            }
+                        }
+                    }
+
+                    recover_nested_cmd(
+                        &config,
+                        owner_token_mint,
+                        nested_token_mint,
+                        &owner_keypair_file,
+                        &fee_payer_keypair_file,
+                        program_id,
+                        missing_required_account,
+                    )
+                    .await
+                    .unwrap_or_else(|error| {
+                        panic!(
+                            "recover-nested failed for program {program_id} with \
+                             same_mint={same_mint}, close_owner={close_owner}, \
+                             close_destination={close_destination}: {error}"
+                        )
+                    });
+
+                    let destination = config
+                        .rpc_client
+                        .get_token_account(&destination_associated_account)
+                        .await
+                        .unwrap()
+                        .unwrap();
+                    let expected_amount = spl_token_2022::ui_amount_to_amount(1.0, TEST_DECIMALS);
+                    assert_eq!(destination.token_amount.amount, expected_amount.to_string());
+                    config
+                        .rpc_client
+                        .get_account(&nested_associated_account)
+                        .await
+                        .unwrap_err();
+                    let owner_lamports_after = config
+                        .rpc_client
+                        .get_balance(&owner.pubkey())
+                        .await
+                        .unwrap();
+                    assert_eq!(
+                        owner_lamports_after,
+                        owner_lamports_before + nested_account_lamports
+                    );
+                }
+            }
+        }
+    }
+}
+
+async fn recover_nested_preflight(test_validator: &TestValidator, payer: &Keypair) {
+    for program_id in VALID_TOKEN_PROGRAM_IDS.iter() {
+        let config = test_config_with_default_signer(test_validator, payer, program_id);
+        let owner = Keypair::new();
+        let owner_keypair_file = NamedTempFile::new().unwrap();
+        write_keypair_file(&owner, &owner_keypair_file).unwrap();
+        let fee_payer_keypair_file = NamedTempFile::new().unwrap();
+        write_keypair_file(payer, &fee_payer_keypair_file).unwrap();
+
+        let owner_token_mint = create_token(&config, payer).await;
+        let nested_token_mint = create_token(&config, payer).await;
+        let owner_associated_account = create_associated_account(
+            &config,
+            payer,
+            &owner_token_mint,
+            &owner.pubkey(),
+        )
+        .await;
+        let destination_associated_account = create_associated_account(
+            &config,
+            payer,
+            &nested_token_mint,
+            &owner.pubkey(),
+        )
+        .await;
+        let nested_associated_account = get_associated_token_address_with_program_id(
+            &owner_associated_account,
+            &nested_token_mint,
+            program_id,
+        );
+
+        // The flag does not skip preflight: a missing nested account is fatal.
+        let error = recover_nested_cmd(
+            &config,
+            owner_token_mint,
+            nested_token_mint,
+            &owner_keypair_file,
+            &fee_payer_keypair_file,
+            program_id,
+            true,
+        )
+        .await
+        .expect_err("recover-nested should fail when the nested account is missing")
+        .to_string();
+        assert!(
+            error.contains(&nested_associated_account.to_string())
+                && error.contains("does not exist"),
+            "unexpected error: {error}"
+        );
+        assert!(
+            config
+                .rpc_client
+                .get_account(&nested_associated_account)
+                .await
+                .is_err(),
+            "preflight created the nested account"
+        );
+        assert!(
+            config
+                .rpc_client
+                .get_account(&owner_associated_account)
+                .await
+                .is_ok()
+                && config
+                    .rpc_client
+                    .get_account(&destination_associated_account)
+                    .await
+                    .is_ok(),
+            "preflight failure changed required ATAs"
+        );
+
+        // An existing but empty nested account is not eligible for recovery.
+        create_associated_account(
+            &config,
+            payer,
+            &nested_token_mint,
+            &owner_associated_account,
+        )
+        .await;
+        let error = recover_nested_cmd(
+            &config,
+            owner_token_mint,
+            nested_token_mint,
+            &owner_keypair_file,
+            &fee_payer_keypair_file,
+            program_id,
+            true,
+        )
+        .await
+        .expect_err("recover-nested should fail when the nested account is empty")
+        .to_string();
+        assert!(
+            error.contains(&nested_associated_account.to_string())
+                && error.contains("has no tokens to recover"),
+            "unexpected error: {error}"
+        );
+        assert!(
+            config
+                .rpc_client
+                .get_account(&nested_associated_account)
+                .await
+                .is_ok(),
+            "nested account changed after failed preflight"
+        );
     }
 }
 
