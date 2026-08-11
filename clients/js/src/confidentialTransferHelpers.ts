@@ -83,6 +83,8 @@ import {
     getReallocateInstruction,
     getUpdateConfidentialMintBurnDecryptableSupplyInstruction,
     fetchToken,
+    type ConfidentialBurnInput,
+    type ConfidentialMintInput,
 } from './generated';
 
 const DEFAULT_MAXIMUM_PENDING_BALANCE_CREDIT_COUNTER = 1n << 16n;
@@ -91,12 +93,14 @@ const TRANSFER_AMOUNT_LO_BIT_LENGTH = 16n;
 const TRANSFER_AMOUNT_HI_BIT_LENGTH = 32n;
 const FEE_AMOUNT_LO_BIT_LENGTH = 16n;
 const FEE_AMOUNT_HI_BIT_LENGTH = 32n;
+const MINT_BURN_AMOUNT_LO_BIT_LENGTH = 16n;
+const MINT_BURN_AMOUNT_HI_BIT_LENGTH = 32n;
 const REMAINING_BALANCE_BIT_LENGTH = 64;
 const RANGE_PROOF_PADDING_BIT_LENGTH = 16;
 // A mint/burn amount is range-proven as a 16-bit low half + 32-bit high half, so
 // it must fit in 48 bits (matching the Rust reference); a larger amount would
 // otherwise silently produce a range proof the on-chain verifier rejects.
-const MAX_MINT_BURN_AMOUNT = (1n << (TRANSFER_AMOUNT_LO_BIT_LENGTH + TRANSFER_AMOUNT_HI_BIT_LENGTH)) - 1n;
+const MAX_MINT_BURN_AMOUNT = (1n << (MINT_BURN_AMOUNT_LO_BIT_LENGTH + MINT_BURN_AMOUNT_HI_BIT_LENGTH)) - 1n;
 const MAX_FEE_BASIS_POINTS_SUB_ONE = 9_999n;
 const MAX_FEE_BASIS_POINTS = 10_000n;
 const DELTA_BIT_LENGTH = 16;
@@ -1497,6 +1501,14 @@ function assertMintBurnAmount(amount: bigint, label: 'Mint' | 'Burn'): void {
     }
 }
 
+// The context-state setup/cleanup plans and mint-instruction arguments produced
+// by buildConfidentialMintProofPlan, ready to assemble into an instruction plan.
+type ConfidentialMintProofPlan = {
+    setup: InstructionPlan;
+    cleanup: InstructionPlan;
+    mintArgs: ConfidentialMintInput;
+};
+
 /**
  * Computes the three mint proofs (equality, grouped-ciphertext validity, U128
  * range), builds their context-state setup/cleanup plans, and assembles the
@@ -1507,11 +1519,21 @@ function assertMintBurnAmount(amount: bigint, label: 'Mint' | 'Burn'): void {
  * The amount is grouped-encrypted under `[destination, supply, auditor]`; the
  * supply handle (index 1) is homomorphically added to the mint's current supply
  * ciphertext, and the auditor handle (index 2) is carried by the instruction.
+ *
+ * Unlike {@link buildConfidentialTransferProofData} and
+ * {@link buildConfidentialWithdrawProofData}, which separate pure proof-data
+ * computation from context-state plan assembly (so the inline and record-backed
+ * variants can share one `assembleXPlan` function), this folds proof-data
+ * computation, context-state plan construction and instruction-arg assembly into
+ * one function parameterized by an optional `record` option. Burn has four
+ * variants (standard/permissioned × inline/record) sharing this exact logic;
+ * splitting it the transfer/withdraw way would mean duplicating the
+ * context-state `Promise.all` block in each of them instead of once here.
  */
 async function buildConfidentialMintProofPlan(
     input: GetConfidentialMintInstructionPlanInput,
     record?: RecordBackedProofOptions,
-) {
+): Promise<ConfidentialMintProofPlan> {
     const mintBurnExtension = getRequiredMintExtension(input.mintAccount, 'ConfidentialMintBurn');
     const amount = BigInt(input.amount);
     assertMintBurnAmount(amount, 'Mint');
@@ -1520,7 +1542,7 @@ async function buildConfidentialMintProofPlan(
     const newSupply = currentSupply + amount;
     assertU64Amount(newSupply, 'New supply after mint');
 
-    const [amountLo, amountHi] = splitAmount(amount, TRANSFER_AMOUNT_LO_BIT_LENGTH);
+    const [amountLo, amountHi] = splitAmount(amount, MINT_BURN_AMOUNT_LO_BIT_LENGTH);
     const destinationPubkey = getElGamalPubkeyFromAddress(
         getRequiredConfidentialTransferAccountExtension(input.destinationTokenAccount).elgamalPubkey,
     );
@@ -1558,7 +1580,7 @@ async function buildConfidentialMintProofPlan(
             mintBurnExtension.confidentialSupply,
             supplyCiphertextLo,
             supplyCiphertextHi,
-            TRANSFER_AMOUNT_LO_BIT_LENGTH,
+            MINT_BURN_AMOUNT_LO_BIT_LENGTH,
         ),
     );
 
@@ -1593,8 +1615,8 @@ async function buildConfidentialMintProofPlan(
         new BigUint64Array([newSupply, amountLo, amountHi, 0n]),
         Uint8Array.from([
             REMAINING_BALANCE_BIT_LENGTH,
-            Number(TRANSFER_AMOUNT_LO_BIT_LENGTH),
-            Number(TRANSFER_AMOUNT_HI_BIT_LENGTH),
+            Number(MINT_BURN_AMOUNT_LO_BIT_LENGTH),
+            Number(MINT_BURN_AMOUNT_HI_BIT_LENGTH),
             RANGE_PROOF_PADDING_BIT_LENGTH,
         ]),
         [newSupplyOpening, openingLo, openingHi, paddingOpening],
@@ -1710,6 +1732,16 @@ export async function getConfidentialMintWithRecordInstructionPlan(
     ]);
 }
 
+// The context-state setup/cleanup plans and burn-instruction arguments produced
+// by buildConfidentialBurnProofPlan, ready to assemble into an instruction plan.
+// `multiSigners` and `permissionedBurnAuthority` are variant-specific and added
+// by each caller, so they're excluded from `burnArgs`.
+type ConfidentialBurnProofPlan = {
+    setup: InstructionPlan;
+    cleanup: InstructionPlan;
+    burnArgs: Omit<ConfidentialBurnInput, 'multiSigners'>;
+};
+
 /**
  * Computes the three burn proofs (equality, grouped-ciphertext validity, U128
  * range), builds their context-state setup/cleanup plans, and assembles the
@@ -1722,11 +1754,15 @@ export async function getConfidentialMintWithRecordInstructionPlan(
  * The amount is grouped-encrypted under `[source, supply, auditor]`; the source
  * handle (index 0) is homomorphically subtracted from the account's available
  * balance, and the auditor handle (index 2) is carried by the instruction.
+ *
+ * See {@link buildConfidentialMintProofPlan} for why this folds proof-data
+ * computation, context-state plan construction and arg assembly into one
+ * function instead of following the transfer/withdraw builders' split shape.
  */
 async function buildConfidentialBurnProofPlan(
     input: GetConfidentialBurnInstructionPlanInput,
     record?: RecordBackedProofOptions,
-) {
+): Promise<ConfidentialBurnProofPlan> {
     const sourceAccount = getRequiredConfidentialTransferAccountExtension(input.sourceTokenAccount);
     const mintBurnExtension = getRequiredMintExtension(input.mintAccount, 'ConfidentialMintBurn');
     const amount = BigInt(input.amount);
@@ -1735,7 +1771,7 @@ async function buildConfidentialBurnProofPlan(
     const currentAvailableBalance = decryptAvailableBalance(sourceAccount, input.aesKey);
     const remainingBalance = computeNewAvailableBalance(currentAvailableBalance, amount);
 
-    const [amountLo, amountHi] = splitAmount(amount, TRANSFER_AMOUNT_LO_BIT_LENGTH);
+    const [amountLo, amountHi] = splitAmount(amount, MINT_BURN_AMOUNT_LO_BIT_LENGTH);
     const sourcePubkey = input.sourceElgamalKeypair.pubkey();
     const supplyPubkey = getElGamalPubkeyFromAddress(mintBurnExtension.supplyElgamalPubkey);
     const auditorPubkey = await getAuditorElGamalPubkey(input);
@@ -1771,7 +1807,7 @@ async function buildConfidentialBurnProofPlan(
             sourceAccount.availableBalance,
             sourceCiphertextLo,
             sourceCiphertextHi,
-            TRANSFER_AMOUNT_LO_BIT_LENGTH,
+            MINT_BURN_AMOUNT_LO_BIT_LENGTH,
         ),
     );
 
@@ -1806,8 +1842,8 @@ async function buildConfidentialBurnProofPlan(
         new BigUint64Array([remainingBalance, amountLo, amountHi, 0n]),
         Uint8Array.from([
             REMAINING_BALANCE_BIT_LENGTH,
-            Number(TRANSFER_AMOUNT_LO_BIT_LENGTH),
-            Number(TRANSFER_AMOUNT_HI_BIT_LENGTH),
+            Number(MINT_BURN_AMOUNT_LO_BIT_LENGTH),
+            Number(MINT_BURN_AMOUNT_HI_BIT_LENGTH),
             RANGE_PROOF_PADDING_BIT_LENGTH,
         ]),
         [newAvailableBalanceOpening, openingLo, openingHi, paddingOpening],
