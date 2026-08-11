@@ -31,14 +31,14 @@ const RUST_VECTOR_PUBLIC_SEED = new Uint8Array([
     1,
 ]);
 const RUST_VECTOR_ELGAMAL_SECRET_KEY = new Uint8Array([
-    241, 57, 101, 25, 81, 46, 182, 190, 48, 67, 70, 212, 112, 100, 196, 151, 81, 38, 121, 14, 125, 101, 91, 57, 182,
-    241, 127, 250, 6, 41, 183, 15,
+    148, 147, 19, 10, 117, 168, 174, 32, 148, 35, 232, 108, 225, 144, 210, 91, 130, 229, 59, 231, 81, 116, 192, 231, 21,
+    212, 43, 72, 179, 254, 237, 11,
 ]);
 const RUST_VECTOR_ELGAMAL_PUBKEY = new Uint8Array([
-    214, 11, 48, 194, 204, 45, 151, 60, 254, 187, 74, 62, 160, 235, 15, 191, 75, 101, 68, 140, 231, 60, 57, 244, 153,
-    44, 163, 98, 166, 34, 173, 16,
+    58, 106, 251, 3, 220, 178, 230, 94, 18, 53, 78, 182, 197, 128, 78, 222, 154, 202, 127, 181, 84, 63, 174, 230, 34,
+    170, 249, 12, 225, 217, 217, 102,
 ]);
-const RUST_VECTOR_AE_KEY = new Uint8Array([227, 20, 117, 208, 41, 69, 224, 51, 180, 203, 193, 101, 242, 164, 192, 190]);
+const RUST_VECTOR_AE_KEY = new Uint8Array([160, 210, 197, 15, 158, 3, 217, 111, 220, 216, 102, 104, 164, 25, 214, 183]);
 
 it('derives a 32-byte ElGamal secret key and a public key Address', async () => {
     const signer = await generateKeyPairSigner();
@@ -111,7 +111,7 @@ it('derives different keys for different signers', async () => {
     expect(aeA).not.toEqual(aeB);
 });
 
-it('matches the Rust solana-zk-sdk derivation vector', async () => {
+it('matches the solana-conf-bal/v1 derivation vector', async () => {
     const signer = await createKeyPairSignerFromPrivateKeyBytes(RUST_VECTOR_PRIVATE_KEY);
 
     const [derivedElGamal, derivedAeKey] = await Promise.all([

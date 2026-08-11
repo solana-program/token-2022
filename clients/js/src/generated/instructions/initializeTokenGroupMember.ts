@@ -8,6 +8,8 @@
 
 import {
     combineCodec,
+    fixDecoderSize,
+    fixEncoderSize,
     getBytesDecoder,
     getBytesEncoder,
     getStructDecoder,
@@ -18,9 +20,9 @@ import {
     type AccountMeta,
     type AccountSignerMeta,
     type Address,
-    type Codec,
-    type Decoder,
-    type Encoder,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -38,7 +40,7 @@ export const INITIALIZE_TOKEN_GROUP_MEMBER_DISCRIMINATOR: ReadonlyUint8Array = n
 ]);
 
 export function getInitializeTokenGroupMemberDiscriminatorBytes(): ReadonlyUint8Array {
-    return getBytesEncoder().encode(INITIALIZE_TOKEN_GROUP_MEMBER_DISCRIMINATOR);
+    return fixEncoderSize(getBytesEncoder(), 8).encode(INITIALIZE_TOKEN_GROUP_MEMBER_DISCRIMINATOR);
 }
 
 export type InitializeTokenGroupMemberInstruction<
@@ -70,18 +72,18 @@ export type InitializeTokenGroupMemberInstructionData = { discriminator: Readonl
 
 export type InitializeTokenGroupMemberInstructionDataArgs = {};
 
-export function getInitializeTokenGroupMemberInstructionDataEncoder(): Encoder<InitializeTokenGroupMemberInstructionDataArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', getBytesEncoder()]]), value => ({
+export function getInitializeTokenGroupMemberInstructionDataEncoder(): FixedSizeEncoder<InitializeTokenGroupMemberInstructionDataArgs> {
+    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)]]), value => ({
         ...value,
         discriminator: INITIALIZE_TOKEN_GROUP_MEMBER_DISCRIMINATOR,
     }));
 }
 
-export function getInitializeTokenGroupMemberInstructionDataDecoder(): Decoder<InitializeTokenGroupMemberInstructionData> {
-    return getStructDecoder([['discriminator', getBytesDecoder()]]);
+export function getInitializeTokenGroupMemberInstructionDataDecoder(): FixedSizeDecoder<InitializeTokenGroupMemberInstructionData> {
+    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)]]);
 }
 
-export function getInitializeTokenGroupMemberInstructionDataCodec(): Codec<
+export function getInitializeTokenGroupMemberInstructionDataCodec(): FixedSizeCodec<
     InitializeTokenGroupMemberInstructionDataArgs,
     InitializeTokenGroupMemberInstructionData
 > {

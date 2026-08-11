@@ -66,10 +66,12 @@ jobs:
       - name: Compute variables
         id: compute
         shell: bash
+        env:
+          PACKAGE_PATH: ${{ inputs.package-path }}
         run: |
           echo "RUST_TOOLCHAIN_NIGHTLY=$(make rust-toolchain-nightly)" >> "$GITHUB_OUTPUT"
           echo "SOLANA_CLI_VERSION=$(make solana-cli-version)" >> "$GITHUB_OUTPUT"
-          TARGET=$(echo ${{ inputs.package-path }} | sed 's#/#-#')
+          TARGET=$(echo "$PACKAGE_PATH" | sed 's#/#-#')
           echo "TARGET=$TARGET" >> "$GITHUB_OUTPUT"
 
   main:

@@ -8,6 +8,8 @@
 
 import {
     combineCodec,
+    fixDecoderSize,
+    fixEncoderSize,
     getAddressDecoder,
     getAddressEncoder,
     getBytesDecoder,
@@ -24,9 +26,9 @@ import {
     type AccountMeta,
     type AccountSignerMeta,
     type Address,
-    type Codec,
-    type Decoder,
-    type Encoder,
+    type FixedSizeCodec,
+    type FixedSizeDecoder,
+    type FixedSizeEncoder,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -46,7 +48,7 @@ export const INITIALIZE_TOKEN_GROUP_DISCRIMINATOR: ReadonlyUint8Array = new Uint
 ]);
 
 export function getInitializeTokenGroupDiscriminatorBytes(): ReadonlyUint8Array {
-    return getBytesEncoder().encode(INITIALIZE_TOKEN_GROUP_DISCRIMINATOR);
+    return fixEncoderSize(getBytesEncoder(), 8).encode(INITIALIZE_TOKEN_GROUP_DISCRIMINATOR);
 }
 
 export type InitializeTokenGroupInstruction<
@@ -83,10 +85,10 @@ export type InitializeTokenGroupInstructionDataArgs = {
     maxSize: number | bigint;
 };
 
-export function getInitializeTokenGroupInstructionDataEncoder(): Encoder<InitializeTokenGroupInstructionDataArgs> {
+export function getInitializeTokenGroupInstructionDataEncoder(): FixedSizeEncoder<InitializeTokenGroupInstructionDataArgs> {
     return transformEncoder(
         getStructEncoder([
-            ['discriminator', getBytesEncoder()],
+            ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
             ['updateAuthority', getOptionEncoder(getAddressEncoder(), { prefix: null, noneValue: 'zeroes' })],
             ['maxSize', getU64Encoder()],
         ]),
@@ -94,15 +96,15 @@ export function getInitializeTokenGroupInstructionDataEncoder(): Encoder<Initial
     );
 }
 
-export function getInitializeTokenGroupInstructionDataDecoder(): Decoder<InitializeTokenGroupInstructionData> {
+export function getInitializeTokenGroupInstructionDataDecoder(): FixedSizeDecoder<InitializeTokenGroupInstructionData> {
     return getStructDecoder([
-        ['discriminator', getBytesDecoder()],
+        ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
         ['updateAuthority', getOptionDecoder(getAddressDecoder(), { prefix: null, noneValue: 'zeroes' })],
         ['maxSize', getU64Decoder()],
     ]);
 }
 
-export function getInitializeTokenGroupInstructionDataCodec(): Codec<
+export function getInitializeTokenGroupInstructionDataCodec(): FixedSizeCodec<
     InitializeTokenGroupInstructionDataArgs,
     InitializeTokenGroupInstructionData
 > {

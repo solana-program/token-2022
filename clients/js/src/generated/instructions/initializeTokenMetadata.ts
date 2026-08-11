@@ -10,6 +10,8 @@ import {
     addDecoderSizePrefix,
     addEncoderSizePrefix,
     combineCodec,
+    fixDecoderSize,
+    fixEncoderSize,
     getBytesDecoder,
     getBytesEncoder,
     getStructDecoder,
@@ -44,7 +46,7 @@ export const INITIALIZE_TOKEN_METADATA_DISCRIMINATOR: ReadonlyUint8Array = new U
 ]);
 
 export function getInitializeTokenMetadataDiscriminatorBytes(): ReadonlyUint8Array {
-    return getBytesEncoder().encode(INITIALIZE_TOKEN_METADATA_DISCRIMINATOR);
+    return fixEncoderSize(getBytesEncoder(), 8).encode(INITIALIZE_TOKEN_METADATA_DISCRIMINATOR);
 }
 
 export type InitializeTokenMetadataInstruction<
@@ -90,7 +92,7 @@ export type InitializeTokenMetadataInstructionDataArgs = {
 export function getInitializeTokenMetadataInstructionDataEncoder(): Encoder<InitializeTokenMetadataInstructionDataArgs> {
     return transformEncoder(
         getStructEncoder([
-            ['discriminator', getBytesEncoder()],
+            ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
             ['name', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
             ['symbol', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
             ['uri', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
@@ -101,7 +103,7 @@ export function getInitializeTokenMetadataInstructionDataEncoder(): Encoder<Init
 
 export function getInitializeTokenMetadataInstructionDataDecoder(): Decoder<InitializeTokenMetadataInstructionData> {
     return getStructDecoder([
-        ['discriminator', getBytesDecoder()],
+        ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
         ['name', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
         ['symbol', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
         ['uri', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],

@@ -1,18 +1,16 @@
 import { expect, it } from 'vitest';
 
-import { fetchMint, fetchToken, getApplyConfidentialPendingBurnInstruction } from '../../../src';
+import { fetchMint, fetchToken } from '../../../src';
 import {
     decryptConfidentialTransferBalance,
     getApplyConfidentialPendingBalanceInstructionFromToken,
-    getConfidentialBurnInstructionPlan,
-    getConfidentialMintInstructionPlan,
-    getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply,
+    getConfidentialBurnWithRecordInstructionPlan,
+    getConfidentialMintWithRecordInstructionPlan,
 } from '../../../src/confidential';
 import {
     createConfidentialMintBurnMint,
     createConfidentialTokenAccount,
     createValidatorClient,
-    fetchDecryptableSupply,
     generateKeyPairSignerWithSol,
 } from '../../_setup';
 
@@ -20,12 +18,11 @@ const DECIMALS = 2;
 const MINT_AMOUNT = 500n;
 const BURN_AMOUNT = 200n;
 
-it('confidentially mints into, applies, burns from, and re-syncs the supply of a mint-burn mint', async () => {
-    // Given a mint-burn mint (both ConfidentialTransferMint + ConfidentialMintBurn)
-    // and a confidential token account for an owner.
-    // The inline mint/burn plans send their batched range proof in the verify
-    // instruction data, which leaves no room for a compute-unit-limit instruction.
-    const client = await createValidatorClient({ estimateResourceLimits: false });
+it('confidentially mints and burns with the range proof staged in a record account', async () => {
+    // Given a client with the default resource-limit estimation, so the planner
+    // reserves a provisory compute-unit-limit instruction on every transaction.
+    // The inline mint/burn plans cannot fit one; the record-backed plans can.
+    const client = await createValidatorClient();
     const payer = client.payer;
     const owner = await generateKeyPairSignerWithSol(client);
     const { mint, mintAuthority, supplyElgamalKeypair, supplyAesKey } = await createConfidentialMintBurnMint({
@@ -41,7 +38,7 @@ it('confidentially mints into, applies, burns from, and re-syncs the supply of a
         fetchMint(client.rpc, mint),
     ]);
     await client.sendTransactions(
-        await getConfidentialMintInstructionPlan({
+        await getConfidentialMintWithRecordInstructionPlan({
             payer,
             rpc: client.rpc,
             token: account.token,
@@ -83,7 +80,7 @@ it('confidentially mints into, applies, burns from, and re-syncs the supply of a
         fetchMint(client.rpc, mint),
     ]);
     await client.sendTransactions(
-        await getConfidentialBurnInstructionPlan({
+        await getConfidentialBurnWithRecordInstructionPlan({
             payer,
             rpc: client.rpc,
             token: account.token,
@@ -106,19 +103,49 @@ it('confidentially mints into, applies, burns from, and re-syncs the supply of a
             aesKey: account.aesKey,
         }).availableBalance,
     ).toBe(MINT_AMOUNT - BURN_AMOUNT);
+});
 
-    // Finally the authority applies the mint's pending burn and re-syncs the
-    // decryptable supply (ApplyPendingBurn advances the encrypted supply but
-    // cannot re-encrypt the AES decryptable supply).
-    await client.sendTransaction([
-        getApplyConfidentialPendingBurnInstruction({ mint, authority: mintAuthority }),
-        getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply({
-            mint,
-            authority: mintAuthority,
-            supplyAesKey,
-            supply: MINT_AMOUNT - BURN_AMOUNT,
-        }),
+it('reimburses a distinct record payer for the staged range-proof rent', async () => {
+    // Given a separate signer that funds the record account, distinct from the fee payer.
+    const client = await createValidatorClient();
+    const payer = client.payer;
+    const [owner, recordPayer] = await Promise.all([
+        generateKeyPairSignerWithSol(client),
+        generateKeyPairSignerWithSol(client),
     ]);
+    const { mint, mintAuthority, supplyElgamalKeypair, supplyAesKey } = await createConfidentialMintBurnMint({
+        client,
+        payer,
+        decimals: DECIMALS,
+    });
+    const account = await createConfidentialTokenAccount({ client, payer, owner, mint });
 
-    expect(await fetchDecryptableSupply({ client, mint, supplyAesKey })).toBe(MINT_AMOUNT - BURN_AMOUNT);
+    const recordPayerBalanceBefore = (await client.rpc.getBalance(recordPayer.address).send()).value;
+
+    // When the mint stages its range proof in a record account funded by `recordPayer`.
+    const [{ data: destinationTokenAccount }, { data: mintAccount }] = await Promise.all([
+        fetchToken(client.rpc, account.token),
+        fetchMint(client.rpc, mint),
+    ]);
+    await client.sendTransactions(
+        await getConfidentialMintWithRecordInstructionPlan({
+            payer,
+            rpc: client.rpc,
+            token: account.token,
+            mint,
+            mintAccount,
+            destinationTokenAccount,
+            authority: mintAuthority,
+            amount: MINT_AMOUNT,
+            supplyElgamalKeypair,
+            supplyAesKey,
+            recordPayer,
+        }),
+    );
+
+    // Then the record payer is fully reimbursed when the record account is closed: it
+    // funds the rent on create and receives it back on close (defaulting to the record
+    // payer), and it never pays transaction fees, so its balance is unchanged.
+    const recordPayerBalanceAfter = (await client.rpc.getBalance(recordPayer.address).send()).value;
+    expect(recordPayerBalanceAfter).toBe(recordPayerBalanceBefore);
 });

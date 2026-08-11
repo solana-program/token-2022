@@ -16,7 +16,7 @@ import {
 
 it('empties a zero confidential available balance for account closing', async () => {
     // Given a confidential token account whose confidential balance was fully withdrawn.
-    const client = await createValidatorClient();
+    const client = await createValidatorClient({ estimateResourceLimits: false });
     const payer = client.payer;
     const owner = await generateKeyPairSignerWithSol(client);
     const { mint, mintAuthority } = await createConfidentialMint({ client, payer });

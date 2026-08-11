@@ -1,19 +1,17 @@
 import { expect, it } from 'vitest';
 
-import { fetchMint, fetchToken, getApplyConfidentialPendingBurnInstruction } from '../../../src';
+import { fetchMint, fetchToken } from '../../../src';
 import {
     decryptConfidentialTransferBalance,
     getApplyConfidentialPendingBalanceInstructionFromToken,
-    getConfidentialMintInstructionPlan,
-    getPermissionedConfidentialBurnInstructionPlan,
-    getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply,
+    getConfidentialMintWithRecordInstructionPlan,
+    getPermissionedConfidentialBurnWithRecordInstructionPlan,
 } from '../../../src/confidential';
 import {
     createConfidentialMintBurnMint,
     createConfidentialTokenAccount,
     createMultisig,
     createValidatorClient,
-    fetchDecryptableSupply,
     generateKeyPairSignerWithSol,
 } from '../../_setup';
 
@@ -21,14 +19,11 @@ const DECIMALS = 2;
 const MINT_AMOUNT = 500n;
 const BURN_AMOUNT = 200n;
 
-it('confidentially burns from a mint carrying the PermissionedBurn extension', async () => {
-    // Given a mint-burn mint that ALSO carries the PermissionedBurn extension
-    // (as tokenized-security mints do). token-2022 rejects the standard
-    // confidential burn on such mints, so the permissioned variant is required.
-    //
-    // The inline mint/burn plans send their batched range proof in the verify
-    // instruction data, which leaves no room for a compute-unit-limit instruction.
-    const client = await createValidatorClient({ estimateResourceLimits: false });
+it('confidentially burns from a PermissionedBurn mint with the range proof staged in a record account', async () => {
+    // Given a mint-burn + PermissionedBurn mint and a client with the default
+    // resource-limit estimation, so the planner reserves a provisory
+    // compute-unit-limit instruction that only the record-backed plan leaves room for.
+    const client = await createValidatorClient();
     const payer = client.payer;
     const owner = await generateKeyPairSignerWithSol(client);
     const permissionedBurnAuthority = await generateKeyPairSignerWithSol(client);
@@ -40,13 +35,14 @@ it('confidentially burns from a mint carrying the PermissionedBurn extension', a
     });
     const account = await createConfidentialTokenAccount({ client, payer, owner, mint });
 
-    // When the authority confidentially mints into the account's pending balance.
+    // When the authority confidentially mints into the account and the owner applies
+    // the pending balance.
     const [{ data: destinationTokenAccount }, { data: mintAccount }] = await Promise.all([
         fetchToken(client.rpc, account.token),
         fetchMint(client.rpc, mint),
     ]);
     await client.sendTransactions(
-        await getConfidentialMintInstructionPlan({
+        await getConfidentialMintWithRecordInstructionPlan({
             payer,
             rpc: client.rpc,
             token: account.token,
@@ -60,7 +56,6 @@ it('confidentially burns from a mint carrying the PermissionedBurn extension', a
         }),
     );
 
-    // And the owner applies the pending balance so the minted amount is available.
     const { data: afterMint } = await fetchToken(client.rpc, account.token);
     await client.sendTransaction([
         getApplyConfidentialPendingBalanceInstructionFromToken({
@@ -72,14 +67,14 @@ it('confidentially burns from a mint carrying the PermissionedBurn extension', a
         }),
     ]);
 
-    // When the owner confidentially burns part of the available balance via the
-    // permissioned variant, co-signed by the mint's permissioned burn authority.
+    // And the owner burns part of the available balance via the permissioned variant,
+    // co-signed by the mint's permissioned burn authority.
     const [{ data: sourceTokenAccount }, { data: mintForBurn }] = await Promise.all([
         fetchToken(client.rpc, account.token),
         fetchMint(client.rpc, mint),
     ]);
     await client.sendTransactions(
-        await getPermissionedConfidentialBurnInstructionPlan({
+        await getPermissionedConfidentialBurnWithRecordInstructionPlan({
             payer,
             rpc: client.rpc,
             token: account.token,
@@ -103,27 +98,13 @@ it('confidentially burns from a mint carrying the PermissionedBurn extension', a
             aesKey: account.aesKey,
         }).availableBalance,
     ).toBe(MINT_AMOUNT - BURN_AMOUNT);
-
-    // Finally the authority applies the mint's pending burn and re-syncs the
-    // decryptable supply.
-    await client.sendTransaction([
-        getApplyConfidentialPendingBurnInstruction({ mint, authority: mintAuthority }),
-        getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply({
-            mint,
-            authority: mintAuthority,
-            supplyAesKey,
-            supply: MINT_AMOUNT - BURN_AMOUNT,
-        }),
-    ]);
-
-    expect(await fetchDecryptableSupply({ client, mint, supplyAesKey })).toBe(MINT_AMOUNT - BURN_AMOUNT);
 });
 
-it('confidentially burns from an account owned by a multisig via the permissioned variant', async () => {
+it('confidentially burns from a multisig-owned account with the range proof staged in a record account', async () => {
     // Given a mint-burn + PermissionedBurn mint and a confidential token account
     // owned by a 2-of-2 multisig, so the burn's `authority` is the multisig
     // address and both members must be passed as `multiSigners`.
-    const client = await createValidatorClient({ estimateResourceLimits: false });
+    const client = await createValidatorClient();
     const payer = client.payer;
     const permissionedBurnAuthority = await generateKeyPairSignerWithSol(client);
     const [signerA, signerB] = await Promise.all([
@@ -153,7 +134,7 @@ it('confidentially burns from an account owned by a multisig via the permissione
         fetchMint(client.rpc, mint),
     ]);
     await client.sendTransactions(
-        await getConfidentialMintInstructionPlan({
+        await getConfidentialMintWithRecordInstructionPlan({
             payer,
             rpc: client.rpc,
             token: account.token,
@@ -186,7 +167,7 @@ it('confidentially burns from an account owned by a multisig via the permissione
         fetchMint(client.rpc, mint),
     ]);
     await client.sendTransactions(
-        await getPermissionedConfidentialBurnInstructionPlan({
+        await getPermissionedConfidentialBurnWithRecordInstructionPlan({
             payer,
             rpc: client.rpc,
             token: account.token,

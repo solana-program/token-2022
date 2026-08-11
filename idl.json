@@ -8558,7 +8558,11 @@
                         "defaultValueStrategy": "omitted",
                         "docs": [],
                         "type": {
-                            "kind": "bytesTypeNode"
+                            "kind": "fixedSizeTypeNode",
+                            "size": 8,
+                            "type": {
+                                "kind": "bytesTypeNode"
+                            }
                         },
                         "defaultValue": {
                             "kind": "bytesValueNode",
@@ -8669,7 +8673,11 @@
                         "defaultValueStrategy": "omitted",
                         "docs": [],
                         "type": {
-                            "kind": "bytesTypeNode"
+                            "kind": "fixedSizeTypeNode",
+                            "size": 8,
+                            "type": {
+                                "kind": "bytesTypeNode"
+                            }
                         },
                         "defaultValue": {
                             "kind": "bytesValueNode",
@@ -8750,7 +8758,11 @@
                         "defaultValueStrategy": "omitted",
                         "docs": [],
                         "type": {
-                            "kind": "bytesTypeNode"
+                            "kind": "fixedSizeTypeNode",
+                            "size": 8,
+                            "type": {
+                                "kind": "bytesTypeNode"
+                            }
                         },
                         "defaultValue": {
                             "kind": "bytesValueNode",
@@ -8834,7 +8846,11 @@
                         "defaultValueStrategy": "omitted",
                         "docs": [],
                         "type": {
-                            "kind": "bytesTypeNode"
+                            "kind": "fixedSizeTypeNode",
+                            "size": 8,
+                            "type": {
+                                "kind": "bytesTypeNode"
+                            }
                         },
                         "defaultValue": {
                             "kind": "bytesValueNode",
@@ -8894,7 +8910,11 @@
                         "defaultValueStrategy": "omitted",
                         "docs": [],
                         "type": {
-                            "kind": "bytesTypeNode"
+                            "kind": "fixedSizeTypeNode",
+                            "size": 8,
+                            "type": {
+                                "kind": "bytesTypeNode"
+                            }
                         },
                         "defaultValue": {
                             "kind": "bytesValueNode",
@@ -8991,7 +9011,11 @@
                         "defaultValueStrategy": "omitted",
                         "docs": [],
                         "type": {
-                            "kind": "bytesTypeNode"
+                            "kind": "fixedSizeTypeNode",
+                            "size": 8,
+                            "type": {
+                                "kind": "bytesTypeNode"
+                            }
                         },
                         "defaultValue": {
                             "kind": "bytesValueNode",
@@ -9059,7 +9083,11 @@
                         "defaultValueStrategy": "omitted",
                         "docs": [],
                         "type": {
-                            "kind": "bytesTypeNode"
+                            "kind": "fixedSizeTypeNode",
+                            "size": 8,
+                            "type": {
+                                "kind": "bytesTypeNode"
+                            }
                         },
                         "defaultValue": {
                             "kind": "bytesValueNode",
@@ -9116,7 +9144,11 @@
                         "defaultValueStrategy": "omitted",
                         "docs": [],
                         "type": {
-                            "kind": "bytesTypeNode"
+                            "kind": "fixedSizeTypeNode",
+                            "size": 8,
+                            "type": {
+                                "kind": "bytesTypeNode"
+                            }
                         },
                         "defaultValue": {
                             "kind": "bytesValueNode",
@@ -9203,7 +9235,11 @@
                         "defaultValueStrategy": "omitted",
                         "docs": [],
                         "type": {
-                            "kind": "bytesTypeNode"
+                            "kind": "fixedSizeTypeNode",
+                            "size": 8,
+                            "type": {
+                                "kind": "bytesTypeNode"
+                            }
                         },
                         "defaultValue": {
                             "kind": "bytesValueNode",
