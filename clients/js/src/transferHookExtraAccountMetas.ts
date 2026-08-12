@@ -322,10 +322,10 @@ function getExtraAccountMetaSeedDecoder(): Decoder<ExtraAccountMetaSeed> {
                 getTupleDecoder([getU8Decoder(), getU8Decoder(), getU8Decoder()]),
                 ([, index, length]): ExtraAccountMetaSeed => ({ __kind: 'InstructionData', index, length }),
             ),
-            transformDecoder(
-                getTupleDecoder([getU8Decoder(), getU8Decoder()]),
-                ([, index]): ExtraAccountMetaSeed => ({ __kind: 'AccountKey', index }),
-            ),
+            transformDecoder(getTupleDecoder([getU8Decoder(), getU8Decoder()]), ([, index]): ExtraAccountMetaSeed => ({
+                __kind: 'AccountKey',
+                index,
+            })),
             transformDecoder(
                 getTupleDecoder([getU8Decoder(), getU8Decoder(), getU8Decoder(), getU8Decoder()]),
                 ([, accountIndex, dataIndex, length]): ExtraAccountMetaSeed => ({
