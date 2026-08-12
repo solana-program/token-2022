@@ -74,6 +74,127 @@ function getDecimalFactor(decimals: number): number {
     return Math.pow(10, decimals);
 }
 
+const U64_MAX = 18446744073709551615n;
+
+// Matches Rust's f64 grammar: optional sign, digits with optional fraction,
+// optional exponent, or inf/infinity/nan.
+const F64_STRING_PATTERN = /^[+-]?(?:inf(?:inity)?|nan|(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)$/i;
+
+/**
+ * Parses a UI amount string the way the program parses an `f64`.
+ * @throws An error if the string is not a valid float representation.
+ */
+function parseUiAmountF64(uiAmount: string): number {
+    if (!F64_STRING_PATTERN.test(uiAmount)) {
+        throw new Error(`Invalid ui amount: ${uiAmount}`);
+    }
+    if (/inf/i.test(uiAmount)) {
+        return uiAmount.startsWith('-') ? -Infinity : Infinity;
+    }
+    return Number(uiAmount);
+}
+
+/**
+ * Trims trailing zeros and a dangling decimal point, mirroring the program's
+ * `trim_ui_amount_string`.
+ */
+function trimUiAmountString(uiAmount: string, decimals: number): string {
+    if (decimals > 0 && uiAmount.includes('.')) {
+        return uiAmount.replace(/0+$/, '').replace(/\.$/, '');
+    }
+    return uiAmount;
+}
+
+/**
+ * Formats a scaled f64 to `decimals` digits and trims, mirroring the
+ * program's `format!("{scaled_amount:.*}", decimals)` followed by trimming.
+ * Rounds half to even on the exact binary value of the double, like Rust,
+ * which `toFixed` (round half up) does not.
+ */
+function formatUiAmountString(value: number, decimals: number): string {
+    if (!Number.isFinite(value)) {
+        return Number.isNaN(value) ? 'NaN' : value > 0 ? 'inf' : '-inf';
+    }
+    const view = new DataView(new ArrayBuffer(8));
+    view.setFloat64(0, Math.abs(value));
+    const bits = view.getBigUint64(0);
+    const biasedExponent = Number((bits >> 52n) & 0x7ffn);
+    const fractionBits = bits & 0xfffffffffffffn;
+    const mantissa = biasedExponent === 0 ? fractionBits : fractionBits | (1n << 52n);
+    const exponent = biasedExponent === 0 ? -1074 : biasedExponent - 1075;
+    // |value| * 10^decimals as the exact fraction numerator/denominator
+    let numerator = mantissa * 10n ** BigInt(decimals);
+    let denominator = 1n;
+    if (exponent >= 0) {
+        numerator <<= BigInt(exponent);
+    } else {
+        denominator = 1n << BigInt(-exponent);
+    }
+    let quotient = numerator / denominator;
+    const doubledRemainder = (numerator % denominator) * 2n;
+    if (doubledRemainder > denominator || (doubledRemainder === denominator && (quotient & 1n) === 1n)) {
+        quotient += 1n;
+    }
+    // Gating the sign on a nonzero quotient deviates from Rust, which formats
+    // tiny negatives as "-0"; negative scales are unreachable for these mints.
+    const sign = value < 0 && quotient > 0n ? '-' : '';
+    if (decimals === 0) {
+        return sign + quotient.toString();
+    }
+    const digits = quotient.toString().padStart(decimals + 1, '0');
+    const fixed = `${sign}${digits.slice(0, -decimals)}.${digits.slice(-decimals)}`;
+    return trimUiAmountString(fixed, decimals);
+}
+
+/**
+ * Converts a raw token amount to a UI amount string exactly, mirroring the
+ * program's `amount_to_ui_amount_string_trimmed`. Exact for the full u64
+ * range, unlike float division.
+ */
+function amountToUiAmountStringTrimmed(amount: bigint, decimals: number): string {
+    if (decimals === 0) {
+        return amount.toString();
+    }
+    const digits = amount.toString().padStart(decimals + 1, '0');
+    return trimUiAmountString(`${digits.slice(0, -decimals)}.${digits.slice(-decimals)}`, decimals);
+}
+
+/**
+ * Converts a UI amount string to a raw token amount exactly, mirroring the
+ * program's `try_ui_amount_into_amount` for standard mints.
+ * @throws An error if the string is malformed or out of the u64 range.
+ */
+function uiAmountStringToAmount(uiAmount: string, decimals: number): bigint {
+    const parts = uiAmount.split('.');
+    const fraction = (parts[1] ?? '').replace(/0+$/, '');
+    if (parts.length > 2 || fraction.length > decimals || (parts[0] === '' && fraction === '')) {
+        throw new Error(`Invalid ui amount: ${uiAmount}`);
+    }
+    const digits = parts[0] + fraction + '0'.repeat(decimals - fraction.length);
+    if (!/^\+?\d+$/.test(digits)) {
+        throw new Error(`Invalid ui amount: ${uiAmount}`);
+    }
+    const amount = BigInt(digits.replace('+', ''));
+    if (amount > U64_MAX) {
+        throw new Error(`Invalid ui amount: ${uiAmount}`);
+    }
+    return amount;
+}
+
+/**
+ * Range-checks and converts a scaled f64 back to a u64 amount, mirroring the
+ * program's checks and its saturating `as u64` cast. `u64::MAX as f64` rounds
+ * up to 2^64, so the check admits values the cast then saturates to u64::MAX.
+ * @throws An error if the amount is negative, NaN or above the u64 range.
+ */
+function f64AmountToU64(amount: number, mode: 'round' | 'trunc'): bigint {
+    if (Number.isNaN(amount) || amount < 0 || amount > Number(U64_MAX)) {
+        throw new Error(`Amount out of range: ${amount}`);
+    }
+    const integral = BigInt(mode === 'round' ? Math.round(amount) : Math.trunc(amount));
+    return integral > U64_MAX ? U64_MAX : integral;
+}
+
 /**
  * Retrieves the current timestamp from the Solana clock sysvar.
  * @param rpc - The Solana rpc object.
@@ -133,11 +254,10 @@ export function amountToUiAmountForInterestBearingMintWithoutSimulation(
         currentRate,
     });
 
-    // Scale the amount by the total interest factor
-    const scaledAmount = Number(amount) * totalScale;
-    const decimalFactor = getDecimalFactor(decimals);
-
-    return (Math.trunc(scaledAmount) / decimalFactor).toString();
+    // Scale by the total interest factor, which includes the decimal factor
+    // on-chain, then format to the mint's decimals like the program does
+    const scaledAmount = Number(amount) * (totalScale / getDecimalFactor(decimals));
+    return formatUiAmountString(scaledAmount, decimals);
 }
 
 /**
@@ -177,9 +297,7 @@ export function uiAmountToAmountForInterestBearingMintWithoutSimulation(
     preUpdateAverageRate: number,
     currentRate: number,
 ): bigint {
-    const uiAmountNumber = parseFloat(uiAmount);
-    const decimalsFactor = getDecimalFactor(decimals);
-    const uiAmountScaled = uiAmountNumber * decimalsFactor;
+    const uiAmountNumber = parseUiAmountF64(uiAmount);
 
     const totalScale = calculateTotalScale({
         currentTimestamp,
@@ -189,9 +307,10 @@ export function uiAmountToAmountForInterestBearingMintWithoutSimulation(
         currentRate,
     });
 
-    // Calculate original principal by dividing the UI amount by the total scale
-    const originalPrincipal = uiAmountScaled / totalScale;
-    return BigInt(Math.trunc(originalPrincipal));
+    // Divide by the total scale, which includes the decimal factor on-chain.
+    // The program rounds rather than truncates on this path.
+    const originalPrincipal = uiAmountNumber / (totalScale / getDecimalFactor(decimals));
+    return f64AmountToU64(originalPrincipal, 'round');
 }
 
 // ========== SCALED UI AMOUNT MINT FUNCTIONS ==========
@@ -208,9 +327,10 @@ export function amountToUiAmountForScaledUiAmountMintWithoutSimulation(
     decimals: number,
     multiplier: number,
 ): string {
-    const scaledAmount = Number(amount) * multiplier;
-    const decimalFactor = getDecimalFactor(decimals);
-    return (Math.trunc(scaledAmount) / decimalFactor).toString();
+    // Scale by the total multiplier, which includes the decimal factor
+    // on-chain, then format to the mint's decimals like the program does
+    const scaledAmount = Number(amount) * (multiplier / getDecimalFactor(decimals));
+    return formatUiAmountString(scaledAmount, decimals);
 }
 
 /**
@@ -226,11 +346,10 @@ export function uiAmountToAmountForScaledUiAmountMintWithoutSimulation(
     decimals: number,
     multiplier: number,
 ): bigint {
-    const uiAmountNumber = parseFloat(uiAmount);
-    const decimalsFactor = getDecimalFactor(decimals);
-    const uiAmountScaled = uiAmountNumber * decimalsFactor;
-    const rawAmount = uiAmountScaled / multiplier;
-    return BigInt(Math.trunc(rawAmount));
+    const uiAmountNumber = parseUiAmountF64(uiAmount);
+    // Divide by the total multiplier, which includes the decimal factor on-chain
+    const rawAmount = uiAmountNumber / (multiplier / getDecimalFactor(decimals));
+    return f64AmountToU64(rawAmount, 'trunc');
 }
 
 // ========== MAIN ENTRY POINT FUNCTIONS ==========
@@ -263,9 +382,7 @@ export async function amountToUiAmountForMintWithoutSimulation(
 
     // If no special extension, do standard conversion
     if (!interestBearingMintConfigState && !scaledUiAmountConfig) {
-        const amountNumber = Number(amount);
-        const decimalsFactor = getDecimalFactor(accountInfo.data.decimals);
-        return (amountNumber / decimalsFactor).toString();
+        return amountToUiAmountStringTrimmed(amount, accountInfo.data.decimals);
     }
 
     // Get timestamp if needed for special mint types
@@ -323,8 +440,7 @@ export async function uiAmountToAmountForMintWithoutSimulation(
 
     // If no special extension, do standard conversion
     if (!interestBearingMintConfigState && !scaledUiAmountConfig) {
-        const uiAmountScaled = parseFloat(uiAmount) * getDecimalFactor(accountInfo.data.decimals);
-        return BigInt(Math.trunc(uiAmountScaled));
+        return uiAmountStringToAmount(uiAmount, accountInfo.data.decimals);
     }
 
     // Get timestamp if needed for special mint types

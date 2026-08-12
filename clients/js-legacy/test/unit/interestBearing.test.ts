@@ -140,7 +140,7 @@ describe('amountToUiAmountForMintWithoutSimulation', () => {
             { decimals: 0, amount: BigInt(100), expected: '100' },
             { decimals: 2, amount: BigInt(100), expected: '1' },
             { decimals: 9, amount: BigInt(1000000000), expected: '1' },
-            { decimals: 10, amount: BigInt(1), expected: '1e-10' },
+            { decimals: 10, amount: BigInt(1), expected: '0.0000000001' },
             { decimals: 10, amount: BigInt(1000000000), expected: '0.1' },
         ];
 
@@ -165,8 +165,8 @@ describe('amountToUiAmountForMintWithoutSimulation', () => {
         const testCases = [
             { decimals: 0, amount: BigInt(1), expected: '1' },
             { decimals: 1, amount: BigInt(1), expected: '0.1' },
-            { decimals: 10, amount: BigInt(1), expected: '1e-10' },
-            { decimals: 10, amount: BigInt(10000000000), expected: '1.0512710963' },
+            { decimals: 10, amount: BigInt(1), expected: '0.0000000001' },
+            { decimals: 10, amount: BigInt(10000000000), expected: '1.0512710964' },
         ];
 
         for (const { decimals, amount, expected } of testCases) {
@@ -229,7 +229,7 @@ describe('amountToUiAmountForMintWithoutSimulation', () => {
             mint,
             BigInt('18446744073709551615'),
         );
-        expect(result).to.equal('20386805083448.098');
+        expect(result).to.equal('20386805083448.097656');
     });
 });
 
@@ -294,7 +294,7 @@ describe('amountToUiAmountForMintWithoutSimulation', () => {
             mint,
             '0.951229424500714',
         );
-        expect(result).to.equal(9999999999n); // calculation truncates to avoid floating point precision issues in transfers
+        expect(result).to.equal(10000000000n); // the program rounds on this path
     });
 
     it('should return the correct amount for netting out rates', async () => {
@@ -322,6 +322,47 @@ describe('amountToUiAmountForMintWithoutSimulation', () => {
             mint,
             '20386805083448100000',
         );
-        expect(result).to.equal(18446744073709551616n);
+        expect(result).to.equal(18446744073709551615n);
+    });
+});
+
+describe('plain mint exact conversions', () => {
+    let connection: MockConnection;
+    const mint = new PublicKey('So11111111111111111111111111111111111111112');
+
+    beforeEach(() => {
+        connection = new MockConnection() as unknown as MockConnection;
+        connection.setAccountInfo({
+            owner: TOKEN_2022_PROGRAM_ID,
+            lamports: 1000000,
+            data: createMockMintData(9, false),
+        });
+    });
+
+    it('converts amounts exactly across the u64 range', async () => {
+        const result = await amountToUiAmountForMintWithoutSimulation(
+            connection as unknown as Connection,
+            mint,
+            18446744073709551615n,
+        );
+        expect(result).to.equal('18446744073.709551615');
+        const roundTrip = await uiAmountToAmountForMintWithoutSimulation(
+            connection as unknown as Connection,
+            mint,
+            '18446744073.709551615',
+        );
+        expect(roundTrip).to.equal(18446744073709551615n);
+    });
+
+    it('rejects malformed or out-of-range ui amounts', async () => {
+        for (const badUiAmount of ['1e30', 'abc', '1.5oops', '99999999999.999999999', '', '.', '.0']) {
+            let threw = false;
+            try {
+                await uiAmountToAmountForMintWithoutSimulation(connection as unknown as Connection, mint, badUiAmount);
+            } catch {
+                threw = true;
+            }
+            expect(threw, badUiAmount).to.equal(true);
+        }
     });
 });

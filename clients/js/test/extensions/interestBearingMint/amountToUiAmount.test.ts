@@ -119,7 +119,7 @@ test('should return the correct UiAmount when interest bearing config is not pre
         { decimals: 0, amount: BigInt(100), expected: '100' },
         { decimals: 2, amount: BigInt(100), expected: '1' },
         { decimals: 9, amount: BigInt(1000000000), expected: '1' },
-        { decimals: 10, amount: BigInt(1), expected: '1e-10' },
+        { decimals: 10, amount: BigInt(1), expected: '0.0000000001' },
         { decimals: 10, amount: BigInt(1000000000), expected: '0.1' },
     ];
 
@@ -137,8 +137,8 @@ test('should return the correct UiAmount for constant 5% rate', async () => {
     const testCases = [
         { decimals: 0, amount: BigInt(1), expected: '1' },
         { decimals: 1, amount: BigInt(1), expected: '0.1' },
-        { decimals: 10, amount: BigInt(1), expected: '1e-10' },
-        { decimals: 10, amount: BigInt(10000000000), expected: '1.0512710963' },
+        { decimals: 10, amount: BigInt(1), expected: '0.0000000001' },
+        { decimals: 10, amount: BigInt(10000000000), expected: '1.0512710964' },
     ];
 
     for (const { decimals, amount, expected } of testCases) {
@@ -185,7 +185,7 @@ test('should handle huge values correctly', async () => {
     });
 
     const result = await amountToUiAmountForMintWithoutSimulation(rpc, mint, BigInt('18446744073709551615'));
-    expect(result).toBe('20386805083448.098');
+    expect(result).toBe('20386805083448.097656');
 });
 
 test('should return the correct amount for constant 5% rate', async () => {
@@ -226,7 +226,7 @@ test('should return the correct amount for constant -5% rate', async () => {
     });
 
     const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '0.951229424500714');
-    expect(result).toBe(9999999999n); // calculation truncates to avoid floating point precision issues in transfers
+    expect(result).toBe(10000000000n); // the program rounds on this path
 });
 
 test('should return the correct amount for netting out rates', async () => {
@@ -249,5 +249,45 @@ test('should handle huge values correctly for amount to ui amount', async () => 
     });
 
     const result = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '20386805083448100000');
-    expect(result).toBe(18446744073709551616n);
+    expect(result).toBe(18446744073709551615n);
+});
+
+test('should convert plain mint amounts exactly across the u64 range', async () => {
+    const rpc = getMockRpc({
+        [clock]: createMockClockAccountInfo(0),
+        [mint]: createMockMintAccountInfo(9, false),
+    });
+    const result = await amountToUiAmountForMintWithoutSimulation(rpc, mint, 18446744073709551615n);
+    expect(result).toBe('18446744073.709551615');
+    const roundTrip = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '18446744073.709551615');
+    expect(roundTrip).toBe(18446744073709551615n);
+});
+
+test('should not lose precision above 2^53 for plain mints', async () => {
+    const rpc = getMockRpc({
+        [clock]: createMockClockAccountInfo(0),
+        [mint]: createMockMintAccountInfo(0, false),
+    });
+    const result = await amountToUiAmountForMintWithoutSimulation(rpc, mint, 9007199254740993n);
+    expect(result).toBe('9007199254740993');
+});
+
+test('should reject malformed or out-of-range plain mint ui amounts', async () => {
+    const rpc = getMockRpc({
+        [clock]: createMockClockAccountInfo(0),
+        [mint]: createMockMintAccountInfo(0, false),
+    });
+    for (const badUiAmount of ['1e30', 'abc', '1.5oops', '18446744073709551616']) {
+        await expect(uiAmountToAmountForMintWithoutSimulation(rpc, mint, badUiAmount)).rejects.toThrow();
+    }
+});
+
+test('should reject empty plain mint ui amounts like the program does', async () => {
+    const rpc = getMockRpc({
+        [clock]: createMockClockAccountInfo(0),
+        [mint]: createMockMintAccountInfo(9, false),
+    });
+    for (const badUiAmount of ['', '.', '.0']) {
+        await expect(uiAmountToAmountForMintWithoutSimulation(rpc, mint, badUiAmount)).rejects.toThrow();
+    }
 });
