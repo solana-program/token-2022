@@ -355,7 +355,7 @@ describe('plain mint exact conversions', () => {
     });
 
     it('rejects malformed or out-of-range ui amounts', async () => {
-        for (const badUiAmount of ['1e30', 'abc', '1.5oops', '99999999999.999999999']) {
+        for (const badUiAmount of ['1e30', 'abc', '1.5oops', '99999999999.999999999', '', '.', '.0']) {
             let threw = false;
             try {
                 await uiAmountToAmountForMintWithoutSimulation(connection as unknown as Connection, mint, badUiAmount);

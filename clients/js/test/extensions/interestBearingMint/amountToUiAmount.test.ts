@@ -281,3 +281,13 @@ test('should reject malformed or out-of-range plain mint ui amounts', async () =
         await expect(uiAmountToAmountForMintWithoutSimulation(rpc, mint, badUiAmount)).rejects.toThrow();
     }
 });
+
+test('should reject empty plain mint ui amounts like the program does', async () => {
+    const rpc = getMockRpc({
+        [clock]: createMockClockAccountInfo(0),
+        [mint]: createMockMintAccountInfo(9, false),
+    });
+    for (const badUiAmount of ['', '.', '.0']) {
+        await expect(uiAmountToAmountForMintWithoutSimulation(rpc, mint, badUiAmount)).rejects.toThrow();
+    }
+});

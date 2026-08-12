@@ -128,7 +128,7 @@ function formatUiAmountString(value: number, decimals: number): string {
     const biasedExponent = Number((bits >> BigInt(52)) & BigInt(0x7ff));
     const fractionBits = bits & BigInt('0xfffffffffffff');
     const mantissa = biasedExponent === 0 ? fractionBits : fractionBits | (BigInt(1) << BigInt(52));
-    const exponent = (biasedExponent === 0 ? -1074 : biasedExponent - 1075) + 0;
+    const exponent = biasedExponent === 0 ? -1074 : biasedExponent - 1075;
     // |value| * 10^decimals as the exact fraction numerator/denominator
     let numerator = mantissa * BigInt(10) ** BigInt(decimals);
     let denominator = BigInt(1);
@@ -142,6 +142,8 @@ function formatUiAmountString(value: number, decimals: number): string {
     if (doubledRemainder > denominator || (doubledRemainder === denominator && (quotient & BigInt(1)) === BigInt(1))) {
         quotient += BigInt(1);
     }
+    // Gating the sign on a nonzero quotient deviates from Rust, which formats
+    // tiny negatives as "-0"; negative scales are unreachable for these mints.
     const sign = value < 0 && quotient > BigInt(0) ? '-' : '';
     if (decimals === 0) {
         return sign + quotient.toString();
@@ -172,7 +174,7 @@ function amountToUiAmountStringTrimmed(amount: bigint, decimals: number): string
 function uiAmountStringToAmount(uiAmount: string, decimals: number): bigint {
     const parts = uiAmount.split('.');
     const fraction = (parts[1] ?? '').replace(/0+$/, '');
-    if (parts.length > 2 || fraction.length > decimals) {
+    if (parts.length > 2 || fraction.length > decimals || (parts[0] === '' && fraction === '')) {
         throw new Error(`Invalid ui amount: ${uiAmount}`);
     }
     const digits = parts[0] + fraction + '0'.repeat(decimals - fraction.length);
