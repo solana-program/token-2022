@@ -3573,7 +3573,7 @@
                 "display": {
                     "kind": "instructionDisplayNode",
                     "intent": "Set transfer fee",
-                    "interpolatedIntent": "Set the transfer fee of ${accounts.mint} to ${data.transferFeeBasisPoints}"
+                    "interpolatedIntent": "Set the transfer fee of ${accounts.mint} to ${data.transferFeeBasisPoints} with a maximum of ${data.maximumFee}"
                 },
                 "provides": [
                     {
@@ -14142,7 +14142,7 @@
                     "display": {
                         "kind": "instructionDisplayNode",
                         "intent": "Create associated token account",
-                        "interpolatedIntent": "Create associated token account ${accounts.ata} for ${accounts.owner}"
+                        "interpolatedIntent": "Create the associated token account of ${accounts.owner} for mint ${accounts.mint}"
                     },
                     "accounts": [
                         {
@@ -14281,7 +14281,7 @@
                     "display": {
                         "kind": "instructionDisplayNode",
                         "intent": "Create associated token account",
-                        "interpolatedIntent": "Create associated token account ${accounts.ata} for ${accounts.owner}"
+                        "interpolatedIntent": "Create the associated token account of ${accounts.owner} for mint ${accounts.mint}"
                     },
                     "accounts": [
                         {
