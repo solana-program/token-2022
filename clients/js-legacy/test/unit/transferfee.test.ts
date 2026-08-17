@@ -3,7 +3,9 @@ import {
     calculateEpochFee,
     ONE_IN_BASIS_POINTS,
     createInitializeTransferFeeConfigInstruction,
+    createWithdrawWithheldTokensFromAccountsInstruction,
     decodeInitializeTransferFeeConfigInstruction,
+    decodeWithdrawWithheldTokensFromAccountsInstruction,
     TOKEN_2022_PROGRAM_ID,
 } from '../../src';
 import { expect } from 'chai';
@@ -72,6 +74,44 @@ describe('transferFee', () => {
             expect(decoded.data.withdrawWithheldAuthority).to.eql(null);
             expect(decoded.data.transferFeeBasisPoints).to.eql(100);
             expect(decoded.data.maximumFee).to.eql(100n);
+        });
+    });
+
+    describe('encoding/decoding `WithdrawWithheldTokensFromAccounts` instructions', () => {
+        const mint = Keypair.generate().publicKey;
+        const destination = Keypair.generate().publicKey;
+        const authority = Keypair.generate().publicKey;
+        const source0 = Keypair.generate().publicKey;
+        const source1 = Keypair.generate().publicKey;
+
+        it('should decode with a single authority and no multisig signers', () => {
+            const instruction = createWithdrawWithheldTokensFromAccountsInstruction(
+                mint,
+                destination,
+                authority,
+                [],
+                [source0, source1],
+            );
+            const decoded = decodeWithdrawWithheldTokensFromAccountsInstruction(instruction, TOKEN_2022_PROGRAM_ID);
+            expect(decoded.data.numTokenAccounts).to.eql(2);
+            expect(decoded.keys.signers?.map(meta => meta.pubkey)).to.eql([]);
+            expect(decoded.keys.sources?.map(meta => meta.pubkey)).to.eql([source0, source1]);
+        });
+
+        it('should decode all multisig signers with multiple sources', () => {
+            const signer0 = Keypair.generate().publicKey;
+            const signer1 = Keypair.generate().publicKey;
+            const signer2 = Keypair.generate().publicKey;
+            const instruction = createWithdrawWithheldTokensFromAccountsInstruction(
+                mint,
+                destination,
+                authority,
+                [signer0, signer1, signer2],
+                [source0, source1],
+            );
+            const decoded = decodeWithdrawWithheldTokensFromAccountsInstruction(instruction, TOKEN_2022_PROGRAM_ID);
+            expect(decoded.keys.signers?.map(meta => meta.pubkey)).to.eql([signer0, signer1, signer2]);
+            expect(decoded.keys.sources?.map(meta => meta.pubkey)).to.eql([source0, source1]);
         });
     });
 
