@@ -50,17 +50,17 @@
     },
     "dependencies": {
         "@noble/curves": "^1.9.7",
-        "@solana-program/record": "^0.3.0",
-        "@solana-program/zk-elgamal-proof": "^0.3.2"
+        "@solana-program/record": "^0.4.0",
+        "@solana-program/system": "^0.14.0",
+        "@solana-program/zk-elgamal-proof": "^0.4.0"
     },
     "devDependencies": {
         "@solana-config/oxc": "^0.1.1",
-        "@solana-program/system": "^0.13.0",
-        "@solana/kit": "^7.0.0",
-        "@solana/kit-plugin-instruction-plan": "^0.13.0",
-        "@solana/kit-plugin-litesvm": "^0.15.0",
-        "@solana/kit-plugin-rpc": "^0.16.0",
-        "@solana/kit-plugin-signer": "^0.13.0",
+        "@solana/kit": "^8.0.0",
+        "@solana/kit-plugin-instruction-plan": "^0.18.0",
+        "@solana/kit-plugin-litesvm": "^0.18.0",
+        "@solana/kit-plugin-rpc": "^0.18.0",
+        "@solana/kit-plugin-signer": "^0.18.0",
         "@solana/zk-sdk": "^0.5.1",
         "@types/node": "^26",
         "oxfmt": "^0.63.0",
@@ -73,8 +73,8 @@
         "vitest": "^4.1.8"
     },
     "peerDependencies": {
-        "@solana/kit": "^7.0.0",
-        "@solana/sysvars": "^7.0.0",
+        "@solana/kit": "^8.0.0",
+        "@solana/sysvars": "^8.0.0",
         "@solana/zk-sdk": "^0.5.1"
     },
     "peerDependenciesMeta": {
