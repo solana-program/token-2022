@@ -4,6 +4,7 @@ import { getCreateAccountInstruction, systemProgram } from '@solana-program/syst
 import {
     Address,
     Transaction,
+    TransactionPlanResult,
     TransactionSigner,
     assertIsSingleTransactionPlanResult,
     createClient,
@@ -114,7 +115,9 @@ type ExecutedTransactionContext = {
 // Narrows the result of `client.sendTransaction` to the context of its single,
 // successful transaction. Asserts the result is indeed a single transaction
 // plan result before exposing the LiteSVM-specific context typing.
-export const getSingleTransactionContext = (result: SingleSendResult): ExecutedTransactionContext => {
+export const getSingleTransactionContext = (
+    result: SingleSendResult | TransactionPlanResult,
+): ExecutedTransactionContext => {
     assertIsSingleTransactionPlanResult(result);
     return result.context as unknown as ExecutedTransactionContext;
 };
