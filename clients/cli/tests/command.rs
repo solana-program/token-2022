@@ -160,6 +160,7 @@ async fn main() {
         async_trial!(multisig_pause, test_validator, payer),
         async_trial!(permissioned_burn, test_validator, payer),
         async_trial!(confidential_mint_burn, test_validator, payer),
+        async_trial!(recover_nested, test_validator, payer),
         // GC messes with every other test, so have it on its own test validator
         async_trial!(gc, gc_test_validator, gc_payer),
     ];
@@ -1572,6 +1573,138 @@ async fn disable_mint_authority(test_validator: &TestValidator, payer: &Keypair)
         let account = config.rpc_client.get_account(&token).await.unwrap();
         let mint = StateWithExtensionsOwned::<Mint>::unpack(account.data).unwrap();
         assert_eq!(mint.base.mint_authority, COption::None);
+    }
+}
+
+async fn recover_nested(test_validator: &TestValidator, payer: &Keypair) {
+    for program_id in VALID_TOKEN_PROGRAM_IDS.iter() {
+        for same_mint in [false, true] {
+            let config = test_config_with_default_signer(test_validator, payer, program_id);
+            let owner = Keypair::new();
+            let owner_keypair_file = NamedTempFile::new().unwrap();
+            write_keypair_file(&owner, &owner_keypair_file).unwrap();
+            let fee_payer_keypair_file = NamedTempFile::new().unwrap();
+            write_keypair_file(payer, &fee_payer_keypair_file).unwrap();
+            let blockhash = config.rpc_client.get_latest_blockhash().await.unwrap();
+            let transaction = Transaction::new_signed_with_payer(
+                &[system_instruction::transfer(
+                    &payer.pubkey(),
+                    &owner.pubkey(),
+                    1_000_000,
+                )],
+                Some(&payer.pubkey()),
+                &[payer],
+                blockhash,
+            );
+            config
+                .rpc_client
+                .send_and_confirm_transaction(&transaction)
+                .await
+                .unwrap();
+
+            let owner_token_mint = create_token(&config, payer).await;
+            let nested_token_mint = if same_mint {
+                owner_token_mint
+            } else {
+                create_token(&config, payer).await
+            };
+            let owner_associated_account =
+                create_associated_account(&config, payer, &owner_token_mint, &owner.pubkey()).await;
+            let destination_associated_account = if same_mint {
+                owner_associated_account
+            } else {
+                create_associated_account(&config, payer, &nested_token_mint, &owner.pubkey()).await
+            };
+            let nested_associated_account = create_associated_account(
+                &config,
+                payer,
+                &nested_token_mint,
+                &owner_associated_account,
+            )
+            .await;
+
+            mint_tokens(
+                &config,
+                payer,
+                nested_token_mint,
+                1.0,
+                nested_associated_account,
+            )
+            .await
+            .unwrap();
+            let nested_account_lamports = config
+                .rpc_client
+                .get_account(&nested_associated_account)
+                .await
+                .unwrap()
+                .lamports;
+            for token_account in [
+                owner_associated_account,
+                destination_associated_account,
+                nested_associated_account,
+            ] {
+                assert_eq!(
+                    config
+                        .rpc_client
+                        .get_account(&token_account)
+                        .await
+                        .unwrap()
+                        .owner,
+                    *program_id,
+                    "token account {token_account} has the wrong program owner"
+                );
+            }
+            let owner_lamports_before = config
+                .rpc_client
+                .get_balance(&owner.pubkey())
+                .await
+                .unwrap();
+            exec_test_cmd(
+                &config,
+                &[
+                    "spl-token",
+                    CommandName::RecoverNested.into(),
+                    &owner_token_mint.to_string(),
+                    &nested_token_mint.to_string(),
+                    "--owner",
+                    owner_keypair_file.path().to_str().unwrap(),
+                    "--fee-payer",
+                    fee_payer_keypair_file.path().to_str().unwrap(),
+                    "--program-id",
+                    &program_id.to_string(),
+                ],
+            )
+            .await
+            .unwrap_or_else(|error| {
+                panic!(
+                    "recover-nested failed for program {program_id} with same_mint={same_mint}: \
+                     {error}"
+                )
+            });
+
+            let destination = config
+                .rpc_client
+                .get_token_account(&destination_associated_account)
+                .await
+                .unwrap()
+                .unwrap();
+            let expected_amount = spl_token_2022::ui_amount_to_amount(1.0, TEST_DECIMALS);
+            assert_eq!(destination.token_amount.amount, expected_amount.to_string());
+            config
+                .rpc_client
+                .get_account(&nested_associated_account)
+                .await
+                .unwrap_err();
+            let owner_lamports_after = config
+                .rpc_client
+                .get_balance(&owner.pubkey())
+                .await
+                .unwrap();
+            assert_eq!(
+                owner_lamports_after,
+                owner_lamports_before + nested_account_lamports
+            );
+        }
     }
 }
 
