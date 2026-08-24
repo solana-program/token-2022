@@ -49,7 +49,7 @@
         "prepublishOnly": "pnpm build"
     },
     "dependencies": {
-        "@noble/curves": "^1.9.7",
+        "@noble/curves": "^2.3.0",
         "@solana-program/record": "^0.4.0",
         "@solana-program/system": "^0.14.0",
         "@solana-program/zk-elgamal-proof": "^0.4.0"
