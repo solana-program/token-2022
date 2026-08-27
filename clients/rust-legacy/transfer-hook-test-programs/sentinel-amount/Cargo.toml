@@ -1,0 +1,25 @@
+[package]
+name = "spl-transfer-hook-example-sentinel-amount"
+version = "1.0.0"
+description = "Solana Program Library Transfer Hook Example: Sentinel Amount"
+authors = ["Anza Maintainers <maintainers@anza.xyz>"]
+repository = "https://github.com/solana-program/token-2022"
+license = "Apache-2.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+solana-account-info = "3.1.0"
+solana-address = "2.6.0"
+solana-program-entrypoint = "3.1.1"
+solana-program-error = "3.0.1"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+# Not a workspace member: built on its own into a committed .so fixture,
+# like the other transfer-hook test programs beside it.
+[workspace]

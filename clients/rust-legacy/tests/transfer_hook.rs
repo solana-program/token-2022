@@ -1120,3 +1120,161 @@ async fn success_without_validation_account() {
     let destination = token.get_account_info(&bob_account).await.unwrap();
     assert_eq!(destination.base.amount, amount);
 }
+
+/// Token-2022 cannot know the amount of a confidential transfer, so it hands
+/// the hook `u64::MAX` as a convention. These two tests pin that convention
+/// from the hook's side, using one program that accepts only the sentinel:
+/// the confidential path succeeds, and the public path is rejected because
+/// there the hook is handed the real amount instead.
+#[tokio::test]
+async fn success_confidential_transfer_hook_receives_sentinel_amount() {
+    let authority = Keypair::new();
+    let program_id = Pubkey::new_unique();
+    let mint_keypair = Keypair::new();
+
+    let mut program_test = ProgramTest::default();
+    program_test.add_program("spl_token_2022", spl_token_2022_interface::id(), None);
+    program_test.add_program(
+        "spl_transfer_hook_example_sentinel_amount",
+        program_id,
+        None,
+    );
+    add_validation_account(&mut program_test, &mint_keypair.pubkey(), &program_id);
+
+    let context = program_test.start_with_context().await;
+    let context = Arc::new(tokio::sync::Mutex::new(context));
+    let mut context = TestContext {
+        context,
+        token_context: None,
+    };
+    context
+        .init_token_with_mint_keypair_and_freeze_authority(
+            mint_keypair,
+            vec![
+                ExtensionInitializationParams::TransferHook {
+                    authority: Some(authority.pubkey()),
+                    program_id: Some(program_id),
+                },
+                ExtensionInitializationParams::ConfidentialTransferMint {
+                    authority: Some(authority.pubkey()),
+                    auto_approve_new_accounts: true,
+                    auditor_elgamal_pubkey: None,
+                },
+            ],
+            None,
+        )
+        .await
+        .unwrap();
+
+    let amount = 10;
+    let TokenContext {
+        token,
+        alice,
+        bob,
+        mint_authority,
+        decimals,
+        ..
+    } = context.token_context.take().unwrap();
+
+    let alice_meta = ConfidentialTokenAccountMeta::new_with_tokens(
+        &token,
+        &alice,
+        None,
+        false,
+        false,
+        &mint_authority,
+        amount,
+        decimals,
+    )
+    .await;
+    let bob_meta = ConfidentialTokenAccountMeta::new(&token, &bob, Some(2), false, false).await;
+
+    // The hook rejects any amount other than `u64::MAX`, so this transfer only
+    // lands if the token program handed it the sentinel.
+    token
+        .confidential_transfer_transfer(
+            &alice_meta.token_account,
+            &bob_meta.token_account,
+            &alice.pubkey(),
+            None,
+            None,
+            None,
+            amount,
+            None,
+            &alice_meta.elgamal_keypair,
+            &alice_meta.aes_key,
+            bob_meta.elgamal_keypair.pubkey(),
+            None, // auditor
+            &[&alice],
+        )
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn fail_transfer_hook_receives_real_amount_on_public_path() {
+    let authority = Pubkey::new_unique();
+    let program_id = Pubkey::new_unique();
+    let mint = Keypair::new();
+
+    let mut program_test = ProgramTest::default();
+    program_test.add_program("spl_token_2022", spl_token_2022_interface::id(), None);
+    program_test.add_program(
+        "spl_transfer_hook_example_sentinel_amount",
+        program_id,
+        None,
+    );
+    let validation_address = get_extra_account_metas_address(&mint.pubkey(), &program_id);
+    program_test.add_account(
+        validation_address,
+        Account {
+            lamports: 1_000_000_000, // a lot, just to be safe
+            data: example_data(&[]),
+            owner: program_id,
+            ..Account::default()
+        },
+    );
+
+    let context = program_test.start_with_context().await;
+    let context = Arc::new(tokio::sync::Mutex::new(context));
+    let mut context = TestContext {
+        context,
+        token_context: None,
+    };
+    context
+        .init_token_with_mint_keypair_and_freeze_authority(
+            mint,
+            vec![ExtensionInitializationParams::TransferHook {
+                authority: Some(authority),
+                program_id: Some(program_id),
+            }],
+            None,
+        )
+        .await
+        .unwrap();
+    let token_context = context.token_context.take().unwrap();
+
+    let amount = 10;
+    let (alice_account, bob_account) =
+        setup_accounts(&token_context, Keypair::new(), Keypair::new(), amount).await;
+
+    // Same hook, public path: here it is handed the real amount, not the
+    // sentinel, so it rejects the transfer.
+    let err = token_context
+        .token
+        .transfer(
+            &alice_account,
+            &bob_account,
+            &token_context.alice.pubkey(),
+            amount,
+            &[&token_context.alice],
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(
+        err,
+        TokenClientError::Client(Box::new(TransportError::TransactionError(
+            TransactionError::InstructionError(0, InstructionError::InvalidInstructionData)
+        )))
+    );
+}
