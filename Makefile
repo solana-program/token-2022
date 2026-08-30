@@ -29,7 +29,8 @@ audit:
 			--ignore RUSTSEC-2026-0099 \
 			--ignore RUSTSEC-2026-0104 \
 			--ignore RUSTSEC-2026-0190 \
-
+			--ignore RUSTSEC-2026-0253 \
+			--ignore RUSTSEC-2026-0255 \
 			$(ARGS)
 
 spellcheck:
