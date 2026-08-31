@@ -13,13 +13,13 @@ importers:
         version: 1.9.7
       '@solana-program/record':
         specifier: ^0.4.0
-        version: 0.4.0(@solana/kit@8.0.0(typescript@6.0.3))
+        version: 0.4.0(@solana/kit@8.1.0(typescript@6.0.3))
       '@solana-program/system':
         specifier: ^0.14.0
-        version: 0.14.0(@solana/kit@8.0.0(typescript@6.0.3))
+        version: 0.14.0(@solana/kit@8.1.0(typescript@6.0.3))
       '@solana-program/zk-elgamal-proof':
         specifier: ^0.4.0
-        version: 0.4.0(@solana/kit@8.0.0(typescript@6.0.3))
+        version: 0.4.0(@solana/kit@8.1.0(typescript@6.0.3))
       '@solana/sysvars':
         specifier: ^8.0.0
         version: 8.0.0(typescript@6.0.3)
@@ -29,19 +29,19 @@ importers:
         version: 0.1.1(oxfmt@0.65.0)(oxlint@1.80.0(oxlint-tsgolint@7.0.2001))
       '@solana/kit':
         specifier: ^8.0.0
-        version: 8.0.0(typescript@6.0.3)
+        version: 8.1.0(typescript@6.0.3)
       '@solana/kit-plugin-instruction-plan':
         specifier: ^0.18.0
-        version: 0.18.0(@solana/kit@8.0.0(typescript@6.0.3))
+        version: 0.18.0(@solana/kit@8.1.0(typescript@6.0.3))
       '@solana/kit-plugin-litesvm':
         specifier: ^0.18.0
-        version: 0.18.0(@solana/kit@8.0.0(typescript@6.0.3))(typescript@6.0.3)
+        version: 0.18.0(@solana/kit@8.1.0(typescript@6.0.3))(typescript@6.0.3)
       '@solana/kit-plugin-rpc':
         specifier: ^0.18.0
-        version: 0.18.0(@solana/kit@8.0.0(typescript@6.0.3))
+        version: 0.18.0(@solana/kit@8.1.0(typescript@6.0.3))
       '@solana/kit-plugin-signer':
         specifier: ^0.18.0
-        version: 0.18.0(@solana/kit@8.0.0(typescript@6.0.3))
+        version: 0.18.0(@solana/kit@8.1.0(typescript@6.0.3))
       '@solana/zk-sdk':
         specifier: ^0.5.1
         version: 0.5.1
@@ -811,6 +811,15 @@ packages:
       typescript:
         optional: true
 
+  '@solana/accounts@8.1.0':
+    resolution: {integrity: sha512-28u6+aw2pc1pL9ZHtrHVLy/vzaORFcVDR+lZy24uy6Z2N/LLsVbaGOLihKD2ksNmu9y2xOn7deqsG9SSFXwKvg==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   '@solana/addresses@6.10.0':
     resolution: {integrity: sha512-vEoCGBTxG0HCERAn84KXkrJjl+pDaNzOpZ0qbgcPS98fYxP5yzbKB8SNOY2bzrbkRUmmw5Q3hqTRERemUN2Gcw==}
     engines: {node: '>=20.18.0'}
@@ -822,6 +831,15 @@ packages:
 
   '@solana/addresses@8.0.0':
     resolution: {integrity: sha512-hPtZOGxeMVEVoXleEsYcOj1mhxtvUTeEivE3iqCT7HJGGnYZFaV0/MduoqsEMiaBM+2ggjpVh9V7QoXPJIhbhw==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
+  '@solana/addresses@8.1.0':
+    resolution: {integrity: sha512-oqoiiNMjcf2mY1lnDE3SXDeifilUytNXxTK38DfSEbPYf+KSO7p+fsEcjC7/EuONo+swMIQfE9WtXdMRu3l/9g==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -847,6 +865,15 @@ packages:
       typescript:
         optional: true
 
+  '@solana/assertions@8.1.0':
+    resolution: {integrity: sha512-D3fFyyAFBVFoOICW8AtVMg7CK5+SdGcICHIQ/DJ/4cxypmsJOO8U9gaxU67/zMmuGAlnGNsUxdYCzDxoFC+iVg==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   '@solana/codecs-core@6.10.0':
     resolution: {integrity: sha512-nfAl9OMGo4HanIMxGsQoVB7BxMoqBCYEUxl8oEAZZ09pDxnaXQZkTRXEwPPccag37XfW1ciPd1vWPKwB2b0HHQ==}
     engines: {node: '>=20.18.0'}
@@ -858,6 +885,15 @@ packages:
 
   '@solana/codecs-core@8.0.0':
     resolution: {integrity: sha512-WU/W1IEssIae1rKfJHAwuxvbnhwFH9+WCjD+l4oK2TiKgRDIdO3ndF58ABl5hFqgISCthHxeiFqBtd8C8EhzWw==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
+  '@solana/codecs-core@8.1.0':
+    resolution: {integrity: sha512-ClBbCrHbxgibtSZp3G+3S2PYFaw2Slx229KbFAXcZ52TAXgVRnXgNOY7HpURbmxnBFzEHSMu9u1zR7Ap8Tfk+g==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -883,6 +919,15 @@ packages:
       typescript:
         optional: true
 
+  '@solana/codecs-data-structures@8.1.0':
+    resolution: {integrity: sha512-XmHx2kt5ni/mukLMHQRNobrzEIXKu9EmDqVO8qJU7NGkxtWYgUxETB7NfpoBXY2YSdWNfnuG+4FAi+V2cxcDKA==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   '@solana/codecs-numbers@6.10.0':
     resolution: {integrity: sha512-CcM+wX4zOiA9zkh8A7t1787A0Ehgmu5+6Z2tKoHew6cNw/dkaUTPa8JnNHbvfsLC8dfHC1BhAEJl86sKmRsfkQ==}
     engines: {node: '>=20.18.0'}
@@ -894,6 +939,15 @@ packages:
 
   '@solana/codecs-numbers@8.0.0':
     resolution: {integrity: sha512-Islv8gZPQhVA1DvCk3KspTTw9r0z/qL6EWwN5/vvA9LYWe11RmNarJ+C0qxg1vPh2lQh8W6t/GcpZS/TJbHI0A==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
+  '@solana/codecs-numbers@8.1.0':
+    resolution: {integrity: sha512-3qVIu0Fqx5dgBri+bE65d02dA7wvGdg4t9t8PJl4vvdUu/d531YhqAIqTLMSGuC+TeemAZa5FRsT5okuvqrb/g==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -925,6 +979,18 @@ packages:
       typescript:
         optional: true
 
+  '@solana/codecs-strings@8.1.0':
+    resolution: {integrity: sha512-Mhq97DN2y7KFTRuxrEEyXvVuYrPLn1VZKv0h8D0yvK0RMdWmEBRUC2kucc9cVlV53Z+RrS4ovGICtnf+ZkFoYw==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      fastestsmallesttextencoderdecoder: ^1.0.22
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      fastestsmallesttextencoderdecoder:
+        optional: true
+      typescript:
+        optional: true
+
   '@solana/codecs@6.10.0':
     resolution: {integrity: sha512-lLVuxod4ChWp9i7OvpgIykYG8Q9OGPVXKnHM9VlzDDLylsx7Y1FoQL00sHa7PqFkJVmkBufaA6dcGbQ7FU+lAQ==}
     engines: {node: '>=20.18.0'}
@@ -934,8 +1000,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/codecs@8.0.0':
-    resolution: {integrity: sha512-Pk33P602YQSYHJka2IH4LhTg9vcVskYQb/XfOCqXyXDsgJS2x3au7kpXB7Q6M5yiw8VBw8ZNu/a0iGBX44v7tw==}
+  '@solana/codecs@8.1.0':
+    resolution: {integrity: sha512-hjxbwWVjEcBVF7AWgsZWftPK/d3Xqj43ed9gV3X00zYNXFXvobEgZEjtu9NCOUb85LFUaRam99Mub/vqSlWrjQ==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -963,6 +1029,16 @@ packages:
       typescript:
         optional: true
 
+  '@solana/errors@8.1.0':
+    resolution: {integrity: sha512-dCuQR9nSVp4GBESLpOOIH84px5REySC4V5TMbR1PvkI09DU1BV8Pi/4W466enijO8NXCKwkL5YLNHdn97KBPDA==}
+    engines: {node: '>=20.18.0'}
+    hasBin: true
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   '@solana/fast-stable-stringify@6.10.0':
     resolution: {integrity: sha512-iCNed27wk6PKSS3QUtHovRfMWF/jbVWogs2vB4tukKUCsqG4rDfDInIwZ6ur/nY6XTrgi2gMMdZq9GAUlWsbfw==}
     engines: {node: '>=20.18.0'}
@@ -972,8 +1048,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/fast-stable-stringify@8.0.0':
-    resolution: {integrity: sha512-2cg1e6ytDOtID8AnoqdIC0vzmEo5J2N96RtON6+nuyYjaOKH+i8T5nLmUAmVpcozcdntp899MfGGrUcxHJ/7Sw==}
+  '@solana/fast-stable-stringify@8.1.0':
+    resolution: {integrity: sha512-BdiWGZRGwb4ExG/EQq9mAqhQI0weJZ3ikDQuI10IvOrhm1ukkZ2OhM0UXhKgRbnX3mjkmm6Iufyn9cTTZzWgRg==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -999,6 +1075,15 @@ packages:
       typescript:
         optional: true
 
+  '@solana/fixed-points@8.1.0':
+    resolution: {integrity: sha512-WAHdYPKBk3hXvpYyJkUPzFTnpQAeGzDlIjskPXdCfPTT15o8+dSlN6nfPWz+EVZ33+8REkXyvuyQ7eW99j7iMg==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   '@solana/functional@6.10.0':
     resolution: {integrity: sha512-P8cevu4mAqHTXC37h1TVoOh8zhWB2tlOI/R9vWjYPpcLwcyWf8p2qq4LEGHl5kY+1C+4PNX39HsmCocXOPCDkQ==}
     engines: {node: '>=20.18.0'}
@@ -1008,8 +1093,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/functional@8.0.0':
-    resolution: {integrity: sha512-w5GZeeLJQyIBc21PRWPzOs7M+7aKJdbklA5cqzSx7u5cNjJQ9VDs7/JkPTtgTzrhNIqa7jqZRNf97ecx7dQVvg==}
+  '@solana/functional@8.1.0':
+    resolution: {integrity: sha512-x1qTNhYttsiqyuhsWOJyVfZIrKlf666hi+P2+NnkxxDFUm3RTDS9czIUVUQ9gdnLpJ73dGkYZkfEIDRx6zTRdw==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1026,8 +1111,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/instruction-plans@8.0.0':
-    resolution: {integrity: sha512-sD9W72Pn59UT1swV5wwR7uFpBdAUAc+o2Am3fEFZbm24HWQVhcV5rOmCZqzu/dlU10puFFra28AEVq20o5crAg==}
+  '@solana/instruction-plans@8.1.0':
+    resolution: {integrity: sha512-GLSCWzIf080Uej6wQF/QIgSMFgJ3ZbUZ29jdUhcThypxyLlQnxIaD7iwPLwuPnW7jNN9q/4xTcpvHlfsvfXxRA==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1044,8 +1129,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/instructions@8.0.0':
-    resolution: {integrity: sha512-xcToa7n5IBnjaKfOBwHwj2UU+wmE7Rvh8jLFHRrSeAXzqZkABDviMrrKAPdcgD+/lhnofyuz1cYLH6cuc5hdnQ==}
+  '@solana/instructions@8.1.0':
+    resolution: {integrity: sha512-uHq7EzR+0aGXH/lYiHS5QgDh8KWdJ7OiKzijqcYznTfpyM0bX15JtNhwL8BzMmQInlI2LOYwoe6tFCpP4GsDQw==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1062,8 +1147,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/keys@8.0.0':
-    resolution: {integrity: sha512-nUg748MurpMmfVoWYwshpxrWsJZIcJ31mYf9xm1Z7NV0fySWyZYhgQbrEtONpMW6TPt2kpgBYDVKWs/wAyPokw==}
+  '@solana/keys@8.1.0':
+    resolution: {integrity: sha512-L6Sx0yY4PAjGuzHtzq8r20Yacvv48c16CXFeZV5Neci1SC7pJq1wRiOmdEtTzZ1Cghilfm6IQwMnRo1B4Q6ajw==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1100,8 +1185,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/kit@8.0.0':
-    resolution: {integrity: sha512-HAruLcW5OPVJu/T/NeMHFTPC8c6De1TjXsOGF8ZablZV14ytlyx2CwyIkOJeU2WTRq1WNM933RI/XuOBUCPrtA==}
+  '@solana/kit@8.1.0':
+    resolution: {integrity: sha512-TLbHYh5SWe2e4xSYHhWT3oFub2guMVyJcGurUtQ0ij2u0lH80IkqeWUsDUWdroKF1AAYkXbZPuWdRO51IuY4gg==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1127,6 +1212,15 @@ packages:
       typescript:
         optional: true
 
+  '@solana/nominal-types@8.1.0':
+    resolution: {integrity: sha512-FRdH8A1FU6glQohUZhGPoRREFDp5kDA98M5veCrL+MP2rm37Ws4JPY/yJZ0mpcu0kmEJTrT0x5wiNJtRUQbQhA==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   '@solana/offchain-messages@6.10.0':
     resolution: {integrity: sha512-RiEgAueeMkFMC1suOXBIcmCZgtXRxy24yk0DldPB37bB4zwOF1SAaRjNRPjIkGK8RhCYrEpPosnzLyavw9ueRg==}
     engines: {node: '>=20.18.0'}
@@ -1136,8 +1230,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/offchain-messages@8.0.0':
-    resolution: {integrity: sha512-wynBOsq3bwwqDG+KIUK9/5hNlo/tpRjmUf+VcFWUdD0LgSRr9NtF8QL2/Modj/m+Xj1iFkjfP+p8f94iGUF56g==}
+  '@solana/offchain-messages@8.1.0':
+    resolution: {integrity: sha512-IdpxHMlOuONS0vVxZViDRhhqaShG++hO4/wRlp5NMb/0WODSTTRTIIrDOmhiioTmOKJ9PIM6gAxtRys5/5uNHA==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1154,8 +1248,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/options@8.0.0':
-    resolution: {integrity: sha512-OOrtPfPOuJY2+jNUUUgm6d9pQewhs+fTaR6R6nRAGJOl2IVgmTOMQ6+mpj2nfH36bLXRNuXmJR7SCG64mMi8Dg==}
+  '@solana/options@8.1.0':
+    resolution: {integrity: sha512-8DcPRNlH91OHpxql22lLdagMI+FRb4MDKwPntvQhNAeLaGck70xVqmgR2E+oZj7w2whzRXpKRWy+uRLPhy3R/Q==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1172,8 +1266,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/plugin-core@8.0.0':
-    resolution: {integrity: sha512-8ciqi0mT7TocVt/ZjW0rzch8jgmaYbZeW6J2EFM2Oxe1vG2QloK+voikRxkYtsHMxGtSLfiTZDnklX24xBSa9Q==}
+  '@solana/plugin-core@8.1.0':
+    resolution: {integrity: sha512-xrfErUO9WaUhxfmyMjVxoWHEVF1yxWQEAF491ur4CgDpfL8UnhV0tiWp1+6duOplgRkEIEnARuS83S4YZjSgOg==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1190,8 +1284,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/plugin-interfaces@8.0.0':
-    resolution: {integrity: sha512-xi8co+87aAT51XBt0GJDntww172Rke+Bb+hjxPHMoNHd4C1WdMf9VQHwpGhh/km3DYYGx75JBxwpNwPZIbzNxQ==}
+  '@solana/plugin-interfaces@8.1.0':
+    resolution: {integrity: sha512-4Ck5NnwCI/LKFlFvDzbycIXk38ZcHHup9SIcXs0ixmjngRRqvToXHoSJMeKcrmbc9jvg71IDVDav+ibm/68t3w==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1208,8 +1302,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/program-client-core@8.0.0':
-    resolution: {integrity: sha512-LS2cgz6imea+PLCQ9J3wKbacR127YpO8aKo/gl1x60GoBasdT1km5Dw63gsv7HEkmEF0iQZGjA9TBwYZNAOXFw==}
+  '@solana/program-client-core@8.1.0':
+    resolution: {integrity: sha512-R1qsD89GhW8xdfekk8ph7C2KK8aeYhhz5Z5nLJy9DZMDFFsWP7tj0tZW/sY0yFVqKsIsIBzdthiOC3npktNH4A==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1226,8 +1320,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/programs@8.0.0':
-    resolution: {integrity: sha512-7n40XqVlTntQWYGwSiFyY4pQSOmCdLmI13oXWbHeSh/e1f4hJvPrVIpKe/h/liT630mSdjgxy1Je+2c7cV24Sw==}
+  '@solana/programs@8.1.0':
+    resolution: {integrity: sha512-wDRP/tZuqzjQAuX+Ce5ZbWlFrdtX5qZSC3VvKJAGqe4XaxHiREOCZ78+N+0IWJYsyvK1FEzzaJAGVQ6RsovMRQ==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1253,6 +1347,15 @@ packages:
       typescript:
         optional: true
 
+  '@solana/promises@8.1.0':
+    resolution: {integrity: sha512-tx904NuIXOi/SUqxBQb53yIa7/iYM9QdwUX96IPhnzJrkmnW28/k2rZ+4fTzIaaY/ATouoE9zUJH0vm5v6R08A==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   '@solana/rpc-api@6.10.0':
     resolution: {integrity: sha512-RjPIVsAb/85P1ptoO3WpC0x7QG6gG/e4q/3lo6gbSznUZOcoM+8sSBnCX7BwP1ZkCDS6NK/ClXLnhhhYZx+OGg==}
     engines: {node: '>=20.18.0'}
@@ -1262,8 +1365,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/rpc-api@8.0.0':
-    resolution: {integrity: sha512-NT2fBS9wivcMuNAwFiiiVpQ1EIR29mTzq0j7fnq9T5D4EBrl/OmA7xZXN+Z6TzUPpNLAaLADzPceXHrqqeaRSw==}
+  '@solana/rpc-api@8.1.0':
+    resolution: {integrity: sha512-vMhz0bKCol7DTDoevWLCKXmIUQqhDonB8660rT2SNuo6ETSm+pHmUdsbkif4fpOeBS/YKDcr47Sy8zDXLPiutQ==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1280,8 +1383,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/rpc-parsed-types@8.0.0':
-    resolution: {integrity: sha512-UEzab+gqgWZ84e1SwMoofInmu5Q0a8+DB7YYC+YnzfJJjbEL/qyFPdNpIvKX3DFyHJ+Hg5rjE9iVUVOP6Pqk2w==}
+  '@solana/rpc-parsed-types@8.1.0':
+    resolution: {integrity: sha512-3tPIXReVJQ6e4zZnMAkX/qSg35YeZ8n2OqbmXOolNj6tVeOUWY4jBM1XFOw8AZZ54qShAwMckBokyGiJoEx9Zg==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1307,6 +1410,15 @@ packages:
       typescript:
         optional: true
 
+  '@solana/rpc-spec-types@8.1.0':
+    resolution: {integrity: sha512-t/hkyeA2dMxQoRrFTfut5Mm6IJeQm/xaHXlmznivgfZFYfdVInQLwSnNsj3aaQRdTpuFnLDFViM+1VtqDAV/qw==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   '@solana/rpc-spec@6.10.0':
     resolution: {integrity: sha512-yQdbWw5mZEWrwsunHR9NHkuhMXIB9sPOObwm18D53v5tAJnxTB0IcHvO647XqFDLTK/yQ4AdDtlYD1vsY07AMQ==}
     engines: {node: '>=20.18.0'}
@@ -1325,6 +1437,15 @@ packages:
       typescript:
         optional: true
 
+  '@solana/rpc-spec@8.1.0':
+    resolution: {integrity: sha512-IduXbEBtRtHP+UWe5FJZwfX24o7aiw1IuIDhDktfOduo26Meo7rml+qvxusSehaRK7lLXHAl52L9np5K91MveQ==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   '@solana/rpc-subscriptions-api@6.10.0':
     resolution: {integrity: sha512-CRPQoTtT1cOwOQUsqS7jgo7wYdAj7jB5ab/UmMPWVpecf2FNMhWhgvxP2s82M7VkDGTGl13qaQ0WySmi7Egrlg==}
     engines: {node: '>=20.18.0'}
@@ -1334,8 +1455,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/rpc-subscriptions-api@8.0.0':
-    resolution: {integrity: sha512-ILmWLSRMs0cmes78FDln79OCVpRn5WwVg8aIgkH+phR6qsybg9ZA6JmVKPsNjRJzWhnvKw3cnY3YscRNk/uW2A==}
+  '@solana/rpc-subscriptions-api@8.1.0':
+    resolution: {integrity: sha512-P5kdtzM48/quxGy+IWkcpDtX7+akFafb+ckBORdKFnXntuwtjI+bMvT86rjMjtsBIza0ytdKgE786tQtrLQxdA==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1352,8 +1473,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/rpc-subscriptions-channel-websocket@8.0.0':
-    resolution: {integrity: sha512-5gOIiaA+UsDGTuVIszwUzwlGI0AKOxsStXg5abk9BdWsx8B0iEqRZ0FTXeZxHOs6t4k25yhLFkAeam7i18qKeg==}
+  '@solana/rpc-subscriptions-channel-websocket@8.1.0':
+    resolution: {integrity: sha512-LI7kxSez9ev0p5w5oQQW+Z//Niu2wRkoiGIeC5C0DhBwYbaCNyXGxYYCrGbJfTYJyaa9H/BpXUOncQSeDpLoYQ==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1370,8 +1491,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/rpc-subscriptions-spec@8.0.0':
-    resolution: {integrity: sha512-RdKaVmuC1ATsCiiFzb8Fd5uJIouS32TvF+eVCRx/fmqHmbW7J7testCqi/gjITJGjr8JE/7qPJIoUU1dccWzLg==}
+  '@solana/rpc-subscriptions-spec@8.1.0':
+    resolution: {integrity: sha512-VqLBOXFqxeyGMcOuJBX8EKdksy9dooZz74oU7w6fG636W+Du2oFsp/hVd2rsXbCK/8PVAthP3DkKjDkMSjNMow==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1388,8 +1509,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/rpc-subscriptions@8.0.0':
-    resolution: {integrity: sha512-Ar2UgTHqx6W1xFJ8JmkZiY2xvcSzrW7FrXF2cg7AiBw89PIeMcpQOUHokaZtI8bN2CHp3f5VT1d4CcKFe0UIJg==}
+  '@solana/rpc-subscriptions@8.1.0':
+    resolution: {integrity: sha512-GiFe3oFuzZs3S/oeVDumzQc/+3lCc3k/9/T43Bhdi8f9ctsAN2S9X5tADAgh6ZngP9p0BT5yecNEBny+jL/7Yg==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1406,8 +1527,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/rpc-transformers@8.0.0':
-    resolution: {integrity: sha512-OA4wEcLte+WJirlYfZcsFcX6Sn5/deWaJ+G1x1VbfDYXwGEzo39JBk7A23VZ9T9MOmDfpgfds7lCjCix9lFZJQ==}
+  '@solana/rpc-transformers@8.1.0':
+    resolution: {integrity: sha512-axr/EZ4CKKPW2rzSkNpC9rG5H5I93sQdJFs60SMXMUMnlzc9FdxTTBldlbNntEroKu3ff6ghXkL9o/2SIW6erw==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1424,8 +1545,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/rpc-transport-http@8.0.0':
-    resolution: {integrity: sha512-fGk4ym3zApquQnKI2vyO+wdEwfKEKsRQfUunLVgjAMLYSd2dxV4rQ2rFErxzJpJE0gMWE3vBH9JTPm9NXHgiuA==}
+  '@solana/rpc-transport-http@8.1.0':
+    resolution: {integrity: sha512-lIW66Ly9yOa6SXCAAw07N99miqkEpRQoOYgyVEjMVX2Us+g1+UdnCOJ5DKkpkE1q68RY9C1qcZHnw54yTSjWWw==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1451,6 +1572,15 @@ packages:
       typescript:
         optional: true
 
+  '@solana/rpc-types@8.1.0':
+    resolution: {integrity: sha512-/R84MZZwW6U3a13QNt2uHDyir26r/ETAa3xuj4XWsQ9Y9GyxwIYQmOerrEQWzLruXhuP9sSomRWRmzON3QIxVw==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   '@solana/rpc@6.10.0':
     resolution: {integrity: sha512-EwxsqoD+NXV+m+iobnWNtATD93gTgaNsOiQOzYB1/2e+8S6fl6obdNPB55yfXgtl4jt6GV6/ae4xuPhLv76vvg==}
     engines: {node: '>=20.18.0'}
@@ -1460,8 +1590,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/rpc@8.0.0':
-    resolution: {integrity: sha512-wzo+xjw0oTVOf8jX1dfowegVv8kjpSE7AMoAcBWRiTOOzrLViYiVEPSHvJAow27TTgLoI8ujkfCl+emXFFrA9A==}
+  '@solana/rpc@8.1.0':
+    resolution: {integrity: sha512-Hc8cKx5ZHiz2cW/OlfpCSVUNS7kH9oxcOmVfdWZWeF8L/1QM7pYAcq29WyC9X2jrX5TvHqB0jqouOBNElrSbTA==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1478,8 +1608,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/signers@8.0.0':
-    resolution: {integrity: sha512-yKqD54Hh8a+BBgjdcyRDYukKRG9d2Zj9aLAOuXapIcj1fWG1bWGIf3LEdVAjdoNJPTa2NEb787ouM6QOA+DAMA==}
+  '@solana/signers@8.1.0':
+    resolution: {integrity: sha512-6975HRg5RBFZrnaYqJxSZ861CSTorogq4pBZ6NfrjPFzQdo8nlmA0Fpbc9aYk4uV0l3o70ZPyVtr5w6/fazTwg==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1505,6 +1635,15 @@ packages:
       typescript:
         optional: true
 
+  '@solana/subscribable@8.1.0':
+    resolution: {integrity: sha512-XOqc8y4WK2Kg/so7LfNWEy6eQ7DE8nGKxvh9ouVeayo3QcggGgFkWpBiw3fx2l6otFDTXFKkT3v7J/yT8rm/Ng==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   '@solana/sysvars@6.10.0':
     resolution: {integrity: sha512-cG13p1+onxz+20iWjwWQr1Z1jQwPm0fnjoW75fqZq7p4rVCie3L2sXvaJsYPjWKrUvpOzOIEHnqZGkG05rCpjg==}
     engines: {node: '>=20.18.0'}
@@ -1523,6 +1662,15 @@ packages:
       typescript:
         optional: true
 
+  '@solana/sysvars@8.1.0':
+    resolution: {integrity: sha512-YXaws30Q0gMTu/4h0y/T+MYtQr8MS/XQo4PTQts4TAmCVaxU2+yZra+kNO9Yj7DEcir9vDnb18Hb95/hnErDfg==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   '@solana/transaction-confirmation@6.10.0':
     resolution: {integrity: sha512-ULvtg65qfenh4T/GYcIlKSUv5EqDcng9UN0dxbHU4kuZdR2e0B8HN2xDC4WhcFQVeFJSbTZmaYFkeTY/Y4gfGQ==}
     engines: {node: '>=20.18.0'}
@@ -1532,8 +1680,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/transaction-confirmation@8.0.0':
-    resolution: {integrity: sha512-vz72wtWChtoqzCXmYpQwD0ZRtA1qM10FGg+hwtmUeoxvoq014MAJ5JEJ4PN5X3D5ST/qdmv3TmmFyfdyJ8kfCQ==}
+  '@solana/transaction-confirmation@8.1.0':
+    resolution: {integrity: sha512-VLVXn+QVhb58bCxBvEBSvxSapEOKMJ71rMG5RSRza8JyV6fgZSxMme34M7SJYB5s2OMcyRg91FiIaae+nKIgOg==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1541,8 +1689,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/transaction-introspection@8.0.0':
-    resolution: {integrity: sha512-GkmR+SXN70Amh1f+MvzEGUiqr3/YL/FyEqeT6oCAMTR2AidXfyZIKNkoTB4+1jABeXFFMaYiCfPhKD6+BznnXA==}
+  '@solana/transaction-introspection@8.1.0':
+    resolution: {integrity: sha512-bUYCr2pm/F3M7mTmnVZ/R7XjAmDd0fxO5bGVlryJ4ZGOAQI65y003nEwlSaNGDx3g/ZkjzpshchJHhaeMlYM/Q==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1559,8 +1707,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/transaction-messages@8.0.0':
-    resolution: {integrity: sha512-/3QXUWIPLDicPLOt2aVczgTRJrWih59mHndLOwCD3i7/phGFnH66cjoyYy7+ootJJJwDlsgMoOmgdGJJHnqyFA==}
+  '@solana/transaction-messages@8.1.0':
+    resolution: {integrity: sha512-AbZYIxPbosnM3rFUwntvMLOZex8syNaU+StvlriB74XZyLt3mjC/V5aA1/Gv6XmS/aaJ74OqQ5QjS2ui1VCgBQ==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -1577,8 +1725,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/transactions@8.0.0':
-    resolution: {integrity: sha512-8HQmyVN9qv0v1ylTqOR38T8834oQ+sPLSRpPueTd5yfwiv60CtUwndHg1M+y5n7Q4DP1jJZ0M5YReJ5BpnD2Zg==}
+  '@solana/transactions@8.1.0':
+    resolution: {integrity: sha512-fH29RT9c0VwgS1rca9doPAalXJ0YAzvnpuy3VoOEqMCr9NvgLMpP6k9EuJAfBBNpek9u0uErTz72qIPbObHNwA==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -2636,28 +2784,28 @@ snapshots:
       oxfmt: 0.65.0
       oxlint: 1.80.0(oxlint-tsgolint@7.0.2001)
 
-  '@solana-program/record@0.4.0(@solana/kit@8.0.0(typescript@6.0.3))':
+  '@solana-program/record@0.4.0(@solana/kit@8.1.0(typescript@6.0.3))':
     dependencies:
-      '@solana-program/system': 0.14.0(@solana/kit@8.0.0(typescript@6.0.3))
-      '@solana/kit': 8.0.0(typescript@6.0.3)
+      '@solana-program/system': 0.14.0(@solana/kit@8.1.0(typescript@6.0.3))
+      '@solana/kit': 8.1.0(typescript@6.0.3)
 
   '@solana-program/system@0.12.2(@solana/kit@6.10.0(typescript@6.0.3))':
     dependencies:
       '@solana/kit': 6.10.0(typescript@6.0.3)
 
-  '@solana-program/system@0.14.0(@solana/kit@8.0.0(typescript@6.0.3))':
+  '@solana-program/system@0.14.0(@solana/kit@8.1.0(typescript@6.0.3))':
     dependencies:
-      '@solana/kit': 8.0.0(typescript@6.0.3)
+      '@solana/kit': 8.1.0(typescript@6.0.3)
 
   '@solana-program/token@0.14.0(@solana/kit@6.10.0(typescript@6.0.3))':
     dependencies:
       '@solana-program/system': 0.12.2(@solana/kit@6.10.0(typescript@6.0.3))
       '@solana/kit': 6.10.0(typescript@6.0.3)
 
-  '@solana-program/zk-elgamal-proof@0.4.0(@solana/kit@8.0.0(typescript@6.0.3))':
+  '@solana-program/zk-elgamal-proof@0.4.0(@solana/kit@8.1.0(typescript@6.0.3))':
     dependencies:
-      '@solana-program/system': 0.14.0(@solana/kit@8.0.0(typescript@6.0.3))
-      '@solana/kit': 8.0.0(typescript@6.0.3)
+      '@solana-program/system': 0.14.0(@solana/kit@8.1.0(typescript@6.0.3))
+      '@solana/kit': 8.1.0(typescript@6.0.3)
 
   '@solana/accounts@6.10.0(typescript@6.0.3)':
     dependencies:
@@ -2680,6 +2828,19 @@ snapshots:
       '@solana/errors': 8.0.0(typescript@6.0.3)
       '@solana/rpc-spec': 8.0.0(typescript@6.0.3)
       '@solana/rpc-types': 8.0.0(typescript@6.0.3)
+    optionalDependencies:
+      typescript: 6.0.3
+    transitivePeerDependencies:
+      - fastestsmallesttextencoderdecoder
+
+  '@solana/accounts@8.1.0(typescript@6.0.3)':
+    dependencies:
+      '@solana/addresses': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-strings': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-spec': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-types': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -2709,6 +2870,18 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
+  '@solana/addresses@8.1.0(typescript@6.0.3)':
+    dependencies:
+      '@solana/assertions': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-strings': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/nominal-types': 8.1.0(typescript@6.0.3)
+    optionalDependencies:
+      typescript: 6.0.3
+    transitivePeerDependencies:
+      - fastestsmallesttextencoderdecoder
+
   '@solana/assertions@6.10.0(typescript@6.0.3)':
     dependencies:
       '@solana/errors': 6.10.0(typescript@6.0.3)
@@ -2721,6 +2894,12 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
+  '@solana/assertions@8.1.0(typescript@6.0.3)':
+    dependencies:
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+    optionalDependencies:
+      typescript: 6.0.3
+
   '@solana/codecs-core@6.10.0(typescript@6.0.3)':
     dependencies:
       '@solana/errors': 6.10.0(typescript@6.0.3)
@@ -2730,6 +2909,12 @@ snapshots:
   '@solana/codecs-core@8.0.0(typescript@6.0.3)':
     dependencies:
       '@solana/errors': 8.0.0(typescript@6.0.3)
+    optionalDependencies:
+      typescript: 6.0.3
+
+  '@solana/codecs-core@8.1.0(typescript@6.0.3)':
+    dependencies:
+      '@solana/errors': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
 
@@ -2749,6 +2934,14 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
+  '@solana/codecs-data-structures@8.1.0(typescript@6.0.3)':
+    dependencies:
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-numbers': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+    optionalDependencies:
+      typescript: 6.0.3
+
   '@solana/codecs-numbers@6.10.0(typescript@6.0.3)':
     dependencies:
       '@solana/codecs-core': 6.10.0(typescript@6.0.3)
@@ -2760,6 +2953,13 @@ snapshots:
     dependencies:
       '@solana/codecs-core': 8.0.0(typescript@6.0.3)
       '@solana/errors': 8.0.0(typescript@6.0.3)
+    optionalDependencies:
+      typescript: 6.0.3
+
+  '@solana/codecs-numbers@8.1.0(typescript@6.0.3)':
+    dependencies:
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
 
@@ -2779,6 +2979,14 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
+  '@solana/codecs-strings@8.1.0(typescript@6.0.3)':
+    dependencies:
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-numbers': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+    optionalDependencies:
+      typescript: 6.0.3
+
   '@solana/codecs@6.10.0(typescript@6.0.3)':
     dependencies:
       '@solana/codecs-core': 6.10.0(typescript@6.0.3)
@@ -2792,14 +3000,14 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/codecs@8.0.0(typescript@6.0.3)':
+  '@solana/codecs@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/codecs-core': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-data-structures': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-numbers': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-strings': 8.0.0(typescript@6.0.3)
-      '@solana/fixed-points': 8.0.0(typescript@6.0.3)
-      '@solana/options': 8.0.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-data-structures': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-numbers': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-strings': 8.1.0(typescript@6.0.3)
+      '@solana/fixed-points': 8.1.0(typescript@6.0.3)
+      '@solana/options': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -2819,11 +3027,18 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
+  '@solana/errors@8.1.0(typescript@6.0.3)':
+    dependencies:
+      chalk: 5.6.2
+      commander: 15.0.0
+    optionalDependencies:
+      typescript: 6.0.3
+
   '@solana/fast-stable-stringify@6.10.0(typescript@6.0.3)':
     optionalDependencies:
       typescript: 6.0.3
 
-  '@solana/fast-stable-stringify@8.0.0(typescript@6.0.3)':
+  '@solana/fast-stable-stringify@8.1.0(typescript@6.0.3)':
     optionalDependencies:
       typescript: 6.0.3
 
@@ -2841,11 +3056,18 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
+  '@solana/fixed-points@8.1.0(typescript@6.0.3)':
+    dependencies:
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+    optionalDependencies:
+      typescript: 6.0.3
+
   '@solana/functional@6.10.0(typescript@6.0.3)':
     optionalDependencies:
       typescript: 6.0.3
 
-  '@solana/functional@8.0.0(typescript@6.0.3)':
+  '@solana/functional@8.1.0(typescript@6.0.3)':
     optionalDependencies:
       typescript: 6.0.3
 
@@ -2862,14 +3084,14 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/instruction-plans@8.0.0(typescript@6.0.3)':
+  '@solana/instruction-plans@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/instructions': 8.0.0(typescript@6.0.3)
-      '@solana/keys': 8.0.0(typescript@6.0.3)
-      '@solana/promises': 8.0.0(typescript@6.0.3)
-      '@solana/transaction-messages': 8.0.0(typescript@6.0.3)
-      '@solana/transactions': 8.0.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/instructions': 8.1.0(typescript@6.0.3)
+      '@solana/keys': 8.1.0(typescript@6.0.3)
+      '@solana/promises': 8.1.0(typescript@6.0.3)
+      '@solana/transaction-messages': 8.1.0(typescript@6.0.3)
+      '@solana/transactions': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -2882,10 +3104,10 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
-  '@solana/instructions@8.0.0(typescript@6.0.3)':
+  '@solana/instructions@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/codecs-core': 8.0.0(typescript@6.0.3)
-      '@solana/errors': 8.0.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
 
@@ -2902,27 +3124,27 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/keys@8.0.0(typescript@6.0.3)':
+  '@solana/keys@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/assertions': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-core': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-strings': 8.0.0(typescript@6.0.3)
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/nominal-types': 8.0.0(typescript@6.0.3)
-      '@solana/promises': 8.0.0(typescript@6.0.3)
+      '@solana/assertions': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-strings': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/nominal-types': 8.1.0(typescript@6.0.3)
+      '@solana/promises': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/kit-plugin-instruction-plan@0.18.0(@solana/kit@8.0.0(typescript@6.0.3))':
+  '@solana/kit-plugin-instruction-plan@0.18.0(@solana/kit@8.1.0(typescript@6.0.3))':
     dependencies:
-      '@solana/kit': 8.0.0(typescript@6.0.3)
+      '@solana/kit': 8.1.0(typescript@6.0.3)
 
-  '@solana/kit-plugin-litesvm@0.18.0(@solana/kit@8.0.0(typescript@6.0.3))(typescript@6.0.3)':
+  '@solana/kit-plugin-litesvm@0.18.0(@solana/kit@8.1.0(typescript@6.0.3))(typescript@6.0.3)':
     dependencies:
-      '@solana/kit': 8.0.0(typescript@6.0.3)
-      '@solana/kit-plugin-instruction-plan': 0.18.0(@solana/kit@8.0.0(typescript@6.0.3))
+      '@solana/kit': 8.1.0(typescript@6.0.3)
+      '@solana/kit-plugin-instruction-plan': 0.18.0(@solana/kit@8.1.0(typescript@6.0.3))
       litesvm: 1.3.0(typescript@6.0.3)
     transitivePeerDependencies:
       - bufferutil
@@ -2930,14 +3152,14 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@solana/kit-plugin-rpc@0.18.0(@solana/kit@8.0.0(typescript@6.0.3))':
+  '@solana/kit-plugin-rpc@0.18.0(@solana/kit@8.1.0(typescript@6.0.3))':
     dependencies:
-      '@solana/kit': 8.0.0(typescript@6.0.3)
-      '@solana/kit-plugin-instruction-plan': 0.18.0(@solana/kit@8.0.0(typescript@6.0.3))
+      '@solana/kit': 8.1.0(typescript@6.0.3)
+      '@solana/kit-plugin-instruction-plan': 0.18.0(@solana/kit@8.1.0(typescript@6.0.3))
 
-  '@solana/kit-plugin-signer@0.18.0(@solana/kit@8.0.0(typescript@6.0.3))':
+  '@solana/kit-plugin-signer@0.18.0(@solana/kit@8.1.0(typescript@6.0.3))':
     dependencies:
-      '@solana/kit': 8.0.0(typescript@6.0.3)
+      '@solana/kit': 8.1.0(typescript@6.0.3)
 
   '@solana/kit@6.10.0(typescript@6.0.3)':
     dependencies:
@@ -2973,35 +3195,35 @@ snapshots:
       - fastestsmallesttextencoderdecoder
       - utf-8-validate
 
-  '@solana/kit@8.0.0(typescript@6.0.3)':
+  '@solana/kit@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/accounts': 8.0.0(typescript@6.0.3)
-      '@solana/addresses': 8.0.0(typescript@6.0.3)
-      '@solana/codecs': 8.0.0(typescript@6.0.3)
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/functional': 8.0.0(typescript@6.0.3)
-      '@solana/instruction-plans': 8.0.0(typescript@6.0.3)
-      '@solana/instructions': 8.0.0(typescript@6.0.3)
-      '@solana/keys': 8.0.0(typescript@6.0.3)
-      '@solana/offchain-messages': 8.0.0(typescript@6.0.3)
-      '@solana/plugin-core': 8.0.0(typescript@6.0.3)
-      '@solana/plugin-interfaces': 8.0.0(typescript@6.0.3)
-      '@solana/program-client-core': 8.0.0(typescript@6.0.3)
-      '@solana/programs': 8.0.0(typescript@6.0.3)
-      '@solana/promises': 8.0.0(typescript@6.0.3)
-      '@solana/rpc': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-api': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-parsed-types': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-spec-types': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-subscriptions': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-types': 8.0.0(typescript@6.0.3)
-      '@solana/signers': 8.0.0(typescript@6.0.3)
-      '@solana/subscribable': 8.0.0(typescript@6.0.3)
-      '@solana/sysvars': 8.0.0(typescript@6.0.3)
-      '@solana/transaction-confirmation': 8.0.0(typescript@6.0.3)
-      '@solana/transaction-introspection': 8.0.0(typescript@6.0.3)
-      '@solana/transaction-messages': 8.0.0(typescript@6.0.3)
-      '@solana/transactions': 8.0.0(typescript@6.0.3)
+      '@solana/accounts': 8.1.0(typescript@6.0.3)
+      '@solana/addresses': 8.1.0(typescript@6.0.3)
+      '@solana/codecs': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/functional': 8.1.0(typescript@6.0.3)
+      '@solana/instruction-plans': 8.1.0(typescript@6.0.3)
+      '@solana/instructions': 8.1.0(typescript@6.0.3)
+      '@solana/keys': 8.1.0(typescript@6.0.3)
+      '@solana/offchain-messages': 8.1.0(typescript@6.0.3)
+      '@solana/plugin-core': 8.1.0(typescript@6.0.3)
+      '@solana/plugin-interfaces': 8.1.0(typescript@6.0.3)
+      '@solana/program-client-core': 8.1.0(typescript@6.0.3)
+      '@solana/programs': 8.1.0(typescript@6.0.3)
+      '@solana/promises': 8.1.0(typescript@6.0.3)
+      '@solana/rpc': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-api': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-parsed-types': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-spec-types': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-subscriptions': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-types': 8.1.0(typescript@6.0.3)
+      '@solana/signers': 8.1.0(typescript@6.0.3)
+      '@solana/subscribable': 8.1.0(typescript@6.0.3)
+      '@solana/sysvars': 8.1.0(typescript@6.0.3)
+      '@solana/transaction-confirmation': 8.1.0(typescript@6.0.3)
+      '@solana/transaction-introspection': 8.1.0(typescript@6.0.3)
+      '@solana/transaction-messages': 8.1.0(typescript@6.0.3)
+      '@solana/transactions': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -3014,6 +3236,10 @@ snapshots:
       typescript: 6.0.3
 
   '@solana/nominal-types@8.0.0(typescript@6.0.3)':
+    optionalDependencies:
+      typescript: 6.0.3
+
+  '@solana/nominal-types@8.1.0(typescript@6.0.3)':
     optionalDependencies:
       typescript: 6.0.3
 
@@ -3032,16 +3258,16 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/offchain-messages@8.0.0(typescript@6.0.3)':
+  '@solana/offchain-messages@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/addresses': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-core': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-data-structures': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-numbers': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-strings': 8.0.0(typescript@6.0.3)
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/keys': 8.0.0(typescript@6.0.3)
-      '@solana/nominal-types': 8.0.0(typescript@6.0.3)
+      '@solana/addresses': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-data-structures': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-numbers': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-strings': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/keys': 8.1.0(typescript@6.0.3)
+      '@solana/nominal-types': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -3059,13 +3285,13 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/options@8.0.0(typescript@6.0.3)':
+  '@solana/options@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/codecs-core': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-data-structures': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-numbers': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-strings': 8.0.0(typescript@6.0.3)
-      '@solana/errors': 8.0.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-data-structures': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-numbers': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-strings': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -3075,7 +3301,7 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
-  '@solana/plugin-core@8.0.0(typescript@6.0.3)':
+  '@solana/plugin-core@8.1.0(typescript@6.0.3)':
     optionalDependencies:
       typescript: 6.0.3
 
@@ -3093,17 +3319,17 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/plugin-interfaces@8.0.0(typescript@6.0.3)':
+  '@solana/plugin-interfaces@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/accounts': 8.0.0(typescript@6.0.3)
-      '@solana/addresses': 8.0.0(typescript@6.0.3)
-      '@solana/instruction-plans': 8.0.0(typescript@6.0.3)
-      '@solana/keys': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-spec': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-subscriptions-spec': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-types': 8.0.0(typescript@6.0.3)
-      '@solana/signers': 8.0.0(typescript@6.0.3)
-      '@solana/transactions': 8.0.0(typescript@6.0.3)
+      '@solana/accounts': 8.1.0(typescript@6.0.3)
+      '@solana/addresses': 8.1.0(typescript@6.0.3)
+      '@solana/instruction-plans': 8.1.0(typescript@6.0.3)
+      '@solana/keys': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-spec': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-subscriptions-spec': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-types': 8.1.0(typescript@6.0.3)
+      '@solana/signers': 8.1.0(typescript@6.0.3)
+      '@solana/transactions': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -3125,17 +3351,17 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/program-client-core@8.0.0(typescript@6.0.3)':
+  '@solana/program-client-core@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/accounts': 8.0.0(typescript@6.0.3)
-      '@solana/addresses': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-core': 8.0.0(typescript@6.0.3)
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/instruction-plans': 8.0.0(typescript@6.0.3)
-      '@solana/instructions': 8.0.0(typescript@6.0.3)
-      '@solana/plugin-interfaces': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-api': 8.0.0(typescript@6.0.3)
-      '@solana/signers': 8.0.0(typescript@6.0.3)
+      '@solana/accounts': 8.1.0(typescript@6.0.3)
+      '@solana/addresses': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/instruction-plans': 8.1.0(typescript@6.0.3)
+      '@solana/instructions': 8.1.0(typescript@6.0.3)
+      '@solana/plugin-interfaces': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-api': 8.1.0(typescript@6.0.3)
+      '@solana/signers': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -3150,10 +3376,10 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/programs@8.0.0(typescript@6.0.3)':
+  '@solana/programs@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/addresses': 8.0.0(typescript@6.0.3)
-      '@solana/errors': 8.0.0(typescript@6.0.3)
+      '@solana/addresses': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -3164,6 +3390,10 @@ snapshots:
       typescript: 6.0.3
 
   '@solana/promises@8.0.0(typescript@6.0.3)':
+    optionalDependencies:
+      typescript: 6.0.3
+
+  '@solana/promises@8.1.0(typescript@6.0.3)':
     optionalDependencies:
       typescript: 6.0.3
 
@@ -3185,19 +3415,19 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/rpc-api@8.0.0(typescript@6.0.3)':
+  '@solana/rpc-api@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/addresses': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-core': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-strings': 8.0.0(typescript@6.0.3)
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/keys': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-parsed-types': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-spec': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-transformers': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-types': 8.0.0(typescript@6.0.3)
-      '@solana/transaction-messages': 8.0.0(typescript@6.0.3)
-      '@solana/transactions': 8.0.0(typescript@6.0.3)
+      '@solana/addresses': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-strings': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/keys': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-parsed-types': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-spec': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-transformers': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-types': 8.1.0(typescript@6.0.3)
+      '@solana/transaction-messages': 8.1.0(typescript@6.0.3)
+      '@solana/transactions': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -3207,7 +3437,7 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
-  '@solana/rpc-parsed-types@8.0.0(typescript@6.0.3)':
+  '@solana/rpc-parsed-types@8.1.0(typescript@6.0.3)':
     optionalDependencies:
       typescript: 6.0.3
 
@@ -3218,6 +3448,12 @@ snapshots:
   '@solana/rpc-spec-types@8.0.0(typescript@6.0.3)':
     dependencies:
       '@solana/errors': 8.0.0(typescript@6.0.3)
+    optionalDependencies:
+      typescript: 6.0.3
+
+  '@solana/rpc-spec-types@8.1.0(typescript@6.0.3)':
+    dependencies:
+      '@solana/errors': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
 
@@ -3237,6 +3473,14 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
+  '@solana/rpc-spec@8.1.0(typescript@6.0.3)':
+    dependencies:
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-spec-types': 8.1.0(typescript@6.0.3)
+      '@solana/subscribable': 8.1.0(typescript@6.0.3)
+    optionalDependencies:
+      typescript: 6.0.3
+
   '@solana/rpc-subscriptions-api@6.10.0(typescript@6.0.3)':
     dependencies:
       '@solana/addresses': 6.10.0(typescript@6.0.3)
@@ -3251,15 +3495,15 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/rpc-subscriptions-api@8.0.0(typescript@6.0.3)':
+  '@solana/rpc-subscriptions-api@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/addresses': 8.0.0(typescript@6.0.3)
-      '@solana/keys': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-subscriptions-spec': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-transformers': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-types': 8.0.0(typescript@6.0.3)
-      '@solana/transaction-messages': 8.0.0(typescript@6.0.3)
-      '@solana/transactions': 8.0.0(typescript@6.0.3)
+      '@solana/addresses': 8.1.0(typescript@6.0.3)
+      '@solana/keys': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-subscriptions-spec': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-transformers': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-types': 8.1.0(typescript@6.0.3)
+      '@solana/transaction-messages': 8.1.0(typescript@6.0.3)
+      '@solana/transactions': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -3278,12 +3522,12 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@solana/rpc-subscriptions-channel-websocket@8.0.0(typescript@6.0.3)':
+  '@solana/rpc-subscriptions-channel-websocket@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/functional': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-subscriptions-spec': 8.0.0(typescript@6.0.3)
-      '@solana/subscribable': 8.0.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/functional': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-subscriptions-spec': 8.1.0(typescript@6.0.3)
+      '@solana/subscribable': 8.1.0(typescript@6.0.3)
       ws: 8.21.3
     optionalDependencies:
       typescript: 6.0.3
@@ -3300,12 +3544,12 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
-  '@solana/rpc-subscriptions-spec@8.0.0(typescript@6.0.3)':
+  '@solana/rpc-subscriptions-spec@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/promises': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-spec-types': 8.0.0(typescript@6.0.3)
-      '@solana/subscribable': 8.0.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/promises': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-spec-types': 8.1.0(typescript@6.0.3)
+      '@solana/subscribable': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
 
@@ -3329,19 +3573,19 @@ snapshots:
       - fastestsmallesttextencoderdecoder
       - utf-8-validate
 
-  '@solana/rpc-subscriptions@8.0.0(typescript@6.0.3)':
+  '@solana/rpc-subscriptions@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/fast-stable-stringify': 8.0.0(typescript@6.0.3)
-      '@solana/functional': 8.0.0(typescript@6.0.3)
-      '@solana/promises': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-spec-types': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-subscriptions-api': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-subscriptions-channel-websocket': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-subscriptions-spec': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-transformers': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-types': 8.0.0(typescript@6.0.3)
-      '@solana/subscribable': 8.0.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/fast-stable-stringify': 8.1.0(typescript@6.0.3)
+      '@solana/functional': 8.1.0(typescript@6.0.3)
+      '@solana/promises': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-spec-types': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-subscriptions-api': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-subscriptions-channel-websocket': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-subscriptions-spec': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-transformers': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-types': 8.1.0(typescript@6.0.3)
+      '@solana/subscribable': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -3361,13 +3605,13 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/rpc-transformers@8.0.0(typescript@6.0.3)':
+  '@solana/rpc-transformers@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/functional': 8.0.0(typescript@6.0.3)
-      '@solana/nominal-types': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-spec-types': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-types': 8.0.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/functional': 8.1.0(typescript@6.0.3)
+      '@solana/nominal-types': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-spec-types': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-types': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -3382,11 +3626,11 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
-  '@solana/rpc-transport-http@8.0.0(typescript@6.0.3)':
+  '@solana/rpc-transport-http@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-spec': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-spec-types': 8.0.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-spec': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-spec-types': 8.1.0(typescript@6.0.3)
       undici-types: 8.10.0
     optionalDependencies:
       typescript: 6.0.3
@@ -3419,6 +3663,20 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
+  '@solana/rpc-types@8.1.0(typescript@6.0.3)':
+    dependencies:
+      '@solana/addresses': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-numbers': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-strings': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/fixed-points': 8.1.0(typescript@6.0.3)
+      '@solana/nominal-types': 8.1.0(typescript@6.0.3)
+    optionalDependencies:
+      typescript: 6.0.3
+    transitivePeerDependencies:
+      - fastestsmallesttextencoderdecoder
+
   '@solana/rpc@6.10.0(typescript@6.0.3)':
     dependencies:
       '@solana/errors': 6.10.0(typescript@6.0.3)
@@ -3435,17 +3693,17 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/rpc@8.0.0(typescript@6.0.3)':
+  '@solana/rpc@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/fast-stable-stringify': 8.0.0(typescript@6.0.3)
-      '@solana/functional': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-api': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-spec': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-spec-types': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-transformers': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-transport-http': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-types': 8.0.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/fast-stable-stringify': 8.1.0(typescript@6.0.3)
+      '@solana/functional': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-api': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-spec': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-spec-types': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-transformers': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-transport-http': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-types': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -3467,17 +3725,17 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/signers@8.0.0(typescript@6.0.3)':
+  '@solana/signers@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/addresses': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-core': 8.0.0(typescript@6.0.3)
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/instructions': 8.0.0(typescript@6.0.3)
-      '@solana/keys': 8.0.0(typescript@6.0.3)
-      '@solana/nominal-types': 8.0.0(typescript@6.0.3)
-      '@solana/offchain-messages': 8.0.0(typescript@6.0.3)
-      '@solana/transaction-messages': 8.0.0(typescript@6.0.3)
-      '@solana/transactions': 8.0.0(typescript@6.0.3)
+      '@solana/addresses': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/instructions': 8.1.0(typescript@6.0.3)
+      '@solana/keys': 8.1.0(typescript@6.0.3)
+      '@solana/nominal-types': 8.1.0(typescript@6.0.3)
+      '@solana/offchain-messages': 8.1.0(typescript@6.0.3)
+      '@solana/transaction-messages': 8.1.0(typescript@6.0.3)
+      '@solana/transactions': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -3494,6 +3752,13 @@ snapshots:
     dependencies:
       '@solana/errors': 8.0.0(typescript@6.0.3)
       '@solana/promises': 8.0.0(typescript@6.0.3)
+    optionalDependencies:
+      typescript: 6.0.3
+
+  '@solana/subscribable@8.1.0(typescript@6.0.3)':
+    dependencies:
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/promises': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
 
@@ -3523,6 +3788,19 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
+  '@solana/sysvars@8.1.0(typescript@6.0.3)':
+    dependencies:
+      '@solana/accounts': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-data-structures': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-numbers': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-types': 8.1.0(typescript@6.0.3)
+    optionalDependencies:
+      typescript: 6.0.3
+    transitivePeerDependencies:
+      - fastestsmallesttextencoderdecoder
+
   '@solana/transaction-confirmation@6.10.0(typescript@6.0.3)':
     dependencies:
       '@solana/addresses': 6.10.0(typescript@6.0.3)
@@ -3542,18 +3820,18 @@ snapshots:
       - fastestsmallesttextencoderdecoder
       - utf-8-validate
 
-  '@solana/transaction-confirmation@8.0.0(typescript@6.0.3)':
+  '@solana/transaction-confirmation@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/addresses': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-strings': 8.0.0(typescript@6.0.3)
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/keys': 8.0.0(typescript@6.0.3)
-      '@solana/promises': 8.0.0(typescript@6.0.3)
-      '@solana/rpc': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-subscriptions': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-types': 8.0.0(typescript@6.0.3)
-      '@solana/transaction-messages': 8.0.0(typescript@6.0.3)
-      '@solana/transactions': 8.0.0(typescript@6.0.3)
+      '@solana/addresses': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-strings': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/keys': 8.1.0(typescript@6.0.3)
+      '@solana/promises': 8.1.0(typescript@6.0.3)
+      '@solana/rpc': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-subscriptions': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-types': 8.1.0(typescript@6.0.3)
+      '@solana/transaction-messages': 8.1.0(typescript@6.0.3)
+      '@solana/transactions': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -3561,16 +3839,16 @@ snapshots:
       - fastestsmallesttextencoderdecoder
       - utf-8-validate
 
-  '@solana/transaction-introspection@8.0.0(typescript@6.0.3)':
+  '@solana/transaction-introspection@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/addresses': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-core': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-strings': 8.0.0(typescript@6.0.3)
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/instructions': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-types': 8.0.0(typescript@6.0.3)
-      '@solana/transaction-messages': 8.0.0(typescript@6.0.3)
-      '@solana/transactions': 8.0.0(typescript@6.0.3)
+      '@solana/addresses': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-strings': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/instructions': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-types': 8.1.0(typescript@6.0.3)
+      '@solana/transaction-messages': 8.1.0(typescript@6.0.3)
+      '@solana/transactions': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -3592,17 +3870,17 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/transaction-messages@8.0.0(typescript@6.0.3)':
+  '@solana/transaction-messages@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/addresses': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-core': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-data-structures': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-numbers': 8.0.0(typescript@6.0.3)
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/functional': 8.0.0(typescript@6.0.3)
-      '@solana/instructions': 8.0.0(typescript@6.0.3)
-      '@solana/nominal-types': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-types': 8.0.0(typescript@6.0.3)
+      '@solana/addresses': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-data-structures': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-numbers': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/functional': 8.1.0(typescript@6.0.3)
+      '@solana/instructions': 8.1.0(typescript@6.0.3)
+      '@solana/nominal-types': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-types': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -3627,20 +3905,20 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/transactions@8.0.0(typescript@6.0.3)':
+  '@solana/transactions@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/addresses': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-core': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-data-structures': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-numbers': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-strings': 8.0.0(typescript@6.0.3)
-      '@solana/errors': 8.0.0(typescript@6.0.3)
-      '@solana/functional': 8.0.0(typescript@6.0.3)
-      '@solana/instructions': 8.0.0(typescript@6.0.3)
-      '@solana/keys': 8.0.0(typescript@6.0.3)
-      '@solana/nominal-types': 8.0.0(typescript@6.0.3)
-      '@solana/rpc-types': 8.0.0(typescript@6.0.3)
-      '@solana/transaction-messages': 8.0.0(typescript@6.0.3)
+      '@solana/addresses': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-data-structures': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-numbers': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-strings': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
+      '@solana/functional': 8.1.0(typescript@6.0.3)
+      '@solana/instructions': 8.1.0(typescript@6.0.3)
+      '@solana/keys': 8.1.0(typescript@6.0.3)
+      '@solana/nominal-types': 8.1.0(typescript@6.0.3)
+      '@solana/rpc-types': 8.1.0(typescript@6.0.3)
+      '@solana/transaction-messages': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
     transitivePeerDependencies:
