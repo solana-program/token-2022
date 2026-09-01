@@ -3,13 +3,13 @@
 // not currently expose `ElGamalCiphertext` arithmetic (subtract / multiply
 // by scalar / lo-hi combination) over its public API. Once the WASM SDK
 // adds those methods, delete this file and call into the SDK directly.
-import { ristretto255 } from '@noble/curves/ed25519';
+import { ristretto255 } from '@noble/curves/ed25519.js';
 import { type ReadonlyUint8Array } from '@solana/kit';
 
 const { Point: RistrettoPoint } = /* @__PURE__ */ ristretto255;
 
 function pointFromBytes(bytes: ReadonlyUint8Array) {
-    return RistrettoPoint.fromHex(new Uint8Array(bytes));
+    return RistrettoPoint.fromBytes(new Uint8Array(bytes));
 }
 
 function ciphertextToPoints(ciphertext: ReadonlyUint8Array) {
@@ -25,8 +25,8 @@ function ciphertextToPoints(ciphertext: ReadonlyUint8Array) {
 
 function pointsToCiphertext(commitment: ReturnType<typeof pointFromBytes>, handle: ReturnType<typeof pointFromBytes>) {
     const ciphertext = new Uint8Array(64);
-    ciphertext.set(commitment.toRawBytes(), 0);
-    ciphertext.set(handle.toRawBytes(), 32);
+    ciphertext.set(commitment.toBytes(), 0);
+    ciphertext.set(handle.toBytes(), 32);
     return ciphertext;
 }
 
