@@ -25,8 +25,8 @@ importers:
         version: 6.0.3
     devDependencies:
       '@solana/codecs-strings':
-        specifier: 8.0.0
-        version: 8.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@6.0.3)
+        specifier: 8.1.0
+        version: 8.1.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@6.0.3)
       '@solana/spl-memo':
         specifier: 0.2.5
         version: 0.2.5(@solana/web3.js@1.98.4(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10))
@@ -395,8 +395,8 @@ packages:
     peerDependencies:
       typescript: '>=5.3.3'
 
-  '@solana/codecs-core@8.0.0':
-    resolution: {integrity: sha512-WU/W1IEssIae1rKfJHAwuxvbnhwFH9+WCjD+l4oK2TiKgRDIdO3ndF58ABl5hFqgISCthHxeiFqBtd8C8EhzWw==}
+  '@solana/codecs-core@8.1.0':
+    resolution: {integrity: sha512-ClBbCrHbxgibtSZp3G+3S2PYFaw2Slx229KbFAXcZ52TAXgVRnXgNOY7HpURbmxnBFzEHSMu9u1zR7Ap8Tfk+g==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -420,8 +420,8 @@ packages:
     peerDependencies:
       typescript: '>=5.3.3'
 
-  '@solana/codecs-numbers@8.0.0':
-    resolution: {integrity: sha512-Islv8gZPQhVA1DvCk3KspTTw9r0z/qL6EWwN5/vvA9LYWe11RmNarJ+C0qxg1vPh2lQh8W6t/GcpZS/TJbHI0A==}
+  '@solana/codecs-numbers@8.1.0':
+    resolution: {integrity: sha512-3qVIu0Fqx5dgBri+bE65d02dA7wvGdg4t9t8PJl4vvdUu/d531YhqAIqTLMSGuC+TeemAZa5FRsT5okuvqrb/g==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -435,8 +435,8 @@ packages:
       fastestsmallesttextencoderdecoder: ^1.0.22
       typescript: '>=5'
 
-  '@solana/codecs-strings@8.0.0':
-    resolution: {integrity: sha512-4l8XCWIFt9DYX/zH22Jygmu+DRjKpFjFE1CNqnin24+LZ6WQu6Zk3cU+nftV3OrLns2Yi+o4cSlv/eVUsxA3qA==}
+  '@solana/codecs-strings@8.1.0':
+    resolution: {integrity: sha512-Mhq97DN2y7KFTRuxrEEyXvVuYrPLn1VZKv0h8D0yvK0RMdWmEBRUC2kucc9cVlV53Z+RrS4ovGICtnf+ZkFoYw==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       fastestsmallesttextencoderdecoder: ^1.0.22
@@ -465,8 +465,8 @@ packages:
     peerDependencies:
       typescript: '>=5.3.3'
 
-  '@solana/errors@8.0.0':
-    resolution: {integrity: sha512-S7vuD1EWVkp2OX9J7fQW7j7nGP3e+iuscDktheMDxpM/5d9GwfjjNiFDTOQB/SwEKuFd9PnZ5Wq5MmMBJxVSrw==}
+  '@solana/errors@8.1.0':
+    resolution: {integrity: sha512-dCuQR9nSVp4GBESLpOOIH84px5REySC4V5TMbR1PvkI09DU1BV8Pi/4W466enijO8NXCKwkL5YLNHdn97KBPDA==}
     engines: {node: '>=20.18.0'}
     hasBin: true
     peerDependencies:
@@ -1734,9 +1734,9 @@ snapshots:
       '@solana/errors': 2.3.0(typescript@6.0.3)
       typescript: 6.0.3
 
-  '@solana/codecs-core@8.0.0(typescript@6.0.3)':
+  '@solana/codecs-core@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/errors': 8.0.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
 
@@ -1759,10 +1759,10 @@ snapshots:
       '@solana/errors': 2.3.0(typescript@6.0.3)
       typescript: 6.0.3
 
-  '@solana/codecs-numbers@8.0.0(typescript@6.0.3)':
+  '@solana/codecs-numbers@8.1.0(typescript@6.0.3)':
     dependencies:
-      '@solana/codecs-core': 8.0.0(typescript@6.0.3)
-      '@solana/errors': 8.0.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
 
@@ -1774,11 +1774,11 @@ snapshots:
       fastestsmallesttextencoderdecoder: 1.0.22
       typescript: 6.0.3
 
-  '@solana/codecs-strings@8.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@6.0.3)':
+  '@solana/codecs-strings@8.1.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@6.0.3)':
     dependencies:
-      '@solana/codecs-core': 8.0.0(typescript@6.0.3)
-      '@solana/codecs-numbers': 8.0.0(typescript@6.0.3)
-      '@solana/errors': 8.0.0(typescript@6.0.3)
+      '@solana/codecs-core': 8.1.0(typescript@6.0.3)
+      '@solana/codecs-numbers': 8.1.0(typescript@6.0.3)
+      '@solana/errors': 8.1.0(typescript@6.0.3)
     optionalDependencies:
       fastestsmallesttextencoderdecoder: 1.0.22
       typescript: 6.0.3
@@ -1806,7 +1806,7 @@ snapshots:
       commander: 14.0.3
       typescript: 6.0.3
 
-  '@solana/errors@8.0.0(typescript@6.0.3)':
+  '@solana/errors@8.1.0(typescript@6.0.3)':
     dependencies:
       chalk: 5.6.2
       commander: 15.0.0
