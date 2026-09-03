@@ -55,7 +55,7 @@ mollusk-svm = "0.12"
 proptest = "1.11"
 serial_test = "4.0.1"
 solana-account = "3.2.0"
-spl-tlv-account-resolution = { version = "0.11.1" }
+spl-tlv-account-resolution = { version = "0.11.3" }
 test-case = "3.3.1"
 tokio = { version = "1", features = ["macros", "rt"] }
 
