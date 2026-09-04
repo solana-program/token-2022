@@ -724,7 +724,7 @@ fn process_transfer(
 
         let fee_sigma_proof_instruction_offset =
             fee_sigma_proof_instruction_offset.ok_or(ProgramError::InvalidInstructionData)?;
-        let fee_ciphertext_validity_proof_insruction_offset =
+        let fee_ciphertext_validity_proof_instruction_offset =
             fee_ciphertext_validity_proof_instruction_offset
                 .ok_or(ProgramError::InvalidInstructionData)?;
 
@@ -739,7 +739,7 @@ fn process_transfer(
             equality_proof_instruction_offset,
             transfer_amount_ciphertext_validity_proof_instruction_offset,
             fee_sigma_proof_instruction_offset,
-            fee_ciphertext_validity_proof_insruction_offset,
+            fee_ciphertext_validity_proof_instruction_offset,
             range_proof_instruction_offset,
             fee_parameters,
         )?;
