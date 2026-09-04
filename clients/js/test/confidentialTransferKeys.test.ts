@@ -227,11 +227,7 @@ it('derives keys from a generic message signer', async () => {
 
 it('plugs derived ElGamal pubkeys directly into confidential transfer instruction builders', async () => {
     const [authority, mintSigner] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
-    const derivedElGamal = await deriveElGamalKeypairForOwnerMint({
-        signer: authority,
-        owner: authority.address,
-        mint: mintSigner.address,
-    });
+    const derivedElGamal = await deriveElGamalKeypair({ signer: authority });
 
     const instruction = getInitializeConfidentialTransferMintInstruction({
         mint: mintSigner.address,

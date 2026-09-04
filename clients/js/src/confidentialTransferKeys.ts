@@ -31,6 +31,11 @@ function ownerMintSeed(owner: Address, mint: Address): ReadonlyUint8Array {
  * Derives an ElGamal keypair following the `solana-conf-bal/v1` standard: the
  * signer signs a domain-separated message and the resulting Ed25519 signature
  * is fed into the WASM ZK SDK's `ConfidentialKeys` to derive the keypair.
+ *
+ * The standard derivation binds confidential-transfer keys to the main wallet
+ * only: leave `publicSeed` at its empty default so one wallet maps to one
+ * ElGamal keypair across all mints and token accounts. Only pass a custom
+ * seed for non-standard, application-specific keying schemes.
  */
 export async function deriveElGamalKeypair({
     signer,
@@ -48,9 +53,11 @@ export async function deriveElGamalKeypair({
 }
 
 /**
- * Derives an ElGamal keypair bound to an `(owner, mint)` pair. The seed
- * is `concat(ownerBytes, mintBytes)`, which is stable across token-account
- * close-and-reopen and prevents key reuse across mints.
+ * Derives an ElGamal keypair bound to an `(owner, mint)` pair, with a seed of
+ * `concat(ownerBytes, mintBytes)`.
+ *
+ * @deprecated The standard derivation binds keys to the main wallet only.
+ * Use `deriveElGamalKeypair({ signer })` with the default empty seed instead.
  */
 export async function deriveElGamalKeypairForOwnerMint({
     signer,
@@ -68,6 +75,10 @@ export async function deriveElGamalKeypairForOwnerMint({
  * Derives an AES-128 authenticated-encryption key following the
  * `solana-conf-bal/v1` standard: the signer signs a domain-separated message
  * and the resulting signature is fed into the WASM ZK SDK's `ConfidentialKeys`.
+ *
+ * The standard derivation binds the key to the main wallet only: leave
+ * `publicSeed` at its empty default so one wallet maps to one AES key across
+ * all mints and token accounts.
  */
 export async function deriveAeKey({
     signer,
@@ -85,8 +96,8 @@ export async function deriveAeKey({
 /**
  * Derives an AES key scoped to an `(owner, mint)` pair.
  *
- * See `deriveElGamalKeypairForOwnerMint` for why this is the right binding
- * for confidential token accounts.
+ * @deprecated The standard derivation binds keys to the main wallet only.
+ * Use `deriveAeKey({ signer })` with the default empty seed instead.
  */
 export async function deriveAeKeyForOwnerMint({
     signer,
