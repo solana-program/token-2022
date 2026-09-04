@@ -80,6 +80,7 @@ pub(crate) fn sort_and_parse_token_accounts(
                         account: ui_token_account,
                         is_associated,
                         has_permanent_delegate: false,
+                        decrypted_confidential_balances: None,
                     };
 
                     let entry = cli_accounts.entry(btree_key);

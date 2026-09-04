@@ -441,6 +441,33 @@ async fn run_transfer_test(config: &Config<'_>, payer: &Keypair) {
     assert_eq!(token_account.base.amount, amount);
 }
 
+/// Runs `spl-token display --decrypt` on a token account and returns the
+/// decrypted (pending, available) confidential balances as UI amounts
+async fn decrypted_confidential_balances(
+    config: &Config<'_>,
+    payer: &Keypair,
+    account: &Pubkey,
+) -> (f64, f64) {
+    let result = process_test_command(
+        config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Display.into(),
+            &account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let balances = &value["decryptedConfidentialBalances"];
+    (
+        balances["pendingBalance"]["uiAmount"].as_f64().unwrap(),
+        balances["availableBalance"]["uiAmount"].as_f64().unwrap(),
+    )
+}
+
 async fn process_test_command<I, T>(config: &Config<'_>, payer: &Keypair, args: I) -> CommandResult
 where
     I: IntoIterator<Item = T>,
@@ -3137,6 +3164,12 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     .await
     .unwrap();
 
+    // decrypted balances: deposit is pending until applied
+    assert_eq!(
+        decrypted_confidential_balances(&config, payer, &token_account).await,
+        (deposit_amount, 0.0)
+    );
+
     // apply pending balance
     process_test_command(
         &config,
@@ -3149,6 +3182,49 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     )
     .await
     .unwrap();
+
+    assert_eq!(
+        decrypted_confidential_balances(&config, payer, &token_account).await,
+        (0.0, deposit_amount)
+    );
+
+    // decrypting with a keypair that did not configure the account fails
+    let wrong_owner = Keypair::new();
+    let wrong_owner_config = test_config_with_default_signer(
+        test_validator,
+        &wrong_owner,
+        &spl_token_2022_interface::id(),
+    );
+    let result = process_test_command(
+        &wrong_owner_config,
+        &wrong_owner,
+        &[
+            "spl-token",
+            CommandName::Display.into(),
+            &token_account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await;
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("does not match the encryption key"));
+
+    // display without `--decrypt` does not include decrypted balances
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Display.into(),
+            &token_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert!(value.get("decryptedConfidentialBalances").is_none());
 
     // confidential transfer
     let destination_account = create_auxiliary_account(&config, payer, token_pubkey).await;
@@ -3195,6 +3271,15 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     .await
     .unwrap(); // apply pending balance first
 
+    assert_eq!(
+        decrypted_confidential_balances(&config, payer, &token_account).await,
+        (0.0, deposit_amount - transfer_amount)
+    );
+    assert_eq!(
+        decrypted_confidential_balances(&config, payer, &destination_account).await,
+        (0.0, transfer_amount)
+    );
+
     let withdraw_amount = 100.0;
 
     process_test_command(
@@ -3211,6 +3296,11 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     )
     .await
     .unwrap();
+
+    assert_eq!(
+        decrypted_confidential_balances(&config, payer, &destination_account).await,
+        (0.0, transfer_amount - withdraw_amount)
+    );
 
     // disable confidential transfers for mint
     process_test_command(
@@ -5201,6 +5291,30 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
     .await
     .unwrap();
 
+    assert_eq!(
+        decrypted_confidential_supply(&config, payer, &token_pubkey).await,
+        mint_amount
+    );
+
+    let mut display_config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    display_config.output_format = OutputFormat::Display;
+    let result = process_test_command(
+        &display_config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Display.into(),
+            &token_pubkey.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let result = console::strip_ansi_codes(&result);
+    assert!(result.contains("Confidential mint burn:"));
+    assert!(result.contains("Decrypted Supply: 100"));
+
     // Burn confidentially
     let burn_amount = 50.0;
     process_test_command(
@@ -5228,4 +5342,44 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
     )
     .await
     .unwrap();
+
+    // The decryptable supply is not updated by burns, so once the applied
+    // burns exceed 2^32 base units the current supply can no longer be
+    // recovered from it, and decryption reports an error instead
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Display.into(),
+            &token_pubkey.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await;
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Failed to decrypt confidential supply"));
+}
+
+/// Runs `spl-token display --decrypt` on a mint and returns the decrypted
+/// confidential supply as a UI amount
+async fn decrypted_confidential_supply(config: &Config<'_>, payer: &Keypair, mint: &Pubkey) -> f64 {
+    let result = process_test_command(
+        config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Display.into(),
+            &mint.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    value["decryptedConfidentialSupply"]["uiAmount"]
+        .as_f64()
+        .unwrap()
 }
