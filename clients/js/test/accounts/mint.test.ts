@@ -1,7 +1,7 @@
-import { getBase64Encoder, none, some } from '@solana/kit';
+import { address, getBase64Encoder, none, some } from '@solana/kit';
 import { expect, it } from 'vitest';
 
-import { AccountState, Mint, getMintDecoder } from '../../src';
+import { AccountState, type ExtensionArgs, Mint, getMintDecoder, getMintEncoder } from '../../src';
 
 it('decodes a mint account with extensions', () => {
     // Given an encoded mega mint account.
@@ -105,4 +105,46 @@ it('decodes a mint account with extensions', () => {
             },
         ]),
     });
+});
+
+// Mint accounts can legally be allocated with more space than their extensions
+// require (the program pads mints by 2 bytes when they would otherwise be the
+// size of a multisig). The program stops reading the TLV region at the first
+// `Uninitialized` (type 0) header or when fewer than 2 bytes remain, so the
+// unused tail can have any length. The decoder must mirror that and never
+// surface the padding.
+const encodeMintWithUnusedSpace = (extensions: ExtensionArgs[], freeBytes: number) => {
+    const base = getMintEncoder().encode({
+        mintAuthority: some(address('FdrdFuo1RQ9LrQ3FRfQUE7RigyANe5kFNLyMhCYk1xgJ')),
+        supply: 0n,
+        decimals: 9,
+        isInitialized: true,
+        freezeAuthority: none(),
+        extensions: some(extensions),
+    });
+    const data = new Uint8Array(base.length + freeBytes);
+    data.set(base, 0);
+    return data;
+};
+
+it.each([1, 2, 5, 6, 8])('decodes a mint account with no extensions and %i bytes of unused space', freeBytes => {
+    // Given a mint account whose extension region is entirely unused.
+    const data = encodeMintWithUnusedSpace([], freeBytes);
+
+    // When we decode it, then it does not throw and no extensions are reported.
+    const decodedData = getMintDecoder().decode(data);
+    expect(decodedData.extensions).toStrictEqual(some([]));
+});
+
+it.each([1, 2, 5, 6, 8])('decodes a mint account with extensions followed by %i bytes of unused space', freeBytes => {
+    // Given a mint account with real extensions followed by unused space.
+    const extensions: ExtensionArgs[] = [
+        { __kind: 'NonTransferable' },
+        { __kind: 'PermanentDelegate', delegate: address('5gSwsLGzyCwgwPJSnxjsQCaFeE19ZFaibHMLky9TDFim') },
+    ];
+    const data = encodeMintWithUnusedSpace(extensions, freeBytes);
+
+    // When we decode it, then only the real extensions are reported.
+    const decodedData = getMintDecoder().decode(data);
+    expect(decodedData.extensions).toStrictEqual(some(extensions));
 });

@@ -15,8 +15,6 @@ import {
     fetchEncodedAccounts,
     getAddressDecoder,
     getAddressEncoder,
-    getArrayDecoder,
-    getArrayEncoder,
     getConstantDecoder,
     getConstantEncoder,
     getHiddenPrefixDecoder,
@@ -43,16 +41,8 @@ import {
     type Option,
     type OptionOrNullable,
 } from '@solana/kit';
-import {
-    getAccountStateDecoder,
-    getAccountStateEncoder,
-    getExtensionDecoder,
-    getExtensionEncoder,
-    type AccountState,
-    type AccountStateArgs,
-    type Extension,
-    type ExtensionArgs,
-} from '../types';
+import { getExtensionsDecoder, getExtensionsEncoder, type Extensions, type ExtensionsArgs } from '../../hooked';
+import { getAccountStateDecoder, getAccountStateEncoder, type AccountState, type AccountStateArgs } from '../types';
 
 export type Token = {
     /** The mint associated with this account. */
@@ -80,7 +70,7 @@ export type Token = {
     /** Optional authority to close the account. */
     closeAuthority: Option<Address>;
     /** The extensions activated on the token account. */
-    extensions: Option<Array<Extension>>;
+    extensions: Option<Extensions>;
 };
 
 export type TokenArgs = {
@@ -109,7 +99,7 @@ export type TokenArgs = {
     /** Optional authority to close the account. */
     closeAuthority: OptionOrNullable<Address>;
     /** The extensions activated on the token account. */
-    extensions: OptionOrNullable<Array<ExtensionArgs>>;
+    extensions: OptionOrNullable<ExtensionsArgs>;
 };
 
 /** Gets the encoder for {@link TokenArgs} account data. */
@@ -126,9 +116,7 @@ export function getTokenEncoder(): Encoder<TokenArgs> {
         [
             'extensions',
             getOptionEncoder(
-                getHiddenPrefixEncoder(getArrayEncoder(getExtensionEncoder(), { size: 'remainder' }), [
-                    getConstantEncoder(getU8Encoder().encode(2)),
-                ]),
+                getHiddenPrefixEncoder(getExtensionsEncoder(), [getConstantEncoder(getU8Encoder().encode(2))]),
                 { prefix: null },
             ),
         ],
@@ -149,9 +137,7 @@ export function getTokenDecoder(): Decoder<Token> {
         [
             'extensions',
             getOptionDecoder(
-                getHiddenPrefixDecoder(getArrayDecoder(getExtensionDecoder(), { size: 'remainder' }), [
-                    getConstantDecoder(getU8Encoder().encode(2)),
-                ]),
+                getHiddenPrefixDecoder(getExtensionsDecoder(), [getConstantDecoder(getU8Encoder().encode(2))]),
                 { prefix: null },
             ),
         ],
