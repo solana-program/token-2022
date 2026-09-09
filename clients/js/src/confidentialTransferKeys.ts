@@ -41,7 +41,7 @@ function ownerMintSeed(owner: Address, mint: Address): ReadonlyUint8Array {
 }
 
 /**
- * THE standard confidential-balances key derivation: the signer signs the
+ * The standard confidential-balances key derivation: the signer signs the
  * constant `solana-conf-bal/v1` message exactly once, and both the ElGamal
  * keypair and the AES-128 authenticated-encryption key are derived from that
  * single Ed25519 signature via the WASM ZK SDK.
@@ -71,7 +71,7 @@ export async function deriveConfidentialKeys({
 }
 
 /**
- * NON-STANDARD, seed-scoped derivation of an ElGamal keypair: the signer signs
+ * Non-standard, seed-scoped derivation of an ElGamal keypair: the signer signs
  * `solana-conf-bal/v1 || publicSeed`.
  *
  * Use this only for schemes that genuinely need keys scoped more finely than
@@ -92,7 +92,7 @@ export async function deriveElGamalKeypairWithSeed({
 }
 
 /**
- * NON-STANDARD, seed-scoped derivation of an AES-128 authenticated-encryption
+ * Non-standard, seed-scoped derivation of an AES-128 authenticated-encryption
  * key: the signer signs `solana-conf-bal/v1 || publicSeed`.
  *
  * See `deriveElGamalKeypairWithSeed` for when a seed is appropriate; for the
@@ -114,11 +114,9 @@ export async function deriveAeKeyWithSeed({
  * Derives an ElGamal keypair bound to an `(owner, mint)` pair, with a seed of
  * `concat(ownerBytes, mintBytes)`.
  *
- * @deprecated The standard derivation binds keys to the main wallet only; use
- * `deriveConfidentialKeys({ signer })`. Keep using this helper only to access
- * confidential accounts that were already configured with owner-mint keys
- * (shipped in 0.16.x), and migrate those balances to standard keys before
- * dropping it.
+ * @deprecated Use `deriveConfidentialKeys({ signer })`, the standard
+ * wallet-level derivation. This helper remains only for decrypting and
+ * migrating balances on accounts configured with owner-mint keys.
  */
 export async function deriveElGamalKeypairForOwnerMint({
     signer,
@@ -135,11 +133,9 @@ export async function deriveElGamalKeypairForOwnerMint({
 /**
  * Derives an AES key scoped to an `(owner, mint)` pair.
  *
- * @deprecated The standard derivation binds keys to the main wallet only; use
- * `deriveConfidentialKeys({ signer })`. Keep using this helper only to access
- * confidential accounts that were already configured with owner-mint keys
- * (shipped in 0.16.x), and migrate those balances to standard keys before
- * dropping it.
+ * @deprecated Use `deriveConfidentialKeys({ signer })`, the standard
+ * wallet-level derivation. This helper remains only for decrypting and
+ * migrating balances on accounts configured with owner-mint keys.
  */
 export async function deriveAeKeyForOwnerMint({
     signer,
