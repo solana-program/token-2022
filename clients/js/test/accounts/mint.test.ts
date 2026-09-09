@@ -1,7 +1,7 @@
-import { getBase64Encoder, none, some } from '@solana/kit';
+import { address, getBase64Encoder, none, some } from '@solana/kit';
 import { expect, it } from 'vitest';
 
-import { AccountState, Mint, getMintDecoder } from '../../src';
+import { AccountState, Mint, getMintDecoder, getMintEncoder } from '../../src';
 
 it('decodes a mint account with extensions', () => {
     // Given an encoded mega mint account.
@@ -105,4 +105,35 @@ it('decodes a mint account with extensions', () => {
             },
         ]),
     });
+});
+
+// Mint accounts can legally be allocated with more space than their extensions
+// require. The unused tail is filled with `Uninitialized` TLV entries, each of
+// which is `type(2) + length(2) = 4` bytes on chain. The decoder must consume
+// that tail via its `remainder` extension array, so any number of free bytes
+// that is a multiple of 4 must decode cleanly rather than throwing.
+it.each([
+    [0, 0],
+    [4, 1],
+    [8, 2],
+    [12, 3],
+])('decodes a mint account with %i bytes of unused extension space', (freeBytes, paddingEntries) => {
+    // Given a base mint account followed by an unused extension region.
+    const base = getMintEncoder().encode({
+        mintAuthority: some(address('FdrdFuo1RQ9LrQ3FRfQUE7RigyANe5kFNLyMhCYk1xgJ')),
+        supply: 0n,
+        decimals: 9,
+        isInitialized: true,
+        freezeAuthority: none(),
+        extensions: some([]),
+    });
+    const data = new Uint8Array(base.length + freeBytes);
+    data.set(base, 0);
+
+    // When we decode it, then it does not throw and the unused region is read as
+    // `Uninitialized` padding entries, one per 4-byte TLV header.
+    const decodedData = getMintDecoder().decode(data);
+    expect(decodedData.extensions).toStrictEqual(
+        some(Array.from({ length: paddingEntries }, () => ({ __kind: 'Uninitialized' }))),
+    );
 });

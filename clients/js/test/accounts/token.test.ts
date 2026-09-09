@@ -1,7 +1,7 @@
-import { getBase16Encoder, getBase64Encoder, none, some } from '@solana/kit';
+import { address, getBase16Encoder, getBase64Encoder, none, some } from '@solana/kit';
 import { expect, it } from 'vitest';
 
-import { AccountState, Token, getTokenDecoder } from '../../src';
+import { AccountState, Token, getTokenDecoder, getTokenEncoder } from '../../src';
 
 it('decodes a token account with extensions', () => {
     // Given an encoded mega token account.
@@ -52,4 +52,39 @@ it('decodes a token account with extensions', () => {
             },
         ]),
     });
+});
+
+// Token accounts can legally be allocated with more space than their extensions
+// require (e.g. `InitializeAccount3` only checks `required <= actual`). The
+// unused tail is filled with `Uninitialized` TLV entries, each of which is
+// `type(2) + length(2) = 4` bytes on chain. The decoder must consume that tail
+// via its `remainder` extension array, so any number of free bytes that is a
+// multiple of 4 must decode cleanly rather than throwing.
+it.each([
+    [0, 0],
+    [4, 1],
+    [8, 2],
+    [12, 3],
+])('decodes a token account with %i bytes of unused extension space', (freeBytes, paddingEntries) => {
+    // Given a base token account followed by an unused extension region.
+    const base = getTokenEncoder().encode({
+        mint: address('5gSwsLGzyCwgwPJSnxjsQCaFeE19ZFaibHMLky9TDFim'),
+        owner: address('FdrdFuo1RQ9LrQ3FRfQUE7RigyANe5kFNLyMhCYk1xgJ'),
+        amount: 0n,
+        delegate: none(),
+        state: AccountState.Initialized,
+        isNative: none(),
+        delegatedAmount: 0n,
+        closeAuthority: none(),
+        extensions: some([]),
+    });
+    const data = new Uint8Array(base.length + freeBytes);
+    data.set(base, 0);
+
+    // When we decode it, then it does not throw and the unused region is read as
+    // `Uninitialized` padding entries, one per 4-byte TLV header.
+    const decodedData = getTokenDecoder().decode(data);
+    expect(decodedData.extensions).toStrictEqual(
+        some(Array.from({ length: paddingEntries }, () => ({ __kind: 'Uninitialized' }))),
+    );
 });

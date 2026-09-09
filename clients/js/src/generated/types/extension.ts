@@ -32,8 +32,6 @@ import {
     getU32Encoder,
     getU64Decoder,
     getU64Encoder,
-    getUnitDecoder,
-    getUnitEncoder,
     getUtf8Decoder,
     getUtf8Encoder,
     type Address,
@@ -523,7 +521,7 @@ export type ExtensionArgs =
 export function getExtensionEncoder(): Encoder<ExtensionArgs> {
     return getDiscriminatedUnionEncoder(
         [
-            ['Uninitialized', getUnitEncoder()],
+            ['Uninitialized', addEncoderSizePrefix(getStructEncoder([]), getU16Encoder())],
             [
                 'TransferFeeConfig',
                 addEncoderSizePrefix(
@@ -778,7 +776,7 @@ export function getExtensionEncoder(): Encoder<ExtensionArgs> {
 export function getExtensionDecoder(): Decoder<Extension> {
     return getDiscriminatedUnionDecoder(
         [
-            ['Uninitialized', getUnitDecoder()],
+            ['Uninitialized', addDecoderSizePrefix(getStructDecoder([]), getU16Decoder())],
             [
                 'TransferFeeConfig',
                 addDecoderSizePrefix(
@@ -1037,6 +1035,7 @@ export function getExtensionCodec(): Codec<ExtensionArgs, Extension> {
 // Data Enum Helpers.
 export function extension(
     kind: 'Uninitialized',
+    data: GetDiscriminatedUnionVariantContent<ExtensionArgs, '__kind', 'Uninitialized'>,
 ): GetDiscriminatedUnionVariant<ExtensionArgs, '__kind', 'Uninitialized'>;
 export function extension(
     kind: 'TransferFeeConfig',

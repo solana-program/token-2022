@@ -12456,8 +12456,20 @@
                     "kind": "enumTypeNode",
                     "variants": [
                         {
-                            "kind": "enumEmptyVariantTypeNode",
-                            "name": "uninitialized"
+                            "kind": "enumStructVariantTypeNode",
+                            "name": "uninitialized",
+                            "struct": {
+                                "kind": "sizePrefixTypeNode",
+                                "type": {
+                                    "kind": "structTypeNode",
+                                    "fields": []
+                                },
+                                "prefix": {
+                                    "kind": "numberTypeNode",
+                                    "format": "u16",
+                                    "endian": "le"
+                                }
+                            }
                         },
                         {
                             "kind": "enumStructVariantTypeNode",
