@@ -115,8 +115,8 @@ export async function deriveAeKeyWithSeed({
  * `concat(ownerBytes, mintBytes)`.
  *
  * @deprecated Use `deriveConfidentialKeys({ signer })`, the standard
- * wallet-level derivation. This helper remains only for decrypting and
- * migrating balances on accounts configured with owner-mint keys.
+ * wallet-level derivation. Use this helper only to decrypt and migrate
+ * balances on accounts configured with owner-mint keys.
  */
 export async function deriveElGamalKeypairForOwnerMint({
     signer,
@@ -134,8 +134,8 @@ export async function deriveElGamalKeypairForOwnerMint({
  * Derives an AES key scoped to an `(owner, mint)` pair.
  *
  * @deprecated Use `deriveConfidentialKeys({ signer })`, the standard
- * wallet-level derivation. This helper remains only for decrypting and
- * migrating balances on accounts configured with owner-mint keys.
+ * wallet-level derivation. Use this helper only to decrypt and migrate
+ * balances on accounts configured with owner-mint keys.
  */
 export async function deriveAeKeyForOwnerMint({
     signer,
