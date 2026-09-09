@@ -470,7 +470,7 @@ export function identifyToken2022Account(account: { data: ReadonlyUint8Array } |
     }
     throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT, {
         accountData: data,
-        programName: 'token-2022',
+        programName: 'token2022',
     });
 }
 
@@ -937,7 +937,7 @@ export function identifyToken2022Instruction(
     }
     throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION, {
         instructionData: data,
-        programName: 'token-2022',
+        programName: 'token2022',
     });
 }
 
@@ -1814,7 +1814,7 @@ export function parseToken2022Instruction<TProgram extends string>(
         default:
             throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE, {
                 instructionType: instructionType as string,
-                programName: 'token-2022',
+                programName: 'token2022',
             });
     }
 }

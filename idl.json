@@ -4,7 +4,7 @@
     "version": "1.0.0",
     "program": {
         "kind": "programNode",
-        "name": "token-2022",
+        "name": "token2022",
         "publicKey": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
         "version": "3.0.1",
         "docs": [],
