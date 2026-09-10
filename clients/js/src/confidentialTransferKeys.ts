@@ -36,6 +36,18 @@ function decodeConfidentialKeys(keys: ConfidentialKeys): DerivedConfidentialKeys
     return { aeKey, elgamalKeypair: { elgamalPubkey, secretKey } };
 }
 
+function assertSeedPresent(publicSeed: ReadonlyUint8Array, caller: string): void {
+    // TypeScript requires the property, but at runtime `new Uint8Array(null)`
+    // and `new Uint8Array(undefined)` both produce an empty array, silently
+    // deriving the standard wallet-level keys instead of the intended scoped
+    // ones. An explicitly supplied empty array is still accepted.
+    if (publicSeed == null) {
+        throw new Error(
+            `${caller} requires an explicit publicSeed; for the standard wallet-level keys use deriveConfidentialKeys`,
+        );
+    }
+}
+
 function ownerMintSeed(owner: Address, mint: Address): ReadonlyUint8Array {
     return getTupleEncoder([getAddressEncoder(), getAddressEncoder()]).encode([owner, mint]);
 }
@@ -52,8 +64,13 @@ function ownerMintSeed(owner: Address, mint: Address): ReadonlyUint8Array {
  * derives for the same wallet. There is no seed to pass, so two standard
  * clients cannot accidentally derive different keys.
  *
- * Signing once also guarantees the two keys belong together, even with
- * non-deterministic signers, and costs a single wallet approval.
+ * Signing once guarantees the two keys belong together within this call, and
+ * costs a single wallet approval. Reproducing the same keys later additionally
+ * requires the signer to produce canonical deterministic Ed25519 signatures
+ * (RFC 8032) over these exact message bytes: a randomized signer returns a
+ * different valid signature on the next call and derives different keys,
+ * leaving balances encrypted under the first pair unrecoverable unless that
+ * key material was preserved.
  *
  * Wallets should expose this signature through a dedicated derivation flow
  * and refuse generic `signMessage` requests starting with
@@ -86,6 +103,7 @@ export async function deriveElGamalKeypairWithSeed({
     publicSeed: ReadonlyUint8Array;
     signer: MessagePartialSigner;
 }): Promise<DerivedElGamalKeypair> {
+    assertSeedPresent(publicSeed, 'deriveElGamalKeypairWithSeed');
     const message = ConfidentialKeys.signerMessage(new Uint8Array(publicSeed));
     const signature = await signDerivationMessage(signer, message);
     return decodeConfidentialKeys(ConfidentialKeys.fromSignature(signature)).elgamalKeypair;
@@ -105,6 +123,7 @@ export async function deriveAeKeyWithSeed({
     publicSeed: ReadonlyUint8Array;
     signer: MessagePartialSigner;
 }): Promise<Uint8Array> {
+    assertSeedPresent(publicSeed, 'deriveAeKeyWithSeed');
     const message = ConfidentialKeys.signerMessage(new Uint8Array(publicSeed));
     const signature = await signDerivationMessage(signer, message);
     return decodeConfidentialKeys(ConfidentialKeys.fromSignature(signature)).aeKey;

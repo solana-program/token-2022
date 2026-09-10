@@ -144,6 +144,18 @@ it('derives different keys for non-empty seeds', async () => {
     expect(standard.aeKey).not.toEqual(aeSeeded);
 });
 
+it('rejects a missing publicSeed at runtime instead of deriving standard keys', async () => {
+    const signer = await generateKeyPairSigner();
+    const missingSeed = undefined as unknown as Uint8Array;
+
+    await expect(deriveElGamalKeypairWithSeed({ publicSeed: missingSeed, signer })).rejects.toThrow(
+        /requires an explicit publicSeed/,
+    );
+    await expect(deriveAeKeyWithSeed({ publicSeed: missingSeed, signer })).rejects.toThrow(
+        /requires an explicit publicSeed/,
+    );
+});
+
 it('derives different keys for different signers', async () => {
     const [signerA, signerB] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
 
