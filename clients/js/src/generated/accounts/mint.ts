@@ -15,8 +15,6 @@ import {
     fetchEncodedAccounts,
     getAddressDecoder,
     getAddressEncoder,
-    getArrayDecoder,
-    getArrayEncoder,
     getBooleanDecoder,
     getBooleanEncoder,
     getConstantDecoder,
@@ -47,7 +45,7 @@ import {
     type Option,
     type OptionOrNullable,
 } from '@solana/kit';
-import { getExtensionDecoder, getExtensionEncoder, type Extension, type ExtensionArgs } from '../types';
+import { getExtensionsDecoder, getExtensionsEncoder, type Extensions, type ExtensionsArgs } from '../../hooked';
 
 export type Mint = {
     /**
@@ -65,7 +63,7 @@ export type Mint = {
     /** Optional authority to freeze token accounts. */
     freezeAuthority: Option<Address>;
     /** The extensions activated on the mint account. */
-    extensions: Option<Array<Extension>>;
+    extensions: Option<Extensions>;
 };
 
 export type MintArgs = {
@@ -84,7 +82,7 @@ export type MintArgs = {
     /** Optional authority to freeze token accounts. */
     freezeAuthority: OptionOrNullable<Address>;
     /** The extensions activated on the mint account. */
-    extensions: OptionOrNullable<Array<ExtensionArgs>>;
+    extensions: OptionOrNullable<ExtensionsArgs>;
 };
 
 /** Gets the encoder for {@link MintArgs} account data. */
@@ -98,7 +96,7 @@ export function getMintEncoder(): Encoder<MintArgs> {
         [
             'extensions',
             getOptionEncoder(
-                getHiddenPrefixEncoder(getArrayEncoder(getExtensionEncoder(), { size: 'remainder' }), [
+                getHiddenPrefixEncoder(getExtensionsEncoder(), [
                     getConstantEncoder(padLeftEncoder(getU8Encoder(), 83).encode(1)),
                 ]),
                 { prefix: null },
@@ -118,7 +116,7 @@ export function getMintDecoder(): Decoder<Mint> {
         [
             'extensions',
             getOptionDecoder(
-                getHiddenPrefixDecoder(getArrayDecoder(getExtensionDecoder(), { size: 'remainder' }), [
+                getHiddenPrefixDecoder(getExtensionsDecoder(), [
                     getConstantDecoder(padLeftEncoder(getU8Encoder(), 83).encode(1)),
                 ]),
                 { prefix: null },
