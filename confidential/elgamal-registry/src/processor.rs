@@ -142,6 +142,7 @@ fn validate_program_owner(registry_info: &AccountInfo, program_id: &Address) -> 
 
 /// Allocate ElGamal registry account using Program Derived Address for the
 /// given seeds
+#[inline(always)]
 pub fn create_pda_account<'a>(
     rent: &Rent,
     space: usize,
