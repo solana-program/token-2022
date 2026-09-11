@@ -79,8 +79,7 @@ impl ConfidentialTokenAccountMeta {
             .unwrap();
         let token_account = token_account_keypair.pubkey();
 
-        let (elgamal_keypair, aes_key) =
-            derive_confidential_keys(owner, &token_account.to_bytes()).unwrap();
+        let (elgamal_keypair, aes_key) = derive_confidential_keys(owner, b"").unwrap();
 
         token
             .confidential_transfer_configure_token_account(
@@ -1238,9 +1237,7 @@ async fn test_withdraw_withheld_tokens_with_max_pending_counter() {
         .await
         .unwrap();
 
-    let (fc_elgamal, fc_aes) =
-        derive_confidential_keys(&fee_collector, &fee_collector_account.pubkey().to_bytes())
-            .unwrap();
+    let (fc_elgamal, fc_aes) = derive_confidential_keys(&fee_collector, b"").unwrap();
 
     // Configure with max_pending_balance_credit_counter = 1
     token

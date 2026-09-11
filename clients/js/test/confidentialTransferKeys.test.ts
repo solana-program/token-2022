@@ -13,15 +13,32 @@ import {
     parseInitializeConfidentialTransferMintInstruction,
 } from '../src';
 import {
-    deriveAeKey,
     deriveAeKeyForOwnerMint,
-    deriveElGamalKeypair,
+    deriveAeKeyWithSeed,
+    deriveConfidentialKeys,
     deriveElGamalKeypairForOwnerMint,
+    deriveElGamalKeypairWithSeed,
 } from '../src/confidential';
 
 const ADDRESS_DECODER = getAddressDecoder();
 const ADDRESS_ENCODER = getAddressEncoder();
 
+// Canonical cross-SDK vector for the standard (wallet-level, no seed) path.
+// The same inputs and outputs are pinned in the solana-zk-sdk Rust tests and
+// the solana-go fixtures (kdf_vectors.json, keypair_a_empty_seed).
+const STANDARD_VECTOR_PRIVATE_KEY = new Uint8Array([
+    0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x11, 0x22, 0x33,
+    0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00,
+]);
+const STANDARD_VECTOR_ELGAMAL_SECRET_KEY = new Uint8Array([
+    0xbe, 0x5c, 0xce, 0x95, 0x1f, 0x42, 0xa2, 0xa8, 0x67, 0x7d, 0x1a, 0x56, 0xf0, 0x3a, 0xae, 0x7b, 0xff, 0x79, 0x5b,
+    0x38, 0xcf, 0x1c, 0x56, 0xc8, 0xcf, 0x3a, 0x4d, 0xae, 0x7d, 0x60, 0xe2, 0x05,
+]);
+const STANDARD_VECTOR_AE_KEY = new Uint8Array([
+    0x64, 0x17, 0xee, 0xdb, 0xcb, 0xe9, 0xc6, 0x4a, 0x72, 0x39, 0x57, 0x19, 0xec, 0x98, 0xcf, 0x6b,
+]);
+
+// Vector for the non-standard seeded path.
 const RUST_VECTOR_PRIVATE_KEY = new Uint8Array([
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
     32,
@@ -40,83 +57,132 @@ const RUST_VECTOR_ELGAMAL_PUBKEY = new Uint8Array([
 ]);
 const RUST_VECTOR_AE_KEY = new Uint8Array([160, 210, 197, 15, 158, 3, 217, 111, 220, 216, 102, 104, 164, 25, 214, 183]);
 
-it('derives a 32-byte ElGamal secret key and a public key Address', async () => {
+it('derives a 32-byte ElGamal secret key, a public key Address and a 16-byte AES key', async () => {
     const signer = await generateKeyPairSigner();
 
-    const { elgamalPubkey, secretKey } = await deriveElGamalKeypair({ signer });
+    const { aeKey, elgamalKeypair } = await deriveConfidentialKeys({ signer });
 
-    expect(elgamalPubkey).toBeTruthy();
-    expect(secretKey.length).toBe(32);
-    expect(ADDRESS_ENCODER.encode(elgamalPubkey).length).toBe(32);
-});
-
-it('derives a 16-byte AES key', async () => {
-    const signer = await generateKeyPairSigner();
-
-    const aeKey = await deriveAeKey({ signer });
-
+    expect(elgamalKeypair.elgamalPubkey).toBeTruthy();
+    expect(elgamalKeypair.secretKey.length).toBe(32);
+    expect(ADDRESS_ENCODER.encode(elgamalKeypair.elgamalPubkey).length).toBe(32);
     expect(aeKey.length).toBe(16);
 });
 
-it('derives deterministic ElGamal keys from the same signer and seed', async () => {
+it('derives deterministic keys from the same signer', async () => {
+    const signer = await generateKeyPairSigner();
+
+    const first = await deriveConfidentialKeys({ signer });
+    const second = await deriveConfidentialKeys({ signer });
+
+    expect(first.elgamalKeypair.secretKey).toEqual(second.elgamalKeypair.secretKey);
+    expect(first.elgamalKeypair.elgamalPubkey).toBe(second.elgamalKeypair.elgamalPubkey);
+    expect(first.aeKey).toEqual(second.aeKey);
+});
+
+it('signs exactly once for both keys', async () => {
+    const signer = await generateKeyPairSigner();
+    let signCalls = 0;
+    const countingSigner: MessagePartialSigner = {
+        address: signer.address,
+        signMessages: messages => {
+            signCalls += messages.length;
+            return signer.signMessages(messages);
+        },
+    };
+
+    await deriveConfidentialKeys({ signer: countingSigner });
+
+    expect(signCalls).toBe(1);
+});
+
+it('derives deterministic seeded ElGamal keys from the same signer and seed', async () => {
     const signer = await generateKeyPairSigner();
     const publicSeed = new Uint8Array([1, 2, 3, 4]);
 
-    const first = await deriveElGamalKeypair({ signer, publicSeed });
-    const second = await deriveElGamalKeypair({ signer, publicSeed });
+    const first = await deriveElGamalKeypairWithSeed({ publicSeed, signer });
+    const second = await deriveElGamalKeypairWithSeed({ publicSeed, signer });
 
     expect(first.secretKey).toEqual(second.secretKey);
     expect(first.elgamalPubkey).toBe(second.elgamalPubkey);
 });
 
-it('derives deterministic AES keys from the same signer and seed', async () => {
+it('derives deterministic seeded AES keys from the same signer and seed', async () => {
     const signer = await generateKeyPairSigner();
     const publicSeed = new Uint8Array([5, 6, 7, 8]);
 
-    const first = await deriveAeKey({ signer, publicSeed });
-    const second = await deriveAeKey({ signer, publicSeed });
+    const first = await deriveAeKeyWithSeed({ publicSeed, signer });
+    const second = await deriveAeKeyWithSeed({ publicSeed, signer });
 
     expect(first).toEqual(second);
 });
 
-it('derives different ElGamal keys for different seeds', async () => {
+it('matches the standard path when the seed is empty', async () => {
     const signer = await generateKeyPairSigner();
 
-    const noSeed = await deriveElGamalKeypair({ signer });
-    const withSeed = await deriveElGamalKeypair({ signer, publicSeed: new Uint8Array([1]) });
+    const standard = await deriveConfidentialKeys({ signer });
+    const [elgamalEmptySeed, aeEmptySeed] = await Promise.all([
+        deriveElGamalKeypairWithSeed({ publicSeed: new Uint8Array(0), signer }),
+        deriveAeKeyWithSeed({ publicSeed: new Uint8Array(0), signer }),
+    ]);
 
-    expect(noSeed.secretKey).not.toEqual(withSeed.secretKey);
-    expect(noSeed.elgamalPubkey).not.toBe(withSeed.elgamalPubkey);
+    expect(standard.elgamalKeypair.secretKey).toEqual(elgamalEmptySeed.secretKey);
+    expect(standard.elgamalKeypair.elgamalPubkey).toBe(elgamalEmptySeed.elgamalPubkey);
+    expect(standard.aeKey).toEqual(aeEmptySeed);
 });
 
-it('derives different AES keys for different seeds', async () => {
+it('derives different keys for non-empty seeds', async () => {
     const signer = await generateKeyPairSigner();
 
-    const noSeed = await deriveAeKey({ signer });
-    const withSeed = await deriveAeKey({ signer, publicSeed: new Uint8Array([1]) });
+    const standard = await deriveConfidentialKeys({ signer });
+    const [elgamalSeeded, aeSeeded] = await Promise.all([
+        deriveElGamalKeypairWithSeed({ publicSeed: new Uint8Array([1]), signer }),
+        deriveAeKeyWithSeed({ publicSeed: new Uint8Array([1]), signer }),
+    ]);
 
-    expect(noSeed).not.toEqual(withSeed);
+    expect(standard.elgamalKeypair.secretKey).not.toEqual(elgamalSeeded.secretKey);
+    expect(standard.elgamalKeypair.elgamalPubkey).not.toBe(elgamalSeeded.elgamalPubkey);
+    expect(standard.aeKey).not.toEqual(aeSeeded);
+});
+
+it('rejects a missing publicSeed at runtime instead of deriving standard keys', async () => {
+    const signer = await generateKeyPairSigner();
+    const missingSeed = undefined as unknown as Uint8Array;
+
+    await expect(deriveElGamalKeypairWithSeed({ publicSeed: missingSeed, signer })).rejects.toThrow(
+        /requires an explicit publicSeed/,
+    );
+    await expect(deriveAeKeyWithSeed({ publicSeed: missingSeed, signer })).rejects.toThrow(
+        /requires an explicit publicSeed/,
+    );
 });
 
 it('derives different keys for different signers', async () => {
     const [signerA, signerB] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
 
-    const [elgamalA, elgamalB] = await Promise.all([
-        deriveElGamalKeypair({ signer: signerA }),
-        deriveElGamalKeypair({ signer: signerB }),
+    const [keysA, keysB] = await Promise.all([
+        deriveConfidentialKeys({ signer: signerA }),
+        deriveConfidentialKeys({ signer: signerB }),
     ]);
-    const [aeA, aeB] = await Promise.all([deriveAeKey({ signer: signerA }), deriveAeKey({ signer: signerB })]);
 
-    expect(elgamalA.secretKey).not.toEqual(elgamalB.secretKey);
-    expect(aeA).not.toEqual(aeB);
+    expect(keysA.elgamalKeypair.secretKey).not.toEqual(keysB.elgamalKeypair.secretKey);
+    expect(keysA.aeKey).not.toEqual(keysB.aeKey);
 });
 
-it('matches the solana-conf-bal/v1 derivation vector', async () => {
+it('matches the standard cross-SDK derivation vector', async () => {
+    const signer = await createKeyPairSignerFromPrivateKeyBytes(STANDARD_VECTOR_PRIVATE_KEY);
+
+    const { aeKey, elgamalKeypair } = await deriveConfidentialKeys({ signer });
+
+    expect(elgamalKeypair.secretKey).toEqual(STANDARD_VECTOR_ELGAMAL_SECRET_KEY);
+    expect(aeKey).toEqual(STANDARD_VECTOR_AE_KEY);
+});
+
+it('matches the solana-conf-bal/v1 seeded derivation vector', async () => {
     const signer = await createKeyPairSignerFromPrivateKeyBytes(RUST_VECTOR_PRIVATE_KEY);
 
     const [derivedElGamal, derivedAeKey] = await Promise.all([
-        deriveElGamalKeypair({ signer, publicSeed: RUST_VECTOR_PUBLIC_SEED }),
-        deriveAeKey({ signer, publicSeed: RUST_VECTOR_PUBLIC_SEED }),
+        deriveElGamalKeypairWithSeed({ publicSeed: RUST_VECTOR_PUBLIC_SEED, signer }),
+        deriveAeKeyWithSeed({ publicSeed: RUST_VECTOR_PUBLIC_SEED, signer }),
     ]);
 
     expect(derivedElGamal.secretKey).toEqual(RUST_VECTOR_ELGAMAL_SECRET_KEY);
@@ -138,8 +204,8 @@ test('deriveElGamalKeypairForOwnerMint composes the seed as concat(owner, mint)'
     expectedSeed.set(ADDRESS_ENCODER.encode(mint), 32);
 
     const [convenience, manual] = await Promise.all([
-        deriveElGamalKeypairForOwnerMint({ signer, owner, mint }),
-        deriveElGamalKeypair({ signer, publicSeed: expectedSeed }),
+        deriveElGamalKeypairForOwnerMint({ mint, owner, signer }),
+        deriveElGamalKeypairWithSeed({ publicSeed: expectedSeed, signer }),
     ]);
 
     expect(convenience.secretKey).toEqual(manual.secretKey);
@@ -160,8 +226,8 @@ test('deriveAeKeyForOwnerMint composes the seed as concat(owner, mint)', async (
     expectedSeed.set(ADDRESS_ENCODER.encode(mint), 32);
 
     const [convenience, manual] = await Promise.all([
-        deriveAeKeyForOwnerMint({ signer, owner, mint }),
-        deriveAeKey({ signer, publicSeed: expectedSeed }),
+        deriveAeKeyForOwnerMint({ mint, owner, signer }),
+        deriveAeKeyWithSeed({ publicSeed: expectedSeed, signer }),
     ]);
 
     expect(convenience).toEqual(manual);
@@ -176,8 +242,8 @@ test('deriveElGamalKeypairForOwnerMint binds keys to (owner, mint), not just own
     const owner = signer.address;
 
     const [keysForMintA, keysForMintB] = await Promise.all([
-        deriveElGamalKeypairForOwnerMint({ signer, owner, mint: mintA.address }),
-        deriveElGamalKeypairForOwnerMint({ signer, owner, mint: mintB.address }),
+        deriveElGamalKeypairForOwnerMint({ mint: mintA.address, owner, signer }),
+        deriveElGamalKeypairForOwnerMint({ mint: mintB.address, owner, signer }),
     ]);
 
     // Different mints with the same owner must yield different keys.
@@ -194,8 +260,8 @@ test('deriveElGamalKeypairForOwnerMint binds keys to (owner, mint), not just min
     const mint = mintSigner.address;
 
     const [keysForOwnerA, keysForOwnerB] = await Promise.all([
-        deriveElGamalKeypairForOwnerMint({ signer: signerA, owner: signerA.address, mint }),
-        deriveElGamalKeypairForOwnerMint({ signer: signerB, owner: signerB.address, mint }),
+        deriveElGamalKeypairForOwnerMint({ mint, owner: signerA.address, signer: signerA }),
+        deriveElGamalKeypairForOwnerMint({ mint, owner: signerB.address, signer: signerB }),
     ]);
 
     // Different owners with the same mint must yield different keys.
@@ -209,55 +275,39 @@ it('derives keys from a generic message signer', async () => {
         address: signer.address,
         signMessages: signer.signMessages,
     };
-    const publicSeed = new Uint8Array([9, 8, 7, 6]);
 
-    const [derivedElGamal, expectedElGamal] = await Promise.all([
-        deriveElGamalKeypair({ signer: genericSigner, publicSeed }),
-        deriveElGamalKeypair({ signer, publicSeed }),
-    ]);
-    const [derivedAeKey, expectedAeKey] = await Promise.all([
-        deriveAeKey({ signer: genericSigner, publicSeed }),
-        deriveAeKey({ signer, publicSeed }),
+    const [derived, expected] = await Promise.all([
+        deriveConfidentialKeys({ signer: genericSigner }),
+        deriveConfidentialKeys({ signer }),
     ]);
 
-    expect(derivedElGamal.secretKey).toEqual(expectedElGamal.secretKey);
-    expect(derivedElGamal.elgamalPubkey).toBe(expectedElGamal.elgamalPubkey);
-    expect(derivedAeKey).toEqual(expectedAeKey);
+    expect(derived.elgamalKeypair.secretKey).toEqual(expected.elgamalKeypair.secretKey);
+    expect(derived.elgamalKeypair.elgamalPubkey).toBe(expected.elgamalKeypair.elgamalPubkey);
+    expect(derived.aeKey).toEqual(expected.aeKey);
 });
 
 it('plugs derived ElGamal pubkeys directly into confidential transfer instruction builders', async () => {
     const [authority, mintSigner] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
-    const derivedElGamal = await deriveElGamalKeypairForOwnerMint({
-        signer: authority,
-        owner: authority.address,
-        mint: mintSigner.address,
-    });
+    const { elgamalKeypair } = await deriveConfidentialKeys({ signer: authority });
 
     const instruction = getInitializeConfidentialTransferMintInstruction({
         mint: mintSigner.address,
         authority: some(authority.address),
         autoApproveNewAccounts: true,
-        auditorElgamalPubkey: some(derivedElGamal.elgamalPubkey),
+        auditorElgamalPubkey: some(elgamalKeypair.elgamalPubkey),
     });
     const parsed = parseInitializeConfidentialTransferMintInstruction(instruction);
 
     expect(parsed.data.authority).toEqual(some(authority.address));
     expect(parsed.data.autoApproveNewAccounts).toBe(true);
-    expect(parsed.data.auditorElgamalPubkey).toEqual(some(derivedElGamal.elgamalPubkey));
+    expect(parsed.data.auditorElgamalPubkey).toEqual(some(elgamalKeypair.elgamalPubkey));
 });
 
-it('produces a non-zero ElGamal secret key', async () => {
+it('produces non-zero keys', async () => {
     const signer = await generateKeyPairSigner();
 
-    const { secretKey } = await deriveElGamalKeypair({ signer });
+    const { aeKey, elgamalKeypair } = await deriveConfidentialKeys({ signer });
 
-    expect(secretKey.every(b => b === 0)).toBe(false);
-});
-
-it('produces a non-zero AES key', async () => {
-    const signer = await generateKeyPairSigner();
-
-    const aeKey = await deriveAeKey({ signer });
-
+    expect(elgamalKeypair.secretKey.every(b => b === 0)).toBe(false);
     expect(aeKey.every(b => b === 0)).toBe(false);
 });

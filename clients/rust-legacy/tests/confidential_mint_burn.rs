@@ -62,8 +62,7 @@ impl ConfidentialTokenAccountMeta {
             .unwrap();
 
         let token_account = token_account_keypair.pubkey();
-        let (elgamal_keypair, aes_key) =
-            derive_confidential_keys(owner, &token_account.to_bytes()).unwrap();
+        let (elgamal_keypair, aes_key) = derive_confidential_keys(owner, b"").unwrap();
 
         token
             .confidential_transfer_configure_token_account(
