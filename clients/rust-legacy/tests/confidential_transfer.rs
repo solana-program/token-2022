@@ -2629,7 +2629,10 @@ async fn confidential_transfer_configure_token_account_with_registry() {
         .await
         .unwrap();
 
-    let TokenContext { token, alice, .. } = context.token_context.unwrap();
+    let TokenContext { token, .. } = context.token_context.unwrap();
+
+    // Fixed test wallet keeps the registry PDA bump search reproducible.
+    let alice = Keypair::new_from_array([42; 32]);
     let alice_account_keypair = Keypair::new();
     let elgamal_keypair = ElGamalKeypair::new_rand();
 
@@ -2638,10 +2641,12 @@ async fn confidential_transfer_configure_token_account_with_registry() {
     let proof_data = build_pubkey_validity_proof_data(&elgamal_keypair).unwrap();
     let proof_location = ProofLocation::InstructionOffset(1.try_into().unwrap(), &proof_data);
 
-    let elgamal_registry_address = spl_elgamal_registry::get_elgamal_registry_address(
-        &alice.pubkey(),
-        &spl_elgamal_registry::id(),
-    );
+    let (elgamal_registry_address, bump_seed) =
+        spl_elgamal_registry::get_elgamal_registry_address_and_bump_seed(
+            &alice.pubkey(),
+            &spl_elgamal_registry::id(),
+        );
+    println!("REGISTRY_CU_FIXTURE bump={bump_seed}");
 
     let rent = ctx.banks_client.get_rent().await.unwrap();
     let space = ELGAMAL_REGISTRY_ACCOUNT_LEN;
