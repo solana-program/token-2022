@@ -1538,7 +1538,14 @@ async function buildConfidentialMintProofPlan(
     const amount = BigInt(input.amount);
     assertMintBurnAmount(amount, 'Mint');
 
-    const currentSupply = input.supplyAesKey.decrypt(parseAeCiphertext(mintBurnExtension.decryptableSupply));
+    // The new-supply commitment must commit to the same value the new-supply
+    // ciphertext encrypts (`confidential_supply + amount`); the equality proof
+    // binds the two. Decrypting `confidentialSupply` (rather than the AES
+    // `decryptableSupply`) keeps the proof valid even after an apply-pending-burn
+    // advances the encrypted supply without re-encrypting the decryptable one.
+    const currentSupply = input.supplyElgamalKeypair
+        .secret()
+        .decrypt(parseElGamalCiphertext(mintBurnExtension.confidentialSupply));
     const newSupply = currentSupply + amount;
     assertU64Amount(newSupply, 'New supply after mint');
 
