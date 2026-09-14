@@ -682,19 +682,22 @@ mod tests {
         (token_account_key, data)
     }
 
+    // Create a `RuntimeAccount` and a corresponding `AccountView` for testing.
+    //
+    // SAFETY: The caller must ensure that the returned `AccountView` is not used
+    // after the `storage` vector is dropped.
     unsafe fn make_account_view(
-        runtime_account: &mut [u8],
         is_signer: bool,
         is_writable: bool,
         address: &Address,
         owner_key: &Address,
         lamports: u64,
         data: &[u8],
-    ) -> AccountView {
-        if runtime_account.len() < size_of::<RuntimeAccount>() + data.len() {
-            panic!("runtime_account buffer too small");
-        }
-        let account = runtime_account.as_mut_ptr() as *mut RuntimeAccount;
+    ) -> (Vec<u64>, AccountView) {
+        let mut storage =
+            vec![0u64; (size_of::<RuntimeAccount>() + data.len()).div_ceil(size_of::<u64>())];
+        let account = storage.as_mut_ptr() as *mut RuntimeAccount;
+
         (*account).borrow_state = NON_DUP_MARKER;
         (*account).address = *address;
         (*account).is_signer = is_signer as u8;
@@ -704,10 +707,13 @@ mod tests {
         (*account).owner = *owner_key;
         (*account).data_len = data.len() as u64;
 
-        runtime_account[size_of::<RuntimeAccount>()..size_of::<RuntimeAccount>() + data.len()]
-            .copy_from_slice(data);
+        core::ptr::copy_nonoverlapping(
+            data.as_ptr(),
+            (account as *mut u8).add(size_of::<RuntimeAccount>()),
+            data.len(),
+        );
 
-        AccountView::new_unchecked(account)
+        (storage, AccountView::new_unchecked(account))
     }
 
     /// Calling `process_confidential_mint` on a non-transferable mint when the
@@ -727,10 +733,8 @@ mod tests {
         let mint_lamports = 0u64;
         let token_lamports = 0u64;
 
-        let mut mint_account = vec![0; size_of::<RuntimeAccount>() + mint_data.len()];
-        let mint_info = unsafe {
+        let (_mint_account_data, mint_info) = unsafe {
             make_account_view(
-                &mut mint_account,
                 false,
                 true,
                 &mint_key,
@@ -739,10 +743,8 @@ mod tests {
                 &mint_data,
             )
         };
-        let mut token_account = vec![0; size_of::<RuntimeAccount>() + token_account_data.len()];
-        let token_account_info = unsafe {
+        let (_token_account_data, token_account_info) = unsafe {
             make_account_view(
-                &mut token_account,
                 false,
                 true,
                 &token_account_key,
@@ -790,10 +792,8 @@ mod tests {
         let mint_lamports = 0u64;
         let token_lamports = 0u64;
 
-        let mut mint_account = vec![0; size_of::<RuntimeAccount>() + mint_data.len()];
-        let mint_info = unsafe {
+        let (_mint_account_data, mint_info) = unsafe {
             make_account_view(
-                &mut mint_account,
                 false,
                 true,
                 &mint_key,
@@ -802,10 +802,8 @@ mod tests {
                 &mint_data,
             )
         };
-        let mut token_account = vec![0; size_of::<RuntimeAccount>() + token_account_data.len()];
-        let token_account_info = unsafe {
+        let (_token_account_data, token_account_info) = unsafe {
             make_account_view(
-                &mut token_account,
                 false,
                 true,
                 &token_account_key,

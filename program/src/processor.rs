@@ -401,7 +401,7 @@ impl Processor {
         }
 
         let (calculated_fee, maybe_permanent_delegate, maybe_transfer_hook_program_id) =
-            if let Some((mint_info, expected_decimals)) = expected_mint_info {
+            if let Some((ref mint_info, expected_decimals)) = expected_mint_info {
                 check_program_account(mint_info.owner())?;
 
                 if &source_account.base.mint != mint_info.address() {
@@ -2388,10 +2388,12 @@ mod tests {
     use {
         super::*,
         mollusk_svm::{result::Check, Mollusk},
+        pinocchio::sysvars::rent::DEFAULT_LAMPORTS_PER_BYTE,
         solana_account::{create_account_for_test, Account as SolanaAccount, ReadableAccount},
         solana_account_info::IntoAccountInfo,
         solana_instruction::{AccountMeta, Instruction},
         solana_program_option::COption,
+        solana_rent::Rent,
         solana_sdk_ids::sysvar::rent,
         spl_token_2022_interface::{
             extension::{
@@ -2417,7 +2419,8 @@ mod tests {
             .map(|(account_meta, account)| (account_meta.pubkey, (*account).clone()))
             .collect();
 
-        let mollusk = Mollusk::new(&crate::id(), "spl_token_2022");
+        let mut mollusk = Mollusk::new(&crate::id(), "spl_token_2022");
+        mollusk.sysvars.rent = test_rent();
         let result =
             mollusk.process_and_validate_instruction(&instruction, &instruction_accounts, checks);
 
@@ -2456,7 +2459,8 @@ mod tests {
             }
         });
 
-        let mollusk = Mollusk::new(&crate::id(), "spl_token_2022");
+        let mut mollusk = Mollusk::new(&crate::id(), "spl_token_2022");
+        mollusk.sysvars.rent = test_rent();
         let result =
             mollusk.process_and_validate_instruction(&instruction, &dedup_accounts, checks);
 
@@ -2489,8 +2493,16 @@ mod tests {
         TokenError::MintMismatch.into()
     }
 
+    fn test_rent() -> solana_rent::Rent {
+        solana_rent::Rent {
+            lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE,
+            exemption_threshold: 1.0,
+            ..Default::default()
+        }
+    }
+
     fn rent_sysvar() -> SolanaAccount {
-        create_account_for_test(&solana_rent::Rent::default())
+        create_account_for_test(&test_rent())
     }
 
     fn mint_minimum_balance() -> u64 {
@@ -8099,6 +8111,40 @@ mod tests {
 
     #[test]
     fn test_validate_owner() {
+        use pinocchio::{account::RuntimeAccount, entrypoint::NON_DUP_MARKER};
+
+        // Create a `RuntimeAccount` and a corresponding `AccountView` for testing.
+        //
+        // SAFETY: The caller must ensure that the returned `AccountView` is not used
+        // after the `storage` vector is dropped.
+        unsafe fn make_account_view(
+            address: &Address,
+            owner: &Address,
+            is_signer: bool,
+            data: &[u8],
+        ) -> (Vec<u64>, AccountView) {
+            let mut storage =
+                vec![0u64; (size_of::<RuntimeAccount>() + data.len()).div_ceil(size_of::<u64>())];
+            let account = storage.as_mut_ptr() as *mut RuntimeAccount;
+
+            account.write(RuntimeAccount {
+                borrow_state: NON_DUP_MARKER,
+                address: *address,
+                owner: *owner,
+                is_signer: u8::from(is_signer),
+                data_len: data.len() as u64,
+                ..RuntimeAccount::default()
+            });
+
+            core::ptr::copy_nonoverlapping(
+                data.as_ptr(),
+                (account as *mut u8).add(size_of::<RuntimeAccount>()),
+                data.len(),
+            );
+
+            (storage, AccountView::new_unchecked(account))
+        }
+
         let program_id = crate::id();
         let owner_key = Address::new_unique();
         let account_to_validate = Address::new_unique();
@@ -8106,24 +8152,17 @@ mod tests {
         for signer_key in signer_keys.iter_mut().take(MAX_SIGNERS) {
             *signer_key = Address::new_unique();
         }
-        let mut signer_lamports = 0;
-        let mut signer_data = vec![];
-        let mut signers = vec![
-            AccountInfo::new(
-                &owner_key,
-                true,
-                false,
-                &mut signer_lamports,
-                &mut signer_data,
-                &program_id,
-                false,
-            );
-            MAX_SIGNERS + 1
-        ];
-        for (signer, key) in signers.iter_mut().zip(&signer_keys) {
-            signer.key = key;
-        }
-        let mut lamports = 0;
+
+        let signer_accounts: Vec<_> = signer_keys
+            .iter()
+            .chain(std::iter::once(&owner_key))
+            .map(|key| unsafe { make_account_view(key, &program_id, true, &[]) })
+            .collect();
+        let mut signers: Vec<_> = signer_accounts
+            .iter()
+            .map(|(_, view)| view.clone())
+            .collect();
+
         let mut data = vec![0; Multisig::get_packed_len()];
         let mut multisig = Multisig::unpack_unchecked(&data).unwrap();
         multisig.m = MAX_SIGNERS as u8;
@@ -8131,39 +8170,27 @@ mod tests {
         multisig.signers = signer_keys;
         multisig.is_initialized = true;
         Multisig::pack(multisig, &mut data).unwrap();
-        let owner_account_info = AccountInfo::new(
-            &owner_key,
-            false,
-            false,
-            &mut lamports,
-            &mut data,
-            &program_id,
-            false,
-        );
+
+        let (_owner_backing, mut owner_account_info) =
+            unsafe { make_account_view(&owner_key, &program_id, false, &data) };
+        let owner_account_data_len = owner_account_info.data_len();
 
         // no multisig, but the account is its own authority, and data is mutably
         // borrowed
         {
-            let mut lamports = 0;
             let mut data = vec![0; Account::get_packed_len()];
             let mut account = Account::unpack_unchecked(&data).unwrap();
             account.owner = account_to_validate;
             Account::pack(account, &mut data).unwrap();
-            let account_info = AccountInfo::new(
-                &account_to_validate,
-                true,
-                false,
-                &mut lamports,
-                &mut data,
-                &program_id,
-                false,
-            );
+            let (_account_backing, mut account_info) =
+                unsafe { make_account_view(&account_to_validate, &program_id, true, &data) };
             let account_info_data_len = account_info.data_len();
-            let mut borrowed_data = account_info.try_borrow_mut_data().unwrap();
+            let mut account_alias = account_info.clone();
+            let mut borrowed_data = account_alias.try_borrow_mut().unwrap();
             Processor::validate_owner(
                 &program_id,
                 &account_to_validate,
-                &account_info,
+                &mut account_info,
                 account_info_data_len,
                 &[],
             )
@@ -8176,8 +8203,8 @@ mod tests {
         Processor::validate_owner(
             &program_id,
             &owner_key,
-            &owner_account_info,
-            owner_account_info.data_len(),
+            &mut owner_account_info,
+            owner_account_data_len,
             &signers,
         )
         .unwrap();
@@ -8185,7 +8212,6 @@ mod tests {
         // full 11 of 11, multisig owned by tokenkeg (legacy spl-token program)
         {
             let tokenkeg_id = inline_spl_token::id();
-            let mut lamports = 0;
             let mut data = vec![0; Multisig::get_packed_len()];
             let mut multisig = Multisig::unpack_unchecked(&data).unwrap();
             multisig.m = MAX_SIGNERS as u8;
@@ -8193,20 +8219,14 @@ mod tests {
             multisig.signers = signer_keys;
             multisig.is_initialized = true;
             Multisig::pack(multisig, &mut data).unwrap();
-            let tokenkeg_multisig_info = AccountInfo::new(
-                &owner_key,
-                false,
-                false,
-                &mut lamports,
-                &mut data,
-                &tokenkeg_id,
-                false,
-            );
+            let (_tokenkeg_backing, mut tokenkeg_multisig_info) =
+                unsafe { make_account_view(&owner_key, &tokenkeg_id, false, &data) };
+            let tokenkeg_multisig_data_len = tokenkeg_multisig_info.data_len();
             Processor::validate_owner(
                 &program_id,
                 &owner_key,
-                &tokenkeg_multisig_info,
-                tokenkeg_multisig_info.data_len(),
+                &mut tokenkeg_multisig_info,
+                tokenkeg_multisig_data_len,
                 &signers,
             )
             .unwrap();
@@ -8215,15 +8235,15 @@ mod tests {
         // 1 of 11
         {
             let mut multisig =
-                Multisig::unpack_unchecked(&owner_account_info.data.borrow()).unwrap();
+                Multisig::unpack_unchecked(&owner_account_info.try_borrow().unwrap()).unwrap();
             multisig.m = 1;
-            Multisig::pack(multisig, &mut owner_account_info.data.borrow_mut()).unwrap();
+            Multisig::pack(multisig, &mut owner_account_info.try_borrow_mut().unwrap()).unwrap();
         }
         Processor::validate_owner(
             &program_id,
             &owner_key,
-            &owner_account_info,
-            owner_account_info.data_len(),
+            &mut owner_account_info,
+            owner_account_data_len,
             &signers,
         )
         .unwrap();
@@ -8231,18 +8251,18 @@ mod tests {
         // 2:1
         {
             let mut multisig =
-                Multisig::unpack_unchecked(&owner_account_info.data.borrow()).unwrap();
+                Multisig::unpack_unchecked(&owner_account_info.try_borrow().unwrap()).unwrap();
             multisig.m = 2;
             multisig.n = 1;
-            Multisig::pack(multisig, &mut owner_account_info.data.borrow_mut()).unwrap();
+            Multisig::pack(multisig, &mut owner_account_info.try_borrow_mut().unwrap()).unwrap();
         }
         assert_eq!(
             Err(ProgramError::MissingRequiredSignature),
             Processor::validate_owner(
                 &program_id,
                 &owner_key,
-                &owner_account_info,
-                owner_account_info.data_len(),
+                &mut owner_account_info,
+                owner_account_data_len,
                 &signers
             )
         );
@@ -8250,16 +8270,16 @@ mod tests {
         // 0:11
         {
             let mut multisig =
-                Multisig::unpack_unchecked(&owner_account_info.data.borrow()).unwrap();
+                Multisig::unpack_unchecked(&owner_account_info.try_borrow().unwrap()).unwrap();
             multisig.m = 0;
             multisig.n = 11;
-            Multisig::pack(multisig, &mut owner_account_info.data.borrow_mut()).unwrap();
+            Multisig::pack(multisig, &mut owner_account_info.try_borrow_mut().unwrap()).unwrap();
         }
         Processor::validate_owner(
             &program_id,
             &owner_key,
-            &owner_account_info,
-            owner_account_info.data_len(),
+            &mut owner_account_info,
+            owner_account_data_len,
             &signers,
         )
         .unwrap();
@@ -8267,36 +8287,36 @@ mod tests {
         // 2:11 but 0 provided
         {
             let mut multisig =
-                Multisig::unpack_unchecked(&owner_account_info.data.borrow()).unwrap();
+                Multisig::unpack_unchecked(&owner_account_info.try_borrow().unwrap()).unwrap();
             multisig.m = 2;
             multisig.n = 11;
-            Multisig::pack(multisig, &mut owner_account_info.data.borrow_mut()).unwrap();
+            Multisig::pack(multisig, &mut owner_account_info.try_borrow_mut().unwrap()).unwrap();
         }
         assert_eq!(
             Err(ProgramError::MissingRequiredSignature),
             Processor::validate_owner(
                 &program_id,
                 &owner_key,
-                &owner_account_info,
-                owner_account_info.data_len(),
+                &mut owner_account_info,
+                owner_account_data_len,
                 &[]
             )
         );
         // 2:11 but 1 provided
         {
             let mut multisig =
-                Multisig::unpack_unchecked(&owner_account_info.data.borrow()).unwrap();
+                Multisig::unpack_unchecked(&owner_account_info.try_borrow().unwrap()).unwrap();
             multisig.m = 2;
             multisig.n = 11;
-            Multisig::pack(multisig, &mut owner_account_info.data.borrow_mut()).unwrap();
+            Multisig::pack(multisig, &mut owner_account_info.try_borrow_mut().unwrap()).unwrap();
         }
         assert_eq!(
             Err(ProgramError::MissingRequiredSignature),
             Processor::validate_owner(
                 &program_id,
                 &owner_key,
-                &owner_account_info,
-                owner_account_info.data_len(),
+                &mut owner_account_info,
+                owner_account_data_len,
                 &signers[0..1]
             )
         );
@@ -8304,16 +8324,16 @@ mod tests {
         // 2:11, 2 from middle provided
         {
             let mut multisig =
-                Multisig::unpack_unchecked(&owner_account_info.data.borrow()).unwrap();
+                Multisig::unpack_unchecked(&owner_account_info.try_borrow().unwrap()).unwrap();
             multisig.m = 2;
             multisig.n = 11;
-            Multisig::pack(multisig, &mut owner_account_info.data.borrow_mut()).unwrap();
+            Multisig::pack(multisig, &mut owner_account_info.try_borrow_mut().unwrap()).unwrap();
         }
         Processor::validate_owner(
             &program_id,
             &owner_key,
-            &owner_account_info,
-            owner_account_info.data_len(),
+            &mut owner_account_info,
+            owner_account_data_len,
             &signers[5..7],
         )
         .unwrap();
@@ -8321,52 +8341,41 @@ mod tests {
         // 11:11, one is not a signer
         {
             let mut multisig =
-                Multisig::unpack_unchecked(&owner_account_info.data.borrow()).unwrap();
+                Multisig::unpack_unchecked(&owner_account_info.try_borrow().unwrap()).unwrap();
             multisig.m = 11;
             multisig.n = 11;
-            Multisig::pack(multisig, &mut owner_account_info.data.borrow_mut()).unwrap();
+            Multisig::pack(multisig, &mut owner_account_info.try_borrow_mut().unwrap()).unwrap();
         }
-        signers[5].is_signer = false;
+        let (_non_signer_backing, non_signer) =
+            unsafe { make_account_view(&signer_keys[5], &program_id, false, &[]) };
+        signers[5] = non_signer;
         assert_eq!(
             Err(ProgramError::MissingRequiredSignature),
             Processor::validate_owner(
                 &program_id,
                 &owner_key,
-                &owner_account_info,
-                owner_account_info.data_len(),
+                &mut owner_account_info,
+                owner_account_data_len,
                 &signers
             )
         );
-        signers[5].is_signer = true;
+        signers[5] = signer_accounts[5].1.clone();
 
         // 11:11, single signer signs multiple times
         {
-            let mut signer_lamports = 0;
-            let mut signer_data = vec![];
-            let signers = vec![
-                AccountInfo::new(
-                    &signer_keys[5],
-                    true,
-                    false,
-                    &mut signer_lamports,
-                    &mut signer_data,
-                    &program_id,
-                    false,
-                );
-                MAX_SIGNERS + 1
-            ];
+            let signers = vec![signers[5].clone(); MAX_SIGNERS + 1];
             let mut multisig =
-                Multisig::unpack_unchecked(&owner_account_info.data.borrow()).unwrap();
+                Multisig::unpack_unchecked(&owner_account_info.try_borrow().unwrap()).unwrap();
             multisig.m = 11;
             multisig.n = 11;
-            Multisig::pack(multisig, &mut owner_account_info.data.borrow_mut()).unwrap();
+            Multisig::pack(multisig, &mut owner_account_info.try_borrow_mut().unwrap()).unwrap();
             assert_eq!(
                 Err(ProgramError::MissingRequiredSignature),
                 Processor::validate_owner(
                     &program_id,
                     &owner_key,
-                    &owner_account_info,
-                    owner_account_info.data_len(),
+                    &mut owner_account_info,
+                    owner_account_data_len,
                     &signers
                 )
             );
