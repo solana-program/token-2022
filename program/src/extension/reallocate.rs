@@ -2,14 +2,11 @@ use {
     crate::{next_account_view, processor::Processor},
     pinocchio::{AccountView, Resize},
     pinocchio_system::instructions::Transfer,
-    solana_account_info::{next_account_info, AccountInfo},
     solana_address::Address,
-    solana_cpi::invoke,
     solana_msg::msg,
     solana_program_error::ProgramResult,
     solana_program_option::COption,
     solana_rent::Rent,
-    solana_system_interface::instruction as system_instruction,
     solana_sysvar::Sysvar,
     spl_token_2022_interface::{
         check_program_account,
@@ -31,7 +28,7 @@ pub fn process_reallocate(
     let account_info_iter = &mut accounts.iter_mut();
     let token_account_info = next_account_view(account_info_iter)?;
     let payer_info = next_account_view(account_info_iter)?;
-    let system_program_info = next_account_view(account_info_iter)?;
+    let _system_program_info = next_account_view(account_info_iter)?;
     let authority_info = next_account_view(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
 

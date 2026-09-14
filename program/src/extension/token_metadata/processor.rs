@@ -3,7 +3,6 @@
 use {
     crate::next_account_view,
     pinocchio::AccountView,
-    solana_account_info::{next_account_info, AccountInfo},
     solana_address::Address,
     solana_cpi::set_return_data,
     solana_msg::msg,

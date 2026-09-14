@@ -10,7 +10,6 @@ use {
         processor::{BurnInstructionVariant, InstructionVariant, Processor},
     },
     pinocchio::AccountView,
-    solana_account_info::{next_account_info, AccountInfo},
     solana_address::Address,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
