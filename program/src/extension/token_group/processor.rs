@@ -1,7 +1,8 @@
 //! Token-group processor
 
 use {
-    solana_account_info::{next_account_info, AccountInfo},
+    crate::next_account_view,
+    pinocchio::AccountView,
     solana_address::Address,
     solana_msg::msg,
     solana_nullable::MaybeNull,
@@ -26,15 +27,15 @@ use {
 };
 
 fn check_update_authority(
-    update_authority_info: &AccountInfo,
+    update_authority_info: &AccountView,
     expected_update_authority: &MaybeNull<Address>,
 ) -> Result<(), ProgramError> {
-    if !update_authority_info.is_signer {
+    if !update_authority_info.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
     let update_authority = Option::<Address>::from(*expected_update_authority)
         .ok_or(TokenGroupError::ImmutableGroup)?;
-    if update_authority != *update_authority_info.key {
+    if update_authority != *update_authority_info.address() {
         return Err(TokenGroupError::IncorrectUpdateAuthority.into());
     }
     Ok(())
@@ -44,32 +45,32 @@ fn check_update_authority(
 /// instruction.
 pub fn process_initialize_group(
     _program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     data: InitializeGroup,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
+    let account_info_iter = &mut accounts.iter_mut();
 
-    let group_info = next_account_info(account_info_iter)?;
-    let mint_info = next_account_info(account_info_iter)?;
-    let mint_authority_info = next_account_info(account_info_iter)?;
+    let group_info = next_account_view(account_info_iter)?;
+    let mint_info = next_account_view(account_info_iter)?;
+    let mint_authority_info = next_account_view(account_info_iter)?;
 
     // check that the mint and group accounts are the same, since the group
     // extension should only describe itself
-    if group_info.key != mint_info.key {
+    if group_info.address() != mint_info.address() {
         msg!("Group configurations for a mint must be initialized in the mint itself.");
         return Err(TokenError::MintMismatch.into());
     }
 
     // scope the mint authority check, since the mint is in the same account!
     {
-        check_program_account(mint_info.owner)?;
-        let mint_data = mint_info.try_borrow_data()?;
+        check_program_account(mint_info.owner())?;
+        let mint_data = mint_info.try_borrow()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
 
-        if !mint_authority_info.is_signer {
+        if !mint_authority_info.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
-        if mint.base.mint_authority != PodCOption::some(*mint_authority_info.key) {
+        if mint.base.mint_authority != PodCOption::some(*mint_authority_info.address()) {
             return Err(TokenGroupError::IncorrectMintAuthority.into());
         }
 
@@ -84,7 +85,11 @@ pub fn process_initialize_group(
 
     // Allocate a TLV entry for the space and write it in
     // Assumes that there's enough SOL for the new rent-exemption
-    let group = TokenGroup::new(mint_info.key, data.update_authority, data.max_size.into());
+    let group = TokenGroup::new(
+        mint_info.address(),
+        data.update_authority,
+        data.max_size.into(),
+    );
     alloc_and_serialize::<PodMint, TokenGroup>(group_info, &group, false)?;
 
     Ok(())
@@ -95,16 +100,16 @@ pub fn process_initialize_group(
 /// instruction
 pub fn process_update_group_max_size(
     _program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     data: UpdateGroupMaxSize,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
+    let account_info_iter = &mut accounts.iter_mut();
 
-    let group_info = next_account_info(account_info_iter)?;
-    let update_authority_info = next_account_info(account_info_iter)?;
-    check_program_account(group_info.owner)?;
+    let group_info = next_account_view(account_info_iter)?;
+    let update_authority_info = next_account_view(account_info_iter)?;
+    check_program_account(group_info.owner())?;
 
-    let mut buffer = group_info.try_borrow_mut_data()?;
+    let mut buffer = group_info.try_borrow_mut()?;
     let mut state = PodStateWithExtensionsMut::<PodMint>::unpack(&mut buffer)?;
     let group = state.get_extension_mut::<TokenGroup>()?;
 
@@ -120,16 +125,16 @@ pub fn process_update_group_max_size(
 /// instruction
 pub fn process_update_group_authority(
     _program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     data: UpdateGroupAuthority,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
+    let account_info_iter = &mut accounts.iter_mut();
 
-    let group_info = next_account_info(account_info_iter)?;
-    let update_authority_info = next_account_info(account_info_iter)?;
-    check_program_account(group_info.owner)?;
+    let group_info = next_account_view(account_info_iter)?;
+    let update_authority_info = next_account_view(account_info_iter)?;
+    check_program_account(group_info.owner())?;
 
-    let mut buffer = group_info.try_borrow_mut_data()?;
+    let mut buffer = group_info.try_borrow_mut()?;
     let mut state = PodStateWithExtensionsMut::<PodMint>::unpack(&mut buffer)?;
     let group = state.get_extension_mut::<TokenGroup>()?;
 
@@ -142,33 +147,38 @@ pub fn process_update_group_authority(
 
 /// Processes an [`InitializeMember`](enum.TokenGroupInstruction.html)
 /// instruction
-pub fn process_initialize_member(_program_id: &Address, accounts: &[AccountInfo]) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
+pub fn process_initialize_member(
+    _program_id: &Address,
+    accounts: &mut [AccountView],
+) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter_mut();
 
-    let member_info = next_account_info(account_info_iter)?;
-    let member_mint_info = next_account_info(account_info_iter)?;
-    let member_mint_authority_info = next_account_info(account_info_iter)?;
-    let group_info = next_account_info(account_info_iter)?;
-    let group_update_authority_info = next_account_info(account_info_iter)?;
-    check_program_account(group_info.owner)?;
+    let member_info = next_account_view(account_info_iter)?;
+    let member_mint_info = next_account_view(account_info_iter)?;
+    let member_mint_authority_info = next_account_view(account_info_iter)?;
+    let group_info = next_account_view(account_info_iter)?;
+    let group_update_authority_info = next_account_view(account_info_iter)?;
+    check_program_account(group_info.owner())?;
 
     // check that the mint and member accounts are the same, since the member
     // extension should only describe itself
-    if member_info.key != member_mint_info.key {
+    if member_info.address() != member_mint_info.address() {
         msg!("Group member configurations for a mint must be initialized in the mint itself.");
         return Err(TokenError::MintMismatch.into());
     }
 
     // scope the mint authority check, since the mint is in the same account!
     {
-        check_program_account(member_mint_info.owner)?;
-        let member_mint_data = member_mint_info.try_borrow_data()?;
+        check_program_account(member_mint_info.owner())?;
+        let member_mint_data = member_mint_info.try_borrow()?;
         let member_mint = PodStateWithExtensions::<PodMint>::unpack(&member_mint_data)?;
 
-        if !member_mint_authority_info.is_signer {
+        if !member_mint_authority_info.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
-        if member_mint.base.mint_authority != PodCOption::some(*member_mint_authority_info.key) {
+        if member_mint.base.mint_authority
+            != PodCOption::some(*member_mint_authority_info.address())
+        {
             return Err(TokenGroupError::IncorrectMintAuthority.into());
         }
 
@@ -182,12 +192,16 @@ pub fn process_initialize_member(_program_id: &Address, accounts: &[AccountInfo]
     }
 
     // Make sure the member mint is not the same as the group mint
-    if member_info.key == group_info.key {
+    if member_info.address() == group_info.address() {
         return Err(TokenGroupError::MemberAccountIsGroupAccount.into());
     }
 
+    // CHANGED: Storing the address of the group so borrow checker doesn't complain about
+    // multiple borrows of `group_info`.
+    let group_address = *group_info.address();
+
     // Increment the size of the group
-    let mut buffer = group_info.try_borrow_mut_data()?;
+    let mut buffer = group_info.try_borrow_mut()?;
     let mut state = PodStateWithExtensionsMut::<PodMint>::unpack(&mut buffer)?;
     let group = state.get_extension_mut::<TokenGroup>()?;
 
@@ -195,7 +209,7 @@ pub fn process_initialize_member(_program_id: &Address, accounts: &[AccountInfo]
     let member_number = group.increment_size()?;
 
     // Allocate a TLV entry for the space and write it in
-    let member = TokenGroupMember::new(member_mint_info.key, group_info.key, member_number);
+    let member = TokenGroupMember::new(member_mint_info.address(), &group_address, member_number);
     alloc_and_serialize::<PodMint, TokenGroupMember>(member_info, &member, false)?;
 
     Ok(())
@@ -204,7 +218,7 @@ pub fn process_initialize_member(_program_id: &Address, accounts: &[AccountInfo]
 /// Processes an [`Instruction`](enum.Instruction.html).
 pub fn process_instruction(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     instruction: TokenGroupInstruction,
 ) -> ProgramResult {
     match instruction {

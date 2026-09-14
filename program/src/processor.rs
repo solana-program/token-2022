@@ -10,23 +10,27 @@ use {
             metadata_pointer, pausable, permissioned_burn, reallocate, scaled_ui_amount,
             token_group, token_metadata, transfer_fee, transfer_hook,
         },
+        next_account_view,
         pod_instruction::{
             decode_instruction_data_with_coption_pubkey, decode_instruction_data_with_coption_u64,
             AmountCheckedData, AmountData, InitializeMintData, InitializeMultisigData,
             PodTokenInstruction, SetAuthorityData,
         },
+        state::unset_transferring,
     },
-    solana_account_info::{next_account_info, AccountInfo},
+    pinocchio::{
+        sysvars::{clock::Clock, rent::Rent, Sysvar},
+        AccountView,
+    },
+    pinocchio_system::instructions::{CreateAccountAllowPrefund, Funding},
+    pinocchio_transfer_hook::instructions::Execute,
+    solana_account_info::AccountInfo,
     solana_address::Address,
-    solana_clock::Clock,
-    solana_cpi::{invoke, invoke_signed, set_return_data},
+    solana_cpi::set_return_data,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
     solana_program_pack::Pack,
-    solana_rent::Rent,
     solana_sdk_ids::system_program,
-    solana_system_interface::instruction as system_instruction,
-    solana_sysvar::{Sysvar, SysvarSerialize},
     solana_zero_copy::unaligned::U64,
     spl_token_2022_interface::{
         check_program_account,
@@ -98,26 +102,32 @@ pub(crate) enum BurnInstructionVariant {
 pub struct Processor {}
 impl Processor {
     fn _process_initialize_mint(
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         decimals: u8,
         mint_authority: &Address,
         freeze_authority: PodCOption<Address>,
         rent_sysvar_account: bool,
     ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let mint_info = next_account_info(account_info_iter)?;
+        let account_info_iter = &mut accounts.iter_mut();
+        let mint_info = next_account_view(account_info_iter)?;
         let mint_data_len = mint_info.data_len();
-        let mut mint_data = mint_info.data.borrow_mut();
 
-        check_program_account(mint_info.owner)?;
+        // CHANGED: Storing the values so borrow checker doesn't complain about
+        // multiple borrows of `mint_info`.
+        let mint_owner = *mint_info.owner();
+        let mint_lamports = mint_info.lamports();
+
+        let mut mint_data = mint_info.try_borrow_mut()?;
+
+        check_program_account(&mint_owner)?;
 
         let rent = if rent_sysvar_account {
-            Rent::from_account_info(next_account_info(account_info_iter)?)?
+            Rent::from_account_view(next_account_view(account_info_iter)?)?
         } else {
             Rent::get()?
         };
 
-        if !rent.is_exempt(mint_info.lamports(), mint_data_len) {
+        if !rent.is_exempt(mint_lamports, mint_data_len) {
             return Err(TokenError::NotRentExempt.into());
         }
 
@@ -147,7 +157,7 @@ impl Processor {
 
     /// Processes an [`InitializeMint`](enum.TokenInstruction.html) instruction.
     pub fn process_initialize_mint(
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         decimals: u8,
         mint_authority: &Address,
         freeze_authority: PodCOption<Address>,
@@ -158,7 +168,7 @@ impl Processor {
     /// Processes an [`InitializeMint2`](enum.TokenInstruction.html)
     /// instruction.
     pub fn process_initialize_mint2(
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         decimals: u8,
         mint_authority: &Address,
         freeze_authority: PodCOption<Address>,
@@ -167,39 +177,42 @@ impl Processor {
     }
 
     fn _process_initialize_account(
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         owner: Option<&Address>,
         rent_sysvar_account: bool,
     ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let new_account_info = next_account_info(account_info_iter)?;
-        let mint_info = next_account_info(account_info_iter)?;
+        let account_info_iter = &mut accounts.iter_mut();
+        let new_account_info = next_account_view(account_info_iter)?;
+        let mint_info = next_account_view(account_info_iter)?;
 
-        check_program_account(new_account_info.owner)?;
-        check_program_account(mint_info.owner)?;
+        check_program_account(new_account_info.owner())?;
+        check_program_account(mint_info.owner())?;
 
         let owner = if let Some(owner) = owner {
             owner
         } else {
-            next_account_info(account_info_iter)?.key
+            next_account_view(account_info_iter)?.address()
         };
         let new_account_info_data_len = new_account_info.data_len();
         let rent = if rent_sysvar_account {
-            Rent::from_account_info(next_account_info(account_info_iter)?)?
+            Rent::from_account_view(next_account_view(account_info_iter)?)?
         } else {
             Rent::get()?
         };
 
-        let mut account_data = new_account_info.data.borrow_mut();
+        // CHANGED: Storing the lamports value so borrow checker doesn't complain about
+        // multiple borrows of `new_account_info`.
+        let new_account_lamports = new_account_info.lamports();
+        let mut account_data = new_account_info.try_borrow_mut()?;
         // unpack_uninitialized checks account.base.is_initialized() under the hood
         let mut account =
             PodStateWithExtensionsMut::<PodAccount>::unpack_uninitialized(&mut account_data)?;
 
-        if !rent.is_exempt(new_account_info.lamports(), new_account_info_data_len) {
+        if !rent.is_exempt(new_account_lamports, new_account_info_data_len) {
             return Err(TokenError::NotRentExempt.into());
         }
 
-        let mint_data = mint_info.data.borrow();
+        let mint_data = mint_info.try_borrow()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)
             .map_err(|_| Into::<ProgramError>::into(TokenError::InvalidMint))?;
         if mint
@@ -210,7 +223,7 @@ impl Processor {
             msg!("Warning: Mint has a permanent delegate, so tokens in this account may be seized at any time");
         }
 
-        check_program_account(mint_info.owner)?;
+        check_program_account(mint_info.owner())?;
 
         // Sizing walks every TLV entry, which also validates the extension data. It is only a
         // lower bound since it skips extensions already initialized on the account (e.g.
@@ -232,17 +245,16 @@ impl Processor {
                 AccountState::Initialized
             };
 
-        account.base.mint = *mint_info.key;
+        account.base.mint = *mint_info.address();
         account.base.owner = *owner;
         account.base.close_authority = PodCOption::none();
         account.base.delegate = PodCOption::none();
         account.base.delegated_amount = 0.into();
         account.base.state = starting_state.into();
-        if mint_info.key == &native_mint::id() {
-            let rent_exempt_reserve = rent.minimum_balance(new_account_info_data_len);
+        if mint_info.address() == &native_mint::id() {
+            let rent_exempt_reserve = rent.try_minimum_balance(new_account_info_data_len)?;
             account.base.is_native = PodCOption::some(rent_exempt_reserve.into());
-            account.base.amount = new_account_info
-                .lamports()
+            account.base.amount = new_account_lamports
                 .checked_sub(rent_exempt_reserve)
                 .ok_or(TokenError::Overflow)?
                 .into();
@@ -258,47 +270,57 @@ impl Processor {
 
     /// Processes an [`InitializeAccount`](enum.TokenInstruction.html)
     /// instruction.
-    pub fn process_initialize_account(accounts: &[AccountInfo]) -> ProgramResult {
+    pub fn process_initialize_account(accounts: &mut [AccountView]) -> ProgramResult {
         Self::_process_initialize_account(accounts, None, true)
     }
 
     /// Processes an [`InitializeAccount2`](enum.TokenInstruction.html)
     /// instruction.
-    pub fn process_initialize_account2(accounts: &[AccountInfo], owner: &Address) -> ProgramResult {
+    pub fn process_initialize_account2(
+        accounts: &mut [AccountView],
+        owner: &Address,
+    ) -> ProgramResult {
         Self::_process_initialize_account(accounts, Some(owner), true)
     }
 
     /// Processes an [`InitializeAccount3`](enum.TokenInstruction.html)
     /// instruction.
-    pub fn process_initialize_account3(accounts: &[AccountInfo], owner: &Address) -> ProgramResult {
+    pub fn process_initialize_account3(
+        accounts: &mut [AccountView],
+        owner: &Address,
+    ) -> ProgramResult {
         Self::_process_initialize_account(accounts, Some(owner), false)
     }
 
     fn _process_initialize_multisig(
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         m: u8,
         rent_sysvar_account: bool,
     ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let multisig_info = next_account_info(account_info_iter)?;
+        let account_info_iter = &mut accounts.iter_mut();
+        let multisig_info = next_account_view(account_info_iter)?;
 
-        check_program_account(multisig_info.owner)?;
+        check_program_account(multisig_info.owner())?;
 
         let multisig_info_data_len = multisig_info.data_len();
         let rent = if rent_sysvar_account {
-            Rent::from_account_info(next_account_info(account_info_iter)?)?
+            Rent::from_account_view(next_account_view(account_info_iter)?)?
         } else {
             Rent::get()?
         };
 
-        let mut multisig_data = multisig_info.data.borrow_mut();
+        // CHANGED: Storing the lamports value so borrow checker doesn't complain about
+        // borrowing `multisig_info` multiple times.
+        let multisig_lamports = multisig_info.lamports();
+
+        let mut multisig_data = multisig_info.try_borrow_mut()?;
         let multisig = bytemuck::try_from_bytes_mut::<PodMultisig>(&mut multisig_data)
             .map_err(|_| ProgramError::InvalidArgument)?;
         if bool::from(multisig.is_initialized) {
             return Err(TokenError::AlreadyInUse.into());
         }
 
-        if !rent.is_exempt(multisig_info.lamports(), multisig_info_data_len) {
+        if !rent.is_exempt(multisig_lamports, multisig_info_data_len) {
             return Err(TokenError::NotRentExempt.into());
         }
 
@@ -312,7 +334,7 @@ impl Processor {
             return Err(TokenError::InvalidNumberOfRequiredSigners.into());
         }
         for (i, signer_info) in signer_infos.iter().enumerate() {
-            multisig.signers[i] = *signer_info.key;
+            multisig.signers[i] = *signer_info.address();
         }
         multisig.is_initialized = true.into();
 
@@ -321,43 +343,47 @@ impl Processor {
 
     /// Processes a [`InitializeMultisig`](enum.TokenInstruction.html)
     /// instruction.
-    pub fn process_initialize_multisig(accounts: &[AccountInfo], m: u8) -> ProgramResult {
+    pub fn process_initialize_multisig(accounts: &mut [AccountView], m: u8) -> ProgramResult {
         Self::_process_initialize_multisig(accounts, m, true)
     }
 
     /// Processes a [`InitializeMultisig2`](enum.TokenInstruction.html)
     /// instruction.
-    pub fn process_initialize_multisig2(accounts: &[AccountInfo], m: u8) -> ProgramResult {
+    pub fn process_initialize_multisig2(accounts: &mut [AccountView], m: u8) -> ProgramResult {
         Self::_process_initialize_multisig(accounts, m, false)
     }
 
     /// Processes a [`Transfer`](enum.TokenInstruction.html) instruction.
     pub(crate) fn process_transfer(
         program_id: &Address,
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         amount: u64,
         transfer_instruction: TransferInstruction,
     ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
+        let account_info_iter = &mut accounts.iter_mut();
 
-        let source_account_info = next_account_info(account_info_iter)?;
+        let source_account_info = next_account_view(account_info_iter)?;
 
         let expected_mint_info = match transfer_instruction {
             TransferInstruction::Unchecked => None,
             TransferInstruction::Checked { decimals }
             | TransferInstruction::CheckedWithFee { decimals, .. } => {
-                Some((next_account_info(account_info_iter)?, decimals))
+                Some((next_account_view(account_info_iter)?, decimals))
             }
         };
 
-        let destination_account_info = next_account_info(account_info_iter)?;
-        let authority_info = next_account_info(account_info_iter)?;
+        let destination_account_info = next_account_view(account_info_iter)?;
+        let authority_info = next_account_view(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
-        check_program_account(source_account_info.owner)?;
-        check_program_account(destination_account_info.owner)?;
+        check_program_account(source_account_info.owner())?;
+        check_program_account(destination_account_info.owner())?;
 
-        let mut source_account_data = source_account_info.data.borrow_mut();
+        // CHANGED: Make a copy of the source account to borrow the data so we can use the account
+        // info again without violating the borrow checker. The account data is not re-borrowed on
+        // the processor.
+        let mut cloned_source_account_info = source_account_info.clone();
+        let mut source_account_data = cloned_source_account_info.try_borrow_mut()?;
         let mut source_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
         if source_account.base.is_frozen() {
@@ -376,13 +402,13 @@ impl Processor {
 
         let (calculated_fee, maybe_permanent_delegate, maybe_transfer_hook_program_id) =
             if let Some((mint_info, expected_decimals)) = expected_mint_info {
-                check_program_account(mint_info.owner)?;
+                check_program_account(mint_info.owner())?;
 
-                if &source_account.base.mint != mint_info.key {
+                if &source_account.base.mint != mint_info.address() {
                     return Err(TokenError::MintMismatch.into());
                 }
 
-                let mint_data = mint_info.try_borrow_data()?;
+                let mint_data = mint_info.try_borrow()?;
                 let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
 
                 if expected_decimals != mint.base.decimals {
@@ -446,13 +472,13 @@ impl Processor {
             }
         }
 
-        let self_transfer = source_account_info.key == destination_account_info.key;
+        let self_transfer = source_account_info.address() == destination_account_info.address();
         if let Ok(cpi_guard) = source_account.get_extension::<CpiGuard>() {
             // Blocks all cases where the authority has signed if CPI Guard is
             // enabled, including:
             // * the account is delegated to the owner
             // * the account owner is the permanent delegate
-            if *authority_info.key == source_account.base.owner
+            if *authority_info.address() == source_account.base.owner
                 && cpi_guard.lock_cpi.into()
                 && in_cpi()
             {
@@ -460,20 +486,22 @@ impl Processor {
             }
         }
         match (source_account.base.delegate, maybe_permanent_delegate) {
-            (_, Some(ref delegate)) if authority_info.key == delegate => Self::validate_owner(
-                program_id,
-                delegate,
-                authority_info,
-                authority_info_data_len,
-                account_info_iter.as_slice(),
-            )?,
+            (_, Some(ref delegate)) if authority_info.address() == delegate => {
+                Self::validate_owner(
+                    program_id,
+                    delegate,
+                    authority_info,
+                    authority_info_data_len,
+                    account_info_iter.as_slice(),
+                )?
+            }
             (
                 PodCOption {
                     option: PodCOption::<Address>::SOME,
                     value: delegate,
                 },
                 _,
-            ) if authority_info.key == &delegate => {
+            ) if authority_info.address() == &delegate => {
                 Self::validate_owner(
                     program_id,
                     &delegate,
@@ -515,8 +543,12 @@ impl Processor {
             return Ok(());
         }
 
+        // CHANGED: Make a copy of the destination account to borrow the data so we can use the account
+        // info again without violating the borrow checker. The account data is not re-borrowed on
+        // the processor.
+        let mut cloned_destination_account_info = destination_account_info.clone();
         // self-transfer was dealt with earlier, so this *should* be safe
-        let mut destination_account_data = destination_account_info.data.borrow_mut();
+        let mut destination_account_data = cloned_destination_account_info.try_borrow_mut()?;
         let mut destination_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut destination_account_data)?;
 
@@ -564,14 +596,18 @@ impl Processor {
 
         if source_account.base.is_native() {
             let source_starting_lamports = source_account_info.lamports();
-            **source_account_info.lamports.borrow_mut() = source_starting_lamports
-                .checked_sub(amount)
-                .ok_or(TokenError::Overflow)?;
+            source_account_info.set_lamports(
+                source_starting_lamports
+                    .checked_sub(amount)
+                    .ok_or(TokenError::Overflow)?,
+            );
 
             let destination_starting_lamports = destination_account_info.lamports();
-            **destination_account_info.lamports.borrow_mut() = destination_starting_lamports
-                .checked_add(amount)
-                .ok_or(TokenError::Overflow)?;
+            destination_account_info.set_lamports(
+                destination_starting_lamports
+                    .checked_add(amount)
+                    .ok_or(TokenError::Overflow)?,
+            );
         }
 
         if let Some(program_id) = maybe_transfer_hook_program_id {
@@ -583,19 +619,20 @@ impl Processor {
                 // must drop these to avoid the double-borrow during CPI
                 drop(source_account_data);
                 drop(destination_account_data);
-                spl_transfer_hook_interface::onchain::invoke_execute(
-                    &program_id,
-                    source_account_info.clone(),
-                    mint_info.clone(),
-                    destination_account_info.clone(),
-                    authority_info.clone(),
-                    account_info_iter.as_slice(),
+                Execute {
+                    program_id: &program_id,
+                    source: source_account_info,
+                    mint: mint_info,
+                    destination: destination_account_info,
+                    authority: authority_info,
+                    additional_accounts: account_info_iter.as_slice(),
                     amount,
-                )?;
+                }
+                .invoke()?;
 
                 // unset transferring flag
-                transfer_hook::unset_transferring(source_account_info)?;
-                transfer_hook::unset_transferring(destination_account_info)?;
+                unset_transferring(source_account_info)?;
+                unset_transferring(destination_account_info)?;
             } else {
                 return Err(TokenError::MintRequiredForTransfer.into());
             }
@@ -607,27 +644,27 @@ impl Processor {
     /// Processes an [`Approve`](enum.TokenInstruction.html) instruction.
     pub(crate) fn process_approve(
         program_id: &Address,
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         amount: u64,
         instruction_variant: InstructionVariant,
     ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
+        let account_info_iter = &mut accounts.iter_mut();
 
-        let source_account_info = next_account_info(account_info_iter)?;
+        let source_account_info = next_account_view(account_info_iter)?;
 
-        check_program_account(source_account_info.owner)?;
+        check_program_account(source_account_info.owner())?;
 
         let expected_mint_info =
             if let InstructionVariant::Checked { decimals } = instruction_variant {
-                Some((next_account_info(account_info_iter)?, decimals))
+                Some((next_account_view(account_info_iter)?, decimals))
             } else {
                 None
             };
-        let delegate_info = next_account_info(account_info_iter)?;
-        let owner_info = next_account_info(account_info_iter)?;
+        let delegate_info = next_account_view(account_info_iter)?;
+        let owner_info = next_account_view(account_info_iter)?;
         let owner_info_data_len = owner_info.data_len();
 
-        let mut source_account_data = source_account_info.data.borrow_mut();
+        let mut source_account_data = source_account_info.try_borrow_mut()?;
         let source_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
 
@@ -636,13 +673,13 @@ impl Processor {
         }
 
         if let Some((mint_info, expected_decimals)) = expected_mint_info {
-            check_program_account(mint_info.owner)?;
+            check_program_account(mint_info.owner())?;
 
-            if &source_account.base.mint != mint_info.key {
+            if &source_account.base.mint != mint_info.address() {
                 return Err(TokenError::MintMismatch.into());
             }
 
-            let mint_data = mint_info.data.borrow();
+            let mint_data = mint_info.try_borrow()?;
             let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
             if expected_decimals != mint.base.decimals {
                 return Err(TokenError::MintDecimalsMismatch.into());
@@ -663,22 +700,22 @@ impl Processor {
             }
         }
 
-        source_account.base.delegate = PodCOption::some(*delegate_info.key);
+        source_account.base.delegate = PodCOption::some(*delegate_info.address());
         source_account.base.delegated_amount = amount.into();
 
         Ok(())
     }
 
     /// Processes an [`Revoke`](enum.TokenInstruction.html) instruction.
-    pub fn process_revoke(program_id: &Address, accounts: &[AccountInfo]) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let source_account_info = next_account_info(account_info_iter)?;
-        let authority_info = next_account_info(account_info_iter)?;
+    pub fn process_revoke(program_id: &Address, accounts: &mut [AccountView]) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter_mut();
+        let source_account_info = next_account_view(account_info_iter)?;
+        let authority_info = next_account_view(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
-        check_program_account(source_account_info.owner)?;
+        check_program_account(source_account_info.owner())?;
 
-        let mut source_account_data = source_account_info.data.borrow_mut();
+        let mut source_account_data = source_account_info.try_borrow_mut()?;
         let source_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
         if source_account.base.is_frozen() {
@@ -691,7 +728,7 @@ impl Processor {
                 PodCOption {
                     option: PodCOption::<Address>::SOME,
                     value: delegate,
-                } if authority_info.key == delegate => delegate,
+                } if authority_info.address() == delegate => delegate,
                 _ => &source_account.base.owner,
             },
             authority_info,
@@ -708,18 +745,18 @@ impl Processor {
     /// Processes a [`SetAuthority`](enum.TokenInstruction.html) instruction.
     pub fn process_set_authority(
         program_id: &Address,
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         authority_type: AuthorityType,
         new_authority: PodCOption<Address>,
     ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let account_info = next_account_info(account_info_iter)?;
-        let authority_info = next_account_info(account_info_iter)?;
+        let account_info_iter = &mut accounts.iter_mut();
+        let account_info = next_account_view(account_info_iter)?;
+        let authority_info = next_account_view(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
-        check_program_account(account_info.owner)?;
+        check_program_account(account_info.owner())?;
 
-        let mut account_data = account_info.data.borrow_mut();
+        let mut account_data = account_info.try_borrow_mut()?;
         if let Ok(mut account) = PodStateWithExtensionsMut::<PodAccount>::unpack(&mut account_data)
         {
             if account.base.is_frozen() {
@@ -1027,20 +1064,20 @@ impl Processor {
     /// Processes a [`MintTo`](enum.TokenInstruction.html) instruction.
     pub(crate) fn process_mint_to(
         program_id: &Address,
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         amount: u64,
         instruction_variant: InstructionVariant,
     ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let mint_info = next_account_info(account_info_iter)?;
-        let destination_account_info = next_account_info(account_info_iter)?;
-        let owner_info = next_account_info(account_info_iter)?;
+        let account_info_iter = &mut accounts.iter_mut();
+        let mint_info = next_account_view(account_info_iter)?;
+        let destination_account_info = next_account_view(account_info_iter)?;
+        let owner_info = next_account_view(account_info_iter)?;
         let owner_info_data_len = owner_info.data_len();
 
-        check_program_account(mint_info.owner)?;
-        check_program_account(destination_account_info.owner)?;
+        check_program_account(mint_info.owner())?;
+        check_program_account(destination_account_info.owner())?;
 
-        let mut destination_account_data = destination_account_info.data.borrow_mut();
+        let mut destination_account_data = destination_account_info.try_borrow_mut()?;
         let destination_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut destination_account_data)?;
         if destination_account.base.is_frozen() {
@@ -1050,11 +1087,11 @@ impl Processor {
         if destination_account.base.is_native() {
             return Err(TokenError::NativeNotSupported.into());
         }
-        if mint_info.key != &destination_account.base.mint {
+        if mint_info.address() != &destination_account.base.mint {
             return Err(TokenError::MintMismatch.into());
         }
 
-        let mut mint_data = mint_info.data.borrow_mut();
+        let mut mint_data = mint_info.try_borrow_mut()?;
         let mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
 
         // If the mint if non-transferable, only allow minting to accounts
@@ -1120,31 +1157,35 @@ impl Processor {
     /// Processes a [`Burn`](enum.TokenInstruction.html) instruction.
     pub(crate) fn process_burn(
         program_id: &Address,
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         amount: u64,
         burn_variant: BurnInstructionVariant,
         instruction_variant: InstructionVariant,
     ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
+        let account_info_iter = &mut accounts.iter_mut();
 
-        let source_account_info = next_account_info(account_info_iter)?;
-        let mint_info = next_account_info(account_info_iter)?;
+        let source_account_info = next_account_view(account_info_iter)?;
+        let mint_info = next_account_view(account_info_iter)?;
 
-        check_program_account(source_account_info.owner)?;
-        check_program_account(mint_info.owner)?;
+        check_program_account(source_account_info.owner())?;
+        check_program_account(mint_info.owner())?;
 
         let (permissioned_burn_authority_info, authority_info) = match burn_variant {
             BurnInstructionVariant::Permissioned => {
-                let permissioned_burn_authority_info = next_account_info(account_info_iter)?;
-                let authority_info = next_account_info(account_info_iter)?;
+                let permissioned_burn_authority_info = next_account_view(account_info_iter)?;
+                let authority_info = next_account_view(account_info_iter)?;
                 (Some(permissioned_burn_authority_info), authority_info)
             }
-            BurnInstructionVariant::Standard => (None, next_account_info(account_info_iter)?),
+            BurnInstructionVariant::Standard => (None, next_account_view(account_info_iter)?),
         };
 
         let authority_info_data_len = authority_info.data_len();
 
-        let mut mint_data = mint_info.data.borrow_mut();
+        // CHANGED: Storing the address of the mint so borrow checker doesn't complain about
+        // multiple borrows of `mint_info`.
+        let mint_address = *mint_info.address();
+
+        let mut mint_data = mint_info.try_borrow_mut()?;
         let mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
 
         let permissioned_ext = mint.get_extension::<PermissionedBurnConfig>();
@@ -1174,17 +1215,17 @@ impl Processor {
                 let approver_ai =
                     permissioned_burn_authority_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-                if !approver_ai.is_signer {
+                if !approver_ai.is_signer() {
                     return Err(ProgramError::MissingRequiredSignature);
                 }
 
-                if *approver_ai.key != expected_burn_authority {
+                if *approver_ai.address() != expected_burn_authority {
                     return Err(ProgramError::InvalidAccountData);
                 }
             }
         }
 
-        let mut source_account_data = source_account_info.data.borrow_mut();
+        let mut source_account_data = source_account_info.try_borrow_mut()?;
         let source_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
 
@@ -1197,7 +1238,7 @@ impl Processor {
         if u64::from(source_account.base.amount) < amount {
             return Err(TokenError::InsufficientFunds.into());
         }
-        if mint_info.key != &source_account.base.mint {
+        if &mint_address != &source_account.base.mint {
             return Err(TokenError::MintMismatch.into());
         }
 
@@ -1223,7 +1264,7 @@ impl Processor {
             // enabled, including:
             // * the account is delegated to the owner
             // * the account owner is the permanent delegate
-            if *authority_info.key == source_account.base.owner
+            if *authority_info.address() == source_account.base.owner
                 && cpi_guard.lock_cpi.into()
                 && in_cpi()
             {
@@ -1236,20 +1277,22 @@ impl Processor {
             .is_owned_by_system_program_or_incinerator()
         {
             match (&source_account.base.delegate, maybe_permanent_delegate) {
-                (_, Some(ref delegate)) if authority_info.key == delegate => Self::validate_owner(
-                    program_id,
-                    delegate,
-                    authority_info,
-                    authority_info_data_len,
-                    account_info_iter.as_slice(),
-                )?,
+                (_, Some(ref delegate)) if authority_info.address() == delegate => {
+                    Self::validate_owner(
+                        program_id,
+                        delegate,
+                        authority_info,
+                        authority_info_data_len,
+                        account_info_iter.as_slice(),
+                    )?
+                }
                 (
                     PodCOption {
                         option: PodCOption::<Address>::SOME,
                         value: delegate,
                     },
                     _,
-                ) if authority_info.key == delegate => {
+                ) if authority_info.address() == delegate => {
                     Self::validate_owner(
                         program_id,
                         delegate,
@@ -1295,20 +1338,23 @@ impl Processor {
     }
 
     /// Processes a [`CloseAccount`](enum.TokenInstruction.html) instruction.
-    pub fn process_close_account(program_id: &Address, accounts: &[AccountInfo]) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let source_account_info = next_account_info(account_info_iter)?;
-        let destination_account_info = next_account_info(account_info_iter)?;
-        let authority_info = next_account_info(account_info_iter)?;
+    pub fn process_close_account(
+        program_id: &Address,
+        accounts: &mut [AccountView],
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter_mut();
+        let source_account_info = next_account_view(account_info_iter)?;
+        let destination_account_info = next_account_view(account_info_iter)?;
+        let authority_info = next_account_view(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
-        check_program_account(source_account_info.owner)?;
+        check_program_account(source_account_info.owner())?;
 
-        if source_account_info.key == destination_account_info.key {
+        if source_account_info.address() == destination_account_info.address() {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let source_account_data = source_account_info.data.borrow();
+        let source_account_data = source_account_info.try_borrow()?;
         if let Ok(source_account) =
             PodStateWithExtensions::<PodAccount>::unpack(&source_account_data)
         {
@@ -1328,7 +1374,7 @@ impl Processor {
                 if let Ok(cpi_guard) = source_account.get_extension::<CpiGuard>() {
                     if cpi_guard.lock_cpi.into()
                         && in_cpi()
-                        && destination_account_info.key != &source_account.base.owner
+                        && destination_account_info.address() != &source_account.base.owner
                     {
                         return Err(TokenError::CpiGuardCloseAccountBlocked.into());
                     }
@@ -1341,7 +1387,7 @@ impl Processor {
                     authority_info_data_len,
                     account_info_iter.as_slice(),
                 )?;
-            } else if !solana_sdk_ids::incinerator::check_id(destination_account_info.key) {
+            } else if !solana_sdk_ids::incinerator::check_id(destination_account_info.address()) {
                 return Err(ProgramError::InvalidAccountData);
             }
 
@@ -1384,13 +1430,16 @@ impl Processor {
         }
 
         let destination_starting_lamports = destination_account_info.lamports();
-        **destination_account_info.lamports.borrow_mut() = destination_starting_lamports
-            .checked_add(source_account_info.lamports())
-            .ok_or(TokenError::Overflow)?;
+        destination_account_info.set_lamports(
+            destination_starting_lamports
+                .checked_add(source_account_info.lamports())
+                .ok_or(TokenError::Overflow)?,
+        );
 
-        **source_account_info.lamports.borrow_mut() = 0;
         drop(source_account_data);
-        delete_account(source_account_info)?;
+
+        // SAFETY: There are no active borrows of `source_account_info` at this point.
+        unsafe { source_account_info.close_unchecked() };
 
         Ok(())
     }
@@ -1399,19 +1448,19 @@ impl Processor {
     /// [`ThawAccount`](enum.TokenInstruction.html) instruction.
     pub fn process_toggle_freeze_account(
         program_id: &Address,
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         freeze: bool,
     ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let source_account_info = next_account_info(account_info_iter)?;
-        let mint_info = next_account_info(account_info_iter)?;
-        let authority_info = next_account_info(account_info_iter)?;
+        let account_info_iter = &mut accounts.iter_mut();
+        let source_account_info = next_account_view(account_info_iter)?;
+        let mint_info = next_account_view(account_info_iter)?;
+        let authority_info = next_account_view(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
-        check_program_account(source_account_info.owner)?;
-        check_program_account(mint_info.owner)?;
+        check_program_account(source_account_info.owner())?;
+        check_program_account(mint_info.owner())?;
 
-        let mut source_account_data = source_account_info.data.borrow_mut();
+        let mut source_account_data = source_account_info.try_borrow_mut()?;
         let source_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
         if freeze && source_account.base.is_frozen() || !freeze && !source_account.base.is_frozen()
@@ -1421,11 +1470,11 @@ impl Processor {
         if source_account.base.is_native() {
             return Err(TokenError::NativeNotSupported.into());
         }
-        if mint_info.key != &source_account.base.mint {
+        if mint_info.address() != &source_account.base.mint {
             return Err(TokenError::MintMismatch.into());
         }
 
-        let mint_data = mint_info.data.borrow();
+        let mint_data = mint_info.try_borrow()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
         match &mint.base.freeze_authority {
             PodCOption {
@@ -1451,21 +1500,25 @@ impl Processor {
     }
 
     /// Processes a [`SyncNative`](enum.TokenInstruction.html) instruction
-    pub fn process_sync_native(accounts: &[AccountInfo]) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let native_account_info = next_account_info(account_info_iter)?;
+    pub fn process_sync_native(accounts: &mut [AccountView]) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter_mut();
+        let native_account_info = next_account_view(account_info_iter)?;
 
-        check_program_account(native_account_info.owner)?;
+        check_program_account(native_account_info.owner())?;
 
-        let rent_exempt_reserve = if let Ok(rent_sysvar_info) = next_account_info(account_info_iter)
+        let rent_exempt_reserve = if let Ok(rent_sysvar_info) = next_account_view(account_info_iter)
         {
-            let rent = Rent::from_account_info(rent_sysvar_info)?;
-            rent.minimum_balance(native_account_info.data_len())
+            let rent = Rent::from_account_view(rent_sysvar_info)?;
+            rent.try_minimum_balance(native_account_info.data_len())?
         } else {
-            Rent::get()?.minimum_balance(native_account_info.data_len())
+            Rent::get()?.try_minimum_balance(native_account_info.data_len())?
         };
 
-        let mut native_account_data = native_account_info.data.borrow_mut();
+        // CHANGED: Storing the lamports of the native account so borrow checker doesn't complain about
+        // multiple borrows of `native_account_info`.
+        let native_account_lamports = native_account_info.lamports();
+
+        let mut native_account_data = native_account_info.try_borrow_mut()?;
         let native_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut native_account_data)?;
 
@@ -1474,8 +1527,7 @@ impl Processor {
                 option: PodCOption::<U64>::SOME,
                 ..
             } => {
-                let new_amount = native_account_info
-                    .lamports()
+                let new_amount = native_account_lamports
                     .checked_sub(rent_exempt_reserve)
                     .ok_or(TokenError::Overflow)?;
                 native_account.base.is_native = PodCOption::some(rent_exempt_reserve.into());
@@ -1491,15 +1543,15 @@ impl Processor {
     /// [`InitializeMintCloseAuthority`](enum.TokenInstruction.html)
     /// instruction
     pub fn process_initialize_mint_close_authority(
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         close_authority: PodCOption<Address>,
     ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let mint_account_info = next_account_info(account_info_iter)?;
+        let account_info_iter = &mut accounts.iter_mut();
+        let mint_account_info = next_account_view(account_info_iter)?;
 
-        check_program_account(mint_account_info.owner)?;
+        check_program_account(mint_account_info.owner())?;
 
-        let mut mint_data = mint_account_info.data.borrow_mut();
+        let mut mint_data = mint_account_info.try_borrow_mut()?;
         let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
         let extension = mint.init_extension::<MintCloseAuthority>(true)?;
         extension.close_authority = close_authority.try_into()?;
@@ -1510,15 +1562,15 @@ impl Processor {
     /// Processes a [`GetAccountDataSize`](enum.TokenInstruction.html)
     /// instruction
     pub fn process_get_account_data_size(
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         new_extension_types: &[ExtensionType],
     ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let mint_account_info = next_account_info(account_info_iter)?;
+        let account_info_iter = &mut accounts.iter_mut();
+        let mint_account_info = next_account_view(account_info_iter)?;
 
-        check_program_account(mint_account_info.owner)?;
+        check_program_account(mint_account_info.owner())?;
 
-        let mint_data = mint_account_info.data.borrow();
+        let mint_data = mint_account_info.try_borrow_mut()?;
         let account_len =
             try_calculate_account_len_from_mint_data(&mint_data, new_extension_types)?;
         set_return_data(&account_len.to_le_bytes());
@@ -1528,13 +1580,13 @@ impl Processor {
 
     /// Processes an [`InitializeImmutableOwner`](enum.TokenInstruction.html)
     /// instruction
-    pub fn process_initialize_immutable_owner(accounts: &[AccountInfo]) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let token_account_info = next_account_info(account_info_iter)?;
+    pub fn process_initialize_immutable_owner(accounts: &mut [AccountView]) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter_mut();
+        let token_account_info = next_account_view(account_info_iter)?;
 
-        check_program_account(token_account_info.owner)?;
+        check_program_account(token_account_info.owner())?;
 
-        let token_account_data = &mut token_account_info.data.borrow_mut();
+        let token_account_data = &mut token_account_info.try_borrow_mut()?;
         let mut token_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack_uninitialized(token_account_data)?;
         token_account
@@ -1544,12 +1596,12 @@ impl Processor {
 
     /// Processes an [`AmountToUiAmount`](enum.TokenInstruction.html)
     /// instruction
-    pub fn process_amount_to_ui_amount(accounts: &[AccountInfo], amount: u64) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let mint_info = next_account_info(account_info_iter)?;
-        check_program_account(mint_info.owner)?;
+    pub fn process_amount_to_ui_amount(accounts: &mut [AccountView], amount: u64) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter_mut();
+        let mint_info = next_account_view(account_info_iter)?;
+        check_program_account(mint_info.owner())?;
 
-        let mint_data = mint_info.data.borrow();
+        let mint_data = mint_info.try_borrow()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)
             .map_err(|_| Into::<ProgramError>::into(TokenError::InvalidMint))?;
         let ui_amount = if let Ok(extension) = mint.get_extension::<InterestBearingConfig>() {
@@ -1572,12 +1624,15 @@ impl Processor {
 
     /// Processes an [`UiAmountToAmount`](enum.TokenInstruction.html)
     /// instruction
-    pub fn process_ui_amount_to_amount(accounts: &[AccountInfo], ui_amount: &str) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let mint_info = next_account_info(account_info_iter)?;
-        check_program_account(mint_info.owner)?;
+    pub fn process_ui_amount_to_amount(
+        accounts: &mut [AccountView],
+        ui_amount: &str,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter_mut();
+        let mint_info = next_account_view(account_info_iter)?;
+        check_program_account(mint_info.owner())?;
 
-        let mint_data = mint_info.data.borrow();
+        let mint_data = mint_info.try_borrow()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)
             .map_err(|_| Into::<ProgramError>::into(TokenError::InvalidMint))?;
         let amount = if let Ok(extension) = mint.get_extension::<InterestBearingConfig>() {
@@ -1595,39 +1650,32 @@ impl Processor {
     }
 
     /// Processes a [`CreateNativeMint`](enum.TokenInstruction.html) instruction
-    pub fn process_create_native_mint(accounts: &[AccountInfo]) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let payer_info = next_account_info(account_info_iter)?;
-        let native_mint_info = next_account_info(account_info_iter)?;
-        let system_program_info = next_account_info(account_info_iter)?;
+    pub fn process_create_native_mint(accounts: &mut [AccountView]) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter_mut();
+        let payer_info = next_account_view(account_info_iter)?;
+        let native_mint_info = next_account_view(account_info_iter)?;
+        let _system_program_info = next_account_view(account_info_iter)?;
 
-        if *native_mint_info.key != native_mint::id() {
+        if *native_mint_info.address() != native_mint::id() {
             return Err(TokenError::InvalidMint.into());
         }
 
         let rent = Rent::get()?;
-        let new_minimum_balance = rent.minimum_balance(Mint::get_packed_len());
+        let new_minimum_balance = rent.try_minimum_balance(Mint::get_packed_len())?;
         let lamports_diff = new_minimum_balance.saturating_sub(native_mint_info.lamports());
-        invoke(
-            &system_instruction::transfer(payer_info.key, native_mint_info.key, lamports_diff),
-            &[
-                payer_info.clone(),
-                native_mint_info.clone(),
-                system_program_info.clone(),
-            ],
-        )?;
 
-        invoke_signed(
-            &system_instruction::allocate(native_mint_info.key, Mint::get_packed_len() as u64),
-            &[native_mint_info.clone(), system_program_info.clone()],
-            &[native_mint::PROGRAM_ADDRESS_SEEDS],
-        )?;
-
-        invoke_signed(
-            &system_instruction::assign(native_mint_info.key, &crate::id()),
-            &[native_mint_info.clone(), system_program_info.clone()],
-            &[native_mint::PROGRAM_ADDRESS_SEEDS],
-        )?;
+        // CHANGED: Use `CreateAccountAllowPrefund` to create the native mint account with the
+        // correct lamports.
+        CreateAccountAllowPrefund {
+            funding: Some(Funding {
+                from: payer_info,
+                lamports: lamports_diff,
+            }),
+            to: native_mint_info,
+            space: Mint::get_packed_len() as u64,
+            owner: &crate::ID,
+        }
+        .invoke()?;
 
         Mint::pack(
             Mint {
@@ -1635,19 +1683,19 @@ impl Processor {
                 is_initialized: true,
                 ..Mint::default()
             },
-            &mut native_mint_info.data.borrow_mut(),
+            &mut native_mint_info.try_borrow_mut()?,
         )
     }
 
     /// Processes an
     /// [`InitializeNonTransferableMint`](enum.TokenInstruction.html)
     /// instruction
-    pub fn process_initialize_non_transferable_mint(accounts: &[AccountInfo]) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let mint_account_info = next_account_info(account_info_iter)?;
-        check_program_account(mint_account_info.owner)?;
+    pub fn process_initialize_non_transferable_mint(accounts: &mut [AccountView]) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter_mut();
+        let mint_account_info = next_account_view(account_info_iter)?;
+        check_program_account(mint_account_info.owner())?;
 
-        let mut mint_data = mint_account_info.data.borrow_mut();
+        let mut mint_data = mint_account_info.try_borrow_mut()?;
         let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
         mint.init_extension::<NonTransferable>(true)?;
 
@@ -1657,14 +1705,14 @@ impl Processor {
     /// Processes an [`InitializePermanentDelegate`](enum.TokenInstruction.html)
     /// instruction
     pub fn process_initialize_permanent_delegate(
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         delegate: &Address,
     ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let mint_account_info = next_account_info(account_info_iter)?;
-        check_program_account(mint_account_info.owner)?;
+        let account_info_iter = &mut accounts.iter_mut();
+        let mint_account_info = next_account_view(account_info_iter)?;
+        check_program_account(mint_account_info.owner())?;
 
-        let mut mint_data = mint_account_info.data.borrow_mut();
+        let mut mint_data = mint_account_info.try_borrow_mut()?;
         let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
         let extension = mint.init_extension::<PermanentDelegate>(true)?;
         extension.delegate = Some(*delegate)
@@ -1679,17 +1727,17 @@ impl Processor {
     /// of the source account.
     pub fn process_withdraw_excess_lamports(
         program_id: &Address,
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
     ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
+        let account_info_iter = &mut accounts.iter_mut();
 
-        let source_info = next_account_info(account_info_iter)?;
-        let destination_info = next_account_info(account_info_iter)?;
-        let authority_info = next_account_info(account_info_iter)?;
+        let source_info = next_account_view(account_info_iter)?;
+        let destination_info = next_account_view(account_info_iter)?;
+        let authority_info = next_account_view(account_info_iter)?;
 
-        check_program_account(source_info.owner)?;
+        check_program_account(source_info.owner())?;
 
-        let source_data = source_info.data.borrow();
+        let source_data = source_info.try_borrow()?;
 
         if let Ok(account) = PodStateWithExtensions::<PodAccount>::unpack(&source_data) {
             if account.base.is_native() {
@@ -1725,11 +1773,11 @@ impl Processor {
                 PodCOption {
                     option: PodCOption::<Address>::NONE,
                     value: _,
-                } if source_info.key == authority_info.key => {
+                } if source_info.address() == authority_info.address() => {
                     // This is a special case where there is no mint authority set but the mint
                     // account is the same as the authority account and, therefore, needs to be
                     // a signer.
-                    if !authority_info.is_signer {
+                    if !authority_info.is_signer() {
                         return Err(ProgramError::MissingRequiredSignature);
                     }
                 }
@@ -1738,7 +1786,7 @@ impl Processor {
         } else if source_data.len() == PodMultisig::SIZE_OF {
             Self::validate_owner(
                 program_id,
-                source_info.key,
+                source_info.address(),
                 authority_info,
                 authority_info.data_len(),
                 account_info_iter.as_slice(),
@@ -1747,7 +1795,11 @@ impl Processor {
             return Err(TokenError::InvalidState.into());
         }
 
-        let source_rent_exempt_reserve = Rent::get()?.minimum_balance(source_info.data_len());
+        // CHANGED: Drop the borrow of `source_data` to avoid borrow checker issues.
+        drop(source_data);
+
+        let source_rent_exempt_reserve =
+            Rent::get()?.try_minimum_balance(source_info.data_len())?;
 
         let transfer_amount = source_info
             .lamports()
@@ -1755,14 +1807,18 @@ impl Processor {
             .ok_or(TokenError::NotRentExempt)?;
 
         let source_starting_lamports = source_info.lamports();
-        **source_info.lamports.borrow_mut() = source_starting_lamports
-            .checked_sub(transfer_amount)
-            .ok_or(TokenError::Overflow)?;
+        source_info.set_lamports(
+            source_starting_lamports
+                .checked_sub(transfer_amount)
+                .ok_or(TokenError::Overflow)?,
+        );
 
         let destination_starting_lamports = destination_info.lamports();
-        **destination_info.lamports.borrow_mut() = destination_starting_lamports
-            .checked_add(transfer_amount)
-            .ok_or(TokenError::Overflow)?;
+        destination_info.set_lamports(
+            destination_starting_lamports
+                .checked_add(transfer_amount)
+                .ok_or(TokenError::Overflow)?,
+        );
 
         Ok(())
     }
@@ -1771,18 +1827,18 @@ impl Processor {
     /// instruction
     pub fn process_unwrap_lamports(
         program_id: &Address,
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         amount: PodCOption<u64>,
     ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let source_account_info = next_account_info(account_info_iter)?;
-        let destination_account_info = next_account_info(account_info_iter)?;
-        let authority_info = next_account_info(account_info_iter)?;
+        let account_info_iter = &mut accounts.iter_mut();
+        let source_account_info = next_account_view(account_info_iter)?;
+        let destination_account_info = next_account_view(account_info_iter)?;
+        let authority_info = next_account_view(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
-        check_program_account(source_account_info.owner)?;
+        check_program_account(source_account_info.owner())?;
 
-        let mut source_account_data = source_account_info.data.borrow_mut();
+        let mut source_account_data = source_account_info.try_borrow_mut()?;
         let source_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
 
@@ -1811,7 +1867,7 @@ impl Processor {
             PodCOption {
                 option: PodCOption::<Address>::SOME,
                 value: delegate,
-            } if authority_info.key == &delegate => {
+            } if authority_info.address() == &delegate => {
                 Self::validate_owner(
                     program_id,
                     &delegate,
@@ -1851,16 +1907,23 @@ impl Processor {
         if amount != 0 {
             source_account.base.amount = remaining_amount.into();
 
-            if source_account_info.key != destination_account_info.key {
+            // CHANGED: Drop the borrow of `source_account_data` to avoid borrow checker issues.
+            drop(source_account_data);
+
+            if source_account_info.address() != destination_account_info.address() {
                 let source_starting_lamports = source_account_info.lamports();
-                **source_account_info.lamports.borrow_mut() = source_starting_lamports
-                    .checked_sub(amount)
-                    .ok_or(TokenError::Overflow)?;
+                source_account_info.set_lamports(
+                    source_starting_lamports
+                        .checked_sub(amount)
+                        .ok_or(TokenError::Overflow)?,
+                );
 
                 let destination_starting_lamports = destination_account_info.lamports();
-                **destination_account_info.lamports.borrow_mut() = destination_starting_lamports
-                    .checked_add(amount)
-                    .ok_or(TokenError::Overflow)?;
+                destination_account_info.set_lamports(
+                    destination_starting_lamports
+                        .checked_add(amount)
+                        .ok_or(TokenError::Overflow)?,
+                );
             }
         }
 
@@ -1878,7 +1941,7 @@ impl Processor {
     /// instruction
     pub fn process_batch(
         program_id: &Address,
-        mut accounts: &[AccountInfo],
+        mut accounts: &mut [AccountView],
         mut data: &[u8],
     ) -> ProgramResult {
         loop {
@@ -1890,7 +1953,7 @@ impl Processor {
             let data_offset = Self::IX_HEADER_SIZE + header[1] as usize;
 
             let ix_accounts = accounts
-                .get(..expected_accounts)
+                .get_mut(..expected_accounts)
                 .ok_or(ProgramError::NotEnoughAccountKeys)?;
             let ix_data = data
                 .get(Self::IX_HEADER_SIZE..data_offset)
@@ -1902,7 +1965,7 @@ impl Processor {
                 break;
             }
 
-            accounts = &accounts[expected_accounts..];
+            accounts = &mut accounts[expected_accounts..];
             data = &data[data_offset..];
         }
 
@@ -1910,7 +1973,11 @@ impl Processor {
     }
 
     /// Processes an [`Instruction`](enum.Instruction.html).
-    pub fn process(program_id: &Address, accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
+    pub fn process(
+        program_id: &Address,
+        accounts: &mut [AccountView],
+        input: &[u8],
+    ) -> ProgramResult {
         if let Ok(PodTokenInstruction::Batch) = decode_instruction_type(input) {
             msg!("Instruction: Batch");
             Self::process_batch(program_id, accounts, &input[1..])
@@ -1921,7 +1988,7 @@ impl Processor {
 
     fn _process_inner(
         program_id: &Address,
-        accounts: &[AccountInfo],
+        accounts: &mut [AccountView],
         input: &[u8],
     ) -> ProgramResult {
         if let Ok(instruction_type) = decode_instruction_type(input) {
@@ -2253,19 +2320,19 @@ impl Processor {
     pub fn validate_owner(
         program_id: &Address,
         expected_owner: &Address,
-        owner_account_info: &AccountInfo,
+        owner_account_info: &mut AccountView,
         owner_account_data_len: usize,
-        signers: &[AccountInfo],
+        signers: &[AccountView],
     ) -> ProgramResult {
-        if expected_owner != owner_account_info.key {
+        if expected_owner != owner_account_info.address() {
             return Err(TokenError::OwnerMismatch.into());
         }
 
-        let owned_by_token_program = program_id == owner_account_info.owner
-            || owner_account_info.owner == &inline_spl_token::id()
-            || owner_account_info.owner == &spl_token_2022_interface::id();
+        let owned_by_token_program = program_id == owner_account_info.owner()
+            || owner_account_info.owner() == &inline_spl_token::id()
+            || owner_account_info.owner() == &spl_token_2022_interface::id();
         if owned_by_token_program && owner_account_data_len == PodMultisig::SIZE_OF {
-            let multisig_data = &owner_account_info.data.borrow();
+            let multisig_data = &owner_account_info.try_borrow()?;
             let multisig = bytemuck::try_from_bytes::<PodMultisig>(multisig_data)
                 .map_err(|_| ProgramError::InvalidArgument)?;
             if !bool::from(multisig.is_initialized) {
@@ -2275,8 +2342,8 @@ impl Processor {
             let mut matched = [false; MAX_SIGNERS];
             for signer in signers.iter() {
                 for (position, key) in multisig.signers[0..multisig.n as usize].iter().enumerate() {
-                    if key == signer.key && !matched[position] {
-                        if !signer.is_signer {
+                    if key == signer.address() && !matched[position] {
+                        if !signer.is_signer() {
                             return Err(ProgramError::MissingRequiredSignature);
                         }
                         matched[position] = true;
@@ -2288,7 +2355,7 @@ impl Processor {
                 return Err(ProgramError::MissingRequiredSignature);
             }
             return Ok(());
-        } else if !owner_account_info.is_signer {
+        } else if !owner_account_info.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
         Ok(())
@@ -2423,19 +2490,19 @@ mod tests {
     }
 
     fn rent_sysvar() -> SolanaAccount {
-        create_account_for_test(&Rent::default())
+        create_account_for_test(&solana_rent::Rent::default())
     }
 
     fn mint_minimum_balance() -> u64 {
-        Rent::default().minimum_balance(Mint::get_packed_len())
+        solana_rent::Rent::default().minimum_balance(Mint::get_packed_len())
     }
 
     fn account_minimum_balance() -> u64 {
-        Rent::default().minimum_balance(Account::get_packed_len())
+        solana_rent::Rent::default().minimum_balance(Account::get_packed_len())
     }
 
     fn multisig_minimum_balance() -> u64 {
-        Rent::default().minimum_balance(Multisig::get_packed_len())
+        solana_rent::Rent::default().minimum_balance(Multisig::get_packed_len())
     }
 
     fn batch_instruction(instructions: &[&Instruction]) -> Result<Instruction, ProgramError> {

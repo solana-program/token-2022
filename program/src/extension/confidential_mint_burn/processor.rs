@@ -3,14 +3,15 @@ use {
     crate::{
         check_auditor_ciphertext,
         extension::confidential_mint_burn::verify_proof::{verify_burn_proof, verify_mint_proof},
+        next_account_view,
         processor::BurnInstructionVariant,
     },
+    pinocchio::AccountView,
     spl_token_2022_interface::extension::permissioned_burn::PermissionedBurnConfig,
     spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic,
 };
 use {
     crate::{extension::cpi_guard::in_cpi, processor::Processor},
-    solana_account_info::{next_account_info, AccountInfo},
     solana_address::Address,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
@@ -47,13 +48,16 @@ use {
 };
 
 /// Processes an [`InitializeMint`] instruction.
-fn process_initialize_mint(accounts: &[AccountInfo], data: &InitializeMintData) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let mint_info = next_account_info(account_info_iter)?;
+fn process_initialize_mint(
+    accounts: &mut [AccountView],
+    data: &InitializeMintData,
+) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter_mut();
+    let mint_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_info.owner)?;
+    check_program_account(mint_info.owner())?;
 
-    let mint_data = &mut mint_info.data.borrow_mut();
+    let mint_data = &mut mint_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(mint_data)?;
     let mint_burn_extension = mint.init_extension::<ConfidentialMintBurn>(true)?;
 
@@ -67,14 +71,14 @@ fn process_initialize_mint(accounts: &[AccountInfo], data: &InitializeMintData) 
 #[cfg(feature = "zk-ops")]
 fn process_rotate_supply_elgamal_pubkey(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     data: &RotateSupplyElGamalPubkeyData,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let mint_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let mint_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_info.owner)?;
-    let mint_data = &mut mint_info.data.borrow_mut();
+    check_program_account(mint_info.owner())?;
+    let mint_data = &mut mint_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(mint_data)?;
     let mint_authority = mint.base.mint_authority;
     let mint_burn_extension = mint.get_extension_mut::<ConfidentialMintBurn>()?;
@@ -104,7 +108,7 @@ fn process_rotate_supply_elgamal_pubkey(
         return Err(TokenError::PendingBalanceNonZero.into());
     }
 
-    let authority_info = next_account_info(account_info_iter)?;
+    let authority_info = next_account_view(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
     let authority = mint_authority.ok_or(TokenError::NoAuthorityExists)?;
 
@@ -125,19 +129,19 @@ fn process_rotate_supply_elgamal_pubkey(
 /// Processes an [`UpdateDecryptableSupply`] instruction.
 fn process_update_decryptable_supply(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     new_decryptable_supply: PodAeCiphertext,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let mint_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let mint_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_info.owner)?;
-    let mint_data = &mut mint_info.data.borrow_mut();
+    check_program_account(mint_info.owner())?;
+    let mint_data = &mut mint_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(mint_data)?;
     let mint_authority = mint.base.mint_authority;
     let mint_burn_extension = mint.get_extension_mut::<ConfidentialMintBurn>()?;
 
-    let authority_info = next_account_info(account_info_iter)?;
+    let authority_info = next_account_view(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
     let authority = mint_authority.ok_or(TokenError::NoAuthorityExists)?;
 
@@ -158,15 +162,20 @@ fn process_update_decryptable_supply(
 #[cfg(feature = "zk-ops")]
 fn process_confidential_mint(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     data: &MintInstructionData,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let token_account_info = next_account_info(account_info_iter)?;
-    let mint_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let token_account_info = next_account_view(account_info_iter)?;
+    let mint_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_info.owner)?;
-    let mint_data = &mut mint_info.data.borrow_mut();
+    check_program_account(mint_info.owner())?;
+
+    // CHANGED: Storing the address of the mint so borrow checker doesn't complain about
+    // multiple borrows of `mint_info`.
+    let mint_address = *mint_info.address();
+
+    let mint_data = &mut mint_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(mint_data)?;
     let mint_authority = mint.base.mint_authority;
 
@@ -178,8 +187,8 @@ fn process_confidential_mint(
             return Err(TokenError::MintPaused.into());
         }
     }
-    check_program_account(token_account_info.owner)?;
-    let token_account_data = &mut token_account_info.data.borrow_mut();
+    check_program_account(token_account_info.owner())?;
+    let token_account_data = &mut token_account_info.try_borrow_mut()?;
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
     // If the mint is non-transferable, the destination account must have
     // immutable ownership, consistent with `process_mint_to`.
@@ -200,7 +209,7 @@ fn process_confidential_mint(
         data.range_proof_instruction_offset,
     )?;
 
-    let authority_info = next_account_info(account_info_iter)?;
+    let authority_info = next_account_view(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
     let authority = mint_authority.ok_or(TokenError::NoAuthorityExists)?;
 
@@ -216,7 +225,7 @@ fn process_confidential_mint(
         return Err(TokenError::AccountFrozen.into());
     }
 
-    if token_account.base.mint != *mint_info.key {
+    if token_account.base.mint != mint_address {
         return Err(TokenError::MintMismatch.into());
     }
 
@@ -304,16 +313,21 @@ fn process_confidential_mint(
 #[cfg(feature = "zk-ops")]
 pub(crate) fn process_confidential_burn(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     data: &BurnInstructionData,
     burn_variant: BurnInstructionVariant,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let token_account_info = next_account_info(account_info_iter)?;
-    let mint_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let token_account_info = next_account_view(account_info_iter)?;
+    let mint_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_info.owner)?;
-    let mint_data = &mut mint_info.data.borrow_mut();
+    check_program_account(mint_info.owner())?;
+
+    // CHANGED: Storing the address of the mint so borrow checker doesn't complain about
+    // multiple borrows of `mint_info`.
+    let mint_address = *mint_info.address();
+
+    let mint_data = &mut mint_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(mint_data)?;
 
     let auditor_elgamal_pubkey = mint
@@ -334,11 +348,11 @@ pub(crate) fn process_confidential_burn(
 
     let (permissioned_burn_authority_info, authority_info) = match burn_variant {
         BurnInstructionVariant::Permissioned => {
-            let permissioned_burn_authority_info = next_account_info(account_info_iter)?;
-            let authority_info = next_account_info(account_info_iter)?;
+            let permissioned_burn_authority_info = next_account_view(account_info_iter)?;
+            let authority_info = next_account_view(account_info_iter)?;
             (Some(permissioned_burn_authority_info), authority_info)
         }
-        BurnInstructionVariant::Standard => (None, next_account_info(account_info_iter)?),
+        BurnInstructionVariant::Standard => (None, next_account_view(account_info_iter)?),
     };
 
     let permissioned_ext = mint.get_extension::<PermissionedBurnConfig>();
@@ -366,11 +380,11 @@ pub(crate) fn process_confidential_burn(
             let approver_ai =
                 permissioned_burn_authority_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-            if !approver_ai.is_signer {
+            if !approver_ai.is_signer() {
                 return Err(ProgramError::MissingRequiredSignature);
             }
 
-            if *approver_ai.key != expected_burn_authority {
+            if *approver_ai.address() != expected_burn_authority {
                 return Err(ProgramError::InvalidAccountData);
             }
         }
@@ -378,8 +392,8 @@ pub(crate) fn process_confidential_burn(
 
     let mint_burn_extension = mint.get_extension_mut::<ConfidentialMintBurn>()?;
 
-    check_program_account(token_account_info.owner)?;
-    let token_account_data = &mut token_account_info.data.borrow_mut();
+    check_program_account(token_account_info.owner())?;
+    let token_account_data = &mut token_account_info.try_borrow_mut()?;
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
 
     let authority_info_data_len = authority_info.data_len();
@@ -397,7 +411,9 @@ pub(crate) fn process_confidential_burn(
         // enabled, including:
         // * the account is delegated to the owner
         // * the account owner is the permanent delegate
-        if *authority_info.key == token_account.base.owner && cpi_guard.lock_cpi.into() && in_cpi()
+        if *authority_info.address() == token_account.base.owner
+            && cpi_guard.lock_cpi.into()
+            && in_cpi()
         {
             return Err(TokenError::CpiGuardBurnBlocked.into());
         }
@@ -407,7 +423,7 @@ pub(crate) fn process_confidential_burn(
         return Err(TokenError::AccountFrozen.into());
     }
 
-    if token_account.base.mint != *mint_info.key {
+    if token_account.base.mint != mint_address {
         return Err(TokenError::MintMismatch.into());
     }
 
@@ -490,17 +506,17 @@ pub(crate) fn process_confidential_burn(
 
 /// Processes a [`ApplyPendingBurn`] instruction.
 #[cfg(feature = "zk-ops")]
-fn process_apply_pending_burn(program_id: &Address, accounts: &[AccountInfo]) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let mint_info = next_account_info(account_info_iter)?;
+fn process_apply_pending_burn(program_id: &Address, accounts: &mut [AccountView]) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter_mut();
+    let mint_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_info.owner)?;
-    let mint_data = &mut mint_info.data.borrow_mut();
+    check_program_account(mint_info.owner())?;
+    let mint_data = &mut mint_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(mint_data)?;
     let mint_authority = mint.base.mint_authority;
     let mint_burn_extension = mint.get_extension_mut::<ConfidentialMintBurn>()?;
 
-    let authority_info = next_account_info(account_info_iter)?;
+    let authority_info = next_account_view(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
     let authority = mint_authority.ok_or(TokenError::NoAuthorityExists)?;
 
@@ -526,7 +542,7 @@ fn process_apply_pending_burn(program_id: &Address, accounts: &[AccountInfo]) ->
 #[allow(dead_code)]
 pub(crate) fn process_instruction(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     input: &[u8],
 ) -> ProgramResult {
     check_program_account(program_id)?;
@@ -592,6 +608,7 @@ pub(crate) fn process_instruction(
 mod tests {
     use {
         super::*,
+        pinocchio::{account::RuntimeAccount, entrypoint::NON_DUP_MARKER},
         solana_address::Address,
         spl_token_2022_interface::{
             extension::{
@@ -665,6 +682,34 @@ mod tests {
         (token_account_key, data)
     }
 
+    unsafe fn make_account_view(
+        runtime_account: &mut [u8],
+        is_signer: bool,
+        is_writable: bool,
+        address: &Address,
+        owner_key: &Address,
+        lamports: u64,
+        data: &[u8],
+    ) -> AccountView {
+        if runtime_account.len() < size_of::<RuntimeAccount>() + data.len() {
+            panic!("runtime_account buffer too small");
+        }
+        let account = runtime_account.as_mut_ptr() as *mut RuntimeAccount;
+        (*account).borrow_state = NON_DUP_MARKER;
+        (*account).address = *address;
+        (*account).is_signer = is_signer as u8;
+        (*account).is_writable = is_writable as u8;
+        (*account).executable = false as u8;
+        (*account).lamports = lamports;
+        (*account).owner = *owner_key;
+        (*account).data_len = data.len() as u64;
+
+        runtime_account[size_of::<RuntimeAccount>()..size_of::<RuntimeAccount>() + data.len()]
+            .copy_from_slice(data);
+
+        AccountView::new_unchecked(account)
+    }
+
     /// Calling `process_confidential_mint` on a non-transferable mint when the
     /// destination account lacks `ImmutableOwner` must be rejected with
     /// `NonTransferableNeedsImmutableOwnership`.  Without this guard an
@@ -675,31 +720,38 @@ mod tests {
         let program_id = crate::id();
         let owner_key = Address::new_unique();
 
-        let (mint_key, mut mint_data) = make_non_transferable_mint(&owner_key);
-        let (token_account_key, mut token_account_data) =
+        let (mint_key, mint_data) = make_non_transferable_mint(&owner_key);
+        let (token_account_key, token_account_data) =
             make_token_account(&mint_key, &owner_key, false /* no ImmutableOwner */);
 
-        let mut mint_lamports = 0u64;
-        let mut token_lamports = 0u64;
+        let mint_lamports = 0u64;
+        let token_lamports = 0u64;
 
-        let mint_info = AccountInfo::new(
-            &mint_key,
-            false,
-            true,
-            &mut mint_lamports,
-            &mut mint_data,
-            &program_id,
-            false,
-        );
-        let token_account_info = AccountInfo::new(
-            &token_account_key,
-            false,
-            true,
-            &mut token_lamports,
-            &mut token_account_data,
-            &program_id,
-            false,
-        );
+        let mut mint_account = Vec::with_capacity(size_of::<RuntimeAccount>() + mint_data.len());
+        let mint_info = unsafe {
+            make_account_view(
+                &mut mint_account,
+                false,
+                true,
+                &mint_key,
+                &program_id,
+                mint_lamports,
+                &mint_data,
+            )
+        };
+        let mut token_account =
+            Vec::with_capacity(size_of::<RuntimeAccount>() + token_account_data.len());
+        let token_account_info = unsafe {
+            make_account_view(
+                &mut token_account,
+                false,
+                true,
+                &token_account_key,
+                &program_id,
+                token_lamports,
+                &token_account_data,
+            )
+        };
 
         // Encode a minimal ConfidentialMint instruction data (all-zero proof
         // fields; the guard fires before proof verification so the values do
@@ -715,10 +767,10 @@ mod tests {
 
         // Only the token-account and mint accounts are needed; the guard
         // returns before the authority or proof accounts are accessed.
-        let accounts = [token_account_info, mint_info];
+        let mut accounts = [token_account_info, mint_info];
 
         assert_eq!(
-            process_confidential_mint(&program_id, &accounts, &data),
+            process_confidential_mint(&program_id, accounts.as_mut_slice(), &data),
             Err(TokenError::NonTransferableNeedsImmutableOwnership.into()),
         );
     }
@@ -732,31 +784,38 @@ mod tests {
         let program_id = crate::id();
         let owner_key = Address::new_unique();
 
-        let (mint_key, mut mint_data) = make_non_transferable_mint(&owner_key);
-        let (token_account_key, mut token_account_data) =
+        let (mint_key, mint_data) = make_non_transferable_mint(&owner_key);
+        let (token_account_key, token_account_data) =
             make_token_account(&mint_key, &owner_key, true /* with ImmutableOwner */);
 
-        let mut mint_lamports = 0u64;
-        let mut token_lamports = 0u64;
+        let mint_lamports = 0u64;
+        let token_lamports = 0u64;
 
-        let mint_info = AccountInfo::new(
-            &mint_key,
-            false,
-            true,
-            &mut mint_lamports,
-            &mut mint_data,
-            &program_id,
-            false,
-        );
-        let token_account_info = AccountInfo::new(
-            &token_account_key,
-            false,
-            true,
-            &mut token_lamports,
-            &mut token_account_data,
-            &program_id,
-            false,
-        );
+        let mut mint_account = Vec::with_capacity(size_of::<RuntimeAccount>() + mint_data.len());
+        let mint_info = unsafe {
+            make_account_view(
+                &mut mint_account,
+                false,
+                true,
+                &mint_key,
+                &program_id,
+                mint_lamports,
+                &mint_data,
+            )
+        };
+        let mut token_account =
+            Vec::with_capacity(size_of::<RuntimeAccount>() + token_account_data.len());
+        let token_account_info = unsafe {
+            make_account_view(
+                &mut token_account,
+                false,
+                true,
+                &token_account_key,
+                &program_id,
+                token_lamports,
+                &token_account_data,
+            )
+        };
 
         let data = MintInstructionData {
             new_decryptable_supply: PodAeCiphertext::default(),
@@ -767,9 +826,9 @@ mod tests {
             range_proof_instruction_offset: 0,
         };
 
-        let accounts = [token_account_info, mint_info];
+        let mut accounts = [token_account_info, mint_info];
 
-        let result = process_confidential_mint(&program_id, &accounts, &data);
+        let result = process_confidential_mint(&program_id, accounts.as_mut_slice(), &data);
 
         // The guard must not trigger: `NonTransferableNeedsImmutableOwnership`
         // must not be returned.  The instruction will fail later (missing proof

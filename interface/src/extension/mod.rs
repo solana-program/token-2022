@@ -1,5 +1,6 @@
 //! Extensions available to token mints and accounts
 
+use pinocchio::{AccountView, Resize};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use {
@@ -40,7 +41,6 @@ use {
         mem::size_of,
     },
     num_enum::{IntoPrimitive, TryFromPrimitive},
-    solana_account_info::AccountInfo,
     solana_program_error::ProgramError,
     solana_program_pack::{IsInitialized, Pack},
     solana_zero_copy::unaligned::U16,
@@ -1457,13 +1457,13 @@ impl Extension for AccountPaddingTest {
 /// handle _decreasing_ the size of an account's data buffer, like the function
 /// `alloc_and_serialize_variable_len_extension` does.
 pub fn alloc_and_serialize<S: BaseState + Pod, V: Default + Extension + Pod>(
-    account_info: &AccountInfo,
+    account_info: &mut AccountView,
     new_extension: &V,
     overwrite: bool,
 ) -> Result<(), ProgramError> {
-    let previous_account_len = account_info.try_data_len()?;
+    let previous_account_len = account_info.data_len();
     let new_account_len = {
-        let data = account_info.try_borrow_data()?;
+        let data = account_info.try_borrow()?;
         let state = PodStateWithExtensions::<S>::unpack(&data)?;
         state.try_get_new_account_len::<V>()?
     };
@@ -1472,9 +1472,9 @@ pub fn alloc_and_serialize<S: BaseState + Pod, V: Default + Extension + Pod>(
     if new_account_len > previous_account_len {
         account_info.resize(new_account_len)?;
     }
-    let mut buffer = account_info.try_borrow_mut_data()?;
+    let mut buffer = account_info.try_borrow_mut()?;
     if previous_account_len <= BASE_ACCOUNT_LENGTH {
-        set_account_type::<S>(*buffer)?;
+        set_account_type::<S>(&mut buffer)?;
     }
     let mut state = PodStateWithExtensionsMut::<S>::unpack(&mut buffer)?;
 
@@ -1497,13 +1497,13 @@ pub fn alloc_and_serialize_variable_len_extension<
     S: BaseState + Pod,
     V: Extension + VariableLenPack,
 >(
-    account_info: &AccountInfo,
+    account_info: &mut AccountView,
     new_extension: &V,
     overwrite: bool,
 ) -> Result<(), ProgramError> {
-    let previous_account_len = account_info.try_data_len()?;
+    let previous_account_len = account_info.data_len();
     let (new_account_len, extension_already_exists) = {
-        let data = account_info.try_borrow_data()?;
+        let data = account_info.try_borrow()?;
         let state = PodStateWithExtensions::<S>::unpack(&data)?;
         let new_account_len =
             state.try_get_new_account_len_for_variable_len_extension(new_extension)?;
@@ -1519,13 +1519,13 @@ pub fn alloc_and_serialize_variable_len_extension<
         // account size increased, so realloc the account, then the TLV entry, then
         // write data
         account_info.resize(new_account_len)?;
-        let mut buffer = account_info.try_borrow_mut_data()?;
+        let mut buffer = account_info.try_borrow_mut()?;
         if extension_already_exists {
             let mut state = PodStateWithExtensionsMut::<S>::unpack(&mut buffer)?;
             state.realloc_variable_len_extension(new_extension)?;
         } else {
             if previous_account_len <= BASE_ACCOUNT_LENGTH {
-                set_account_type::<S>(*buffer)?;
+                set_account_type::<S>(&mut buffer)?;
             }
             // now alloc in the TLV buffer and write the data
             let mut state = PodStateWithExtensionsMut::<S>::unpack(&mut buffer)?;
@@ -1533,7 +1533,7 @@ pub fn alloc_and_serialize_variable_len_extension<
         }
     } else {
         // do it backwards otherwise, write the state, realloc TLV, then the account
-        let mut buffer = account_info.try_borrow_mut_data()?;
+        let mut buffer = account_info.try_borrow_mut()?;
         let mut state = PodStateWithExtensionsMut::<S>::unpack(&mut buffer)?;
         if extension_already_exists {
             state.realloc_variable_len_extension(new_extension)?;

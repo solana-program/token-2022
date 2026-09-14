@@ -1,6 +1,6 @@
 use {
-    crate::processor::Processor,
-    solana_account_info::{next_account_info, AccountInfo},
+    crate::{next_account_view, processor::Processor},
+    pinocchio::AccountView,
     solana_address::Address,
     solana_clock::Clock,
     solana_msg::msg,
@@ -24,15 +24,15 @@ use {
 
 fn process_initialize(
     _program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     rate_authority: &MaybeNull<Address>,
     rate: &BasisPoints,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let mint_account_info = next_account_info(account_info_iter)?;
-    check_program_account(mint_account_info.owner)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let mint_account_info = next_account_view(account_info_iter)?;
+    check_program_account(mint_account_info.owner())?;
 
-    let mut mint_data = mint_account_info.data.borrow_mut();
+    let mut mint_data = mint_account_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
 
     let clock = Clock::get()?;
@@ -49,16 +49,16 @@ fn process_initialize(
 
 fn process_update_rate(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     new_rate: &BasisPoints,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let mint_account_info = next_account_info(account_info_iter)?;
-    let owner_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let mint_account_info = next_account_view(account_info_iter)?;
+    let owner_info = next_account_view(account_info_iter)?;
     let owner_info_data_len = owner_info.data_len();
-    check_program_account(mint_account_info.owner)?;
+    check_program_account(mint_account_info.owner())?;
 
-    let mut mint_data = mint_account_info.data.borrow_mut();
+    let mut mint_data = mint_account_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
     let extension = mint.get_extension_mut::<InterestBearingConfig>()?;
     let rate_authority =
@@ -86,7 +86,7 @@ fn process_update_rate(
 
 pub(crate) fn process_instruction(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     input: &[u8],
 ) -> ProgramResult {
     check_program_account(program_id)?;

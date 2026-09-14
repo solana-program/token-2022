@@ -19,6 +19,7 @@ bytemuck = { version = "1.25.0", features = ["derive"] }
 num-derive = "0.5"
 num-traits = { version = "0.2", features = ["libm"], default-features = false }
 num_enum = { version = "0.7.6", default-features = false }
+pinocchio = { version = "0.11", features = ["account-resize"] }
 solana-account-info = "3.1.1"
 solana-address = { version = "2.6.1", features = ["bytemuck", "nullable"] }
 solana-instruction = { version = "3.0.0", default-features = false }

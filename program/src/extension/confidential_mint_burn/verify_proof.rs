@@ -1,7 +1,11 @@
+#[cfg(feature = "zk-ops")]
+use crate::next_account_view;
+#[cfg(feature = "zk-ops")]
+use pinocchio::AccountView;
 use spl_token_2022_interface::error::TokenError;
+
 #[cfg(feature = "zk-ops")]
 use {
-    solana_account_info::{next_account_info, AccountInfo},
     solana_program_error::ProgramError,
     solana_zk_elgamal_proof_interface::proof_data::{
         BatchedGroupedCiphertext3HandlesValidityProofContext,
@@ -12,14 +16,14 @@ use {
     spl_token_confidential_transfer_proof_extraction::{
         burn::BurnProofContext, instruction::verify_and_extract_context, mint::MintProofContext,
     },
-    std::slice::Iter,
+    std::slice::IterMut,
 };
 
 /// Verify zero-knowledge proofs needed for a `ConfidentialMint` instruction
 /// and return the corresponding proof context information.
 #[cfg(feature = "zk-ops")]
 pub fn verify_mint_proof(
-    account_info_iter: &mut Iter<'_, AccountInfo<'_>>,
+    account_info_iter: &mut IterMut<'_, AccountView>,
     equality_proof_instruction_offset: i8,
     ciphertext_validity_proof_instruction_offset: i8,
     range_proof_instruction_offset: i8,
@@ -28,7 +32,7 @@ pub fn verify_mint_proof(
         || ciphertext_validity_proof_instruction_offset != 0
         || range_proof_instruction_offset != 0
     {
-        Some(next_account_info(account_info_iter)?)
+        Some(next_account_view(account_info_iter)?)
     } else {
         None
     };
@@ -39,7 +43,7 @@ pub fn verify_mint_proof(
     >(
         account_info_iter,
         equality_proof_instruction_offset as i64,
-        sysvar_account_info,
+        sysvar_account_info.as_deref(),
     )?;
 
     let ciphertext_validity_proof_context = verify_and_extract_context::<
@@ -48,14 +52,14 @@ pub fn verify_mint_proof(
     >(
         account_info_iter,
         ciphertext_validity_proof_instruction_offset as i64,
-        sysvar_account_info,
+        sysvar_account_info.as_deref(),
     )?;
 
     let range_proof_context =
         verify_and_extract_context::<BatchedRangeProofU128Data, BatchedRangeProofContext>(
             account_info_iter,
             range_proof_instruction_offset as i64,
-            sysvar_account_info,
+            sysvar_account_info.as_deref(),
         )?;
 
     Ok(MintProofContext::verify_and_extract(
@@ -70,7 +74,7 @@ pub fn verify_mint_proof(
 /// and return the corresponding proof context information.
 #[cfg(feature = "zk-ops")]
 pub fn verify_burn_proof(
-    account_info_iter: &mut Iter<'_, AccountInfo<'_>>,
+    account_info_iter: &mut IterMut<'_, AccountView>,
     equality_proof_instruction_offset: i8,
     ciphertext_validity_proof_instruction_offset: i8,
     range_proof_instruction_offset: i8,
@@ -79,7 +83,7 @@ pub fn verify_burn_proof(
         || ciphertext_validity_proof_instruction_offset != 0
         || range_proof_instruction_offset != 0
     {
-        Some(next_account_info(account_info_iter)?)
+        Some(next_account_view(account_info_iter)?)
     } else {
         None
     };
@@ -90,7 +94,7 @@ pub fn verify_burn_proof(
     >(
         account_info_iter,
         equality_proof_instruction_offset as i64,
-        sysvar_account_info,
+        sysvar_account_info.as_deref(),
     )?;
 
     let ciphertext_validity_proof_context = verify_and_extract_context::<
@@ -99,14 +103,14 @@ pub fn verify_burn_proof(
     >(
         account_info_iter,
         ciphertext_validity_proof_instruction_offset as i64,
-        sysvar_account_info,
+        sysvar_account_info.as_deref(),
     )?;
 
     let range_proof_context =
         verify_and_extract_context::<BatchedRangeProofU128Data, BatchedRangeProofContext>(
             account_info_iter,
             range_proof_instruction_offset as i64,
-            sysvar_account_info,
+            sysvar_account_info.as_deref(),
         )?;
 
     Ok(BurnProofContext::verify_and_extract(

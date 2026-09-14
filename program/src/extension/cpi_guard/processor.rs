@@ -1,6 +1,6 @@
 use {
-    crate::{extension::cpi_guard::in_cpi, processor::Processor},
-    solana_account_info::{next_account_info, AccountInfo},
+    crate::{extension::cpi_guard::in_cpi, next_account_view, processor::Processor},
+    pinocchio::AccountView,
     solana_address::Address,
     solana_msg::msg,
     solana_program_error::ProgramResult,
@@ -20,16 +20,16 @@ use {
 /// present.
 fn process_toggle_cpi_guard(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     enable: bool,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let token_account_info = next_account_info(account_info_iter)?;
-    let owner_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let token_account_info = next_account_view(account_info_iter)?;
+    let owner_info = next_account_view(account_info_iter)?;
     let owner_info_data_len = owner_info.data_len();
-    check_program_account(token_account_info.owner)?;
+    check_program_account(token_account_info.owner())?;
 
-    let mut account_data = token_account_info.data.borrow_mut();
+    let mut account_data = token_account_info.try_borrow_mut()?;
     let mut account = PodStateWithExtensionsMut::<PodAccount>::unpack(&mut account_data)?;
 
     Processor::validate_owner(
@@ -55,7 +55,7 @@ fn process_toggle_cpi_guard(
 
 pub(crate) fn process_instruction(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     input: &[u8],
 ) -> ProgramResult {
     check_program_account(program_id)?;
