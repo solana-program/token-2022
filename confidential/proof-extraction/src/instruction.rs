@@ -4,11 +4,14 @@
 use {
     alloc::vec::Vec,
     bytemuck::Pod,
-    core::{num::NonZeroI8, slice::Iter},
-    solana_account_info::{next_account_info, AccountInfo},
+    core::{num::NonZeroI8, slice::IterMut},
+    pinocchio::{
+        account::next_account_view,
+        sysvars::instructions::{Instructions, IntrospectedInstruction},
+        AccountView,
+    },
     solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
-    solana_instructions_sysvar::get_instruction_relative,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
     solana_zk_elgamal_proof_interface::{
@@ -34,15 +37,15 @@ pub fn check_zk_elgamal_proof_program_account(
 /// instruction.
 pub fn decode_proof_instruction_context<T: Pod + ZkProofData<U>, U: Pod>(
     expected: ProofInstruction,
-    instruction: &Instruction,
+    instruction: &IntrospectedInstruction<'_>,
 ) -> Result<U, ProgramError> {
-    if instruction.program_id != solana_zk_elgamal_proof_interface::id()
-        || ProofInstruction::instruction_type(&instruction.data) != Some(expected)
+    if instruction.get_program_id() != &solana_zk_elgamal_proof_interface::id()
+        || ProofInstruction::instruction_type(instruction.get_instruction_data()) != Some(expected)
     {
         msg!("Unexpected proof instruction");
         return Err(ProgramError::InvalidInstructionData);
     }
-    ProofInstruction::proof_data::<T, U>(&instruction.data)
+    ProofInstruction::proof_data::<T, U>(instruction.get_instruction_data())
         .map(|proof_data| *ZkProofData::context_data(proof_data))
         .ok_or(ProgramError::InvalidInstructionData)
 }
@@ -69,16 +72,16 @@ impl<T> ProofLocation<'_, T> {
 }
 
 /// Verify zero-knowledge proof and return the corresponding proof context.
-pub fn verify_and_extract_context<'a, T: Pod + ZkProofData<U>, U: Pod>(
-    account_info_iter: &mut Iter<'_, AccountInfo<'a>>,
+pub fn verify_and_extract_context<T: Pod + ZkProofData<U>, U: Pod>(
+    account_info_iter: &mut IterMut<'_, AccountView>,
     proof_instruction_offset: i64,
-    sysvar_account_info: Option<&'_ AccountInfo<'a>>,
+    sysvar_account_info: Option<&'_ AccountView>,
 ) -> Result<U, ProgramError> {
     if proof_instruction_offset == 0 {
         // interpret `account_info` as a context state account
-        let context_state_account_info = next_account_info(account_info_iter)?;
-        check_zk_elgamal_proof_program_account(context_state_account_info.owner)?;
-        let context_state_account_data = context_state_account_info.data.borrow();
+        let context_state_account_info = next_account_view(account_info_iter)?;
+        check_zk_elgamal_proof_program_account(context_state_account_info.owner())?;
+        let context_state_account_data = context_state_account_info.try_borrow()?;
         let context_state =
             bytemuck::try_from_bytes::<ProofContextState<U>>(&context_state_account_data)
                 .map_err(|_| ProgramError::InvalidArgument)?;
@@ -93,10 +96,14 @@ pub fn verify_and_extract_context<'a, T: Pod + ZkProofData<U>, U: Pod>(
         let sysvar_account_info = if let Some(sysvar_account_info) = sysvar_account_info {
             sysvar_account_info
         } else {
-            next_account_info(account_info_iter)?
+            next_account_view(account_info_iter)?
         };
+
+        let instructions_sysvar = Instructions::try_from(sysvar_account_info)?;
+        // TODO: This is returning a type with a raw pointer.
         let zkp_instruction =
-            get_instruction_relative(proof_instruction_offset, sysvar_account_info)?;
+            instructions_sysvar.get_instruction_relative(proof_instruction_offset)?;
+
         let expected_proof_type = zk_proof_type_to_instruction(T::PROOF_TYPE)?;
         Ok(decode_proof_instruction_context::<T, U>(
             expected_proof_type,

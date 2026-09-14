@@ -1,5 +1,6 @@
 //! Extensions available to token mints and accounts
 
+use pinocchio::{AccountView, Resize};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use {
@@ -40,7 +41,6 @@ use {
         mem::size_of,
     },
     num_enum::{IntoPrimitive, TryFromPrimitive},
-    solana_account_info::AccountInfo,
     solana_program_error::ProgramError,
     solana_program_pack::{IsInitialized, Pack},
     solana_zero_copy::unaligned::U16,
@@ -1457,13 +1457,13 @@ impl Extension for AccountPaddingTest {
 /// handle _decreasing_ the size of an account's data buffer, like the function
 /// `alloc_and_serialize_variable_len_extension` does.
 pub fn alloc_and_serialize<S: BaseState + Pod, V: Default + Extension + Pod>(
-    account_info: &AccountInfo,
+    account_info: &mut AccountView,
     new_extension: &V,
     overwrite: bool,
 ) -> Result<(), ProgramError> {
-    let previous_account_len = account_info.try_data_len()?;
+    let previous_account_len = account_info.data_len();
     let new_account_len = {
-        let data = account_info.try_borrow_data()?;
+        let data = account_info.try_borrow()?;
         let state = PodStateWithExtensions::<S>::unpack(&data)?;
         state.try_get_new_account_len::<V>()?
     };
@@ -1472,9 +1472,9 @@ pub fn alloc_and_serialize<S: BaseState + Pod, V: Default + Extension + Pod>(
     if new_account_len > previous_account_len {
         account_info.resize(new_account_len)?;
     }
-    let mut buffer = account_info.try_borrow_mut_data()?;
+    let mut buffer = account_info.try_borrow_mut()?;
     if previous_account_len <= BASE_ACCOUNT_LENGTH {
-        set_account_type::<S>(*buffer)?;
+        set_account_type::<S>(&mut buffer)?;
     }
     let mut state = PodStateWithExtensionsMut::<S>::unpack(&mut buffer)?;
 
@@ -1497,13 +1497,13 @@ pub fn alloc_and_serialize_variable_len_extension<
     S: BaseState + Pod,
     V: Extension + VariableLenPack,
 >(
-    account_info: &AccountInfo,
+    account_info: &mut AccountView,
     new_extension: &V,
     overwrite: bool,
 ) -> Result<(), ProgramError> {
-    let previous_account_len = account_info.try_data_len()?;
+    let previous_account_len = account_info.data_len();
     let (new_account_len, extension_already_exists) = {
-        let data = account_info.try_borrow_data()?;
+        let data = account_info.try_borrow()?;
         let state = PodStateWithExtensions::<S>::unpack(&data)?;
         let new_account_len =
             state.try_get_new_account_len_for_variable_len_extension(new_extension)?;
@@ -1519,13 +1519,13 @@ pub fn alloc_and_serialize_variable_len_extension<
         // account size increased, so realloc the account, then the TLV entry, then
         // write data
         account_info.resize(new_account_len)?;
-        let mut buffer = account_info.try_borrow_mut_data()?;
+        let mut buffer = account_info.try_borrow_mut()?;
         if extension_already_exists {
             let mut state = PodStateWithExtensionsMut::<S>::unpack(&mut buffer)?;
             state.realloc_variable_len_extension(new_extension)?;
         } else {
             if previous_account_len <= BASE_ACCOUNT_LENGTH {
-                set_account_type::<S>(*buffer)?;
+                set_account_type::<S>(&mut buffer)?;
             }
             // now alloc in the TLV buffer and write the data
             let mut state = PodStateWithExtensionsMut::<S>::unpack(&mut buffer)?;
@@ -1533,7 +1533,7 @@ pub fn alloc_and_serialize_variable_len_extension<
         }
     } else {
         // do it backwards otherwise, write the state, realloc TLV, then the account
-        let mut buffer = account_info.try_borrow_mut_data()?;
+        let mut buffer = account_info.try_borrow_mut()?;
         let mut state = PodStateWithExtensionsMut::<S>::unpack(&mut buffer)?;
         if extension_already_exists {
             state.realloc_variable_len_extension(new_extension)?;
@@ -1563,9 +1563,8 @@ mod test {
             state::test::{TEST_ACCOUNT_SLICE, TEST_MINT_SLICE},
         },
         bytemuck::Pod,
-        solana_account_info::{
-            Account as GetAccount, IntoAccountInfo, MAX_PERMITTED_DATA_INCREASE,
-        },
+        pinocchio::{account::RuntimeAccount, entrypoint::NON_DUP_MARKER},
+        solana_account_info::MAX_PERMITTED_DATA_INCREASE,
         solana_address::Address,
         solana_nullable::MaybeNull,
         solana_zero_copy::unaligned::{Bool, U64},
@@ -2783,52 +2782,49 @@ mod test {
     /// which permits "reallocs" as the Solana runtime does it
     struct SolanaAccountData {
         data: Vec<u8>,
-        lamports: u64,
-        owner: Address,
     }
     impl SolanaAccountData {
         /// Create a new fake solana account data. The underlying vector is
         /// overallocated to mimic the runtime
         fn new(account_data: &[u8]) -> Self {
-            let mut data = vec![];
-            data.extend_from_slice(&(account_data.len() as u64).to_le_bytes());
-            data.extend_from_slice(account_data);
-            data.extend_from_slice(&[0; MAX_PERMITTED_DATA_INCREASE]);
-            Self {
-                data,
-                lamports: 10,
-                owner: Address::new_unique(),
+            let mut data =
+                vec![
+                    0;
+                    size_of::<RuntimeAccount>() + account_data.len() + MAX_PERMITTED_DATA_INCREASE
+                ];
+            let account = data.as_mut_ptr() as *mut RuntimeAccount;
+            unsafe {
+                (*account).borrow_state = NON_DUP_MARKER;
+                (*account).is_writable = true as u8;
+                (*account).owner = Address::new_unique();
+                (*account).lamports = 10;
+                (*account).data_len = account_data.len() as u64;
             }
+            data[size_of::<RuntimeAccount>()..size_of::<RuntimeAccount>() + account_data.len()]
+                .copy_from_slice(account_data);
+            Self { data }
         }
 
-        /// Data lops off the first 8 bytes, since those store the size of the
-        /// account for the Solana runtime
+        /// Data lops off the first 88 bytes, since those store the account metadata
+        /// for the Solana runtime
         fn data(&self) -> &[u8] {
-            let start = size_of::<u64>();
+            let start = size_of::<RuntimeAccount>();
             let len = self.len();
             &self.data[start..start + len]
         }
 
         /// Gets the runtime length of the account data
         fn len(&self) -> usize {
-            self.data
-                .get(..size_of::<u64>())
-                .and_then(|slice| slice.try_into().ok())
-                .map(u64::from_le_bytes)
-                .unwrap() as usize
+            unsafe { (*(self.data.as_ptr() as *const RuntimeAccount)).data_len as usize }
         }
-    }
-    impl GetAccount for SolanaAccountData {
-        fn get(&mut self) -> (&mut u64, &mut [u8], &Address, bool) {
-            // need to pull out the data here to avoid a double-mutable borrow
-            let start = size_of::<u64>();
-            let len = self.len();
-            (
-                &mut self.lamports,
-                &mut self.data[start..start + len],
-                &self.owner,
-                false,
-            )
+
+        /// Gets a mutable view of the account data.
+        fn account_view(&mut self, key: &Address) -> AccountView {
+            let account = self.data.as_mut_ptr() as *mut RuntimeAccount;
+            unsafe {
+                (*account).address = *key;
+                AccountView::new_unchecked(account)
+            }
         }
     }
 
@@ -2846,9 +2842,9 @@ mod test {
 
         let mut data = SolanaAccountData::new(&buffer);
         let key = Address::new_unique();
-        let account_info = (&key, &mut data).into_account_info();
+        let mut account_info = data.account_view(&key);
 
-        alloc_and_serialize::<PodMint, _>(&account_info, &fixed_len, false).unwrap();
+        alloc_and_serialize::<PodMint, _>(&mut account_info, &fixed_len, false).unwrap();
         let new_account_len = BASE_ACCOUNT_AND_TYPE_LENGTH + add_type_and_length_to_len(value_len);
         assert_eq!(data.len(), new_account_len);
         let state = PodStateWithExtensions::<PodMint>::unpack(data.data()).unwrap();
@@ -2858,13 +2854,13 @@ mod test {
         );
 
         // alloc again succeeds with "overwrite"
-        let account_info = (&key, &mut data).into_account_info();
-        alloc_and_serialize::<PodMint, _>(&account_info, &fixed_len, true).unwrap();
+        let mut account_info = data.account_view(&key);
+        alloc_and_serialize::<PodMint, _>(&mut account_info, &fixed_len, true).unwrap();
 
         // alloc again fails without "overwrite"
-        let account_info = (&key, &mut data).into_account_info();
+        let mut account_info = data.account_view(&key);
         assert_eq!(
-            alloc_and_serialize::<PodMint, _>(&account_info, &fixed_len, false).unwrap_err(),
+            alloc_and_serialize::<PodMint, _>(&mut account_info, &fixed_len, false).unwrap_err(),
             TokenError::ExtensionAlreadyInitialized.into()
         );
     }
@@ -2881,10 +2877,10 @@ mod test {
 
         let mut data = SolanaAccountData::new(&buffer);
         let key = Address::new_unique();
-        let account_info = (&key, &mut data).into_account_info();
+        let mut account_info = data.account_view(&key);
 
         alloc_and_serialize_variable_len_extension::<PodMint, _>(
-            &account_info,
+            &mut account_info,
             &variable_len,
             false,
         )
@@ -2900,19 +2896,19 @@ mod test {
         );
 
         // alloc again succeeds with "overwrite"
-        let account_info = (&key, &mut data).into_account_info();
+        let mut account_info = data.account_view(&key);
         alloc_and_serialize_variable_len_extension::<PodMint, _>(
-            &account_info,
+            &mut account_info,
             &variable_len,
             true,
         )
         .unwrap();
 
         // alloc again fails without "overwrite"
-        let account_info = (&key, &mut data).into_account_info();
+        let mut account_info = data.account_view(&key);
         assert_eq!(
             alloc_and_serialize_variable_len_extension::<PodMint, _>(
-                &account_info,
+                &mut account_info,
                 &variable_len,
                 false,
             )
@@ -2945,9 +2941,9 @@ mod test {
 
         let mut data = SolanaAccountData::new(&buffer);
         let key = Address::new_unique();
-        let account_info = (&key, &mut data).into_account_info();
+        let mut account_info = data.account_view(&key);
 
-        alloc_and_serialize::<PodMint, _>(&account_info, &fixed_len, false).unwrap();
+        alloc_and_serialize::<PodMint, _>(&mut account_info, &fixed_len, false).unwrap();
         let new_account_len = BASE_ACCOUNT_AND_TYPE_LENGTH
             + add_type_and_length_to_len(value_len)
             + add_type_and_length_to_len(size_of::<GroupPointer>());
@@ -2962,13 +2958,13 @@ mod test {
         assert_eq!(extension.group_address, test_key);
 
         // alloc again succeeds with "overwrite"
-        let account_info = (&key, &mut data).into_account_info();
-        alloc_and_serialize::<PodMint, _>(&account_info, &fixed_len, true).unwrap();
+        let mut account_info = data.account_view(&key);
+        alloc_and_serialize::<PodMint, _>(&mut account_info, &fixed_len, true).unwrap();
 
         // alloc again fails without "overwrite"
-        let account_info = (&key, &mut data).into_account_info();
+        let mut account_info = data.account_view(&key);
         assert_eq!(
-            alloc_and_serialize::<PodMint, _>(&account_info, &fixed_len, false).unwrap_err(),
+            alloc_and_serialize::<PodMint, _>(&mut account_info, &fixed_len, false).unwrap_err(),
             TokenError::ExtensionAlreadyInitialized.into()
         );
     }
@@ -2995,10 +2991,10 @@ mod test {
 
         let mut data = SolanaAccountData::new(&buffer);
         let key = Address::new_unique();
-        let account_info = (&key, &mut data).into_account_info();
+        let mut account_info = data.account_view(&key);
 
         alloc_and_serialize_variable_len_extension::<PodMint, _>(
-            &account_info,
+            &mut account_info,
             &variable_len,
             false,
         )
@@ -3019,19 +3015,19 @@ mod test {
         assert_eq!(extension.metadata_address, test_key);
 
         // alloc again succeeds with "overwrite"
-        let account_info = (&key, &mut data).into_account_info();
+        let mut account_info = data.account_view(&key);
         alloc_and_serialize_variable_len_extension::<PodMint, _>(
-            &account_info,
+            &mut account_info,
             &variable_len,
             true,
         )
         .unwrap();
 
         // alloc again fails without "overwrite"
-        let account_info = (&key, &mut data).into_account_info();
+        let mut account_info = data.account_view(&key);
         assert_eq!(
             alloc_and_serialize_variable_len_extension::<PodMint, _>(
-                &account_info,
+                &mut account_info,
                 &variable_len,
                 false,
             )
@@ -3069,10 +3065,10 @@ mod test {
         // reallocate to smaller, make sure existing extension is fine
         let mut data = SolanaAccountData::new(&buffer);
         let key = Address::new_unique();
-        let account_info = (&key, &mut data).into_account_info();
+        let mut account_info = data.account_view(&key);
         let variable_len = VariableLenMintTest { data: vec![1, 2] };
         alloc_and_serialize_variable_len_extension::<PodMint, _>(
-            &account_info,
+            &mut account_info,
             &variable_len,
             true,
         )
@@ -3089,12 +3085,12 @@ mod test {
         assert_eq!(data.len(), state.try_get_account_len().unwrap());
 
         // reallocate to larger
-        let account_info = (&key, &mut data).into_account_info();
+        let mut account_info = data.account_view(&key);
         let variable_len = VariableLenMintTest {
             data: vec![1, 2, 3, 4, 5, 6, 7],
         };
         alloc_and_serialize_variable_len_extension::<PodMint, _>(
-            &account_info,
+            &mut account_info,
             &variable_len,
             true,
         )
@@ -3111,12 +3107,12 @@ mod test {
         assert_eq!(data.len(), state.try_get_account_len().unwrap());
 
         // reallocate to same
-        let account_info = (&key, &mut data).into_account_info();
+        let mut account_info = data.account_view(&key);
         let variable_len = VariableLenMintTest {
             data: vec![7, 6, 5, 4, 3, 2, 1],
         };
         alloc_and_serialize_variable_len_extension::<PodMint, _>(
-            &account_info,
+            &mut account_info,
             &variable_len,
             true,
         )
