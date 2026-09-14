@@ -2320,13 +2320,9 @@ fn delete_account(account_info: &AccountInfo) -> Result<(), ProgramError> {
 mod tests {
     use {
         super::*,
-        serial_test::serial,
-        solana_account::{
-            create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
-            ReadableAccount,
-        },
+        mollusk_svm::{result::Check, Mollusk},
+        solana_account::{create_account_for_test, Account as SolanaAccount, ReadableAccount},
         solana_account_info::IntoAccountInfo,
-        solana_clock::Clock,
         solana_instruction::{AccountMeta, Instruction},
         solana_program_option::COption,
         solana_sdk_ids::sysvar::rent,
@@ -2338,96 +2334,88 @@ mod tests {
             instruction::*,
             state::{Account, Multisig},
         },
-        std::sync::{Arc, RwLock},
+        std::collections::HashMap,
     };
-
-    lazy_static::lazy_static! {
-        static ref EXPECTED_DATA: Arc<RwLock<Vec<u8>>> = Arc::new(RwLock::new(Vec::new()));
-    }
-
-    fn set_expected_data(expected_data: Vec<u8>) {
-        *EXPECTED_DATA.write().unwrap() = expected_data;
-    }
-
-    struct SyscallStubs {}
-    impl solana_sysvar::program_stubs::SyscallStubs for SyscallStubs {
-        fn sol_log(&self, _message: &str) {}
-
-        fn sol_invoke_signed(
-            &self,
-            _instruction: &Instruction,
-            _account_infos: &[AccountInfo],
-            _signers_seeds: &[&[&[u8]]],
-        ) -> ProgramResult {
-            Err(ProgramError::Custom(42)) // Not supported
-        }
-
-        fn sol_get_clock_sysvar(&self, var_addr: *mut u8) -> u64 {
-            unsafe {
-                *(var_addr as *mut _ as *mut Clock) = Clock::default();
-            }
-            solana_program_entrypoint::SUCCESS
-        }
-
-        fn sol_get_epoch_schedule_sysvar(&self, _var_addr: *mut u8) -> u64 {
-            solana_instruction::error::UNSUPPORTED_SYSVAR
-        }
-
-        #[allow(deprecated)]
-        fn sol_get_fees_sysvar(&self, _var_addr: *mut u8) -> u64 {
-            solana_instruction::error::UNSUPPORTED_SYSVAR
-        }
-
-        fn sol_get_rent_sysvar(&self, var_addr: *mut u8) -> u64 {
-            unsafe {
-                *(var_addr as *mut _ as *mut Rent) = Rent::default();
-            }
-            solana_program_entrypoint::SUCCESS
-        }
-
-        fn sol_set_return_data(&self, data: &[u8]) {
-            assert_eq!(&*EXPECTED_DATA.read().unwrap(), data)
-        }
-    }
 
     fn do_process_instruction(
         instruction: Instruction,
-        accounts: Vec<&mut SolanaAccount>,
+        mut accounts: Vec<&mut SolanaAccount>,
+        checks: &[Check],
     ) -> ProgramResult {
-        {
-            use std::sync::Once;
-            static ONCE: Once = Once::new();
-
-            ONCE.call_once(|| {
-                solana_sysvar::program_stubs::set_syscall_stubs(Box::new(SyscallStubs {}));
-            });
-        }
-
-        let mut meta = instruction
+        // Prepare accounts for mollusk.
+        let instruction_accounts: Vec<(Address, SolanaAccount)> = instruction
             .accounts
             .iter()
-            .zip(accounts)
-            .map(|(account_meta, account)| (&account_meta.pubkey, account_meta.is_signer, account))
-            .collect::<Vec<_>>();
+            .zip(&accounts)
+            .map(|(account_meta, account)| (account_meta.pubkey, (*account).clone()))
+            .collect();
 
-        let account_infos = create_is_signer_account_infos(&mut meta);
-        Processor::process(&instruction.program_id, &account_infos, &instruction.data)
+        let mollusk = Mollusk::new(&crate::id(), "spl_token_2022");
+        let result =
+            mollusk.process_and_validate_instruction(&instruction, &instruction_accounts, checks);
+
+        // Update accounts after the instruction is processed.
+        for (original, (_, updated)) in accounts.iter_mut().zip(result.resulting_accounts) {
+            original.data = updated.data().to_vec();
+            original.lamports = updated.lamports();
+            original.owner = *updated.owner();
+        }
+
+        result
+            .raw_result
+            .map_err(|e| ProgramError::try_from(e).unwrap())
     }
 
     fn do_process_instruction_dups(
         instruction: Instruction,
         account_infos: Vec<AccountInfo>,
+        checks: &[Check],
     ) -> ProgramResult {
-        {
-            use std::sync::Once;
-            static ONCE: Once = Once::new();
+        let mut cached_accounts = HashMap::new();
+        let mut dedup_accounts = Vec::new();
 
-            ONCE.call_once(|| {
-                solana_sysvar::program_stubs::set_syscall_stubs(Box::new(SyscallStubs {}));
+        // Dedup accounts for mollusk.
+        account_infos.iter().for_each(|account_info| {
+            if !cached_accounts.contains_key(account_info.key) {
+                let account = SolanaAccount {
+                    lamports: account_info.lamports(),
+                    data: account_info.try_borrow_data().unwrap().to_vec(),
+                    owner: *account_info.owner,
+                    executable: account_info.executable,
+                    rent_epoch: u64::MAX,
+                };
+                dedup_accounts.push((*account_info.key, account));
+                cached_accounts.insert(account_info.key, account_info);
+            }
+        });
+
+        let mollusk = Mollusk::new(&crate::id(), "spl_token_2022");
+        let result =
+            mollusk.process_and_validate_instruction(&instruction, &dedup_accounts, checks);
+
+        // Update accounts after the instruction is processed.
+        result
+            .resulting_accounts
+            .into_iter()
+            .for_each(|(pubkey, account)| {
+                let account_info = cached_accounts.get(&pubkey).unwrap();
+                if account.data.is_empty() {
+                    // When the account is closed, the tests expect the data to
+                    // be zeroed.
+                    account_info.try_borrow_mut_data().unwrap().fill(0);
+                } else {
+                    account_info
+                        .try_borrow_mut_data()
+                        .unwrap()
+                        .copy_from_slice(account.data());
+                }
+                **account_info.try_borrow_mut_lamports().unwrap() = account.lamports();
+                account_info.assign(account.owner());
             });
-        }
 
-        Processor::process(&instruction.program_id, &account_infos, &instruction.data)
+        result
+            .raw_result
+            .map_err(|e| ProgramError::try_from(e).unwrap())
     }
 
     fn return_token_error_as_program_error() -> ProgramError {
@@ -2490,6 +2478,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
         mint_account
@@ -2547,7 +2536,8 @@ mod tests {
             Err(TokenError::NotRentExempt.into()),
             do_process_instruction(
                 initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
-                vec![&mut mint_account, &mut rent_sysvar]
+                vec![&mut mint_account, &mut rent_sysvar],
+                &[Check::err(TokenError::NotRentExempt.into())],
             )
         );
 
@@ -2557,6 +2547,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2565,7 +2556,8 @@ mod tests {
             Err(TokenError::AlreadyInUse.into()),
             do_process_instruction(
                 initialize_mint(&program_id, &mint_key, &owner_key, None, 2,).unwrap(),
-                vec![&mut mint_account, &mut rent_sysvar]
+                vec![&mut mint_account, &mut rent_sysvar],
+                &[Check::err(TokenError::AlreadyInUse.into())],
             )
         );
 
@@ -2573,6 +2565,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint2_key, &owner_key, Some(&owner_key), 2).unwrap(),
             vec![&mut mint2_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
         let mint = Mint::unpack_unchecked(&mint2_account.data).unwrap();
@@ -2594,7 +2587,8 @@ mod tests {
             Err(TokenError::NotRentExempt.into()),
             do_process_instruction(
                 initialize_mint2(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
-                vec![&mut mint_account]
+                vec![&mut mint_account],
+                &[Check::err(TokenError::NotRentExempt.into())],
             )
         );
 
@@ -2604,6 +2598,7 @@ mod tests {
         do_process_instruction(
             initialize_mint2(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2612,7 +2607,8 @@ mod tests {
             Err(TokenError::AlreadyInUse.into()),
             do_process_instruction(
                 initialize_mint2(&program_id, &mint_key, &owner_key, None, 2,).unwrap(),
-                vec![&mut mint_account]
+                vec![&mut mint_account],
+                &[Check::err(TokenError::AlreadyInUse.into())],
             )
         );
 
@@ -2620,6 +2616,7 @@ mod tests {
         do_process_instruction(
             initialize_mint2(&program_id, &mint2_key, &owner_key, Some(&owner_key), 2).unwrap(),
             vec![&mut mint2_account],
+            &[Check::success()],
         )
         .unwrap();
         let mint = Mint::unpack_unchecked(&mint2_account.data).unwrap();
@@ -2649,6 +2646,7 @@ mod tests {
                     &mut owner_account,
                     &mut rent_sysvar
                 ],
+                &[Check::err(TokenError::NotRentExempt.into())],
             )
         );
 
@@ -2665,6 +2663,7 @@ mod tests {
                     &mut owner_account,
                     &mut rent_sysvar
                 ],
+                &[Check::err(TokenError::InvalidMint.into())],
             )
         );
 
@@ -2672,6 +2671,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2688,6 +2688,7 @@ mod tests {
                     &mut owner_account,
                     &mut rent_sysvar
                 ],
+                &[Check::err(ProgramError::IncorrectProgramId)],
             )
         );
         mint_account.owner = program_id;
@@ -2701,6 +2702,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2715,6 +2717,7 @@ mod tests {
                     &mut owner_account,
                     &mut rent_sysvar
                 ],
+                &[Check::err(TokenError::AlreadyInUse.into())],
             )
         );
     }
@@ -2772,6 +2775,7 @@ mod tests {
         do_process_instruction_dups(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![mint_info.clone(), rent_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2784,6 +2788,7 @@ mod tests {
                 account1_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2796,6 +2801,7 @@ mod tests {
                 owner_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2803,6 +2809,7 @@ mod tests {
         do_process_instruction_dups(
             mint_to(&program_id, &mint_key, &account1_key, &owner_key, &[], 1000).unwrap(),
             vec![mint_info.clone(), account1_info.clone(), owner_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2823,6 +2830,7 @@ mod tests {
                 account2_info.clone(),
                 account1_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2845,6 +2853,7 @@ mod tests {
                 account2_info.clone(),
                 account1_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2872,6 +2881,7 @@ mod tests {
                 account2_info.clone(),
                 account1_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2894,6 +2904,7 @@ mod tests {
                 account2_info.clone(),
                 account1_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2906,11 +2917,13 @@ mod tests {
                 account2_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
         do_process_instruction_dups(
             mint_to(&program_id, &mint_key, &account3_key, &owner_key, &[], 1000).unwrap(),
             vec![mint_info.clone(), account3_info.clone(), owner_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2932,6 +2945,7 @@ mod tests {
                 account2_info.clone(),
                 account2_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2954,6 +2968,7 @@ mod tests {
                 account2_info.clone(),
                 account2_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2965,6 +2980,7 @@ mod tests {
                 rent_info.clone(),
                 account4_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -2976,12 +2992,14 @@ mod tests {
                 multisig_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
         do_process_instruction_dups(
             mint_to(&program_id, &mint_key, &account4_key, &owner_key, &[], 1000).unwrap(),
             vec![mint_info.clone(), account4_info.clone(), owner_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3003,6 +3021,7 @@ mod tests {
                 multisig_info.clone(),
                 account4_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3026,6 +3045,7 @@ mod tests {
                 multisig_info.clone(),
                 account4_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
     }
@@ -3073,6 +3093,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3085,6 +3106,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3097,6 +3119,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3109,6 +3132,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3121,6 +3145,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
         let mut account = Account::unpack_unchecked(&mismatch_account.data).unwrap();
@@ -3131,6 +3156,7 @@ mod tests {
         do_process_instruction(
             mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 1000).unwrap(),
             vec![&mut mint_account, &mut account_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3155,6 +3181,7 @@ mod tests {
                     &mut account2_account,
                     &mut owner_account,
                 ],
+                &[Check::err(ProgramError::MissingRequiredSignature)],
             )
         );
 
@@ -3177,6 +3204,7 @@ mod tests {
                     &mut mismatch_account,
                     &mut owner_account,
                 ],
+                &[Check::err(TokenError::MintMismatch.into())],
             )
         );
 
@@ -3199,6 +3227,7 @@ mod tests {
                     &mut account2_account,
                     &mut owner2_account,
                 ],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -3215,6 +3244,7 @@ mod tests {
                     &mut account2_account,
                     &mut owner2_account,
                 ],
+                &[Check::err(ProgramError::IncorrectProgramId)],
             )
         );
         account_account.owner = program_id;
@@ -3232,6 +3262,7 @@ mod tests {
                     &mut account2_account,
                     &mut owner2_account,
                 ],
+                &[Check::err(ProgramError::IncorrectProgramId)],
             )
         );
         account2_account.owner = program_id;
@@ -3253,6 +3284,7 @@ mod tests {
                 &mut account2_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3267,6 +3299,7 @@ mod tests {
                     &mut account2_account,
                     &mut owner_account,
                 ],
+                &[Check::err(TokenError::InsufficientFunds.into())],
             )
         );
 
@@ -3287,6 +3320,7 @@ mod tests {
                 &mut account_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3311,6 +3345,7 @@ mod tests {
                     &mut account_account,
                     &mut owner_account,
                 ],
+                &[Check::err(TokenError::MintDecimalsMismatch.into())],
             )
         );
 
@@ -3335,6 +3370,7 @@ mod tests {
                     &mut account_account,
                     &mut owner_account,
                 ],
+                &[Check::err(TokenError::MintMismatch.into())],
             )
         );
         // transfer rest with explicit decimals
@@ -3356,6 +3392,7 @@ mod tests {
                 &mut account_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3370,6 +3407,7 @@ mod tests {
                     &mut account_account,
                     &mut owner_account,
                 ],
+                &[Check::err(TokenError::InsufficientFunds.into())],
             )
         );
 
@@ -3389,6 +3427,7 @@ mod tests {
                 &mut delegate_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3411,6 +3450,7 @@ mod tests {
                     &mut account2_account,
                     &mut owner2_account,
                 ],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -3433,6 +3473,7 @@ mod tests {
                     &mut account2_account,
                     &mut delegate_account,
                 ],
+                &[Check::err(TokenError::InsufficientFunds.into())],
             )
         );
 
@@ -3453,6 +3494,7 @@ mod tests {
                 &mut account2_account,
                 &mut delegate_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3475,6 +3517,7 @@ mod tests {
                     &mut account2_account,
                     &mut delegate_account,
                 ],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -3495,6 +3538,7 @@ mod tests {
                 &mut account2_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3514,6 +3558,7 @@ mod tests {
                 &mut delegate_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3536,6 +3581,7 @@ mod tests {
                     &mut account2_account,
                     &mut delegate_account,
                 ],
+                &[Check::err(TokenError::InsufficientFunds.into())],
             )
         );
     }
@@ -3576,6 +3622,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3588,6 +3635,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3600,6 +3648,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3612,6 +3661,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3619,6 +3669,7 @@ mod tests {
         do_process_instruction(
             mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 1000).unwrap(),
             vec![&mut mint_account, &mut account_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3642,14 +3693,14 @@ mod tests {
         .unwrap();
         assert_eq!(
             Ok(()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     account_info.clone(),
                     owner_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::success()],
             )
         );
         // no balance change...
@@ -3670,15 +3721,15 @@ mod tests {
         .unwrap();
         assert_eq!(
             Ok(()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     mint_info.clone(),
                     account_info.clone(),
                     owner_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::success()],
             )
         );
         // no balance change...
@@ -3701,14 +3752,14 @@ mod tests {
         owner_no_sign_info.is_signer = false;
         assert_eq!(
             Err(ProgramError::MissingRequiredSignature),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     account_info.clone(),
                     owner_no_sign_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::err(ProgramError::MissingRequiredSignature)],
             )
         );
 
@@ -3727,15 +3778,15 @@ mod tests {
         instruction.accounts[3].is_signer = false;
         assert_eq!(
             Err(ProgramError::MissingRequiredSignature),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     mint_info.clone(),
                     account_info.clone(),
                     owner_no_sign_info,
                 ],
-                &instruction.data,
+                &[Check::err(ProgramError::MissingRequiredSignature)],
             )
         );
 
@@ -3752,14 +3803,14 @@ mod tests {
         .unwrap();
         assert_eq!(
             Err(TokenError::OwnerMismatch.into()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     account_info.clone(),
                     owner2_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -3777,15 +3828,15 @@ mod tests {
         .unwrap();
         assert_eq!(
             Err(TokenError::OwnerMismatch.into()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     mint_info.clone(),
                     account_info.clone(),
                     owner2_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -3802,14 +3853,14 @@ mod tests {
         .unwrap();
         assert_eq!(
             Err(TokenError::InsufficientFunds.into()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     account_info.clone(),
                     owner_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::err(TokenError::InsufficientFunds.into())],
             )
         );
 
@@ -3827,15 +3878,15 @@ mod tests {
         .unwrap();
         assert_eq!(
             Err(TokenError::InsufficientFunds.into()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     mint_info.clone(),
                     account_info.clone(),
                     owner_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::err(TokenError::InsufficientFunds.into())],
             )
         );
 
@@ -3853,15 +3904,15 @@ mod tests {
         .unwrap();
         assert_eq!(
             Err(TokenError::MintDecimalsMismatch.into()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     mint_info.clone(),
                     account_info.clone(),
                     owner_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::err(TokenError::MintDecimalsMismatch.into())],
             )
         );
 
@@ -3879,15 +3930,15 @@ mod tests {
         .unwrap();
         assert_eq!(
             Err(TokenError::MintMismatch.into()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     account3_info.clone(), // <-- incorrect mint
                     account_info.clone(),
                     owner_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::err(TokenError::MintMismatch.into())],
             )
         );
 
@@ -3901,14 +3952,14 @@ mod tests {
             100,
         )
         .unwrap();
-        Processor::process(
-            &instruction.program_id,
-            &[
+        do_process_instruction_dups(
+            instruction,
+            vec![
                 account_info.clone(),
                 delegate_info.clone(),
                 owner_info.clone(),
             ],
-            &instruction.data,
+            &[Check::success()],
         )
         .unwrap();
 
@@ -3925,14 +3976,14 @@ mod tests {
         .unwrap();
         assert_eq!(
             Ok(()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     account_info.clone(),
                     delegate_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::success()],
             )
         );
         // no balance change...
@@ -3954,15 +4005,15 @@ mod tests {
         .unwrap();
         assert_eq!(
             Ok(()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     mint_info.clone(),
                     account_info.clone(),
                     delegate_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::success()],
             )
         );
         // no balance change...
@@ -3983,14 +4034,14 @@ mod tests {
         .unwrap();
         assert_eq!(
             Err(TokenError::InsufficientFunds.into()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     account_info.clone(),
                     delegate_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::err(TokenError::InsufficientFunds.into())],
             )
         );
 
@@ -4008,15 +4059,15 @@ mod tests {
         .unwrap();
         assert_eq!(
             Err(TokenError::InsufficientFunds.into()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     mint_info.clone(),
                     account_info.clone(),
                     delegate_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::err(TokenError::InsufficientFunds.into())],
             )
         );
 
@@ -4033,14 +4084,14 @@ mod tests {
         .unwrap();
         assert_eq!(
             Ok(()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     account_info.clone(),
                     owner_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::success()],
             )
         );
         // no balance change...
@@ -4061,15 +4112,15 @@ mod tests {
         .unwrap();
         assert_eq!(
             Ok(()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     mint_info.clone(),
                     account_info.clone(),
                     owner_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::success()],
             )
         );
         // no balance change...
@@ -4134,6 +4185,7 @@ mod tests {
                 account1_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4146,6 +4198,7 @@ mod tests {
                 owner_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4168,6 +4221,7 @@ mod tests {
                 account2_info.clone(),
                 account1_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4180,6 +4234,7 @@ mod tests {
                 account2_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
         native_mint_to(&account3_info, 1000).unwrap();
@@ -4201,6 +4256,7 @@ mod tests {
                 account2_info.clone(),
                 account2_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4212,6 +4268,7 @@ mod tests {
                 rent_info.clone(),
                 account4_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4223,6 +4280,7 @@ mod tests {
                 multisig_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
         native_mint_to(&account4_info, 1000).unwrap();
@@ -4244,6 +4302,7 @@ mod tests {
                 multisig_info.clone(),
                 account4_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
     }
@@ -4285,6 +4344,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mismatch_mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mismatch_mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4297,6 +4357,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4315,6 +4376,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4342,6 +4404,7 @@ mod tests {
                     &mut account2_account,
                     &mut owner_account,
                 ],
+                &[Check::err(ProgramError::MissingRequiredSignature)],
             )
         );
 
@@ -4363,6 +4426,7 @@ mod tests {
                     &mut account_account,
                     &mut owner_account,
                 ],
+                &[Check::err(TokenError::NonNativeNotSupported.into())],
             )
         );
 
@@ -4384,6 +4448,7 @@ mod tests {
                     &mut account2_account,
                     &mut owner2_account,
                 ],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -4407,6 +4472,7 @@ mod tests {
                     &mut account2_account,
                     &mut owner2_account,
                 ],
+                &[Check::err(ProgramError::IncorrectProgramId)],
             )
         );
         account_account.owner = program_id;
@@ -4427,6 +4493,7 @@ mod tests {
                 &mut account2_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
         // 500 amount balance change...
@@ -4457,6 +4524,7 @@ mod tests {
                     &mut account2_account,
                     &mut owner_account,
                 ],
+                &[Check::err(TokenError::InsufficientFunds.into())],
             )
         );
 
@@ -4476,6 +4544,7 @@ mod tests {
                 &mut account2_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
         // 500 amount balance change...
@@ -4519,6 +4588,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mismatch_mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mismatch_mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4531,6 +4601,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4549,6 +4620,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4573,14 +4645,14 @@ mod tests {
         .unwrap();
         assert_eq!(
             Ok(()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     account_info.clone(),
                     owner_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::success()],
             )
         );
         // 500 amount balance change...
@@ -4601,14 +4673,14 @@ mod tests {
         .unwrap();
         assert_eq!(
             Err(TokenError::InsufficientFunds.into()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     account_info.clone(),
                     owner_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::err(TokenError::InsufficientFunds.into())],
             )
         );
 
@@ -4627,14 +4699,14 @@ mod tests {
         owner_no_sign_info.is_signer = false;
         assert_eq!(
             Err(ProgramError::MissingRequiredSignature),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     account_info.clone(),
                     owner_no_sign_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::err(ProgramError::MissingRequiredSignature)],
             )
         );
 
@@ -4650,14 +4722,14 @@ mod tests {
         .unwrap();
         assert_eq!(
             Err(TokenError::NonNativeNotSupported.into()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     mismatch_account_info.clone(),
                     mismatch_account_info.clone(),
                     owner_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::err(TokenError::NonNativeNotSupported.into())],
             )
         );
 
@@ -4673,14 +4745,14 @@ mod tests {
         .unwrap();
         assert_eq!(
             Err(TokenError::OwnerMismatch.into()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     account_info.clone(),
                     owner2_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -4696,14 +4768,14 @@ mod tests {
         .unwrap();
         assert_eq!(
             Ok(()),
-            Processor::process(
-                &instruction.program_id,
-                &[
+            do_process_instruction_dups(
+                instruction,
+                vec![
                     account_info.clone(),
                     account_info.clone(),
                     owner_info.clone(),
                 ],
-                &instruction.data,
+                &[Check::success()],
             )
         );
         // 500 amount balance change...
@@ -4734,6 +4806,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, decimals).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
         let mint = Mint::unpack_unchecked(&mint_account.data).unwrap();
@@ -4757,6 +4830,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4764,6 +4838,7 @@ mod tests {
         do_process_instruction(
             mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 42).unwrap(),
             vec![&mut mint_account, &mut account_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
         let _ = Mint::unpack(&mint_account.data).unwrap();
@@ -4785,6 +4860,7 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut mint_account, &mut account_account, &mut owner_account],
+                &[Check::err(TokenError::MintDecimalsMismatch.into())],
             )
         );
 
@@ -4805,6 +4881,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut mint_account, &mut account_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
         let _ = Mint::unpack(&mint_account.data).unwrap();
@@ -4858,6 +4935,7 @@ mod tests {
         do_process_instruction_dups(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![mint_info.clone(), rent_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4870,6 +4948,7 @@ mod tests {
                 account1_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4882,6 +4961,7 @@ mod tests {
                 owner_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4889,6 +4969,7 @@ mod tests {
         do_process_instruction_dups(
             mint_to(&program_id, &mint_key, &account1_key, &owner_key, &[], 1000).unwrap(),
             vec![mint_info.clone(), account1_info.clone(), owner_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4908,6 +4989,7 @@ mod tests {
                 account2_info.clone(),
                 account1_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4930,6 +5012,7 @@ mod tests {
                 account2_info.clone(),
                 account1_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4937,6 +5020,7 @@ mod tests {
         do_process_instruction_dups(
             revoke(&program_id, &account1_key, &account1_key, &[]).unwrap(),
             vec![account1_info.clone(), account1_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4948,6 +5032,7 @@ mod tests {
                 rent_info.clone(),
                 account3_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4959,12 +5044,14 @@ mod tests {
                 multisig_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
         do_process_instruction_dups(
             mint_to(&program_id, &mint_key, &account3_key, &owner_key, &[], 1000).unwrap(),
             vec![mint_info.clone(), account3_info.clone(), owner_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -4985,6 +5072,7 @@ mod tests {
                 multisig_info.clone(),
                 account3_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5008,6 +5096,7 @@ mod tests {
                 multisig_info.clone(),
                 account3_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5019,6 +5108,7 @@ mod tests {
                 multisig_info.clone(),
                 account3_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5041,6 +5131,7 @@ mod tests {
                 account2_info.clone(),
                 owner_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5049,6 +5140,7 @@ mod tests {
         do_process_instruction_dups(
             revoke(&program_id, &account2_key, &account2_key, &[]).unwrap(),
             vec![account2_info.clone(), account2_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
     }
@@ -5083,6 +5175,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5095,6 +5188,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5107,6 +5201,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5114,6 +5209,7 @@ mod tests {
         do_process_instruction(
             mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 1000).unwrap(),
             vec![&mut mint_account, &mut account_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5137,6 +5233,7 @@ mod tests {
                     &mut delegate_account,
                     &mut owner_account,
                 ],
+                &[Check::err(ProgramError::MissingRequiredSignature)],
             )
         );
 
@@ -5158,6 +5255,7 @@ mod tests {
                     &mut delegate_account,
                     &mut owner2_account,
                 ],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -5177,6 +5275,7 @@ mod tests {
                 &mut delegate_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5201,6 +5300,7 @@ mod tests {
                     &mut delegate_account,
                     &mut owner_account,
                 ],
+                &[Check::err(TokenError::MintDecimalsMismatch.into())],
             )
         );
 
@@ -5225,6 +5325,7 @@ mod tests {
                     &mut delegate_account,
                     &mut owner_account,
                 ],
+                &[Check::err(TokenError::MintMismatch.into())],
             )
         );
 
@@ -5247,6 +5348,7 @@ mod tests {
                 &mut delegate_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5254,6 +5356,7 @@ mod tests {
         do_process_instruction(
             revoke(&program_id, &account_key, &owner_key, &[]).unwrap(),
             vec![&mut account_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5276,6 +5379,7 @@ mod tests {
                 &mut delegate_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5283,6 +5387,7 @@ mod tests {
         do_process_instruction(
             revoke(&program_id, &account_key, &delegate_key, &[]).unwrap(),
             vec![&mut account_account, &mut delegate_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5292,6 +5397,7 @@ mod tests {
             do_process_instruction(
                 revoke(&program_id, &account_key, &delegate_key, &[]).unwrap(),
                 vec![&mut account_account, &mut delegate_account],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
     }
@@ -5319,6 +5425,7 @@ mod tests {
         do_process_instruction_dups(
             initialize_mint(&program_id, &mint_key, &mint_key, Some(&mint_key), 2).unwrap(),
             vec![mint_info.clone(), rent_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5331,6 +5438,7 @@ mod tests {
                 account1_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5346,6 +5454,7 @@ mod tests {
             )
             .unwrap(),
             vec![mint_info.clone(), mint_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5361,6 +5470,7 @@ mod tests {
             )
             .unwrap(),
             vec![mint_info.clone(), mint_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5376,6 +5486,7 @@ mod tests {
             )
             .unwrap(),
             vec![account1_info.clone(), account1_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5395,6 +5506,7 @@ mod tests {
             )
             .unwrap(),
             vec![account1_info.clone(), account1_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
     }
@@ -5432,6 +5544,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5439,6 +5552,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint2_key, &owner_key, Some(&owner_key), 2).unwrap(),
             vec![&mut mint2_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5456,6 +5570,7 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut account_account, &mut owner_account],
+                &[Check::err(ProgramError::InvalidAccountData)],
             )
         );
 
@@ -5468,6 +5583,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5480,6 +5596,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5497,6 +5614,7 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut account_account, &mut owner2_account],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -5513,7 +5631,11 @@ mod tests {
         instruction.accounts[1].is_signer = false;
         assert_eq!(
             Err(ProgramError::MissingRequiredSignature),
-            do_process_instruction(instruction, vec![&mut account_account, &mut owner_account,],)
+            do_process_instruction(
+                instruction,
+                vec![&mut account_account, &mut owner_account,],
+                &[Check::err(ProgramError::MissingRequiredSignature)],
+            )
         );
 
         // wrong authority type
@@ -5530,6 +5652,7 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut account_account, &mut owner_account],
+                &[Check::err(TokenError::AuthorityTypeNotSupported.into())],
             )
         );
 
@@ -5547,6 +5670,7 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut account_account, &mut owner_account],
+                &[Check::err(TokenError::InvalidInstruction.into())],
             )
         );
 
@@ -5566,6 +5690,7 @@ mod tests {
                 &mut owner2_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
         let account = Account::unpack_unchecked(&account_account.data).unwrap();
@@ -5584,6 +5709,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut account_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5604,6 +5730,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut account_account, &mut owner3_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5619,6 +5746,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut account_account, &mut owner2_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5634,6 +5762,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut account_account, &mut owner2_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5651,6 +5780,7 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut mint_account, &mut owner2_account],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -5667,7 +5797,11 @@ mod tests {
         instruction.accounts[1].is_signer = false;
         assert_eq!(
             Err(ProgramError::MissingRequiredSignature),
-            do_process_instruction(instruction, vec![&mut mint_account, &mut owner_account],)
+            do_process_instruction(
+                instruction,
+                vec![&mut mint_account, &mut owner_account],
+                &[Check::err(ProgramError::MissingRequiredSignature)],
+            )
         );
 
         // cannot freeze
@@ -5684,6 +5818,7 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut mint_account, &mut owner_account],
+                &[Check::err(TokenError::MintCannotFreeze.into())],
             )
         );
 
@@ -5699,6 +5834,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut mint_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5714,6 +5850,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut mint_account, &mut owner2_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5731,6 +5868,7 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut mint_account, &mut owner_account],
+                &[Check::err(TokenError::FixedSupply.into())],
             )
         );
 
@@ -5746,6 +5884,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut mint2_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5761,6 +5900,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut mint2_account, &mut owner2_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5777,6 +5917,7 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut mint2_account, &mut owner2_account],
+                &[Check::err(TokenError::MintCannotFreeze.into())],
             )
         );
     }
@@ -5809,6 +5950,7 @@ mod tests {
             do_process_instruction(
                 initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
                 vec![&mut mint_account, &mut rent_sysvar],
+                &[Check::success()],
             )
         );
 
@@ -5818,6 +5960,7 @@ mod tests {
             do_process_instruction(
                 initialize_immutable_owner(&program_id, &account_key).unwrap(),
                 vec![&mut account_account],
+                &[Check::success()],
             )
         );
         assert_eq!(
@@ -5830,6 +5973,7 @@ mod tests {
                     &mut owner_account,
                     &mut rent_sysvar,
                 ],
+                &[Check::success()],
             )
         );
 
@@ -5847,6 +5991,7 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut account_account, &mut owner_account],
+                &[Check::err(TokenError::ImmutableOwner.into())],
             )
         );
     }
@@ -5876,6 +6021,7 @@ mod tests {
         do_process_instruction_dups(
             initialize_mint(&program_id, &mint_key, &mint_key, None, 2).unwrap(),
             vec![mint_info.clone(), rent_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5888,6 +6034,7 @@ mod tests {
                 owner_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5895,6 +6042,7 @@ mod tests {
         do_process_instruction_dups(
             mint_to(&program_id, &mint_key, &account1_key, &mint_key, &[], 42).unwrap(),
             vec![mint_info.clone(), account1_info.clone(), mint_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5902,6 +6050,7 @@ mod tests {
         do_process_instruction_dups(
             mint_to_checked(&program_id, &mint_key, &account1_key, &mint_key, &[], 42, 2).unwrap(),
             vec![mint_info.clone(), account1_info.clone(), mint_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5924,6 +6073,7 @@ mod tests {
                 account1_info.clone(),
                 account1_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -5943,6 +6093,7 @@ mod tests {
                 account1_info.clone(),
                 account1_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
     }
@@ -5994,6 +6145,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6006,6 +6158,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6018,6 +6171,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6030,6 +6184,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6042,6 +6197,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
         let mut account = Account::unpack_unchecked(&mismatch_account.data).unwrap();
@@ -6052,6 +6208,7 @@ mod tests {
         do_process_instruction(
             mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 42).unwrap(),
             vec![&mut mint_account, &mut account_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6064,6 +6221,7 @@ mod tests {
         do_process_instruction(
             mint_to(&program_id, &mint_key, &account2_key, &owner_key, &[], 42).unwrap(),
             vec![&mut mint_account, &mut account2_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6081,6 +6239,7 @@ mod tests {
             do_process_instruction(
                 instruction,
                 vec![&mut mint_account, &mut account2_account, &mut owner_account],
+                &[Check::err(ProgramError::MissingRequiredSignature)],
             )
         );
 
@@ -6090,6 +6249,7 @@ mod tests {
             do_process_instruction(
                 mint_to(&program_id, &mint_key, &mismatch_key, &owner_key, &[], 42).unwrap(),
                 vec![&mut mint_account, &mut mismatch_account, &mut owner_account],
+                &[Check::err(TokenError::MintMismatch.into())],
             )
         );
 
@@ -6103,6 +6263,7 @@ mod tests {
                     &mut account2_account,
                     &mut owner2_account,
                 ],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -6114,6 +6275,7 @@ mod tests {
             do_process_instruction(
                 mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 0).unwrap(),
                 vec![&mut mint_account, &mut account_account, &mut owner_account],
+                &[Check::err(ProgramError::IncorrectProgramId)],
             )
         );
         mint_account.owner = program_id;
@@ -6126,6 +6288,7 @@ mod tests {
             do_process_instruction(
                 mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 0).unwrap(),
                 vec![&mut mint_account, &mut account_account, &mut owner_account],
+                &[Check::err(ProgramError::IncorrectProgramId)],
             )
         );
         account_account.owner = program_id;
@@ -6148,6 +6311,7 @@ mod tests {
                     &mut uninitialized_account,
                     &mut owner_account,
                 ],
+                &[Check::err(ProgramError::UninitializedAccount)],
             )
         );
 
@@ -6163,6 +6327,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut mint_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
         assert_eq!(
@@ -6170,6 +6335,7 @@ mod tests {
             do_process_instruction(
                 mint_to(&program_id, &mint_key, &account2_key, &owner_key, &[], 42).unwrap(),
                 vec![&mut mint_account, &mut account2_account, &mut owner_account],
+                &[Check::err(TokenError::FixedSupply.into())],
             )
         );
     }
@@ -6238,7 +6404,8 @@ mod tests {
                     account_info.clone(),
                     account_owner_info.clone(),
                     account_owner_info.clone(),
-                ]
+                ],
+                &[Check::err(TokenError::InvalidInstruction.into())],
             )
         );
 
@@ -6252,12 +6419,15 @@ mod tests {
             .borrow_mut()
             .copy_from_slice(&temp_account_data);
 
-        let batch_instr = batch_instruction(&[
+        let mut batch_instr = batch_instruction(&[
             &initialize_mint_instruction,
             &initialize_account_instruction,
             &close_account_instruction,
         ])
         .unwrap();
+
+        // Omit account metas as well so the program sees the truncated account list.
+        batch_instr.accounts.truncate(3);
 
         assert_eq!(
             Err(ProgramError::NotEnoughAccountKeys),
@@ -6267,7 +6437,8 @@ mod tests {
                     mint_account_info.clone(),
                     rent_info.clone(),
                     account_info.clone(),
-                ] // leave out the `initialize_account3` accounts and `close_account` accounts
+                ], // leave out the `initialize_account3` accounts and `close_account` accounts
+                &[Check::err(ProgramError::NotEnoughAccountKeys)],
             )
         );
 
@@ -6299,6 +6470,7 @@ mod tests {
                 account_owner_info.clone(),
                 account_owner_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
     }
@@ -6353,7 +6525,8 @@ mod tests {
                     rent_info.clone(),
                     mint_account_info.clone(),
                     mint_owner_info.clone(),
-                ]
+                ],
+                &[Check::err(TokenError::InvalidInstruction.into())],
             )
         );
 
@@ -6366,12 +6539,14 @@ mod tests {
         do_process_instruction_dups(
             initialize_mint_instruction,
             vec![mint_account_info.clone(), rent_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
         do_process_instruction_dups(
             batch_instr,
             vec![mint_account_info.clone(), mint_owner_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
     }
@@ -6531,6 +6706,7 @@ mod tests {
         do_process_instruction_dups(
             batch_1_instruction,
             vec![mint_account1_info.clone(), rent_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6564,6 +6740,7 @@ mod tests {
                     account4_info.clone(),
                     mint_account2_info.clone(),
                 ],
+                &[Check::err(ProgramError::IncorrectProgramId)],
             )
         );
 
@@ -6610,6 +6787,7 @@ mod tests {
                 account4_info.clone(),
                 mint_account2_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6641,6 +6819,7 @@ mod tests {
                     account2_info.clone(),
                     mint_owner_info.clone(),
                 ],
+                &[Check::err(TokenError::MintDecimalsMismatch.into())],
             )
         );
 
@@ -6676,6 +6855,7 @@ mod tests {
                 account2_info.clone(),
                 mint_owner_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6707,6 +6887,7 @@ mod tests {
                     account4_info.clone(),
                     account_owner_info.clone(),
                 ],
+                &[Check::err(TokenError::InsufficientFunds.into())],
             )
         );
 
@@ -6743,6 +6924,7 @@ mod tests {
                 account4_info.clone(),
                 account_owner_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
     }
@@ -6772,6 +6954,7 @@ mod tests {
         do_process_instruction_dups(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![mint_info.clone(), rent_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6784,6 +6967,7 @@ mod tests {
                 account1_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6791,6 +6975,7 @@ mod tests {
         do_process_instruction_dups(
             mint_to(&program_id, &mint_key, &account1_key, &owner_key, &[], 1000).unwrap(),
             vec![mint_info.clone(), account1_info.clone(), owner_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6798,8 +6983,8 @@ mod tests {
         do_process_instruction_dups(
             burn(
                 &program_id,
-                &mint_key,
                 &account1_key,
+                &mint_key,
                 &account1_key,
                 &[],
                 500,
@@ -6810,6 +6995,7 @@ mod tests {
                 mint_info.clone(),
                 account1_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6830,6 +7016,7 @@ mod tests {
                 mint_info.clone(),
                 account1_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6837,6 +7024,7 @@ mod tests {
         do_process_instruction_dups(
             mint_to(&program_id, &mint_key, &account1_key, &owner_key, &[], 1000).unwrap(),
             vec![mint_info.clone(), account1_info.clone(), owner_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
         let mut account = Account::unpack_unchecked(&account1_info.data.borrow()).unwrap();
@@ -6845,6 +7033,7 @@ mod tests {
         do_process_instruction_dups(
             burn(&program_id, &account1_key, &mint_key, &mint_key, &[], 500).unwrap(),
             vec![account1_info.clone(), mint_info.clone(), mint_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6861,6 +7050,7 @@ mod tests {
             )
             .unwrap(),
             vec![account1_info.clone(), mint_info.clone(), mint_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6868,6 +7058,7 @@ mod tests {
         do_process_instruction_dups(
             mint_to(&program_id, &mint_key, &account1_key, &owner_key, &[], 1000).unwrap(),
             vec![mint_info.clone(), account1_info.clone(), owner_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
         let mut account = Account::unpack_unchecked(&account1_info.data.borrow()).unwrap();
@@ -6890,6 +7081,7 @@ mod tests {
                 mint_info.clone(),
                 account1_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6910,6 +7102,7 @@ mod tests {
                 mint_info.clone(),
                 account1_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6917,6 +7110,7 @@ mod tests {
         do_process_instruction_dups(
             mint_to(&program_id, &mint_key, &account1_key, &owner_key, &[], 1000).unwrap(),
             vec![mint_info.clone(), account1_info.clone(), owner_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
         let mut account = Account::unpack_unchecked(&account1_info.data.borrow()).unwrap();
@@ -6927,6 +7121,7 @@ mod tests {
         do_process_instruction_dups(
             burn(&program_id, &account1_key, &mint_key, &mint_key, &[], 500).unwrap(),
             vec![account1_info.clone(), mint_info.clone(), mint_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -6943,6 +7138,7 @@ mod tests {
             )
             .unwrap(),
             vec![account1_info.clone(), mint_info.clone(), mint_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
     }
@@ -6990,6 +7186,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7002,6 +7199,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7014,6 +7212,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7026,6 +7225,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7038,6 +7238,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7045,6 +7246,7 @@ mod tests {
         do_process_instruction(
             mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 1000).unwrap(),
             vec![&mut mint_account, &mut account_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7052,6 +7254,7 @@ mod tests {
         do_process_instruction(
             mint_to(&program_id, &mint_key, &mismatch_key, &owner_key, &[], 1000).unwrap(),
             vec![&mut mint_account, &mut mismatch_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
         let mut account = Account::unpack_unchecked(&mismatch_account.data).unwrap();
@@ -7071,6 +7274,7 @@ mod tests {
                     &mut mint_account,
                     &mut delegate_account
                 ],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -7080,6 +7284,7 @@ mod tests {
             do_process_instruction(
                 burn(&program_id, &account_key, &mint_key, &owner2_key, &[], 42).unwrap(),
                 vec![&mut account_account, &mut mint_account, &mut owner2_account],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -7091,6 +7296,7 @@ mod tests {
             do_process_instruction(
                 burn(&program_id, &account_key, &mint_key, &owner_key, &[], 0).unwrap(),
                 vec![&mut account_account, &mut mint_account, &mut owner_account],
+                &[Check::err(ProgramError::IncorrectProgramId)],
             )
         );
         account_account.owner = program_id;
@@ -7103,6 +7309,7 @@ mod tests {
             do_process_instruction(
                 burn(&program_id, &account_key, &mint_key, &owner_key, &[], 0).unwrap(),
                 vec![&mut account_account, &mut mint_account, &mut owner_account],
+                &[Check::err(ProgramError::IncorrectProgramId)],
             )
         );
         mint_account.owner = program_id;
@@ -7113,6 +7320,7 @@ mod tests {
             do_process_instruction(
                 burn(&program_id, &mismatch_key, &mint_key, &owner_key, &[], 42).unwrap(),
                 vec![&mut mismatch_account, &mut mint_account, &mut owner_account],
+                &[Check::err(TokenError::MintMismatch.into())],
             )
         );
 
@@ -7120,6 +7328,7 @@ mod tests {
         do_process_instruction(
             burn(&program_id, &account_key, &mint_key, &owner_key, &[], 21).unwrap(),
             vec![&mut account_account, &mut mint_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7129,6 +7338,7 @@ mod tests {
             do_process_instruction(
                 burn_checked(&program_id, &account_key, &mint_key, &owner_key, &[], 21, 3).unwrap(),
                 vec![&mut account_account, &mut mint_account, &mut owner_account],
+                &[Check::err(TokenError::MintDecimalsMismatch.into())],
             )
         );
 
@@ -7136,6 +7346,7 @@ mod tests {
         do_process_instruction(
             burn_checked(&program_id, &account_key, &mint_key, &owner_key, &[], 21, 2).unwrap(),
             vec![&mut account_account, &mut mint_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7158,6 +7369,7 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut account_account, &mut mint_account, &mut owner_account],
+                &[Check::err(TokenError::InsufficientFunds.into())],
             )
         );
 
@@ -7177,6 +7389,7 @@ mod tests {
                 &mut delegate_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7194,6 +7407,7 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut account_account, &mut mint_account, &mut owner2_account],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -7207,6 +7421,7 @@ mod tests {
                     &mut mint_account,
                     &mut delegate_account
                 ],
+                &[Check::err(TokenError::InsufficientFunds.into())],
             )
         );
 
@@ -7218,6 +7433,7 @@ mod tests {
                 &mut mint_account,
                 &mut delegate_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7237,6 +7453,7 @@ mod tests {
                     &mut mint_account,
                     &mut delegate_account
                 ],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
     }
@@ -7287,6 +7504,7 @@ mod tests {
                     &mut rent_sysvar,
                     account_info_iter.next().unwrap(),
                 ],
+                &[Check::err(TokenError::NotRentExempt.into())],
             )
         );
 
@@ -7302,6 +7520,7 @@ mod tests {
                 &mut rent_sysvar,
                 account_info_iter.next().unwrap(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7310,6 +7529,7 @@ mod tests {
         do_process_instruction(
             initialize_multisig2(&program_id, &multisig_key, &[&signer_keys[0]], 1).unwrap(),
             vec![&mut multisig_account2, account_info_iter.next().unwrap()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7338,6 +7558,7 @@ mod tests {
                 account_info_iter.next().unwrap(),
                 account_info_iter.next().unwrap(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7345,6 +7566,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &multisig_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7357,6 +7579,7 @@ mod tests {
                 &mut multisig_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7375,6 +7598,7 @@ mod tests {
                 &mut multisig_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7396,6 +7620,7 @@ mod tests {
                 &mut multisig_account,
                 account_info_iter.next().unwrap(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7419,6 +7644,7 @@ mod tests {
                     &mut empty_multisig_account,
                     account_info_iter.next().unwrap(),
                 ],
+                &[Check::err(ProgramError::UninitializedAccount)],
             )
             .unwrap_err(),
         );
@@ -7441,6 +7667,7 @@ mod tests {
                 &mut multisig_account,
                 account_info_iter.next().unwrap(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7463,6 +7690,7 @@ mod tests {
                 &mut multisig_account,
                 account_info_iter.next().unwrap(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7495,6 +7723,7 @@ mod tests {
                 account_info_iter.next().unwrap(),
                 account_info_iter.next().unwrap(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7516,6 +7745,7 @@ mod tests {
                 &mut multisig_account,
                 account_info_iter.next().unwrap(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7537,6 +7767,7 @@ mod tests {
                 &mut multisig_account,
                 account_info_iter.next().unwrap(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7568,6 +7799,7 @@ mod tests {
                 account_info_iter.next().unwrap(),
                 account_info_iter.next().unwrap(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7591,6 +7823,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut mint2_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
         do_process_instruction(
@@ -7601,6 +7834,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
         let account_info_iter = &mut signer_accounts.iter_mut();
@@ -7620,6 +7854,7 @@ mod tests {
                 &mut multisig_account,
                 account_info_iter.next().unwrap(),
             ],
+            &[Check::success()],
         )
         .unwrap();
         let account_info_iter = &mut signer_accounts.iter_mut();
@@ -7638,6 +7873,7 @@ mod tests {
                 &mut multisig_account,
                 account_info_iter.next().unwrap(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7658,6 +7894,7 @@ mod tests {
                 &mut multisig_account,
                 account_info_iter.next().unwrap(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7678,6 +7915,7 @@ mod tests {
                 &mut multisig_account,
                 account_info_iter.next().unwrap(),
             ],
+            &[Check::success()],
         )
         .unwrap();
     }
@@ -7712,11 +7950,13 @@ mod tests {
             permissioned_burn::instruction::initialize(&program_id, &mint_key, &burn_authority_key)
                 .unwrap(),
             vec![&mut mint_account],
+            &[Check::success()],
         )
         .unwrap();
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7729,11 +7969,13 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
         do_process_instruction(
             mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 10).unwrap(),
             vec![&mut mint_account, &mut account_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7749,6 +7991,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut mint_account, &mut burn_authority_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -7772,6 +8015,7 @@ mod tests {
                     &mut burn_authority_account,
                     &mut owner_account
                 ],
+                &[Check::err(TokenError::InvalidInstruction.into())],
             )
         );
 
@@ -7781,6 +8025,7 @@ mod tests {
             do_process_instruction(
                 burn(&program_id, &account_key, &mint_key, &owner_key, &[], 1).unwrap(),
                 vec![&mut account_account, &mut mint_account, &mut owner_account],
+                &[Check::success()],
             )
         );
     }
@@ -8077,6 +8322,7 @@ mod tests {
         do_process_instruction_dups(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![mint_info.clone(), rent_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -8105,6 +8351,7 @@ mod tests {
                 to_close_account_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -8123,6 +8370,7 @@ mod tests {
                 destination_account_info.clone(),
                 to_close_account_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
         assert_eq!(*to_close_account_info.data.borrow(), &[0u8; Account::LEN]);
@@ -8144,6 +8392,7 @@ mod tests {
         do_process_instruction_dups(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![mint_info.clone(), rent_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -8172,6 +8421,7 @@ mod tests {
                 to_close_account_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
         let mut account = Account::unpack_unchecked(&to_close_account_info.data.borrow()).unwrap();
@@ -8192,6 +8442,7 @@ mod tests {
                 destination_account_info.clone(),
                 to_close_account_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
         assert_eq!(*to_close_account_info.data.borrow(), &[0u8; Account::LEN]);
@@ -8237,6 +8488,7 @@ mod tests {
                     &mut account3_account,
                     &mut owner2_account,
                 ],
+                &[Check::err(ProgramError::UninitializedAccount)],
             )
         );
 
@@ -8244,6 +8496,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
         do_process_instruction(
@@ -8254,6 +8507,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
         do_process_instruction(
@@ -8264,6 +8518,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
         let account = Account::unpack_unchecked(&account_account.data).unwrap();
@@ -8284,6 +8539,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
         let account = Account::unpack_unchecked(&account2_account.data).unwrap();
@@ -8300,6 +8556,7 @@ mod tests {
                     &mut account3_account,
                     &mut owner_account,
                 ],
+                &[Check::err(TokenError::NonNativeHasBalance.into())],
             )
         );
         assert_eq!(account_account.lamports, account_minimum_balance());
@@ -8308,6 +8565,7 @@ mod tests {
         do_process_instruction(
             burn(&program_id, &account_key, &mint_key, &owner_key, &[], 42).unwrap(),
             vec![&mut account_account, &mut mint_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -8321,6 +8579,7 @@ mod tests {
                     &mut account3_account,
                     &mut owner2_account,
                 ],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -8332,12 +8591,13 @@ mod tests {
                 &mut account3_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
         assert_eq!(account_account.lamports, 0);
         assert_eq!(account3_account.lamports, 2 * account_minimum_balance());
-        let account = Account::unpack_unchecked(&account_account.data).unwrap();
-        assert_eq!(account.amount, 0);
+        assert!(account_account.data.is_empty());
+        assert_eq!(account_account.owner, system_program::id());
 
         // fund and initialize new non-native account to test close authority
         let account_key = Address::new_unique();
@@ -8360,6 +8620,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
         account_account.lamports = 2;
@@ -8375,6 +8636,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut account_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -8388,6 +8650,7 @@ mod tests {
                     &mut account3_account,
                     &mut owner_account,
                 ],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -8399,12 +8662,13 @@ mod tests {
                 &mut account3_account,
                 &mut owner2_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
         assert_eq!(account_account.lamports, 0);
         assert_eq!(account3_account.lamports, 2 * account_minimum_balance() + 2);
-        let account = Account::unpack_unchecked(&account_account.data).unwrap();
-        assert_eq!(account.amount, 0);
+        assert!(account_account.data.is_empty());
+        assert_eq!(account_account.owner, system_program::id());
 
         // close native account
         do_process_instruction(
@@ -8414,9 +8678,11 @@ mod tests {
                 &mut account3_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
-        assert_eq!(account2_account.data, [0u8; Account::LEN]);
+        assert!(account2_account.data.is_empty());
+        assert_eq!(account2_account.owner, system_program::id());
         assert_eq!(
             account3_account.lamports,
             3 * account_minimum_balance() + 2 + 42
@@ -8463,6 +8729,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
         let account = Account::unpack_unchecked(&account_account.data).unwrap();
@@ -8484,6 +8751,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
         let account = Account::unpack_unchecked(&account2_account.data).unwrap();
@@ -8504,6 +8772,7 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut mint_account, &mut account_account, &mut owner_account],
+                &[Check::err(TokenError::NativeNotSupported.into())],
             )
         );
 
@@ -8514,6 +8783,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &bogus_mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut bogus_mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -8534,6 +8804,7 @@ mod tests {
                     &mut bogus_mint_account,
                     &mut owner_account
                 ],
+                &[Check::err(TokenError::NativeNotSupported.into())],
             )
         );
 
@@ -8556,6 +8827,7 @@ mod tests {
                     &mut account2_account,
                     &mut owner_account,
                 ],
+                &[Check::err(TokenError::InsufficientFunds.into())],
             )
         );
 
@@ -8576,6 +8848,7 @@ mod tests {
                 &mut account2_account,
                 &mut owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
         assert_eq!(account_account.lamports, account_minimum_balance());
@@ -8599,6 +8872,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut account_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
         let account = Account::unpack_unchecked(&account_account.data).unwrap();
@@ -8616,6 +8890,7 @@ mod tests {
             )
             .unwrap(),
             vec![&mut account_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -8631,11 +8906,13 @@ mod tests {
                 &mut account3_account,
                 &mut owner2_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
         assert_eq!(account_account.lamports, 0);
         assert_eq!(account3_account.lamports, 2 * account_minimum_balance());
-        assert_eq!(account_account.data, [0u8; Account::LEN]);
+        assert!(account_account.data.is_empty());
+        assert_eq!(account_account.owner, system_program::id());
     }
 
     #[test]
@@ -8668,6 +8945,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &mint_owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -8680,6 +8958,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -8692,6 +8971,7 @@ mod tests {
                 &mut owner2_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -8711,6 +8991,7 @@ mod tests {
                 &mut account_account,
                 &mut mint_owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
         let account = Account::unpack_unchecked(&account_account.data).unwrap();
@@ -8734,6 +9015,7 @@ mod tests {
                     &mut account_account,
                     &mut mint_owner_account,
                 ],
+                &[Check::err(TokenError::Overflow.into())],
             )
         );
         let account = Account::unpack_unchecked(&account_account.data).unwrap();
@@ -8757,6 +9039,7 @@ mod tests {
                     &mut account2_account,
                     &mut mint_owner_account,
                 ],
+                &[Check::err(TokenError::Overflow.into())],
             )
         );
 
@@ -8764,6 +9047,7 @@ mod tests {
         do_process_instruction(
             burn(&program_id, &account_key, &mint_key, &owner_key, &[], 100).unwrap(),
             vec![&mut account_account, &mut mint_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
         let account = Account::unpack_unchecked(&account_account.data).unwrap();
@@ -8784,6 +9068,7 @@ mod tests {
                 &mut account_account,
                 &mut mint_owner_account,
             ],
+            &[Check::success()],
         )
         .unwrap();
         let account = Account::unpack_unchecked(&account_account.data).unwrap();
@@ -8812,6 +9097,7 @@ mod tests {
                     &mut account_account,
                     &mut owner2_account,
                 ],
+                &[Check::err(TokenError::Overflow.into())],
             )
         );
     }
@@ -8842,6 +9128,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -8854,6 +9141,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -8866,6 +9154,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -8873,6 +9162,7 @@ mod tests {
         do_process_instruction(
             mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 1000).unwrap(),
             vec![&mut mint_account, &mut account_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -8898,6 +9188,7 @@ mod tests {
                     &mut account2_account,
                     &mut owner_account,
                 ],
+                &[Check::err(TokenError::AccountFrozen.into())],
             )
         );
 
@@ -8925,6 +9216,7 @@ mod tests {
                     &mut account2_account,
                     &mut owner_account,
                 ],
+                &[Check::err(TokenError::AccountFrozen.into())],
             )
         );
 
@@ -8951,6 +9243,7 @@ mod tests {
                     &mut delegate_account,
                     &mut owner_account,
                 ],
+                &[Check::err(TokenError::AccountFrozen.into())],
             )
         );
 
@@ -8964,6 +9257,7 @@ mod tests {
             do_process_instruction(
                 revoke(&program_id, &account_key, &owner_key, &[]).unwrap(),
                 vec![&mut account_account, &mut owner_account],
+                &[Check::err(TokenError::AccountFrozen.into())],
             )
         );
 
@@ -8982,6 +9276,7 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut account_account, &mut owner_account,],
+                &[Check::err(TokenError::AccountFrozen.into())],
             )
         );
 
@@ -8991,6 +9286,7 @@ mod tests {
             do_process_instruction(
                 mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 100).unwrap(),
                 vec![&mut mint_account, &mut account_account, &mut owner_account,],
+                &[Check::err(TokenError::AccountFrozen.into())],
             )
         );
 
@@ -9000,6 +9296,7 @@ mod tests {
             do_process_instruction(
                 burn(&program_id, &account_key, &mint_key, &owner_key, &[], 100).unwrap(),
                 vec![&mut account_account, &mut mint_account, &mut owner_account],
+                &[Check::err(TokenError::AccountFrozen.into())],
             )
         );
     }
@@ -9027,6 +9324,7 @@ mod tests {
         do_process_instruction_dups(
             initialize_mint(&program_id, &mint_key, &owner_key, Some(&account1_key), 2).unwrap(),
             vec![mint_info.clone(), rent_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9039,6 +9337,7 @@ mod tests {
                 account1_info.clone(),
                 rent_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9050,6 +9349,7 @@ mod tests {
                 mint_info.clone(),
                 account1_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9064,6 +9364,7 @@ mod tests {
                 mint_info.clone(),
                 account1_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
     }
@@ -9092,6 +9393,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9104,6 +9406,7 @@ mod tests {
                 &mut account_owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9111,6 +9414,7 @@ mod tests {
         do_process_instruction(
             mint_to(&program_id, &mint_key, &account_key, &owner_key, &[], 1000).unwrap(),
             vec![&mut mint_account, &mut account_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9120,6 +9424,7 @@ mod tests {
             do_process_instruction(
                 freeze_account(&program_id, &account_key, &mint_key, &owner_key, &[]).unwrap(),
                 vec![&mut account_account, &mut mint_account, &mut owner_account],
+                &[Check::err(TokenError::MintCannotFreeze.into())],
             )
         );
 
@@ -9132,6 +9437,7 @@ mod tests {
             do_process_instruction(
                 freeze_account(&program_id, &account_key, &mint_key, &owner2_key, &[]).unwrap(),
                 vec![&mut account_account, &mut mint_account, &mut owner2_account],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -9141,6 +9447,7 @@ mod tests {
             do_process_instruction(
                 thaw_account(&program_id, &account_key, &mint_key, &owner2_key, &[]).unwrap(),
                 vec![&mut account_account, &mut mint_account, &mut owner2_account],
+                &[Check::err(TokenError::InvalidState.into())],
             )
         );
 
@@ -9148,6 +9455,7 @@ mod tests {
         do_process_instruction(
             freeze_account(&program_id, &account_key, &mint_key, &owner_key, &[]).unwrap(),
             vec![&mut account_account, &mut mint_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
         let account = Account::unpack_unchecked(&account_account.data).unwrap();
@@ -9159,6 +9467,7 @@ mod tests {
             do_process_instruction(
                 freeze_account(&program_id, &account_key, &mint_key, &owner_key, &[]).unwrap(),
                 vec![&mut account_account, &mut mint_account, &mut owner_account],
+                &[Check::err(TokenError::InvalidState.into())],
             )
         );
 
@@ -9168,6 +9477,7 @@ mod tests {
             do_process_instruction(
                 thaw_account(&program_id, &account_key, &mint_key, &owner2_key, &[]).unwrap(),
                 vec![&mut account_account, &mut mint_account, &mut owner2_account],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -9175,6 +9485,7 @@ mod tests {
         do_process_instruction(
             thaw_account(&program_id, &account_key, &mint_key, &owner_key, &[]).unwrap(),
             vec![&mut account_account, &mut mint_account, &mut owner_account],
+            &[Check::success()],
         )
         .unwrap();
         let account = Account::unpack_unchecked(&account_account.data).unwrap();
@@ -9211,6 +9522,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9222,12 +9534,14 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
         do_process_instruction(
             initialize_account2(&program_id, &account_key, &mint_key, &owner_key).unwrap(),
             vec![&mut account2_account, &mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9236,6 +9550,7 @@ mod tests {
         do_process_instruction(
             initialize_account3(&program_id, &account_key, &mint_key, &owner_key).unwrap(),
             vec![&mut account3_account, &mut mint_account],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9287,13 +9602,15 @@ mod tests {
             do_process_instruction(
                 initialize_non_transferable_mint(&program_id, &mint_key).unwrap(),
                 vec![&mut mint_account],
+                &[Check::success()],
             )
         );
         assert_eq!(
             Ok(()),
             do_process_instruction(
                 initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
-                vec![&mut mint_account, &mut rent_sysvar]
+                vec![&mut mint_account, &mut rent_sysvar],
+                &[Check::success()],
             )
         );
 
@@ -9308,7 +9625,8 @@ mod tests {
                     &mut mint_account,
                     &mut owner_account,
                     &mut rent_sysvar,
-                ]
+                ],
+                &[Check::err(ProgramError::InvalidAccountData)],
             )
         );
 
@@ -9322,7 +9640,8 @@ mod tests {
                     &mut mint_account,
                     &mut owner_account,
                     &mut rent_sysvar,
-                ]
+                ],
+                &[Check::success()],
             )
         );
     }
@@ -9355,6 +9674,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9368,6 +9688,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9381,6 +9702,7 @@ mod tests {
             do_process_instruction(
                 sync_native(&program_id, &non_native_account_key,).unwrap(),
                 vec![&mut non_native_account],
+                &[Check::err(TokenError::NonNativeNotSupported.into())],
             )
         );
 
@@ -9390,6 +9712,7 @@ mod tests {
             do_process_instruction(
                 sync_native(&program_id, &native_account_key,).unwrap(),
                 vec![&mut native_account],
+                &[Check::err(ProgramError::UninitializedAccount)],
             )
         );
 
@@ -9408,6 +9731,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9419,6 +9743,7 @@ mod tests {
             do_process_instruction(
                 sync_native(&program_id, &native_account_key,).unwrap(),
                 vec![&mut native_account],
+                &[Check::err(ProgramError::IncorrectProgramId)],
             )
         );
         native_account.owner = program_id;
@@ -9431,6 +9756,7 @@ mod tests {
         do_process_instruction(
             sync_native(&program_id, &native_account_key).unwrap(),
             vec![&mut native_account],
+            &[Check::success()],
         )
         .unwrap();
         let account = Account::unpack_unchecked(&native_account.data).unwrap();
@@ -9444,6 +9770,7 @@ mod tests {
         do_process_instruction(
             sync_native(&program_id, &native_account_key).unwrap(),
             vec![&mut native_account],
+            &[Check::success()],
         )
         .unwrap();
         let account = Account::unpack_unchecked(&native_account.data).unwrap();
@@ -9456,6 +9783,7 @@ mod tests {
         do_process_instruction(
             sync_native(&program_id, &native_account_key).unwrap(),
             vec![&mut native_account],
+            &[Check::success()],
         )
         .unwrap();
         let account = Account::unpack_unchecked(&native_account.data).unwrap();
@@ -9463,9 +9791,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn test_get_account_data_size() {
-        // see integration tests for return-data validity
         let program_id = crate::id();
         let owner_key = Address::new_unique();
         let mut owner_account = SolanaAccount::default();
@@ -9478,29 +9804,24 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
-        set_expected_data(
-            ExtensionType::try_calculate_account_len::<Account>(&[])
-                .unwrap()
-                .to_le_bytes()
-                .to_vec(),
-        );
         do_process_instruction(
             get_account_data_size(&program_id, &mint_key, &[]).unwrap(),
             vec![&mut mint_account],
+            &[
+                Check::success(),
+                Check::return_data(
+                    &ExtensionType::try_calculate_account_len::<Account>(&[])
+                        .unwrap()
+                        .to_le_bytes(),
+                ),
+            ],
         )
         .unwrap();
 
-        set_expected_data(
-            ExtensionType::try_calculate_account_len::<Account>(&[
-                ExtensionType::TransferFeeAmount,
-            ])
-            .unwrap()
-            .to_le_bytes()
-            .to_vec(),
-        );
         do_process_instruction(
             get_account_data_size(
                 &program_id,
@@ -9512,20 +9833,33 @@ mod tests {
             )
             .unwrap(),
             vec![&mut mint_account],
+            &[
+                Check::success(),
+                Check::return_data(
+                    &ExtensionType::try_calculate_account_len::<Account>(&[
+                        ExtensionType::TransferFeeAmount,
+                    ])
+                    .unwrap()
+                    .to_le_bytes(),
+                ),
+            ],
         )
         .unwrap();
 
         // Native mint
         let mut mint_account = native_mint();
-        set_expected_data(
-            ExtensionType::try_calculate_account_len::<Account>(&[])
-                .unwrap()
-                .to_le_bytes()
-                .to_vec(),
-        );
+
         do_process_instruction(
             get_account_data_size(&program_id, &mint_key, &[]).unwrap(),
             vec![&mut mint_account],
+            &[
+                Check::success(),
+                Check::return_data(
+                    &ExtensionType::try_calculate_account_len::<Account>(&[])
+                        .unwrap()
+                        .to_le_bytes(),
+                ),
+            ],
         )
         .unwrap();
 
@@ -9543,25 +9877,29 @@ mod tests {
             initialize_transfer_fee_config(&program_id, &extended_mint_key, None, None, 10, 4242)
                 .unwrap(),
             vec![&mut extended_mint_account],
+            &[Check::success()],
         )
         .unwrap();
         do_process_instruction(
             initialize_mint(&program_id, &extended_mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut extended_mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
-        set_expected_data(
-            ExtensionType::try_calculate_account_len::<Account>(&[
-                ExtensionType::TransferFeeAmount,
-            ])
-            .unwrap()
-            .to_le_bytes()
-            .to_vec(),
-        );
         do_process_instruction(
             get_account_data_size(&program_id, &mint_key, &[]).unwrap(),
             vec![&mut extended_mint_account],
+            &[
+                Check::success(),
+                Check::return_data(
+                    &ExtensionType::try_calculate_account_len::<Account>(&[
+                        ExtensionType::TransferFeeAmount,
+                    ])
+                    .unwrap()
+                    .to_le_bytes(),
+                ),
+            ],
         )
         .unwrap();
 
@@ -9574,6 +9912,16 @@ mod tests {
             )
             .unwrap(),
             vec![&mut extended_mint_account],
+            &[
+                Check::success(),
+                Check::return_data(
+                    &ExtensionType::try_calculate_account_len::<Account>(&[
+                        ExtensionType::TransferFeeAmount,
+                    ])
+                    .unwrap()
+                    .to_le_bytes(),
+                ),
+            ],
         )
         .unwrap();
 
@@ -9592,6 +9940,7 @@ mod tests {
                 &mut owner_account,
                 &mut rent_sysvar,
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9599,6 +9948,7 @@ mod tests {
             do_process_instruction(
                 get_account_data_size(&program_id, &invalid_mint_key, &[]).unwrap(),
                 vec![&mut invalid_mint_account],
+                &[Check::err(TokenError::InvalidMint.into())],
             ),
             Err(TokenError::InvalidMint.into())
         );
@@ -9608,12 +9958,12 @@ mod tests {
         let mut invalid_mint_account =
             SolanaAccount::new(mint_minimum_balance(), Mint::get_packed_len(), &program_id);
         let invalid_mint_key = Address::new_unique();
-        let mut instruction =
+        let instruction =
             initialize_mint(&program_id, &invalid_mint_key, &owner_key, None, 2).unwrap();
-        instruction.program_id = invalid_program_id;
         do_process_instruction(
             instruction,
             vec![&mut invalid_mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9623,6 +9973,7 @@ mod tests {
             do_process_instruction(
                 get_account_data_size(&program_id, &invalid_mint_key, &[]).unwrap(),
                 vec![&mut invalid_mint_account],
+                &[Check::err(ProgramError::IncorrectProgramId)],
             ),
             Err(ProgramError::IncorrectProgramId)
         );
@@ -9633,6 +9984,7 @@ mod tests {
                 get_account_data_size(&program_id, &mint_key, &[ExtensionType::Uninitialized])
                     .unwrap(),
                 vec![&mut mint_account],
+                &[Check::err(TokenError::ExtensionTypeMismatch.into())],
             ),
             Err(TokenError::ExtensionTypeMismatch.into())
         );
@@ -9648,13 +10000,13 @@ mod tests {
                 )
                 .unwrap(),
                 vec![&mut mint_account],
+                &[Check::err(TokenError::ExtensionTypeMismatch.into())],
             ),
             Err(TokenError::ExtensionTypeMismatch.into())
         );
     }
 
     #[test]
-    #[serial]
     fn test_amount_to_ui_amount() {
         let program_id = crate::id();
         let owner_key = Address::new_unique();
@@ -9669,6 +10021,7 @@ mod tests {
             do_process_instruction(
                 amount_to_ui_amount(&program_id, &mint_key, 110).unwrap(),
                 vec![&mut mint_account],
+                &[Check::err(TokenError::InvalidMint.into())],
             )
         );
 
@@ -9676,40 +10029,40 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
-        set_expected_data("0.23".as_bytes().to_vec());
         do_process_instruction(
             amount_to_ui_amount(&program_id, &mint_key, 23).unwrap(),
             vec![&mut mint_account],
+            &[Check::success(), Check::return_data("0.23".as_bytes())],
         )
         .unwrap();
 
-        set_expected_data("1.1".as_bytes().to_vec());
         do_process_instruction(
             amount_to_ui_amount(&program_id, &mint_key, 110).unwrap(),
             vec![&mut mint_account],
+            &[Check::success(), Check::return_data("1.1".as_bytes())],
         )
         .unwrap();
 
-        set_expected_data("42".as_bytes().to_vec());
         do_process_instruction(
             amount_to_ui_amount(&program_id, &mint_key, 4200).unwrap(),
             vec![&mut mint_account],
+            &[Check::success(), Check::return_data("42".as_bytes())],
         )
         .unwrap();
 
-        set_expected_data("0".as_bytes().to_vec());
         do_process_instruction(
             amount_to_ui_amount(&program_id, &mint_key, 0).unwrap(),
             vec![&mut mint_account],
+            &[Check::success(), Check::return_data("0".as_bytes())],
         )
         .unwrap();
     }
 
     #[test]
-    #[serial]
     fn test_ui_amount_to_amount() {
         let program_id = crate::id();
         let owner_key = Address::new_unique();
@@ -9724,6 +10077,7 @@ mod tests {
             do_process_instruction(
                 ui_amount_to_amount(&program_id, &mint_key, "1.1").unwrap(),
                 vec![&mut mint_account],
+                &[Check::err(TokenError::InvalidMint.into())],
             )
         );
 
@@ -9731,69 +10085,70 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
-        set_expected_data(23u64.to_le_bytes().to_vec());
         do_process_instruction(
             ui_amount_to_amount(&program_id, &mint_key, "0.23").unwrap(),
             vec![&mut mint_account],
+            &[Check::success(), Check::return_data(&23u64.to_le_bytes())],
         )
         .unwrap();
 
-        set_expected_data(20u64.to_le_bytes().to_vec());
         do_process_instruction(
             ui_amount_to_amount(&program_id, &mint_key, "0.20").unwrap(),
             vec![&mut mint_account],
+            &[Check::success(), Check::return_data(&20u64.to_le_bytes())],
         )
         .unwrap();
 
-        set_expected_data(20u64.to_le_bytes().to_vec());
         do_process_instruction(
             ui_amount_to_amount(&program_id, &mint_key, "0.2000").unwrap(),
             vec![&mut mint_account],
+            &[Check::success(), Check::return_data(&20u64.to_le_bytes())],
         )
         .unwrap();
 
-        set_expected_data(20u64.to_le_bytes().to_vec());
         do_process_instruction(
             ui_amount_to_amount(&program_id, &mint_key, ".20").unwrap(),
             vec![&mut mint_account],
+            &[Check::success(), Check::return_data(&20u64.to_le_bytes())],
         )
         .unwrap();
 
-        set_expected_data(110u64.to_le_bytes().to_vec());
         do_process_instruction(
             ui_amount_to_amount(&program_id, &mint_key, "1.1").unwrap(),
             vec![&mut mint_account],
+            &[Check::success(), Check::return_data(&110u64.to_le_bytes())],
         )
         .unwrap();
 
-        set_expected_data(110u64.to_le_bytes().to_vec());
         do_process_instruction(
             ui_amount_to_amount(&program_id, &mint_key, "1.10").unwrap(),
             vec![&mut mint_account],
+            &[Check::success(), Check::return_data(&110u64.to_le_bytes())],
         )
         .unwrap();
 
-        set_expected_data(4200u64.to_le_bytes().to_vec());
         do_process_instruction(
             ui_amount_to_amount(&program_id, &mint_key, "42").unwrap(),
             vec![&mut mint_account],
+            &[Check::success(), Check::return_data(&4200u64.to_le_bytes())],
         )
         .unwrap();
 
-        set_expected_data(4200u64.to_le_bytes().to_vec());
         do_process_instruction(
             ui_amount_to_amount(&program_id, &mint_key, "42.").unwrap(),
             vec![&mut mint_account],
+            &[Check::success(), Check::return_data(&4200u64.to_le_bytes())],
         )
         .unwrap();
 
-        set_expected_data(0u64.to_le_bytes().to_vec());
         do_process_instruction(
             ui_amount_to_amount(&program_id, &mint_key, "0").unwrap(),
             vec![&mut mint_account],
+            &[Check::success(), Check::return_data(&0u64.to_le_bytes())],
         )
         .unwrap();
 
@@ -9803,6 +10158,7 @@ mod tests {
             do_process_instruction(
                 ui_amount_to_amount(&program_id, &mint_key, "").unwrap(),
                 vec![&mut mint_account],
+                &[Check::err(ProgramError::InvalidArgument)],
             )
         );
         assert_eq!(
@@ -9810,6 +10166,7 @@ mod tests {
             do_process_instruction(
                 ui_amount_to_amount(&program_id, &mint_key, ".").unwrap(),
                 vec![&mut mint_account],
+                &[Check::err(ProgramError::InvalidArgument)],
             )
         );
         assert_eq!(
@@ -9817,6 +10174,7 @@ mod tests {
             do_process_instruction(
                 ui_amount_to_amount(&program_id, &mint_key, "0.111").unwrap(),
                 vec![&mut mint_account],
+                &[Check::err(ProgramError::InvalidArgument)],
             )
         );
         assert_eq!(
@@ -9824,21 +10182,13 @@ mod tests {
             do_process_instruction(
                 ui_amount_to_amount(&program_id, &mint_key, "0.t").unwrap(),
                 vec![&mut mint_account],
+                &[Check::err(ProgramError::InvalidArgument)],
             )
         );
     }
 
     #[test]
-    #[serial]
     fn test_withdraw_excess_lamports_from_multisig() {
-        {
-            use std::sync::Once;
-            static ONCE: Once = Once::new();
-
-            ONCE.call_once(|| {
-                solana_sysvar::program_stubs::set_syscall_stubs(Box::new(SyscallStubs {}));
-            });
-        }
         let program_id = crate::id();
 
         let mut lamports = 0;
@@ -9909,6 +10259,7 @@ mod tests {
             )
             .unwrap(),
             signers_infos,
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9916,7 +10267,6 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn test_withdraw_excess_lamports_from_account() {
         let excess_lamports = 4_000_000_000_000;
 
@@ -9951,6 +10301,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &owner_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9969,6 +10320,7 @@ mod tests {
         do_process_instruction_dups(
             initialize_account3(&program_id, &account_key, &mint_key, &account_key).unwrap(),
             vec![account_info.clone(), mint_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9986,6 +10338,7 @@ mod tests {
                 destination_info.clone(),
                 account_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -9993,7 +10346,6 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn test_withdraw_excess_lamports_from_mint() {
         let excess_lamports = 4_000_000_000_000;
 
@@ -10023,6 +10375,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &mint_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -10036,6 +10389,7 @@ mod tests {
                 destination_info.clone(),
                 mint_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -10043,7 +10397,6 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn test_withdraw_excess_lamports_from_mint_with_no_mint_authority() {
         let excess_lamports = 4_000_000_000_000;
 
@@ -10085,6 +10438,7 @@ mod tests {
         do_process_instruction(
             initialize_mint(&program_id, &mint_key, &mint_authority_key, None, 2).unwrap(),
             vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -10102,6 +10456,7 @@ mod tests {
                     destination_info.clone(),
                     mint_info.clone(),
                 ],
+                &[Check::err(TokenError::OwnerMismatch.into())],
             )
         );
 
@@ -10116,6 +10471,7 @@ mod tests {
             )
             .unwrap(),
             vec![mint_info.clone(), mint_authority_info.clone()],
+            &[Check::success()],
         )
         .unwrap();
 
@@ -10136,6 +10492,7 @@ mod tests {
                     destination_info.clone(),
                     mint_authority_info.clone(),
                 ],
+                &[Check::err(TokenError::AuthorityTypeNotSupported.into())],
             )
         );
 
@@ -10147,6 +10504,7 @@ mod tests {
                 destination_info.clone(),
                 mint_info.clone(),
             ],
+            &[Check::success()],
         )
         .unwrap();
 
