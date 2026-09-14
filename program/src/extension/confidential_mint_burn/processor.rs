@@ -727,7 +727,7 @@ mod tests {
         let mint_lamports = 0u64;
         let token_lamports = 0u64;
 
-        let mut mint_account = Vec::with_capacity(size_of::<RuntimeAccount>() + mint_data.len());
+        let mut mint_account = vec![0; size_of::<RuntimeAccount>() + mint_data.len()];
         let mint_info = unsafe {
             make_account_view(
                 &mut mint_account,
@@ -739,8 +739,7 @@ mod tests {
                 &mint_data,
             )
         };
-        let mut token_account =
-            Vec::with_capacity(size_of::<RuntimeAccount>() + token_account_data.len());
+        let mut token_account = vec![0; size_of::<RuntimeAccount>() + token_account_data.len()];
         let token_account_info = unsafe {
             make_account_view(
                 &mut token_account,
@@ -791,7 +790,7 @@ mod tests {
         let mint_lamports = 0u64;
         let token_lamports = 0u64;
 
-        let mut mint_account = Vec::with_capacity(size_of::<RuntimeAccount>() + mint_data.len());
+        let mut mint_account = vec![0; size_of::<RuntimeAccount>() + mint_data.len()];
         let mint_info = unsafe {
             make_account_view(
                 &mut mint_account,
@@ -803,8 +802,7 @@ mod tests {
                 &mint_data,
             )
         };
-        let mut token_account =
-            Vec::with_capacity(size_of::<RuntimeAccount>() + token_account_data.len());
+        let mut token_account = vec![0; size_of::<RuntimeAccount>() + token_account_data.len()];
         let token_account_info = unsafe {
             make_account_view(
                 &mut token_account,
