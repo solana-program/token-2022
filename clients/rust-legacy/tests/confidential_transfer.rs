@@ -2641,12 +2641,10 @@ async fn confidential_transfer_configure_token_account_with_registry() {
     let proof_data = build_pubkey_validity_proof_data(&elgamal_keypair).unwrap();
     let proof_location = ProofLocation::InstructionOffset(1.try_into().unwrap(), &proof_data);
 
-    let (elgamal_registry_address, bump_seed) =
-        spl_elgamal_registry::get_elgamal_registry_address_and_bump_seed(
-            &alice.pubkey(),
-            &spl_elgamal_registry::id(),
-        );
-    println!("REGISTRY_CU_FIXTURE bump={bump_seed}");
+    let elgamal_registry_address = spl_elgamal_registry::get_elgamal_registry_address(
+        &alice.pubkey(),
+        &spl_elgamal_registry::id(),
+    );
 
     let rent = ctx.banks_client.get_rent().await.unwrap();
     let space = ELGAMAL_REGISTRY_ACCOUNT_LEN;
