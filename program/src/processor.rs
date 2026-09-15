@@ -16,7 +16,6 @@ use {
             AmountCheckedData, AmountData, InitializeMintData, InitializeMultisigData,
             PodTokenInstruction, SetAuthorityData,
         },
-        state::unset_transferring,
     },
     pinocchio::{
         sysvars::{clock::Clock, rent::Rent, Sysvar},
@@ -24,13 +23,11 @@ use {
     },
     pinocchio_system::instructions::{CreateAccountAllowPrefund, Funding},
     pinocchio_transfer_hook::instructions::Execute,
-    solana_account_info::AccountInfo,
     solana_address::Address,
     solana_cpi::set_return_data,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
     solana_program_pack::Pack,
-    solana_sdk_ids::system_program,
     solana_zero_copy::unaligned::U64,
     spl_token_2022_interface::{
         check_program_account,
@@ -112,7 +109,7 @@ impl Processor {
         let mint_info = next_account_view(account_info_iter)?;
         let mint_data_len = mint_info.data_len();
 
-        // CHANGED: Storing the values so borrow checker doesn't complain about
+        // Note: Storing the value of the owner so borrow checker doesn't complain about
         // multiple borrows of `mint_info`.
         let mint_owner = *mint_info.owner();
         let mint_lamports = mint_info.lamports();
@@ -200,7 +197,7 @@ impl Processor {
             Rent::get()?
         };
 
-        // CHANGED: Storing the lamports value so borrow checker doesn't complain about
+        // Note: Storing the lamports value so borrow checker doesn't complain about
         // multiple borrows of `new_account_info`.
         let new_account_lamports = new_account_info.lamports();
         let mut account_data = new_account_info.try_borrow_mut()?;
@@ -309,7 +306,7 @@ impl Processor {
             Rent::get()?
         };
 
-        // CHANGED: Storing the lamports value so borrow checker doesn't complain about
+        // Note: Storing the lamports value so borrow checker doesn't complain about
         // borrowing `multisig_info` multiple times.
         let multisig_lamports = multisig_info.lamports();
 
@@ -379,10 +376,10 @@ impl Processor {
         check_program_account(source_account_info.owner())?;
         check_program_account(destination_account_info.owner())?;
 
-        // CHANGED: Make a copy of the source account to borrow the data so we can use the account
+        // Note: Make a copy of the source account to borrow the data so we can use the account
         // info again without violating the borrow checker. The account data is not re-borrowed on
         // the processor.
-        let mut cloned_source_account_info = source_account_info.clone();
+        let mut cloned_source_account_info = *source_account_info;
         let mut source_account_data = cloned_source_account_info.try_borrow_mut()?;
         let mut source_account =
             PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
@@ -543,10 +540,10 @@ impl Processor {
             return Ok(());
         }
 
-        // CHANGED: Make a copy of the destination account to borrow the data so we can use the account
+        // Note: Make a copy of the destination account to borrow the data so we can use the account
         // info again without violating the borrow checker. The account data is not re-borrowed on
         // the processor.
-        let mut cloned_destination_account_info = destination_account_info.clone();
+        let mut cloned_destination_account_info = *destination_account_info;
         // self-transfer was dealt with earlier, so this *should* be safe
         let mut destination_account_data = cloned_destination_account_info.try_borrow_mut()?;
         let mut destination_account =
@@ -631,8 +628,11 @@ impl Processor {
                 .invoke()?;
 
                 // unset transferring flag
-                unset_transferring(source_account_info)?;
-                unset_transferring(destination_account_info)?;
+                #[allow(deprecated)]
+                {
+                    crate::state::unset_transferring(source_account_info)?;
+                    crate::state::unset_transferring(destination_account_info)?;
+                }
             } else {
                 return Err(TokenError::MintRequiredForTransfer.into());
             }
@@ -1181,7 +1181,7 @@ impl Processor {
 
         let authority_info_data_len = authority_info.data_len();
 
-        // CHANGED: Storing the address of the mint so borrow checker doesn't complain about
+        // Note: Storing the address of the mint so borrow checker doesn't complain about
         // multiple borrows of `mint_info`.
         let mint_address = *mint_info.address();
 
@@ -1238,7 +1238,7 @@ impl Processor {
         if u64::from(source_account.base.amount) < amount {
             return Err(TokenError::InsufficientFunds.into());
         }
-        if &mint_address != &source_account.base.mint {
+        if mint_address != source_account.base.mint {
             return Err(TokenError::MintMismatch.into());
         }
 
@@ -1514,7 +1514,7 @@ impl Processor {
             Rent::get()?.try_minimum_balance(native_account_info.data_len())?
         };
 
-        // CHANGED: Storing the lamports of the native account so borrow checker doesn't complain about
+        // Note: Storing the lamports of the native account so borrow checker doesn't complain about
         // multiple borrows of `native_account_info`.
         let native_account_lamports = native_account_info.lamports();
 
@@ -1664,7 +1664,7 @@ impl Processor {
         let new_minimum_balance = rent.try_minimum_balance(Mint::get_packed_len())?;
         let lamports_diff = new_minimum_balance.saturating_sub(native_mint_info.lamports());
 
-        // CHANGED: Use `CreateAccountAllowPrefund` to create the native mint account with the
+        // Note: Use `CreateAccountAllowPrefund` to create the native mint account with the
         // correct lamports.
         CreateAccountAllowPrefund {
             funding: Some(Funding {
@@ -1795,7 +1795,7 @@ impl Processor {
             return Err(TokenError::InvalidState.into());
         }
 
-        // CHANGED: Drop the borrow of `source_data` to avoid borrow checker issues.
+        // Note: Drop the borrow of `source_data` to avoid borrow checker issues.
         drop(source_data);
 
         let source_rent_exempt_reserve =
@@ -1907,7 +1907,7 @@ impl Processor {
         if amount != 0 {
             source_account.base.amount = remaining_amount.into();
 
-            // CHANGED: Drop the borrow of `source_account_data` to avoid borrow checker issues.
+            // Note: Drop the borrow of `source_account_data` to avoid borrow checker issues.
             drop(source_account_data);
 
             if source_account_info.address() != destination_account_info.address() {
@@ -2362,27 +2362,6 @@ impl Processor {
     }
 }
 
-/// Helper function to mostly delete an account in a test environment.  We could
-/// potentially muck around the bytes assuming that a vec is passed in, but that
-/// would be more trouble than it's worth.
-#[cfg(not(target_os = "solana"))]
-fn delete_account(account_info: &AccountInfo) -> Result<(), ProgramError> {
-    account_info.assign(&system_program::id());
-    let mut account_data = account_info.data.borrow_mut();
-    let data_len = account_data.len();
-    unsafe {
-        solana_program_memory::sol_memset(*account_data, 0, data_len);
-    }
-    Ok(())
-}
-
-/// Helper function to totally delete an account on-chain
-#[cfg(target_os = "solana")]
-fn delete_account(account_info: &AccountInfo) -> Result<(), ProgramError> {
-    account_info.assign(&system_program::id());
-    account_info.resize(0)
-}
-
 #[cfg(test)]
 mod tests {
     use {
@@ -2390,10 +2369,12 @@ mod tests {
         mollusk_svm::{result::Check, Mollusk},
         pinocchio::sysvars::rent::DEFAULT_LAMPORTS_PER_BYTE,
         solana_account::{create_account_for_test, Account as SolanaAccount, ReadableAccount},
+        solana_account_info::AccountInfo,
         solana_account_info::IntoAccountInfo,
         solana_instruction::{AccountMeta, Instruction},
         solana_program_option::COption,
         solana_rent::Rent,
+        solana_sdk_ids::system_program,
         solana_sdk_ids::sysvar::rent,
         spl_token_2022_interface::{
             extension::{
@@ -8158,10 +8139,7 @@ mod tests {
             .chain(std::iter::once(&owner_key))
             .map(|key| unsafe { make_account_view(key, &program_id, true, &[]) })
             .collect();
-        let mut signers: Vec<_> = signer_accounts
-            .iter()
-            .map(|(_, view)| view.clone())
-            .collect();
+        let mut signers: Vec<_> = signer_accounts.iter().map(|(_, view)| *view).collect();
 
         let mut data = vec![0; Multisig::get_packed_len()];
         let mut multisig = Multisig::unpack_unchecked(&data).unwrap();
@@ -8185,7 +8163,7 @@ mod tests {
             let (_account_backing, mut account_info) =
                 unsafe { make_account_view(&account_to_validate, &program_id, true, &data) };
             let account_info_data_len = account_info.data_len();
-            let mut account_alias = account_info.clone();
+            let mut account_alias = account_info;
             let mut borrowed_data = account_alias.try_borrow_mut().unwrap();
             Processor::validate_owner(
                 &program_id,
@@ -8359,11 +8337,11 @@ mod tests {
                 &signers
             )
         );
-        signers[5] = signer_accounts[5].1.clone();
+        signers[5] = signer_accounts[5].1;
 
         // 11:11, single signer signs multiple times
         {
-            let signers = vec![signers[5].clone(); MAX_SIGNERS + 1];
+            let signers = vec![signers[5]; MAX_SIGNERS + 1];
             let mut multisig =
                 Multisig::unpack_unchecked(&owner_account_info.try_borrow().unwrap()).unwrap();
             multisig.m = 11;

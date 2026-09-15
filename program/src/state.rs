@@ -14,7 +14,7 @@ use spl_token_2022_interface::{
 };
 
 /// Helper function to unset the transferring flag after a transfer
-pub fn unset_transferring(account_info: &mut AccountView) -> Result<(), ProgramError> {
+pub(crate) fn unset_transferring(account_info: &mut AccountView) -> Result<(), ProgramError> {
     let mut account_data = account_info.try_borrow_mut()?;
     let mut account = PodStateWithExtensionsMut::<PodAccount>::unpack(&mut account_data)?;
     let account_extension = account.get_extension_mut::<TransferHookAccount>()?;

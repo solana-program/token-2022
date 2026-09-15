@@ -87,7 +87,7 @@ fn process_withdraw_withheld_tokens_from_mint(
     // unnecessary check, but helps for clarity
     check_program_account(mint_account_info.owner())?;
 
-    // CHANGED: Storing the address of the mint so borrow checker doesn't complain about
+    // Note: Storing the address of the mint so borrow checker doesn't complain about
     // multiple borrows of `mint_account_info`.
     let mint_account_address = *mint_account_info.address();
 
@@ -203,7 +203,7 @@ fn process_withdraw_withheld_tokens_from_accounts(
     // unnecessary check, but helps for clarity
     check_program_account(mint_account_info.owner())?;
 
-    // CHANGED: Storing the address of the mint so borrow checker doesn't complain about
+    // Note: Storing the address of the mint so borrow checker doesn't complain about
     // multiple borrows of `mint_account_info`.
     let mint_account_address = *mint_account_info.address();
 
@@ -225,7 +225,7 @@ fn process_withdraw_withheld_tokens_from_accounts(
 
     check_program_account(destination_account_info.owner())?;
 
-    // CHANGED: Storing the address of the mint so borrow checker doesn't complain about
+    // Note: Storing the address of the account so borrow checker doesn't complain about
     // multiple borrows of `destination_account_info`.
     let destination_account_address = *destination_account_info.address();
 
@@ -327,7 +327,7 @@ fn harvest_from_account<'b>(
     mint_key: &'b Address,
     token_account_info: &'b mut AccountView,
 ) -> Result<EncryptedWithheldAmount, TokenError> {
-    // CHANGED: Storing the address of the mint so borrow checker doesn't complain about
+    // Note: Storing the address of the account so borrow checker doesn't complain about
     // multiple borrows of `token_account_info`.
     let token_account_owner = *token_account_info.owner();
 
@@ -360,7 +360,7 @@ fn process_harvest_withheld_tokens_to_mint(accounts: &mut [AccountView]) -> Prog
 
     check_program_account(mint_account_info.owner())?;
 
-    // CHANGED: Storing the address of the mint so borrow checker doesn't complain about
+    // Note: Storing the address of the mint so borrow checker doesn't complain about
     // multiple borrows of `token_account_info`.
     let mint_account_address = *mint_account_info.address();
 

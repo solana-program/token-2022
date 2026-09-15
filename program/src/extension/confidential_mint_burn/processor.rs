@@ -171,7 +171,7 @@ fn process_confidential_mint(
 
     check_program_account(mint_info.owner())?;
 
-    // CHANGED: Storing the address of the mint so borrow checker doesn't complain about
+    // Note: Storing the address of the mint so borrow checker doesn't complain about
     // multiple borrows of `mint_info`.
     let mint_address = *mint_info.address();
 
@@ -323,7 +323,7 @@ pub(crate) fn process_confidential_burn(
 
     check_program_account(mint_info.owner())?;
 
-    // CHANGED: Storing the address of the mint so borrow checker doesn't complain about
+    // Note: Storing the address of the mint so borrow checker doesn't complain about
     // multiple borrows of `mint_info`.
     let mint_address = *mint_info.address();
 

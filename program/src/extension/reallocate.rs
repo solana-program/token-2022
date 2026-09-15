@@ -92,7 +92,7 @@ pub fn process_reallocate(
         .invoke()?;
     }
 
-    // CHANGED: Storing the lamports value so borrow checker doesn't complain about
+    // Note: Storing the lamports value so borrow checker doesn't complain about
     // multiple borrows of `token_account_lamports`.
     let token_account_lamports = token_account_info.lamports();
 

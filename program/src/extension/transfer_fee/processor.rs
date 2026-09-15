@@ -131,7 +131,7 @@ fn process_withdraw_withheld_tokens_from_mint(
     check_program_account(mint_account_info.owner())?;
     check_program_account(destination_account_info.owner())?;
 
-    // CHANGED: Storing the address value so borrow checker doesn't complain about
+    // Note: Storing the address value so borrow checker doesn't complain about
     // multiple borrows of `mint_account_info`.
     let mint_account_address = *mint_account_info.address();
 
@@ -173,7 +173,7 @@ fn harvest_from_account<'b>(
     mint_key: &'b Address,
     token_account_info: &'b mut AccountView,
 ) -> Result<u64, TokenError> {
-    // CHANGED: Storing the address value so borrow checker doesn't complain about
+    // Note: Storing the address value so borrow checker doesn't complain about
     // multiple borrows of `token_account_info`.
     let token_account_owner = *token_account_info.owner();
 
@@ -200,7 +200,7 @@ fn process_harvest_withheld_tokens_to_mint(accounts: &mut [AccountView]) -> Prog
     let mint_account_info = next_account_view(account_info_iter)?;
     check_program_account(mint_account_info.owner())?;
 
-    // CHANGED: Storing the address value so borrow checker doesn't complain about
+    // Note: Storing the address value so borrow checker doesn't complain about
     // multiple borrows of `mint_account_info`.
     let mint_account_address = *mint_account_info.address();
 
@@ -263,7 +263,7 @@ fn process_withdraw_withheld_tokens_from_accounts(
         &account_infos[..num_signers],
     )?;
 
-    // CHANGED: Storing the address value so borrow checker doesn't complain about
+    // Note: Storing the address value so borrow checker doesn't complain about
     // multiple borrows of `destination_account_info`.
     let destination_account_address = *destination_account_info.address();
 

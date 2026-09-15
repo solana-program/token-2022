@@ -99,7 +99,7 @@ pub fn verify_and_extract_context<T: Pod + ZkProofData<U>, U: Pod>(
             next_account_view(account_info_iter)?
         };
 
-        let instructions_sysvar = Instructions::try_from(sysvar_account_info.as_ref())?;
+        let instructions_sysvar = Instructions::try_from(sysvar_account_info)?;
         // TODO: This is returning a type with a raw pointer.
         let zkp_instruction =
             instructions_sysvar.get_instruction_relative(proof_instruction_offset)?;

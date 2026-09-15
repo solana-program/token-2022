@@ -196,7 +196,7 @@ pub fn process_initialize_member(
         return Err(TokenGroupError::MemberAccountIsGroupAccount.into());
     }
 
-    // CHANGED: Storing the address of the group so borrow checker doesn't complain about
+    // Note: Storing the address of the group so borrow checker doesn't complain about
     // multiple borrows of `group_info`.
     let group_address = *group_info.address();
 

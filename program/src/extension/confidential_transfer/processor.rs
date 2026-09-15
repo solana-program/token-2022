@@ -1,7 +1,7 @@
 // Remove feature once zk ops syscalls are enabled on all networks
 #[cfg(feature = "zk-ops")]
 use {
-    crate::{check_auditor_ciphertext, state::unset_transferring},
+    crate::check_auditor_ciphertext,
     pinocchio_transfer_hook::instructions::Execute,
     spl_token_2022_interface::extension::{
         confidential_mint_burn::ConfidentialMintBurn, non_transferable::NonTransferableAccount,
@@ -141,10 +141,10 @@ fn process_configure_account_with_registry(
         reallocate_for_configure_account_with_registry(token_account_info, payer_info)?;
     }
 
-    // CHANGED: Make a copy of the ElGamalRegistry account so we can use the accounts array
+    // Note: Make a copy of the ElGamalRegistry account so we can use the accounts array
     // again without violating the borrow checker. The account is not re-borrowed on the
     // processor.
-    let account = elgamal_registry_account.clone();
+    let account = *elgamal_registry_account;
     let elgamal_registry_account_data = &account.try_borrow()?;
 
     let elgamal_registry_account =
@@ -164,7 +164,7 @@ fn process_configure_account_with_registry(
     )
 }
 
-fn reallocate_for_configure_account_with_registry<'a>(
+fn reallocate_for_configure_account_with_registry(
     token_account_info: &mut AccountView,
     payer_info: &mut AccountView,
 ) -> ProgramResult {
@@ -418,7 +418,7 @@ fn process_deposit(
 
     check_program_account(mint_info.owner())?;
 
-    // CHANGED: Storing the address of the mint so borrow checker doesn't complain about
+    // Note: Storing the address of the mint so borrow checker doesn't complain about
     // multiple borrows of `mint_info`.
     let mint_address = *mint_info.address();
 
@@ -544,7 +544,7 @@ fn process_withdraw(
 
     check_program_account(mint_info.owner())?;
 
-    // CHANGED: Storing the address of the mint so borrow checker doesn't complain about
+    // Note: Storing the address of the mint so borrow checker doesn't complain about
     // multiple borrows of `mint_info`.
     let mint_address = *mint_info.address();
 
@@ -852,8 +852,11 @@ fn process_transfer(
         .invoke()?;
 
         // unset transferring flag
-        unset_transferring(source_account_info)?;
-        unset_transferring(destination_account_info)?;
+        #[allow(deprecated)]
+        {
+            crate::state::unset_transferring(source_account_info)?;
+            crate::state::unset_transferring(destination_account_info)?;
+        }
     }
 
     Ok(())
