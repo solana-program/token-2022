@@ -13,7 +13,10 @@ use {
     serde::Serialize,
     solana_account_decoder::{
         parse_account_data::SplTokenAdditionalDataV2,
-        parse_token::{get_token_account_mint, parse_token_v3, TokenAccountType, UiAccountState},
+        parse_token::{
+            get_token_account_mint, parse_token_v3, token_amount_to_ui_amount_v3, TokenAccountType,
+            UiAccountState, UiTokenAmount,
+        },
         UiAccountData,
     },
     solana_clap_v3_utils::{
@@ -3159,7 +3162,98 @@ async fn command_address(
     Ok(config.output_format.formatted_string(&cli_address))
 }
 
-async fn command_display(config: &Config<'_>, address: Pubkey) -> CommandResult {
+/// Derives the ElGamal keypair and AES key from a signer and checks that the
+/// derived ElGamal public key matches the one stored on-chain. Falls back to
+/// the legacy (pre-HKDF) key derivation for accounts configured with an older
+/// version of the CLI.
+fn derive_confidential_keys_matching(
+    signer: &dyn Signer,
+    expected_elgamal_pubkey: &PodElGamalPubkey,
+) -> Result<(ElGamalKeypair, AeKey), Error> {
+    let (elgamal_keypair, aes_key) =
+        derive_confidential_keys(signer, b"").map_err(|e| e.to_string())?;
+    if PodElGamalPubkey::from(*elgamal_keypair.pubkey()) == *expected_elgamal_pubkey {
+        return Ok((elgamal_keypair, aes_key));
+    }
+
+    #[allow(deprecated)]
+    let legacy_elgamal_keypair =
+        ElGamalKeypair::new_from_signer_legacy(signer, b"").map_err(|e| e.to_string())?;
+    if PodElGamalPubkey::from(*legacy_elgamal_keypair.pubkey()) == *expected_elgamal_pubkey {
+        #[allow(deprecated)]
+        let legacy_aes_key =
+            AeKey::new_from_signer_legacy(signer, b"").map_err(|e| e.to_string())?;
+        return Ok((legacy_elgamal_keypair, legacy_aes_key));
+    }
+
+    Err(format!(
+        "The encryption key derived from signer {} does not match the encryption key {} \
+         found on-chain. Use `--owner` to specify the keypair that configured the account.",
+        signer.pubkey(),
+        expected_elgamal_pubkey,
+    )
+    .into())
+}
+
+/// Decrypts the pending and available balances of a confidential transfer
+/// account using keys derived from the default signer
+fn decrypt_confidential_balances(
+    config: &Config<'_>,
+    account_data: &[u8],
+    additional_data: &SplTokenAdditionalDataV2,
+) -> Result<CliDecryptedConfidentialBalances, Error> {
+    let state = StateWithExtensionsOwned::<Account>::unpack(account_data.to_vec())?;
+    let extension = state
+        .get_extension::<ConfidentialTransferAccount>()
+        .map_err(|_| "Account is not configured for confidential transfers")?;
+
+    let signer = config.default_signer()?;
+    let (elgamal_keypair, aes_key) =
+        derive_confidential_keys_matching(&*signer, &extension.elgamal_pubkey)?;
+
+    let account_info = ApplyPendingBalanceAccountInfo::new(extension);
+    let pending_balance = account_info
+        .get_pending_balance(elgamal_keypair.secret())
+        .map_err(|_| "Failed to decrypt pending balance")?;
+    let available_balance = account_info
+        .get_available_balance(&aes_key)
+        .map_err(|_| "Failed to decrypt available balance")?;
+
+    Ok(CliDecryptedConfidentialBalances {
+        pending_balance: token_amount_to_ui_amount_v3(pending_balance, additional_data),
+        available_balance: token_amount_to_ui_amount_v3(available_balance, additional_data),
+    })
+}
+
+/// Decrypts the confidential supply of a confidential mint-burn mint using
+/// keys derived from the default signer
+fn decrypt_confidential_supply(
+    config: &Config<'_>,
+    mint_data: &[u8],
+    additional_data: &SplTokenAdditionalDataV2,
+) -> Result<UiTokenAmount, Error> {
+    let state = StateWithExtensionsOwned::<Mint>::unpack(mint_data.to_vec())?;
+    let extension = state
+        .get_extension::<ConfidentialMintBurn>()
+        .map_err(|_| "Mint is not configured for confidential mint and burn")?;
+
+    let signer = config.default_signer()?;
+    let (elgamal_keypair, aes_key) =
+        derive_confidential_keys_matching(&*signer, &extension.supply_elgamal_pubkey)?;
+
+    let supply = SupplyAccountInfo::new(extension)
+        .decrypted_current_supply(&aes_key, &elgamal_keypair)
+        .map_err(|_| {
+            "Failed to decrypt confidential supply. The decryptable supply may be out of sync \
+             with the confidential supply by more than 2^32 base units (for example after \
+             large burns were applied), in which case the supply authority must update the \
+             decryptable supply first."
+        })?;
+
+    Ok(token_amount_to_ui_amount_v3(supply, additional_data))
+}
+
+async fn command_display(config: &Config<'_>, address: Pubkey, decrypt: bool) -> CommandResult {
     let account_data = config.get_account_checked(&address).await?;
 
     let (additional_data, has_permanent_delegate) =
@@ -3193,23 +3287,48 @@ async fn command_display(config: &Config<'_>, address: Pubkey) -> CommandResult 
                 &config.program_id,
             );
 
+            let decrypted_confidential_balances = if decrypt {
+                let additional_data = additional_data
+                    .as_ref()
+                    .ok_or("Could not find token mint")?;
+                Some(decrypt_confidential_balances(
+                    config,
+                    &account_data.data,
+                    additional_data,
+                )?)
+            } else {
+                None
+            };
+
             let cli_output = CliTokenAccount {
                 address: address.to_string(),
                 program_id: config.program_id.to_string(),
                 is_associated: associated_address == address,
                 account,
                 has_permanent_delegate,
+                decrypted_confidential_balances,
             };
 
             Ok(config.output_format.formatted_string(&cli_output))
         }
         Ok(TokenAccountType::Mint(mint)) => {
             let epoch_info = config.rpc_client.get_epoch_info().await?;
+            let decrypted_confidential_supply = if decrypt {
+                let additional_data = SplTokenAdditionalDataV2::with_decimals(mint.decimals);
+                Some(decrypt_confidential_supply(
+                    config,
+                    &account_data.data,
+                    &additional_data,
+                )?)
+            } else {
+                None
+            };
             let cli_output = CliMint {
                 address: address.to_string(),
                 epoch: epoch_info.epoch,
                 program_id: config.program_id.to_string(),
                 mint,
+                decrypted_confidential_supply,
             };
 
             Ok(config.output_format.formatted_string(&cli_output))
@@ -5270,19 +5389,20 @@ pub async fn process_command(
             let address = config
                 .associated_token_address_or_override(arg_matches, "address", &mut wallet_manager)
                 .await?;
-            command_display(config, address).await
+            command_display(config, address, false).await
         }
         (CommandName::MultisigInfo, arg_matches) => {
             let address = pubkey_of_signer(arg_matches, "address", &mut wallet_manager)
                 .unwrap()
                 .unwrap();
-            command_display(config, address).await
+            command_display(config, address, false).await
         }
         (CommandName::Display, arg_matches) => {
             let address = pubkey_of_signer(arg_matches, "address", &mut wallet_manager)
                 .unwrap()
                 .unwrap();
-            command_display(config, address).await
+            let decrypt = arg_matches.is_present("decrypt");
+            command_display(config, address, decrypt).await
         }
         (CommandName::Gc, arg_matches) => {
             match config.output_format {

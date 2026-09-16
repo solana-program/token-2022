@@ -2125,7 +2125,18 @@ pub fn app<'a>(
                     .index(1)
                     .required(true)
                     .help("The address of the SPL Token mint, account, or multisig to query"),
-                ),
+                )
+                .arg(
+                    Arg::with_name("decrypt")
+                        .long("decrypt")
+                        .takes_value(false)
+                        .help("Decrypt and display the confidential balances of a token account \
+                            or the confidential supply of a mint. The decryption keys are derived \
+                            from the owner keypair (or the supply keypair for a mint), which \
+                            defaults to the client keypair. Note that the auditor key cannot \
+                            decrypt account balances, only transfer amounts."),
+                )
+                .arg(owner_keypair_arg()),
         )
         .subcommand(
             SubCommand::with_name(CommandName::Gc.into())
