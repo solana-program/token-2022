@@ -2629,7 +2629,10 @@ async fn confidential_transfer_configure_token_account_with_registry() {
         .await
         .unwrap();
 
-    let TokenContext { token, alice, .. } = context.token_context.unwrap();
+    let TokenContext { token, .. } = context.token_context.unwrap();
+
+    // Fixed test wallet keeps the registry PDA bump search reproducible.
+    let alice = Keypair::new_from_array([42; 32]);
     let alice_account_keypair = Keypair::new();
     let elgamal_keypair = ElGamalKeypair::new_rand();
 
