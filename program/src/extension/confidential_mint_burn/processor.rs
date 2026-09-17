@@ -1,17 +1,17 @@
 #[cfg(feature = "zk-ops")]
+#[cfg(feature = "zk-ops")]
 use {
     crate::{
         check_auditor_ciphertext,
         extension::confidential_mint_burn::verify_proof::{verify_burn_proof, verify_mint_proof},
         processor::BurnInstructionVariant,
     },
-    pinocchio::AccountView,
     spl_token_2022_interface::extension::permissioned_burn::PermissionedBurnConfig,
     spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic,
 };
 use {
     crate::{extension::cpi_guard::in_cpi, processor::Processor},
-    pinocchio::account::next_account_view,
+    pinocchio::{account::next_account_view, AccountView},
     solana_address::Address,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},

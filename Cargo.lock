@@ -10883,6 +10883,7 @@ name = "spl-elgamal-registry"
 version = "0.5.0"
 dependencies = [
  "bytemuck",
+ "pinocchio",
  "pinocchio-system",
  "solana-account-info",
  "solana-account-view",

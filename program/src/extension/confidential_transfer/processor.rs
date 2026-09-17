@@ -1,4 +1,3 @@
-// Remove feature once zk ops syscalls are enabled on all networks
 #[cfg(feature = "zk-ops")]
 use {
     crate::check_auditor_ciphertext,

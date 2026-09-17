@@ -3,14 +3,14 @@
 #![cfg(all(target_os = "solana", not(feature = "no-entrypoint")))]
 
 use {
-    solana_account_info::AccountInfo, solana_address::Address, solana_program_error::ProgramResult,
+    pinocchio::AccountView, solana_address::Address, solana_program_error::ProgramResult,
     solana_security_txt::security_txt,
 };
 
-solana_program_entrypoint::entrypoint!(process_instruction);
+pinocchio::entrypoint!(process_instruction);
 fn process_instruction(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     instruction_data: &[u8],
 ) -> ProgramResult {
     crate::processor::process_instruction(program_id, accounts, instruction_data)

@@ -1,9 +1,6 @@
 #[cfg(feature = "zk-ops")]
-use pinocchio::{account::next_account_view, AccountView};
-use spl_token_2022_interface::error::TokenError;
-
-#[cfg(feature = "zk-ops")]
 use {
+    pinocchio::{account::next_account_view, AccountView},
     solana_program_error::ProgramError,
     solana_zk_elgamal_proof_interface::proof_data::{
         BatchedGroupedCiphertext3HandlesValidityProofContext,
@@ -11,6 +8,7 @@ use {
         BatchedRangeProofU128Data, CiphertextCommitmentEqualityProofContext,
         CiphertextCommitmentEqualityProofData,
     },
+    spl_token_2022_interface::error::TokenError,
     spl_token_confidential_transfer_proof_extraction::{
         burn::BurnProofContext, instruction::verify_and_extract_context, mint::MintProofContext,
     },
