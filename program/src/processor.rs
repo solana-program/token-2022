@@ -1563,15 +1563,15 @@ impl Processor {
     /// Processes a [`GetAccountDataSize`](enum.TokenInstruction.html)
     /// instruction
     pub fn process_get_account_data_size(
-        accounts: &mut [AccountView],
+        accounts: &[AccountView],
         new_extension_types: &[ExtensionType],
     ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter_mut();
+        let account_info_iter = &mut accounts.iter();
         let mint_account_info = next_account_view(account_info_iter)?;
 
         check_program_account(mint_account_info.owner())?;
 
-        let mint_data = mint_account_info.try_borrow_mut()?;
+        let mint_data = mint_account_info.try_borrow()?;
         let account_len =
             try_calculate_account_len_from_mint_data(&mint_data, new_extension_types)?;
         set_return_data(&account_len.to_le_bytes());
@@ -1597,8 +1597,8 @@ impl Processor {
 
     /// Processes an [`AmountToUiAmount`](enum.TokenInstruction.html)
     /// instruction
-    pub fn process_amount_to_ui_amount(accounts: &mut [AccountView], amount: u64) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter_mut();
+    pub fn process_amount_to_ui_amount(accounts: &[AccountView], amount: u64) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
         let mint_info = next_account_view(account_info_iter)?;
         check_program_account(mint_info.owner())?;
 
@@ -1625,11 +1625,8 @@ impl Processor {
 
     /// Processes an [`UiAmountToAmount`](enum.TokenInstruction.html)
     /// instruction
-    pub fn process_ui_amount_to_amount(
-        accounts: &mut [AccountView],
-        ui_amount: &str,
-    ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter_mut();
+    pub fn process_ui_amount_to_amount(accounts: &[AccountView], ui_amount: &str) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
         let mint_info = next_account_view(account_info_iter)?;
         check_program_account(mint_info.owner())?;
 
@@ -2326,7 +2323,7 @@ impl Processor {
     pub fn validate_owner(
         program_id: &Address,
         expected_owner: &Address,
-        owner_account_info: &mut AccountView,
+        owner_account_info: &AccountView,
         owner_account_data_len: usize,
         signers: &[AccountView],
     ) -> ProgramResult {
@@ -8166,7 +8163,7 @@ mod tests {
             let mut account = Account::unpack_unchecked(&data).unwrap();
             account.owner = account_to_validate;
             Account::pack(account, &mut data).unwrap();
-            let (_account_backing, mut account_info) =
+            let (_account_backing, account_info) =
                 unsafe { make_account_view(&account_to_validate, &program_id, true, &data) };
             let account_info_data_len = account_info.data_len();
             let mut account_alias = account_info;
@@ -8174,7 +8171,7 @@ mod tests {
             Processor::validate_owner(
                 &program_id,
                 &account_to_validate,
-                &mut account_info,
+                &account_info,
                 account_info_data_len,
                 &[],
             )
@@ -8187,7 +8184,7 @@ mod tests {
         Processor::validate_owner(
             &program_id,
             &owner_key,
-            &mut owner_account_info,
+            &owner_account_info,
             owner_account_data_len,
             &signers,
         )
@@ -8203,13 +8200,13 @@ mod tests {
             multisig.signers = signer_keys;
             multisig.is_initialized = true;
             Multisig::pack(multisig, &mut data).unwrap();
-            let (_tokenkeg_backing, mut tokenkeg_multisig_info) =
+            let (_tokenkeg_backing, tokenkeg_multisig_info) =
                 unsafe { make_account_view(&owner_key, &tokenkeg_id, false, &data) };
             let tokenkeg_multisig_data_len = tokenkeg_multisig_info.data_len();
             Processor::validate_owner(
                 &program_id,
                 &owner_key,
-                &mut tokenkeg_multisig_info,
+                &tokenkeg_multisig_info,
                 tokenkeg_multisig_data_len,
                 &signers,
             )
@@ -8226,7 +8223,7 @@ mod tests {
         Processor::validate_owner(
             &program_id,
             &owner_key,
-            &mut owner_account_info,
+            &owner_account_info,
             owner_account_data_len,
             &signers,
         )
@@ -8245,7 +8242,7 @@ mod tests {
             Processor::validate_owner(
                 &program_id,
                 &owner_key,
-                &mut owner_account_info,
+                &owner_account_info,
                 owner_account_data_len,
                 &signers
             )
@@ -8262,7 +8259,7 @@ mod tests {
         Processor::validate_owner(
             &program_id,
             &owner_key,
-            &mut owner_account_info,
+            &owner_account_info,
             owner_account_data_len,
             &signers,
         )
@@ -8281,7 +8278,7 @@ mod tests {
             Processor::validate_owner(
                 &program_id,
                 &owner_key,
-                &mut owner_account_info,
+                &owner_account_info,
                 owner_account_data_len,
                 &[]
             )
@@ -8299,7 +8296,7 @@ mod tests {
             Processor::validate_owner(
                 &program_id,
                 &owner_key,
-                &mut owner_account_info,
+                &owner_account_info,
                 owner_account_data_len,
                 &signers[0..1]
             )
@@ -8316,7 +8313,7 @@ mod tests {
         Processor::validate_owner(
             &program_id,
             &owner_key,
-            &mut owner_account_info,
+            &owner_account_info,
             owner_account_data_len,
             &signers[5..7],
         )
@@ -8338,7 +8335,7 @@ mod tests {
             Processor::validate_owner(
                 &program_id,
                 &owner_key,
-                &mut owner_account_info,
+                &owner_account_info,
                 owner_account_data_len,
                 &signers
             )
@@ -8358,7 +8355,7 @@ mod tests {
                 Processor::validate_owner(
                     &program_id,
                     &owner_key,
-                    &mut owner_account_info,
+                    &owner_account_info,
                     owner_account_data_len,
                     &signers
                 )

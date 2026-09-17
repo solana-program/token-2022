@@ -164,7 +164,7 @@ fn process_configure_account_with_registry(
 
 fn reallocate_for_configure_account_with_registry(
     token_account_info: &mut AccountView,
-    payer_info: &mut AccountView,
+    payer_info: &AccountView,
 ) -> ProgramResult {
     let mut current_extension_types = {
         let token_account = token_account_info.try_borrow()?;
@@ -866,7 +866,7 @@ fn process_source_for_transfer(
     program_id: &Address,
     source_account_info: &mut AccountView,
     mint_info: &AccountView,
-    authority_info: &mut AccountView,
+    authority_info: &AccountView,
     signers: &[AccountView],
     proof_context: &TransferProofContext,
     new_source_decryptable_available_balance: DecryptableBalance,
@@ -1014,8 +1014,8 @@ fn process_destination_for_transfer(
 fn process_source_for_transfer_with_fee(
     program_id: &Address,
     source_account_info: &mut AccountView,
-    mint_info: &mut AccountView,
-    authority_info: &mut AccountView,
+    mint_info: &AccountView,
+    authority_info: &AccountView,
     signers: &[AccountView],
     proof_context: &TransferWithFeeProofContext,
     new_source_decryptable_available_balance: DecryptableBalance,

@@ -190,12 +190,8 @@ pub fn process_update_authority(
 }
 
 /// Processes an [`Emit`](enum.TokenMetadataInstruction.html) instruction.
-pub fn process_emit(
-    _program_id: &Address,
-    accounts: &mut [AccountView],
-    data: Emit,
-) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter_mut();
+pub fn process_emit(_program_id: &Address, accounts: &[AccountView], data: Emit) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter();
     let metadata_info = next_account_view(account_info_iter)?;
     check_program_account(metadata_info.owner())?;
 
