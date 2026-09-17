@@ -1,6 +1,7 @@
 #[cfg(not(target_os = "solana"))]
 use {
     crate::error::TokenError,
+    alloc::vec::Vec,
     solana_sdk_ids::sysvar,
     solana_zk_elgamal_proof_interface::{
         instruction::ProofInstruction,
@@ -26,7 +27,7 @@ use {
         extension::confidential_transfer::DecryptableBalance,
         instruction::{encode_instruction, TokenInstruction},
     },
-    alloc::{vec, vec::Vec},
+    alloc::vec,
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_address::Address,

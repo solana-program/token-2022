@@ -1,9 +1,9 @@
 //! Program entrypoint
 
 use {
-    crate::processor::Processor, pinocchio::AccountView, solana_account_info::AccountInfo,
-    solana_address::Address, solana_msg::msg, solana_program_error::ProgramResult,
-    solana_security_txt::security_txt, spl_token_2022_interface::error::TokenError,
+    crate::processor::Processor, pinocchio::AccountView, solana_address::Address, solana_msg::msg,
+    solana_program_error::ProgramResult, solana_security_txt::security_txt,
+    spl_token_2022_interface::error::TokenError,
 };
 
 pinocchio::entrypoint!(process_instruction);

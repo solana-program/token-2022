@@ -1,8 +1,7 @@
 //! Token-group processor
 
 use {
-    crate::next_account_view,
-    pinocchio::AccountView,
+    pinocchio::{account::next_account_view, AccountView},
     solana_address::Address,
     solana_msg::msg,
     solana_nullable::MaybeNull,

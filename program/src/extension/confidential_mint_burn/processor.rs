@@ -3,7 +3,6 @@ use {
     crate::{
         check_auditor_ciphertext,
         extension::confidential_mint_burn::verify_proof::{verify_burn_proof, verify_mint_proof},
-        next_account_view,
         processor::BurnInstructionVariant,
     },
     pinocchio::AccountView,
@@ -12,6 +11,7 @@ use {
 };
 use {
     crate::{extension::cpi_guard::in_cpi, processor::Processor},
+    pinocchio::account::next_account_view,
     solana_address::Address,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},

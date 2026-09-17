@@ -2,7 +2,7 @@
 #[cfg(feature = "zk-ops")]
 use {
     crate::check_auditor_ciphertext,
-    pinocchio_transfer_hook::instructions::Execute,
+    pinocchio_transfer_hook_interface::instructions::Execute,
     spl_token_2022_interface::extension::{
         confidential_mint_burn::ConfidentialMintBurn, non_transferable::NonTransferableAccount,
     },
@@ -15,11 +15,10 @@ use {
             confidential_transfer::verify_proof::*, cpi_guard::in_cpi,
             memo_transfer::check_previous_sibling_instruction_is_memo,
         },
-        next_account_view,
         processor::Processor,
     },
     bytemuck::Zeroable,
-    pinocchio::{AccountView, Resize},
+    pinocchio::{account::next_account_view, AccountView, Resize},
     pinocchio_system::instructions::Transfer,
     solana_address::Address,
     solana_clock::Clock,

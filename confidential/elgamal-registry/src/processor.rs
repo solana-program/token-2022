@@ -1,6 +1,6 @@
 use {
     pinocchio_system::instructions::CreateAccountAllowPrefund,
-    solana_account_view::AccountView,
+    solana_account_view::{next_account_view, AccountView},
     solana_address::Address,
     solana_instruction_view::{cpi::Signer, seeds},
     solana_msg::msg,
@@ -16,9 +16,7 @@ use {
         state::{ElGamalRegistry, ELGAMAL_REGISTRY_ACCOUNT_LEN},
         REGISTRY_ADDRESS_SEED,
     },
-    spl_token_confidential_transfer_proof_extraction::{
-        instruction::verify_and_extract_context, next_account_view,
-    },
+    spl_token_confidential_transfer_proof_extraction::instruction::verify_and_extract_context,
 };
 
 /// Processes `CreateRegistry` instruction

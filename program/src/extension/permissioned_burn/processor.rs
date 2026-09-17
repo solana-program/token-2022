@@ -5,11 +5,10 @@ use {
 };
 use {
     crate::{
-        next_account_view,
         pod_instruction::{AmountCheckedData, AmountData},
         processor::{BurnInstructionVariant, InstructionVariant, Processor},
     },
-    pinocchio::AccountView,
+    pinocchio::{account::next_account_view, AccountView},
     solana_address::Address,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},

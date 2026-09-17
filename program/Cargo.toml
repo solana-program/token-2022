@@ -22,7 +22,7 @@ bytemuck = { version = "1.25.0", features = ["derive"] }
 num_enum = "0.7.6"
 pinocchio = { version = "0.11", features = ["account-resize", "cpi"] }
 pinocchio-system = "0.6.1"
-pinocchio-transfer-hook = { path = "/Users/febo/Developer/local/pinocchio/programs/transfer-hook" }
+pinocchio-transfer-hook-interface = { git = "https://github.com/febo/pinocchio-fork.git", branch = "transfer-hook-interface" }
 solana-account-info = "3.1.1"
 solana-address = { version = "2.6.1", features = ["bytemuck", "nullable"] }
 solana-clock = "3.1.0"

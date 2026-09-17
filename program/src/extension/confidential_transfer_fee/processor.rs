@@ -1,8 +1,10 @@
 use pinocchio::AccountView;
 // Remove feature once zk ops syscalls are enabled on all networks
-use crate::next_account_view;
 #[cfg(feature = "zk-ops")]
-use spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic;
+use {
+    pinocchio::account::next_account_view,
+    spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic,
+};
 
 use {
     crate::processor::Processor,

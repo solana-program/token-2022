@@ -10,7 +10,6 @@ use {
             metadata_pointer, pausable, permissioned_burn, reallocate, scaled_ui_amount,
             token_group, token_metadata, transfer_fee, transfer_hook,
         },
-        next_account_view,
         pod_instruction::{
             decode_instruction_data_with_coption_pubkey, decode_instruction_data_with_coption_u64,
             AmountCheckedData, AmountData, InitializeMintData, InitializeMultisigData,
@@ -18,11 +17,12 @@ use {
         },
     },
     pinocchio::{
+        account::next_account_view,
         sysvars::{clock::Clock, rent::Rent, Sysvar},
         AccountView,
     },
     pinocchio_system::instructions::{CreateAccountAllowPrefund, Funding},
-    pinocchio_transfer_hook::instructions::Execute,
+    pinocchio_transfer_hook_interface::instructions::Execute,
     solana_address::Address,
     solana_cpi::set_return_data,
     solana_msg::msg,

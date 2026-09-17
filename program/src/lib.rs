@@ -18,7 +18,6 @@ pub mod state;
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;
 
-use pinocchio::AccountView;
 #[deprecated(
     since = "9.1.0",
     note = "Use spl_token_2022_interface instead and remove spl_token_2022 as a dependency"
@@ -31,15 +30,6 @@ use {
     solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
     spl_token_2022_interface::error::TokenError,
 };
-
-/// Returns the next account in the iterator, or an error if there are no more
-/// accounts.
-#[inline(always)]
-pub fn next_account_view<'account, I: Iterator<Item = &'account mut AccountView>>(
-    iter: &mut I,
-) -> Result<I::Item, ProgramError> {
-    iter.next().ok_or(ProgramError::NotEnoughAccountKeys)
-}
 
 /// Convert the UI representation of a token amount (using the decimals field
 /// defined in its mint) to the raw amount

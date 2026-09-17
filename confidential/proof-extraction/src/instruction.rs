@@ -2,11 +2,11 @@
 //! instruction data in SPL crates
 
 use {
-    crate::next_account_view,
     alloc::vec::Vec,
     bytemuck::Pod,
     core::{num::NonZeroI8, slice::IterMut},
     pinocchio::{
+        account::next_account_view,
         sysvars::instructions::{Instructions, IntrospectedInstruction},
         AccountView,
     },

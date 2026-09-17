@@ -1,5 +1,8 @@
 #[cfg(feature = "zk-ops")]
-use {crate::next_account_view, pinocchio::AccountView, std::slice::IterMut};
+use {
+    pinocchio::{account::next_account_view, AccountView},
+    std::slice::IterMut,
+};
 use {
     solana_program_error::ProgramError,
     spl_token_2022_interface::{

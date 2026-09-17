@@ -1,6 +1,6 @@
 use {
-    crate::{extension::cpi_guard::in_cpi, next_account_view, processor::Processor},
-    pinocchio::AccountView,
+    crate::{extension::cpi_guard::in_cpi, processor::Processor},
+    pinocchio::{account::next_account_view, AccountView},
     solana_address::Address,
     solana_msg::msg,
     solana_program_error::ProgramResult,

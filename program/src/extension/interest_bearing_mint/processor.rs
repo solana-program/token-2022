@@ -1,6 +1,6 @@
 use {
-    crate::{next_account_view, processor::Processor},
-    pinocchio::AccountView,
+    crate::processor::Processor,
+    pinocchio::{account::next_account_view, AccountView},
     solana_address::Address,
     solana_clock::Clock,
     solana_msg::msg,

@@ -1,7 +1,5 @@
 #[cfg(feature = "zk-ops")]
-use crate::next_account_view;
-#[cfg(feature = "zk-ops")]
-use pinocchio::AccountView;
+use pinocchio::{account::next_account_view, AccountView};
 use spl_token_2022_interface::error::TokenError;
 
 #[cfg(feature = "zk-ops")]
