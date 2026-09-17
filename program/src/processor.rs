@@ -18,6 +18,7 @@ use {
     },
     pinocchio::{
         account::next_account_view,
+        cpi::{Seed, Signer},
         sysvars::{clock::Clock, rent::Rent, Sysvar},
         AccountView,
     },
@@ -66,7 +67,7 @@ use {
             decode_instruction_data, decode_instruction_type, is_valid_signer_index, AuthorityType,
             MAX_SIGNERS,
         },
-        native_mint,
+        native_mint::{self, PROGRAM_ADDRESS_SEEDS},
         pod::{PodAccount, PodCOption, PodMint, PodMultisig},
         state::{AccountState, Mint, PackedSizeOf},
     },
@@ -1664,6 +1665,11 @@ impl Processor {
         let new_minimum_balance = rent.try_minimum_balance(Mint::get_packed_len())?;
         let lamports_diff = new_minimum_balance.saturating_sub(native_mint_info.lamports());
 
+        let signer_seeds = &[
+            Seed::from(PROGRAM_ADDRESS_SEEDS[0]),
+            Seed::from(PROGRAM_ADDRESS_SEEDS[1]),
+        ];
+
         // Note: Use `CreateAccountAllowPrefund` to create the native mint account with the
         // correct lamports.
         CreateAccountAllowPrefund {
@@ -1675,7 +1681,7 @@ impl Processor {
             space: Mint::get_packed_len() as u64,
             owner: &crate::ID,
         }
-        .invoke()?;
+        .invoke_signed(&[Signer::from(signer_seeds)])?;
 
         Mint::pack(
             Mint {
