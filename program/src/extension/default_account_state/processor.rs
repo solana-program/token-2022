@@ -1,6 +1,6 @@
 use {
     crate::processor::Processor,
-    solana_account_info::{next_account_info, AccountInfo},
+    pinocchio::{account::next_account_view, AccountView},
     solana_address::Address,
     solana_msg::msg,
     solana_program_error::ProgramResult,
@@ -27,15 +27,15 @@ fn check_valid_default_state(state: AccountState) -> ProgramResult {
 }
 
 fn process_initialize_default_account_state(
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     state: AccountState,
 ) -> ProgramResult {
     check_valid_default_state(state)?;
-    let account_info_iter = &mut accounts.iter();
-    let mint_account_info = next_account_info(account_info_iter)?;
-    check_program_account(mint_account_info.owner)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let mint_account_info = next_account_view(account_info_iter)?;
+    check_program_account(mint_account_info.owner())?;
 
-    let mut mint_data = mint_account_info.data.borrow_mut();
+    let mut mint_data = mint_account_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
     let extension = mint.init_extension::<DefaultAccountState>(true)?;
     extension.state = state.into();
@@ -44,17 +44,17 @@ fn process_initialize_default_account_state(
 
 fn process_update_default_account_state(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     state: AccountState,
 ) -> ProgramResult {
     check_valid_default_state(state)?;
-    let account_info_iter = &mut accounts.iter();
-    let mint_account_info = next_account_info(account_info_iter)?;
-    let freeze_authority_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let mint_account_info = next_account_view(account_info_iter)?;
+    let freeze_authority_info = next_account_view(account_info_iter)?;
     let freeze_authority_info_data_len = freeze_authority_info.data_len();
-    check_program_account(mint_account_info.owner)?;
+    check_program_account(mint_account_info.owner())?;
 
-    let mut mint_data = mint_account_info.data.borrow_mut();
+    let mut mint_data = mint_account_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
 
     match &mint.base.freeze_authority {
@@ -78,7 +78,7 @@ fn process_update_default_account_state(
 
 pub(crate) fn process_instruction(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     input: &[u8],
 ) -> ProgramResult {
     check_program_account(program_id)?;

@@ -1,7 +1,7 @@
 //! Token-metadata processor
 
 use {
-    solana_account_info::{next_account_info, AccountInfo},
+    pinocchio::{account::next_account_view, AccountView},
     solana_address::Address,
     solana_cpi::set_return_data,
     solana_msg::msg,
@@ -26,15 +26,15 @@ use {
 };
 
 fn check_update_authority(
-    update_authority_info: &AccountInfo,
+    update_authority_info: &AccountView,
     expected_update_authority: &MaybeNull<Address>,
 ) -> Result<(), ProgramError> {
-    if !update_authority_info.is_signer {
+    if !update_authority_info.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
     let update_authority = Option::<Address>::from(*expected_update_authority)
         .ok_or(TokenMetadataError::ImmutableMetadata)?;
-    if update_authority != *update_authority_info.key {
+    if update_authority != *update_authority_info.address() {
         return Err(TokenMetadataError::IncorrectUpdateAuthority.into());
     }
     Ok(())
@@ -43,33 +43,33 @@ fn check_update_authority(
 /// Processes a [`Initialize`](enum.TokenMetadataInstruction.html) instruction.
 pub fn process_initialize(
     _program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     data: Initialize,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
+    let account_info_iter = &mut accounts.iter_mut();
 
-    let metadata_info = next_account_info(account_info_iter)?;
-    let update_authority_info = next_account_info(account_info_iter)?;
-    let mint_info = next_account_info(account_info_iter)?;
-    let mint_authority_info = next_account_info(account_info_iter)?;
+    let metadata_info = next_account_view(account_info_iter)?;
+    let update_authority_info = next_account_view(account_info_iter)?;
+    let mint_info = next_account_view(account_info_iter)?;
+    let mint_authority_info = next_account_view(account_info_iter)?;
 
     // check that the mint and metadata accounts are the same, since the metadata
     // extension should only describe itself
-    if metadata_info.key != mint_info.key {
+    if metadata_info.address() != mint_info.address() {
         msg!("Metadata for a mint must be initialized in the mint itself.");
         return Err(TokenError::MintMismatch.into());
     }
 
     // scope the mint authority check, since the mint is in the same account!
     {
-        check_program_account(mint_info.owner)?;
-        let mint_data = mint_info.try_borrow_data()?;
+        check_program_account(mint_info.owner())?;
+        let mint_data = mint_info.try_borrow()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
 
-        if !mint_authority_info.is_signer {
+        if !mint_authority_info.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
-        if mint.base.mint_authority != PodCOption::some(*mint_authority_info.key) {
+        if mint.base.mint_authority != PodCOption::some(*mint_authority_info.address()) {
             return Err(TokenMetadataError::IncorrectMintAuthority.into());
         }
 
@@ -80,7 +80,7 @@ pub fn process_initialize(
     }
 
     // Create the token metadata
-    let update_authority = Some(*update_authority_info.key)
+    let update_authority = Some(*update_authority_info.address())
         .try_into()
         .map_err(|_| ProgramError::InvalidArgument)?;
     let token_metadata = TokenMetadata {
@@ -88,7 +88,7 @@ pub fn process_initialize(
         symbol: data.symbol,
         uri: data.uri,
         update_authority,
-        mint: *mint_info.key,
+        mint: *mint_info.address(),
         ..Default::default()
     };
 
@@ -107,18 +107,18 @@ pub fn process_initialize(
 /// instruction.
 pub fn process_update_field(
     _program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     data: UpdateField,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let metadata_info = next_account_info(account_info_iter)?;
-    let update_authority_info = next_account_info(account_info_iter)?;
-    check_program_account(metadata_info.owner)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let metadata_info = next_account_view(account_info_iter)?;
+    let update_authority_info = next_account_view(account_info_iter)?;
+    check_program_account(metadata_info.owner())?;
 
     // deserialize the metadata, but scope the data borrow since we'll probably
     // realloc the account
     let mut token_metadata = {
-        let buffer = metadata_info.try_borrow_data()?;
+        let buffer = metadata_info.try_borrow()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&buffer)?;
         mint.get_variable_len_extension::<TokenMetadata>()?
     };
@@ -137,18 +137,18 @@ pub fn process_update_field(
 /// Processes a [`RemoveKey`](enum.TokenMetadataInstruction.html) instruction.
 pub fn process_remove_key(
     _program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     data: RemoveKey,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let metadata_info = next_account_info(account_info_iter)?;
-    let update_authority_info = next_account_info(account_info_iter)?;
-    check_program_account(metadata_info.owner)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let metadata_info = next_account_view(account_info_iter)?;
+    let update_authority_info = next_account_view(account_info_iter)?;
+    check_program_account(metadata_info.owner())?;
 
     // deserialize the metadata, but scope the data borrow since we'll probably
     // realloc the account
     let mut token_metadata = {
-        let buffer = metadata_info.try_borrow_data()?;
+        let buffer = metadata_info.try_borrow()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&buffer)?;
         mint.get_variable_len_extension::<TokenMetadata>()?
     };
@@ -165,18 +165,18 @@ pub fn process_remove_key(
 /// instruction.
 pub fn process_update_authority(
     _program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     data: UpdateAuthority,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let metadata_info = next_account_info(account_info_iter)?;
-    let update_authority_info = next_account_info(account_info_iter)?;
-    check_program_account(metadata_info.owner)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let metadata_info = next_account_view(account_info_iter)?;
+    let update_authority_info = next_account_view(account_info_iter)?;
+    check_program_account(metadata_info.owner())?;
 
     // deserialize the metadata, but scope the data borrow since we'll write
     // to the account later
     let mut token_metadata = {
-        let buffer = metadata_info.try_borrow_data()?;
+        let buffer = metadata_info.try_borrow()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&buffer)?;
         mint.get_variable_len_extension::<TokenMetadata>()?
     };
@@ -190,12 +190,12 @@ pub fn process_update_authority(
 }
 
 /// Processes an [`Emit`](enum.TokenMetadataInstruction.html) instruction.
-pub fn process_emit(_program_id: &Address, accounts: &[AccountInfo], data: Emit) -> ProgramResult {
+pub fn process_emit(_program_id: &Address, accounts: &[AccountView], data: Emit) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
-    let metadata_info = next_account_info(account_info_iter)?;
-    check_program_account(metadata_info.owner)?;
+    let metadata_info = next_account_view(account_info_iter)?;
+    check_program_account(metadata_info.owner())?;
 
-    let buffer = metadata_info.try_borrow_data()?;
+    let buffer = metadata_info.try_borrow()?;
     let state = PodStateWithExtensions::<PodMint>::unpack(&buffer)?;
     let metadata_bytes = state.get_extension_bytes::<TokenMetadata>()?;
 
@@ -208,7 +208,7 @@ pub fn process_emit(_program_id: &Address, accounts: &[AccountInfo], data: Emit)
 /// Processes an [`Instruction`](enum.Instruction.html).
 pub fn process_instruction(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     instruction: TokenMetadataInstruction,
 ) -> ProgramResult {
     match instruction {

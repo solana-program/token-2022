@@ -1,5 +1,9 @@
+#[cfg(feature = "zk-ops")]
 use {
-    solana_account_info::{next_account_info, AccountInfo},
+    pinocchio::{account::next_account_view, AccountView},
+    std::slice::IterMut,
+};
+use {
     solana_program_error::ProgramError,
     spl_token_2022_interface::{
         error::TokenError,
@@ -9,20 +13,19 @@ use {
         instruction::verify_and_extract_context, transfer::TransferProofContext,
         transfer_with_fee::TransferWithFeeProofContext, withdraw::WithdrawProofContext,
     },
-    std::slice::Iter,
 };
 
 /// Verify zero-knowledge proofs needed for a `Withdraw` instruction and return
 /// the corresponding proof context.
 #[cfg(feature = "zk-ops")]
 pub fn verify_withdraw_proof(
-    account_info_iter: &mut Iter<AccountInfo>,
+    account_info_iter: &mut IterMut<AccountView>,
     equality_proof_instruction_offset: i64,
     range_proof_instruction_offset: i64,
 ) -> Result<WithdrawProofContext, ProgramError> {
     let sysvar_account_info =
         if equality_proof_instruction_offset != 0 || range_proof_instruction_offset != 0 {
-            Some(next_account_info(account_info_iter)?)
+            Some(next_account_view(account_info_iter)?)
         } else {
             None
         };
@@ -33,14 +36,14 @@ pub fn verify_withdraw_proof(
     >(
         account_info_iter,
         equality_proof_instruction_offset,
-        sysvar_account_info,
+        sysvar_account_info.as_deref(),
     )?;
 
     let range_proof_context =
         verify_and_extract_context::<BatchedRangeProofU64Data, BatchedRangeProofContext>(
             account_info_iter,
             range_proof_instruction_offset,
-            sysvar_account_info,
+            sysvar_account_info.as_deref(),
         )?;
 
     // The `WithdrawProofContext` constructor verifies the consistency of the
@@ -57,7 +60,7 @@ pub fn verify_withdraw_proof(
 /// and return the corresponding proof context.
 #[cfg(feature = "zk-ops")]
 pub fn verify_transfer_proof(
-    account_info_iter: &mut Iter<AccountInfo>,
+    account_info_iter: &mut IterMut<AccountView>,
     equality_proof_instruction_offset: i64,
     ciphertext_validity_proof_instruction_offset: i64,
     range_proof_instruction_offset: i64,
@@ -66,7 +69,7 @@ pub fn verify_transfer_proof(
         || ciphertext_validity_proof_instruction_offset != 0
         || range_proof_instruction_offset != 0
     {
-        Some(next_account_info(account_info_iter)?)
+        Some(next_account_view(account_info_iter)?)
     } else {
         None
     };
@@ -77,7 +80,7 @@ pub fn verify_transfer_proof(
     >(
         account_info_iter,
         equality_proof_instruction_offset,
-        sysvar_account_info,
+        sysvar_account_info.as_deref(),
     )?;
 
     let ciphertext_validity_proof_context = verify_and_extract_context::<
@@ -86,14 +89,14 @@ pub fn verify_transfer_proof(
     >(
         account_info_iter,
         ciphertext_validity_proof_instruction_offset,
-        sysvar_account_info,
+        sysvar_account_info.as_deref(),
     )?;
 
     let range_proof_context =
         verify_and_extract_context::<BatchedRangeProofU128Data, BatchedRangeProofContext>(
             account_info_iter,
             range_proof_instruction_offset,
-            sysvar_account_info,
+            sysvar_account_info.as_deref(),
         )?;
 
     // The `TransferProofContext` constructor verifies the consistency of the
@@ -114,7 +117,7 @@ pub fn verify_transfer_proof(
 #[cfg(feature = "zk-ops")]
 #[allow(clippy::too_many_arguments)]
 pub fn verify_transfer_with_fee_proof(
-    account_info_iter: &mut Iter<AccountInfo>,
+    account_info_iter: &mut IterMut<AccountView>,
     equality_proof_instruction_offset: i64,
     transfer_amount_ciphertext_validity_proof_instruction_offset: i64,
     fee_sigma_proof_instruction_offset: i64,
@@ -128,7 +131,7 @@ pub fn verify_transfer_with_fee_proof(
         || fee_ciphertext_validity_proof_instruction_offset != 0
         || range_proof_instruction_offset != 0
     {
-        Some(next_account_info(account_info_iter)?)
+        Some(next_account_view(account_info_iter)?)
     } else {
         None
     };
@@ -139,7 +142,7 @@ pub fn verify_transfer_with_fee_proof(
     >(
         account_info_iter,
         equality_proof_instruction_offset,
-        sysvar_account_info,
+        sysvar_account_info.as_deref(),
     )?;
 
     let transfer_amount_ciphertext_validity_proof_context = verify_and_extract_context::<
@@ -148,14 +151,14 @@ pub fn verify_transfer_with_fee_proof(
     >(
         account_info_iter,
         transfer_amount_ciphertext_validity_proof_instruction_offset,
-        sysvar_account_info,
+        sysvar_account_info.as_deref(),
     )?;
 
     let fee_sigma_proof_context =
         verify_and_extract_context::<PercentageWithCapProofData, PercentageWithCapProofContext>(
             account_info_iter,
             fee_sigma_proof_instruction_offset,
-            sysvar_account_info,
+            sysvar_account_info.as_deref(),
         )?;
 
     let fee_ciphertext_validity_proof_context = verify_and_extract_context::<
@@ -164,14 +167,14 @@ pub fn verify_transfer_with_fee_proof(
     >(
         account_info_iter,
         fee_ciphertext_validity_proof_instruction_offset,
-        sysvar_account_info,
+        sysvar_account_info.as_deref(),
     )?;
 
     let range_proof_context =
         verify_and_extract_context::<BatchedRangeProofU256Data, BatchedRangeProofContext>(
             account_info_iter,
             range_proof_instruction_offset,
-            sysvar_account_info,
+            sysvar_account_info.as_deref(),
         )?;
 
     // The `TransferWithFeeProofContext` constructor verifies the consistency of

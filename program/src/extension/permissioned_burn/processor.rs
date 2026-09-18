@@ -8,7 +8,7 @@ use {
         pod_instruction::{AmountCheckedData, AmountData},
         processor::{BurnInstructionVariant, InstructionVariant, Processor},
     },
-    solana_account_info::{next_account_info, AccountInfo},
+    pinocchio::{account::next_account_view, AccountView},
     solana_address::Address,
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
@@ -28,14 +28,14 @@ use {
 
 fn process_initialize(
     _program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     authority: &Address,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let mint_account_info = next_account_info(account_info_iter)?;
-    check_program_account(mint_account_info.owner)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let mint_account_info = next_account_view(account_info_iter)?;
+    check_program_account(mint_account_info.owner())?;
 
-    let mut mint_data = mint_account_info.data.borrow_mut();
+    let mut mint_data = mint_account_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
 
     let extension = mint.init_extension::<PermissionedBurnConfig>(true)?;
@@ -48,7 +48,7 @@ fn process_initialize(
 
 pub(crate) fn process_instruction(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     input: &[u8],
 ) -> ProgramResult {
     check_program_account(program_id)?;
