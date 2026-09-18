@@ -2402,12 +2402,17 @@ mod tests {
             .resulting_accounts
             .into_iter()
             .for_each(|(pubkey, account)| {
-                let account_info = cached_accounts.get(&pubkey).unwrap();
-                account_info.resize(account.data().len()).unwrap();
-                account_info
-                    .try_borrow_mut_data()
-                    .unwrap()
-                    .copy_from_slice(account.data());
+                let account_info = cached_accounts.get_mut(&pubkey).unwrap();
+                if account.data().is_empty() {
+                    // Set an empty data slice for accounts that have been resized
+                    // to zero length.
+                    *account_info.try_borrow_mut_data().unwrap() = &mut [];
+                } else {
+                    account_info
+                        .try_borrow_mut_data()
+                        .unwrap()
+                        .copy_from_slice(account.data());
+                }
                 **account_info.try_borrow_mut_lamports().unwrap() = account.lamports();
                 account_info.assign(account.owner());
             });
