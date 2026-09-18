@@ -2350,7 +2350,9 @@ mod tests {
             .map(|(account_meta, account)| (account_meta.pubkey, (*account).clone()))
             .collect();
 
-        let mollusk = Mollusk::new(&crate::id(), "spl_token_2022");
+        let mut mollusk = Mollusk::new(&crate::id(), "spl_token_2022");
+        // Always panic on failed checks in tests.
+        mollusk.config.panic = true;
         // Process the instruction and validate the result. It panics if the result does not
         // match the expected checks.
         let result =
@@ -2387,7 +2389,9 @@ mod tests {
             }
         });
 
-        let mollusk = Mollusk::new(&crate::id(), "spl_token_2022");
+        let mut mollusk = Mollusk::new(&crate::id(), "spl_token_2022");
+        // Always panic on failed checks in tests.
+        mollusk.config.panic = true;
         // Process the instruction and validate the result. It panics if the result does not
         // match the expected checks.
         let result =
@@ -2399,16 +2403,11 @@ mod tests {
             .into_iter()
             .for_each(|(pubkey, account)| {
                 let account_info = cached_accounts.get(&pubkey).unwrap();
-                if account.data.is_empty() {
-                    // When the account is closed, the tests expect the data to
-                    // be zeroed.
-                    account_info.try_borrow_mut_data().unwrap().fill(0);
-                } else {
-                    account_info
-                        .try_borrow_mut_data()
-                        .unwrap()
-                        .copy_from_slice(account.data());
-                }
+                account_info.resize(account.data().len()).unwrap();
+                account_info
+                    .try_borrow_mut_data()
+                    .unwrap()
+                    .copy_from_slice(account.data());
                 **account_info.try_borrow_mut_lamports().unwrap() = account.lamports();
                 account_info.assign(account.owner());
             });
@@ -7904,7 +7903,7 @@ mod tests {
             ],
             &[Check::success()],
         );
-        assert_eq!(*to_close_account_info.data.borrow(), &[0u8; Account::LEN]);
+        assert!((*to_close_account_info.data.borrow()).is_empty());
     }
 
     #[test]
@@ -7973,7 +7972,7 @@ mod tests {
             ],
             &[Check::success()],
         );
-        assert_eq!(*to_close_account_info.data.borrow(), &[0u8; Account::LEN]);
+        assert!(to_close_account_info.data.borrow().is_empty());
     }
 
     #[test]
