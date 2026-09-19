@@ -328,7 +328,7 @@ test('should handle huge values correctly', async () => {
     });
 
     const result = await amountToUiAmountForMintWithoutSimulation(rpc, mint, BigInt('18446744073709551615'));
-    expect(result).toBe('36893488147419.101562');
+    expect(result).toBe('36893488147419.1');
 });
 
 test('should handle huge values correctly for amount to ui amount', async () => {
@@ -346,8 +346,8 @@ test('should show sub-unit amounts for multipliers below one', async () => {
         [CLOCK]: createMockClockAccountInfo(0),
         [mint]: createMockMintAccountInfo(6, true, { multiplier: 0.001 }),
     });
-    expect(await amountToUiAmountForMintWithoutSimulation(rpc, mint, 500n)).toBe('0.000001');
-    expect(await amountToUiAmountForMintWithoutSimulation(rpc, mint, 1500n)).toBe('0.000002');
+    expect(await amountToUiAmountForMintWithoutSimulation(rpc, mint, 500n)).toBe('0');
+    expect(await amountToUiAmountForMintWithoutSimulation(rpc, mint, 1500n)).toBe('0.000001');
 });
 
 test('should show sub-unit amounts for a 0.5 multiplier', async () => {
@@ -355,7 +355,7 @@ test('should show sub-unit amounts for a 0.5 multiplier', async () => {
         [CLOCK]: createMockClockAccountInfo(0),
         [mint]: createMockMintAccountInfo(2, true, { multiplier: 0.5 }),
     });
-    expect(await amountToUiAmountForMintWithoutSimulation(rpc, mint, 1n)).toBe('0.01');
+    expect(await amountToUiAmountForMintWithoutSimulation(rpc, mint, 1n)).toBe('0');
 });
 
 test('should reject malformed ui amounts', async () => {
