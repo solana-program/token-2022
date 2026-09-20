@@ -2873,7 +2873,7 @@ async fn command_unwrap(
         );
     }
 
-    println_display(config, format!("  Recipient: {}", &wallet_address));
+    println_display(config, format!("  Recipient: {}", wallet_address));
 
     let res = token
         .close_account(&account, &wallet_address, &wallet_address, &bulk_signers)
