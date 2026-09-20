@@ -175,7 +175,7 @@ const TEST_DECIMALS: u8 = 9;
 
 async fn new_validator_for_test() -> (TestValidator, Keypair) {
     solana_logger::setup();
-    let mut test_validator_genesis = TestValidatorGenesis::default();
+    let mut test_validator_genesis = TestValidatorGenesis::default_for_tests();
     test_validator_genesis.add_upgradeable_programs_with_path(&[
         UpgradeableProgramInfo {
             program_id: spl_token_2022_interface::id(),
