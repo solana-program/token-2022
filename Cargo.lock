@@ -10937,9 +10937,9 @@ dependencies = [
 
 [[package]]
 name = "spl-tlv-account-resolution"
-version = "0.11.3"
+version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4378fa824c41a21856eb5347fbff48bc613456179de02ba51f667bce9acb18f6"
+checksum = "0fbfd495f1b543a4efb3980834098538c26e5371d8ed64c5fec49e6df7609654"
 dependencies = [
  "bytemuck",
  "num-derive 0.4.2",
@@ -10949,9 +10949,9 @@ dependencies = [
  "solana-instruction",
  "solana-program-error",
  "solana-pubkey 3.0.0",
+ "solana-zero-copy",
  "spl-discriminator",
  "spl-list-view",
- "spl-pod",
  "spl-type-length-value",
  "thiserror 2.0.20",
 ]
