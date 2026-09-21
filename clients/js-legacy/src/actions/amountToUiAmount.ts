@@ -268,10 +268,9 @@ export function amountToUiAmountForScaledUiAmountMintWithoutSimulation(
     decimals: number,
     multiplier: number,
 ): string {
-    // Scale by the total multiplier, which includes the decimal factor
-    // on-chain, then format to the mint's decimals like the program does
-    const scaledAmount = Number(amount) * (multiplier / getDecimalFactor(decimals));
-    return formatUiAmountString(scaledAmount, decimals);
+    const scaledAmount = Number(amount) * multiplier;
+    const decimalFactor = getDecimalFactor(decimals);
+    return formatUiAmountString(Math.trunc(scaledAmount) / decimalFactor, decimals);
 }
 
 /**
