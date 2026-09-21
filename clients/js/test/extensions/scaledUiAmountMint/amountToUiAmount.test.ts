@@ -328,7 +328,7 @@ test('should handle huge values correctly', async () => {
     });
 
     const result = await amountToUiAmountForMintWithoutSimulation(rpc, mint, BigInt('18446744073709551615'));
-    expect(result).toBe('36893488147419.1');
+    expect(result).toBe('36893488147419.101562');
 });
 
 test('should handle huge values correctly for amount to ui amount', async () => {

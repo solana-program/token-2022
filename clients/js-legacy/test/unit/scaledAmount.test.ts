@@ -250,7 +250,7 @@ describe('Scaled UI Amount Extension', () => {
                 mint,
                 BigInt(Number.MAX_SAFE_INTEGER),
             );
-            expect(result).to.equal('Infinity');
+            expect(result).to.equal('inf');
         });
     });
 });

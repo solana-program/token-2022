@@ -270,7 +270,7 @@ export function amountToUiAmountForScaledUiAmountMintWithoutSimulation(
 ): string {
     const scaledAmount = Number(amount) * multiplier;
     const decimalFactor = getDecimalFactor(decimals);
-    return (Math.trunc(scaledAmount) / decimalFactor).toString();
+    return formatUiAmountString(Math.trunc(scaledAmount) / decimalFactor, decimals);
 }
 
 /**
