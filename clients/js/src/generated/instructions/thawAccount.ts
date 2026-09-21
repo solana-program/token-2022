@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getStructDecoder,
     getStructEncoder,
@@ -28,10 +27,17 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const THAW_ACCOUNT_DISCRIMINATOR = 11;
@@ -80,43 +86,50 @@ export function getThawAccountInstructionDataCodec(): FixedSizeCodec<
 }
 
 export type ThawAccountInput<
-    TAccountAccount extends string = string,
-    TAccountMint extends string = string,
-    TAccountOwner extends string = string,
+    TAccountAccount extends InstructionAccountInput = InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountOwner extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
 > = {
     /** The account to thaw. */
-    account: Address<TAccountAccount>;
+    account: TAccountAccount;
     /** The token mint. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /** The mint freeze authority or its multisignature account. */
-    owner: Address<TAccountOwner> | TransactionSigner<TAccountOwner>;
-    multiSigners?: Array<TransactionSigner>;
+    owner: TAccountOwner;
+    multiSigners?: Array<InstructionSignerInput>;
 };
 
 export function getThawAccountInstruction<
-    TAccountAccount extends string,
-    TAccountMint extends string,
-    TAccountOwner extends string,
+    TAccountAccount extends InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput,
+    TAccountOwner extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: ThawAccountInput<TAccountAccount, TAccountMint, TAccountOwner>,
     config?: { programAddress?: TProgramAddress },
 ): ThawAccountInstruction<
     TProgramAddress,
-    TAccountAccount,
-    TAccountMint,
-    (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-        ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
-        : TAccountOwner
+    ResolvedInstructionAccountMeta<TAccountAccount, InstructionAccountInputAddress<TAccountAccount>>,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<
+        TAccountOwner,
+        InstructionAccountInputAddress<TAccountOwner>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountOwner>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountOwner>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        account: { value: input.account ?? null, isWritable: true },
-        mint: { value: input.mint ?? null, isWritable: false },
-        owner: { value: input.owner ?? null, isWritable: false },
+        account: { value: input.account ?? null, isSigner: false, isWritable: true },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: false },
+        owner: { value: input.owner ?? null, isSigner: 'either', isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -124,13 +137,13 @@ export function getThawAccountInstruction<
     const args = { ...input };
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
-        address: signer.address,
-        role: AccountRole.READONLY_SIGNER,
-        signer,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'multiSigners',
+            getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('account', accounts.account),
@@ -142,11 +155,14 @@ export function getThawAccountInstruction<
         programAddress,
     } as ThawAccountInstruction<
         TProgramAddress,
-        TAccountAccount,
-        TAccountMint,
-        (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-            ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
-            : TAccountOwner
+        ResolvedInstructionAccountMeta<TAccountAccount, InstructionAccountInputAddress<TAccountAccount>>,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<
+            TAccountOwner,
+            InstructionAccountInputAddress<TAccountOwner>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountOwner>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountOwner>>
+        >
     >);
 }
 

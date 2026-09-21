@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getStructDecoder,
     getStructEncoder,
@@ -30,10 +29,17 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const TRANSFER_CHECKED_WITH_FEE_DISCRIMINATOR = 26;
@@ -133,52 +139,59 @@ export function getTransferCheckedWithFeeInstructionDataCodec(): FixedSizeCodec<
 }
 
 export type TransferCheckedWithFeeInput<
-    TAccountSource extends string = string,
-    TAccountMint extends string = string,
-    TAccountDestination extends string = string,
-    TAccountAuthority extends string = string,
+    TAccountSource extends InstructionAccountInput = InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountDestination extends InstructionAccountInput = InstructionAccountInput,
+    TAccountAuthority extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
 > = {
     /** The source account. May include the `TransferFeeAmount` extension. */
-    source: Address<TAccountSource>;
+    source: TAccountSource;
     /** The token mint. May include the `TransferFeeConfig` extension. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /** The destination account. May include the `TransferFeeAmount` extension. */
-    destination: Address<TAccountDestination>;
+    destination: TAccountDestination;
     /** The source account's owner/delegate or its multisignature account. */
-    authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
+    authority: TAccountAuthority;
     amount: TransferCheckedWithFeeInstructionDataArgs['amount'];
     decimals: TransferCheckedWithFeeInstructionDataArgs['decimals'];
     fee: TransferCheckedWithFeeInstructionDataArgs['fee'];
-    multiSigners?: Array<TransactionSigner>;
+    multiSigners?: Array<InstructionSignerInput>;
 };
 
 export function getTransferCheckedWithFeeInstruction<
-    TAccountSource extends string,
-    TAccountMint extends string,
-    TAccountDestination extends string,
-    TAccountAuthority extends string,
+    TAccountSource extends InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput,
+    TAccountDestination extends InstructionAccountInput,
+    TAccountAuthority extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: TransferCheckedWithFeeInput<TAccountSource, TAccountMint, TAccountDestination, TAccountAuthority>,
     config?: { programAddress?: TProgramAddress },
 ): TransferCheckedWithFeeInstruction<
     TProgramAddress,
-    TAccountSource,
-    TAccountMint,
-    TAccountDestination,
-    (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-        ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
-        : TAccountAuthority
+    ResolvedInstructionAccountMeta<TAccountSource, InstructionAccountInputAddress<TAccountSource>>,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<TAccountDestination, InstructionAccountInputAddress<TAccountDestination>>,
+    ResolvedInstructionAccountMeta<
+        TAccountAuthority,
+        InstructionAccountInputAddress<TAccountAuthority>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountAuthority>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountAuthority>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        source: { value: input.source ?? null, isWritable: true },
-        mint: { value: input.mint ?? null, isWritable: false },
-        destination: { value: input.destination ?? null, isWritable: true },
-        authority: { value: input.authority ?? null, isWritable: false },
+        source: { value: input.source ?? null, isSigner: false, isWritable: true },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: false },
+        destination: { value: input.destination ?? null, isSigner: false, isWritable: true },
+        authority: { value: input.authority ?? null, isSigner: 'either', isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -186,13 +199,13 @@ export function getTransferCheckedWithFeeInstruction<
     const args = { ...input };
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
-        address: signer.address,
-        role: AccountRole.READONLY_SIGNER,
-        signer,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'multiSigners',
+            getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('source', accounts.source),
@@ -207,12 +220,15 @@ export function getTransferCheckedWithFeeInstruction<
         programAddress,
     } as TransferCheckedWithFeeInstruction<
         TProgramAddress,
-        TAccountSource,
-        TAccountMint,
-        TAccountDestination,
-        (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-            ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
-            : TAccountAuthority
+        ResolvedInstructionAccountMeta<TAccountSource, InstructionAccountInputAddress<TAccountSource>>,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<TAccountDestination, InstructionAccountInputAddress<TAccountDestination>>,
+        ResolvedInstructionAccountMeta<
+            TAccountAuthority,
+            InstructionAccountInputAddress<TAccountAuthority>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountAuthority>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountAuthority>>
+        >
     >);
 }
 

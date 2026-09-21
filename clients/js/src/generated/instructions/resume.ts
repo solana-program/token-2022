@@ -27,10 +27,16 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const RESUME_DISCRIMINATOR = 44;
@@ -89,48 +95,60 @@ export function getResumeInstructionDataCodec(): FixedSizeCodec<ResumeInstructio
     return combineCodec(getResumeInstructionDataEncoder(), getResumeInstructionDataDecoder());
 }
 
-export type ResumeInput<TAccountMint extends string = string, TAccountAuthority extends string = string> = {
+export type ResumeInput<
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountAuthority extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
+> = {
     /** The mint. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /** The pausable authority that can resume the mint. */
-    authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
+    authority: TAccountAuthority;
 };
 
 export function getResumeInstruction<
-    TAccountMint extends string,
-    TAccountAuthority extends string,
+    TAccountMint extends InstructionAccountInput,
+    TAccountAuthority extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: ResumeInput<TAccountMint, TAccountAuthority>,
     config?: { programAddress?: TProgramAddress },
 ): ResumeInstruction<
     TProgramAddress,
-    TAccountMint,
-    (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-        ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
-        : TAccountAuthority
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<
+        TAccountAuthority,
+        InstructionAccountInputAddress<TAccountAuthority>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountAuthority>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountAuthority>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        mint: { value: input.mint ?? null, isWritable: true },
-        authority: { value: input.authority ?? null, isWritable: false },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: true },
+        authority: { value: input.authority ?? null, isSigner: 'either', isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [getAccountMeta('mint', accounts.mint), getAccountMeta('authority', accounts.authority)],
         data: getResumeInstructionDataEncoder().encode({}),
         programAddress,
     } as ResumeInstruction<
         TProgramAddress,
-        TAccountMint,
-        (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-            ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
-            : TAccountAuthority
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<
+            TAccountAuthority,
+            InstructionAccountInputAddress<TAccountAuthority>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountAuthority>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountAuthority>>
+        >
     >);
 }
 

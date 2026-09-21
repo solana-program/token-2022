@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getStructDecoder,
     getStructEncoder,
@@ -30,10 +29,17 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const PERMISSIONED_BURN_DISCRIMINATOR = 46;
@@ -113,50 +119,64 @@ export function getPermissionedBurnInstructionDataCodec(): FixedSizeCodec<
 }
 
 export type PermissionedBurnInput<
-    TAccountAccount extends string = string,
-    TAccountMint extends string = string,
-    TAccountPermissionedBurnAuthority extends string = string,
-    TAccountAuthority extends string = string,
+    TAccountAccount extends InstructionAccountInput = InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountPermissionedBurnAuthority extends InstructionSignerInput = InstructionSignerInput,
+    TAccountAuthority extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
 > = {
     /** The source account to burn from. */
-    account: Address<TAccountAccount>;
+    account: TAccountAccount;
     /** The token mint. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /** Authority configured on the mint that must sign any permissioned burn instruction. */
-    permissionedBurnAuthority: TransactionSigner<TAccountPermissionedBurnAuthority>;
+    permissionedBurnAuthority: TAccountPermissionedBurnAuthority;
     /** The account's owner/delegate or its multisignature account. */
-    authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
+    authority: TAccountAuthority;
     amount: PermissionedBurnInstructionDataArgs['amount'];
-    multiSigners?: Array<TransactionSigner>;
+    multiSigners?: Array<InstructionSignerInput>;
 };
 
 export function getPermissionedBurnInstruction<
-    TAccountAccount extends string,
-    TAccountMint extends string,
-    TAccountPermissionedBurnAuthority extends string,
-    TAccountAuthority extends string,
+    TAccountAccount extends InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput,
+    TAccountPermissionedBurnAuthority extends InstructionSignerInput,
+    TAccountAuthority extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: PermissionedBurnInput<TAccountAccount, TAccountMint, TAccountPermissionedBurnAuthority, TAccountAuthority>,
     config?: { programAddress?: TProgramAddress },
 ): PermissionedBurnInstruction<
     TProgramAddress,
-    TAccountAccount,
-    TAccountMint,
-    TAccountPermissionedBurnAuthority,
-    (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-        ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
-        : TAccountAuthority
+    ResolvedInstructionAccountMeta<TAccountAccount, InstructionAccountInputAddress<TAccountAccount>>,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<
+        TAccountPermissionedBurnAuthority,
+        InstructionAccountInputAddress<TAccountPermissionedBurnAuthority>
+    >,
+    ResolvedInstructionAccountMeta<
+        TAccountAuthority,
+        InstructionAccountInputAddress<TAccountAuthority>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountAuthority>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountAuthority>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        account: { value: input.account ?? null, isWritable: true },
-        mint: { value: input.mint ?? null, isWritable: true },
-        permissionedBurnAuthority: { value: input.permissionedBurnAuthority ?? null, isWritable: false },
-        authority: { value: input.authority ?? null, isWritable: false },
+        account: { value: input.account ?? null, isSigner: false, isWritable: true },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: true },
+        permissionedBurnAuthority: {
+            value: input.permissionedBurnAuthority ?? null,
+            isSigner: true,
+            isWritable: false,
+        },
+        authority: { value: input.authority ?? null, isSigner: 'either', isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -164,13 +184,13 @@ export function getPermissionedBurnInstruction<
     const args = { ...input };
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
-        address: signer.address,
-        role: AccountRole.READONLY_SIGNER,
-        signer,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'multiSigners',
+            getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('account', accounts.account),
@@ -183,12 +203,18 @@ export function getPermissionedBurnInstruction<
         programAddress,
     } as PermissionedBurnInstruction<
         TProgramAddress,
-        TAccountAccount,
-        TAccountMint,
-        TAccountPermissionedBurnAuthority,
-        (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-            ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
-            : TAccountAuthority
+        ResolvedInstructionAccountMeta<TAccountAccount, InstructionAccountInputAddress<TAccountAccount>>,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<
+            TAccountPermissionedBurnAuthority,
+            InstructionAccountInputAddress<TAccountPermissionedBurnAuthority>
+        >,
+        ResolvedInstructionAccountMeta<
+            TAccountAuthority,
+            InstructionAccountInputAddress<TAccountAuthority>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountAuthority>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountAuthority>>
+        >
     >);
 }
 

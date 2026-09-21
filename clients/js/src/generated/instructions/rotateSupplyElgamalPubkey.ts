@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getAddressDecoder,
     getAddressEncoder,
@@ -32,10 +31,17 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const ROTATE_SUPPLY_ELGAMAL_PUBKEY_DISCRIMINATOR = 42;
@@ -134,50 +140,64 @@ export function getRotateSupplyElgamalPubkeyInstructionDataCodec(): FixedSizeCod
 }
 
 export type RotateSupplyElgamalPubkeyInput<
-    TAccountMint extends string = string,
-    TAccountInstructionsSysvarOrContextState extends string = string,
-    TAccountAuthority extends string = string,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountInstructionsSysvarOrContextState extends InstructionAccountInput = InstructionAccountInput,
+    TAccountAuthority extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
 > = {
     /** The SPL Token mint. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /**
      * Instructions sysvar if `CiphertextCiphertextEquality` is included in
      * the same transaction or context state account if
      * `CiphertextCiphertextEquality` is pre-verified into a context state
      * account.
      */
-    instructionsSysvarOrContextState?: Address<TAccountInstructionsSysvarOrContextState>;
+    instructionsSysvarOrContextState?: TAccountInstructionsSysvarOrContextState;
     /** The confidential mint authority or its multisignature account. */
-    authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
+    authority: TAccountAuthority;
     newSupplyElgamalPubkey: RotateSupplyElgamalPubkeyInstructionDataArgs['newSupplyElgamalPubkey'];
     proofInstructionOffset: RotateSupplyElgamalPubkeyInstructionDataArgs['proofInstructionOffset'];
-    multiSigners?: Array<TransactionSigner>;
+    multiSigners?: Array<InstructionSignerInput>;
 };
 
 export function getRotateSupplyElgamalPubkeyInstruction<
-    TAccountMint extends string,
-    TAccountInstructionsSysvarOrContextState extends string,
-    TAccountAuthority extends string,
+    TAccountMint extends InstructionAccountInput,
+    TAccountInstructionsSysvarOrContextState extends InstructionAccountInput,
+    TAccountAuthority extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: RotateSupplyElgamalPubkeyInput<TAccountMint, TAccountInstructionsSysvarOrContextState, TAccountAuthority>,
     config?: { programAddress?: TProgramAddress },
 ): RotateSupplyElgamalPubkeyInstruction<
     TProgramAddress,
-    TAccountMint,
-    TAccountInstructionsSysvarOrContextState,
-    (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-        ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
-        : TAccountAuthority
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<
+        TAccountInstructionsSysvarOrContextState,
+        InstructionAccountInputAddress<TAccountInstructionsSysvarOrContextState>
+    >,
+    ResolvedInstructionAccountMeta<
+        TAccountAuthority,
+        InstructionAccountInputAddress<TAccountAuthority>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountAuthority>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountAuthority>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        mint: { value: input.mint ?? null, isWritable: true },
-        instructionsSysvarOrContextState: { value: input.instructionsSysvarOrContextState ?? null, isWritable: false },
-        authority: { value: input.authority ?? null, isWritable: false },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: true },
+        instructionsSysvarOrContextState: {
+            value: input.instructionsSysvarOrContextState ?? null,
+            isSigner: false,
+            isWritable: false,
+        },
+        authority: { value: input.authority ?? null, isSigner: 'either', isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -191,13 +211,13 @@ export function getRotateSupplyElgamalPubkeyInstruction<
     }
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
-        address: signer.address,
-        role: AccountRole.READONLY_SIGNER,
-        signer,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'multiSigners',
+            getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('mint', accounts.mint),
@@ -211,11 +231,17 @@ export function getRotateSupplyElgamalPubkeyInstruction<
         programAddress,
     } as RotateSupplyElgamalPubkeyInstruction<
         TProgramAddress,
-        TAccountMint,
-        TAccountInstructionsSysvarOrContextState,
-        (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-            ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
-            : TAccountAuthority
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<
+            TAccountInstructionsSysvarOrContextState,
+            InstructionAccountInputAddress<TAccountInstructionsSysvarOrContextState>
+        >,
+        ResolvedInstructionAccountMeta<
+            TAccountAuthority,
+            InstructionAccountInputAddress<TAccountAuthority>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountAuthority>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountAuthority>>
+        >
     >);
 }
 

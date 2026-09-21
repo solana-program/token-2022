@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getStructDecoder,
     getStructEncoder,
@@ -27,7 +26,14 @@ import {
     type ReadonlyUint8Array,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const HARVEST_WITHHELD_TOKENS_TO_MINT_FOR_CONFIDENTIAL_TRANSFER_FEE_DISCRIMINATOR = 37;
@@ -93,41 +99,53 @@ export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruct
     );
 }
 
-export type HarvestWithheldTokensToMintForConfidentialTransferFeeInput<TAccountMint extends string = string> = {
+export type HarvestWithheldTokensToMintForConfidentialTransferFeeInput<
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+> = {
     /** The mint. */
-    mint: Address<TAccountMint>;
-    sources?: Array<Address>;
+    mint: TAccountMint;
+    sources?: Array<InstructionAccountInput>;
 };
 
 export function getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<
-    TAccountMint extends string,
+    TAccountMint extends InstructionAccountInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: HarvestWithheldTokensToMintForConfidentialTransferFeeInput<TAccountMint>,
     config?: { programAddress?: TProgramAddress },
-): HarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<TProgramAddress, TAccountMint> {
+): HarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
-    const originalAccounts = { mint: { value: input.mint ?? null, isWritable: true } };
+    const originalAccounts = { mint: { value: input.mint ?? null, isSigner: false, isWritable: true } };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.sources ?? []).map(address => ({
-        address,
-        role: AccountRole.WRITABLE,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.sources ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'sources',
+            getAccountMeta('sources', { value, isSigner: false, isWritable: true }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [getAccountMeta('mint', accounts.mint), ...remainingAccounts],
         data: getHarvestWithheldTokensToMintForConfidentialTransferFeeInstructionDataEncoder().encode({}),
         programAddress,
-    } as HarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<TProgramAddress, TAccountMint>);
+    } as HarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<
+        TProgramAddress,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
+    >);
 }
 
 export type ParsedHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction<

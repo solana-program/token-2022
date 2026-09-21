@@ -26,7 +26,13 @@ import {
     type ReadonlyUint8Array,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const INITIALIZE_NON_TRANSFERABLE_MINT_DISCRIMINATOR = 32;
@@ -70,31 +76,40 @@ export function getInitializeNonTransferableMintInstructionDataCodec(): FixedSiz
     );
 }
 
-export type InitializeNonTransferableMintInput<TAccountMint extends string = string> = {
-    /** The mint account to initialize. */
-    mint: Address<TAccountMint>;
-};
+export type InitializeNonTransferableMintInput<TAccountMint extends InstructionAccountInput = InstructionAccountInput> =
+    {
+        /** The mint account to initialize. */
+        mint: TAccountMint;
+    };
 
 export function getInitializeNonTransferableMintInstruction<
-    TAccountMint extends string,
+    TAccountMint extends InstructionAccountInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: InitializeNonTransferableMintInput<TAccountMint>,
     config?: { programAddress?: TProgramAddress },
-): InitializeNonTransferableMintInstruction<TProgramAddress, TAccountMint> {
+): InitializeNonTransferableMintInstruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
-    const originalAccounts = { mint: { value: input.mint ?? null, isWritable: true } };
+    const originalAccounts = { mint: { value: input.mint ?? null, isSigner: false, isWritable: true } };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [getAccountMeta('mint', accounts.mint)],
         data: getInitializeNonTransferableMintInstructionDataEncoder().encode({}),
         programAddress,
-    } as InitializeNonTransferableMintInstruction<TProgramAddress, TAccountMint>);
+    } as InitializeNonTransferableMintInstruction<
+        TProgramAddress,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
+    >);
 }
 
 export type ParsedInitializeNonTransferableMintInstruction<

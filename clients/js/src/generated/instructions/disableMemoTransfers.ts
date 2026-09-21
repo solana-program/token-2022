@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getStructDecoder,
     getStructEncoder,
@@ -28,10 +27,17 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const DISABLE_MEMO_TRANSFERS_DISCRIMINATOR = 30;
@@ -96,35 +102,45 @@ export function getDisableMemoTransfersInstructionDataCodec(): FixedSizeCodec<
     );
 }
 
-export type DisableMemoTransfersInput<TAccountToken extends string = string, TAccountOwner extends string = string> = {
+export type DisableMemoTransfersInput<
+    TAccountToken extends InstructionAccountInput = InstructionAccountInput,
+    TAccountOwner extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
+> = {
     /** The token account to update. */
-    token: Address<TAccountToken>;
+    token: TAccountToken;
     /** The account's owner or its multisignature account. */
-    owner: Address<TAccountOwner> | TransactionSigner<TAccountOwner>;
-    multiSigners?: Array<TransactionSigner>;
+    owner: TAccountOwner;
+    multiSigners?: Array<InstructionSignerInput>;
 };
 
 export function getDisableMemoTransfersInstruction<
-    TAccountToken extends string,
-    TAccountOwner extends string,
+    TAccountToken extends InstructionAccountInput,
+    TAccountOwner extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: DisableMemoTransfersInput<TAccountToken, TAccountOwner>,
     config?: { programAddress?: TProgramAddress },
 ): DisableMemoTransfersInstruction<
     TProgramAddress,
-    TAccountToken,
-    (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-        ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
-        : TAccountOwner
+    ResolvedInstructionAccountMeta<TAccountToken, InstructionAccountInputAddress<TAccountToken>>,
+    ResolvedInstructionAccountMeta<
+        TAccountOwner,
+        InstructionAccountInputAddress<TAccountOwner>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountOwner>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountOwner>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        token: { value: input.token ?? null, isWritable: true },
-        owner: { value: input.owner ?? null, isWritable: false },
+        token: { value: input.token ?? null, isSigner: false, isWritable: true },
+        owner: { value: input.owner ?? null, isSigner: 'either', isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -132,13 +148,13 @@ export function getDisableMemoTransfersInstruction<
     const args = { ...input };
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
-        address: signer.address,
-        role: AccountRole.READONLY_SIGNER,
-        signer,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'multiSigners',
+            getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('token', accounts.token),
@@ -149,10 +165,13 @@ export function getDisableMemoTransfersInstruction<
         programAddress,
     } as DisableMemoTransfersInstruction<
         TProgramAddress,
-        TAccountToken,
-        (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-            ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
-            : TAccountOwner
+        ResolvedInstructionAccountMeta<TAccountToken, InstructionAccountInputAddress<TAccountToken>>,
+        ResolvedInstructionAccountMeta<
+            TAccountOwner,
+            InstructionAccountInputAddress<TAccountOwner>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountOwner>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountOwner>>
+        >
     >);
 }
 

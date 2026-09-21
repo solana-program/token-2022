@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getAddressDecoder,
     getAddressEncoder,
@@ -34,10 +33,17 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const UPDATE_GROUP_POINTER_DISCRIMINATOR = 40;
@@ -112,38 +118,45 @@ export function getUpdateGroupPointerInstructionDataCodec(): FixedSizeCodec<
 }
 
 export type UpdateGroupPointerInput<
-    TAccountMint extends string = string,
-    TAccountGroupPointerAuthority extends string = string,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountGroupPointerAuthority extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
 > = {
     /** The mint to initialize. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /** The group pointer authority or its multisignature account. */
-    groupPointerAuthority: Address<TAccountGroupPointerAuthority> | TransactionSigner<TAccountGroupPointerAuthority>;
+    groupPointerAuthority: TAccountGroupPointerAuthority;
     groupAddress: UpdateGroupPointerInstructionDataArgs['groupAddress'];
-    multiSigners?: Array<TransactionSigner>;
+    multiSigners?: Array<InstructionSignerInput>;
 };
 
 export function getUpdateGroupPointerInstruction<
-    TAccountMint extends string,
-    TAccountGroupPointerAuthority extends string,
+    TAccountMint extends InstructionAccountInput,
+    TAccountGroupPointerAuthority extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: UpdateGroupPointerInput<TAccountMint, TAccountGroupPointerAuthority>,
     config?: { programAddress?: TProgramAddress },
 ): UpdateGroupPointerInstruction<
     TProgramAddress,
-    TAccountMint,
-    (typeof input)['groupPointerAuthority'] extends TransactionSigner<TAccountGroupPointerAuthority>
-        ? ReadonlySignerAccount<TAccountGroupPointerAuthority> & AccountSignerMeta<TAccountGroupPointerAuthority>
-        : TAccountGroupPointerAuthority
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<
+        TAccountGroupPointerAuthority,
+        InstructionAccountInputAddress<TAccountGroupPointerAuthority>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountGroupPointerAuthority>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountGroupPointerAuthority>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        mint: { value: input.mint ?? null, isWritable: true },
-        groupPointerAuthority: { value: input.groupPointerAuthority ?? null, isWritable: false },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: true },
+        groupPointerAuthority: { value: input.groupPointerAuthority ?? null, isSigner: 'either', isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -151,13 +164,13 @@ export function getUpdateGroupPointerInstruction<
     const args = { ...input };
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
-        address: signer.address,
-        role: AccountRole.READONLY_SIGNER,
-        signer,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'multiSigners',
+            getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('mint', accounts.mint),
@@ -168,10 +181,13 @@ export function getUpdateGroupPointerInstruction<
         programAddress,
     } as UpdateGroupPointerInstruction<
         TProgramAddress,
-        TAccountMint,
-        (typeof input)['groupPointerAuthority'] extends TransactionSigner<TAccountGroupPointerAuthority>
-            ? ReadonlySignerAccount<TAccountGroupPointerAuthority> & AccountSignerMeta<TAccountGroupPointerAuthority>
-            : TAccountGroupPointerAuthority
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<
+            TAccountGroupPointerAuthority,
+            InstructionAccountInputAddress<TAccountGroupPointerAuthority>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountGroupPointerAuthority>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountGroupPointerAuthority>>
+        >
     >);
 }
 

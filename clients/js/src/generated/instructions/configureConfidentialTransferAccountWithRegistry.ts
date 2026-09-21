@@ -26,11 +26,17 @@ import {
     type InstructionWithData,
     type ReadonlyAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
     type WritableSignerAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const CONFIGURE_CONFIDENTIAL_TRANSFER_ACCOUNT_WITH_REGISTRY_DISCRIMINATOR = 27;
@@ -120,30 +126,30 @@ export function getConfigureConfidentialTransferAccountWithRegistryInstructionDa
 }
 
 export type ConfigureConfidentialTransferAccountWithRegistryInput<
-    TAccountToken extends string = string,
-    TAccountMint extends string = string,
-    TAccountElgamalRegistry extends string = string,
-    TAccountPayer extends string = string,
-    TAccountSystemProgram extends string = string,
+    TAccountToken extends InstructionAccountInput = InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountElgamalRegistry extends InstructionAccountInput = InstructionAccountInput,
+    TAccountPayer extends InstructionSignerInput = InstructionSignerInput,
+    TAccountSystemProgram extends InstructionAccountInput = InstructionAccountInput,
 > = {
     /** The SPL Token account. */
-    token: Address<TAccountToken>;
+    token: TAccountToken;
     /** The corresponding SPL Token mint. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /** The ElGamal registry account. */
-    elgamalRegistry: Address<TAccountElgamalRegistry>;
+    elgamalRegistry: TAccountElgamalRegistry;
     /** (Optional) The payer account to fund reallocation. */
-    payer?: TransactionSigner<TAccountPayer>;
+    payer?: TAccountPayer;
     /** (Optional) System program for reallocation funding. */
-    systemProgram?: Address<TAccountSystemProgram>;
+    systemProgram?: TAccountSystemProgram;
 };
 
 export function getConfigureConfidentialTransferAccountWithRegistryInstruction<
-    TAccountToken extends string,
-    TAccountMint extends string,
-    TAccountElgamalRegistry extends string,
-    TAccountPayer extends string,
-    TAccountSystemProgram extends string,
+    TAccountToken extends InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput,
+    TAccountElgamalRegistry extends InstructionAccountInput,
+    TAccountPayer extends InstructionSignerInput,
+    TAccountSystemProgram extends InstructionAccountInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: ConfigureConfidentialTransferAccountWithRegistryInput<
@@ -156,26 +162,28 @@ export function getConfigureConfidentialTransferAccountWithRegistryInstruction<
     config?: { programAddress?: TProgramAddress },
 ): ConfigureConfidentialTransferAccountWithRegistryInstruction<
     TProgramAddress,
-    TAccountToken,
-    TAccountMint,
-    TAccountElgamalRegistry,
-    TAccountPayer,
-    TAccountSystemProgram
+    ResolvedInstructionAccountMeta<TAccountToken, InstructionAccountInputAddress<TAccountToken>>,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<TAccountElgamalRegistry, InstructionAccountInputAddress<TAccountElgamalRegistry>>,
+    ResolvedInstructionAccountMeta<TAccountPayer, InstructionAccountInputAddress<TAccountPayer>>,
+    ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'omitted');
+
     // Original accounts.
     const originalAccounts = {
-        token: { value: input.token ?? null, isWritable: true },
-        mint: { value: input.mint ?? null, isWritable: false },
-        elgamalRegistry: { value: input.elgamalRegistry ?? null, isWritable: false },
-        payer: { value: input.payer ?? null, isWritable: true },
-        systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+        token: { value: input.token ?? null, isSigner: false, isWritable: true },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: false },
+        elgamalRegistry: { value: input.elgamalRegistry ?? null, isSigner: false, isWritable: false },
+        payer: { value: input.payer ?? null, isSigner: true, isWritable: true },
+        systemProgram: { value: input.systemProgram ?? null, isSigner: false, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'omitted');
     return Object.freeze({
         accounts: [
             getAccountMeta('token', accounts.token),
@@ -188,11 +196,14 @@ export function getConfigureConfidentialTransferAccountWithRegistryInstruction<
         programAddress,
     } as ConfigureConfidentialTransferAccountWithRegistryInstruction<
         TProgramAddress,
-        TAccountToken,
-        TAccountMint,
-        TAccountElgamalRegistry,
-        TAccountPayer,
-        TAccountSystemProgram
+        ResolvedInstructionAccountMeta<TAccountToken, InstructionAccountInputAddress<TAccountToken>>,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<
+            TAccountElgamalRegistry,
+            InstructionAccountInputAddress<TAccountElgamalRegistry>
+        >,
+        ResolvedInstructionAccountMeta<TAccountPayer, InstructionAccountInputAddress<TAccountPayer>>,
+        ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>
     >);
 }
 

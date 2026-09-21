@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getStructDecoder,
     getStructEncoder,
@@ -32,10 +31,17 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const SET_TRANSFER_FEE_DISCRIMINATOR = 26;
@@ -116,42 +122,50 @@ export function getSetTransferFeeInstructionDataCodec(): FixedSizeCodec<
 }
 
 export type SetTransferFeeInput<
-    TAccountMint extends string = string,
-    TAccountTransferFeeConfigAuthority extends string = string,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountTransferFeeConfigAuthority extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
 > = {
     /** The mint. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /** The mint's fee account owner or its multisignature account. */
-    transferFeeConfigAuthority:
-        | Address<TAccountTransferFeeConfigAuthority>
-        | TransactionSigner<TAccountTransferFeeConfigAuthority>;
+    transferFeeConfigAuthority: TAccountTransferFeeConfigAuthority;
     transferFeeBasisPoints: SetTransferFeeInstructionDataArgs['transferFeeBasisPoints'];
     maximumFee: SetTransferFeeInstructionDataArgs['maximumFee'];
-    multiSigners?: Array<TransactionSigner>;
+    multiSigners?: Array<InstructionSignerInput>;
 };
 
 export function getSetTransferFeeInstruction<
-    TAccountMint extends string,
-    TAccountTransferFeeConfigAuthority extends string,
+    TAccountMint extends InstructionAccountInput,
+    TAccountTransferFeeConfigAuthority extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: SetTransferFeeInput<TAccountMint, TAccountTransferFeeConfigAuthority>,
     config?: { programAddress?: TProgramAddress },
 ): SetTransferFeeInstruction<
     TProgramAddress,
-    TAccountMint,
-    (typeof input)['transferFeeConfigAuthority'] extends TransactionSigner<TAccountTransferFeeConfigAuthority>
-        ? ReadonlySignerAccount<TAccountTransferFeeConfigAuthority> &
-              AccountSignerMeta<TAccountTransferFeeConfigAuthority>
-        : TAccountTransferFeeConfigAuthority
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<
+        TAccountTransferFeeConfigAuthority,
+        InstructionAccountInputAddress<TAccountTransferFeeConfigAuthority>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountTransferFeeConfigAuthority>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountTransferFeeConfigAuthority>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        mint: { value: input.mint ?? null, isWritable: true },
-        transferFeeConfigAuthority: { value: input.transferFeeConfigAuthority ?? null, isWritable: false },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: true },
+        transferFeeConfigAuthority: {
+            value: input.transferFeeConfigAuthority ?? null,
+            isSigner: 'either',
+            isWritable: false,
+        },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -159,13 +173,13 @@ export function getSetTransferFeeInstruction<
     const args = { ...input };
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
-        address: signer.address,
-        role: AccountRole.READONLY_SIGNER,
-        signer,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'multiSigners',
+            getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('mint', accounts.mint),
@@ -176,11 +190,13 @@ export function getSetTransferFeeInstruction<
         programAddress,
     } as SetTransferFeeInstruction<
         TProgramAddress,
-        TAccountMint,
-        (typeof input)['transferFeeConfigAuthority'] extends TransactionSigner<TAccountTransferFeeConfigAuthority>
-            ? ReadonlySignerAccount<TAccountTransferFeeConfigAuthority> &
-                  AccountSignerMeta<TAccountTransferFeeConfigAuthority>
-            : TAccountTransferFeeConfigAuthority
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<
+            TAccountTransferFeeConfigAuthority,
+            InstructionAccountInputAddress<TAccountTransferFeeConfigAuthority>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountTransferFeeConfigAuthority>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountTransferFeeConfigAuthority>>
+        >
     >);
 }
 

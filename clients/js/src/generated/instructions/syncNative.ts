@@ -27,7 +27,13 @@ import {
     type ReadonlyUint8Array,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const SYNC_NATIVE_DISCRIMINATOR = 17;
@@ -75,28 +81,38 @@ export function getSyncNativeInstructionDataCodec(): FixedSizeCodec<
     return combineCodec(getSyncNativeInstructionDataEncoder(), getSyncNativeInstructionDataDecoder());
 }
 
-export type SyncNativeInput<TAccountAccount extends string = string, TAccountRent extends string = string> = {
+export type SyncNativeInput<
+    TAccountAccount extends InstructionAccountInput = InstructionAccountInput,
+    TAccountRent extends InstructionAccountInput = InstructionAccountInput,
+> = {
     /** The native token account to sync with its underlying lamports. */
-    account: Address<TAccountAccount>;
+    account: TAccountAccount;
     /** Rent sysvar. */
-    rent?: Address<TAccountRent>;
+    rent?: TAccountRent;
 };
 
 export function getSyncNativeInstruction<
-    TAccountAccount extends string,
-    TAccountRent extends string,
+    TAccountAccount extends InstructionAccountInput,
+    TAccountRent extends InstructionAccountInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: SyncNativeInput<TAccountAccount, TAccountRent>,
     config?: { programAddress?: TProgramAddress },
-): SyncNativeInstruction<TProgramAddress, TAccountAccount, TAccountRent> {
+): SyncNativeInstruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountAccount, InstructionAccountInputAddress<TAccountAccount>>,
+    ResolvedInstructionAccountMeta<TAccountRent, InstructionAccountInputAddress<TAccountRent>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'omitted');
+
     // Original accounts.
     const originalAccounts = {
-        account: { value: input.account ?? null, isWritable: true },
-        rent: { value: input.rent ?? null, isWritable: false },
+        account: { value: input.account ?? null, isSigner: false, isWritable: true },
+        rent: { value: input.rent ?? null, isSigner: false, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -106,14 +122,17 @@ export function getSyncNativeInstruction<
             'SysvarRent111111111111111111111111111111111' as Address<'SysvarRent111111111111111111111111111111111'>;
     }
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'omitted');
     return Object.freeze({
         accounts: [getAccountMeta('account', accounts.account), getAccountMeta('rent', accounts.rent)].filter(
             <T>(x: T | undefined): x is T => x !== undefined,
         ),
         data: getSyncNativeInstructionDataEncoder().encode({}),
         programAddress,
-    } as SyncNativeInstruction<TProgramAddress, TAccountAccount, TAccountRent>);
+    } as SyncNativeInstruction<
+        TProgramAddress,
+        ResolvedInstructionAccountMeta<TAccountAccount, InstructionAccountInputAddress<TAccountAccount>>,
+        ResolvedInstructionAccountMeta<TAccountRent, InstructionAccountInputAddress<TAccountRent>>
+    >);
 }
 
 export type ParsedSyncNativeInstruction<

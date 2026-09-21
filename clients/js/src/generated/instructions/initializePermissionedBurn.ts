@@ -28,7 +28,13 @@ import {
     type ReadonlyUint8Array,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const INITIALIZE_PERMISSIONED_BURN_DISCRIMINATOR = 46;
@@ -98,37 +104,45 @@ export function getInitializePermissionedBurnInstructionDataCodec(): FixedSizeCo
     );
 }
 
-export type InitializePermissionedBurnInput<TAccountMint extends string = string> = {
+export type InitializePermissionedBurnInput<TAccountMint extends InstructionAccountInput = InstructionAccountInput> = {
     /** The mint account to initialize. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     authority: InitializePermissionedBurnInstructionDataArgs['authority'];
 };
 
 export function getInitializePermissionedBurnInstruction<
-    TAccountMint extends string,
+    TAccountMint extends InstructionAccountInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: InitializePermissionedBurnInput<TAccountMint>,
     config?: { programAddress?: TProgramAddress },
-): InitializePermissionedBurnInstruction<TProgramAddress, TAccountMint> {
+): InitializePermissionedBurnInstruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
-    const originalAccounts = { mint: { value: input.mint ?? null, isWritable: true } };
+    const originalAccounts = { mint: { value: input.mint ?? null, isSigner: false, isWritable: true } };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [getAccountMeta('mint', accounts.mint)],
         data: getInitializePermissionedBurnInstructionDataEncoder().encode(
             args as InitializePermissionedBurnInstructionDataArgs,
         ),
         programAddress,
-    } as InitializePermissionedBurnInstruction<TProgramAddress, TAccountMint>);
+    } as InitializePermissionedBurnInstruction<
+        TProgramAddress,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
+    >);
 }
 
 export type ParsedInitializePermissionedBurnInstruction<
