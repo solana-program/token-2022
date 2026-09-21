@@ -27,10 +27,16 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const APPROVE_CONFIDENTIAL_TRANSFER_ACCOUNT_DISCRIMINATOR = 27;
@@ -104,39 +110,46 @@ export function getApproveConfidentialTransferAccountInstructionDataCodec(): Fix
 }
 
 export type ApproveConfidentialTransferAccountInput<
-    TAccountToken extends string = string,
-    TAccountMint extends string = string,
-    TAccountAuthority extends string = string,
+    TAccountToken extends InstructionAccountInput = InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountAuthority extends InstructionSignerInput = InstructionSignerInput,
 > = {
     /** The SPL Token account to approve. */
-    token: Address<TAccountToken>;
+    token: TAccountToken;
     /** The corresponding SPL Token mint. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /** Confidential transfer mint authority. */
-    authority: TransactionSigner<TAccountAuthority>;
+    authority: TAccountAuthority;
 };
 
 export function getApproveConfidentialTransferAccountInstruction<
-    TAccountToken extends string,
-    TAccountMint extends string,
-    TAccountAuthority extends string,
+    TAccountToken extends InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput,
+    TAccountAuthority extends InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: ApproveConfidentialTransferAccountInput<TAccountToken, TAccountMint, TAccountAuthority>,
     config?: { programAddress?: TProgramAddress },
-): ApproveConfidentialTransferAccountInstruction<TProgramAddress, TAccountToken, TAccountMint, TAccountAuthority> {
+): ApproveConfidentialTransferAccountInstruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountToken, InstructionAccountInputAddress<TAccountToken>>,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        token: { value: input.token ?? null, isWritable: true },
-        mint: { value: input.mint ?? null, isWritable: false },
-        authority: { value: input.authority ?? null, isWritable: false },
+        token: { value: input.token ?? null, isSigner: false, isWritable: true },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: false },
+        authority: { value: input.authority ?? null, isSigner: true, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('token', accounts.token),
@@ -147,9 +160,9 @@ export function getApproveConfidentialTransferAccountInstruction<
         programAddress,
     } as ApproveConfidentialTransferAccountInstruction<
         TProgramAddress,
-        TAccountToken,
-        TAccountMint,
-        TAccountAuthority
+        ResolvedInstructionAccountMeta<TAccountToken, InstructionAccountInputAddress<TAccountToken>>,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>
     >);
 }
 

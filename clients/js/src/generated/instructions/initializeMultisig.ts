@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getStructDecoder,
     getStructEncoder,
@@ -28,7 +27,14 @@ import {
     type ReadonlyUint8Array,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const INITIALIZE_MULTISIG_DISCRIMINATOR = 2;
@@ -87,30 +93,40 @@ export function getInitializeMultisigInstructionDataCodec(): FixedSizeCodec<
     return combineCodec(getInitializeMultisigInstructionDataEncoder(), getInitializeMultisigInstructionDataDecoder());
 }
 
-export type InitializeMultisigInput<TAccountMultisig extends string = string, TAccountRent extends string = string> = {
+export type InitializeMultisigInput<
+    TAccountMultisig extends InstructionAccountInput = InstructionAccountInput,
+    TAccountRent extends InstructionAccountInput = InstructionAccountInput,
+> = {
     /** The multisignature account to initialize. */
-    multisig: Address<TAccountMultisig>;
+    multisig: TAccountMultisig;
     /** Rent sysvar. */
-    rent?: Address<TAccountRent>;
+    rent?: TAccountRent;
     m: InitializeMultisigInstructionDataArgs['m'];
-    signers: Array<Address>;
+    signers: Array<InstructionAccountInput>;
 };
 
 export function getInitializeMultisigInstruction<
-    TAccountMultisig extends string,
-    TAccountRent extends string,
+    TAccountMultisig extends InstructionAccountInput,
+    TAccountRent extends InstructionAccountInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: InitializeMultisigInput<TAccountMultisig, TAccountRent>,
     config?: { programAddress?: TProgramAddress },
-): InitializeMultisigInstruction<TProgramAddress, TAccountMultisig, TAccountRent> {
+): InitializeMultisigInstruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountMultisig, InstructionAccountInputAddress<TAccountMultisig>>,
+    ResolvedInstructionAccountMeta<TAccountRent, InstructionAccountInputAddress<TAccountRent>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        multisig: { value: input.multisig ?? null, isWritable: true },
-        rent: { value: input.rent ?? null, isWritable: false },
+        multisig: { value: input.multisig ?? null, isSigner: false, isWritable: true },
+        rent: { value: input.rent ?? null, isSigner: false, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -124,9 +140,13 @@ export function getInitializeMultisigInstruction<
     }
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = args.signers.map(address => ({ address, role: AccountRole.READONLY }));
+    const remainingAccounts: AccountMeta[] = args.signers.map(value =>
+        getNonNullResolvedInstructionInput(
+            'signers',
+            getAccountMeta('signers', { value, isSigner: false, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('multisig', accounts.multisig),
@@ -135,7 +155,11 @@ export function getInitializeMultisigInstruction<
         ],
         data: getInitializeMultisigInstructionDataEncoder().encode(args as InitializeMultisigInstructionDataArgs),
         programAddress,
-    } as InitializeMultisigInstruction<TProgramAddress, TAccountMultisig, TAccountRent>);
+    } as InitializeMultisigInstruction<
+        TProgramAddress,
+        ResolvedInstructionAccountMeta<TAccountMultisig, InstructionAccountInputAddress<TAccountMultisig>>,
+        ResolvedInstructionAccountMeta<TAccountRent, InstructionAccountInputAddress<TAccountRent>>
+    >);
 }
 
 export type ParsedInitializeMultisigInstruction<

@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getAddressDecoder,
     getAddressEncoder,
@@ -34,10 +33,17 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const UPDATE_METADATA_POINTER_DISCRIMINATOR = 39;
@@ -115,40 +121,49 @@ export function getUpdateMetadataPointerInstructionDataCodec(): FixedSizeCodec<
 }
 
 export type UpdateMetadataPointerInput<
-    TAccountMint extends string = string,
-    TAccountMetadataPointerAuthority extends string = string,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountMetadataPointerAuthority extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
 > = {
     /** The mint to initialize. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /** The metadata pointer authority or its multisignature account. */
-    metadataPointerAuthority:
-        | Address<TAccountMetadataPointerAuthority>
-        | TransactionSigner<TAccountMetadataPointerAuthority>;
+    metadataPointerAuthority: TAccountMetadataPointerAuthority;
     metadataAddress: UpdateMetadataPointerInstructionDataArgs['metadataAddress'];
-    multiSigners?: Array<TransactionSigner>;
+    multiSigners?: Array<InstructionSignerInput>;
 };
 
 export function getUpdateMetadataPointerInstruction<
-    TAccountMint extends string,
-    TAccountMetadataPointerAuthority extends string,
+    TAccountMint extends InstructionAccountInput,
+    TAccountMetadataPointerAuthority extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: UpdateMetadataPointerInput<TAccountMint, TAccountMetadataPointerAuthority>,
     config?: { programAddress?: TProgramAddress },
 ): UpdateMetadataPointerInstruction<
     TProgramAddress,
-    TAccountMint,
-    (typeof input)['metadataPointerAuthority'] extends TransactionSigner<TAccountMetadataPointerAuthority>
-        ? ReadonlySignerAccount<TAccountMetadataPointerAuthority> & AccountSignerMeta<TAccountMetadataPointerAuthority>
-        : TAccountMetadataPointerAuthority
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<
+        TAccountMetadataPointerAuthority,
+        InstructionAccountInputAddress<TAccountMetadataPointerAuthority>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountMetadataPointerAuthority>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountMetadataPointerAuthority>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        mint: { value: input.mint ?? null, isWritable: true },
-        metadataPointerAuthority: { value: input.metadataPointerAuthority ?? null, isWritable: false },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: true },
+        metadataPointerAuthority: {
+            value: input.metadataPointerAuthority ?? null,
+            isSigner: 'either',
+            isWritable: false,
+        },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -156,13 +171,13 @@ export function getUpdateMetadataPointerInstruction<
     const args = { ...input };
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
-        address: signer.address,
-        role: AccountRole.READONLY_SIGNER,
-        signer,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'multiSigners',
+            getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('mint', accounts.mint),
@@ -173,11 +188,13 @@ export function getUpdateMetadataPointerInstruction<
         programAddress,
     } as UpdateMetadataPointerInstruction<
         TProgramAddress,
-        TAccountMint,
-        (typeof input)['metadataPointerAuthority'] extends TransactionSigner<TAccountMetadataPointerAuthority>
-            ? ReadonlySignerAccount<TAccountMetadataPointerAuthority> &
-                  AccountSignerMeta<TAccountMetadataPointerAuthority>
-            : TAccountMetadataPointerAuthority
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<
+            TAccountMetadataPointerAuthority,
+            InstructionAccountInputAddress<TAccountMetadataPointerAuthority>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountMetadataPointerAuthority>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountMetadataPointerAuthority>>
+        >
     >);
 }
 

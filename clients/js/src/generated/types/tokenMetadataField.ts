@@ -31,10 +31,7 @@ import {
 
 /** Fields in the metadata account, used for updating. */
 export type TokenMetadataField =
-    | { __kind: 'Name' }
-    | { __kind: 'Symbol' }
-    | { __kind: 'Uri' }
-    | { __kind: 'Key'; fields: readonly [string] };
+    { __kind: 'Name' } | { __kind: 'Symbol' } | { __kind: 'Uri' } | { __kind: 'Key'; fields: readonly [string] };
 
 export type TokenMetadataFieldArgs = TokenMetadataField;
 

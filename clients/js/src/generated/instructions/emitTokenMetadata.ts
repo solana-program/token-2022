@@ -35,7 +35,13 @@ import {
     type ReadonlyAccount,
     type ReadonlyUint8Array,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const EMIT_TOKEN_METADATA_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
@@ -102,35 +108,43 @@ export function getEmitTokenMetadataInstructionDataCodec(): Codec<
     return combineCodec(getEmitTokenMetadataInstructionDataEncoder(), getEmitTokenMetadataInstructionDataDecoder());
 }
 
-export type EmitTokenMetadataInput<TAccountMetadata extends string = string> = {
-    metadata: Address<TAccountMetadata>;
+export type EmitTokenMetadataInput<TAccountMetadata extends InstructionAccountInput = InstructionAccountInput> = {
+    metadata: TAccountMetadata;
     start?: EmitTokenMetadataInstructionDataArgs['start'];
     end?: EmitTokenMetadataInstructionDataArgs['end'];
 };
 
 export function getEmitTokenMetadataInstruction<
-    TAccountMetadata extends string,
+    TAccountMetadata extends InstructionAccountInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: EmitTokenMetadataInput<TAccountMetadata>,
     config?: { programAddress?: TProgramAddress },
-): EmitTokenMetadataInstruction<TProgramAddress, TAccountMetadata> {
+): EmitTokenMetadataInstruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountMetadata, InstructionAccountInputAddress<TAccountMetadata>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
-    const originalAccounts = { metadata: { value: input.metadata ?? null, isWritable: false } };
+    const originalAccounts = { metadata: { value: input.metadata ?? null, isSigner: false, isWritable: false } };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [getAccountMeta('metadata', accounts.metadata)],
         data: getEmitTokenMetadataInstructionDataEncoder().encode(args as EmitTokenMetadataInstructionDataArgs),
         programAddress,
-    } as EmitTokenMetadataInstruction<TProgramAddress, TAccountMetadata>);
+    } as EmitTokenMetadataInstruction<
+        TProgramAddress,
+        ResolvedInstructionAccountMeta<TAccountMetadata, InstructionAccountInputAddress<TAccountMetadata>>
+    >);
 }
 
 export type ParsedEmitTokenMetadataInstruction<

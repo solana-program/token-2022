@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getI8Decoder,
     getI8Encoder,
@@ -32,10 +31,17 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import {
     getDecryptableBalanceDecoder,
@@ -153,35 +159,36 @@ export function getConfigureConfidentialTransferAccountInstructionDataCodec(): F
 }
 
 export type ConfigureConfidentialTransferAccountInput<
-    TAccountToken extends string = string,
-    TAccountMint extends string = string,
-    TAccountInstructionsSysvarOrContextState extends string = string,
-    TAccountAuthority extends string = string,
+    TAccountToken extends InstructionAccountInput = InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountInstructionsSysvarOrContextState extends InstructionAccountInput = InstructionAccountInput,
+    TAccountAuthority extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
 > = {
     /** The SPL Token account. */
-    token: Address<TAccountToken>;
+    token: TAccountToken;
     /** The corresponding SPL Token mint. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /**
      * Instructions sysvar if `VerifyPubkeyValidity` is included in
      * the same transaction or context state account if
      * `VerifyPubkeyValidity` is pre-verified into a context state
      * account.
      */
-    instructionsSysvarOrContextState?: Address<TAccountInstructionsSysvarOrContextState>;
+    instructionsSysvarOrContextState?: TAccountInstructionsSysvarOrContextState;
     /** The source account's owner/delegate or its multisignature account. */
-    authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
+    authority: TAccountAuthority;
     decryptableZeroBalance: ConfigureConfidentialTransferAccountInstructionDataArgs['decryptableZeroBalance'];
     maximumPendingBalanceCreditCounter: ConfigureConfidentialTransferAccountInstructionDataArgs['maximumPendingBalanceCreditCounter'];
     proofInstructionOffset: ConfigureConfidentialTransferAccountInstructionDataArgs['proofInstructionOffset'];
-    multiSigners?: Array<TransactionSigner>;
+    multiSigners?: Array<InstructionSignerInput>;
 };
 
 export function getConfigureConfidentialTransferAccountInstruction<
-    TAccountToken extends string,
-    TAccountMint extends string,
-    TAccountInstructionsSysvarOrContextState extends string,
-    TAccountAuthority extends string,
+    TAccountToken extends InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput,
+    TAccountInstructionsSysvarOrContextState extends InstructionAccountInput,
+    TAccountAuthority extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: ConfigureConfidentialTransferAccountInput<
@@ -193,22 +200,35 @@ export function getConfigureConfidentialTransferAccountInstruction<
     config?: { programAddress?: TProgramAddress },
 ): ConfigureConfidentialTransferAccountInstruction<
     TProgramAddress,
-    TAccountToken,
-    TAccountMint,
-    TAccountInstructionsSysvarOrContextState,
-    (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-        ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
-        : TAccountAuthority
+    ResolvedInstructionAccountMeta<TAccountToken, InstructionAccountInputAddress<TAccountToken>>,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<
+        TAccountInstructionsSysvarOrContextState,
+        InstructionAccountInputAddress<TAccountInstructionsSysvarOrContextState>
+    >,
+    ResolvedInstructionAccountMeta<
+        TAccountAuthority,
+        InstructionAccountInputAddress<TAccountAuthority>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountAuthority>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountAuthority>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        token: { value: input.token ?? null, isWritable: true },
-        mint: { value: input.mint ?? null, isWritable: false },
-        instructionsSysvarOrContextState: { value: input.instructionsSysvarOrContextState ?? null, isWritable: false },
-        authority: { value: input.authority ?? null, isWritable: false },
+        token: { value: input.token ?? null, isSigner: false, isWritable: true },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: false },
+        instructionsSysvarOrContextState: {
+            value: input.instructionsSysvarOrContextState ?? null,
+            isSigner: false,
+            isWritable: false,
+        },
+        authority: { value: input.authority ?? null, isSigner: 'either', isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -222,13 +242,13 @@ export function getConfigureConfidentialTransferAccountInstruction<
     }
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
-        address: signer.address,
-        role: AccountRole.READONLY_SIGNER,
-        signer,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'multiSigners',
+            getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('token', accounts.token),
@@ -243,12 +263,18 @@ export function getConfigureConfidentialTransferAccountInstruction<
         programAddress,
     } as ConfigureConfidentialTransferAccountInstruction<
         TProgramAddress,
-        TAccountToken,
-        TAccountMint,
-        TAccountInstructionsSysvarOrContextState,
-        (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-            ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
-            : TAccountAuthority
+        ResolvedInstructionAccountMeta<TAccountToken, InstructionAccountInputAddress<TAccountToken>>,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<
+            TAccountInstructionsSysvarOrContextState,
+            InstructionAccountInputAddress<TAccountInstructionsSysvarOrContextState>
+        >,
+        ResolvedInstructionAccountMeta<
+            TAccountAuthority,
+            InstructionAccountInputAddress<TAccountAuthority>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountAuthority>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountAuthority>>
+        >
     >);
 }
 

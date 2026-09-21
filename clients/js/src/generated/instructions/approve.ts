@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getStructDecoder,
     getStructEncoder,
@@ -30,10 +29,17 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const APPROVE_DISCRIMINATOR = 4;
@@ -92,44 +98,51 @@ export function getApproveInstructionDataCodec(): FixedSizeCodec<ApproveInstruct
 }
 
 export type ApproveInput<
-    TAccountSource extends string = string,
-    TAccountDelegate extends string = string,
-    TAccountOwner extends string = string,
+    TAccountSource extends InstructionAccountInput = InstructionAccountInput,
+    TAccountDelegate extends InstructionAccountInput = InstructionAccountInput,
+    TAccountOwner extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
 > = {
     /** The source account. */
-    source: Address<TAccountSource>;
+    source: TAccountSource;
     /** The delegate. */
-    delegate: Address<TAccountDelegate>;
+    delegate: TAccountDelegate;
     /** The source account owner or its multisignature account. */
-    owner: Address<TAccountOwner> | TransactionSigner<TAccountOwner>;
+    owner: TAccountOwner;
     amount: ApproveInstructionDataArgs['amount'];
-    multiSigners?: Array<TransactionSigner>;
+    multiSigners?: Array<InstructionSignerInput>;
 };
 
 export function getApproveInstruction<
-    TAccountSource extends string,
-    TAccountDelegate extends string,
-    TAccountOwner extends string,
+    TAccountSource extends InstructionAccountInput,
+    TAccountDelegate extends InstructionAccountInput,
+    TAccountOwner extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: ApproveInput<TAccountSource, TAccountDelegate, TAccountOwner>,
     config?: { programAddress?: TProgramAddress },
 ): ApproveInstruction<
     TProgramAddress,
-    TAccountSource,
-    TAccountDelegate,
-    (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-        ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
-        : TAccountOwner
+    ResolvedInstructionAccountMeta<TAccountSource, InstructionAccountInputAddress<TAccountSource>>,
+    ResolvedInstructionAccountMeta<TAccountDelegate, InstructionAccountInputAddress<TAccountDelegate>>,
+    ResolvedInstructionAccountMeta<
+        TAccountOwner,
+        InstructionAccountInputAddress<TAccountOwner>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountOwner>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountOwner>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        source: { value: input.source ?? null, isWritable: true },
-        delegate: { value: input.delegate ?? null, isWritable: false },
-        owner: { value: input.owner ?? null, isWritable: false },
+        source: { value: input.source ?? null, isSigner: false, isWritable: true },
+        delegate: { value: input.delegate ?? null, isSigner: false, isWritable: false },
+        owner: { value: input.owner ?? null, isSigner: 'either', isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -137,13 +150,13 @@ export function getApproveInstruction<
     const args = { ...input };
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
-        address: signer.address,
-        role: AccountRole.READONLY_SIGNER,
-        signer,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'multiSigners',
+            getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('source', accounts.source),
@@ -155,11 +168,14 @@ export function getApproveInstruction<
         programAddress,
     } as ApproveInstruction<
         TProgramAddress,
-        TAccountSource,
-        TAccountDelegate,
-        (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-            ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
-            : TAccountOwner
+        ResolvedInstructionAccountMeta<TAccountSource, InstructionAccountInputAddress<TAccountSource>>,
+        ResolvedInstructionAccountMeta<TAccountDelegate, InstructionAccountInputAddress<TAccountDelegate>>,
+        ResolvedInstructionAccountMeta<
+            TAccountOwner,
+            InstructionAccountInputAddress<TAccountOwner>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountOwner>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountOwner>>
+        >
     >);
 }
 

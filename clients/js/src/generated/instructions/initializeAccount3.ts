@@ -29,7 +29,13 @@ import {
     type ReadonlyUint8Array,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const INITIALIZE_ACCOUNT3_DISCRIMINATOR = 18;
@@ -88,41 +94,54 @@ export function getInitializeAccount3InstructionDataCodec(): FixedSizeCodec<
     return combineCodec(getInitializeAccount3InstructionDataEncoder(), getInitializeAccount3InstructionDataDecoder());
 }
 
-export type InitializeAccount3Input<TAccountAccount extends string = string, TAccountMint extends string = string> = {
+export type InitializeAccount3Input<
+    TAccountAccount extends InstructionAccountInput = InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+> = {
     /** The account to initialize. */
-    account: Address<TAccountAccount>;
+    account: TAccountAccount;
     /** The mint this account will be associated with. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     owner: InitializeAccount3InstructionDataArgs['owner'];
 };
 
 export function getInitializeAccount3Instruction<
-    TAccountAccount extends string,
-    TAccountMint extends string,
+    TAccountAccount extends InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: InitializeAccount3Input<TAccountAccount, TAccountMint>,
     config?: { programAddress?: TProgramAddress },
-): InitializeAccount3Instruction<TProgramAddress, TAccountAccount, TAccountMint> {
+): InitializeAccount3Instruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountAccount, InstructionAccountInputAddress<TAccountAccount>>,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        account: { value: input.account ?? null, isWritable: true },
-        mint: { value: input.mint ?? null, isWritable: false },
+        account: { value: input.account ?? null, isSigner: false, isWritable: true },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [getAccountMeta('account', accounts.account), getAccountMeta('mint', accounts.mint)],
         data: getInitializeAccount3InstructionDataEncoder().encode(args as InitializeAccount3InstructionDataArgs),
         programAddress,
-    } as InitializeAccount3Instruction<TProgramAddress, TAccountAccount, TAccountMint>);
+    } as InitializeAccount3Instruction<
+        TProgramAddress,
+        ResolvedInstructionAccountMeta<TAccountAccount, InstructionAccountInputAddress<TAccountAccount>>,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
+    >);
 }
 
 export type ParsedInitializeAccount3Instruction<

@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getI8Decoder,
     getI8Encoder,
@@ -30,10 +29,17 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import {
     getDecryptableBalanceDecoder,
@@ -206,58 +212,59 @@ export function getConfidentialMintInstructionDataCodec(): FixedSizeCodec<
 }
 
 export type ConfidentialMintInput<
-    TAccountToken extends string = string,
-    TAccountMint extends string = string,
-    TAccountInstructionsSysvar extends string = string,
-    TAccountEqualityRecord extends string = string,
-    TAccountCiphertextValidityRecord extends string = string,
-    TAccountRangeRecord extends string = string,
-    TAccountAuthority extends string = string,
+    TAccountToken extends InstructionAccountInput = InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountInstructionsSysvar extends InstructionAccountInput = InstructionAccountInput,
+    TAccountEqualityRecord extends InstructionAccountInput = InstructionAccountInput,
+    TAccountCiphertextValidityRecord extends InstructionAccountInput = InstructionAccountInput,
+    TAccountRangeRecord extends InstructionAccountInput = InstructionAccountInput,
+    TAccountAuthority extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
 > = {
     /** The SPL Token account. */
-    token: Address<TAccountToken>;
+    token: TAccountToken;
     /** The SPL Token mint. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /**
      * (Optional) Instructions sysvar if at least one of the
      * `zk_elgamal_proof` instructions are included in the same
      * transaction.
      */
-    instructionsSysvar?: Address<TAccountInstructionsSysvar>;
+    instructionsSysvar?: TAccountInstructionsSysvar;
     /**
      * (Optional) The context state account containing the pre-verified
      * `VerifyCiphertextCommitmentEquality` proof.
      */
-    equalityRecord?: Address<TAccountEqualityRecord>;
+    equalityRecord?: TAccountEqualityRecord;
     /**
      * (Optional) The context state account containing the pre-verified
      * `VerifyBatchedGroupedCiphertext3HandlesValidity` proof.
      */
-    ciphertextValidityRecord?: Address<TAccountCiphertextValidityRecord>;
+    ciphertextValidityRecord?: TAccountCiphertextValidityRecord;
     /**
      * (Optional) The context state account containing the pre-verified
      * `VerifyBatchedRangeProofU128` proof.
      */
-    rangeRecord?: Address<TAccountRangeRecord>;
+    rangeRecord?: TAccountRangeRecord;
     /** The account owner or its multisignature account. */
-    authority: Address<TAccountAuthority> | TransactionSigner<TAccountAuthority>;
+    authority: TAccountAuthority;
     newDecryptableSupply: ConfidentialMintInstructionDataArgs['newDecryptableSupply'];
     mintAmountAuditorCiphertextLo: ConfidentialMintInstructionDataArgs['mintAmountAuditorCiphertextLo'];
     mintAmountAuditorCiphertextHi: ConfidentialMintInstructionDataArgs['mintAmountAuditorCiphertextHi'];
     equalityProofInstructionOffset: ConfidentialMintInstructionDataArgs['equalityProofInstructionOffset'];
     ciphertextValidityProofInstructionOffset: ConfidentialMintInstructionDataArgs['ciphertextValidityProofInstructionOffset'];
     rangeProofInstructionOffset: ConfidentialMintInstructionDataArgs['rangeProofInstructionOffset'];
-    multiSigners?: Array<TransactionSigner>;
+    multiSigners?: Array<InstructionSignerInput>;
 };
 
 export function getConfidentialMintInstruction<
-    TAccountToken extends string,
-    TAccountMint extends string,
-    TAccountInstructionsSysvar extends string,
-    TAccountEqualityRecord extends string,
-    TAccountCiphertextValidityRecord extends string,
-    TAccountRangeRecord extends string,
-    TAccountAuthority extends string,
+    TAccountToken extends InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput,
+    TAccountInstructionsSysvar extends InstructionAccountInput,
+    TAccountEqualityRecord extends InstructionAccountInput,
+    TAccountCiphertextValidityRecord extends InstructionAccountInput,
+    TAccountRangeRecord extends InstructionAccountInput,
+    TAccountAuthority extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: ConfidentialMintInput<
@@ -272,28 +279,40 @@ export function getConfidentialMintInstruction<
     config?: { programAddress?: TProgramAddress },
 ): ConfidentialMintInstruction<
     TProgramAddress,
-    TAccountToken,
-    TAccountMint,
-    TAccountInstructionsSysvar,
-    TAccountEqualityRecord,
-    TAccountCiphertextValidityRecord,
-    TAccountRangeRecord,
-    (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-        ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
-        : TAccountAuthority
+    ResolvedInstructionAccountMeta<TAccountToken, InstructionAccountInputAddress<TAccountToken>>,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<
+        TAccountInstructionsSysvar,
+        InstructionAccountInputAddress<TAccountInstructionsSysvar>
+    >,
+    ResolvedInstructionAccountMeta<TAccountEqualityRecord, InstructionAccountInputAddress<TAccountEqualityRecord>>,
+    ResolvedInstructionAccountMeta<
+        TAccountCiphertextValidityRecord,
+        InstructionAccountInputAddress<TAccountCiphertextValidityRecord>
+    >,
+    ResolvedInstructionAccountMeta<TAccountRangeRecord, InstructionAccountInputAddress<TAccountRangeRecord>>,
+    ResolvedInstructionAccountMeta<
+        TAccountAuthority,
+        InstructionAccountInputAddress<TAccountAuthority>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountAuthority>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountAuthority>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'omitted');
+
     // Original accounts.
     const originalAccounts = {
-        token: { value: input.token ?? null, isWritable: true },
-        mint: { value: input.mint ?? null, isWritable: true },
-        instructionsSysvar: { value: input.instructionsSysvar ?? null, isWritable: false },
-        equalityRecord: { value: input.equalityRecord ?? null, isWritable: false },
-        ciphertextValidityRecord: { value: input.ciphertextValidityRecord ?? null, isWritable: false },
-        rangeRecord: { value: input.rangeRecord ?? null, isWritable: false },
-        authority: { value: input.authority ?? null, isWritable: false },
+        token: { value: input.token ?? null, isSigner: false, isWritable: true },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: true },
+        instructionsSysvar: { value: input.instructionsSysvar ?? null, isSigner: false, isWritable: false },
+        equalityRecord: { value: input.equalityRecord ?? null, isSigner: false, isWritable: false },
+        ciphertextValidityRecord: { value: input.ciphertextValidityRecord ?? null, isSigner: false, isWritable: false },
+        rangeRecord: { value: input.rangeRecord ?? null, isSigner: false, isWritable: false },
+        authority: { value: input.authority ?? null, isSigner: 'either', isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -301,13 +320,13 @@ export function getConfidentialMintInstruction<
     const args = { ...input };
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
-        address: signer.address,
-        role: AccountRole.READONLY_SIGNER,
-        signer,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'multiSigners',
+            getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'omitted');
     return Object.freeze({
         accounts: [
             getAccountMeta('token', accounts.token),
@@ -323,15 +342,24 @@ export function getConfidentialMintInstruction<
         programAddress,
     } as ConfidentialMintInstruction<
         TProgramAddress,
-        TAccountToken,
-        TAccountMint,
-        TAccountInstructionsSysvar,
-        TAccountEqualityRecord,
-        TAccountCiphertextValidityRecord,
-        TAccountRangeRecord,
-        (typeof input)['authority'] extends TransactionSigner<TAccountAuthority>
-            ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority>
-            : TAccountAuthority
+        ResolvedInstructionAccountMeta<TAccountToken, InstructionAccountInputAddress<TAccountToken>>,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<
+            TAccountInstructionsSysvar,
+            InstructionAccountInputAddress<TAccountInstructionsSysvar>
+        >,
+        ResolvedInstructionAccountMeta<TAccountEqualityRecord, InstructionAccountInputAddress<TAccountEqualityRecord>>,
+        ResolvedInstructionAccountMeta<
+            TAccountCiphertextValidityRecord,
+            InstructionAccountInputAddress<TAccountCiphertextValidityRecord>
+        >,
+        ResolvedInstructionAccountMeta<TAccountRangeRecord, InstructionAccountInputAddress<TAccountRangeRecord>>,
+        ResolvedInstructionAccountMeta<
+            TAccountAuthority,
+            InstructionAccountInputAddress<TAccountAuthority>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountAuthority>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountAuthority>>
+        >
     >);
 }
 

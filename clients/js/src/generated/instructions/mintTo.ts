@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getStructDecoder,
     getStructEncoder,
@@ -30,10 +29,17 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const MINT_TO_DISCRIMINATOR = 7;
@@ -92,44 +98,51 @@ export function getMintToInstructionDataCodec(): FixedSizeCodec<MintToInstructio
 }
 
 export type MintToInput<
-    TAccountMint extends string = string,
-    TAccountToken extends string = string,
-    TAccountMintAuthority extends string = string,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountToken extends InstructionAccountInput = InstructionAccountInput,
+    TAccountMintAuthority extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
 > = {
     /** The mint account. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /** The account to mint tokens to. */
-    token: Address<TAccountToken>;
+    token: TAccountToken;
     /** The mint's minting authority or its multisignature account. */
-    mintAuthority: Address<TAccountMintAuthority> | TransactionSigner<TAccountMintAuthority>;
+    mintAuthority: TAccountMintAuthority;
     amount: MintToInstructionDataArgs['amount'];
-    multiSigners?: Array<TransactionSigner>;
+    multiSigners?: Array<InstructionSignerInput>;
 };
 
 export function getMintToInstruction<
-    TAccountMint extends string,
-    TAccountToken extends string,
-    TAccountMintAuthority extends string,
+    TAccountMint extends InstructionAccountInput,
+    TAccountToken extends InstructionAccountInput,
+    TAccountMintAuthority extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: MintToInput<TAccountMint, TAccountToken, TAccountMintAuthority>,
     config?: { programAddress?: TProgramAddress },
 ): MintToInstruction<
     TProgramAddress,
-    TAccountMint,
-    TAccountToken,
-    (typeof input)['mintAuthority'] extends TransactionSigner<TAccountMintAuthority>
-        ? ReadonlySignerAccount<TAccountMintAuthority> & AccountSignerMeta<TAccountMintAuthority>
-        : TAccountMintAuthority
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<TAccountToken, InstructionAccountInputAddress<TAccountToken>>,
+    ResolvedInstructionAccountMeta<
+        TAccountMintAuthority,
+        InstructionAccountInputAddress<TAccountMintAuthority>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountMintAuthority>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountMintAuthority>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        mint: { value: input.mint ?? null, isWritable: true },
-        token: { value: input.token ?? null, isWritable: true },
-        mintAuthority: { value: input.mintAuthority ?? null, isWritable: false },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: true },
+        token: { value: input.token ?? null, isSigner: false, isWritable: true },
+        mintAuthority: { value: input.mintAuthority ?? null, isSigner: 'either', isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -137,13 +150,13 @@ export function getMintToInstruction<
     const args = { ...input };
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
-        address: signer.address,
-        role: AccountRole.READONLY_SIGNER,
-        signer,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'multiSigners',
+            getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('mint', accounts.mint),
@@ -155,11 +168,14 @@ export function getMintToInstruction<
         programAddress,
     } as MintToInstruction<
         TProgramAddress,
-        TAccountMint,
-        TAccountToken,
-        (typeof input)['mintAuthority'] extends TransactionSigner<TAccountMintAuthority>
-            ? ReadonlySignerAccount<TAccountMintAuthority> & AccountSignerMeta<TAccountMintAuthority>
-            : TAccountMintAuthority
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<TAccountToken, InstructionAccountInputAddress<TAccountToken>>,
+        ResolvedInstructionAccountMeta<
+            TAccountMintAuthority,
+            InstructionAccountInputAddress<TAccountMintAuthority>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountMintAuthority>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountMintAuthority>>
+        >
     >);
 }
 

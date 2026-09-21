@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getI16Decoder,
     getI16Encoder,
@@ -28,11 +27,18 @@ import {
     type InstructionWithAccounts,
     type InstructionWithData,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
     type WritableSignerAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const UPDATE_RATE_INTEREST_BEARING_MINT_DISCRIMINATOR = 33;
@@ -108,38 +114,45 @@ export function getUpdateRateInterestBearingMintInstructionDataCodec(): FixedSiz
 }
 
 export type UpdateRateInterestBearingMintInput<
-    TAccountMint extends string = string,
-    TAccountRateAuthority extends string = string,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountRateAuthority extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
 > = {
     /** The mint. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /** The mint rate authority. */
-    rateAuthority: Address<TAccountRateAuthority> | TransactionSigner<TAccountRateAuthority>;
+    rateAuthority: TAccountRateAuthority;
     rate: UpdateRateInterestBearingMintInstructionDataArgs['rate'];
-    multiSigners?: Array<TransactionSigner>;
+    multiSigners?: Array<InstructionSignerInput>;
 };
 
 export function getUpdateRateInterestBearingMintInstruction<
-    TAccountMint extends string,
-    TAccountRateAuthority extends string,
+    TAccountMint extends InstructionAccountInput,
+    TAccountRateAuthority extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: UpdateRateInterestBearingMintInput<TAccountMint, TAccountRateAuthority>,
     config?: { programAddress?: TProgramAddress },
 ): UpdateRateInterestBearingMintInstruction<
     TProgramAddress,
-    TAccountMint,
-    (typeof input)['rateAuthority'] extends TransactionSigner<TAccountRateAuthority>
-        ? WritableSignerAccount<TAccountRateAuthority> & AccountSignerMeta<TAccountRateAuthority>
-        : TAccountRateAuthority
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<
+        TAccountRateAuthority,
+        InstructionAccountInputAddress<TAccountRateAuthority>,
+        WritableSignerAccount<InstructionAccountInputAddress<TAccountRateAuthority>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountRateAuthority>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        mint: { value: input.mint ?? null, isWritable: true },
-        rateAuthority: { value: input.rateAuthority ?? null, isWritable: true },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: true },
+        rateAuthority: { value: input.rateAuthority ?? null, isSigner: 'either', isWritable: true },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -147,13 +160,13 @@ export function getUpdateRateInterestBearingMintInstruction<
     const args = { ...input };
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
-        address: signer.address,
-        role: AccountRole.READONLY_SIGNER,
-        signer,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'multiSigners',
+            getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('mint', accounts.mint),
@@ -166,10 +179,13 @@ export function getUpdateRateInterestBearingMintInstruction<
         programAddress,
     } as UpdateRateInterestBearingMintInstruction<
         TProgramAddress,
-        TAccountMint,
-        (typeof input)['rateAuthority'] extends TransactionSigner<TAccountRateAuthority>
-            ? WritableSignerAccount<TAccountRateAuthority> & AccountSignerMeta<TAccountRateAuthority>
-            : TAccountRateAuthority
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<
+            TAccountRateAuthority,
+            InstructionAccountInputAddress<TAccountRateAuthority>,
+            WritableSignerAccount<InstructionAccountInputAddress<TAccountRateAuthority>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountRateAuthority>>
+        >
     >);
 }
 

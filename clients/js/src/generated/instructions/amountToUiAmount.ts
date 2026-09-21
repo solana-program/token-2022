@@ -28,7 +28,13 @@ import {
     type ReadonlyAccount,
     type ReadonlyUint8Array,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const AMOUNT_TO_UI_AMOUNT_DISCRIMINATOR = 23;
@@ -82,35 +88,43 @@ export function getAmountToUiAmountInstructionDataCodec(): FixedSizeCodec<
     return combineCodec(getAmountToUiAmountInstructionDataEncoder(), getAmountToUiAmountInstructionDataDecoder());
 }
 
-export type AmountToUiAmountInput<TAccountMint extends string = string> = {
+export type AmountToUiAmountInput<TAccountMint extends InstructionAccountInput = InstructionAccountInput> = {
     /** The mint to calculate for. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     amount: AmountToUiAmountInstructionDataArgs['amount'];
 };
 
 export function getAmountToUiAmountInstruction<
-    TAccountMint extends string,
+    TAccountMint extends InstructionAccountInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: AmountToUiAmountInput<TAccountMint>,
     config?: { programAddress?: TProgramAddress },
-): AmountToUiAmountInstruction<TProgramAddress, TAccountMint> {
+): AmountToUiAmountInstruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
-    const originalAccounts = { mint: { value: input.mint ?? null, isWritable: false } };
+    const originalAccounts = { mint: { value: input.mint ?? null, isSigner: false, isWritable: false } };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [getAccountMeta('mint', accounts.mint)],
         data: getAmountToUiAmountInstructionDataEncoder().encode(args as AmountToUiAmountInstructionDataArgs),
         programAddress,
-    } as AmountToUiAmountInstruction<TProgramAddress, TAccountMint>);
+    } as AmountToUiAmountInstruction<
+        TProgramAddress,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
+    >);
 }
 
 export type ParsedAmountToUiAmountInstruction<

@@ -29,7 +29,13 @@ import {
     type ReadonlyUint8Array,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const INITIALIZE_ACCOUNT2_DISCRIMINATOR = 16;
@@ -91,36 +97,44 @@ export function getInitializeAccount2InstructionDataCodec(): FixedSizeCodec<
 }
 
 export type InitializeAccount2Input<
-    TAccountAccount extends string = string,
-    TAccountMint extends string = string,
-    TAccountRent extends string = string,
+    TAccountAccount extends InstructionAccountInput = InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountRent extends InstructionAccountInput = InstructionAccountInput,
 > = {
     /** The account to initialize. */
-    account: Address<TAccountAccount>;
+    account: TAccountAccount;
     /** The mint this account will be associated with. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /** Rent sysvar. */
-    rent?: Address<TAccountRent>;
+    rent?: TAccountRent;
     owner: InitializeAccount2InstructionDataArgs['owner'];
 };
 
 export function getInitializeAccount2Instruction<
-    TAccountAccount extends string,
-    TAccountMint extends string,
-    TAccountRent extends string,
+    TAccountAccount extends InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput,
+    TAccountRent extends InstructionAccountInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: InitializeAccount2Input<TAccountAccount, TAccountMint, TAccountRent>,
     config?: { programAddress?: TProgramAddress },
-): InitializeAccount2Instruction<TProgramAddress, TAccountAccount, TAccountMint, TAccountRent> {
+): InitializeAccount2Instruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountAccount, InstructionAccountInputAddress<TAccountAccount>>,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<TAccountRent, InstructionAccountInputAddress<TAccountRent>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        account: { value: input.account ?? null, isWritable: true },
-        mint: { value: input.mint ?? null, isWritable: false },
-        rent: { value: input.rent ?? null, isWritable: false },
+        account: { value: input.account ?? null, isSigner: false, isWritable: true },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: false },
+        rent: { value: input.rent ?? null, isSigner: false, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -133,7 +147,6 @@ export function getInitializeAccount2Instruction<
             'SysvarRent111111111111111111111111111111111' as Address<'SysvarRent111111111111111111111111111111111'>;
     }
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('account', accounts.account),
@@ -142,7 +155,12 @@ export function getInitializeAccount2Instruction<
         ],
         data: getInitializeAccount2InstructionDataEncoder().encode(args as InitializeAccount2InstructionDataArgs),
         programAddress,
-    } as InitializeAccount2Instruction<TProgramAddress, TAccountAccount, TAccountMint, TAccountRent>);
+    } as InitializeAccount2Instruction<
+        TProgramAddress,
+        ResolvedInstructionAccountMeta<TAccountAccount, InstructionAccountInputAddress<TAccountAccount>>,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<TAccountRent, InstructionAccountInputAddress<TAccountRent>>
+    >);
 }
 
 export type ParsedInitializeAccount2Instruction<

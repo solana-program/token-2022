@@ -29,10 +29,16 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const INITIALIZE_TOKEN_GROUP_MEMBER_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
@@ -94,25 +100,25 @@ export function getInitializeTokenGroupMemberInstructionDataCodec(): FixedSizeCo
 }
 
 export type InitializeTokenGroupMemberInput<
-    TAccountMember extends string = string,
-    TAccountMemberMint extends string = string,
-    TAccountMemberMintAuthority extends string = string,
-    TAccountGroup extends string = string,
-    TAccountGroupUpdateAuthority extends string = string,
+    TAccountMember extends InstructionAccountInput = InstructionAccountInput,
+    TAccountMemberMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountMemberMintAuthority extends InstructionSignerInput = InstructionSignerInput,
+    TAccountGroup extends InstructionAccountInput = InstructionAccountInput,
+    TAccountGroupUpdateAuthority extends InstructionSignerInput = InstructionSignerInput,
 > = {
-    member: Address<TAccountMember>;
-    memberMint: Address<TAccountMemberMint>;
-    memberMintAuthority: TransactionSigner<TAccountMemberMintAuthority>;
-    group: Address<TAccountGroup>;
-    groupUpdateAuthority: TransactionSigner<TAccountGroupUpdateAuthority>;
+    member: TAccountMember;
+    memberMint: TAccountMemberMint;
+    memberMintAuthority: TAccountMemberMintAuthority;
+    group: TAccountGroup;
+    groupUpdateAuthority: TAccountGroupUpdateAuthority;
 };
 
 export function getInitializeTokenGroupMemberInstruction<
-    TAccountMember extends string,
-    TAccountMemberMint extends string,
-    TAccountMemberMintAuthority extends string,
-    TAccountGroup extends string,
-    TAccountGroupUpdateAuthority extends string,
+    TAccountMember extends InstructionAccountInput,
+    TAccountMemberMint extends InstructionAccountInput,
+    TAccountMemberMintAuthority extends InstructionSignerInput,
+    TAccountGroup extends InstructionAccountInput,
+    TAccountGroupUpdateAuthority extends InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: InitializeTokenGroupMemberInput<
@@ -125,26 +131,34 @@ export function getInitializeTokenGroupMemberInstruction<
     config?: { programAddress?: TProgramAddress },
 ): InitializeTokenGroupMemberInstruction<
     TProgramAddress,
-    TAccountMember,
-    TAccountMemberMint,
-    TAccountMemberMintAuthority,
-    TAccountGroup,
-    TAccountGroupUpdateAuthority
+    ResolvedInstructionAccountMeta<TAccountMember, InstructionAccountInputAddress<TAccountMember>>,
+    ResolvedInstructionAccountMeta<TAccountMemberMint, InstructionAccountInputAddress<TAccountMemberMint>>,
+    ResolvedInstructionAccountMeta<
+        TAccountMemberMintAuthority,
+        InstructionAccountInputAddress<TAccountMemberMintAuthority>
+    >,
+    ResolvedInstructionAccountMeta<TAccountGroup, InstructionAccountInputAddress<TAccountGroup>>,
+    ResolvedInstructionAccountMeta<
+        TAccountGroupUpdateAuthority,
+        InstructionAccountInputAddress<TAccountGroupUpdateAuthority>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        member: { value: input.member ?? null, isWritable: true },
-        memberMint: { value: input.memberMint ?? null, isWritable: false },
-        memberMintAuthority: { value: input.memberMintAuthority ?? null, isWritable: false },
-        group: { value: input.group ?? null, isWritable: true },
-        groupUpdateAuthority: { value: input.groupUpdateAuthority ?? null, isWritable: false },
+        member: { value: input.member ?? null, isSigner: false, isWritable: true },
+        memberMint: { value: input.memberMint ?? null, isSigner: false, isWritable: false },
+        memberMintAuthority: { value: input.memberMintAuthority ?? null, isSigner: true, isWritable: false },
+        group: { value: input.group ?? null, isSigner: false, isWritable: true },
+        groupUpdateAuthority: { value: input.groupUpdateAuthority ?? null, isSigner: true, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('member', accounts.member),
@@ -157,11 +171,17 @@ export function getInitializeTokenGroupMemberInstruction<
         programAddress,
     } as InitializeTokenGroupMemberInstruction<
         TProgramAddress,
-        TAccountMember,
-        TAccountMemberMint,
-        TAccountMemberMintAuthority,
-        TAccountGroup,
-        TAccountGroupUpdateAuthority
+        ResolvedInstructionAccountMeta<TAccountMember, InstructionAccountInputAddress<TAccountMember>>,
+        ResolvedInstructionAccountMeta<TAccountMemberMint, InstructionAccountInputAddress<TAccountMemberMint>>,
+        ResolvedInstructionAccountMeta<
+            TAccountMemberMintAuthority,
+            InstructionAccountInputAddress<TAccountMemberMintAuthority>
+        >,
+        ResolvedInstructionAccountMeta<TAccountGroup, InstructionAccountInputAddress<TAccountGroup>>,
+        ResolvedInstructionAccountMeta<
+            TAccountGroupUpdateAuthority,
+            InstructionAccountInputAddress<TAccountGroupUpdateAuthority>
+        >
     >);
 }
 

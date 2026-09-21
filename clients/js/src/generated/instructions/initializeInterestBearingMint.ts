@@ -34,7 +34,13 @@ import {
     type ReadonlyUint8Array,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const INITIALIZE_INTEREST_BEARING_MINT_DISCRIMINATOR = 33;
@@ -110,38 +116,47 @@ export function getInitializeInterestBearingMintInstructionDataCodec(): FixedSiz
     );
 }
 
-export type InitializeInterestBearingMintInput<TAccountMint extends string = string> = {
-    /** The mint to initialize. */
-    mint: Address<TAccountMint>;
-    rateAuthority: InitializeInterestBearingMintInstructionDataArgs['rateAuthority'];
-    rate: InitializeInterestBearingMintInstructionDataArgs['rate'];
-};
+export type InitializeInterestBearingMintInput<TAccountMint extends InstructionAccountInput = InstructionAccountInput> =
+    {
+        /** The mint to initialize. */
+        mint: TAccountMint;
+        rateAuthority: InitializeInterestBearingMintInstructionDataArgs['rateAuthority'];
+        rate: InitializeInterestBearingMintInstructionDataArgs['rate'];
+    };
 
 export function getInitializeInterestBearingMintInstruction<
-    TAccountMint extends string,
+    TAccountMint extends InstructionAccountInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: InitializeInterestBearingMintInput<TAccountMint>,
     config?: { programAddress?: TProgramAddress },
-): InitializeInterestBearingMintInstruction<TProgramAddress, TAccountMint> {
+): InitializeInterestBearingMintInstruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
-    const originalAccounts = { mint: { value: input.mint ?? null, isWritable: true } };
+    const originalAccounts = { mint: { value: input.mint ?? null, isSigner: false, isWritable: true } };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [getAccountMeta('mint', accounts.mint)],
         data: getInitializeInterestBearingMintInstructionDataEncoder().encode(
             args as InitializeInterestBearingMintInstructionDataArgs,
         ),
         programAddress,
-    } as InitializeInterestBearingMintInstruction<TProgramAddress, TAccountMint>);
+    } as InitializeInterestBearingMintInstruction<
+        TProgramAddress,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
+    >);
 }
 
 export type ParsedInitializeInterestBearingMintInstruction<

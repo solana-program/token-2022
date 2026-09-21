@@ -26,7 +26,13 @@ import {
     type ReadonlyAccount,
     type ReadonlyUint8Array,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const GET_ACCOUNT_DATA_SIZE_DISCRIMINATOR = 21;
@@ -67,31 +73,39 @@ export function getGetAccountDataSizeInstructionDataCodec(): FixedSizeCodec<
     return combineCodec(getGetAccountDataSizeInstructionDataEncoder(), getGetAccountDataSizeInstructionDataDecoder());
 }
 
-export type GetAccountDataSizeInput<TAccountMint extends string = string> = {
+export type GetAccountDataSizeInput<TAccountMint extends InstructionAccountInput = InstructionAccountInput> = {
     /** The mint to calculate for. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
 };
 
 export function getGetAccountDataSizeInstruction<
-    TAccountMint extends string,
+    TAccountMint extends InstructionAccountInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: GetAccountDataSizeInput<TAccountMint>,
     config?: { programAddress?: TProgramAddress },
-): GetAccountDataSizeInstruction<TProgramAddress, TAccountMint> {
+): GetAccountDataSizeInstruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
-    const originalAccounts = { mint: { value: input.mint ?? null, isWritable: false } };
+    const originalAccounts = { mint: { value: input.mint ?? null, isSigner: false, isWritable: false } };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [getAccountMeta('mint', accounts.mint)],
         data: getGetAccountDataSizeInstructionDataEncoder().encode({}),
         programAddress,
-    } as GetAccountDataSizeInstruction<TProgramAddress, TAccountMint>);
+    } as GetAccountDataSizeInstruction<
+        TProgramAddress,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
+    >);
 }
 
 export type ParsedGetAccountDataSizeInstruction<

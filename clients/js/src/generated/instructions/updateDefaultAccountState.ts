@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getStructDecoder,
     getStructEncoder,
@@ -28,10 +27,17 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getAccountStateDecoder, getAccountStateEncoder, type AccountState, type AccountStateArgs } from '../types';
 
@@ -108,38 +114,45 @@ export function getUpdateDefaultAccountStateInstructionDataCodec(): FixedSizeCod
 }
 
 export type UpdateDefaultAccountStateInput<
-    TAccountMint extends string = string,
-    TAccountFreezeAuthority extends string = string,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountFreezeAuthority extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
 > = {
     /** The mint. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /** The mint freeze authority or its multisignature account. */
-    freezeAuthority: Address<TAccountFreezeAuthority> | TransactionSigner<TAccountFreezeAuthority>;
+    freezeAuthority: TAccountFreezeAuthority;
     state: UpdateDefaultAccountStateInstructionDataArgs['state'];
-    multiSigners?: Array<TransactionSigner>;
+    multiSigners?: Array<InstructionSignerInput>;
 };
 
 export function getUpdateDefaultAccountStateInstruction<
-    TAccountMint extends string,
-    TAccountFreezeAuthority extends string,
+    TAccountMint extends InstructionAccountInput,
+    TAccountFreezeAuthority extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: UpdateDefaultAccountStateInput<TAccountMint, TAccountFreezeAuthority>,
     config?: { programAddress?: TProgramAddress },
 ): UpdateDefaultAccountStateInstruction<
     TProgramAddress,
-    TAccountMint,
-    (typeof input)['freezeAuthority'] extends TransactionSigner<TAccountFreezeAuthority>
-        ? ReadonlySignerAccount<TAccountFreezeAuthority> & AccountSignerMeta<TAccountFreezeAuthority>
-        : TAccountFreezeAuthority
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<
+        TAccountFreezeAuthority,
+        InstructionAccountInputAddress<TAccountFreezeAuthority>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountFreezeAuthority>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountFreezeAuthority>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        mint: { value: input.mint ?? null, isWritable: true },
-        freezeAuthority: { value: input.freezeAuthority ?? null, isWritable: false },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: true },
+        freezeAuthority: { value: input.freezeAuthority ?? null, isSigner: 'either', isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -147,13 +160,13 @@ export function getUpdateDefaultAccountStateInstruction<
     const args = { ...input };
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
-        address: signer.address,
-        role: AccountRole.READONLY_SIGNER,
-        signer,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'multiSigners',
+            getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('mint', accounts.mint),
@@ -166,10 +179,13 @@ export function getUpdateDefaultAccountStateInstruction<
         programAddress,
     } as UpdateDefaultAccountStateInstruction<
         TProgramAddress,
-        TAccountMint,
-        (typeof input)['freezeAuthority'] extends TransactionSigner<TAccountFreezeAuthority>
-            ? ReadonlySignerAccount<TAccountFreezeAuthority> & AccountSignerMeta<TAccountFreezeAuthority>
-            : TAccountFreezeAuthority
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<
+            TAccountFreezeAuthority,
+            InstructionAccountInputAddress<TAccountFreezeAuthority>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountFreezeAuthority>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountFreezeAuthority>>
+        >
     >);
 }
 

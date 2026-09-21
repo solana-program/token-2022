@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getStructDecoder,
     getStructEncoder,
@@ -28,10 +27,17 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const WITHDRAW_WITHHELD_TOKENS_FROM_ACCOUNTS_DISCRIMINATOR = 26;
@@ -111,30 +117,29 @@ export function getWithdrawWithheldTokensFromAccountsInstructionDataCodec(): Fix
 }
 
 export type WithdrawWithheldTokensFromAccountsInput<
-    TAccountMint extends string = string,
-    TAccountFeeReceiver extends string = string,
-    TAccountWithdrawWithheldAuthority extends string = string,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountFeeReceiver extends InstructionAccountInput = InstructionAccountInput,
+    TAccountWithdrawWithheldAuthority extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
 > = {
     /** The token mint. Must include the `TransferFeeConfig` extension. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /**
      * The fee receiver account. Must include the `TransferFeeAmount`
      * extension associated with the provided mint.
      */
-    feeReceiver: Address<TAccountFeeReceiver>;
+    feeReceiver: TAccountFeeReceiver;
     /** The mint's `withdraw_withheld_authority` or its multisignature account. */
-    withdrawWithheldAuthority:
-        | Address<TAccountWithdrawWithheldAuthority>
-        | TransactionSigner<TAccountWithdrawWithheldAuthority>;
+    withdrawWithheldAuthority: TAccountWithdrawWithheldAuthority;
     numTokenAccounts: WithdrawWithheldTokensFromAccountsInstructionDataArgs['numTokenAccounts'];
-    multiSigners?: Array<TransactionSigner>;
-    sources: Array<Address>;
+    multiSigners?: Array<InstructionSignerInput>;
+    sources: Array<InstructionAccountInput>;
 };
 
 export function getWithdrawWithheldTokensFromAccountsInstruction<
-    TAccountMint extends string,
-    TAccountFeeReceiver extends string,
-    TAccountWithdrawWithheldAuthority extends string,
+    TAccountMint extends InstructionAccountInput,
+    TAccountFeeReceiver extends InstructionAccountInput,
+    TAccountWithdrawWithheldAuthority extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: WithdrawWithheldTokensFromAccountsInput<
@@ -145,21 +150,30 @@ export function getWithdrawWithheldTokensFromAccountsInstruction<
     config?: { programAddress?: TProgramAddress },
 ): WithdrawWithheldTokensFromAccountsInstruction<
     TProgramAddress,
-    TAccountMint,
-    TAccountFeeReceiver,
-    (typeof input)['withdrawWithheldAuthority'] extends TransactionSigner<TAccountWithdrawWithheldAuthority>
-        ? ReadonlySignerAccount<TAccountWithdrawWithheldAuthority> &
-              AccountSignerMeta<TAccountWithdrawWithheldAuthority>
-        : TAccountWithdrawWithheldAuthority
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<TAccountFeeReceiver, InstructionAccountInputAddress<TAccountFeeReceiver>>,
+    ResolvedInstructionAccountMeta<
+        TAccountWithdrawWithheldAuthority,
+        InstructionAccountInputAddress<TAccountWithdrawWithheldAuthority>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountWithdrawWithheldAuthority>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountWithdrawWithheldAuthority>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        mint: { value: input.mint ?? null, isWritable: false },
-        feeReceiver: { value: input.feeReceiver ?? null, isWritable: true },
-        withdrawWithheldAuthority: { value: input.withdrawWithheldAuthority ?? null, isWritable: false },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: false },
+        feeReceiver: { value: input.feeReceiver ?? null, isSigner: false, isWritable: true },
+        withdrawWithheldAuthority: {
+            value: input.withdrawWithheldAuthority ?? null,
+            isSigner: 'either',
+            isWritable: false,
+        },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -168,15 +182,20 @@ export function getWithdrawWithheldTokensFromAccountsInstruction<
 
     // Remaining accounts.
     const remainingAccounts: AccountMeta[] = [
-        ...(args.multiSigners ?? []).map(signer => ({
-            address: signer.address,
-            role: AccountRole.READONLY_SIGNER,
-            signer,
-        })),
-        ...args.sources.map(address => ({ address, role: AccountRole.WRITABLE })),
+        ...(args.multiSigners ?? []).map(value =>
+            getNonNullResolvedInstructionInput(
+                'multiSigners',
+                getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+            ),
+        ),
+        ...args.sources.map(value =>
+            getNonNullResolvedInstructionInput(
+                'sources',
+                getAccountMeta('sources', { value, isSigner: false, isWritable: true }),
+            ),
+        ),
     ];
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('mint', accounts.mint),
@@ -190,12 +209,14 @@ export function getWithdrawWithheldTokensFromAccountsInstruction<
         programAddress,
     } as WithdrawWithheldTokensFromAccountsInstruction<
         TProgramAddress,
-        TAccountMint,
-        TAccountFeeReceiver,
-        (typeof input)['withdrawWithheldAuthority'] extends TransactionSigner<TAccountWithdrawWithheldAuthority>
-            ? ReadonlySignerAccount<TAccountWithdrawWithheldAuthority> &
-                  AccountSignerMeta<TAccountWithdrawWithheldAuthority>
-            : TAccountWithdrawWithheldAuthority
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<TAccountFeeReceiver, InstructionAccountInputAddress<TAccountFeeReceiver>>,
+        ResolvedInstructionAccountMeta<
+            TAccountWithdrawWithheldAuthority,
+            InstructionAccountInputAddress<TAccountWithdrawWithheldAuthority>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountWithdrawWithheldAuthority>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountWithdrawWithheldAuthority>>
+        >
     >);
 }
 

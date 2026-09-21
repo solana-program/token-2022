@@ -34,10 +34,16 @@ import {
     type InstructionWithData,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import {
     getTokenMetadataFieldDecoder,
@@ -116,37 +122,43 @@ export function getUpdateTokenMetadataFieldInstructionDataCodec(): Codec<
 }
 
 export type UpdateTokenMetadataFieldInput<
-    TAccountMetadata extends string = string,
-    TAccountUpdateAuthority extends string = string,
+    TAccountMetadata extends InstructionAccountInput = InstructionAccountInput,
+    TAccountUpdateAuthority extends InstructionSignerInput = InstructionSignerInput,
 > = {
-    metadata: Address<TAccountMetadata>;
-    updateAuthority: TransactionSigner<TAccountUpdateAuthority>;
+    metadata: TAccountMetadata;
+    updateAuthority: TAccountUpdateAuthority;
     field: UpdateTokenMetadataFieldInstructionDataArgs['field'];
     value: UpdateTokenMetadataFieldInstructionDataArgs['value'];
 };
 
 export function getUpdateTokenMetadataFieldInstruction<
-    TAccountMetadata extends string,
-    TAccountUpdateAuthority extends string,
+    TAccountMetadata extends InstructionAccountInput,
+    TAccountUpdateAuthority extends InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: UpdateTokenMetadataFieldInput<TAccountMetadata, TAccountUpdateAuthority>,
     config?: { programAddress?: TProgramAddress },
-): UpdateTokenMetadataFieldInstruction<TProgramAddress, TAccountMetadata, TAccountUpdateAuthority> {
+): UpdateTokenMetadataFieldInstruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountMetadata, InstructionAccountInputAddress<TAccountMetadata>>,
+    ResolvedInstructionAccountMeta<TAccountUpdateAuthority, InstructionAccountInputAddress<TAccountUpdateAuthority>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        metadata: { value: input.metadata ?? null, isWritable: true },
-        updateAuthority: { value: input.updateAuthority ?? null, isWritable: false },
+        metadata: { value: input.metadata ?? null, isSigner: false, isWritable: true },
+        updateAuthority: { value: input.updateAuthority ?? null, isSigner: true, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('metadata', accounts.metadata),
@@ -156,7 +168,11 @@ export function getUpdateTokenMetadataFieldInstruction<
             args as UpdateTokenMetadataFieldInstructionDataArgs,
         ),
         programAddress,
-    } as UpdateTokenMetadataFieldInstruction<TProgramAddress, TAccountMetadata, TAccountUpdateAuthority>);
+    } as UpdateTokenMetadataFieldInstruction<
+        TProgramAddress,
+        ResolvedInstructionAccountMeta<TAccountMetadata, InstructionAccountInputAddress<TAccountMetadata>>,
+        ResolvedInstructionAccountMeta<TAccountUpdateAuthority, InstructionAccountInputAddress<TAccountUpdateAuthority>>
+    >);
 }
 
 export type ParsedUpdateTokenMetadataFieldInstruction<

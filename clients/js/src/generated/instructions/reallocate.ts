@@ -7,7 +7,6 @@
  */
 
 import {
-    AccountRole,
     combineCodec,
     getArrayDecoder,
     getArrayEncoder,
@@ -30,11 +29,18 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
     type WritableSignerAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    getNonNullResolvedInstructionInput,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 import { getExtensionTypeDecoder, getExtensionTypeEncoder, type ExtensionType, type ExtensionTypeArgs } from '../types';
 
@@ -98,50 +104,57 @@ export function getReallocateInstructionDataCodec(): Codec<ReallocateInstruction
 }
 
 export type ReallocateInput<
-    TAccountToken extends string = string,
-    TAccountPayer extends string = string,
-    TAccountSystemProgram extends string = string,
-    TAccountOwner extends string = string,
+    TAccountToken extends InstructionAccountInput = InstructionAccountInput,
+    TAccountPayer extends InstructionSignerInput = InstructionSignerInput,
+    TAccountSystemProgram extends InstructionAccountInput = InstructionAccountInput,
+    TAccountOwner extends InstructionAccountInput | InstructionSignerInput =
+        InstructionAccountInput | InstructionSignerInput,
 > = {
     /** The token account to reallocate. */
-    token: Address<TAccountToken>;
+    token: TAccountToken;
     /** The payer account to fund reallocation. */
-    payer: TransactionSigner<TAccountPayer>;
+    payer: TAccountPayer;
     /** System program for reallocation funding. */
-    systemProgram?: Address<TAccountSystemProgram>;
+    systemProgram?: TAccountSystemProgram;
     /** The account's owner or its multisignature account. */
-    owner: Address<TAccountOwner> | TransactionSigner<TAccountOwner>;
+    owner: TAccountOwner;
     newExtensionTypes: ReallocateInstructionDataArgs['newExtensionTypes'];
-    multiSigners?: Array<TransactionSigner>;
+    multiSigners?: Array<InstructionSignerInput>;
 };
 
 export function getReallocateInstruction<
-    TAccountToken extends string,
-    TAccountPayer extends string,
-    TAccountSystemProgram extends string,
-    TAccountOwner extends string,
+    TAccountToken extends InstructionAccountInput,
+    TAccountPayer extends InstructionSignerInput,
+    TAccountSystemProgram extends InstructionAccountInput,
+    TAccountOwner extends InstructionAccountInput | InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: ReallocateInput<TAccountToken, TAccountPayer, TAccountSystemProgram, TAccountOwner>,
     config?: { programAddress?: TProgramAddress },
 ): ReallocateInstruction<
     TProgramAddress,
-    TAccountToken,
-    TAccountPayer,
-    TAccountSystemProgram,
-    (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-        ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
-        : TAccountOwner
+    ResolvedInstructionAccountMeta<TAccountToken, InstructionAccountInputAddress<TAccountToken>>,
+    ResolvedInstructionAccountMeta<TAccountPayer, InstructionAccountInputAddress<TAccountPayer>>,
+    ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>,
+    ResolvedInstructionAccountMeta<
+        TAccountOwner,
+        InstructionAccountInputAddress<TAccountOwner>,
+        ReadonlySignerAccount<InstructionAccountInputAddress<TAccountOwner>> &
+            AccountSignerMeta<InstructionAccountInputAddress<TAccountOwner>>
+    >
 > {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        token: { value: input.token ?? null, isWritable: true },
-        payer: { value: input.payer ?? null, isWritable: true },
-        systemProgram: { value: input.systemProgram ?? null, isWritable: false },
-        owner: { value: input.owner ?? null, isWritable: false },
+        token: { value: input.token ?? null, isSigner: false, isWritable: true },
+        payer: { value: input.payer ?? null, isSigner: true, isWritable: true },
+        systemProgram: { value: input.systemProgram ?? null, isSigner: false, isWritable: false },
+        owner: { value: input.owner ?? null, isSigner: 'either', isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -155,13 +168,13 @@ export function getReallocateInstruction<
     }
 
     // Remaining accounts.
-    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(signer => ({
-        address: signer.address,
-        role: AccountRole.READONLY_SIGNER,
-        signer,
-    }));
+    const remainingAccounts: AccountMeta[] = (args.multiSigners ?? []).map(value =>
+        getNonNullResolvedInstructionInput(
+            'multiSigners',
+            getAccountMeta('multiSigners', { value, isSigner: true, isWritable: false }),
+        ),
+    );
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('token', accounts.token),
@@ -174,12 +187,15 @@ export function getReallocateInstruction<
         programAddress,
     } as ReallocateInstruction<
         TProgramAddress,
-        TAccountToken,
-        TAccountPayer,
-        TAccountSystemProgram,
-        (typeof input)['owner'] extends TransactionSigner<TAccountOwner>
-            ? ReadonlySignerAccount<TAccountOwner> & AccountSignerMeta<TAccountOwner>
-            : TAccountOwner
+        ResolvedInstructionAccountMeta<TAccountToken, InstructionAccountInputAddress<TAccountToken>>,
+        ResolvedInstructionAccountMeta<TAccountPayer, InstructionAccountInputAddress<TAccountPayer>>,
+        ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>,
+        ResolvedInstructionAccountMeta<
+            TAccountOwner,
+            InstructionAccountInputAddress<TAccountOwner>,
+            ReadonlySignerAccount<InstructionAccountInputAddress<TAccountOwner>> &
+                AccountSignerMeta<InstructionAccountInputAddress<TAccountOwner>>
+        >
     >);
 }
 

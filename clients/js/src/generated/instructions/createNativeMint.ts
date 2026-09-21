@@ -26,11 +26,17 @@ import {
     type InstructionWithData,
     type ReadonlyAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
     type WritableSignerAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const CREATE_NATIVE_MINT_DISCRIMINATOR = 31;
@@ -81,35 +87,43 @@ export function getCreateNativeMintInstructionDataCodec(): FixedSizeCodec<
 }
 
 export type CreateNativeMintInput<
-    TAccountPayer extends string = string,
-    TAccountNativeMint extends string = string,
-    TAccountSystemProgram extends string = string,
+    TAccountPayer extends InstructionSignerInput = InstructionSignerInput,
+    TAccountNativeMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountSystemProgram extends InstructionAccountInput = InstructionAccountInput,
 > = {
     /** Funding account (must be a system account) */
-    payer: TransactionSigner<TAccountPayer>;
+    payer: TAccountPayer;
     /** The native mint address */
-    nativeMint: Address<TAccountNativeMint>;
+    nativeMint: TAccountNativeMint;
     /** System program for mint account funding */
-    systemProgram?: Address<TAccountSystemProgram>;
+    systemProgram?: TAccountSystemProgram;
 };
 
 export function getCreateNativeMintInstruction<
-    TAccountPayer extends string,
-    TAccountNativeMint extends string,
-    TAccountSystemProgram extends string,
+    TAccountPayer extends InstructionSignerInput,
+    TAccountNativeMint extends InstructionAccountInput,
+    TAccountSystemProgram extends InstructionAccountInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: CreateNativeMintInput<TAccountPayer, TAccountNativeMint, TAccountSystemProgram>,
     config?: { programAddress?: TProgramAddress },
-): CreateNativeMintInstruction<TProgramAddress, TAccountPayer, TAccountNativeMint, TAccountSystemProgram> {
+): CreateNativeMintInstruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountPayer, InstructionAccountInputAddress<TAccountPayer>>,
+    ResolvedInstructionAccountMeta<TAccountNativeMint, InstructionAccountInputAddress<TAccountNativeMint>>,
+    ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        payer: { value: input.payer ?? null, isWritable: true },
-        nativeMint: { value: input.nativeMint ?? null, isWritable: true },
-        systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+        payer: { value: input.payer ?? null, isSigner: true, isWritable: true },
+        nativeMint: { value: input.nativeMint ?? null, isSigner: false, isWritable: true },
+        systemProgram: { value: input.systemProgram ?? null, isSigner: false, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -119,7 +133,6 @@ export function getCreateNativeMintInstruction<
             '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
     }
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('payer', accounts.payer),
@@ -128,7 +141,12 @@ export function getCreateNativeMintInstruction<
         ],
         data: getCreateNativeMintInstructionDataEncoder().encode({}),
         programAddress,
-    } as CreateNativeMintInstruction<TProgramAddress, TAccountPayer, TAccountNativeMint, TAccountSystemProgram>);
+    } as CreateNativeMintInstruction<
+        TProgramAddress,
+        ResolvedInstructionAccountMeta<TAccountPayer, InstructionAccountInputAddress<TAccountPayer>>,
+        ResolvedInstructionAccountMeta<TAccountNativeMint, InstructionAccountInputAddress<TAccountNativeMint>>,
+        ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>
+    >);
 }
 
 export type ParsedCreateNativeMintInstruction<

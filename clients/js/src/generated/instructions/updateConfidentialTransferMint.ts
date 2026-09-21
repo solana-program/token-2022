@@ -34,10 +34,16 @@ import {
     type OptionOrNullable,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const UPDATE_CONFIDENTIAL_TRANSFER_MINT_DISCRIMINATOR = 27;
@@ -127,46 +133,56 @@ export function getUpdateConfidentialTransferMintInstructionDataCodec(): FixedSi
 }
 
 export type UpdateConfidentialTransferMintInput<
-    TAccountMint extends string = string,
-    TAccountAuthority extends string = string,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountAuthority extends InstructionSignerInput = InstructionSignerInput,
 > = {
     /** The SPL Token mint. */
-    mint: Address<TAccountMint>;
+    mint: TAccountMint;
     /** Confidential transfer mint authority. */
-    authority: TransactionSigner<TAccountAuthority>;
+    authority: TAccountAuthority;
     autoApproveNewAccounts: UpdateConfidentialTransferMintInstructionDataArgs['autoApproveNewAccounts'];
     auditorElgamalPubkey: UpdateConfidentialTransferMintInstructionDataArgs['auditorElgamalPubkey'];
 };
 
 export function getUpdateConfidentialTransferMintInstruction<
-    TAccountMint extends string,
-    TAccountAuthority extends string,
+    TAccountMint extends InstructionAccountInput,
+    TAccountAuthority extends InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: UpdateConfidentialTransferMintInput<TAccountMint, TAccountAuthority>,
     config?: { programAddress?: TProgramAddress },
-): UpdateConfidentialTransferMintInstruction<TProgramAddress, TAccountMint, TAccountAuthority> {
+): UpdateConfidentialTransferMintInstruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        mint: { value: input.mint ?? null, isWritable: true },
-        authority: { value: input.authority ?? null, isWritable: false },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: true },
+        authority: { value: input.authority ?? null, isSigner: true, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [getAccountMeta('mint', accounts.mint), getAccountMeta('authority', accounts.authority)],
         data: getUpdateConfidentialTransferMintInstructionDataEncoder().encode(
             args as UpdateConfidentialTransferMintInstructionDataArgs,
         ),
         programAddress,
-    } as UpdateConfidentialTransferMintInstruction<TProgramAddress, TAccountMint, TAccountAuthority>);
+    } as UpdateConfidentialTransferMintInstruction<
+        TProgramAddress,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>
+    >);
 }
 
 export type ParsedUpdateConfidentialTransferMintInstruction<

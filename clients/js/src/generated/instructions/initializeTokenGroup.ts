@@ -37,10 +37,16 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '../programs';
 
 export const INITIALIZE_TOKEN_GROUP_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
@@ -115,41 +121,48 @@ export function getInitializeTokenGroupInstructionDataCodec(): FixedSizeCodec<
 }
 
 export type InitializeTokenGroupInput<
-    TAccountGroup extends string = string,
-    TAccountMint extends string = string,
-    TAccountMintAuthority extends string = string,
+    TAccountGroup extends InstructionAccountInput = InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput = InstructionAccountInput,
+    TAccountMintAuthority extends InstructionSignerInput = InstructionSignerInput,
 > = {
-    group: Address<TAccountGroup>;
-    mint: Address<TAccountMint>;
-    mintAuthority: TransactionSigner<TAccountMintAuthority>;
+    group: TAccountGroup;
+    mint: TAccountMint;
+    mintAuthority: TAccountMintAuthority;
     updateAuthority: InitializeTokenGroupInstructionDataArgs['updateAuthority'];
     maxSize: InitializeTokenGroupInstructionDataArgs['maxSize'];
 };
 
 export function getInitializeTokenGroupInstruction<
-    TAccountGroup extends string,
-    TAccountMint extends string,
-    TAccountMintAuthority extends string,
+    TAccountGroup extends InstructionAccountInput,
+    TAccountMint extends InstructionAccountInput,
+    TAccountMintAuthority extends InstructionSignerInput,
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: InitializeTokenGroupInput<TAccountGroup, TAccountMint, TAccountMintAuthority>,
     config?: { programAddress?: TProgramAddress },
-): InitializeTokenGroupInstruction<TProgramAddress, TAccountGroup, TAccountMint, TAccountMintAuthority> {
+): InitializeTokenGroupInstruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountGroup, InstructionAccountInputAddress<TAccountGroup>>,
+    ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+    ResolvedInstructionAccountMeta<TAccountMintAuthority, InstructionAccountInputAddress<TAccountMintAuthority>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        group: { value: input.group ?? null, isWritable: true },
-        mint: { value: input.mint ?? null, isWritable: false },
-        mintAuthority: { value: input.mintAuthority ?? null, isWritable: false },
+        group: { value: input.group ?? null, isSigner: false, isWritable: true },
+        mint: { value: input.mint ?? null, isSigner: false, isWritable: false },
+        mintAuthority: { value: input.mintAuthority ?? null, isSigner: true, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('group', accounts.group),
@@ -158,7 +171,12 @@ export function getInitializeTokenGroupInstruction<
         ],
         data: getInitializeTokenGroupInstructionDataEncoder().encode(args as InitializeTokenGroupInstructionDataArgs),
         programAddress,
-    } as InitializeTokenGroupInstruction<TProgramAddress, TAccountGroup, TAccountMint, TAccountMintAuthority>);
+    } as InitializeTokenGroupInstruction<
+        TProgramAddress,
+        ResolvedInstructionAccountMeta<TAccountGroup, InstructionAccountInputAddress<TAccountGroup>>,
+        ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
+        ResolvedInstructionAccountMeta<TAccountMintAuthority, InstructionAccountInputAddress<TAccountMintAuthority>>
+    >);
 }
 
 export type ParsedInitializeTokenGroupInstruction<
