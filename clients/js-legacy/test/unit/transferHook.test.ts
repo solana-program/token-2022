@@ -16,6 +16,7 @@ import {
     getExtraAccountMetaAddress,
     getExtraAccountMetas,
     resolveExtraAccountMeta,
+    TokenTransferHookAccountDataNotFound,
 } from '../../src';
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
@@ -667,5 +668,79 @@ describe('transferHook', () => {
 
             expect(instruction.keys).to.eql(checkMetas);
         });
+    });
+});
+
+describe('transferHook preloaded accounts', () => {
+    let connection: Connection;
+
+    const testProgramId = new PublicKey('7N4HggYEJAtCLJdnHGCtFqfxcB5rhQCsQTze3ftYstVj');
+    /** An account that does not exist on-chain yet — e.g. a recipient ATA the same
+     * transaction creates immediately before the transfer. */
+    const pendingAccount = new PublicKey('6c5q79ccBTWvZTEx3JkdHThtMa2eALba5bfvHGf8kA2c');
+    const pendingAccountData = Buffer.alloc(32, 7);
+
+    /** PDA seeded from bytes 0..32 of previousMetas[0]'s account data. */
+    const addressConfig = new Uint8Array(32);
+    addressConfig.set([4, 0, 0, 32], 0);
+    const extraMeta: ExtraAccountMeta = {
+        discriminator: 1,
+        addressConfig,
+        isSigner: false,
+        isWritable: false,
+    };
+    const previousMetas = [{ pubkey: pendingAccount, isSigner: false, isWritable: false }];
+    const instructionData = Buffer.from([0, 0, 0, 0, 0, 0, 0, 0]);
+
+    beforeEach(async () => {
+        connection = await getConnection();
+        // The account genuinely does not exist yet.
+        connection.getAccountInfo = async () => null;
+    });
+
+    it('throws when a seed account does not exist and no data is supplied', async () => {
+        await expect(
+            resolveExtraAccountMeta(connection, extraMeta, previousMetas, instructionData, testProgramId),
+        ).to.be.rejectedWith(TokenTransferHookAccountDataNotFound);
+    });
+
+    it('resolves when the caller supplies the pending account data', async () => {
+        const preloadedAccounts = new Map([[pendingAccount.toBase58(), pendingAccountData]]);
+
+        const resolved = await resolveExtraAccountMeta(
+            connection,
+            extraMeta,
+            previousMetas,
+            instructionData,
+            testProgramId,
+            preloadedAccounts,
+        );
+
+        const [expected] = PublicKey.findProgramAddressSync([pendingAccountData], testProgramId);
+        expect(resolved.pubkey).to.eql(expected);
+        expect(resolved.isSigner).to.equal(false);
+        expect(resolved.isWritable).to.equal(false);
+    });
+
+    it('prefers supplied data over an on-chain fetch', async () => {
+        connection.getAccountInfo = async () => ({
+            data: Buffer.alloc(32, 1),
+            owner: PublicKey.default,
+            executable: false,
+            lamports: 0,
+        });
+        const preloadedAccounts = new Map([[pendingAccount.toBase58(), pendingAccountData]]);
+
+        const resolved = await resolveExtraAccountMeta(
+            connection,
+            extraMeta,
+            previousMetas,
+            instructionData,
+            testProgramId,
+            preloadedAccounts,
+        );
+
+        const [expected] = PublicKey.findProgramAddressSync([pendingAccountData], testProgramId);
+        expect(resolved.pubkey).to.eql(expected);
     });
 });
