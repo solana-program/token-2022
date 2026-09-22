@@ -82,7 +82,7 @@ export async function deriveConfidentialKeys({
 }: {
     signer: MessagePartialSigner;
 }): Promise<DerivedConfidentialKeys> {
-    const message = ConfidentialKeys.signerMessage(new Uint8Array(0));
+    const message = ConfidentialKeys.signerMessage();
     const signature = await signDerivationMessage(signer, message);
     return decodeConfidentialKeys(ConfidentialKeys.fromSignature(signature));
 }
@@ -104,7 +104,7 @@ export async function deriveElGamalKeypairWithSeed({
     signer: MessagePartialSigner;
 }): Promise<DerivedElGamalKeypair> {
     assertSeedPresent(publicSeed, 'deriveElGamalKeypairWithSeed');
-    const message = ConfidentialKeys.signerMessage(new Uint8Array(publicSeed));
+    const message = ConfidentialKeys.signerMessageWithSeed(new Uint8Array(publicSeed));
     const signature = await signDerivationMessage(signer, message);
     return decodeConfidentialKeys(ConfidentialKeys.fromSignature(signature)).elgamalKeypair;
 }
@@ -124,7 +124,7 @@ export async function deriveAeKeyWithSeed({
     signer: MessagePartialSigner;
 }): Promise<Uint8Array> {
     assertSeedPresent(publicSeed, 'deriveAeKeyWithSeed');
-    const message = ConfidentialKeys.signerMessage(new Uint8Array(publicSeed));
+    const message = ConfidentialKeys.signerMessageWithSeed(new Uint8Array(publicSeed));
     const signature = await signDerivationMessage(signer, message);
     return decodeConfidentialKeys(ConfidentialKeys.fromSignature(signature)).aeKey;
 }
