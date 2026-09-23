@@ -60,7 +60,7 @@ function addCiphertexts(left: ReadonlyUint8Array, right: ReadonlyUint8Array) {
     );
 }
 
-function subtractCiphertexts(left: ReadonlyUint8Array, right: ReadonlyUint8Array) {
+export function subtractCiphertexts(left: ReadonlyUint8Array, right: ReadonlyUint8Array) {
     const leftPoints = ciphertextToPoints(left);
     const rightPoints = ciphertextToPoints(right);
     return pointsToCiphertext(
