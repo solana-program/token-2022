@@ -737,12 +737,13 @@ export async function fetchConfidentialTransferBalance(
  * representations: the AES `decryptableSupply` cache and the on-chain ElGamal
  * `confidentialSupply` ciphertext.
  *
- * ElGamal decryption is only practical for small plaintexts, so the full supply
- * ciphertext is never decrypted directly. Instead the cached supply is
- * re-encrypted under the supply ElGamal key and homomorphically subtracted from
- * the on-chain ciphertext; decrypting that difference yields only the burns
- * applied since the last supply sync, and the current supply is the cached
- * value minus those burns.
+ * The SDK's ElGamal decryption is limited to 32-bit plaintexts, so the full
+ * supply ciphertext is never decrypted directly. Instead, the cached supply
+ * is re-encrypted under the supply ElGamal key, and the on-chain supply
+ * ciphertext is homomorphically subtracted from it:
+ * `Enc(cachedSupply) - confidentialSupply`. Decrypting this difference yields
+ * the burns applied since the last supply sync, which must fit in 32 bits.
+ * The current supply is the cached supply minus those burns.
  *
  * @returns The current supply as a `bigint`.
  */
