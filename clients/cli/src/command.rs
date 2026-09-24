@@ -75,7 +75,8 @@ use {
         zk_proofs::{
             confidential_mint_burn::{BurnAccountInfo, SupplyAccountInfo},
             confidential_transfer::{
-                ApplyPendingBalanceAccountInfo, TransferAccountInfo, WithdrawAccountInfo,
+                ApplyPendingBalanceAccountInfo, EmptyAccountAccountInfo, TransferAccountInfo,
+                WithdrawAccountInfo,
             },
         },
     },
@@ -3993,6 +3994,46 @@ async fn command_approve_confidential_transfer_account(
     })
 }
 
+async fn command_empty_confidential_transfer_account(
+    config: &Config<'_>,
+    account: Pubkey,
+    owner: Pubkey,
+    elgamal_keypair: &ElGamalKeypair,
+    bulk_signers: BulkSigners,
+) -> CommandResult {
+    let account_data = config.get_account_checked(&account).await?;
+    let account_state = StateWithExtensionsOwned::<Account>::unpack(account_data.data)?;
+    let token = token_client_from_config(config, &account_state.base.mint, None)?;
+    let extension_state = account_state.get_extension::<ConfidentialTransferAccount>()?;
+    let account_info = EmptyAccountAccountInfo::new(extension_state);
+
+    println_display(
+        config,
+        format!("Emptying confidential transfer account {}", account),
+    );
+
+    let res = token
+        .confidential_transfer_empty_account(
+            &account,
+            &owner,
+            None,
+            Some(account_info),
+            elgamal_keypair,
+            &bulk_signers,
+        )
+        .await?;
+
+    let tx_return = finish_tx(config, &res, false).await?;
+    Ok(match tx_return {
+        TransactionReturnData::CliSignature(signature) => {
+            config.output_format.formatted_string(&signature)
+        }
+        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
+            config.output_format.formatted_string(&sign_only_data)
+        }
+    })
+}
+
 async fn command_enable_disable_confidential_transfers(
     config: &Config<'_>,
     maybe_token: Option<Pubkey>,
@@ -5643,6 +5684,30 @@ pub async fn process_command(
 
             command_approve_confidential_transfer_account(config, account, authority, bulk_signers)
                 .await
+        }
+        (CommandName::EmptyConfidentialTransferAccount, arg_matches) => {
+            let account = config
+                .associated_token_address_or_override(arg_matches, "address", &mut wallet_manager)
+                .await?;
+            let (owner_signer, owner) =
+                config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
+
+            // Use the same signer-derived key as configure-confidential-transfer-account.
+            let (elgamal_keypair, _) =
+                derive_confidential_keys(&*owner_signer, b"").map_err(|err| err.to_string())?;
+
+            if config.multisigner_pubkeys.is_empty() {
+                push_signer_with_dedup(owner_signer, &mut bulk_signers);
+            }
+
+            command_empty_confidential_transfer_account(
+                config,
+                account,
+                owner,
+                &elgamal_keypair,
+                bulk_signers,
+            )
+            .await
         }
         (c @ CommandName::EnableConfidentialCredits, arg_matches)
         | (c @ CommandName::DisableConfidentialCredits, arg_matches)
