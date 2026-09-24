@@ -160,6 +160,7 @@ pub enum CommandName {
     InitializeMember,
     UpdateConfidentialTransferSettings,
     ConfigureConfidentialTransferAccount,
+    ApproveConfidentialTransferAccount,
     EnableConfidentialCredits,
     DisableConfidentialCredits,
     EnableNonConfidentialCredits,
@@ -2614,6 +2615,42 @@ pub fn app<'a>(
                         )
                 )
                 .arg(multisig_signer_arg())
+                .nonce_args(true)
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::ApproveConfidentialTransferAccount.into())
+                .about("Approve a token account for confidential transfers")
+                .arg(
+                    Arg::with_name("token")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required_unless("address")
+                        .help("The token address with confidential transfers enabled"),
+                )
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_ACCOUNT_ADDRESS")
+                        .takes_value(true)
+                        .conflicts_with("token")
+                        .help("The address of the token account to approve for confidential transfers \
+                            [default: owner's associated token account]")
+                )
+                .arg(owner_address_arg())
+                .arg(
+                    Arg::with_name("confidential_transfer_authority")
+                        .long("confidential-transfer-authority")
+                        .validator(|s| is_valid_signer(s))
+                        .value_name("SIGNER")
+                        .takes_value(true)
+                        .help(
+                            "Specify the confidential transfer authority keypair. \
+                            Defaults to the client keypair address."
+                        )
+                )
                 .nonce_args(true)
         )
         .subcommand(

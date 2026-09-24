@@ -3964,6 +3964,35 @@ async fn command_configure_confidential_transfer_account(
     })
 }
 
+async fn command_approve_confidential_transfer_account(
+    config: &Config<'_>,
+    account: Pubkey,
+    authority: Pubkey,
+    bulk_signers: BulkSigners,
+) -> CommandResult {
+    let mint_address = config.check_account(&account, None).await?;
+    let token = token_client_from_config(config, &mint_address, None)?;
+
+    println_display(
+        config,
+        format!("Approving account {} for confidential transfers", account),
+    );
+
+    let res = token
+        .confidential_transfer_approve_account(&account, &authority, &bulk_signers)
+        .await?;
+
+    let tx_return = finish_tx(config, &res, false).await?;
+    Ok(match tx_return {
+        TransactionReturnData::CliSignature(signature) => {
+            config.output_format.formatted_string(&signature)
+        }
+        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
+            config.output_format.formatted_string(&sign_only_data)
+        }
+    })
+}
+
 async fn command_enable_disable_confidential_transfers(
     config: &Config<'_>,
     maybe_token: Option<Pubkey>,
@@ -5600,6 +5629,20 @@ pub async fn process_command(
                 bulk_signers,
             )
             .await
+        }
+        (CommandName::ApproveConfidentialTransferAccount, arg_matches) => {
+            let account = config
+                .associated_token_address_or_override(arg_matches, "address", &mut wallet_manager)
+                .await?;
+            let (authority_signer, authority) = config.signer_or_default(
+                arg_matches,
+                "confidential_transfer_authority",
+                &mut wallet_manager,
+            );
+            push_signer_with_dedup(authority_signer, &mut bulk_signers);
+
+            command_approve_confidential_transfer_account(config, account, authority, bulk_signers)
+                .await
         }
         (c @ CommandName::EnableConfidentialCredits, arg_matches)
         | (c @ CommandName::DisableConfidentialCredits, arg_matches)
