@@ -19,6 +19,10 @@ import {
 const DECIMALS = 2;
 const MINT_AMOUNT = 500n;
 const BURN_AMOUNT = 200n;
+const SECOND_MINT_AMOUNT = 100n;
+const LARGE_MINT_AMOUNT = 5_000_000_000n; // above 2^32
+const LARGE_BURN_AMOUNT = 1_000_000_000n;
+const LARGE_SECOND_MINT_AMOUNT = 2_000_000_000n;
 
 it('confidentially mints into, applies, burns from, and re-syncs the supply of a mint-burn mint', async () => {
     // Given a mint-burn mint (both ConfidentialTransferMint + ConfidentialMintBurn)
@@ -121,4 +125,245 @@ it('confidentially mints into, applies, burns from, and re-syncs the supply of a
     ]);
 
     expect(await fetchDecryptableSupply({ client, mint, supplyAesKey })).toBe(MINT_AMOUNT - BURN_AMOUNT);
+});
+
+it('confidentially mints again after a pending burn without a manual decryptable-supply re-sync', async () => {
+    // Given a mint-burn mint and a confidential token account, with a pending
+    // burn applied so that the encrypted supply no longer matches the AES
+    // decryptable supply.
+    const client = await createValidatorClient({ estimateResourceLimits: false });
+    const payer = client.payer;
+    const owner = await generateKeyPairSignerWithSol(client);
+    const { mint, mintAuthority, supplyElgamalKeypair, supplyAesKey } = await createConfidentialMintBurnMint({
+        client,
+        payer,
+        decimals: DECIMALS,
+    });
+    const account = await createConfidentialTokenAccount({ client, payer, owner, mint });
+
+    const [{ data: destinationTokenAccount }, { data: mintAccount }] = await Promise.all([
+        fetchToken(client.rpc, account.token),
+        fetchMint(client.rpc, mint),
+    ]);
+    await client.sendTransactions(
+        await getConfidentialMintInstructionPlan({
+            payer,
+            rpc: client.rpc,
+            token: account.token,
+            mint,
+            mintAccount,
+            destinationTokenAccount,
+            authority: mintAuthority,
+            amount: MINT_AMOUNT,
+            supplyElgamalKeypair,
+            supplyAesKey,
+        }),
+    );
+
+    const { data: afterMint } = await fetchToken(client.rpc, account.token);
+    await client.sendTransaction([
+        getApplyConfidentialPendingBalanceInstructionFromToken({
+            token: account.token,
+            tokenAccount: afterMint,
+            authority: owner,
+            elgamalSecretKey: account.elgamalKeypair.secret(),
+            aesKey: account.aesKey,
+        }),
+    ]);
+
+    const [{ data: sourceTokenAccount }, { data: mintForBurn }] = await Promise.all([
+        fetchToken(client.rpc, account.token),
+        fetchMint(client.rpc, mint),
+    ]);
+    await client.sendTransactions(
+        await getConfidentialBurnInstructionPlan({
+            payer,
+            rpc: client.rpc,
+            token: account.token,
+            mint,
+            mintAccount: mintForBurn,
+            sourceTokenAccount,
+            authority: owner,
+            amount: BURN_AMOUNT,
+            sourceElgamalKeypair: account.elgamalKeypair,
+            aesKey: account.aesKey,
+        }),
+    );
+
+    // Apply the pending burn WITHOUT re-syncing the decryptable supply; on-chain
+    // this advances the encrypted supply only.
+    await client.sendTransaction([getApplyConfidentialPendingBurnInstruction({ mint, authority: mintAuthority })]);
+
+    // When the authority mints again without a manual decryptable re-sync, the
+    // equality proof must still bind the new-supply ciphertext to a commitment
+    // over the confidential (not decryptable) supply, so the mint succeeds.
+    const [{ data: destinationAfterBurn }, { data: mintAfterBurn }] = await Promise.all([
+        fetchToken(client.rpc, account.token),
+        fetchMint(client.rpc, mint),
+    ]);
+    await client.sendTransactions(
+        await getConfidentialMintInstructionPlan({
+            payer,
+            rpc: client.rpc,
+            token: account.token,
+            mint,
+            mintAccount: mintAfterBurn,
+            destinationTokenAccount: destinationAfterBurn,
+            authority: mintAuthority,
+            amount: SECOND_MINT_AMOUNT,
+            supplyElgamalKeypair,
+            supplyAesKey,
+        }),
+    );
+
+    // And the account's available balance decrypts to the full minted amount.
+    const { data: afterSecondMint } = await fetchToken(client.rpc, account.token);
+    await client.sendTransaction([
+        getApplyConfidentialPendingBalanceInstructionFromToken({
+            token: account.token,
+            tokenAccount: afterSecondMint,
+            authority: owner,
+            elgamalSecretKey: account.elgamalKeypair.secret(),
+            aesKey: account.aesKey,
+        }),
+    ]);
+    const { data: appliedSecondMint } = await fetchToken(client.rpc, account.token);
+    expect(
+        decryptConfidentialTransferBalance({
+            tokenAccount: appliedSecondMint,
+            elgamalSecretKey: account.elgamalKeypair.secret(),
+            aesKey: account.aesKey,
+        }).availableBalance,
+    ).toBe(MINT_AMOUNT - BURN_AMOUNT + SECOND_MINT_AMOUNT);
+
+    // Then the decryptable supply tracks the encrypted supply advanced by the
+    // burn and the second mint.
+    expect(await fetchDecryptableSupply({ client, mint, supplyAesKey })).toBe(
+        MINT_AMOUNT - BURN_AMOUNT + SECOND_MINT_AMOUNT,
+    );
+});
+
+it('confidentially mints above 2^32, burns, applies, and mints again without a re-sync', async () => {
+    // Given a mint-burn mint and a confidential token account. The supply grows
+    // past 2^32, where decrypting the ElGamal supply ciphertext directly fails —
+    // only the reconciliation path (decrypt the AES cache, homomorphically
+    // subtract the on-chain ciphertext, decrypt the difference) can recover it.
+    const client = await createValidatorClient({ estimateResourceLimits: false });
+    const payer = client.payer;
+    const owner = await generateKeyPairSignerWithSol(client);
+    const { mint, mintAuthority, supplyElgamalKeypair, supplyAesKey } = await createConfidentialMintBurnMint({
+        client,
+        payer,
+        decimals: DECIMALS,
+    });
+    const account = await createConfidentialTokenAccount({ client, payer, owner, mint });
+
+    // When the authority confidentially mints a supply above 2^32.
+    const [{ data: destinationTokenAccount }, { data: mintAccount }] = await Promise.all([
+        fetchToken(client.rpc, account.token),
+        fetchMint(client.rpc, mint),
+    ]);
+    await client.sendTransactions(
+        await getConfidentialMintInstructionPlan({
+            payer,
+            rpc: client.rpc,
+            token: account.token,
+            mint,
+            mintAccount,
+            destinationTokenAccount,
+            authority: mintAuthority,
+            amount: LARGE_MINT_AMOUNT,
+            supplyElgamalKeypair,
+            supplyAesKey,
+        }),
+    );
+
+    // And the owner applies the pending balance so the minted amount is available.
+    const { data: afterMint } = await fetchToken(client.rpc, account.token);
+    await client.sendTransaction([
+        getApplyConfidentialPendingBalanceInstructionFromToken({
+            token: account.token,
+            tokenAccount: afterMint,
+            authority: owner,
+            elgamalSecretKey: account.elgamalKeypair.secret(),
+            aesKey: account.aesKey,
+        }),
+    ]);
+    const { data: appliedAccount } = await fetchToken(client.rpc, account.token);
+    expect(
+        decryptConfidentialTransferBalance({
+            tokenAccount: appliedAccount,
+            elgamalSecretKey: account.elgamalKeypair.secret(),
+            aesKey: account.aesKey,
+        }).availableBalance,
+    ).toBe(LARGE_MINT_AMOUNT);
+
+    // When the owner confidentially burns part of the available balance and the
+    // pending burn is applied without a decryptable-supply re-sync.
+    const [{ data: sourceTokenAccount }, { data: mintForBurn }] = await Promise.all([
+        fetchToken(client.rpc, account.token),
+        fetchMint(client.rpc, mint),
+    ]);
+    await client.sendTransactions(
+        await getConfidentialBurnInstructionPlan({
+            payer,
+            rpc: client.rpc,
+            token: account.token,
+            mint,
+            mintAccount: mintForBurn,
+            sourceTokenAccount,
+            authority: owner,
+            amount: LARGE_BURN_AMOUNT,
+            sourceElgamalKeypair: account.elgamalKeypair,
+            aesKey: account.aesKey,
+        }),
+    );
+    await client.sendTransaction([getApplyConfidentialPendingBurnInstruction({ mint, authority: mintAuthority })]);
+
+    // When the authority mints again, the reconciliation must recover the current
+    // supply past 2^32 — where decrypting the supply ciphertext directly fails.
+    const [{ data: destinationAfterBurn }, { data: mintAfterBurn }] = await Promise.all([
+        fetchToken(client.rpc, account.token),
+        fetchMint(client.rpc, mint),
+    ]);
+    await client.sendTransactions(
+        await getConfidentialMintInstructionPlan({
+            payer,
+            rpc: client.rpc,
+            token: account.token,
+            mint,
+            mintAccount: mintAfterBurn,
+            destinationTokenAccount: destinationAfterBurn,
+            authority: mintAuthority,
+            amount: LARGE_SECOND_MINT_AMOUNT,
+            supplyElgamalKeypair,
+            supplyAesKey,
+        }),
+    );
+
+    // And the account's available balance decrypts to the full minted amount.
+    const { data: afterSecondMint } = await fetchToken(client.rpc, account.token);
+    await client.sendTransaction([
+        getApplyConfidentialPendingBalanceInstructionFromToken({
+            token: account.token,
+            tokenAccount: afterSecondMint,
+            authority: owner,
+            elgamalSecretKey: account.elgamalKeypair.secret(),
+            aesKey: account.aesKey,
+        }),
+    ]);
+    const { data: appliedSecondMint } = await fetchToken(client.rpc, account.token);
+    expect(
+        decryptConfidentialTransferBalance({
+            tokenAccount: appliedSecondMint,
+            elgamalSecretKey: account.elgamalKeypair.secret(),
+            aesKey: account.aesKey,
+        }).availableBalance,
+    ).toBe(LARGE_MINT_AMOUNT - LARGE_BURN_AMOUNT + LARGE_SECOND_MINT_AMOUNT);
+
+    // Then the decryptable supply tracks the supply advanced by the burn and
+    // the second mint.
+    expect(await fetchDecryptableSupply({ client, mint, supplyAesKey })).toBe(
+        LARGE_MINT_AMOUNT - LARGE_BURN_AMOUNT + LARGE_SECOND_MINT_AMOUNT,
+    );
 });

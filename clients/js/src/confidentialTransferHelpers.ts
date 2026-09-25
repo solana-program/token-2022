@@ -60,6 +60,7 @@ import {
     addWithLoHiCiphertexts,
     extractCiphertextFromGroupedBytes,
     subtractAmountFromCiphertext,
+    subtractCiphertexts,
     subtractWithLoHiCiphertexts,
 } from './confidentialTransferArithmetic';
 import {
@@ -729,6 +730,50 @@ export async function fetchConfidentialTransferBalance(
         elgamalSecretKey: input.elgamalSecretKey,
         aesKey: input.aesKey,
     });
+}
+
+/**
+ * Decrypts the mint's current supply by reconciling the mint's two supply
+ * representations: the AES `decryptableSupply` cache and the on-chain ElGamal
+ * `confidentialSupply` ciphertext.
+ *
+ * The SDK's ElGamal decryption is limited to 32-bit plaintexts, so the full
+ * supply ciphertext is never decrypted directly. Instead, the cached supply
+ * is re-encrypted under the supply ElGamal key, and the on-chain supply
+ * ciphertext is homomorphically subtracted from it:
+ * `Enc(cachedSupply) - confidentialSupply`. Decrypting this difference yields
+ * the burns applied since the last supply sync, which must fit in 32 bits.
+ * The current supply is the cached supply minus those burns.
+ *
+ * @returns The current supply as a `bigint`.
+ */
+export function decryptConfidentialMintBurnSupply(input: {
+    /** Decoded mint account, read for its confidential supply extension. */
+    mintAccount: Mint;
+    /** The supply ElGamal keypair. */
+    supplyElgamalKeypair: ElGamalKeypair;
+    /** The supply AES key that encrypts the decryptable supply. */
+    supplyAesKey: AeKey;
+}): bigint {
+    const mintBurnExtension = getRequiredMintExtension(input.mintAccount, 'ConfidentialMintBurn');
+    const cachedSupply = input.supplyAesKey.decrypt(parseAeCiphertext(mintBurnExtension.decryptableSupply));
+    const supplyDeltaCiphertext = subtractCiphertexts(
+        input.supplyElgamalKeypair.pubkey().encryptU64(cachedSupply).toBytes(),
+        mintBurnExtension.confidentialSupply,
+    );
+    let supplyDelta: bigint | undefined;
+    try {
+        supplyDelta = input.supplyElgamalKeypair.secret().decrypt(parseElGamalCiphertext(supplyDeltaCiphertext));
+    } catch {
+        supplyDelta = undefined;
+    }
+    if (supplyDelta === undefined) {
+        throw new Error(
+            'Failed to decrypt the supply difference between the decryptable supply and the on-chain supply. ' +
+                'The difference must fit in 32 bits, so re-sync the decryptable supply if it has drifted too far.',
+        );
+    }
+    return cachedSupply - supplyDelta;
 }
 
 /**
@@ -1538,7 +1583,17 @@ async function buildConfidentialMintProofPlan(
     const amount = BigInt(input.amount);
     assertMintBurnAmount(amount, 'Mint');
 
-    const currentSupply = input.supplyAesKey.decrypt(parseAeCiphertext(mintBurnExtension.decryptableSupply));
+    // The new-supply commitment must commit to the same value the new-supply
+    // ciphertext encrypts (`confidential_supply + amount`); the equality proof
+    // binds the two. The current supply is reconciled from the AES cache and
+    // the on-chain ciphertext, so the proof stays valid even after an
+    // apply-pending-burn advances the encrypted supply without re-encrypting
+    // the decryptable one — no manual re-sync is needed.
+    const currentSupply = decryptConfidentialMintBurnSupply({
+        mintAccount: input.mintAccount,
+        supplyElgamalKeypair: input.supplyElgamalKeypair,
+        supplyAesKey: input.supplyAesKey,
+    });
     const newSupply = currentSupply + amount;
     assertU64Amount(newSupply, 'New supply after mint');
 
@@ -1683,12 +1738,13 @@ async function buildConfidentialMintProofPlan(
  * the three required proofs (equality, grouped-ciphertext validity, batched
  * range) via context-state accounts.
  *
- * **The mint's two supply representations must be in sync.** The equality proof
- * asserts that the mint's `confidentialSupply` ElGamal ciphertext plus `amount`
- * equals `AES_decrypt(decryptableSupply) + amount`. If the two have drifted —
- * e.g. after `ApplyPendingBurn`, which advances the ElGamal supply but cannot
- * re-encrypt the AES form — the proof is rejected on-chain. Re-sync first with
- * {@link getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply}.
+ * **The mint's supply is reconciled automatically.** The equality proof asserts
+ * that the mint's `confidentialSupply` ElGamal ciphertext plus `amount` equals
+ * the committed value, and the current supply is derived via
+ * {@link decryptConfidentialMintBurnSupply} from the AES `decryptableSupply`
+ * cache and the on-chain ciphertext. A drift — e.g. after `ApplyPendingBurn`,
+ * which advances the ElGamal supply but cannot re-encrypt the AES form — is
+ * handled without a manual re-sync; the mint itself re-syncs the cache.
  *
  * The range proof is provided inline in the verify instruction data. This keeps
  * the flow to a minimal number of transactions, but the range-proof transaction
@@ -2032,8 +2088,10 @@ export async function getPermissionedConfidentialBurnWithRecordInstructionPlan(
  * The confidential supply is maintained on-chain both as an ElGamal ciphertext
  * (updated homomorphically by mint/burn) and as a cheap-to-decrypt AES
  * "decryptable supply". The two can drift — e.g. `ApplyPendingBurn` advances the
- * ElGamal supply but cannot re-encrypt the AES form — so the authority uses this
- * to re-assert the decryptable supply to the true supply it tracks.
+ * ElGamal supply but cannot re-encrypt the AES form — but proof helpers such as
+ * {@link decryptConfidentialMintBurnSupply} reconcile the drift automatically.
+ * This instruction remains for authorities that want to persist a known supply
+ * into the cache outright.
  */
 export function getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply(
     input: GetUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupplyInput,
