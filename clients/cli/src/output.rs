@@ -6,7 +6,7 @@ use {
     solana_account_decoder::{
         parse_token::{UiAccountState, UiMint, UiMultisig, UiTokenAccount, UiTokenAmount},
         parse_token_extension::{
-            UiConfidentialTransferAccount, UiConfidentialTransferFeeAmount,
+            UiConfidentialMintBurn, UiConfidentialTransferAccount, UiConfidentialTransferFeeAmount,
             UiConfidentialTransferFeeConfig, UiConfidentialTransferMint, UiCpiGuard,
             UiDefaultAccountState, UiExtension, UiGroupMemberPointer, UiGroupPointer,
             UiInterestBearingConfig, UiMemoTransfer, UiMetadataPointer, UiMintCloseAuthority,
@@ -199,6 +199,32 @@ pub(crate) struct CliTokenAccount {
     pub(crate) account: UiTokenAccount,
     #[serde(skip_serializing)]
     pub(crate) has_permanent_delegate: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) decrypted_confidential_balances: Option<CliDecryptedConfidentialBalances>,
+}
+
+/// Decrypted confidential balances of a token account, shown when
+/// `spl-token display --decrypt` is used with the account owner's keypair
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CliDecryptedConfidentialBalances {
+    pub(crate) pending_balance: UiTokenAmount,
+    pub(crate) available_balance: UiTokenAmount,
+}
+
+impl fmt::Display for CliDecryptedConfidentialBalances {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln_name_value(
+            f,
+            "    Decrypted Pending Balance:",
+            &self.pending_balance.real_number_string_trimmed(),
+        )?;
+        writeln_name_value(
+            f,
+            "    Decrypted Available Balance:",
+            &self.available_balance.real_number_string_trimmed(),
+        )
+    }
 }
 
 impl QuietDisplay for CliTokenAccount {}
@@ -257,6 +283,11 @@ impl fmt::Display for CliTokenAccount {
             writeln!(f, "{}", style("Extensions:").bold())?;
             for extension in &self.account.extensions {
                 display_ui_extension(f, 0, extension)?;
+                if let (UiExtension::ConfidentialTransferAccount(_), Some(decrypted)) =
+                    (extension, &self.decrypted_confidential_balances)
+                {
+                    write!(f, "{}", decrypted)?;
+                }
             }
         }
 
@@ -294,6 +325,10 @@ pub(crate) struct CliMint {
     pub(crate) epoch: u64,
     #[serde(flatten)]
     pub(crate) mint: UiMint,
+    /// Decrypted confidential supply, shown when `spl-token display --decrypt`
+    /// is used with the supply keypair of a confidential mint-burn mint
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) decrypted_confidential_supply: Option<UiTokenAmount>,
 }
 
 impl QuietDisplay for CliMint {}
@@ -326,6 +361,15 @@ impl fmt::Display for CliMint {
             writeln!(f, "{}", style("Extensions").bold())?;
             for extension in &self.mint.extensions {
                 display_ui_extension(f, self.epoch, extension)?;
+                if let (UiExtension::ConfidentialMintBurn(_), Some(supply)) =
+                    (extension, &self.decrypted_confidential_supply)
+                {
+                    writeln_name_value(
+                        f,
+                        "    Decrypted Supply:",
+                        &supply.real_number_string_trimmed(),
+                    )?;
+                }
             }
         }
 
@@ -1014,9 +1058,18 @@ fn display_ui_extension(
             "  Unparseable extension:",
             "Consider upgrading to a newer version of spl-token",
         ),
-        // remove when upgrading v2.1.1+ and match on ConfidentialMintBurn
-        #[allow(unreachable_patterns)]
-        _ => Ok(()),
+        UiExtension::ConfidentialMintBurn(UiConfidentialMintBurn {
+            confidential_supply,
+            decryptable_supply,
+            supply_elgamal_pubkey,
+            pending_burn,
+        }) => {
+            writeln!(f, "  {}", style("Confidential mint burn:").bold())?;
+            writeln_name_value(f, "    Supply encryption key:", supply_elgamal_pubkey)?;
+            writeln_name_value(f, "    Confidential Supply:", confidential_supply)?;
+            writeln_name_value(f, "    Decryptable Supply:", decryptable_supply)?;
+            writeln_name_value(f, "    Pending Burn:", pending_burn)
+        }
     }
 }
 
