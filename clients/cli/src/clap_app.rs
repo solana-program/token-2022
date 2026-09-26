@@ -160,6 +160,8 @@ pub enum CommandName {
     InitializeMember,
     UpdateConfidentialTransferSettings,
     ConfigureConfidentialTransferAccount,
+    ApproveConfidentialTransferAccount,
+    EmptyConfidentialTransferAccount,
     EnableConfidentialCredits,
     DisableConfidentialCredits,
     EnableNonConfidentialCredits,
@@ -2613,6 +2615,70 @@ pub fn app<'a>(
                             Defaults to 65536 (2^16)"
                         )
                 )
+                .arg(multisig_signer_arg())
+                .nonce_args(true)
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::ApproveConfidentialTransferAccount.into())
+                .about("Approve a token account for confidential transfers")
+                .arg(
+                    Arg::with_name("token")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required_unless("address")
+                        .help("The token address with confidential transfers enabled"),
+                )
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_ACCOUNT_ADDRESS")
+                        .takes_value(true)
+                        .conflicts_with("token")
+                        .help("The address of the token account to approve for confidential transfers \
+                            [default: owner's associated token account]")
+                )
+                .arg(owner_address_arg())
+                .arg(
+                    Arg::with_name("confidential_transfer_authority")
+                        .long("confidential-transfer-authority")
+                        .validator(|s| is_valid_signer(s))
+                        .value_name("SIGNER")
+                        .takes_value(true)
+                        .help(
+                            "Specify the confidential transfer authority keypair. \
+                            Defaults to the client keypair address."
+                        )
+                )
+                .nonce_args(true)
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::EmptyConfidentialTransferAccount.into())
+                .about("Clear a zero confidential balance so a token account can be closed. \
+                    Apply pending balances and withdraw all confidential tokens first. \
+                    Use `close` separately once the public token balance is also empty.")
+                .arg(
+                    Arg::with_name("token")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required_unless("address")
+                        .help("The token address with confidential transfers enabled"),
+                )
+                .arg(
+                    Arg::with_name("address")
+                        .long("address")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_ACCOUNT_ADDRESS")
+                        .takes_value(true)
+                        .conflicts_with("token")
+                        .help("The address of the confidential transfer account to empty \
+                            [default: owner's associated token account]")
+                )
+                .arg(owner_address_arg())
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
         )

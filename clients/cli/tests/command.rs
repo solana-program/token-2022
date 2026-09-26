@@ -137,6 +137,8 @@ async fn main() {
         async_trial!(transfer_fee, test_validator, payer),
         async_trial!(transfer_fee_basis_point, test_validator, payer),
         async_trial!(confidential_transfer, test_validator, payer),
+        async_trial!(approve_confidential_transfer_account, test_validator, payer),
+        async_trial!(empty_confidential_transfer_account, test_validator, payer),
         async_trial!(multisig_transfer, test_validator, payer),
         async_trial!(offline_multisig_transfer_with_nonce, test_validator, payer),
         async_trial!(
@@ -2930,6 +2932,405 @@ async fn transfer_fee_basis_point(test_validator: &TestValidator, payer: &Keypai
         u64::from(extension.newer_transfer_fee.maximum_fee),
         (maximum_fee * i32::pow(10, decimal) as f64) as u64
     );
+}
+
+async fn approve_confidential_transfer_account(test_validator: &TestValidator, payer: &Keypair) {
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+
+    let token = Keypair::new();
+    let token_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&token, &token_keypair_file).unwrap();
+    let token_pubkey = token.pubkey();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::CreateToken.into(),
+            token_keypair_file.path().to_str().unwrap(),
+            "--enable-confidential-transfers",
+            "manual",
+        ],
+    )
+    .await
+    .unwrap();
+
+    // The account owner and confidential transfer mint authority are distinct.
+    let owner = Keypair::new();
+    let token_account =
+        create_associated_account(&config, payer, &token_pubkey, &owner.pubkey()).await;
+    let mut owner_config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    owner_config.default_signer = Some(Arc::new(clone_keypair(&owner)));
+    process_test_command(
+        &owner_config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ConfigureConfidentialTransferAccount.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let account = config.rpc_client.get_account(&token_account).await.unwrap();
+    let account_state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
+    let extension = account_state
+        .get_extension::<ConfidentialTransferAccount>()
+        .unwrap();
+    assert!(!bool::from(extension.approved));
+
+    // The account owner's signature cannot approve the account.
+    process_test_command(
+        &owner_config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApproveConfidentialTransferAccount.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap_err();
+
+    // Select the owner's associated account without requiring the owner to sign.
+    let authority_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(payer, &authority_keypair_file).unwrap();
+    exec_test_cmd(
+        &config,
+        &[
+            "spl-token",
+            CommandName::ApproveConfidentialTransferAccount.into(),
+            &token_pubkey.to_string(),
+            "--owner",
+            &owner.pubkey().to_string(),
+            "--confidential-transfer-authority",
+            authority_keypair_file.path().to_str().unwrap(),
+            "--fee-payer",
+            authority_keypair_file.path().to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let account = config.rpc_client.get_account(&token_account).await.unwrap();
+    let account_state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
+    let extension = account_state
+        .get_extension::<ConfidentialTransferAccount>()
+        .unwrap();
+    assert!(bool::from(extension.approved));
+
+    // Explicit account selection also supports the default authority signer.
+    let auxiliary_account = create_auxiliary_account(&config, payer, token_pubkey).await;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApproveConfidentialTransferAccount.into(),
+            "--address",
+            &auxiliary_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap_err(); // confidential transfers must be configured first
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ConfigureConfidentialTransferAccount.into(),
+            "--address",
+            &auxiliary_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApproveConfidentialTransferAccount.into(),
+            "--address",
+            &auxiliary_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let account = config
+        .rpc_client
+        .get_account(&auxiliary_account)
+        .await
+        .unwrap();
+    let account_state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
+    let extension = account_state
+        .get_extension::<ConfidentialTransferAccount>()
+        .unwrap();
+    assert!(bool::from(extension.approved));
+}
+
+async fn empty_confidential_transfer_account(test_validator: &TestValidator, payer: &Keypair) {
+    use solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext;
+
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    let owner_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(payer, &owner_keypair_file).unwrap();
+
+    for use_associated_account in [true, false] {
+        let token = Keypair::new();
+        let token_keypair_file = NamedTempFile::new().unwrap();
+        write_keypair_file(&token, &token_keypair_file).unwrap();
+        let token_pubkey = token.pubkey();
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::CreateToken.into(),
+                token_keypair_file.path().to_str().unwrap(),
+                "--enable-confidential-transfers",
+                "auto",
+            ],
+        )
+        .await
+        .unwrap();
+
+        let token_account = if use_associated_account {
+            create_associated_account(&config, payer, &token_pubkey, &payer.pubkey()).await
+        } else {
+            create_auxiliary_account(&config, payer, token_pubkey).await
+        };
+        let token_address = token_pubkey.to_string();
+        let account_address = token_account.to_string();
+        let empty_args = if use_associated_account {
+            vec![
+                "spl-token",
+                CommandName::EmptyConfidentialTransferAccount.into(),
+                &token_address,
+            ]
+        } else {
+            vec![
+                "spl-token",
+                CommandName::EmptyConfidentialTransferAccount.into(),
+                "--address",
+                &account_address,
+            ]
+        };
+
+        process_test_command(&config, payer, &empty_args)
+            .await
+            .unwrap_err(); // confidential transfers must be configured first
+
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::ConfigureConfidentialTransferAccount.into(),
+                "--address",
+                &account_address,
+            ],
+        )
+        .await
+        .unwrap();
+
+        mint_tokens(&config, payer, token_pubkey, 100.0, token_account)
+            .await
+            .unwrap();
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::DepositConfidentialTokens.into(),
+                &token_address,
+                "100",
+                "--address",
+                &account_address,
+            ],
+        )
+        .await
+        .unwrap();
+
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::ApplyPendingBalance.into(),
+                "--address",
+                &account_address,
+            ],
+        )
+        .await
+        .unwrap();
+
+        // EmptyAccount cannot clear a nonzero available balance.
+        process_test_command(&config, payer, &empty_args)
+            .await
+            .unwrap_err();
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::WithdrawConfidentialTokens.into(),
+                &token_address,
+                "100",
+                "--address",
+                &account_address,
+            ],
+        )
+        .await
+        .unwrap();
+
+        // A new pending deposit prevents emptying even with a valid zero proof
+        // for the available balance.
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::DepositConfidentialTokens.into(),
+                &token_address,
+                "1",
+                "--address",
+                &account_address,
+            ],
+        )
+        .await
+        .unwrap();
+        process_test_command(&config, payer, &empty_args)
+            .await
+            .unwrap_err();
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::ApplyPendingBalance.into(),
+                "--address",
+                &account_address,
+            ],
+        )
+        .await
+        .unwrap();
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::WithdrawConfidentialTokens.into(),
+                &token_address,
+                "1",
+                "--address",
+                &account_address,
+            ],
+        )
+        .await
+        .unwrap();
+
+        // Remove the withdrawn public balance before attempting to close.
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::Burn.into(),
+                &account_address,
+                "ALL",
+            ],
+        )
+        .await
+        .unwrap();
+
+        let account = config.rpc_client.get_account(&token_account).await.unwrap();
+        let account_state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
+        assert_eq!(account_state.base.amount, 0);
+        let extension = account_state
+            .get_extension::<ConfidentialTransferAccount>()
+            .unwrap();
+        // A withdrawn balance encrypts zero but is not the all-zero ciphertext.
+        assert_ne!(extension.available_balance, PodElGamalCiphertext::default());
+        assert!(extension.closable().is_err());
+
+        let close_authority = Keypair::new();
+        let close_authority_keypair_file = NamedTempFile::new().unwrap();
+        write_keypair_file(&close_authority, &close_authority_keypair_file).unwrap();
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::Authorize.into(),
+                &account_address,
+                "close",
+                &close_authority.pubkey().to_string(),
+                "--force",
+            ],
+        )
+        .await
+        .unwrap();
+
+        let close_args = [
+            "spl-token",
+            CommandName::Close.into(),
+            "--address",
+            &account_address,
+            "--close-authority",
+            close_authority_keypair_file.path().to_str().unwrap(),
+        ];
+        process_test_command(&config, payer, &close_args)
+            .await
+            .unwrap_err();
+
+        // The close authority cannot generate the account owner's empty proof.
+        exec_test_cmd(
+            &config,
+            &[
+                "spl-token",
+                CommandName::EmptyConfidentialTransferAccount.into(),
+                "--address",
+                &account_address,
+                "--owner",
+                close_authority_keypair_file.path().to_str().unwrap(),
+                "--fee-payer",
+                owner_keypair_file.path().to_str().unwrap(),
+            ],
+        )
+        .await
+        .unwrap_err();
+
+        let mut owner_empty_args = empty_args.clone();
+        owner_empty_args
+            .extend_from_slice(&["--owner", owner_keypair_file.path().to_str().unwrap()]);
+        exec_test_cmd(&config, &owner_empty_args).await.unwrap();
+
+        let account = config.rpc_client.get_account(&token_account).await.unwrap();
+        let account_state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
+        let extension = account_state
+            .get_extension::<ConfidentialTransferAccount>()
+            .unwrap();
+        assert_eq!(extension.available_balance, PodElGamalCiphertext::default());
+        extension.closable().unwrap();
+
+        // Closing remains a separate operation authorized by the close authority.
+        process_test_command(&config, payer, &close_args)
+            .await
+            .unwrap();
+        config
+            .rpc_client
+            .get_account(&token_account)
+            .await
+            .unwrap_err();
+    }
 }
 
 async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) {
