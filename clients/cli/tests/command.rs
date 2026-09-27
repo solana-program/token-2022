@@ -14,10 +14,12 @@ use {
     solana_sdk_ids::bpf_loader_upgradeable,
     solana_system_interface::{instruction as system_instruction, program as system_program},
     solana_test_validator::{TestValidator, TestValidatorGenesis, UpgradeableProgramInfo},
+    solana_zk_sdk::encryption::derivation::derive_confidential_keys,
     solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     spl_token_2022_interface::{
         extension::{
+            confidential_mint_burn::ConfidentialMintBurn,
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
             confidential_transfer_fee::ConfidentialTransferFeeConfig,
             cpi_guard::CpiGuard,
@@ -162,6 +164,11 @@ async fn main() {
         async_trial!(multisig_pause, test_validator, payer),
         async_trial!(permissioned_burn, test_validator, payer),
         async_trial!(confidential_mint_burn, test_validator, payer),
+        async_trial!(
+            confidential_mint_burn_update_decryptable_supply_cli,
+            test_validator,
+            payer
+        ),
         // GC messes with every other test, so have it on its own test validator
         async_trial!(gc, gc_test_validator, gc_payer),
     ];
@@ -5629,4 +5636,73 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
     )
     .await
     .unwrap();
+}
+
+async fn confidential_mint_burn_update_decryptable_supply_cli(
+    test_validator: &TestValidator,
+    payer: &Keypair,
+) {
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+
+    let token = Keypair::new();
+    let token_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&token, &token_keypair_file).unwrap();
+    let token_pubkey = token.pubkey();
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::CreateToken.into(),
+            token_keypair_file.path().to_str().unwrap(),
+            "--enable-confidential-transfers",
+            "auto",
+            "--enable-confidential-mint-burn",
+        ],
+    )
+    .await
+    .unwrap();
+
+    let mint_account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let mint_state = StateWithExtensionsOwned::<Mint>::unpack(mint_account.data).unwrap();
+    let initial_decryptable_supply = mint_state
+        .get_extension::<ConfidentialMintBurn>()
+        .unwrap()
+        .decryptable_supply;
+    let (_, supply_aes_key) = derive_confidential_keys(payer, b"").unwrap();
+    let new_decryptable_supply = supply_aes_key.encrypt(42_u64).into();
+    assert_ne!(initial_decryptable_supply, new_decryptable_supply);
+
+    let cli_args = vec![
+        "spl-token".to_string(),
+        "update-decryptable-supply".to_string(),
+        token_pubkey.to_string(),
+        new_decryptable_supply.to_string(),
+    ];
+    let default_decimals = format!("{}", spl_token_2022_interface::native_mint::DECIMALS);
+    let minimum_signers_help = minimum_signers_help_string();
+    let multisig_member_help = multisig_member_help_string();
+    let app_matches = app(
+        &default_decimals,
+        &minimum_signers_help,
+        &multisig_member_help,
+    )
+    .try_get_matches_from(cli_args)
+    .unwrap_or_else(|error| panic!("{error}"));
+    let (sub_command, matches) = app_matches.subcommand().unwrap();
+    let sub_command = CommandName::from_str(sub_command).unwrap();
+    let bulk_signers: Vec<Arc<dyn Signer>> = vec![Arc::new(clone_keypair(payer))];
+    process_command(&sub_command, matches, &config, None, bulk_signers)
+        .await
+        .unwrap();
+
+    let mint_account = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let mint_state = StateWithExtensionsOwned::<Mint>::unpack(mint_account.data).unwrap();
+    let updated_decryptable_supply = mint_state
+        .get_extension::<ConfidentialMintBurn>()
+        .unwrap()
+        .decryptable_supply;
+    assert_eq!(updated_decryptable_supply, new_decryptable_supply);
 }

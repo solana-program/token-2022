@@ -42,7 +42,7 @@ use {
         derivation::derive_confidential_keys,
         elgamal::{self, ElGamalKeypair},
     },
-    solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
+    solana_zk_sdk_pod::encryption::{auth_encryption::PodAeCiphertext, elgamal::PodElGamalPubkey},
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     spl_token_2022_interface::{
         extension::{
@@ -4472,6 +4472,34 @@ async fn command_apply_pending_burn(
     })
 }
 
+async fn command_update_decryptable_supply(
+    config: &Config<'_>,
+    token_pubkey: Pubkey,
+    mint_authority: Pubkey,
+    new_decryptable_supply: PodAeCiphertext,
+    bulk_signers: BulkSigners,
+) -> CommandResult {
+    let token = token_client_from_config(config, &token_pubkey, None)?;
+
+    let res = token
+        .confidential_transfer_update_decrypt_supply(
+            &mint_authority,
+            &new_decryptable_supply,
+            &bulk_signers,
+        )
+        .await?;
+
+    let tx_return = finish_tx(config, &res, false).await?;
+    Ok(match tx_return {
+        TransactionReturnData::CliSignature(signature) => {
+            config.output_format.formatted_string(&signature)
+        }
+        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
+            config.output_format.formatted_string(&sign_only_data)
+        }
+    })
+}
+
 async fn command_update_multiplier(
     config: &Config<'_>,
     token_pubkey: Pubkey,
@@ -5836,6 +5864,31 @@ pub async fn process_command(
             }
 
             command_apply_pending_burn(config, token, mint_authority, bulk_signers).await
+        }
+        (CommandName::UpdateDecryptableSupply, arg_matches) => {
+            let token = pubkey_of_signer(arg_matches, "token", &mut wallet_manager)
+                .unwrap()
+                .unwrap();
+            let new_decryptable_supply =
+                PodAeCiphertext::from_str(arg_matches.value_of("decryptable_supply").unwrap())
+                    .map_err(|error| {
+                        format!("Invalid base64 decryptable supply ciphertext: {error}")
+                    })?;
+
+            let (mint_authority_signer, mint_authority) =
+                config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
+            if config.multisigner_pubkeys.is_empty() {
+                push_signer_with_dedup(mint_authority_signer, &mut bulk_signers);
+            }
+
+            command_update_decryptable_supply(
+                config,
+                token,
+                mint_authority,
+                new_decryptable_supply,
+                bulk_signers,
+            )
+            .await
         }
         (CommandName::UpdateUiAmountMultiplier, arg_matches) => {
             let token_pubkey = pubkey_of_signer(arg_matches, "token", &mut wallet_manager)

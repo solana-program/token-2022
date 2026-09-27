@@ -170,6 +170,7 @@ pub enum CommandName {
     WithdrawConfidentialTokens,
     ApplyPendingBalance,
     ApplyPendingBurn,
+    UpdateDecryptableSupply,
     UpdateGroupAddress,
     UpdateMemberAddress,
     UpdateUiAmountMultiplier,
@@ -2907,6 +2908,37 @@ pub fn app<'a>(
                         .index(1)
                         .required(true)
                         .help("The token mint address"),
+                )
+                .arg(
+                    owner_keypair_arg_with_value_name("MINT_AUTHORITY_KEYPAIR")
+                        .help(
+                            "Specify the mint authority keypair. \
+                            This may be a keypair file or the ASK keyword. \
+                            Defaults to the client keypair."
+                        )
+                )
+                .arg(multisig_signer_arg())
+                .nonce_args(true)
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::UpdateDecryptableSupply.into())
+                .about("Update the decryptable supply ciphertext for a confidential mint")
+                .arg(
+                    Arg::with_name("token")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("The token mint address"),
+                )
+                .arg(
+                    Arg::with_name("decryptable_supply")
+                        .value_name("BASE64_DECRYPTABLE_SUPPLY")
+                        .takes_value(true)
+                        .index(2)
+                        .required(true)
+                        .help("The new decryptable supply ciphertext, base64 encoded"),
                 )
                 .arg(
                     owner_keypair_arg_with_value_name("MINT_AUTHORITY_KEYPAIR")
