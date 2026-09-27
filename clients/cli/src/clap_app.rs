@@ -2429,6 +2429,14 @@ pub fn app<'a>(
                         .help("Also withdraw withheld tokens from the mint"),
                 )
                 .arg(
+                    Arg::with_name("confidential")
+                        .long("confidential")
+                        .takes_value(false)
+                        .help("Withdraw confidential transfer fees. The recipient account must be \
+                            configured for confidential transfers, and --owner must specify its \
+                            owner keypair to update the decryptable balance."),
+                )
+                .arg(
                     Arg::with_name("withdraw_withheld_authority")
                         .long("withdraw-withheld-authority")
                         .value_name("KEYPAIR")

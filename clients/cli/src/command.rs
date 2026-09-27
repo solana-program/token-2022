@@ -48,7 +48,9 @@ use {
         extension::{
             confidential_mint_burn::ConfidentialMintBurn,
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
-            confidential_transfer_fee::ConfidentialTransferFeeConfig,
+            confidential_transfer_fee::{
+                ConfidentialTransferFeeAmount, ConfidentialTransferFeeConfig,
+            },
             cpi_guard::CpiGuard,
             default_account_state::DefaultAccountState,
             group_member_pointer::GroupMemberPointer,
@@ -78,6 +80,7 @@ use {
                 ApplyPendingBalanceAccountInfo, EmptyAccountAccountInfo, TransferAccountInfo,
                 WithdrawAccountInfo,
             },
+            confidential_transfer_fee::WithheldTokensInfo,
         },
     },
     spl_token_confidential_transfer_proof_generation::{
@@ -3779,6 +3782,134 @@ async fn command_withdraw_withheld_tokens(
     Ok(results.join(""))
 }
 
+#[allow(clippy::too_many_arguments)]
+async fn command_withdraw_withheld_confidential_tokens(
+    config: &Config<'_>,
+    destination_token_account: Pubkey,
+    mut source_token_accounts: Vec<Pubkey>,
+    authority: Pubkey,
+    include_mint: bool,
+    withdraw_withheld_elgamal_keypair: &ElGamalKeypair,
+    destination_aes_key: &AeKey,
+    bulk_signers: BulkSigners,
+) -> CommandResult {
+    let mint_address = config
+        .check_account(&destination_token_account, None)
+        .await?;
+    let token = token_client_from_config(config, &mint_address, None)?;
+    let mint_state = token.get_mint_info().await?;
+    let transfer_fee_config = mint_state.get_extension::<TransferFeeConfig>()?;
+    let confidential_transfer_fee_config =
+        mint_state.get_extension::<ConfidentialTransferFeeConfig>()?;
+    if Option::<Pubkey>::from(transfer_fee_config.withdraw_withheld_authority) != Some(authority) {
+        return Err(format!(
+            "Mint {} does not have withdraw withheld authority {}",
+            mint_address, authority,
+        )
+        .into());
+    }
+    if confidential_transfer_fee_config.withdraw_withheld_authority_elgamal_pubkey
+        != (*withdraw_withheld_elgamal_keypair.pubkey()).into()
+    {
+        return Err("The withdraw withheld authority's ElGamal key does not match the mint".into());
+    }
+
+    // A source must only contribute once to the aggregate withheld ciphertext.
+    source_token_accounts.sort_unstable();
+    source_token_accounts.dedup();
+    let source_refs = source_token_accounts.iter().collect::<Vec<_>>();
+    // Leave room for the inline equality proof and a separate fee payer.
+    const MAX_WITHDRAWAL_ACCOUNTS: usize = 8;
+    let mint_sources: [&Pubkey; 0] = [];
+    let withdrawals = include_mint
+        .then_some(mint_sources.as_slice())
+        .into_iter()
+        .chain(source_refs.chunks(MAX_WITHDRAWAL_ACCOUNTS));
+
+    let mut results = vec![];
+    for sources in withdrawals {
+        let withheld_amount: elgamal::ElGamalCiphertext = if sources.is_empty() {
+            confidential_transfer_fee_config
+                .withheld_amount
+                .try_into()?
+        } else {
+            let mut aggregate = elgamal::ElGamalCiphertext::default();
+            for source in sources {
+                let account = token.get_account_info(source).await?;
+                let withheld_amount: elgamal::ElGamalCiphertext = account
+                    .get_extension::<ConfidentialTransferFeeAmount>()?
+                    .withheld_amount
+                    .try_into()?;
+                aggregate = aggregate + withheld_amount;
+            }
+            aggregate
+        };
+        // An all-zero ciphertext has nothing to withdraw and cannot be used in
+        // a ciphertext equality proof.
+        if withheld_amount == elgamal::ElGamalCiphertext::default() {
+            continue;
+        }
+
+        // Reload after each transaction so mint and account withdrawals, including
+        // multiple batches, all preserve the recipient's current available balance.
+        let destination_state = token.get_account_info(&destination_token_account).await?;
+        let destination = destination_state.get_extension::<ConfidentialTransferAccount>()?;
+        let available_balance = destination_aes_key
+            .decrypt(&destination.decryptable_available_balance.try_into()?)
+            .ok_or("Could not decrypt the recipient's available balance")?;
+        let withheld_balance = withheld_amount
+            .decrypt_u32(withdraw_withheld_elgamal_keypair.secret())
+            .ok_or("Could not decrypt the withheld confidential fees")?;
+        let new_available_balance = available_balance
+            .checked_add(withheld_balance)
+            .ok_or("Confidential available balance overflow")?;
+        let new_decryptable_available_balance =
+            destination_aes_key.encrypt(new_available_balance).into();
+        let destination_elgamal_pubkey = destination.elgamal_pubkey.try_into()?;
+        let withheld_tokens_info = WithheldTokensInfo::new(&withheld_amount.into());
+
+        let res = if sources.is_empty() {
+            token
+                .confidential_transfer_withdraw_withheld_tokens_from_mint(
+                    &destination_token_account,
+                    &authority,
+                    None,
+                    Some(withheld_tokens_info),
+                    withdraw_withheld_elgamal_keypair,
+                    &destination_elgamal_pubkey,
+                    &new_decryptable_available_balance,
+                    &bulk_signers,
+                )
+                .await?
+        } else {
+            token
+                .confidential_transfer_withdraw_withheld_tokens_from_accounts(
+                    &destination_token_account,
+                    &authority,
+                    None,
+                    Some(withheld_tokens_info),
+                    withdraw_withheld_elgamal_keypair,
+                    &destination_elgamal_pubkey,
+                    &new_decryptable_available_balance,
+                    sources,
+                    &bulk_signers,
+                )
+                .await?
+        };
+        let tx_return = finish_tx(config, &res, false).await?;
+        results.push(match tx_return {
+            TransactionReturnData::CliSignature(signature) => {
+                config.output_format.formatted_string(&signature)
+            }
+            TransactionReturnData::CliSignOnlyData(sign_only_data) => {
+                config.output_format.formatted_string(&sign_only_data)
+            }
+        });
+    }
+
+    Ok(results.join(""))
+}
+
 async fn command_update_confidential_transfer_settings(
     config: &Config<'_>,
     token_pubkey: Pubkey,
@@ -5539,7 +5670,7 @@ pub async fn process_command(
                 &mut wallet_manager,
             );
             if config.multisigner_pubkeys.is_empty() {
-                push_signer_with_dedup(authority_signer, &mut bulk_signers);
+                push_signer_with_dedup(authority_signer.clone(), &mut bulk_signers);
             }
             // Since destination is required it will always be present
             let destination_token_account =
@@ -5552,15 +5683,37 @@ pub async fn process_command(
                 .unwrap_or_default()
                 .map(|s| Pubkey::from_str(s).unwrap_or_else(print_error_and_exit))
                 .collect::<Vec<_>>();
-            command_withdraw_withheld_tokens(
-                config,
-                destination_token_account,
-                source_accounts,
-                authority,
-                include_mint,
-                bulk_signers,
-            )
-            .await
+            if arg_matches.is_present("confidential") {
+                let (withdraw_withheld_elgamal_keypair, _) =
+                    derive_confidential_keys(&*authority_signer, b"")
+                        .map_err(|err| err.to_string())?;
+                let (owner_signer, _) =
+                    config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
+                let (_, destination_aes_key) =
+                    derive_confidential_keys(&*owner_signer, b"").map_err(|err| err.to_string())?;
+
+                command_withdraw_withheld_confidential_tokens(
+                    config,
+                    destination_token_account,
+                    source_accounts,
+                    authority,
+                    include_mint,
+                    &withdraw_withheld_elgamal_keypair,
+                    &destination_aes_key,
+                    bulk_signers,
+                )
+                .await
+            } else {
+                command_withdraw_withheld_tokens(
+                    config,
+                    destination_token_account,
+                    source_accounts,
+                    authority,
+                    include_mint,
+                    bulk_signers,
+                )
+                .await
+            }
         }
         (CommandName::SetTransferFee, arg_matches) => {
             let token_pubkey = pubkey_of_signer(arg_matches, "token", &mut wallet_manager)

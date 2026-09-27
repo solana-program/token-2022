@@ -19,7 +19,9 @@ use {
     spl_token_2022_interface::{
         extension::{
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
-            confidential_transfer_fee::ConfidentialTransferFeeConfig,
+            confidential_transfer_fee::{
+                ConfidentialTransferFeeAmount, ConfidentialTransferFeeConfig,
+            },
             cpi_guard::CpiGuard,
             default_account_state::DefaultAccountState,
             group_member_pointer::GroupMemberPointer,
@@ -156,6 +158,7 @@ async fn main() {
         async_trial!(metadata, test_validator, payer),
         async_trial!(group, test_validator, payer),
         async_trial!(confidential_transfer_with_fee, test_validator, payer),
+        async_trial!(withdraw_withheld_confidential_tokens, test_validator, payer),
         async_trial!(compute_budget, test_validator, payer),
         async_trial!(scaled_ui_amount, test_validator, payer),
         async_trial!(pause, test_validator, payer),
@@ -3786,6 +3789,323 @@ async fn confidential_transfer_with_fee(test_validator: &TestValidator, payer: &
     )
     .await
     .unwrap();
+}
+
+async fn create_confidential_auxiliary_account(
+    config: &Config<'_>,
+    payer: &Keypair,
+    mint: Pubkey,
+) -> Pubkey {
+    let account = create_auxiliary_account(config, payer, mint).await;
+    process_test_command(
+        config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ConfigureConfidentialTransferAccount.into(),
+            "--address",
+            &account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    account
+}
+
+async fn setup_confidential_transfer_fees(
+    config: &Config<'_>,
+    payer: &Keypair,
+) -> (Pubkey, Pubkey) {
+    let mint = Keypair::new();
+    let mint_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&mint, &mint_keypair_file).unwrap();
+    let mint_pubkey = mint.pubkey();
+    process_test_command(
+        config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::CreateToken.into(),
+            mint_keypair_file.path().to_str().unwrap(),
+            "--decimals",
+            "0",
+            "--enable-confidential-transfers",
+            "auto",
+            "--transfer-fee-basis-points",
+            "1000",
+            "--transfer-fee-maximum-fee",
+            "100",
+        ],
+    )
+    .await
+    .unwrap();
+    let source = create_associated_account(config, payer, &mint_pubkey, &payer.pubkey()).await;
+    process_test_command(
+        config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ConfigureConfidentialTransferAccount.into(),
+            &mint_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    mint_tokens(config, payer, mint_pubkey, 1000.0, source)
+        .await
+        .unwrap();
+    process_test_command(
+        config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::DepositConfidentialTokens.into(),
+            &mint_pubkey.to_string(),
+            "1000",
+        ],
+    )
+    .await
+    .unwrap();
+    process_test_command(
+        config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            &mint_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    (mint_pubkey, source)
+}
+
+async fn check_confidential_available_balance(
+    config: &Config<'_>,
+    account: Pubkey,
+    owner: &Keypair,
+    expected_balance: u64,
+) {
+    use solana_zk_sdk::encryption::{
+        derivation::derive_confidential_keys, elgamal::ElGamalCiphertext,
+    };
+
+    let account = config.rpc_client.get_account(&account).await.unwrap();
+    let state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
+    let extension = state
+        .get_extension::<ConfidentialTransferAccount>()
+        .unwrap();
+    let (elgamal_keypair, aes_key) = derive_confidential_keys(owner, b"").unwrap();
+    let available_balance: ElGamalCiphertext = extension.available_balance.try_into().unwrap();
+    assert_eq!(
+        available_balance.decrypt_u32(elgamal_keypair.secret()),
+        Some(expected_balance),
+    );
+    assert_eq!(
+        aes_key.decrypt(&extension.decryptable_available_balance.try_into().unwrap()),
+        Some(expected_balance),
+    );
+}
+
+async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, payer: &Keypair) {
+    use solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext;
+
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    let (mint, _) = setup_confidential_transfer_fees(&config, payer).await;
+
+    // The fee recipient's owner is distinct from the withdrawal authority.
+    let recipient_owner = Keypair::new();
+    let owner_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&recipient_owner, &owner_keypair_file).unwrap();
+    let authority_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(payer, &authority_keypair_file).unwrap();
+    let mut recipient_config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    recipient_config.default_signer = Some(Arc::new(clone_keypair(&recipient_owner)));
+    let recipient = create_confidential_auxiliary_account(&recipient_config, payer, mint).await;
+    let recipient_address = recipient.to_string();
+
+    // Fund a separate fee payer to exercise the transaction size with two signers.
+    let transaction = Transaction::new_signed_with_payer(
+        &[system_instruction::transfer(
+            &payer.pubkey(),
+            &recipient_owner.pubkey(),
+            1_000_000_000,
+        )],
+        Some(&payer.pubkey()),
+        &[payer],
+        config.rpc_client.get_latest_blockhash().await.unwrap(),
+    );
+    config
+        .rpc_client
+        .send_and_confirm_transaction(&transaction)
+        .await
+        .unwrap();
+
+    // Start with a nonzero recipient balance that withdrawals must preserve.
+    mint_tokens(&config, payer, mint, 7.0, recipient)
+        .await
+        .unwrap();
+    process_test_command(
+        &recipient_config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::DepositConfidentialTokens.into(),
+            &mint.to_string(),
+            "7",
+            "--address",
+            &recipient_address,
+        ],
+    )
+    .await
+    .unwrap();
+    process_test_command(
+        &recipient_config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            "--address",
+            &recipient_address,
+        ],
+    )
+    .await
+    .unwrap();
+
+    // Include the recipient itself and enough sources to require multiple batches.
+    let mut sources = vec![recipient];
+    for _ in 0..11 {
+        sources.push(create_confidential_auxiliary_account(&config, payer, mint).await);
+    }
+    for source in &sources {
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::Transfer.into(),
+                &mint.to_string(),
+                "10",
+                &source.to_string(),
+                "--confidential",
+                "--expected-fee",
+                "1",
+            ],
+        )
+        .await
+        .unwrap();
+    }
+
+    // Neither the wrong withdrawal authority nor the wrong recipient key can withdraw.
+    let invalid_args = [
+        "spl-token",
+        CommandName::WithdrawWithheldTokens.into(),
+        &recipient_address,
+        &sources[1].to_string(),
+        "--confidential",
+    ];
+    let error = process_test_command(&recipient_config, payer, &invalid_args)
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("withdraw withheld authority"));
+    let error = process_test_command(&config, payer, &invalid_args)
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("recipient's available balance"));
+
+    let withdraw_args = vec![
+        "spl-token",
+        CommandName::WithdrawWithheldTokens.into(),
+        &recipient_address,
+        "--confidential",
+        "--owner",
+        owner_keypair_file.path().to_str().unwrap(),
+        "--withdraw-withheld-authority",
+        authority_keypair_file.path().to_str().unwrap(),
+        "--with-compute-unit-price",
+        "1",
+        "--output",
+        "json-compact",
+    ];
+
+    let mut account_args = withdraw_args.clone();
+    let first_source = sources.pop().unwrap().to_string();
+    account_args.push(&first_source);
+    exec_test_cmd(&config, &account_args).await.unwrap();
+    check_confidential_available_balance(&config, recipient, &recipient_owner, 8).await;
+
+    let token = Token::new(
+        config.program_client.clone(),
+        &config.program_id,
+        &mint,
+        Some(0),
+        config.fee_payer().unwrap(),
+    );
+    token
+        .confidential_transfer_harvest_withheld_tokens_to_mint(&[&sources.pop().unwrap()])
+        .await
+        .unwrap();
+    let mut mint_args = withdraw_args.clone();
+    mint_args.push("--include-mint");
+    exec_test_cmd(&config, &mint_args).await.unwrap();
+    check_confidential_available_balance(&config, recipient, &recipient_owner, 9).await;
+
+    token
+        .confidential_transfer_harvest_withheld_tokens_to_mint(&[&sources.pop().unwrap()])
+        .await
+        .unwrap();
+    let source_addresses = sources.iter().map(ToString::to_string).collect::<Vec<_>>();
+    let mut combined_args = mint_args;
+    combined_args.extend(source_addresses.iter().map(String::as_str));
+    combined_args.push(&source_addresses[0]); // repeated sources must only count once
+    let output = exec_test_cmd(&config, &combined_args).await.unwrap();
+    let signatures = serde_json::Deserializer::from_str(&output)
+        .into_iter::<serde_json::Value>()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(signatures.len(), 3); // mint and two account batches
+    check_confidential_available_balance(&config, recipient, &recipient_owner, 19).await;
+
+    for source in &sources {
+        let state = token.get_account_info(source).await.unwrap();
+        assert_eq!(
+            state
+                .get_extension::<ConfidentialTransferFeeAmount>()
+                .unwrap()
+                .withheld_amount,
+            PodElGamalCiphertext::default(),
+        );
+    }
+    let mint_state = token.get_mint_info().await.unwrap();
+    assert_eq!(
+        mint_state
+            .get_extension::<ConfidentialTransferFeeConfig>()
+            .unwrap()
+            .withheld_amount,
+        PodElGamalCiphertext::default(),
+    );
+    // Empty fee ciphertexts do not require a proof or another transaction.
+    assert!(exec_test_cmd(&config, &combined_args)
+        .await
+        .unwrap()
+        .is_empty());
+
+    // The recipient's pending transfer balance was not consumed by fee withdrawals.
+    process_test_command(
+        &recipient_config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            "--address",
+            &recipient_address,
+        ],
+    )
+    .await
+    .unwrap();
+    check_confidential_available_balance(&config, recipient, &recipient_owner, 28).await;
 }
 
 async fn multisig_transfer(test_validator: &TestValidator, payer: &Keypair) {
