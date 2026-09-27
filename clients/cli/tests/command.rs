@@ -498,6 +498,29 @@ async fn exec_test_cmd<T: AsRef<OsStr>>(config: &Config<'_>, args: &[T]) -> Comm
     process_command(&sub_command, matches, &config, wallet_manager, bulk_signers).await
 }
 
+fn get_output_transaction_names(output: &str) -> Vec<String> {
+    let value: serde_json::Value = serde_json::from_str(output).unwrap();
+    value["commandOutput"]["signatures"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|signature| signature["transaction"].as_str().unwrap().to_string())
+        .collect()
+}
+
+fn assert_output_has_transactions(output: &str, expected_transactions: &[&str]) {
+    let transaction_names = get_output_transaction_names(output);
+    for expected_transaction in expected_transactions {
+        assert!(
+            transaction_names.iter().any(|transaction_name| {
+                transaction_name == expected_transaction
+                    || transaction_name.starts_with(&format!("{expected_transaction} "))
+            }),
+            "missing transaction `{expected_transaction}` in {transaction_names:?}"
+        );
+    }
+}
+
 async fn create_token_default(test_validator: &TestValidator, payer: &Keypair) {
     for program_id in VALID_TOKEN_PROGRAM_IDS.iter() {
         let config = test_config_with_default_signer(test_validator, payer, program_id);
@@ -3420,7 +3443,7 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     let token_account =
         create_associated_account(&config, payer, &token_pubkey, &payer.pubkey()).await;
 
-    process_test_command(
+    let output = process_test_command(
         &config,
         payer,
         &[
@@ -3431,6 +3454,13 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     )
     .await
     .unwrap();
+    assert_output_has_transactions(
+        &output,
+        &[
+            "reallocate account",
+            "configure confidential transfer account",
+        ],
+    );
 
     let account = config.rpc_client.get_account(&token_account).await.unwrap();
     let account_state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
@@ -3567,7 +3597,7 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     .unwrap(); // configure destination account for confidential transfers first
 
     let transfer_amount = 100.0;
-    process_test_command(
+    let output = process_test_command(
         &config,
         payer,
         &[
@@ -3581,6 +3611,20 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     )
     .await
     .unwrap();
+    assert_output_has_transactions(
+        &output,
+        &[
+            "create equality proof context",
+            "create ciphertext validity proof context",
+            "create range proof record",
+            "create range proof context",
+            "confidential transfer",
+            "close equality proof context",
+            "close ciphertext validity proof context",
+            "close range proof context",
+            "close range proof record",
+        ],
+    );
 
     // withdraw confidential tokens
     process_test_command(
@@ -3756,7 +3800,7 @@ async fn confidential_transfer_with_fee(test_validator: &TestValidator, payer: &
 
     // Transfer confidentially with expected fee
     let transfer_amount = 100.0;
-    process_test_command(
+    let output = process_test_command(
         &config,
         payer,
         &[
@@ -3772,6 +3816,24 @@ async fn confidential_transfer_with_fee(test_validator: &TestValidator, payer: &
     )
     .await
     .unwrap();
+    assert_output_has_transactions(
+        &output,
+        &[
+            "create equality proof context",
+            "create ciphertext validity proof context",
+            "create percentage with cap proof context",
+            "create fee ciphertext validity proof context",
+            "create range proof record",
+            "create range proof context",
+            "confidential transfer with fee",
+            "close equality proof context",
+            "close ciphertext validity proof context",
+            "close percentage with cap proof context",
+            "close fee ciphertext validity proof context",
+            "close range proof context",
+            "close range proof record",
+        ],
+    );
 
     // Apply pending balance on destination to finalize the transfer
     process_test_command(
