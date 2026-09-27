@@ -150,6 +150,9 @@ pub enum CommandName {
     UpdateDefaultAccountState,
     UpdateMetadataAddress,
     WithdrawWithheldTokens,
+    HarvestWithheldConfidentialTokens,
+    EnableConfidentialFeeHarvesting,
+    DisableConfidentialFeeHarvesting,
     SetTransferFee,
     WithdrawExcessLamports,
     SetTransferHook,
@@ -2463,6 +2466,78 @@ pub fn app<'a>(
                         .multiple(true)
                         .required(true)
                 )
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::HarvestWithheldConfidentialTokens.into())
+                .about("Harvest withheld confidential transfer fees from token accounts to the mint")
+                .arg(
+                    Arg::with_name("token")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("The token mint to harvest confidential fees to"),
+                )
+                .arg(
+                    Arg::with_name("source")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("SOURCE_ADDRESS")
+                        .takes_value(true)
+                        .multiple(true)
+                        .min_values(1_usize)
+                        .index(2)
+                        .required(true)
+                        .help("The token account(s) to harvest confidential fees from"),
+                )
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::EnableConfidentialFeeHarvesting.into())
+                .about("Enable harvesting confidential transfer fees to the mint")
+                .arg(
+                    Arg::with_name("token")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("The token mint to enable confidential fee harvesting for"),
+                )
+                .arg(
+                    Arg::with_name("confidential_transfer_fee_authority")
+                        .long("confidential-transfer-fee-authority")
+                        .validator(|s| is_valid_signer(s))
+                        .value_name("SIGNER")
+                        .takes_value(true)
+                        .help("Specify the confidential transfer fee authority keypair. \
+                            Defaults to the client keypair."),
+                )
+                .arg(multisig_signer_arg())
+                .nonce_args(true)
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::DisableConfidentialFeeHarvesting.into())
+                .about("Disable harvesting confidential transfer fees to the mint")
+                .arg(
+                    Arg::with_name("token")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("The token mint to disable confidential fee harvesting for"),
+                )
+                .arg(
+                    Arg::with_name("confidential_transfer_fee_authority")
+                        .long("confidential-transfer-fee-authority")
+                        .validator(|s| is_valid_signer(s))
+                        .value_name("SIGNER")
+                        .takes_value(true)
+                        .help("Specify the confidential transfer fee authority keypair. \
+                            Defaults to the client keypair."),
+                )
+                .arg(multisig_signer_arg())
+                .nonce_args(true)
         )
         .subcommand(
             SubCommand::with_name(CommandName::SetTransferFee.into())

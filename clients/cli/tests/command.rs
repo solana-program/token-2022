@@ -159,6 +159,7 @@ async fn main() {
         async_trial!(group, test_validator, payer),
         async_trial!(confidential_transfer_with_fee, test_validator, payer),
         async_trial!(withdraw_withheld_confidential_tokens, test_validator, payer),
+        async_trial!(confidential_fee_harvesting, test_validator, payer),
         async_trial!(compute_budget, test_validator, payer),
         async_trial!(scaled_ui_amount, test_validator, payer),
         async_trial!(pause, test_validator, payer),
@@ -4106,6 +4107,208 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
     .await
     .unwrap();
     check_confidential_available_balance(&config, recipient, &recipient_owner, 28).await;
+}
+
+async fn confidential_fee_harvesting(test_validator: &TestValidator, payer: &Keypair) {
+    use {
+        solana_zk_sdk::encryption::{
+            derivation::derive_confidential_keys, elgamal::ElGamalCiphertext,
+        },
+        solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
+    };
+
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    let (mint, sender) = setup_confidential_transfer_fees(&config, payer).await;
+    let mint_address = mint.to_string();
+    let token = Token::new(
+        config.program_client.clone(),
+        &config.program_id,
+        &mint,
+        Some(0),
+        config.fee_payer().unwrap(),
+    );
+    let mut sources = vec![];
+    for _ in 0..26 {
+        sources.push(create_confidential_auxiliary_account(&config, payer, mint).await);
+    }
+    for source in &sources[..3] {
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::Transfer.into(),
+                &mint_address,
+                "10",
+                &source.to_string(),
+                "--confidential",
+                "--expected-fee",
+                "1",
+            ],
+        )
+        .await
+        .unwrap();
+    }
+
+    // Both settings commands support the default confidential fee authority.
+    for (command, enabled) in [
+        (CommandName::DisableConfidentialFeeHarvesting, false),
+        (CommandName::EnableConfidentialFeeHarvesting, true),
+    ] {
+        process_test_command(
+            &config,
+            payer,
+            &["spl-token", command.into(), &mint_address],
+        )
+        .await
+        .unwrap();
+        let state = token.get_mint_info().await.unwrap();
+        assert_eq!(
+            bool::from(
+                state
+                    .get_extension::<ConfidentialTransferFeeConfig>()
+                    .unwrap()
+                    .harvest_to_mint_enabled
+            ),
+            enabled,
+        );
+    }
+
+    // The confidential fee authority can differ from the withdrawal authority.
+    let fee_authority = Keypair::new();
+    let authority_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&fee_authority, &authority_keypair_file).unwrap();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Authorize.into(),
+            &mint_address,
+            "confidential-transfer-fee",
+            &fee_authority.pubkey().to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    // Harvesting only requires a fee payer, with no mint or account authority.
+    let harvester = Keypair::new();
+    let harvester_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&harvester, &harvester_keypair_file).unwrap();
+    let transaction = Transaction::new_signed_with_payer(
+        &[system_instruction::transfer(
+            &payer.pubkey(),
+            &harvester.pubkey(),
+            1_000_000_000,
+        )],
+        Some(&payer.pubkey()),
+        &[payer],
+        config.rpc_client.get_latest_blockhash().await.unwrap(),
+    );
+    config
+        .rpc_client
+        .send_and_confirm_transaction(&transaction)
+        .await
+        .unwrap();
+    let source_addresses = sources.iter().map(ToString::to_string).collect::<Vec<_>>();
+    let mut harvest_args = vec![
+        "spl-token",
+        CommandName::HarvestWithheldConfidentialTokens.into(),
+        &mint_address,
+        "--fee-payer",
+        harvester_keypair_file.path().to_str().unwrap(),
+        "--output",
+        "json-compact",
+    ];
+    harvest_args.extend(source_addresses.iter().map(String::as_str));
+
+    for (command, enabled) in [
+        (CommandName::DisableConfidentialFeeHarvesting, false),
+        (CommandName::EnableConfidentialFeeHarvesting, true),
+    ] {
+        // The withdrawal authority cannot change the harvesting setting.
+        process_test_command(
+            &config,
+            payer,
+            &["spl-token", command.into(), &mint_address],
+        )
+        .await
+        .unwrap_err();
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                command.into(),
+                &mint_address,
+                "--confidential-transfer-fee-authority",
+                authority_keypair_file.path().to_str().unwrap(),
+            ],
+        )
+        .await
+        .unwrap();
+        let state = token.get_mint_info().await.unwrap();
+        assert_eq!(
+            bool::from(
+                state
+                    .get_extension::<ConfidentialTransferFeeConfig>()
+                    .unwrap()
+                    .harvest_to_mint_enabled
+            ),
+            enabled,
+        );
+        if !enabled {
+            exec_test_cmd(&config, &harvest_args).await.unwrap_err();
+        }
+    }
+
+    // More than one transaction is needed for the source list.
+    let output = exec_test_cmd(&config, &harvest_args).await.unwrap();
+    let signatures = serde_json::Deserializer::from_str(&output)
+        .into_iter::<serde_json::Value>()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(signatures.len(), 2);
+    for source in &sources {
+        let state = token.get_account_info(source).await.unwrap();
+        assert_eq!(
+            state
+                .get_extension::<ConfidentialTransferFeeAmount>()
+                .unwrap()
+                .withheld_amount,
+            PodElGamalCiphertext::default(),
+        );
+    }
+    let state = token.get_mint_info().await.unwrap();
+    let withheld_amount: ElGamalCiphertext = state
+        .get_extension::<ConfidentialTransferFeeConfig>()
+        .unwrap()
+        .withheld_amount
+        .try_into()
+        .unwrap();
+    let (elgamal_keypair, _) = derive_confidential_keys(payer, b"").unwrap();
+    assert_eq!(
+        withheld_amount.decrypt_u32(elgamal_keypair.secret()),
+        Some(3)
+    );
+
+    // The default withdrawal authority can recover the fees after harvesting.
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::WithdrawWithheldTokens.into(),
+            &sender.to_string(),
+            "--confidential",
+            "--include-mint",
+        ],
+    )
+    .await
+    .unwrap();
+    check_confidential_available_balance(&config, sender, payer, 973).await;
 }
 
 async fn multisig_transfer(test_validator: &TestValidator, payer: &Keypair) {

@@ -3910,6 +3910,64 @@ async fn command_withdraw_withheld_confidential_tokens(
     Ok(results.join(""))
 }
 
+async fn command_harvest_withheld_confidential_tokens(
+    config: &Config<'_>,
+    token_pubkey: Pubkey,
+    mut source_token_accounts: Vec<Pubkey>,
+) -> CommandResult {
+    let token = token_client_from_config(config, &token_pubkey, None)?;
+    source_token_accounts.sort_unstable();
+    source_token_accounts.dedup();
+    let source_refs = source_token_accounts.iter().collect::<Vec<_>>();
+    // Batch sources to keep each transaction within the packet size limit.
+    const MAX_HARVEST_ACCOUNTS: usize = 25;
+    let mut results = vec![];
+    for sources in source_refs.chunks(MAX_HARVEST_ACCOUNTS) {
+        let res = token
+            .confidential_transfer_harvest_withheld_tokens_to_mint(sources)
+            .await?;
+        let tx_return = finish_tx(config, &res, false).await?;
+        results.push(match tx_return {
+            TransactionReturnData::CliSignature(signature) => {
+                config.output_format.formatted_string(&signature)
+            }
+            TransactionReturnData::CliSignOnlyData(sign_only_data) => {
+                config.output_format.formatted_string(&sign_only_data)
+            }
+        });
+    }
+    Ok(results.join(""))
+}
+
+async fn command_enable_disable_confidential_fee_harvesting(
+    config: &Config<'_>,
+    token_pubkey: Pubkey,
+    authority: Pubkey,
+    bulk_signers: BulkSigners,
+    enable_harvesting: bool,
+) -> CommandResult {
+    let token = token_client_from_config(config, &token_pubkey, None)?;
+    let res = if enable_harvesting {
+        token
+            .confidential_transfer_enable_harvest_to_mint(&authority, &bulk_signers)
+            .await?
+    } else {
+        token
+            .confidential_transfer_disable_harvest_to_mint(&authority, &bulk_signers)
+            .await?
+    };
+
+    let tx_return = finish_tx(config, &res, false).await?;
+    Ok(match tx_return {
+        TransactionReturnData::CliSignature(signature) => {
+            config.output_format.formatted_string(&signature)
+        }
+        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
+            config.output_format.formatted_string(&sign_only_data)
+        }
+    })
+}
+
 async fn command_update_confidential_transfer_settings(
     config: &Config<'_>,
     token_pubkey: Pubkey,
@@ -5714,6 +5772,42 @@ pub async fn process_command(
                 )
                 .await
             }
+        }
+        (CommandName::HarvestWithheldConfidentialTokens, arg_matches) => {
+            let token = pubkey_of_signer(arg_matches, "token", &mut wallet_manager)
+                .unwrap()
+                .unwrap();
+            let source_accounts = arg_matches
+                .values_of("source")
+                .unwrap()
+                .map(|s| Pubkey::from_str(s).unwrap_or_else(print_error_and_exit))
+                .collect::<Vec<_>>();
+
+            command_harvest_withheld_confidential_tokens(config, token, source_accounts).await
+        }
+        (c @ CommandName::EnableConfidentialFeeHarvesting, arg_matches)
+        | (c @ CommandName::DisableConfidentialFeeHarvesting, arg_matches) => {
+            let token = pubkey_of_signer(arg_matches, "token", &mut wallet_manager)
+                .unwrap()
+                .unwrap();
+            let (authority_signer, authority) = config.signer_or_default(
+                arg_matches,
+                "confidential_transfer_fee_authority",
+                &mut wallet_manager,
+            );
+            if config.multisigner_pubkeys.is_empty() {
+                push_signer_with_dedup(authority_signer, &mut bulk_signers);
+            }
+            let enable_harvesting = *c == CommandName::EnableConfidentialFeeHarvesting;
+
+            command_enable_disable_confidential_fee_harvesting(
+                config,
+                token,
+                authority,
+                bulk_signers,
+                enable_harvesting,
+            )
+            .await
         }
         (CommandName::SetTransferFee, arg_matches) => {
             let token_pubkey = pubkey_of_signer(arg_matches, "token", &mut wallet_manager)
