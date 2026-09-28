@@ -33,6 +33,35 @@ creator fees swept every cycle. Every step references the same mint many times i
 same slot. A per-mint per-slot counter prices exactly that and nothing else. A human
 transfer or one swap is the first reference in its slot almost always and pays nothing.
 
+## Opting in and opting out
+
+Nothing here is a judgement on memecoins. A mint is a mint; a launch is a market; the
+program does not care what is being launched. What the extension prices is a practice:
+the same machine, run against every launch on the network, because repetition is free.
+
+**A mint that enables the extension** gets exactly this: the second and later transfers
+of the mint in a slot pay `floor_bps * n²` in kind, half burned and half to the
+`fee_destination` fixed at initialization. Pool spam, price ladders quoted by initializing
+pools, same-slot add and remove, and bundles that split legs across transactions all pay,
+because the counter is per mint and per slot, not per signer. So does the mint's own
+organic volume once it exceeds `free_refs` in a slot. That, and the writable-mint
+serialization, is the price of the choice. The extension does not stop a sandwich: a
+sandwich is two transfers, not twenty. It cannot be added after initialization and cannot
+be removed, so a launchpad cannot enable it for the first hour and then sell the surface.
+And the initializer's half is a token account of the mint, visible to everyone; if it
+wants that half as SOL it has to sell in the open like anyone else.
+
+**A mint that does not enable it** changes nothing for itself: same transfers, same cost,
+same machines. Wallets, explorers and terminals can read the mint's extensions and show
+it. A launchpad whose mints do not carry the extension is stating, in a way any interface
+can display, that it is fine with its users being order flow for the machine. That is a
+legitimate position; the extension only makes it visible.
+
+**For extractors** nothing is banned. On a mint without the extension the machine runs as
+today. On a mint with it, the price grows with the size of the machine's own surface, and
+one arbitrage stays cheap. Extraction as a practice, the same legs on every launch, is
+what becomes expensive.
+
 ## State
 
 ### Mint extension `SlotReferenceFee` (new `ExtensionType`)
