@@ -500,7 +500,7 @@ async fn exec_test_cmd<T: AsRef<OsStr>>(config: &Config<'_>, args: &[T]) -> Comm
 
 fn get_output_transaction_names(output: &str) -> Vec<String> {
     let value: serde_json::Value = serde_json::from_str(output).unwrap();
-    value["commandOutput"]["signatures"]
+    value["signatures"]
         .as_array()
         .unwrap()
         .iter()

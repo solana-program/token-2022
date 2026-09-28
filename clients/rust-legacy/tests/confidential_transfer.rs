@@ -49,6 +49,29 @@ use {
 const TEST_MAXIMUM_FEE: u64 = 100;
 const TEST_FEE_BASIS_POINTS: u16 = 250;
 
+#[tokio::test]
+async fn confidential_transfer_create_record_account_includes_first_response() {
+    let mut context = TestContext::new().await;
+    context.init_token_with_mint(vec![]).await.unwrap();
+    let TokenContext { token, alice, .. } = context.token_context.unwrap();
+    let record_account = Keypair::new();
+    let proof_data = build_pubkey_validity_proof_data(&ElGamalKeypair::new_rand()).unwrap();
+
+    let responses = token
+        .confidential_transfer_create_record_account(
+            &record_account.pubkey(),
+            &alice.pubkey(),
+            &proof_data,
+            &record_account,
+            &alice,
+        )
+        .await
+        .unwrap();
+
+    // This proof fits in the account-creation transaction, with no subsequent writes.
+    assert_eq!(responses.len(), 1);
+}
+
 async fn configure_account_with_option<S: Signers>(
     token: &Token<ProgramBanksClientProcessTransaction>,
     account: &Pubkey,
