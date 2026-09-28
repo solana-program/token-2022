@@ -28,9 +28,9 @@ const FLOOR_BPS: u16 = 10;
 const CAP_BPS: u16 = 10_000;
 const FREE_REFS: u16 = 2;
 const SLOW_FLOOR_BPS: u16 = 2;
-const SLOW_CAP_BPS: u16 = 1_000;
-const SLOW_FREE_REFS: u16 = 1;
-const SLOW_WINDOW: u64 = 1_280;
+const SLOW_CAP_BPS: u16 = 10_000;
+const SLOW_FREE_REFS: u16 = 16;
+const SLOW_WINDOW: u64 = 20_000; // a week of 400 ms slots is 1_512_000; shorter here so the test can warp past it
 const LOCKUP_EPOCH: u64 = 900;
 const MIN_REF: u64 = 1_000;
 const SUPPLY: u64 = 1_000_000_000;
@@ -344,34 +344,26 @@ async fn escalates_within_a_slot_and_resets_on_the_next() {
     let a2 = 100_000_001;
     let a3 = 100_000_002;
 
-    // first reference in the slot is free on both ratchets
+    // a swap is two transfers: alice's first two references in the slot are free
     transfer(&f, a1).await.unwrap();
-    assert_eq!(withheld(&f, &f.bob_account).await, 0);
-    assert_eq!(balance(&f, &f.bob_account).await, a1);
-    let c = config(&f).await;
-    assert_eq!(u64::from(c.count), 1);
-
-    // second: fast #2 is free, but it is alice's second in the window: slow 2 bp * 4 = 8 bp
     transfer(&f, a2).await.unwrap();
-    let fee2 = ceil_bps(a2, 8);
-    assert_eq!(withheld(&f, &f.bob_account).await, fee2);
-    // third: fast 10 bp * 9 = 90 bp beats slow 18 bp
+    assert_eq!(withheld(&f, &f.bob_account).await, 0);
+    let c = config(&f).await;
+    assert_eq!(u64::from(c.count), 2);
+
+    // her third in the slot (a second swap): fast 10 bp * 9 = 90 bp
     transfer(&f, a3).await.unwrap();
     let fee3 = ceil_bps(a3, 90);
-    assert_eq!(withheld(&f, &f.bob_account).await, fee2 + fee3);
-    assert_eq!(
-        balance(&f, &f.bob_account).await,
-        a1 + a2 + a3 - fee2 - fee3
-    );
+    assert_eq!(withheld(&f, &f.bob_account).await, fee3);
+    assert_eq!(balance(&f, &f.bob_account).await, a1 + a2 + a3 - fee3);
     assert_eq!(balance(&f, &f.alice_account).await, SUPPLY - a1 - a2 - a3);
     let c = config(&f).await;
     assert_eq!(u64::from(c.count), 3);
 
-    // a new slot starts the fast count over; alice is still in her window, so slow #4 = 32 bp
+    // a new slot starts the fast count over: free again, and four in the window is under sixteen
     warp(&f, 1).await;
     transfer(&f, a1).await.unwrap();
-    let fee4 = ceil_bps(a1, 32);
-    assert_eq!(withheld(&f, &f.bob_account).await, fee2 + fee3 + fee4);
+    assert_eq!(withheld(&f, &f.bob_account).await, fee3);
     let c = config(&f).await;
     assert_eq!(u64::from(c.count), 1);
 
@@ -387,9 +379,8 @@ async fn escalates_within_a_slot_and_resets_on_the_next() {
         .await
         .unwrap();
     assert_eq!(withheld(&f, &f.bob_account).await, 0);
-    let total = fee2 + fee3 + fee4;
     let c = config(&f).await;
-    assert_eq!(u64::from(c.withheld_amount), total);
+    assert_eq!(u64::from(c.withheld_amount), fee3);
 
     let ix = srf_instruction::withdraw_withheld_tokens_from_mint(
         &id(),
@@ -401,21 +392,56 @@ async fn escalates_within_a_slot_and_resets_on_the_next() {
         .process_ixs::<[&dyn Signer; 0]>(&[ix], &[])
         .await
         .unwrap();
-    assert_eq!(balance(&f, &f.settler_account).await, total);
+    assert_eq!(balance(&f, &f.settler_account).await, fee3);
     let c = config(&f).await;
     assert_eq!(u64::from(c.withheld_amount), 0);
 }
 
 #[tokio::test]
+async fn bystander_in_a_busy_slot_pays_nothing() {
+    let f = setup().await;
+    let ctx = f.context.token_context.as_ref().unwrap();
+    // alice walks the mint four times in one slot: her 3rd and 4th pay
+    for i in 0..4u64 {
+        transfer(&f, 100_000_000 + i).await.unwrap();
+    }
+    let paid = withheld(&f, &f.bob_account).await;
+    assert_eq!(paid, ceil_bps(100_000_002, 90) + ceil_bps(100_000_003, 160));
+    // bob, in the same slot, sends once: global #5, his own #1: free
+    let ix = srf_instruction::transfer_checked_writable_mint(
+        &id(),
+        &f.bob_account,
+        ctx.token.get_address(),
+        &f.alice_account,
+        &ctx.bob.pubkey(),
+        &[],
+        1_000_000,
+        ctx.decimals,
+    )
+    .unwrap();
+    ctx.token.process_ixs(&[ix], &[&ctx.bob]).await.unwrap();
+    assert_eq!(
+        withheld(&f, &f.alice_account).await,
+        0,
+        "the bystander paid nothing"
+    );
+    let c = config(&f).await;
+    assert_eq!(u64::from(c.count), 5);
+}
+
+#[tokio::test]
 async fn slow_ratchet_follows_the_account_across_slots() {
     let f = setup().await;
-    let a = 100_000_000;
-    transfer(&f, a).await.unwrap();
+    let a = 10_000_000; // eighteen of these fit in the supply
+                        // sixteen touches over the week, each in its own slot, are free
+    for i in 0..16u64 {
+        transfer(&f, a + i).await.unwrap();
+        warp(&f, 3).await;
+    }
     assert_eq!(withheld(&f, &f.bob_account).await, 0);
-    // a later slot in the same window: fast #1 free, slow #2 = 8 bp
-    warp(&f, 10).await;
+    // the seventeenth pays 2 bp * 17² = 578 bp
     transfer(&f, a).await.unwrap();
-    assert_eq!(withheld(&f, &f.bob_account).await, ceil_bps(a, 8));
+    assert_eq!(withheld(&f, &f.bob_account).await, ceil_bps(a, 578));
     // the next window: alice starts over
     warp(&f, SLOW_WINDOW).await;
     let before = withheld(&f, &f.bob_account).await;
@@ -426,26 +452,17 @@ async fn slow_ratchet_follows_the_account_across_slots() {
 #[tokio::test]
 async fn dust_cannot_raise_the_slot_count() {
     let f = setup().await;
-    // a griefer sprays dust: none of it moves the mint's counter...
     // distinct amounts so the five are five transactions, not one deduplicated one
     for i in 1..=5u64 {
         transfer(&f, MIN_REF - i).await.unwrap();
     }
     let c = config(&f).await;
-    assert_eq!(u64::from(c.count), 0);
-    // ...but every one of them counted on the sprayer's own slow ratchet: #6 in the window pays 2 bp * 36
-    let before = withheld(&f, &f.bob_account).await;
+    assert_eq!(u64::from(c.count), 0, "dust never moved the mint's counter");
+    // a real transfer afterwards: global #1, alice's own #1 in the slot, 6th in her window: free
     transfer(&f, 100_000_000).await.unwrap();
-    assert_eq!(
-        withheld(&f, &f.bob_account).await - before,
-        ceil_bps(100_000_000, 72)
-    );
+    assert_eq!(withheld(&f, &f.bob_account).await, 0);
     let c = config(&f).await;
-    assert_eq!(
-        u64::from(c.count),
-        1,
-        "a real-sized transfer is the first global reference"
-    );
+    assert_eq!(u64::from(c.count), 1);
 }
 
 #[tokio::test]
@@ -519,7 +536,8 @@ async fn fail_close_with_withheld() {
     let ctx = f.context.token_context.as_ref().unwrap();
     transfer(&f, 100_000_000).await.unwrap();
     transfer(&f, 100_000_001).await.unwrap();
-    // move bob's balance back so only the withheld fees remain
+    transfer(&f, 100_000_002).await.unwrap(); // alice's third in the slot pays
+                                              // move bob's balance back so only the withheld fees remain
     let bob_balance = balance(&f, &f.bob_account).await;
     let ix = srf_instruction::transfer_checked_writable_mint(
         &id(),
@@ -627,21 +645,14 @@ async fn set_schedule_and_authority() {
     assert_eq!(u16::from(c.free_references), 3);
     assert_eq!(c.settler, f.settler.pubkey());
 
-    // three free references on the fast ratchet now; alice's slow count still runs: #2 = 8, #3 = 18 bp
+    // three free references on the fast ratchet now, and sixteen on the slow one
     transfer(&f, 1_000_000).await.unwrap();
     transfer(&f, 1_000_001).await.unwrap();
-    assert_eq!(withheld(&f, &f.bob_account).await, ceil_bps(1_000_001, 8));
     transfer(&f, 1_000_002).await.unwrap();
-    assert_eq!(
-        withheld(&f, &f.bob_account).await,
-        ceil_bps(1_000_001, 8) + ceil_bps(1_000_002, 18)
-    );
-    // the fourth is fast #4 at 20 bp * 16 = 320 bp, which beats slow 32 bp
+    assert_eq!(withheld(&f, &f.bob_account).await, 0);
+    // the fourth is fast #4 at 20 bp * 16 = 320 bp
     transfer(&f, 1_000_003).await.unwrap();
-    assert_eq!(
-        withheld(&f, &f.bob_account).await,
-        ceil_bps(1_000_001, 8) + ceil_bps(1_000_002, 18) + ceil_bps(1_000_003, 320)
-    );
+    assert_eq!(withheld(&f, &f.bob_account).await, ceil_bps(1_000_003, 320));
 
     // revoke the authority; the schedule is now immutable
     ctx.token

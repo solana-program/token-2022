@@ -15,7 +15,7 @@ use {
                     InitializeInstructionData, SetInstructionData, SlotReferenceFeeInstruction,
                 },
                 stake_program_id, SlotReferenceFeeAmount, SlotReferenceFeeConfig, StakeMeta,
-                MAX_FEE_BASIS_POINTS,
+                FAST_OWN_MIN, MAX_FEE_BASIS_POINTS,
             },
             BaseStateWithExtensions, BaseStateWithExtensionsMut, PodStateWithExtensions,
             PodStateWithExtensionsMut,
@@ -276,20 +276,30 @@ pub(crate) fn reference_and_fee(
     let mut mint_data = mint_info.try_borrow_mut_data()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
     let extension = mint.get_extension_mut::<SlotReferenceFeeConfig>()?;
+    let window = u64::from(extension.slow_window_slots);
+    let account_ext = source_account
+        .get_extension_mut::<SlotReferenceFeeAmount>()
+        .map_err(|_| TokenError::InvalidState)?;
     // fast ratchet: the mint's n-th reference this slot, whoever made it. Dust does not
-    // count here, so nobody can raise anyone else's k for the price of dust.
-    let n = if extension.counts_globally(pre_fee_amount) {
-        extension.reference(slot)
+    // count here, so nobody can raise anyone else's k for the price of dust. The fee only
+    // applies to an account already on its third own reference in the slot: a bystander's
+    // single swap (two transfers) never pays it, a machine walking the mint does.
+    let (n, own) = if extension.counts_globally(pre_fee_amount) {
+        (
+            extension.reference(slot),
+            account_ext.reference_in_slot(slot),
+        )
+    } else {
+        (0, 0)
+    };
+    // slow ratchet: this account's m-th reference in the current window
+    let m = account_ext.reference(slot, window);
+    let fast = if own >= FAST_OWN_MIN {
+        extension.fee_basis_points(n)
     } else {
         0
     };
-    // slow ratchet: this account's m-th reference in the current window
-    let window = u64::from(extension.slow_window_slots);
-    let m = source_account
-        .get_extension_mut::<SlotReferenceFeeAmount>()
-        .map_err(|_| TokenError::InvalidState)?
-        .reference(slot, window);
-    let bps = extension.combined_fee_basis_points(n, m);
+    let bps = core::cmp::max(fast, extension.slow_fee_basis_points(m));
     extension
         .calculate_fee_at(pre_fee_amount, bps)
         .ok_or_else(|| TokenError::Overflow.into())

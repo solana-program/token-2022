@@ -253,9 +253,28 @@ pub struct SlotReferenceFeeAmount {
     pub window: U64,
     /// Slow ratchet: references by this account in that window
     pub count: U64,
+    /// Fast gate: the slot this account last referenced the mint in
+    pub slot: U64,
+    /// Fast gate: references by this account in that slot
+    pub slot_count: U64,
 }
 
+/// The fast ratchet bites only an account already on its third reference in the slot (its
+/// second swap: a swap is two transfers). A bystander's single swap never pays it.
+pub const FAST_OWN_MIN: u64 = 3;
+
 impl SlotReferenceFeeAmount {
+    /// Count a reference by this account in `current_slot` and return its ordinal in the slot.
+    pub fn reference_in_slot(&mut self, current_slot: u64) -> u64 {
+        if u64::from(self.slot) != current_slot {
+            self.slot = current_slot.into();
+            self.slot_count = 0u64.into();
+        }
+        let c = u64::from(self.slot_count).saturating_add(1);
+        self.slot_count = c.into();
+        c
+    }
+
     /// Count a reference by this account in the window `current_slot` falls in
     /// and return its ordinal within the window.
     pub fn reference(&mut self, current_slot: u64, window_slots: u64) -> u64 {
@@ -367,6 +386,9 @@ mod test {
         assert_eq!(a.reference(1_000, 1_280), 2);
         assert_eq!(a.reference(1_280, 1_280), 1);
         assert_eq!(u64::from(a.window), 1);
+        assert_eq!(a.reference_in_slot(7), 1);
+        assert_eq!(a.reference_in_slot(7), 2);
+        assert_eq!(a.reference_in_slot(8), 1);
     }
 
     #[test]
