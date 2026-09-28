@@ -26,6 +26,7 @@ use {
             permanent_delegate::PermanentDelegate,
             permissioned_burn::PermissionedBurnConfig,
             scaled_ui_amount::ScaledUiAmountConfig,
+            slot_reference_fee::{SlotReferenceFeeAmount, SlotReferenceFeeConfig},
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::{TransferHook, TransferHookAccount},
         },
@@ -82,6 +83,8 @@ pub mod permanent_delegate;
 pub mod permissioned_burn;
 /// Scaled UI Amount extension
 pub mod scaled_ui_amount;
+/// Slot reference fee extension
+pub mod slot_reference_fee;
 /// Token-group extension
 pub mod token_group;
 /// Token-metadata extension
@@ -791,6 +794,9 @@ pub trait BaseStateWithExtensionsMut<S: BaseState>: BaseStateWithExtensions<S> {
             ExtensionType::PausableAccount => {
                 self.init_extension::<PausableAccount>(true).map(|_| ())
             }
+            ExtensionType::SlotReferenceFeeAmount => self
+                .init_extension::<SlotReferenceFeeAmount>(true)
+                .map(|_| ()),
             #[cfg(test)]
             ExtensionType::AccountPaddingTest => {
                 self.init_extension::<AccountPaddingTest>(true).map(|_| ())
@@ -1139,6 +1145,10 @@ pub enum ExtensionType {
     PausableAccount,
     /// Tokens burning requires approval from authority.
     PermissionedBurn,
+    /// Per-slot reference counter and escalating fee schedule
+    SlotReferenceFeeConfig,
+    /// Includes withheld slot reference fees
+    SlotReferenceFeeAmount,
 
     /// Test variable-length mint extension
     #[cfg(test)]
@@ -1221,6 +1231,8 @@ impl ExtensionType {
             ExtensionType::Pausable => size_of::<PausableConfig>(),
             ExtensionType::PausableAccount => size_of::<PausableAccount>(),
             ExtensionType::PermissionedBurn => size_of::<PermissionedBurnConfig>(),
+            ExtensionType::SlotReferenceFeeConfig => size_of::<SlotReferenceFeeConfig>(),
+            ExtensionType::SlotReferenceFeeAmount => size_of::<SlotReferenceFeeAmount>(),
             #[cfg(test)]
             ExtensionType::AccountPaddingTest => size_of::<AccountPaddingTest>(),
             #[cfg(test)]
@@ -1272,7 +1284,8 @@ impl ExtensionType {
             | ExtensionType::TokenGroupMember
             | ExtensionType::ScaledUiAmount
             | ExtensionType::Pausable
-            | ExtensionType::PermissionedBurn => AccountType::Mint,
+            | ExtensionType::PermissionedBurn
+            | ExtensionType::SlotReferenceFeeConfig => AccountType::Mint,
             ExtensionType::ImmutableOwner
             | ExtensionType::TransferFeeAmount
             | ExtensionType::ConfidentialTransferAccount
@@ -1281,7 +1294,8 @@ impl ExtensionType {
             | ExtensionType::TransferHookAccount
             | ExtensionType::CpiGuard
             | ExtensionType::ConfidentialTransferFeeAmount
-            | ExtensionType::PausableAccount => AccountType::Account,
+            | ExtensionType::PausableAccount
+            | ExtensionType::SlotReferenceFeeAmount => AccountType::Account,
             #[cfg(test)]
             ExtensionType::VariableLenMintTest => AccountType::Mint,
             #[cfg(test)]
@@ -1302,6 +1316,7 @@ impl ExtensionType {
             ],
             ExtensionType::TransferHook => &[ExtensionType::TransferHookAccount],
             ExtensionType::Pausable => &[ExtensionType::PausableAccount],
+            ExtensionType::SlotReferenceFeeConfig => &[ExtensionType::SlotReferenceFeeAmount],
             #[cfg(test)]
             ExtensionType::MintPaddingTest => &[ExtensionType::AccountPaddingTest],
             _ => &[],
@@ -1333,6 +1348,7 @@ impl ExtensionType {
         let mut interest_bearing = false;
         let mut scaled_ui_amount = false;
         let mut non_transferable = false;
+        let mut slot_reference_fee = false;
 
         for extension_type in mint_extension_types {
             match extension_type {
@@ -1345,6 +1361,7 @@ impl ExtensionType {
                 ExtensionType::InterestBearingConfig => interest_bearing = true,
                 ExtensionType::ScaledUiAmount => scaled_ui_amount = true,
                 ExtensionType::NonTransferable => non_transferable = true,
+                ExtensionType::SlotReferenceFeeConfig => slot_reference_fee = true,
                 _ => (),
             }
         }
@@ -1363,6 +1380,11 @@ impl ExtensionType {
         }
 
         if scaled_ui_amount && interest_bearing {
+            return Err(TokenError::InvalidExtensionCombination);
+        }
+
+        // the slot reference fee needs to see amounts; confidential transfers hide them
+        if slot_reference_fee && confidential_transfer_mint {
             return Err(TokenError::InvalidExtensionCombination);
         }
 

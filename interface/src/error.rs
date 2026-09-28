@@ -268,6 +268,23 @@ pub enum TokenError {
     /// Pending supply is not zero
     #[error("Key rotation attempted while pending balance is not zero")]
     PendingBalanceNonZero,
+
+    // 70
+    /// The mint carries a slot reference fee and must be writable in transfers
+    #[error("Mint with a slot reference fee must be writable in transfers")]
+    SlotReferenceFeeMintNotWritable,
+    /// An account can only be closed if its withheld slot reference fees are zero
+    #[error("An account can only be closed if its withheld slot reference fees are zero")]
+    AccountHasWithheldSlotReferenceFees,
+    /// Slot reference fee schedule exceeds the maximum
+    #[error("Slot reference fee schedule exceeds the maximum")]
+    SlotReferenceFeeExceedsMaximum,
+    /// The sink token account is not owned by the sink owner
+    #[error("Sink token account must be owned by the incinerator address")]
+    SlotReferenceFeeInvalidSink,
+    /// The fee destination does not match the mint's configured destination
+    #[error("Fee destination does not match the mint's slot reference fee destination")]
+    SlotReferenceFeeDestinationMismatch,
 }
 impl From<TokenError> for ProgramError {
     fn from(e: TokenError) -> Self {
@@ -464,6 +481,21 @@ impl ToStr for TokenError {
             }
             TokenError::PendingBalanceNonZero => {
                 "Key rotation attempted while pending balance is not zero"
+            }
+            TokenError::SlotReferenceFeeMintNotWritable => {
+                "Mint with a slot reference fee must be writable in transfers"
+            }
+            TokenError::AccountHasWithheldSlotReferenceFees => {
+                "An account can only be closed if its withheld slot reference fees are zero"
+            }
+            TokenError::SlotReferenceFeeExceedsMaximum => {
+                "Slot reference fee schedule exceeds the maximum"
+            }
+            TokenError::SlotReferenceFeeInvalidSink => {
+                "Sink token account must be owned by the incinerator address"
+            }
+            TokenError::SlotReferenceFeeDestinationMismatch => {
+                "Fee destination does not match the mint's slot reference fee destination"
             }
         }
     }
