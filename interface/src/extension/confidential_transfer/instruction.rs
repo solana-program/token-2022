@@ -292,17 +292,12 @@ pub enum ConfidentialTransferInstruction {
     ///   `TransferInstructionData`
     Transfer,
 
-    /// Applies the pending balance to the available balance, based on the
-    /// history of `Deposit` and/or `Transfer` instructions.
+    /// Applies the entire current pending balance to the available balance.
     ///
-    /// After submitting `ApplyPendingBalance`, the client should compare
-    /// `ConfidentialTransferAccount::expected_pending_balance_credit_counter`
-    /// with
-    /// `ConfidentialTransferAccount::actual_applied_pending_balance_instructions`.  If they are
-    /// equal then the
-    /// `ConfidentialTransferAccount::decryptable_available_balance` is
-    /// consistent with `ConfidentialTransferAccount::available_balance`. If
-    /// they differ then there is more pending balance to be applied.
+    /// Records the client's expected pending credit count and the count observed
+    /// at execution, then clears the pending balance and its counter even if
+    /// the counts differ. See `ConfidentialTransferAccount` for how clients use
+    /// these recorded counts to detect a stale decryptable available balance.
     ///
     /// Account expected by this instruction:
     ///
@@ -632,6 +627,10 @@ pub struct TransferInstructionData {
 pub struct ApplyPendingBalanceData {
     /// The expected number of pending balance credits since the last successful
     /// `ApplyPendingBalance` instruction
+    ///
+    /// Copy this from the same fetched account data used to compute
+    /// `new_decryptable_available_balance`. The program records this
+    /// count for comparison with the actual count, without rejecting a mismatch.
     pub expected_pending_balance_credit_counter: U64,
     /// The new decryptable balance if the pending balance is applied
     /// successfully

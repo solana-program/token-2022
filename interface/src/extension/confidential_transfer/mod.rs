@@ -60,7 +60,42 @@ impl Extension for ConfidentialTransferMint {
     const TYPE: ExtensionType = ExtensionType::ConfidentialTransferMint;
 }
 
-/// Confidential account state
+/// Confidential account state.
+///
+/// # Pending balance credit counters
+///
+/// Incoming credits accumulate in `pending_balance_lo` and `pending_balance_hi`,
+/// and `pending_balance_credit_counter` counts the credits since the last
+/// `ApplyPendingBalance`.
+///
+/// To prepare `ApplyPendingBalance`, the client computes a new AES-encrypted
+/// available balance from the account data fetched by the client and supplies
+/// the pending credit count from that data as
+/// `expected_pending_balance_credit_counter`. More credits may arrive before
+/// the instruction executes.
+///
+/// At execution, the program records the client's expected count and the current
+/// `pending_balance_credit_counter` as `actual_pending_balance_credit_counter`.
+/// It applies the entire pending balance to `available_balance` and resets the
+/// pending balance and its counter to zero, even if the expected and actual
+/// counts differ. The supplied AES-encrypted balance is stored unchanged in
+/// `decryptable_available_balance`.
+///
+/// The expected and actual counts persist until the next `ApplyPendingBalance`;
+/// later credits only increment `pending_balance_credit_counter`. Clients can
+/// compare the recorded counts after the instruction succeeds to detect credits
+/// that arrived after they fetched the account data. For example, if the client
+/// observed two credits and a third arrived before execution, all three are
+/// applied, but the recorded expected and actual counts are two and three.
+///
+/// In that case, `decryptable_available_balance` may be missing the third credit,
+/// so the client must recover the correct available balance before relying on
+/// that cache. Applying the pending balance again using the stale cache does not
+/// recover credits that were already applied.
+///
+/// These counters help detect changes to the pending balance; matching counts
+/// do not verify the supplied decryptable balance, which the program does not
+/// check against the ElGamal-encrypted `available_balance`.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct ConfidentialTransferAccount {
@@ -91,8 +126,10 @@ pub struct ConfidentialTransferAccount {
     /// If `false`, the base account rejects any incoming transfers
     pub allow_non_confidential_credits: Bool,
 
-    /// The total number of `Deposit` and `Transfer` instructions that have
-    /// credited `pending_balance`
+    /// The number of credits to the pending balance since the last
+    /// `ApplyPendingBalance` instruction.
+    ///
+    /// Reset to zero when the pending balance is applied.
     pub pending_balance_credit_counter: U64,
 
     /// The maximum number of `Deposit` and `Transfer` instructions that can
@@ -100,12 +137,22 @@ pub struct ConfidentialTransferAccount {
     /// instruction is executed
     pub maximum_pending_balance_credit_counter: U64,
 
-    /// The `expected_pending_balance_credit_counter` value that was included in
-    /// the last `ApplyPendingBalance` instruction
+    /// The pending credit count supplied by the client in the last
+    /// `ApplyPendingBalance` instruction.
+    ///
+    /// Clients copy `pending_balance_credit_counter` from the same fetched
+    /// account data used to compute the new decryptable available balance.
+    /// The program records this expectation without requiring it to match
+    /// `actual_pending_balance_credit_counter`.
     pub expected_pending_balance_credit_counter: U64,
 
-    /// The actual `pending_balance_credit_counter` when the last
-    /// `ApplyPendingBalance` instruction was executed
+    /// The pending credit count observed by the program during the last
+    /// `ApplyPendingBalance`, before resetting the pending balance and its
+    /// counter.
+    ///
+    /// Comparing this with `expected_pending_balance_credit_counter`
+    /// helps clients detect credits that arrived after they fetched the account
+    /// data and may be missing from `decryptable_available_balance`.
     pub actual_pending_balance_credit_counter: U64,
 }
 

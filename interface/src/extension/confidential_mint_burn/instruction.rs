@@ -90,6 +90,11 @@ pub enum ConfidentialMintBurnInstruction {
     RotateSupplyElGamalPubkey,
     /// Updates the decryptable supply of the mint
     ///
+    /// Replaces the AES-encrypted supply cache without verifying that it
+    /// matches the confidential supply. A separate update is not required
+    /// after every `ApplyPendingBurn`; see `ConfidentialMintBurn` for the supply
+    /// reconciliation procedure.
+    ///
     /// Accounts expected by this instruction:
     ///
     ///   * Single authority
@@ -185,6 +190,13 @@ pub enum ConfidentialMintBurnInstruction {
 
     /// Applies the pending burn amount to the confidential supply
     ///
+    /// Updates the ElGamal-encrypted supply and clears the pending burn amount,
+    /// leaving the AES-encrypted `decryptable_supply` cache unchanged. Clients
+    /// can reconcile that cache locally before the next mint or supply key
+    /// rotation, without a separate `UpdateDecryptableSupply` after each
+    /// application. See `ConfidentialMintBurn` for the supply reconciliation
+    /// procedure.
+    ///
     ///   * Single authority
     ///   0. `[writable]` The SPL token mint.
     ///   1. `[signer]` The single mint authority.
@@ -244,6 +256,10 @@ pub struct UpdateDecryptableSupplyData {
 #[repr(C)]
 pub struct MintInstructionData {
     /// The new decryptable supply if the mint succeeds
+    ///
+    /// Clients should AES-encrypt the reconciled current supply plus the mint
+    /// amount. Storing this value refreshes the supply cache as part of the
+    /// mint. The program does not verify it against the confidential supply.
     #[cfg_attr(feature = "serde", serde(with = "aeciphertext_fromstr"))]
     pub new_decryptable_supply: PodAeCiphertext,
     /// The transfer amount encrypted under the auditor ElGamal public key
