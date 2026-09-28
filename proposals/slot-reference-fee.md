@@ -56,7 +56,8 @@ accounts: the mint and the Clock syscall are already in reach of every `Transfer
 
 | rule | mechanism |
 |---|---|
-| fast ratchet: the n-th transfer of the mint in a slot pays `floor * n²` bp, capped, after `free_references` free ones | `SlotReferenceFeeConfig::reference` and `fee_basis_points` |
+| fast ratchet: the n-th transfer of the mint in a slot pays `floor * n²` bp, capped, after `free_references` free ones, charged only to an account already on its third own transfer in the slot | `SlotReferenceFeeConfig::reference`, `SlotReferenceFeeAmount::reference_in_slot`, `FAST_OWN_MIN` |
+| transfers under `min_reference_amount` never count on the fast ratchet | `counts_globally` |
 | slow ratchet: the m-th transfer out of the same token account in a window of `slow_window_slots` pays `slow_floor * m²` bp, capped, after `slow_free_references` free ones | `SlotReferenceFeeAmount::reference` on the source account and `slow_fee_basis_points` |
 | a transfer pays the larger of the two | `combined_fee_basis_points`, `calculate_fee_at` |
 | the fast count is global per mint, not per signer; the slow count is per token account | the fast counter lives in the mint, the slow one in the source account's extension |
@@ -105,6 +106,8 @@ pub struct SlotReferenceFeeConfig {
     pub stake_withdrawer: Address,
     /// Earliest lockup epoch `fee_destination` may carry, set by whoever initialized.
     pub stake_lockup_epoch: U64,
+    /// Transfers below this many tokens do not count on the fast ratchet.
+    pub min_reference_amount: U64,
     /// Slot the fast counter belongs to. Reset whenever the clock moves past it.
     pub slot: U64,
     /// References to this mint in `slot` so far.
@@ -127,6 +130,10 @@ pub struct SlotReferenceFeeAmount {
     pub window: U64,
     /// Slow ratchet: references by this account in that window
     pub count: U64,
+    /// Fast gate: the slot this account last referenced the mint in
+    pub slot: U64,
+    /// Fast gate: references by this account in that slot
+    pub slot_count: U64,
 }
 ```
 
@@ -200,10 +207,14 @@ and after the self-transfer early return:
 if mint has SlotReferenceFeeConfig:
     require mint_info.is_writable                       // else SlotReferenceFeeMintNotWritable
     now = Clock::get().slot
-    // fast ratchet, global per mint
-    if config.slot != now { config.slot = now; config.count = 0 }
-    config.count += 1 ; n = config.count
-    fast = 0 if n <= free_references else min(floor * n * n, cap, 10_000)
+    // fast ratchet, global per mint, gated on the account's own repetition
+    if amount - transfer_fee >= min_reference_amount:
+        if config.slot != now { config.slot = now; config.count = 0 }
+        config.count += 1 ; n = config.count
+        if source.slot != now { source.slot = now; source.slot_count = 0 }
+        source.slot_count += 1 ; own = source.slot_count
+    else: n = 0 ; own = 0                               // dust moves nobody's counter
+    fast = 0 if own < 3 or n <= free_references else min(floor * n * n, cap, 10_000)
     // slow ratchet, per source account
     window = now / slow_window_slots
     if source.window != window { source.window = window; source.count = 0 }
@@ -286,34 +297,41 @@ what becomes expensive.
 
 ## Numbers
 
-Fast ratchet `floor_basis_points = 10`, `free_references = 2`, `cap_basis_points = 10_000`;
-slow ratchet `slow_floor_basis_points = 2`, `slow_free_references = 1`,
-`slow_cap_basis_points = 1_000`, `slow_window_slots = 1_280` (about eight and a half
-minutes):
+Fast ratchet `floor_basis_points = 10`, `free_references = 2`, `cap_basis_points = 10_000`,
+charged only to an account on its third own transfer in the slot; slow ratchet
+`slow_floor_basis_points = 2`, `slow_free_references = 16`, `slow_cap_basis_points = 10_000`,
+`slow_window_slots = 1_512_000` (a week of 400 ms slots); `min_reference_amount` at 0.01% of
+supply. These come from replaying two days of one extraction operator on Robinhood Chain
+(65 launches, 45,728 transfers, 198 serial or heavy wallets against 2,911 others): the
+machine's same-slot repetition came from one wallet at a time (4,690 of 4,713 machine
+references landing third or later in a block were from a wallet already on its third), and
+it returned to a token 6 to 37 times over about twelve hours while other wallets touched it
+3 to 8 times over about seven minutes. With these constants the machine pays 6.3% of its
+volume and everyone else 0.19%, with one in twenty-two of their transfers touched; the
+first draft's global-only counter charged everyone else 0.53% and touched more than half.
 
-| n-th reference in slot | fast fee | m-th by one account in window | slow fee |
+| n-th reference in slot (own 3rd+) | fast fee | m-th by one account in a week | slow fee |
 |---|---|---|---|
-| 1 | 0 | 1 | 0 |
-| 2 | 0 | 2 | 0.08% |
-| 3 | 0.90% | 3 | 0.18% |
-| 5 | 2.5% | 5 | 0.50% |
-| 10 | 10% | 10 | 2.0% |
-| 32 | 100% (cap) | 23 | 10% (cap) |
+| 1 | 0 | 1 to 16 | 0 |
+| 2 | 0 | 17 | 5.78% |
+| 3 | 0.90% | 20 | 8.0% |
+| 5 | 2.5% | 30 | 18% |
+| 10 | 10% | 50 | 50% |
+| 32 | 100% (cap) | 71 | 100% (cap) |
 
 A pump-shaped launch that seeds nine pools and walks a ladder in one slot pays 0.9 + 1.6 +
 ... + 8.1 percent on its own legs before any victim appears, and the fast counter is
 global, so splitting the legs across wallets or bundles in the same slot changes nothing.
-A liquidity position added and pulled six minutes later by the same account pays 0.08% on
-the pull, 0.18% on the next one, and so on.
+A wallet that comes back to the same mint for the seventeenth time in a week pays 5.78%,
+and each return after that costs more; a wallet that trades it a dozen times pays nothing.
 
 ## Security considerations
 
-- **Griefing.** Anyone can push a mint's fast counter up early in a slot by transferring
-  it repeatedly. They give up their own tokens at the escalating rate to do it, into a
-  settler that stakes them where the griefer cannot reach, and a slot is 400 ms, so
-  keeping a mint at the cap means paying every 400 ms forever. The first two references
-  are free so that one collision costs a bystander nothing. The slow ratchet cannot be
-  griefed at all: it is keyed on the source account.
+- **Griefing.** Nobody can make anyone else pay. The fast fee is charged only to an
+  account already on its third own transfer in the slot, so a bystander's swap in a busy
+  slot is free whatever the mint's counter says; dust under `min_reference_amount` does not
+  move the counter at all; and the slow ratchet is keyed on the source account. A griefer
+  can only raise the price of its own repetition.
 - **Evasion.** A machine that splits its legs across two accounts in one slot still pays
   the fast ratchet; one that comes back minutes later from a fresh account evades the slow
   ratchet, at the cost of funding that account, which is itself a counted transfer.
@@ -340,11 +358,13 @@ the pull, 0.18% on the next one, and so on.
 - initialization stores the whole configuration; a `floor > cap` schedule is rejected; a
   destination locked to a shorter epoch than required, or one that is not a stake account,
   is refused with `SlotReferenceFeeDestinationNotStake`;
-- three transfers in one slot pay 0, 8 bp (the sender's second in the window) and 90 bp
-  (the mint's third in the slot), the fast count reads 3, a warp to the next slot resets
-  it while the slow one keeps counting (32 bp on the fourth), harvest moves the withheld
-  total to the mint, withdrawal moves all of it to the settler's token account;
-- the slow ratchet follows the account across slots and starts over in the next window;
+- three transfers in one slot pay 0, 0 and 90 bp (the sender's third in the slot), the
+  fast count reads 3, a warp to the next slot resets it, harvest moves the withheld total
+  to the mint, withdrawal moves all of it to the settler's token account;
+- a bystander sending once in a slot a machine has walked four times pays nothing;
+- sixteen touches over a week are free, the seventeenth pays 578 bp, and the next window
+  starts over;
+- five dust transfers leave the mint's counter at zero;
 - the 32nd reference at 10 bp is capped at 100 percent and the destination receives
   nothing;
 - a transfer with the mint read-only fails with `SlotReferenceFeeMintNotWritable`;
