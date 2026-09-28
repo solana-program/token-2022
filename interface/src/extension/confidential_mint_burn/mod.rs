@@ -33,18 +33,28 @@ pub mod instruction;
 ///    `Enc(cached_supply)`.
 /// 3. Homomorphically subtract `confidential_supply` from
 ///    `Enc(cached_supply)`.
-/// 4. Decrypt this difference with the supply ElGamal secret key using
-///    `decrypt_u32` to obtain `applied_burns`.
+/// 4. Decrypt this difference with the supply ElGamal secret key to obtain
+///    `applied_burns`.
 /// 5. Compute `current_supply = cached_supply - applied_burns`.
 ///
 /// When the cache was last set to the correct supply, this difference is the
-/// total burns applied since that update. The difference must be non-negative
-/// and fit in a `u32` for `decrypt_u32` to succeed; the full supply can still
-/// be a `u64`. A larger difference cannot be recovered with this method.
+/// total burns applied since that update. Decrypting differences of up to
+/// about 40 bits is practical with a suitable discrete-log search, even when
+/// the full supply is a `u64`. Larger differences become increasingly expensive
+/// to decrypt and can make direct recovery impractical. In that case, clients
+/// can recover `applied_burns` by decrypting individual burns from transaction
+/// history.
 ///
-/// The Rust client's `SupplyAccountInfo::decrypted_current_supply` implements
-/// this procedure and is used by its mint and supply key rotation proof
-/// helpers. For a mint, the client AES-encrypts `current_supply + mint_amount`
+/// Individual burn proofs split amounts into 16-bit low and 32-bit high
+/// ciphertexts, but the program combines them into a single `pending_burn`
+/// ciphertext. The mint state does not retain separate low/high ciphertexts
+/// for decoding.
+///
+/// Submitting `ApplyPendingBurn` regularly limits the amount accumulating in
+/// `pending_burn`. Periodically refreshing the supply cache with the reconciled
+/// value also keeps `applied_burns` small and reduces decryption overhead.
+///
+/// For a mint, the client AES-encrypts `current_supply + mint_amount`
 /// into `MintInstructionData::new_decryptable_supply`. A successful `Mint`
 /// stores that value, refreshing the cache without a separate
 /// `UpdateDecryptableSupply`. Supply key rotation leaves the cache unchanged.
