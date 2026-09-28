@@ -7,7 +7,8 @@ Status: draft for discussion. Author: Jarett Dunn (@staccDOTsol).
 
 A mint extension that keeps one global, per-slot reference counter *in the mint account*
 and charges an in-kind fee of `floor_bps * n²` on the n-th transfer of the mint in the
-current slot, capped, with the fee burned or withheld. Because Token-2022 is the program
+current slot, capped. Nothing is burned: half of the fee goes to a program-owned sink
+that can never move, half to a destination fixed at initialization. Because Token-2022 is the program
 that executes every transfer of every mint that carries the extension, this is enforced on
 every DEX, every AMM, every terminal, every bundle, whether or not they know about it. It
 needs no new accounts: the mint and the Clock sysvar are already in reach of every
@@ -40,8 +41,8 @@ program does not care what is being launched. What the extension prices is a pra
 the same machine, run against every launch on the network, because repetition is free.
 
 **A mint that enables the extension** gets exactly this: the second and later transfers
-of the mint in a slot pay `floor_bps * n²` in kind, half burned and half to the
-`fee_destination` fixed at initialization. Pool spam, price ladders quoted by initializing
+of the mint in a slot pay `floor_bps * n²` in kind, half to the mint's permanent sink and
+half to the `fee_destination` fixed at initialization. Pool spam, price ladders quoted by initializing
 pools, same-slot add and remove, and bundles that split legs across transactions all pay,
 because the counter is per mint and per slot, not per signer. So does the mint's own
 organic volume once it exceeds `free_refs` in a slot. That, and the writable-mint
@@ -77,9 +78,11 @@ pub struct SlotReferenceFee {
     pub cap_bps: PodU16,            // recommended 10_000
     /// References in `slot` that are not charged (recommended 1).
     pub free_refs: PodU16,
-    /// If true, the fee is burned; if false it is withheld on the destination account
-    /// exactly like TransferFeeAmount and harvested by `withdraw_withheld_authority`.
-    pub burn: PodBool,
+    /// Share of every fee that goes to the mint's sink PDA, in bps (recommended 5_000).
+    /// The rest goes to `fee_destination`. Nothing is burned.
+    pub sink_share_bps: PodU16,
+    /// Token account of this mint that receives the non-sink share. Set at init.
+    pub fee_destination: Pubkey,
     /// Slot the counter belongs to. Reset when Clock::slot moves past it.
     pub slot: PodU64,
     /// References of this mint in `slot` so far.
@@ -87,10 +90,11 @@ pub struct SlotReferenceFee {
 }
 ```
 
-### Account extension `SlotReferenceFeeAmount` (optional, only when `burn == false`)
+### Sink account
 
-Same layout and semantics as `TransferFeeAmount { withheld_amount }`. Reuses the existing
-`harvest_withheld_tokens_to_mint` / `withdraw_withheld_tokens_from_accounts` flow.
+`PDA(["slot-reference-sink", mint])`, a token account of the mint owned by the token
+program, created by `InitializeSlotReferenceFee`. No owner key, no close authority, and no
+instruction in the program moves tokens out of it. It only grows.
 
 ## Instructions
 
@@ -99,10 +103,9 @@ Under a new `TokenInstruction::SlotReferenceFeeExtension(u8)` family, mirroring
 
 | # | instruction | accounts | notes |
 |---|---|---|---|
-| 0 | `InitializeSlotReferenceFee { authority, floor_bps, cap_bps, free_refs, burn }` | `[w] mint` | before `InitializeMint`, like every mint extension |
-| 1 | `SetSlotReferenceFee { floor_bps, cap_bps, free_refs }` | `[w] mint, [s] authority` | only while `authority` is set |
+| 0 | `InitializeSlotReferenceFee { authority, floor_bps, cap_bps, free_refs, sink_share_bps, fee_destination }` | `[w] mint, [w] sink PDA, [] system program` | before `InitializeMint`, like every mint extension |
+| 1 | `SetSlotReferenceFee { floor_bps, cap_bps, free_refs, fee_destination }` | `[w] mint, [s] authority` | only while `authority` is set; `sink_share_bps` is immutable |
 | 2 | `RevokeSlotReferenceFeeAuthority` | `[w] mint, [s] authority` | makes the config immutable |
-| 3 | `HarvestWithheldToMint` / `WithdrawWithheld*` | as TransferFee | only when `burn == false` |
 
 No new transfer instruction. `TransferChecked` (and `TransferCheckedWithFee`) is required,
 as it already is for mints with `TransferFee` or `TransferHook`; plain `Transfer` fails with
@@ -121,7 +124,9 @@ fee = amount * fee_bps / 10_000        // rounded up, like TransferFee
 net = amount - fee
 source -= amount
 dest   += net
-if burn { mint.supply -= fee } else { dest.withheld_amount += fee }
+sink_part = fee * sink_share_bps / 10_000
+sink.amount += sink_part                // the sink PDA, passed as an account
+fee_destination.amount += fee - sink_part
 emit ... (no event system; the fee is observable from balances and the mint's supply)
 ```
 
@@ -138,16 +143,13 @@ extension (the program cannot see amounts; refuse at `InitializeMint`).
 The fee is in kind: the token program cannot charge lamports from the source owner. So the
 split is:
 
-- half burned (`mint.supply -= fee / 2`),
-- half moved to the mint's **sink**: a token account owned by the token program at
-  `PDA(["slot-reference-sink", mint])`, created at `InitializeSlotReferenceFee`. It has no
-  close authority, no owner key, and the program has no instruction that moves tokens out
-  of it. It is a permanent, visible reserve of the token that grows with every machine
-  that walks the mint.
+- `sink_share_bps` of it (recommended half) to the mint's **sink**, the program-owned PDA
+  above. It is a permanent, visible reserve of the token that grows with every machine
+  that walks the mint, and it is the in-kind counterpart of the Ethereum draft's perpetual
+  stake: nobody's, and never leaving.
 
-- the other half to `fee_destination`, a token account of this mint chosen by whoever
-  initializes the extension (`burn` and `withheld` modes in the layout above are replaced
-  by `sink_share_bps`, recommended 5_000, and `fee_destination: Pubkey`).
+- the rest to `fee_destination`, a token account of this mint chosen by whoever
+  initializes the extension. Nothing is burned.
 
 The Ethereum draft can require the initializer's half to be a stake account, because there
 the fee is ETH. Here it is the token, and turning the token into SOL needs a venue, which is
@@ -200,7 +202,8 @@ splitting the legs across wallets or bundles in the same slot changes nothing.
 ## Security considerations
 
 - **Griefing.** Anyone can spend the fee to push a mint's counter up early in a slot. They
-  burn (or leave withheld) their own tokens at the escalating rate to do it, and a slot is
+  give up their own tokens at the escalating rate to do it, into a sink and a destination
+  they do not control, and a slot is
   400 ms. This is spam with a superlinear price, not an exploit.
 - **Clock.** `Clock::get()` is the runtime's view of the current slot and is identical for
   every transaction in the slot; there is no oracle to manipulate.
@@ -222,4 +225,5 @@ splitting the legs across wallets or bundles in the same slot changes nothing.
 `research/eip-draft-escalating-reference-gas.md` specifies the same counter for the EVM:
 block-scoped, per enrolled address, global, quadratic, paid in gas to the protocol. The
 Solana version pays in the token because the token program cannot charge lamports; the
-`burn` flag is the closest equivalent to "paid to the protocol, not the extractor".
+program-owned sink is the closest equivalent to the perpetual stake: nothing is burned on
+either chain, and nothing reaches the extractor or the block producer.
