@@ -56,20 +56,22 @@ accounts: the mint and the Clock syscall are already in reach of every `Transfer
 
 | rule | mechanism |
 |---|---|
-| n-th transfer of the mint in a slot pays `floor * n²` bp, capped | `SlotReferenceFeeConfig::reference` and `calculate_fee` in `process_transfer` |
-| first `free_references` transfers in a slot are free | `fee_basis_points` returns 0 for `n <= free_references` |
-| the count is global per mint, not per signer | the counter lives in the mint account |
-| a new slot resets the count | `reference` compares `Clock::get().slot` to the stored slot |
+| fast ratchet: the n-th transfer of the mint in a slot pays `floor * n²` bp, capped, after `free_references` free ones | `SlotReferenceFeeConfig::reference` and `fee_basis_points` |
+| slow ratchet: the m-th transfer out of the same token account in a window of `slow_window_slots` pays `slow_floor * m²` bp, capped, after `slow_free_references` free ones | `SlotReferenceFeeAmount::reference` on the source account and `slow_fee_basis_points` |
+| a transfer pays the larger of the two | `combined_fee_basis_points`, `calculate_fee_at` |
+| the fast count is global per mint, not per signer; the slow count is per token account | the fast counter lives in the mint, the slow one in the source account's extension |
+| a new slot resets the fast count; a new window resets the slow one | both compare `Clock::get().slot` to what they stored |
 | fees are withheld on the destination, never on the sender | `SlotReferenceFeeAmount.withheld_amount`, like `TransferFeeAmount` |
 | accounts with withheld fees cannot be closed | `closable` check in `process_close_account` |
 | harvest is permissionless | `HarvestWithheldTokensToMint` takes any accounts of the mint |
-| withdrawal is permissionless and goes only to the sink and `fee_destination` | `WithdrawWithheldTokensFromMint` checks the sink's owner is the incinerator and the destination equals the configured one |
-| nothing is burned | no supply change anywhere in the extension |
+| withdrawal is permissionless and goes only to the settler's token account | `WithdrawWithheldTokensFromMint` requires the receiving account's owner to be the configured `settler` |
+| the fee destination is a stake account with the initializer's withdraw authority and lockup | `Initialize` and `Set` read the account: owner is the stake program, state is initialized or delegated, `authorized.withdrawer == stake_withdrawer`, `lockup.epoch >= stake_lockup_epoch` |
+| nothing is burned | no supply change anywhere in the extension; the settler stakes both halves |
 | the mint must be writable in transfers | `SlotReferenceFeeMintNotWritable` if it is not |
 | every token account of the mint carries the account extension | `required_init_account_extensions` |
 | cannot combine with confidential transfers | `check_for_invalid_mint_extension_combinations`: the fee needs to see amounts |
-| schedule can be changed only by the authority, and the authority can be revoked | `Set`, `AuthorityType::SlotReferenceFee` |
-| the sink share is immutable | not present in `Set` |
+| schedules and destination can be changed only by the authority, and the authority can be revoked | `Set`, `AuthorityType::SlotReferenceFee` |
+| the settler, the required withdrawer and the required lockup are immutable | not present in `Set` |
 
 ## State
 
@@ -78,20 +80,32 @@ accounts: the mint and the Clock syscall are already in reach of every `Transfer
 ```rust
 #[repr(C)]
 pub struct SlotReferenceFeeConfig {
-    /// Optional authority to update the fee schedule and the fee destination.
-    /// None makes the configuration immutable.
+    /// Optional authority to update the fee schedules and move the fee destination
+    /// to another qualifying stake account. None makes the configuration immutable.
     pub authority: MaybeNull<Address>,
-    /// Token account of this mint that receives the non-sink share of every withdrawal.
+    /// Stake account the staked half of every settlement goes into.
     pub fee_destination: Address,
-    /// Fee for the n-th reference in a slot is floor * n * n basis points.
+    /// Fast ratchet: fee for the n-th reference in a slot is floor * n * n bp.
     pub floor_basis_points: U16,
-    /// Hard cap on the fee, in basis points (at most 10,000).
+    /// Fast ratchet cap, in basis points (at most 10,000).
     pub cap_basis_points: U16,
-    /// References per slot that carry no fee.
+    /// Fast ratchet: references per slot that carry no fee.
     pub free_references: U16,
-    /// Share of every withdrawal that goes to the sink, in basis points. Immutable.
-    pub sink_share_basis_points: U16,
-    /// Slot the counter belongs to. Reset whenever the clock moves past it.
+    /// Slow ratchet: an account's m-th reference in a window pays slow_floor * m * m bp.
+    pub slow_floor_basis_points: U16,
+    /// Slow ratchet cap, in basis points.
+    pub slow_cap_basis_points: U16,
+    /// Slow ratchet: references per window per account that carry no fee.
+    pub slow_free_references: U16,
+    /// Slow ratchet window, in slots.
+    pub slow_window_slots: U64,
+    /// Owner of the only token account withdrawals of withheld fees may go to.
+    pub settler: Address,
+    /// Withdraw authority `fee_destination` must carry, set by whoever initialized.
+    pub stake_withdrawer: Address,
+    /// Earliest lockup epoch `fee_destination` may carry, set by whoever initialized.
+    pub stake_lockup_epoch: U64,
+    /// Slot the fast counter belongs to. Reset whenever the clock moves past it.
     pub slot: U64,
     /// References to this mint in `slot` so far.
     pub count: U64,
@@ -100,7 +114,7 @@ pub struct SlotReferenceFeeConfig {
 }
 ```
 
-`ExtensionType::SlotReferenceFeeConfig`, a mint extension. Fixed size, 96 bytes of data.
+`ExtensionType::SlotReferenceFeeConfig`, a mint extension. Fixed size.
 
 ### Account extension `SlotReferenceFeeAmount`
 
@@ -109,21 +123,36 @@ pub struct SlotReferenceFeeConfig {
 pub struct SlotReferenceFeeAmount {
     /// Amount withheld during transfers, to be harvested to the mint
     pub withheld_amount: U64,
+    /// Slow ratchet: the window this account last referenced the mint in
+    pub window: U64,
+    /// Slow ratchet: references by this account in that window
+    pub count: U64,
 }
 ```
 
 `ExtensionType::SlotReferenceFeeAmount`, required on every token account of a mint that
-carries the config, exactly like `TransferFeeAmount`.
+carries the config, exactly like `TransferFeeAmount`. The slow counter lives here because
+the source account is already writable in every transfer; keying it on the account is
+what makes it impossible for anyone to raise anyone else's count.
 
-### The sink
+### The settler and the stake destination
 
-Any token account of the mint whose owner is the incinerator address
-(`slot_reference_fee::sink_owner()`, i.e. `1nc1nerator11111111111111111111111111111111`).
-Nobody holds that key, so no transfer, approval or close can ever be signed for it. The
-associated token account of the incinerator is the natural sink and anyone can create it.
-The program never moves tokens out of a sink; it only credits it. A sink is the in-kind
-counterpart of the perpetual stake on the Ethereum side of this design: it belongs to
-nobody and it only grows.
+Both fee buckets are native stake. The token program cannot sell tokens or delegate SOL, so
+it does the two things it can: it lets withheld fees leave only towards one address, the
+`settler`, and it refuses any `fee_destination` that is not a stake account nobody but the
+named party can withdraw from, and not before the named epoch.
+
+The settler is a program of the issuer's choosing, fixed at initialization. It receives
+every withdrawal in its own token account, sells for SOL, and stakes both halves: one half
+into a stake account whose withdraw authority is the incinerator (`1nc1nerator11111111111111111111111111111111`), which is
+the chain's perpetual stake and belongs to nobody; the other half into `fee_destination`,
+the dapp's stake, which the initializer bound to a withdraw authority (`stake_withdrawer`)
+and a minimum lockup epoch (`stake_lockup_epoch`). The program verifies the destination by
+reading the account: `StakeStateV2` is a bincode enum whose tag (1 initialized, 2 stake)
+and `Meta` (rent reserve, `Authorized { staker, withdrawer }`, `Lockup { unix_timestamp,
+epoch, custodian }`) sit at fixed offsets; `StakeMeta::parse` reads those and nothing
+else. A wallet, a token account or an uninitialized stake account is refused with
+`SlotReferenceFeeDestinationNotStake`.
 
 ## Instructions
 
@@ -132,27 +161,28 @@ byte selecting the sub-instruction, the same layout every extension uses.
 
 | # | instruction | accounts | data |
 |---|---|---|---|
-| 0 | `Initialize` | `[w] mint` | `InitializeInstructionData { authority: MaybeNull<Address>, fee_destination: Address, floor_basis_points, cap_basis_points, free_references, sink_share_basis_points }` |
-| 1 | `Set` | `[w] mint`, `[s] authority` (or multisig + signers) | `SetInstructionData { fee_destination, floor_basis_points, cap_basis_points, free_references }` |
+| 0 | `Initialize` | `[w] mint`, `[] fee_destination` (stake account) | `InitializeInstructionData { authority, fee_destination, floor_basis_points, cap_basis_points, free_references, slow_floor_basis_points, slow_cap_basis_points, slow_free_references, slow_window_slots, settler, stake_withdrawer, stake_lockup_epoch }` |
+| 1 | `Set` | `[w] mint`, `[] fee_destination` (stake account), `[s] authority` (or multisig + signers) | `SetInstructionData { fee_destination, floor_basis_points, cap_basis_points, free_references, slow_floor_basis_points, slow_cap_basis_points, slow_free_references, slow_window_slots }` |
 | 2 | `HarvestWithheldTokensToMint` | `[w] mint`, `[w] token accounts...` | none |
-| 3 | `WithdrawWithheldTokensFromMint` | `[w] mint`, `[w] sink`, `[w] fee_destination` | none |
+| 3 | `WithdrawWithheldTokensFromMint` | `[w] mint`, `[w] settler token account` | none |
 
 `Initialize` must run before `InitializeMint`, like every mint extension. It rejects
-`floor > cap`, `cap > 10,000` and `sink_share > 10,000`.
+`floor > cap` and `cap > 10,000` on either ratchet, a zero settler, and a fee destination
+that is not a stake account carrying `stake_withdrawer` and a lockup epoch of at least
+`stake_lockup_epoch`.
 
-`Set` requires the authority. It cannot change `sink_share_basis_points`.
+`Set` requires the authority. It may change both schedules and move the destination, but
+only to another stake account with the same withdrawer and at least the lockup the
+initializer set. It cannot change the settler, the withdrawer or the lockup floor.
 
 `HarvestWithheldTokensToMint` is permissionless and skips accounts that are not token
 accounts of the mint or that lack the account extension, logging and continuing, the same
 way the transfer fee harvest does. Frozen accounts are harvested.
 
-`WithdrawWithheldTokensFromMint` is permissionless. It splits the mint's `withheld_amount`
-into `sink_share_basis_points` for the sink and the remainder for `fee_destination`,
-zeroes the mint's withheld amount, and credits both. It fails with
-`SlotReferenceFeeInvalidSink` if the sink account is not owned by the incinerator or is the
-same account as the destination, with `SlotReferenceFeeDestinationMismatch` if the
-destination is not the configured one, with `MintMismatch` if either account is for
-another mint, and with `AccountFrozen` if either is frozen.
+`WithdrawWithheldTokensFromMint` is permissionless. It moves the mint's whole
+`withheld_amount` to the given token account, which must belong to this mint and be owned
+by the configured `settler`, else `SlotReferenceFeeInvalidSink`; `MintMismatch` if it is
+for another mint, `AccountFrozen` if it is frozen.
 
 `SetAuthority` with `AuthorityType::SlotReferenceFee` (18) transfers or revokes the
 authority.
@@ -168,16 +198,20 @@ and after the self-transfer early return:
 
 ```
 if mint has SlotReferenceFeeConfig:
-    require mint_info.is_writable              // else SlotReferenceFeeMintNotWritable
+    require mint_info.is_writable                       // else SlotReferenceFeeMintNotWritable
     now = Clock::get().slot
+    // fast ratchet, global per mint
     if config.slot != now { config.slot = now; config.count = 0 }
-    config.count += 1
-    n = config.count
-    bps = 0 if n <= free_references else min(floor * n * n, cap, 10_000)
-    fee = ceil((amount - transfer_fee) * bps / 10_000)
+    config.count += 1 ; n = config.count
+    fast = 0 if n <= free_references else min(floor * n * n, cap, 10_000)
+    // slow ratchet, per source account
+    window = now / slow_window_slots
+    if source.window != window { source.window = window; source.count = 0 }
+    source.count += 1 ; m = source.count
+    slow = 0 if m <= slow_free_references else min(slow_floor * m * m, slow_cap, 10_000)
+    fee = ceil((amount - transfer_fee) * max(fast, slow) / 10_000)
 else:
     fee = 0
-
 source.amount      -= amount
 destination.amount += amount - transfer_fee - fee
 destination.withheld_amount (SlotReferenceFeeAmount) += fee
@@ -190,13 +224,13 @@ carry both fees. A `Transfer` without the mint (the deprecated unchecked form) f
 transfer fees, hooks and pausable mints.
 
 `Burn`, `MintTo`, `Approve`, `Revoke` and `CloseAccount` are not references. A delegated
-`TransferChecked` is. A self-transfer returns before the counter is touched.
+`TransferChecked` is. A self-transfer returns before either counter is touched.
 
 `TransferCheckedWithFee` still checks only the transfer fee against the expected value,
-because the slot reference fee depends on how many references preceded the transfer in
-the slot and cannot be known exactly when the transaction is built. Clients that want a
-bound on it read the mint's `slot` and `count` and set slippage accordingly, which is what
-they do for every other source of slippage today.
+because the slot reference fee depends on how many references preceded the transfer and
+cannot be known exactly when the transaction is built. Clients that want a bound on it
+read the mint's `slot` and `count` and the source's `window` and `count`, and set slippage
+accordingly.
 
 ## The mint must be writable
 
@@ -224,19 +258,20 @@ is a strict subset and could ship as a flag.
 
 ## Opting in and opting out
 
-**A mint that enables the extension** gets exactly this: the second and later transfers
-of the mint in a slot pay `floor * n²` in kind, half (by default) to a sealed sink and
-half to the fee destination fixed at initialization. Pool spam, price ladders quoted by
-initializing pools, same-slot add and remove, and bundles that split legs across
-transactions all pay, because the counter is per mint and per slot, not per signer. So
-does the mint's own organic volume once it exceeds `free_references` in a slot. That, and
-the writable-mint serialization, is the price of the choice. The extension does not stop a
-sandwich: a sandwich is two transfers, not twenty. It cannot be added after
-initialization and cannot be removed, so a launchpad cannot enable it for the first hour
-and then sell the surface. And the initializer's half is a token account of the mint,
-visible to everyone; if it wants that half as SOL it has to sell in the open like anyone
-else, because turning the token into SOL needs a venue, and a venue is the dapp-level
-dependency this extension refuses to have.
+**A mint that enables the extension** gets exactly this: repetition pays. The mint's third
+and later transfers in a slot pay `floor * n²`, whoever made them; an account's second and
+later transfers in a window pay `slow_floor * m²`; a transfer pays the larger, in kind, to
+a settler that turns it into stake, half the chain's and half the dapp's. Pool spam, price
+ladders quoted by initializing pools, same-slot add and remove, and bundles that split legs
+across transactions or wallets pay on the fast ratchet; the same account coming back
+minutes later pays on the slow one. So does the mint's own organic volume once it exceeds
+`free_references` in a slot, and a person trading twice in a window pays a few basis
+points on the second. That, and the writable-mint serialization, is the price of the
+choice. The first two references in a slot are free so that the transfer a sandwich is
+built around pays nothing. It cannot be added after initialization and cannot be removed,
+so a launchpad cannot enable it for the first hour and then sell the surface. And the
+dapp's half is stake, bound to the withdraw authority and lockup the initializer chose and
+visible to everyone; nobody's fees go to a wallet.
 
 **A mint that does not enable it** changes nothing for itself: same transfers, same cost,
 same machines. Wallets, explorers and terminals can read the mint's extensions and show
@@ -251,60 +286,77 @@ what becomes expensive.
 
 ## Numbers
 
-`floor_basis_points = 10`, `free_references = 1`, `cap_basis_points = 10_000`:
+Fast ratchet `floor_basis_points = 10`, `free_references = 2`, `cap_basis_points = 10_000`;
+slow ratchet `slow_floor_basis_points = 2`, `slow_free_references = 1`,
+`slow_cap_basis_points = 1_000`, `slow_window_slots = 1_280` (about eight and a half
+minutes):
 
-| n-th reference in slot | fee |
-|---|---|
-| 1 | 0 |
-| 2 | 0.40% |
-| 3 | 0.90% |
-| 5 | 2.5% |
-| 10 | 10% |
-| 31 | 96.1% |
-| 32 | 100% (cap) |
+| n-th reference in slot | fast fee | m-th by one account in window | slow fee |
+|---|---|---|---|
+| 1 | 0 | 1 | 0 |
+| 2 | 0 | 2 | 0.08% |
+| 3 | 0.90% | 3 | 0.18% |
+| 5 | 2.5% | 5 | 0.50% |
+| 10 | 10% | 10 | 2.0% |
+| 32 | 100% (cap) | 23 | 10% (cap) |
 
-A pump-shaped launch that seeds nine pools and walks a ladder in one slot pays 0.4 + 0.9 +
-... + 8.1 percent on its own legs before any victim appears, and the counter is global, so
-splitting the legs across wallets or bundles in the same slot changes nothing.
+A pump-shaped launch that seeds nine pools and walks a ladder in one slot pays 0.9 + 1.6 +
+... + 8.1 percent on its own legs before any victim appears, and the fast counter is
+global, so splitting the legs across wallets or bundles in the same slot changes nothing.
+A liquidity position added and pulled six minutes later by the same account pays 0.08% on
+the pull, 0.18% on the next one, and so on.
 
 ## Security considerations
 
-- **Griefing.** Anyone can push a mint's counter up early in a slot by transferring it
-  repeatedly. They give up their own tokens at the escalating rate to do it, into a sink
-  and a destination they do not control, and a slot is 400 ms. This is spam with a
-  superlinear price, not an exploit.
+- **Griefing.** Anyone can push a mint's fast counter up early in a slot by transferring
+  it repeatedly. They give up their own tokens at the escalating rate to do it, into a
+  settler that stakes them where the griefer cannot reach, and a slot is 400 ms, so
+  keeping a mint at the cap means paying every 400 ms forever. The first two references
+  are free so that one collision costs a bystander nothing. The slow ratchet cannot be
+  griefed at all: it is keyed on the source account.
+- **Evasion.** A machine that splits its legs across two accounts in one slot still pays
+  the fast ratchet; one that comes back minutes later from a fresh account evades the slow
+  ratchet, at the cost of funding that account, which is itself a counted transfer.
+- **The destination.** Only its owner, state, withdraw authority and lockup epoch are
+  checked. A custodian set on the lockup can lift it early; an initializer that wants the
+  lock to be real names a withdrawer and lockup on an account whose custodian is the
+  withdrawer itself or the default address, and states so.
 - **Clock.** `Clock::get()` is the runtime's view of the current slot and is identical for
   every transaction in the slot; there is no oracle to manipulate.
-- **Determinism.** The counter is ordinary account data, replayed identically by every
+- **Determinism.** Both counters are ordinary account data, replayed identically by every
   validator; there is no off-chain state.
-- **Compute.** One extension lookup, one clock read and a few integer operations per
+- **Compute.** Two extension lookups, one clock read and a few integer operations per
   transfer, on the order of `TransferFee`'s cost.
-- **Rounding.** Fees round up, like transfer fees, so a 1-lamport transfer as the second
-  reference pays 1 lamport. Withdrawal splits round the sink share down and give the
-  remainder to the destination.
-- **Overflow.** All arithmetic is checked; `count` is a `u64` and cannot realistically wrap
-  in a slot.
+- **Rounding.** Fees round up, like transfer fees, so a 1-lamport transfer as the third
+  reference pays 1 lamport.
+- **Overflow.** All arithmetic is checked; the counts are `u64` and cannot realistically
+  wrap.
 
 ## Tests
 
 `clients/rust-legacy/tests/slot_reference_fee.rs` runs against the program in
-`solana-program-test`:
+`solana-program-test`, with a stake account planted for the destination:
 
-- initialization stores the configuration; a `floor > cap` schedule is rejected;
-- three transfers in one slot pay 0, 40 bp and 90 bp, the count reads 3, a warp to the
-  next slot resets it, harvest moves the withheld total to the mint, withdrawal splits it
-  half to the incinerator's associated account and half to the destination;
+- initialization stores the whole configuration; a `floor > cap` schedule is rejected; a
+  destination locked to a shorter epoch than required, or one that is not a stake account,
+  is refused with `SlotReferenceFeeDestinationNotStake`;
+- three transfers in one slot pay 0, 8 bp (the sender's second in the window) and 90 bp
+  (the mint's third in the slot), the fast count reads 3, a warp to the next slot resets
+  it while the slow one keeps counting (32 bp on the fourth), harvest moves the withheld
+  total to the mint, withdrawal moves all of it to the settler's token account;
+- the slow ratchet follows the account across slots and starts over in the next window;
 - the 32nd reference at 10 bp is capped at 100 percent and the destination receives
   nothing;
 - a transfer with the mint read-only fails with `SlotReferenceFeeMintNotWritable`;
-- a withdrawal to an account not owned by the incinerator, or to a destination other than
-  the configured one, fails;
+- a withdrawal to a token account the settler does not own fails;
 - an account with withheld fees cannot be closed;
-- `Set` needs the authority, changes the schedule, and is refused after the authority is
-  revoked through `SetAuthority`.
+- `Set` needs the authority, refuses a destination with a shorter lockup, accepts one with
+  a longer one, changes the schedules, and is refused after the authority is revoked
+  through `SetAuthority`.
 
-`interface/src/extension/slot_reference_fee/mod.rs` has unit tests for the schedule, the
-cap, rounding, the slot reset and the split.
+`interface/src/extension/slot_reference_fee/mod.rs` has unit tests for both schedules, the
+caps, rounding, the slot and window resets, the larger-wins rule and the `StakeStateV2`
+parser.
 
 ## Rollout
 
@@ -317,9 +369,12 @@ cap, rounding, the slot reset and the split.
 
 ## Relationship to the Ethereum draft
 
-EIP-12384 (ethereum/EIPs#12384) specifies the same counter for the EVM: block-scoped,
-per self-enrolled address, global, quadratic, paid in gas, half to a no-owner perpetual
-stake and half to a stake vault the enroller names. The Solana version pays in the token
-because the token program cannot charge lamports; the incinerator-owned sink is the
-closest equivalent to the perpetual stake. Nothing is burned on either chain, and nothing
-reaches the extractor or the block producer.
+EIP-12384 (ethereum/EIPs#12384) specifies the same two ratchets for the EVM: a global
+block-scoped counter and a per-originator window counter, per self-enrolled address,
+quadratic, paid in gas, half to the chain's no-owner sink that can only stake and half to
+a stake vault the enroller names. The Solana version pays in the token because the token
+program cannot charge lamports; a settler outside the token program turns the tokens into
+SOL and stakes both halves, and the token program guarantees the dapp's half can only ever
+land in a stake account with the withdraw authority and lockup the initializer chose.
+Nothing is burned on either chain, and nothing reaches the extractor, the block producer or
+a wallet.
