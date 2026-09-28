@@ -148,6 +148,9 @@ pub struct SlotReferenceFeeConfig {
     pub stake_withdrawer: Address,
     /// Earliest lockup epoch `fee_destination` may carry, set by whoever initialized.
     pub stake_lockup_epoch: U64,
+    /// Transfers below this many tokens do not count on the fast ratchet: dust cannot
+    /// raise anyone else's k. They still count, and pay, on the sender's own slow ratchet.
+    pub min_reference_amount: U64,
     /// Slot the fast counter belongs to. Reset whenever the clock moves past it.
     pub slot: U64,
     /// References to this mint in `slot` so far.
@@ -214,6 +217,11 @@ impl SlotReferenceFeeConfig {
         let numerator = (pre_fee_amount as u128).checked_mul(basis_points)?;
         let fee = Self::ceil_div(numerator, ONE_IN_BASIS_POINTS)?;
         fee.try_into().ok()
+    }
+
+    /// Whether `amount` is big enough to count on the fast ratchet.
+    pub fn counts_globally(&self, amount: u64) -> bool {
+        amount >= u64::from(self.min_reference_amount)
     }
 
     /// Count a reference to the mint in `current_slot` and return its ordinal.
@@ -293,6 +301,7 @@ mod test {
             settler: Address::new_unique(),
             stake_withdrawer: Address::new_unique(),
             stake_lockup_epoch: 0.into(),
+            min_reference_amount: 1_000.into(),
             slot: 0.into(),
             count: 0.into(),
             withheld_amount: 0.into(),
@@ -358,6 +367,13 @@ mod test {
         assert_eq!(a.reference(1_000, 1_280), 2);
         assert_eq!(a.reference(1_280, 1_280), 1);
         assert_eq!(u64::from(a.window), 1);
+    }
+
+    #[test]
+    fn dust_does_not_count_globally() {
+        let c = config(10, 10_000, 2);
+        assert!(!c.counts_globally(999));
+        assert!(c.counts_globally(1_000));
     }
 
     #[test]

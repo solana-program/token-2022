@@ -223,6 +223,7 @@ pub enum ExtensionInitializationParams {
         slow_window_slots: u64,
         stake_withdrawer: Address,
         stake_lockup_epoch: u64,
+        min_reference_amount: u64,
     },
     ConfidentialMintBurn {
         supply_elgamal_pubkey: PodElGamalPubkey,
@@ -389,6 +390,7 @@ impl ExtensionInitializationParams {
                 slow_window_slots,
                 stake_withdrawer,
                 stake_lockup_epoch,
+                min_reference_amount,
             } => slot_reference_fee::instruction::initialize(
                 token_program_id,
                 mint,
@@ -404,6 +406,7 @@ impl ExtensionInitializationParams {
                 slow_window_slots,
                 &stake_withdrawer,
                 stake_lockup_epoch,
+                min_reference_amount,
             ),
             Self::ConfidentialMintBurn {
                 supply_elgamal_pubkey,

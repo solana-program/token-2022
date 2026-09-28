@@ -95,6 +95,7 @@ fn process_initialize(accounts: &[AccountInfo], data: &InitializeInstructionData
     extension.settler = data.settler;
     extension.stake_withdrawer = data.stake_withdrawer;
     extension.stake_lockup_epoch = data.stake_lockup_epoch;
+    extension.min_reference_amount = data.min_reference_amount;
     extension.slot = 0u64.into();
     extension.count = 0u64.into();
     extension.withheld_amount = 0u64.into();
@@ -275,8 +276,13 @@ pub(crate) fn reference_and_fee(
     let mut mint_data = mint_info.try_borrow_mut_data()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
     let extension = mint.get_extension_mut::<SlotReferenceFeeConfig>()?;
-    // fast ratchet: the mint's n-th reference this slot, whoever made it
-    let n = extension.reference(slot);
+    // fast ratchet: the mint's n-th reference this slot, whoever made it. Dust does not
+    // count here, so nobody can raise anyone else's k for the price of dust.
+    let n = if extension.counts_globally(pre_fee_amount) {
+        extension.reference(slot)
+    } else {
+        0
+    };
     // slow ratchet: this account's m-th reference in the current window
     let window = u64::from(extension.slow_window_slots);
     let m = source_account

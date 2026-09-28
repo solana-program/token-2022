@@ -106,6 +106,8 @@ pub struct InitializeInstructionData {
     pub stake_withdrawer: Address,
     /// Earliest lockup epoch the fee destination may carry
     pub stake_lockup_epoch: U64,
+    /// Transfers below this many tokens do not count on the fast ratchet
+    pub min_reference_amount: U64,
 }
 
 /// Data expected by `SlotReferenceFeeInstruction::Set`
@@ -149,6 +151,7 @@ pub fn initialize(
     slow_window_slots: u64,
     stake_withdrawer: &Address,
     stake_lockup_epoch: u64,
+    min_reference_amount: u64,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let accounts = vec![
@@ -176,6 +179,7 @@ pub fn initialize(
             settler: *settler,
             stake_withdrawer: *stake_withdrawer,
             stake_lockup_epoch: stake_lockup_epoch.into(),
+            min_reference_amount: min_reference_amount.into(),
         },
     ))
 }

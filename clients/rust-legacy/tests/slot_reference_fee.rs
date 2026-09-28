@@ -32,6 +32,7 @@ const SLOW_CAP_BPS: u16 = 1_000;
 const SLOW_FREE_REFS: u16 = 1;
 const SLOW_WINDOW: u64 = 1_280;
 const LOCKUP_EPOCH: u64 = 900;
+const MIN_REF: u64 = 1_000;
 const SUPPLY: u64 = 1_000_000_000;
 
 struct Fixture {
@@ -123,6 +124,7 @@ async fn setup_with(
                 slow_window_slots: SLOW_WINDOW,
                 stake_withdrawer: stake_withdrawer.pubkey(),
                 stake_lockup_epoch,
+                min_reference_amount: MIN_REF,
             }],
             None,
         )
@@ -249,6 +251,7 @@ async fn success_initialize() {
     assert_eq!(c.settler, f.settler.pubkey());
     assert_eq!(c.stake_withdrawer, f.stake_withdrawer.pubkey());
     assert_eq!(u64::from(c.stake_lockup_epoch), LOCKUP_EPOCH);
+    assert_eq!(u64::from(c.min_reference_amount), MIN_REF);
     assert_eq!(u16::from(c.floor_basis_points), FLOOR_BPS);
     assert_eq!(u16::from(c.cap_basis_points), CAP_BPS);
     assert_eq!(u16::from(c.free_references), FREE_REFS);
@@ -282,6 +285,7 @@ async fn fail_initialize_bad_schedule() {
                 slow_window_slots: SLOW_WINDOW,
                 stake_withdrawer: withdrawer.pubkey(),
                 stake_lockup_epoch: LOCKUP_EPOCH,
+                min_reference_amount: MIN_REF,
             },
         ])
         .await
@@ -322,6 +326,7 @@ async fn fail_initialize_destination_not_a_stake_account() {
                 slow_window_slots: SLOW_WINDOW,
                 stake_withdrawer: withdrawer.pubkey(),
                 stake_lockup_epoch: 0,
+                min_reference_amount: MIN_REF,
             },
         ])
         .await
@@ -416,6 +421,30 @@ async fn slow_ratchet_follows_the_account_across_slots() {
     let before = withheld(&f, &f.bob_account).await;
     transfer(&f, a).await.unwrap();
     assert_eq!(withheld(&f, &f.bob_account).await, before);
+}
+
+#[tokio::test]
+async fn dust_cannot_raise_the_slot_count() {
+    let f = setup().await;
+    // a griefer sprays dust: none of it moves the mint's counter...
+    for _ in 0..5 {
+        transfer(&f, MIN_REF - 1).await.unwrap();
+    }
+    let c = config(&f).await;
+    assert_eq!(u64::from(c.count), 0);
+    // ...but every one of them counted on the sprayer's own slow ratchet: #6 in the window pays 2 bp * 36
+    let before = withheld(&f, &f.bob_account).await;
+    transfer(&f, 100_000_000).await.unwrap();
+    assert_eq!(
+        withheld(&f, &f.bob_account).await - before,
+        ceil_bps(100_000_000, 72)
+    );
+    let c = config(&f).await;
+    assert_eq!(
+        u64::from(c.count),
+        1,
+        "a real-sized transfer is the first global reference"
+    );
 }
 
 #[tokio::test]
