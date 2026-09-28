@@ -14,7 +14,8 @@ use {
                 instruction::{
                     InitializeInstructionData, SetInstructionData, SlotReferenceFeeInstruction,
                 },
-                sink_owner, SlotReferenceFeeAmount, SlotReferenceFeeConfig, MAX_FEE_BASIS_POINTS,
+                stake_program_id, SlotReferenceFeeAmount, SlotReferenceFeeConfig, StakeMeta,
+                MAX_FEE_BASIS_POINTS,
             },
             BaseStateWithExtensions, BaseStateWithExtensionsMut, PodStateWithExtensions,
             PodStateWithExtensionsMut,
@@ -31,18 +32,53 @@ fn check_schedule(floor: u16, cap: u16) -> ProgramResult {
     Ok(())
 }
 
+/// A fee destination has to be a stake account, owned by the stake program, initialized,
+/// carrying the withdraw authority the initializer named and a lockup at least as long as
+/// the initializer asked for. Fees become stake that the named party controls, never a
+/// wallet balance.
+fn check_stake_destination(
+    destination_info: &AccountInfo,
+    expected_key: &Address,
+    withdrawer: &Address,
+    min_lockup_epoch: u64,
+) -> ProgramResult {
+    if destination_info.key != expected_key {
+        return Err(TokenError::SlotReferenceFeeDestinationMismatch.into());
+    }
+    if *destination_info.owner != stake_program_id() {
+        return Err(TokenError::SlotReferenceFeeDestinationNotStake.into());
+    }
+    let data = destination_info.try_borrow_data()?;
+    let meta = StakeMeta::parse(&data).ok_or(TokenError::SlotReferenceFeeDestinationNotStake)?;
+    if meta.withdrawer != *withdrawer || meta.lockup_epoch < min_lockup_epoch {
+        return Err(TokenError::SlotReferenceFeeDestinationNotStake.into());
+    }
+    Ok(())
+}
+
 fn process_initialize(accounts: &[AccountInfo], data: &InitializeInstructionData) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_account_info = next_account_info(account_info_iter)?;
+    let destination_info = next_account_info(account_info_iter)?;
     check_program_account(mint_account_info.owner)?;
 
     check_schedule(
         u16::from(data.floor_basis_points),
         u16::from(data.cap_basis_points),
     )?;
-    if u16::from(data.sink_share_basis_points) > MAX_FEE_BASIS_POINTS {
-        return Err(TokenError::SlotReferenceFeeExceedsMaximum.into());
+    check_schedule(
+        u16::from(data.slow_floor_basis_points),
+        u16::from(data.slow_cap_basis_points),
+    )?;
+    if data.settler == Address::default() {
+        return Err(TokenError::SlotReferenceFeeInvalidSink.into());
     }
+    check_stake_destination(
+        destination_info,
+        &data.fee_destination,
+        &data.stake_withdrawer,
+        u64::from(data.stake_lockup_epoch),
+    )?;
 
     let mut mint_data = mint_account_info.data.borrow_mut();
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
@@ -52,7 +88,13 @@ fn process_initialize(accounts: &[AccountInfo], data: &InitializeInstructionData
     extension.floor_basis_points = data.floor_basis_points;
     extension.cap_basis_points = data.cap_basis_points;
     extension.free_references = data.free_references;
-    extension.sink_share_basis_points = data.sink_share_basis_points;
+    extension.slow_floor_basis_points = data.slow_floor_basis_points;
+    extension.slow_cap_basis_points = data.slow_cap_basis_points;
+    extension.slow_free_references = data.slow_free_references;
+    extension.slow_window_slots = data.slow_window_slots;
+    extension.settler = data.settler;
+    extension.stake_withdrawer = data.stake_withdrawer;
+    extension.stake_lockup_epoch = data.stake_lockup_epoch;
     extension.slot = 0u64.into();
     extension.count = 0u64.into();
     extension.withheld_amount = 0u64.into();
@@ -66,6 +108,7 @@ fn process_set(
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_account_info = next_account_info(account_info_iter)?;
+    let destination_info = next_account_info(account_info_iter)?;
     let authority_info = next_account_info(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
     check_program_account(mint_account_info.owner)?;
@@ -73,6 +116,10 @@ fn process_set(
     check_schedule(
         u16::from(data.floor_basis_points),
         u16::from(data.cap_basis_points),
+    )?;
+    check_schedule(
+        u16::from(data.slow_floor_basis_points),
+        u16::from(data.slow_cap_basis_points),
     )?;
 
     let mut mint_data = mint_account_info.data.borrow_mut();
@@ -87,11 +134,23 @@ fn process_set(
         authority_info_data_len,
         account_info_iter.as_slice(),
     )?;
+    // the authority may move the destination, but only to another stake account with the
+    // same withdrawer and at least the lockup the initializer set
+    check_stake_destination(
+        destination_info,
+        &data.fee_destination,
+        &extension.stake_withdrawer,
+        u64::from(extension.stake_lockup_epoch),
+    )?;
 
     extension.fee_destination = data.fee_destination;
     extension.floor_basis_points = data.floor_basis_points;
     extension.cap_basis_points = data.cap_basis_points;
     extension.free_references = data.free_references;
+    extension.slow_floor_basis_points = data.slow_floor_basis_points;
+    extension.slow_cap_basis_points = data.slow_cap_basis_points;
+    extension.slow_free_references = data.slow_free_references;
+    extension.slow_window_slots = data.slow_window_slots;
     Ok(())
 }
 
@@ -171,40 +230,25 @@ fn credit(
 fn process_withdraw_withheld_tokens_from_mint(accounts: &[AccountInfo]) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let mint_account_info = next_account_info(account_info_iter)?;
-    let sink_account_info = next_account_info(account_info_iter)?;
-    let destination_account_info = next_account_info(account_info_iter)?;
+    let settler_account_info = next_account_info(account_info_iter)?;
     check_program_account(mint_account_info.owner)?;
 
-    let (sink_share, destination_share, fee_destination) = {
+    let (withheld, settler) = {
         let mut mint_data = mint_account_info.data.borrow_mut();
         let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
         let extension = mint.get_extension_mut::<SlotReferenceFeeConfig>()?;
         let withheld = u64::from(extension.withheld_amount);
-        let (sink_share, destination_share) =
-            extension.split(withheld).ok_or(TokenError::Overflow)?;
         extension.withheld_amount = 0.into();
-        (sink_share, destination_share, extension.fee_destination)
+        (withheld, extension.settler)
     };
 
-    if *destination_account_info.key != fee_destination {
-        return Err(TokenError::SlotReferenceFeeDestinationMismatch.into());
-    }
-    if sink_account_info.key == destination_account_info.key {
-        return Err(TokenError::SlotReferenceFeeInvalidSink.into());
-    }
-
-    let sink_owner_key = sink_owner();
+    // only the settler's own token account may receive; it sells for SOL, burns half
+    // and stakes half into `fee_destination`
     credit(
         mint_account_info.key,
-        sink_account_info,
-        sink_share,
-        Some(&sink_owner_key),
-    )?;
-    credit(
-        mint_account_info.key,
-        destination_account_info,
-        destination_share,
-        None,
+        settler_account_info,
+        withheld,
+        Some(&settler),
     )?;
     Ok(())
 }
@@ -214,6 +258,7 @@ fn process_withdraw_withheld_tokens_from_mint(accounts: &[AccountInfo]) -> Progr
 /// tokens, on `pre_fee_amount`. The mint must be writable.
 pub(crate) fn reference_and_fee(
     mint_info: &AccountInfo,
+    source_account: &mut PodStateWithExtensionsMut<PodAccount>,
     pre_fee_amount: u64,
 ) -> Result<u64, ProgramError> {
     {
@@ -226,12 +271,21 @@ pub(crate) fn reference_and_fee(
     if !mint_info.is_writable {
         return Err(TokenError::SlotReferenceFeeMintNotWritable.into());
     }
+    let slot = Clock::get()?.slot;
     let mut mint_data = mint_info.try_borrow_mut_data()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;
     let extension = mint.get_extension_mut::<SlotReferenceFeeConfig>()?;
-    let n = extension.reference(Clock::get()?.slot);
+    // fast ratchet: the mint's n-th reference this slot, whoever made it
+    let n = extension.reference(slot);
+    // slow ratchet: this account's m-th reference in the current window
+    let window = u64::from(extension.slow_window_slots);
+    let m = source_account
+        .get_extension_mut::<SlotReferenceFeeAmount>()
+        .map_err(|_| TokenError::InvalidState)?
+        .reference(slot, window);
+    let bps = extension.combined_fee_basis_points(n, m);
     extension
-        .calculate_fee(pre_fee_amount, n)
+        .calculate_fee_at(pre_fee_amount, bps)
         .ok_or_else(|| TokenError::Overflow.into())
 }
 

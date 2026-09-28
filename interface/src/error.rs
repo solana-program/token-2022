@@ -285,6 +285,9 @@ pub enum TokenError {
     /// The fee destination does not match the mint's configured destination
     #[error("Fee destination does not match the mint's slot reference fee destination")]
     SlotReferenceFeeDestinationMismatch,
+    /// Slot reference fee destination is not a stake account
+    #[error("Slot reference fee destination must be owned by the stake program")]
+    SlotReferenceFeeDestinationNotStake,
 }
 impl From<TokenError> for ProgramError {
     fn from(e: TokenError) -> Self {
@@ -496,6 +499,9 @@ impl ToStr for TokenError {
             }
             TokenError::SlotReferenceFeeDestinationMismatch => {
                 "Fee destination does not match the mint's slot reference fee destination"
+            }
+            TokenError::SlotReferenceFeeDestinationNotStake => {
+                "Slot reference fee destination must be a stake account with the required withdraw authority and lockup"
             }
         }
     }

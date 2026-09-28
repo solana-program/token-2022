@@ -5,5 +5,5 @@ pub mod instruction;
 pub mod processor;
 
 pub use spl_token_2022_interface::extension::slot_reference_fee::{
-    sink_owner, SlotReferenceFeeAmount, SlotReferenceFeeConfig, MAX_FEE_BASIS_POINTS,
+    SlotReferenceFeeAmount, SlotReferenceFeeConfig, MAX_FEE_BASIS_POINTS,
 };

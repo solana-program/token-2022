@@ -12,7 +12,7 @@ use {
     solana_instruction::{AccountMeta, Instruction},
     solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
-    solana_zero_copy::unaligned::U16,
+    solana_zero_copy::unaligned::{U16, U64},
 };
 
 /// Slot reference fee extension instructions
@@ -29,6 +29,7 @@ pub enum SlotReferenceFeeInstruction {
     /// Accounts expected by this instruction:
     ///
     ///   0. `[writable]` The mint to initialize.
+    ///   1. `[]` The fee destination: an account owned by the stake program.
     ///
     /// Data expected by this instruction:
     ///   `crate::extension::slot_reference_fee::instruction::InitializeInstructionData`
@@ -40,12 +41,14 @@ pub enum SlotReferenceFeeInstruction {
     ///
     ///   * Single authority
     ///   0. `[writable]` The mint.
-    ///   1. `[signer]` The mint's slot reference fee authority.
+    ///   1. `[]` The new fee destination: an account owned by the stake program.
+    ///   2. `[signer]` The mint's slot reference fee authority.
     ///
     ///   * Multisignature authority
     ///   0. `[writable]` The mint.
-    ///   1. `[]` The mint's multisignature authority.
-    ///   2. `..2+M` `[signer]` M signer accounts.
+    ///   1. `[]` The new fee destination: an account owned by the stake program.
+    ///   2. `[]` The mint's multisignature authority.
+    ///   3. `..3+M` `[signer]` M signer accounts.
     ///
     /// Data expected by this instruction:
     ///   `crate::extension::slot_reference_fee::instruction::SetInstructionData`
@@ -59,20 +62,17 @@ pub enum SlotReferenceFeeInstruction {
     ///   0. `[writable]` The mint.
     ///   1. `..1+N` `[writable]` The token accounts to harvest from.
     HarvestWithheldTokensToMint,
-    /// Permissionless instruction to distribute the fees harvested to the mint:
-    /// `sink_share_basis_points` of them to the sink token account, the rest to
-    /// the mint's `fee_destination`.
-    ///
-    /// The sink token account must be a token account of this mint owned by the
-    /// incinerator address (`slot_reference_fee::sink_owner()`), which nobody can
-    /// sign for. The program never moves tokens out of it.
+    /// Permissionless instruction to move the fees harvested to the mint to the
+    /// settler's token account. The settler (a program of the issuer's choosing,
+    /// fixed at initialization) sells them for SOL, burns half of it and puts the
+    /// other half into the mint's `fee_destination`, a stake account. The token
+    /// program never pays anything to a wallet.
     ///
     /// Accounts expected by this instruction:
     ///
     ///   0. `[writable]` The mint.
-    ///   1. `[writable]` The sink token account.
-    ///   2. `[writable]` The fee destination token account, equal to the mint's
-    ///      configured `fee_destination`.
+    ///   1. `[writable]` A token account of this mint owned by the configured
+    ///      `settler`.
     WithdrawWithheldTokensFromMint,
 }
 
@@ -84,16 +84,28 @@ pub enum SlotReferenceFeeInstruction {
 pub struct InitializeInstructionData {
     /// Optional authority that may update the schedule and destination
     pub authority: MaybeNull<Address>,
-    /// Token account of the mint that receives the non-sink share
+    /// Stake account that the staked half of every settlement goes into
     pub fee_destination: Address,
-    /// Fee for the n-th reference in a slot is `floor * n * n` basis points
+    /// Fast ratchet: fee for the n-th reference in a slot is `floor * n * n` basis points
     pub floor_basis_points: U16,
-    /// Hard cap in basis points
+    /// Fast ratchet cap in basis points
     pub cap_basis_points: U16,
-    /// References per slot with no fee
+    /// Fast ratchet: references per slot with no fee
     pub free_references: U16,
-    /// Share of withdrawals that goes to the sink, in basis points
-    pub sink_share_basis_points: U16,
+    /// Slow ratchet: fee for an account's m-th reference in a window is `slow_floor * m * m`
+    pub slow_floor_basis_points: U16,
+    /// Slow ratchet cap in basis points
+    pub slow_cap_basis_points: U16,
+    /// Slow ratchet: references per window per account with no fee
+    pub slow_free_references: U16,
+    /// Slow ratchet window, in slots
+    pub slow_window_slots: U64,
+    /// Authority of the token account that withdrawals of withheld fees go to
+    pub settler: Address,
+    /// Withdraw authority the fee destination must carry
+    pub stake_withdrawer: Address,
+    /// Earliest lockup epoch the fee destination may carry
+    pub stake_lockup_epoch: U64,
 }
 
 /// Data expected by `SlotReferenceFeeInstruction::Set`
@@ -102,14 +114,22 @@ pub struct InitializeInstructionData {
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct SetInstructionData {
-    /// New fee destination
+    /// New fee destination, a stake account
     pub fee_destination: Address,
-    /// New floor, in basis points
+    /// New fast floor, in basis points
     pub floor_basis_points: U16,
-    /// New cap, in basis points
+    /// New fast cap, in basis points
     pub cap_basis_points: U16,
     /// New number of free references per slot
     pub free_references: U16,
+    /// New slow floor, in basis points
+    pub slow_floor_basis_points: U16,
+    /// New slow cap, in basis points
+    pub slow_cap_basis_points: U16,
+    /// New number of free references per window per account
+    pub slow_free_references: U16,
+    /// New slow window, in slots
+    pub slow_window_slots: U64,
 }
 
 /// Create an `Initialize` instruction
@@ -119,13 +139,22 @@ pub fn initialize(
     mint: &Address,
     authority: Option<&Address>,
     fee_destination: &Address,
+    settler: &Address,
     floor_basis_points: u16,
     cap_basis_points: u16,
     free_references: u16,
-    sink_share_basis_points: u16,
+    slow_floor_basis_points: u16,
+    slow_cap_basis_points: u16,
+    slow_free_references: u16,
+    slow_window_slots: u64,
+    stake_withdrawer: &Address,
+    stake_lockup_epoch: u64,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
-    let accounts = vec![AccountMeta::new(*mint, false)];
+    let accounts = vec![
+        AccountMeta::new(*mint, false),
+        AccountMeta::new_readonly(*fee_destination, false),
+    ];
     Ok(encode_instruction(
         token_program_id,
         accounts,
@@ -140,12 +169,19 @@ pub fn initialize(
             floor_basis_points: floor_basis_points.into(),
             cap_basis_points: cap_basis_points.into(),
             free_references: free_references.into(),
-            sink_share_basis_points: sink_share_basis_points.into(),
+            slow_floor_basis_points: slow_floor_basis_points.into(),
+            slow_cap_basis_points: slow_cap_basis_points.into(),
+            slow_free_references: slow_free_references.into(),
+            slow_window_slots: slow_window_slots.into(),
+            settler: *settler,
+            stake_withdrawer: *stake_withdrawer,
+            stake_lockup_epoch: stake_lockup_epoch.into(),
         },
     ))
 }
 
 /// Create a `Set` instruction
+#[allow(clippy::too_many_arguments)]
 pub fn set(
     token_program_id: &Address,
     mint: &Address,
@@ -155,10 +191,15 @@ pub fn set(
     floor_basis_points: u16,
     cap_basis_points: u16,
     free_references: u16,
+    slow_floor_basis_points: u16,
+    slow_cap_basis_points: u16,
+    slow_free_references: u16,
+    slow_window_slots: u64,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![
         AccountMeta::new(*mint, false),
+        AccountMeta::new_readonly(*fee_destination, false),
         AccountMeta::new_readonly(*authority, signers.is_empty()),
     ];
     for signer_pubkey in signers.iter() {
@@ -174,6 +215,10 @@ pub fn set(
             floor_basis_points: floor_basis_points.into(),
             cap_basis_points: cap_basis_points.into(),
             free_references: free_references.into(),
+            slow_floor_basis_points: slow_floor_basis_points.into(),
+            slow_cap_basis_points: slow_cap_basis_points.into(),
+            slow_free_references: slow_free_references.into(),
+            slow_window_slots: slow_window_slots.into(),
         },
     ))
 }
@@ -202,14 +247,12 @@ pub fn harvest_withheld_tokens_to_mint(
 pub fn withdraw_withheld_tokens_from_mint(
     token_program_id: &Address,
     mint: &Address,
-    sink: &Address,
-    fee_destination: &Address,
+    settler_token_account: &Address,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let accounts = vec![
         AccountMeta::new(*mint, false),
-        AccountMeta::new(*sink, false),
-        AccountMeta::new(*fee_destination, false),
+        AccountMeta::new(*settler_token_account, false),
     ];
     Ok(encode_instruction(
         token_program_id,

@@ -531,6 +531,7 @@ impl Processor {
         let slot_reference_fee = if let Some((mint_info, _)) = expected_mint_info {
             slot_reference_fee::processor::reference_and_fee(
                 mint_info,
+                &mut source_account,
                 amount
                     .checked_sub(calculated_fee)
                     .ok_or(TokenError::Overflow)?,
