@@ -362,7 +362,7 @@ mod test {
 
     #[test]
     fn stake_meta_parses_the_bincode_layout() {
-        let mut data = vec![0u8; 200];
+        let mut data = [0u8; 200];
         data[0..4].copy_from_slice(&1u32.to_le_bytes());
         let withdrawer = Address::new_unique();
         data[44..76].copy_from_slice(withdrawer.as_ref());
