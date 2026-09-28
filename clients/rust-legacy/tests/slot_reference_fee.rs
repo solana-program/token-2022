@@ -427,8 +427,9 @@ async fn slow_ratchet_follows_the_account_across_slots() {
 async fn dust_cannot_raise_the_slot_count() {
     let f = setup().await;
     // a griefer sprays dust: none of it moves the mint's counter...
-    for _ in 0..5 {
-        transfer(&f, MIN_REF - 1).await.unwrap();
+    // distinct amounts so the five are five transactions, not one deduplicated one
+    for i in 1..=5u64 {
+        transfer(&f, MIN_REF - i).await.unwrap();
     }
     let c = config(&f).await;
     assert_eq!(u64::from(c.count), 0);
