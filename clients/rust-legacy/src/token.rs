@@ -2588,7 +2588,7 @@ where
 
         let first_ixs = create_record_instructions(true, first_chunk, 0);
         let first_ixs_signers: [&dyn Signer; 2] = [record_account_signer, record_authority_signer];
-        self.process_ixs(&first_ixs, &first_ixs_signers).await?;
+        let first_response = self.process_ixs(&first_ixs, &first_ixs_signers).await?;
 
         let subsequent_chunk_size =
             calculate_record_max_chunk_size(create_record_instructions, false);
@@ -2608,7 +2608,14 @@ where
             .map(|ixs| async move { self.process_ixs(&ixs, &[record_authority_signer]).await })
             .collect::<Vec<_>>();
 
-        join_all(futures).await.into_iter().collect()
+        let mut responses = vec![first_response];
+        responses.extend(
+            join_all(futures)
+                .await
+                .into_iter()
+                .collect::<TokenResult<Vec<_>>>()?,
+        );
+        Ok(responses)
     }
 
     /// Close a record account.

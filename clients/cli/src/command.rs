@@ -71,6 +71,7 @@ use {
         client::{ProgramRpcClientSendTransaction, RpcClientResponse},
         token::{
             ComputeUnitLimit, ExtensionInitializationParams, ProofAccountWithCiphertext, Token,
+            TokenError,
         },
         zk_proofs::{
             confidential_mint_burn::{BurnAccountInfo, SupplyAccountInfo},
@@ -1644,34 +1645,40 @@ async fn command_transfer(
     };
 
     // ...and, finally, the transfer
-    let res = match (fundable_owner, maybe_fee, confidential_transfer_args) {
+    let tx_responses = match (fundable_owner, maybe_fee, confidential_transfer_args) {
         (Some(recipient_owner), None, None) => {
-            token
-                .create_recipient_associated_account_and_transfer(
-                    &sender,
-                    &recipient_token_account,
-                    &recipient_owner,
-                    &sender_owner,
-                    transfer_balance,
-                    maybe_fee,
-                    &bulk_signers,
-                )
-                .await?
+            vec![(
+                "transfer".to_string(),
+                token
+                    .create_recipient_associated_account_and_transfer(
+                        &sender,
+                        &recipient_token_account,
+                        &recipient_owner,
+                        &sender_owner,
+                        transfer_balance,
+                        maybe_fee,
+                        &bulk_signers,
+                    )
+                    .await?,
+            )]
         }
         (Some(_), _, _) => {
             panic!("Recipient account cannot be created for transfer with fees or confidential transfers");
         }
         (None, Some(fee), None) => {
-            token
-                .transfer_with_fee(
-                    &sender,
-                    &recipient_token_account,
-                    &sender_owner,
-                    transfer_balance,
-                    fee,
-                    &bulk_signers,
-                )
-                .await?
+            vec![(
+                "transfer".to_string(),
+                token
+                    .transfer_with_fee(
+                        &sender,
+                        &recipient_token_account,
+                        &sender_owner,
+                        transfer_balance,
+                        fee,
+                        &bulk_signers,
+                    )
+                    .await?,
+            )]
         }
         (None, None, Some(args)) => {
             // deserialize `pod` ElGamal pubkeys
@@ -1730,7 +1737,11 @@ async fn command_transfer(
             let range_proof_record_account = Keypair::new();
             let range_proof_record_pubkey = range_proof_record_account.pubkey();
 
-            let _ = try_join!(
+            let (
+                equality_proof_response,
+                ciphertext_validity_proof_response,
+                range_proof_responses,
+            ) = try_join!(
                 token.confidential_transfer_create_context_state_account(
                     &equality_proof_pubkey,
                     &context_state_authority_pubkey,
@@ -1745,7 +1756,7 @@ async fn command_transfer(
                 ),
                 // Range proof too large, so we must explicitly send them in chunks
                 async {
-                    token
+                    let record_responses = token
                         .confidential_transfer_create_record_account(
                             &range_proof_record_pubkey,
                             &context_state_authority_pubkey,
@@ -1755,7 +1766,7 @@ async fn command_transfer(
                         )
                         .await?;
 
-                    token.confidential_transfer_create_context_state_account_from_record::<
+                    let context_response = token.confidential_transfer_create_context_state_account_from_record::<
                         _,
                         BatchedRangeProofU128Data,
                         BatchedRangeProofContext,
@@ -1765,9 +1776,27 @@ async fn command_transfer(
                         &range_proof_record_pubkey,
                         create_range_proof_context_signer,
                     )
-                    .await
+                    .await?;
+
+                    Ok::<_, TokenError>((record_responses, context_response))
                 }
             )?;
+            let mut tx_responses = vec![
+                labeled_tx_response("create equality proof context", equality_proof_response),
+                labeled_tx_response(
+                    "create ciphertext validity proof context",
+                    ciphertext_validity_proof_response,
+                ),
+            ];
+            push_labeled_tx_responses(
+                &mut tx_responses,
+                "create range proof record",
+                range_proof_responses.0,
+            );
+            tx_responses.push(labeled_tx_response(
+                "create range proof context",
+                range_proof_responses.1,
+            ));
 
             // do the transfer
             let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
@@ -1793,10 +1822,19 @@ async fn command_transfer(
                     &bulk_signers,
                 )
                 .await?;
+            tx_responses.push(labeled_tx_response(
+                "confidential transfer",
+                transfer_result,
+            ));
 
             // close context state accounts
             let close_context_state_signer = &[&context_state_authority];
-            let _ = try_join!(
+            let (
+                close_equality_proof_response,
+                close_ciphertext_validity_proof_response,
+                close_range_proof_response,
+                close_range_proof_record_response,
+            ) = try_join!(
                 token.confidential_transfer_close_context_state_account(
                     &equality_proof_pubkey,
                     &sender,
@@ -1822,8 +1860,23 @@ async fn command_transfer(
                     close_context_state_signer
                 )
             )?;
+            tx_responses.extend([
+                labeled_tx_response(
+                    "close equality proof context",
+                    close_equality_proof_response,
+                ),
+                labeled_tx_response(
+                    "close ciphertext validity proof context",
+                    close_ciphertext_validity_proof_response,
+                ),
+                labeled_tx_response("close range proof context", close_range_proof_response),
+                labeled_tx_response(
+                    "close range proof record",
+                    close_range_proof_record_response,
+                ),
+            ]);
 
-            transfer_result
+            tx_responses
         }
         (None, Some(_), Some(args)) => {
             let recipient_elgamal_pubkey: elgamal::ElGamalPubkey = recipient_elgamal_pubkey
@@ -1925,7 +1978,13 @@ async fn command_transfer(
             let range_proof_record_account = Keypair::new();
             let range_proof_record_pubkey = range_proof_record_account.pubkey();
 
-            let _ = try_join!(
+            let (
+                equality_proof_response,
+                ciphertext_validity_proof_response,
+                percentage_with_cap_proof_response,
+                fee_ciphertext_validity_proof_response,
+                range_proof_responses,
+            ) = try_join!(
                 token.confidential_transfer_create_context_state_account(
                     &equality_proof_pubkey,
                     &context_state_authority_pubkey,
@@ -1952,7 +2011,7 @@ async fn command_transfer(
                 ),
                 // Range proof too large, so we must explicitly send them in chunks
                 async {
-                    token
+                    let record_responses = token
                         .confidential_transfer_create_record_account(
                             &range_proof_record_pubkey,
                             &context_state_authority_pubkey,
@@ -1962,7 +2021,7 @@ async fn command_transfer(
                         )
                         .await?;
 
-                    token.confidential_transfer_create_context_state_account_from_record::<
+                    let context_response = token.confidential_transfer_create_context_state_account_from_record::<
                         _,
                         BatchedRangeProofU256Data,
                         BatchedRangeProofContext,
@@ -1972,9 +2031,35 @@ async fn command_transfer(
                         &range_proof_record_pubkey,
                         create_range_proof_context_signer,
                     )
-                    .await
+                    .await?;
+
+                    Ok::<_, TokenError>((record_responses, context_response))
                 }
             )?;
+            let mut tx_responses = vec![
+                labeled_tx_response("create equality proof context", equality_proof_response),
+                labeled_tx_response(
+                    "create ciphertext validity proof context",
+                    ciphertext_validity_proof_response,
+                ),
+                labeled_tx_response(
+                    "create percentage with cap proof context",
+                    percentage_with_cap_proof_response,
+                ),
+                labeled_tx_response(
+                    "create fee ciphertext validity proof context",
+                    fee_ciphertext_validity_proof_response,
+                ),
+            ];
+            push_labeled_tx_responses(
+                &mut tx_responses,
+                "create range proof record",
+                range_proof_responses.0,
+            );
+            tx_responses.push(labeled_tx_response(
+                "create range proof context",
+                range_proof_responses.1,
+            ));
 
             // Execute the actual transfer
             let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
@@ -2005,10 +2090,21 @@ async fn command_transfer(
                     &bulk_signers,
                 )
                 .await?;
+            tx_responses.push(labeled_tx_response(
+                "confidential transfer with fee",
+                transfer_result,
+            ));
 
             // Cleanup the context state accounts to recover SOL
             let close_context_state_signer = &[&context_state_authority];
-            let _ = try_join!(
+            let (
+                close_equality_proof_response,
+                close_ciphertext_validity_proof_response,
+                close_percentage_with_cap_proof_response,
+                close_fee_ciphertext_validity_proof_response,
+                close_range_proof_response,
+                close_range_proof_record_response,
+            ) = try_join!(
                 token.confidential_transfer_close_context_state_account(
                     &equality_proof_pubkey,
                     &sender,
@@ -2046,31 +2142,49 @@ async fn command_transfer(
                     close_context_state_signer
                 ),
             )?;
+            tx_responses.extend([
+                labeled_tx_response(
+                    "close equality proof context",
+                    close_equality_proof_response,
+                ),
+                labeled_tx_response(
+                    "close ciphertext validity proof context",
+                    close_ciphertext_validity_proof_response,
+                ),
+                labeled_tx_response(
+                    "close percentage with cap proof context",
+                    close_percentage_with_cap_proof_response,
+                ),
+                labeled_tx_response(
+                    "close fee ciphertext validity proof context",
+                    close_fee_ciphertext_validity_proof_response,
+                ),
+                labeled_tx_response("close range proof context", close_range_proof_response),
+                labeled_tx_response(
+                    "close range proof record",
+                    close_range_proof_record_response,
+                ),
+            ]);
 
-            transfer_result
+            tx_responses
         }
         (None, None, None) => {
-            token
-                .transfer(
-                    &sender,
-                    &recipient_token_account,
-                    &sender_owner,
-                    transfer_balance,
-                    &bulk_signers,
-                )
-                .await?
+            vec![(
+                "transfer".to_string(),
+                token
+                    .transfer(
+                        &sender,
+                        &recipient_token_account,
+                        &sender_owner,
+                        transfer_balance,
+                        &bulk_signers,
+                    )
+                    .await?,
+            )]
         }
     };
 
-    let tx_return = finish_tx(config, &res, no_wait).await?;
-    Ok(match tx_return {
-        TransactionReturnData::CliSignature(signature) => {
-            config.output_format.formatted_string(&signature)
-        }
-        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
-            config.output_format.formatted_string(&sign_only_data)
-        }
-    })
+    finish_labeled_txs(config, tx_responses, no_wait).await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3920,6 +4034,8 @@ async fn command_configure_confidential_transfer_account(
     let state_with_extension = StateWithExtensionsOwned::<Account>::unpack(account.data)?;
     let token = token_client_from_config(config, &state_with_extension.base.mint, None)?;
 
+    let mut tx_responses = Vec::new();
+
     // Reallocation (if needed)
     let mut existing_extensions: Vec<ExtensionType> = state_with_extension.get_extension_types()?;
     if !existing_extensions.contains(&ExtensionType::ConfidentialTransferAccount) {
@@ -3931,7 +4047,7 @@ async fn command_configure_confidential_transfer_account(
         let needed_account_len =
             ExtensionType::try_calculate_account_len::<Account>(&existing_extensions)?;
         if needed_account_len > current_account_len {
-            token
+            let response = token
                 .reallocate(
                     &token_account_address,
                     &owner,
@@ -3939,6 +4055,7 @@ async fn command_configure_confidential_transfer_account(
                     &bulk_signers,
                 )
                 .await?;
+            tx_responses.push(labeled_tx_response("reallocate account", response));
         }
     }
 
@@ -3953,16 +4070,12 @@ async fn command_configure_confidential_transfer_account(
             &bulk_signers,
         )
         .await?;
+    tx_responses.push(labeled_tx_response(
+        "configure confidential transfer account",
+        res,
+    ));
 
-    let tx_return = finish_tx(config, &res, false).await?;
-    Ok(match tx_return {
-        TransactionReturnData::CliSignature(signature) => {
-            config.output_format.formatted_string(&signature)
-        }
-        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
-            config.output_format.formatted_string(&sign_only_data)
-        }
-    })
+    finish_labeled_txs(config, tx_responses, false).await
 }
 
 async fn command_approve_confidential_transfer_account(
@@ -5958,6 +6071,76 @@ where
 enum TransactionReturnData {
     CliSignature(CliSignature),
     CliSignOnlyData(CliSignOnlyData),
+}
+
+type LabeledTransactionResponses = Vec<(String, RpcClientResponse)>;
+
+fn labeled_tx_response(
+    transaction: impl Into<String>,
+    response: RpcClientResponse,
+) -> (String, RpcClientResponse) {
+    (transaction.into(), response)
+}
+
+fn push_labeled_tx_responses(
+    tx_responses: &mut LabeledTransactionResponses,
+    transaction: &str,
+    responses: Vec<RpcClientResponse>,
+) {
+    let has_multiple_responses = responses.len() > 1;
+    for (index, response) in responses.into_iter().enumerate() {
+        let transaction = if has_multiple_responses {
+            format!("{transaction} {}", index + 1)
+        } else {
+            transaction.to_string()
+        };
+        tx_responses.push(labeled_tx_response(transaction, response));
+    }
+}
+
+fn format_transaction_return(
+    config: &Config<'_>,
+    tx_return: TransactionReturnData,
+) -> CommandResult {
+    Ok(match tx_return {
+        TransactionReturnData::CliSignature(signature) => {
+            config.output_format.formatted_string(&signature)
+        }
+        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
+            config.output_format.formatted_string(&sign_only_data)
+        }
+    })
+}
+
+async fn finish_labeled_txs(
+    config: &Config<'_>,
+    mut tx_responses: LabeledTransactionResponses,
+    no_wait: bool,
+) -> CommandResult {
+    if tx_responses.len() == 1 {
+        let (_, response) = tx_responses.pop().expect("transaction response");
+        let tx_return = finish_tx(config, &response, no_wait).await?;
+        return format_transaction_return(config, tx_return);
+    }
+
+    let mut signatures = Vec::with_capacity(tx_responses.len());
+    for (transaction, response) in tx_responses {
+        match finish_tx(config, &response, no_wait).await? {
+            TransactionReturnData::CliSignature(signature) => {
+                signatures.push(CliTransactionSignature {
+                    transaction,
+                    signature: signature.signature,
+                });
+            }
+            TransactionReturnData::CliSignOnlyData(_) => {
+                return Err("Multiple transaction sign-only output is not supported".into());
+            }
+        }
+    }
+
+    Ok(config
+        .output_format
+        .formatted_string(&CliSignatureList { signatures }))
 }
 
 async fn finish_tx(

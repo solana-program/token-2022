@@ -115,6 +115,37 @@ where
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct CliTransactionSignature {
+    pub(crate) transaction: String,
+    pub(crate) signature: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CliSignatureList {
+    pub(crate) signatures: Vec<CliTransactionSignature>,
+}
+
+impl QuietDisplay for CliSignatureList {}
+impl VerboseDisplay for CliSignatureList {}
+
+impl fmt::Display for CliSignatureList {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f)?;
+        writeln!(f, "Signatures:")?;
+        for signature in &self.signatures {
+            writeln_name_value(
+                f,
+                &format!("  {}:", signature.transaction),
+                &signature.signature,
+            )?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct CliTokenAmount {
     #[serde(flatten)]
     pub(crate) amount: UiTokenAmount,
