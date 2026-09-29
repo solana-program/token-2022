@@ -2506,6 +2506,7 @@ pub fn app<'a>(
                 .arg(
                     Arg::with_name("confidential_transfer_fee_authority")
                         .long("confidential-transfer-fee-authority")
+                        .alias("owner")
                         .validator(|s| is_valid_signer(s))
                         .value_name("SIGNER")
                         .takes_value(true)
@@ -2530,6 +2531,7 @@ pub fn app<'a>(
                 .arg(
                     Arg::with_name("confidential_transfer_fee_authority")
                         .long("confidential-transfer-fee-authority")
+                        .alias("owner")
                         .validator(|s| is_valid_signer(s))
                         .value_name("SIGNER")
                         .takes_value(true)

@@ -3999,7 +3999,7 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
         .unwrap();
     }
 
-    // Neither the wrong withdrawal authority nor the wrong recipient key can withdraw.
+    // Neither the wrong withdrawal authority nor the wrong recipient owner can withdraw.
     let invalid_args = [
         "spl-token",
         CommandName::WithdrawWithheldTokens.into(),
@@ -4014,7 +4014,13 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
     let error = process_test_command(&config, payer, &invalid_args)
         .await
         .unwrap_err();
-    assert!(error.to_string().contains("recipient's available balance"));
+    let owner_error = format!(
+        "Destination token account {} is owned by {}, but provided owner is {}",
+        recipient,
+        recipient_owner.pubkey(),
+        payer.pubkey(),
+    );
+    assert_eq!(error.to_string(), owner_error);
 
     let withdraw_args = vec![
         "spl-token",
@@ -4048,6 +4054,46 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
         .confidential_transfer_harvest_withheld_tokens_to_mint(&[&sources.pop().unwrap()])
         .await
         .unwrap();
+
+    // A positional mint must be rejected before any mint or account fees move.
+    let mint_address = mint.to_string();
+    let source_address = sources[0].to_string();
+    let mut mint_source_args = withdraw_args.clone();
+    mint_source_args.push(&mint_address);
+    let mint_source_error = format!(
+        "Mint {} cannot be a source token account. Use --include-mint instead.",
+        mint,
+    );
+    let withheld_amount = token
+        .get_mint_info()
+        .await
+        .unwrap()
+        .get_extension::<ConfidentialTransferFeeConfig>()
+        .unwrap()
+        .withheld_amount;
+    for extra_args in [
+        vec![],
+        vec!["--include-mint"],
+        vec![source_address.as_str()],
+        vec![source_address.as_str(), "--include-mint"],
+    ] {
+        let mut args = mint_source_args.clone();
+        args.extend(extra_args);
+        let error = exec_test_cmd(&config, &args).await.unwrap_err();
+        assert_eq!(error.to_string(), mint_source_error);
+        check_confidential_available_balance(&config, recipient, &recipient_owner, 8).await;
+        assert_eq!(
+            token
+                .get_mint_info()
+                .await
+                .unwrap()
+                .get_extension::<ConfidentialTransferFeeConfig>()
+                .unwrap()
+                .withheld_amount,
+            withheld_amount,
+        );
+    }
+
     let mut mint_args = withdraw_args.clone();
     mint_args.push("--include-mint");
     exec_test_cmd(&config, &mint_args).await.unwrap();
@@ -4092,6 +4138,16 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
         .await
         .unwrap()
         .is_empty());
+
+    // A positional mint is also invalid when no fees remain.
+    let error = exec_test_cmd(&config, &mint_source_args).await.unwrap_err();
+    assert_eq!(error.to_string(), mint_source_error);
+
+    // The recipient owner is checked even when there are no fees to withdraw.
+    let error = process_test_command(&config, payer, &invalid_args)
+        .await
+        .unwrap_err();
+    assert_eq!(error.to_string(), owner_error);
 
     // The recipient's pending transfer balance was not consumed by fee withdrawals.
     process_test_command(
@@ -4243,7 +4299,7 @@ async fn confidential_fee_harvesting(test_validator: &TestValidator, payer: &Key
                 "spl-token",
                 command.into(),
                 &mint_address,
-                "--confidential-transfer-fee-authority",
+                "--owner",
                 authority_keypair_file.path().to_str().unwrap(),
             ],
         )

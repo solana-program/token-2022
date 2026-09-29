@@ -3786,6 +3786,7 @@ async fn command_withdraw_withheld_tokens(
 async fn command_withdraw_withheld_confidential_tokens(
     config: &Config<'_>,
     destination_token_account: Pubkey,
+    destination_owner: Pubkey,
     mut source_token_accounts: Vec<Pubkey>,
     authority: Pubkey,
     include_mint: bool,
@@ -3793,9 +3794,31 @@ async fn command_withdraw_withheld_confidential_tokens(
     destination_aes_key: &AeKey,
     bulk_signers: BulkSigners,
 ) -> CommandResult {
-    let mint_address = config
-        .check_account(&destination_token_account, None)
+    let destination_account = config
+        .get_account_checked(&destination_token_account)
         .await?;
+    let destination_state = StateWithExtensionsOwned::<Account>::unpack(destination_account.data)
+        .map_err(|_| {
+        format!(
+            "Could not deserialize token account {}",
+            destination_token_account
+        )
+    })?;
+    if destination_state.base.owner != destination_owner {
+        return Err(format!(
+            "Destination token account {} is owned by {}, but provided owner is {}",
+            destination_token_account, destination_state.base.owner, destination_owner,
+        )
+        .into());
+    }
+    let mint_address = destination_state.base.mint;
+    if source_token_accounts.contains(&mint_address) {
+        return Err(format!(
+            "Mint {} cannot be a source token account. Use --include-mint instead.",
+            mint_address,
+        )
+        .into());
+    }
     let token = token_client_from_config(config, &mint_address, None)?;
     let mint_state = token.get_mint_info().await?;
     let transfer_fee_config = mint_state.get_extension::<TransferFeeConfig>()?;
@@ -3820,7 +3843,7 @@ async fn command_withdraw_withheld_confidential_tokens(
     let source_refs = source_token_accounts.iter().collect::<Vec<_>>();
     // Leave room for the inline equality proof and a separate fee payer.
     const MAX_WITHDRAWAL_ACCOUNTS: usize = 8;
-    let mint_sources: [&Pubkey; 0] = [];
+    let mint_sources = [&mint_address];
     let withdrawals = include_mint
         .then_some(mint_sources.as_slice())
         .into_iter()
@@ -3828,7 +3851,8 @@ async fn command_withdraw_withheld_confidential_tokens(
 
     let mut results = vec![];
     for sources in withdrawals {
-        let withheld_amount: elgamal::ElGamalCiphertext = if sources.is_empty() {
+        let withdraw_from_mint = sources == mint_sources;
+        let withheld_amount: elgamal::ElGamalCiphertext = if withdraw_from_mint {
             confidential_transfer_fee_config
                 .withheld_amount
                 .try_into()?
@@ -3868,7 +3892,7 @@ async fn command_withdraw_withheld_confidential_tokens(
         let destination_elgamal_pubkey = destination.elgamal_pubkey.try_into()?;
         let withheld_tokens_info = WithheldTokensInfo::new(&withheld_amount.into());
 
-        let res = if sources.is_empty() {
+        let res = if withdraw_from_mint {
             token
                 .confidential_transfer_withdraw_withheld_tokens_from_mint(
                     &destination_token_account,
@@ -5745,7 +5769,7 @@ pub async fn process_command(
                 let (withdraw_withheld_elgamal_keypair, _) =
                     derive_confidential_keys(&*authority_signer, b"")
                         .map_err(|err| err.to_string())?;
-                let (owner_signer, _) =
+                let (owner_signer, owner) =
                     config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
                 let (_, destination_aes_key) =
                     derive_confidential_keys(&*owner_signer, b"").map_err(|err| err.to_string())?;
@@ -5753,6 +5777,7 @@ pub async fn process_command(
                 command_withdraw_withheld_confidential_tokens(
                     config,
                     destination_token_account,
+                    owner,
                     source_accounts,
                     authority,
                     include_mint,
