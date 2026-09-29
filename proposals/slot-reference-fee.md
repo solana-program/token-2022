@@ -389,7 +389,7 @@ parser.
 
 ## Relationship to the Ethereum draft
 
-EIP-12384 (ethereum/EIPs#12384) specifies the same two ratchets for the EVM: a global
+EIP-8429 (ethereum/EIPs#12384, discussed at https://ethereum-magicians.org/t/eip-8429-escalating-gas-for-repeated-calls/29798) specifies the same two ratchets for the EVM: a global
 block-scoped counter and a per-originator window counter, per self-enrolled address,
 quadratic, paid in gas, half to the chain's no-owner sink that can only stake and half to
 a stake vault the enroller names. The Solana version pays in the token because the token
