@@ -2616,6 +2616,16 @@ pub fn app<'a>(
                             Defaults to 65536 (2^16)"
                         )
                 )
+                .arg(
+                    Arg::with_name("elgamal_registry")
+                        .long("elgamal-registry")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("REGISTRY_ADDRESS")
+                        .takes_value(true)
+                        .conflicts_with_all(&["maximum_pending_balance_credit_counter", "multisig_signer"])
+                        .help("Configure using an existing ElGamal registry account. \
+                            Does not require the owner's signature. The fee payer funds any account reallocation.")
+                )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
         )

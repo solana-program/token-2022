@@ -4078,6 +4078,25 @@ async fn command_configure_confidential_transfer_account(
     finish_labeled_txs(config, tx_responses, false).await
 }
 
+async fn command_configure_confidential_transfer_account_with_registry(
+    config: &Config<'_>,
+    account: Pubkey,
+    elgamal_registry: Pubkey,
+) -> CommandResult {
+    let mint = config.check_account(&account, None).await?;
+    let token = token_client_from_config(config, &mint, None)?;
+    let res = token
+        .confidential_transfer_configure_token_account_with_registry(
+            &account,
+            &elgamal_registry,
+            Some(&config.fee_payer()?.pubkey()),
+        )
+        .await?;
+
+    let tx_return = finish_tx(config, &res, false).await?;
+    format_transaction_return(config, tx_return)
+}
+
 async fn command_approve_confidential_transfer_account(
     config: &Config<'_>,
     account: Pubkey,
@@ -5771,6 +5790,25 @@ pub async fn process_command(
             .await
         }
         (CommandName::ConfigureConfidentialTransferAccount, arg_matches) => {
+            if let Some(elgamal_registry) =
+                pubkey_of_signer(arg_matches, "elgamal_registry", &mut wallet_manager)
+                    .map_err(|err| err.to_string())?
+            {
+                let account = config
+                    .associated_token_address_or_override(
+                        arg_matches,
+                        "address",
+                        &mut wallet_manager,
+                    )
+                    .await?;
+                return command_configure_confidential_transfer_account_with_registry(
+                    config,
+                    account,
+                    elgamal_registry,
+                )
+                .await;
+            }
+
             let token = pubkey_of_signer(arg_matches, "token", &mut wallet_manager).unwrap();
 
             let (owner_signer, owner) =
