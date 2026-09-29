@@ -1,6 +1,5 @@
 import { expect } from 'chai';
-import type { Connection, Signer } from '@solana/web3.js';
-import { PublicKey } from '@solana/web3.js';
+import type { Connection, PublicKey, Signer } from '@solana/web3.js';
 import { Keypair, SystemProgram, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
 import { TEST_PROGRAM_ID, newAccountWithLamports, getConnection } from '../common';
 
@@ -106,7 +105,7 @@ describe('pausable', () => {
         const pausableConfig = getPausableConfig(mintInfo);
         expect(pausableConfig).to.not.equal(null);
         if (pausableConfig !== null) {
-            expect(pausableConfig.authority).to.eql(PublicKey.default);
+            expect(pausableConfig.authority).to.equal(null);
         }
     });
 });
