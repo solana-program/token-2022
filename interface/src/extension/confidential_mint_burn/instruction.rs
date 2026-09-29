@@ -130,9 +130,8 @@ pub enum ConfidentialMintBurnInstruction {
     ///   6. `[signer]` The single account owner.
     ///
     ///   * Multisignature authority
-    ///   0. `[writable]` The SPL Token mint.
-    ///   1. `[]` The SPL Token mint. `[writable]` if the mint has a non-zero
-    ///      supply elgamal-pubkey
+    ///   0. `[writable]` The SPL Token account.
+    ///   1. `[writable]` The SPL Token mint.
     ///   2. `[]` (Optional) Instructions sysvar if at least one of the
     ///      `zk_elgamal_proof` instructions are included in the same
     ///      transaction.
@@ -169,9 +168,8 @@ pub enum ConfidentialMintBurnInstruction {
     ///   6. `[signer]` The single account owner.
     ///
     ///   * Multisignature authority
-    ///   0. `[writable]` The SPL Token mint.
-    ///   1. `[]` The SPL Token mint. `[writable]` if the mint has a non-zero
-    ///      supply elgamal-pubkey
+    ///   0. `[writable]` The SPL Token account.
+    ///   1. `[writable]` The SPL Token mint.
     ///   2. `[]` (Optional) Instructions sysvar if at least one of the
     ///      `zk_elgamal_proof` instructions are included in the same
     ///      transaction.
