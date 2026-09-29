@@ -34,8 +34,10 @@ pub enum SlotReferenceFeeInstruction {
     /// Data expected by this instruction:
     ///   `crate::extension::slot_reference_fee::instruction::InitializeInstructionData`
     Initialize,
-    /// Update the fee schedule and the fee destination. Only supported while the
-    /// mint's slot reference fee authority is set. The sink share is immutable.
+    /// Move the fee destination to another stake account carrying the same
+    /// withdraw authority and at least the lockup fixed at initialization. Only
+    /// supported while the mint's slot reference fee authority is set. The
+    /// schedule cannot be changed.
     ///
     /// Accounts expected by this instruction:
     ///
@@ -50,8 +52,6 @@ pub enum SlotReferenceFeeInstruction {
     ///   2. `[]` The mint's multisignature authority.
     ///   3. `..3+M` `[signer]` M signer accounts.
     ///
-    /// Data expected by this instruction:
-    ///   `crate::extension::slot_reference_fee::instruction::SetInstructionData`
     Set,
     /// Permissionless instruction to move all withheld slot reference fees from
     /// token accounts to the mint. Succeeds for frozen accounts. Accounts
@@ -64,9 +64,9 @@ pub enum SlotReferenceFeeInstruction {
     HarvestWithheldTokensToMint,
     /// Permissionless instruction to move the fees harvested to the mint to the
     /// settler's token account. The settler (a program of the issuer's choosing,
-    /// fixed at initialization) sells them for SOL, burns half of it and puts the
-    /// other half into the mint's `fee_destination`, a stake account. The token
-    /// program never pays anything to a wallet.
+    /// fixed at initialization) sells them for SOL and stakes all of it, the
+    /// issuer's share into the mint's `fee_destination`. Nothing is burned, and
+    /// the token program never pays anything to a wallet.
     ///
     /// Accounts expected by this instruction:
     ///
@@ -82,21 +82,19 @@ pub enum SlotReferenceFeeInstruction {
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct InitializeInstructionData {
-    /// Optional authority that may update the schedule and destination
+    /// Optional authority that may move the fee destination
     pub authority: MaybeNull<Address>,
-    /// Stake account that the staked half of every settlement goes into
-    pub fee_destination: Address,
     /// Fast ratchet: fee for the n-th reference in a slot is `floor * n * n` basis points
     pub floor_basis_points: U16,
     /// Fast ratchet cap in basis points
     pub cap_basis_points: U16,
     /// Fast ratchet: references per slot with no fee
     pub free_references: U16,
-    /// Slow ratchet: fee for an account's m-th reference in a window is `slow_floor * m * m`
+    /// Slow ratchet: fee for an actor's m-th reference in a window is `slow_floor * m * m`
     pub slow_floor_basis_points: U16,
     /// Slow ratchet cap in basis points
     pub slow_cap_basis_points: U16,
-    /// Slow ratchet: references per window per account with no fee
+    /// Slow ratchet: references per window per actor with no fee
     pub slow_free_references: U16,
     /// Slow ratchet window, in slots
     pub slow_window_slots: U64,
@@ -108,30 +106,6 @@ pub struct InitializeInstructionData {
     pub stake_lockup_epoch: U64,
     /// Transfers below this many tokens do not count on the fast ratchet
     pub min_reference_amount: U64,
-}
-
-/// Data expected by `SlotReferenceFeeInstruction::Set`
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
-#[repr(C)]
-pub struct SetInstructionData {
-    /// New fee destination, a stake account
-    pub fee_destination: Address,
-    /// New fast floor, in basis points
-    pub floor_basis_points: U16,
-    /// New fast cap, in basis points
-    pub cap_basis_points: U16,
-    /// New number of free references per slot
-    pub free_references: U16,
-    /// New slow floor, in basis points
-    pub slow_floor_basis_points: U16,
-    /// New slow cap, in basis points
-    pub slow_cap_basis_points: U16,
-    /// New number of free references per window per account
-    pub slow_free_references: U16,
-    /// New slow window, in slots
-    pub slow_window_slots: U64,
 }
 
 /// Create an `Initialize` instruction
@@ -168,7 +142,6 @@ pub fn initialize(
                 .copied()
                 .try_into()
                 .map_err(|_| ProgramError::InvalidArgument)?,
-            fee_destination: *fee_destination,
             floor_basis_points: floor_basis_points.into(),
             cap_basis_points: cap_basis_points.into(),
             free_references: free_references.into(),
@@ -185,20 +158,12 @@ pub fn initialize(
 }
 
 /// Create a `Set` instruction
-#[allow(clippy::too_many_arguments)]
 pub fn set(
     token_program_id: &Address,
     mint: &Address,
     authority: &Address,
     signers: &[&Address],
     fee_destination: &Address,
-    floor_basis_points: u16,
-    cap_basis_points: u16,
-    free_references: u16,
-    slow_floor_basis_points: u16,
-    slow_cap_basis_points: u16,
-    slow_free_references: u16,
-    slow_window_slots: u64,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let mut accounts = vec![
@@ -214,16 +179,7 @@ pub fn set(
         accounts,
         TokenInstruction::SlotReferenceFeeExtension,
         SlotReferenceFeeInstruction::Set,
-        &SetInstructionData {
-            fee_destination: *fee_destination,
-            floor_basis_points: floor_basis_points.into(),
-            cap_basis_points: cap_basis_points.into(),
-            free_references: free_references.into(),
-            slow_floor_basis_points: slow_floor_basis_points.into(),
-            slow_cap_basis_points: slow_cap_basis_points.into(),
-            slow_free_references: slow_free_references.into(),
-            slow_window_slots: slow_window_slots.into(),
-        },
+        &(),
     ))
 }
 

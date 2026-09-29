@@ -525,21 +525,6 @@ impl Processor {
             return Ok(());
         }
 
-        // Register this transfer as a reference to the mint in the current slot
-        // and take the escalating slot reference fee on what is left after the
-        // transfer fee. No-op for mints without the extension.
-        let slot_reference_fee = if let Some((mint_info, _)) = expected_mint_info {
-            slot_reference_fee::processor::reference_and_fee(
-                mint_info,
-                &mut source_account,
-                amount
-                    .checked_sub(calculated_fee)
-                    .ok_or(TokenError::Overflow)?,
-            )?
-        } else {
-            0
-        };
-
         // self-transfer was dealt with earlier, so this *should* be safe
         let mut destination_account_data = destination_account_info.data.borrow_mut();
         let mut destination_account =
@@ -561,6 +546,22 @@ impl Processor {
         {
             confidential_transfer_state.non_confidential_transfer_allowed()?
         }
+
+        // Register this transfer as a reference to the mint in the current slot
+        // and take the escalating slot reference fee on what is left after the
+        // transfer fee. No-op for mints without the extension.
+        let slot_reference_fee = if let Some((mint_info, _)) = expected_mint_info {
+            slot_reference_fee::processor::reference_and_fee(
+                mint_info,
+                &mut source_account,
+                &mut destination_account,
+                amount
+                    .checked_sub(calculated_fee)
+                    .ok_or(TokenError::Overflow)?,
+            )?
+        } else {
+            0
+        };
 
         source_account.base.amount = source_amount
             .checked_sub(amount)

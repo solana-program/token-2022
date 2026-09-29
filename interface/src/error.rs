@@ -279,14 +279,11 @@ pub enum TokenError {
     /// Slot reference fee schedule exceeds the maximum
     #[error("Slot reference fee schedule exceeds the maximum")]
     SlotReferenceFeeExceedsMaximum,
-    /// The sink token account is not owned by the sink owner
-    #[error("Sink token account must be owned by the incinerator address")]
-    SlotReferenceFeeInvalidSink,
-    /// The fee destination does not match the mint's configured destination
-    #[error("Fee destination does not match the mint's slot reference fee destination")]
-    SlotReferenceFeeDestinationMismatch,
+    /// Withheld slot reference fees may only go to the settler's token account
+    #[error("Withheld slot reference fees may only go to a token account owned by the settler")]
+    SlotReferenceFeeInvalidSettler,
     /// Slot reference fee destination is not a stake account
-    #[error("Slot reference fee destination must be owned by the stake program")]
+    #[error("Slot reference fee destination must be a stake account with the required withdraw authority and lockup")]
     SlotReferenceFeeDestinationNotStake,
 }
 impl From<TokenError> for ProgramError {
@@ -494,11 +491,8 @@ impl ToStr for TokenError {
             TokenError::SlotReferenceFeeExceedsMaximum => {
                 "Slot reference fee schedule exceeds the maximum"
             }
-            TokenError::SlotReferenceFeeInvalidSink => {
-                "Sink token account must be owned by the incinerator address"
-            }
-            TokenError::SlotReferenceFeeDestinationMismatch => {
-                "Fee destination does not match the mint's slot reference fee destination"
+            TokenError::SlotReferenceFeeInvalidSettler => {
+                "Withheld slot reference fees may only go to a token account owned by the settler"
             }
             TokenError::SlotReferenceFeeDestinationNotStake => {
                 "Slot reference fee destination must be a stake account with the required withdraw authority and lockup"

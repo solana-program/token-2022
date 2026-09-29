@@ -4,20 +4,27 @@
 //! Fast ratchet: the n-th `TransferChecked` of the mint inside one slot,
 //! whoever made it, pays `floor_basis_points * n * n` basis points of the
 //! transferred amount (capped at `cap_basis_points`), with the first
-//! `free_references` in a slot free. Slow ratchet: the m-th transfer out of the
-//! same token account inside a window of `slow_window_slots` pays
+//! `free_references` in a slot free. Slow ratchet: the m-th reference by the same
+//! actor inside a window of `slow_window_slots` pays
 //! `slow_floor_basis_points * m * m`, with the first `slow_free_references`
 //! free. A transfer pays the larger. The fast counter lives in the mint, so the
-//! mint must be passed as writable to every transfer; the slow counter lives in
-//! the source token account's extension.
+//! mint must be passed as writable to every transfer.
+//!
+//! The actor is whichever side of the transfer has been seen less. A transfer
+//! counts on both token accounts whose balance it changes, the source and the
+//! destination, and is priced on the lower of their two counts. A pool vault
+//! that serves a thousand buyers carries a high count, and each buyer is priced
+//! on their own; an account that keeps trading against the vault is priced on
+//! its own too.
 //!
 //! Fees are withheld on the destination account exactly like the transfer fee
 //! extension, harvested to the mint permissionlessly, and withdrawn
 //! permissionlessly to one place: a token account owned by the `settler`. The
-//! settler sells them for SOL, burns half and puts half into `fee_destination`,
-//! which must be a stake account carrying the withdraw authority and the lockup
-//! that whoever initialized the mint required. The token program never pays a
-//! wallet.
+//! settler sells them for SOL and stakes all of it; nothing is burned. The
+//! issuer's share goes into `fee_destination`, which must be a stake account
+//! carrying the withdraw authority and the lockup that whoever initialized the
+//! mint required, with no custodian who could lift that lockup. The token
+//! program never pays a wallet.
 //!
 //! What this prices is repetition of references to the same mint: pool spam,
 //! price ladders quoted by initializing pools, add and remove of liquidity in
@@ -61,12 +68,8 @@ pub fn stake_program_id() -> Address {
 /// rent_exempt_reserve u64, authorized.staker, authorized.withdrawer,
 /// lockup.unix_timestamp i64, lockup.epoch u64, lockup.custodian.
 pub struct StakeMeta {
-    /// May delegate and deactivate
-    pub staker: Address,
     /// May withdraw once the lockup has passed
     pub withdrawer: Address,
-    /// Lockup: no withdrawal before this unix time
-    pub lockup_unix_timestamp: i64,
     /// Lockup: no withdrawal before this epoch
     pub lockup_epoch: u64,
     /// May lift the lockup
@@ -90,9 +93,7 @@ impl StakeMeta {
             Some(Address::new_from_array(data[o..o + 32].try_into().ok()?))
         };
         Some(Self {
-            staker: key(12)?,
             withdrawer: key(44)?,
-            lockup_unix_timestamp: i64::from_le_bytes(data[76..84].try_into().ok()?),
             lockup_epoch: u64::from_le_bytes(data[84..92].try_into().ok()?),
             custodian: key(92)?,
         })
@@ -105,25 +106,27 @@ impl StakeMeta {
 ///
 /// - fast, global, per slot: the n-th transfer of this mint in a slot, whoever
 ///   made it, pays `floor * n * n` basis points after `free_references` free ones;
-/// - slow, per token account, per window of `slow_window_slots`: the m-th
-///   transfer out of the same account in a window pays `slow_floor * m * m`
-///   basis points after `slow_free_references` free ones.
+/// - slow, per actor, per window of `slow_window_slots`: the actor's m-th
+///   reference in a window pays `slow_floor * m * m` basis points after
+///   `slow_free_references` free ones. A transfer counts on its source and on its
+///   destination, and the actor's ordinal is the lower of the two.
 ///
-/// Fees are withheld in kind, harvested to the mint, and withdrawn only to the
-/// `settler`'s token account. The settler sells them for SOL, burns half and puts
-/// half into `fee_destination`, a stake account carrying the withdraw authority
-/// and the lockup whoever initialized the mint required.
+/// The schedule is fixed at initialization. Fees are withheld in kind, harvested
+/// to the mint, and withdrawn only to the `settler`'s token account. The settler
+/// sells them for SOL and stakes all of it; the issuer's share goes into
+/// `fee_destination`, a stake account carrying the withdraw authority and the
+/// lockup whoever initialized the mint required.
 #[repr(C)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct SlotReferenceFeeConfig {
-    /// Optional authority to update the fee schedules and move the fee
-    /// destination to another qualifying stake account. `None` makes the
-    /// configuration immutable.
+    /// Optional authority to move the fee destination to another qualifying
+    /// stake account. It cannot change the schedule. `None` fixes the
+    /// destination too.
     #[cfg_attr(feature = "serde", serde(with = "As::<Option<DisplayFromStr>>"))]
     pub authority: MaybeNull<Address>,
-    /// Stake account the staked half of every settlement goes into.
+    /// Stake account the issuer's share of every settlement goes into.
     #[cfg_attr(feature = "serde", serde(with = "As::<DisplayFromStr>"))]
     pub fee_destination: Address,
     /// Fast ratchet: fee for the n-th reference in a slot is `floor * n * n` bp.
@@ -148,8 +151,9 @@ pub struct SlotReferenceFeeConfig {
     pub stake_withdrawer: Address,
     /// Earliest lockup epoch `fee_destination` may carry, set by whoever initialized.
     pub stake_lockup_epoch: U64,
-    /// Transfers below this many tokens do not count on the fast ratchet: dust cannot
-    /// raise anyone else's k. They still count, and pay, on the sender's own slow ratchet.
+    /// Transfers below this many tokens do not count on the fast ratchet and do not
+    /// count on the account that receives them: dust cannot raise anyone else's
+    /// ordinal. They still count on the sender's own slow ratchet.
     pub min_reference_amount: U64,
     /// Slot the fast counter belongs to. Reset whenever the clock moves past it.
     pub slot: U64,
@@ -196,16 +200,6 @@ impl SlotReferenceFeeConfig {
             u16::from(self.slow_free_references),
             m,
         )
-    }
-
-    /// What a reference pays: the larger of the two ratchets.
-    pub fn combined_fee_basis_points(&self, n: u64, m: u64) -> u16 {
-        cmp::max(self.fee_basis_points(n), self.slow_fee_basis_points(m))
-    }
-
-    /// Fee in tokens on `pre_fee_amount` for the fast ordinal `n` alone.
-    pub fn calculate_fee(&self, pre_fee_amount: u64, n: u64) -> Option<u64> {
-        self.calculate_fee_at(pre_fee_amount, self.fee_basis_points(n))
     }
 
     /// Fee in tokens on `pre_fee_amount` at `basis_points`, rounded up.
@@ -259,31 +253,45 @@ pub struct SlotReferenceFeeAmount {
     pub slot_count: U64,
 }
 
-/// The fast ratchet bites only an account already on its third reference in the slot (its
+/// The fast ratchet bites only an actor already on its third reference in the slot (its
 /// second swap: a swap is two transfers). A bystander's single swap never pays it.
 pub const FAST_OWN_MIN: u64 = 3;
 
 impl SlotReferenceFeeAmount {
+    /// The ordinal a reference by this account in `current_slot` would have,
+    /// without counting it.
+    pub fn next_in_slot(&self, current_slot: u64) -> u64 {
+        if u64::from(self.slot) != current_slot {
+            1
+        } else {
+            u64::from(self.slot_count).saturating_add(1)
+        }
+    }
+
     /// Count a reference by this account in `current_slot` and return its ordinal in the slot.
     pub fn reference_in_slot(&mut self, current_slot: u64) -> u64 {
-        if u64::from(self.slot) != current_slot {
-            self.slot = current_slot.into();
-            self.slot_count = 0u64.into();
-        }
-        let c = u64::from(self.slot_count).saturating_add(1);
+        let c = self.next_in_slot(current_slot);
+        self.slot = current_slot.into();
         self.slot_count = c.into();
         c
+    }
+
+    /// The ordinal a reference by this account would have in the window
+    /// `current_slot` falls in, without counting it.
+    pub fn next_in_window(&self, current_slot: u64, window_slots: u64) -> u64 {
+        let window = current_slot / cmp::max(window_slots, 1);
+        if u64::from(self.window) != window {
+            1
+        } else {
+            u64::from(self.count).saturating_add(1)
+        }
     }
 
     /// Count a reference by this account in the window `current_slot` falls in
     /// and return its ordinal within the window.
     pub fn reference(&mut self, current_slot: u64, window_slots: u64) -> u64 {
-        let window = current_slot / cmp::max(window_slots, 1);
-        if u64::from(self.window) != window {
-            self.window = window.into();
-            self.count = 0u64.into();
-        }
-        let m = u64::from(self.count).saturating_add(1);
+        let m = self.next_in_window(current_slot, window_slots);
+        self.window = (current_slot / cmp::max(window_slots, 1)).into();
         self.count = m.into();
         m
     }
@@ -351,12 +359,13 @@ mod test {
     #[test]
     fn fee_rounds_up_and_zero_cases() {
         let c = config(10, 10_000, 1);
-        assert_eq!(c.calculate_fee(1_000_000, 1), Some(0));
-        assert_eq!(c.calculate_fee(0, 2), Some(0));
-        assert_eq!(c.calculate_fee(1_000_000, 2), Some(4_000));
-        assert_eq!(c.calculate_fee(1, 2), Some(1)); // 0.4% of 1, rounded up
-        assert_eq!(c.calculate_fee(1_000_000, 32), Some(1_000_000));
-        assert_eq!(c.calculate_fee(u64::MAX, 32), Some(u64::MAX));
+        let fee = |amount: u64, n: u64| c.calculate_fee_at(amount, c.fee_basis_points(n));
+        assert_eq!(fee(1_000_000, 1), Some(0));
+        assert_eq!(fee(0, 2), Some(0));
+        assert_eq!(fee(1_000_000, 2), Some(4_000));
+        assert_eq!(fee(1, 2), Some(1)); // 0.4% of 1, rounded up
+        assert_eq!(fee(1_000_000, 32), Some(1_000_000));
+        assert_eq!(fee(u64::MAX, 32), Some(u64::MAX));
     }
 
     #[test]
@@ -377,17 +386,22 @@ mod test {
         assert_eq!(c.slow_fee_basis_points(2), 8);
         assert_eq!(c.slow_fee_basis_points(3), 18);
         assert_eq!(c.slow_fee_basis_points(23), 1_000);
-        // second in the slot is free on the fast ratchet, second in the window pays 8 bp on the slow
-        assert_eq!(c.combined_fee_basis_points(2, 2), 8);
         // third in the slot: fast 90 bp beats slow 18 bp
-        assert_eq!(c.combined_fee_basis_points(3, 3), 90);
+        assert_eq!(
+            cmp::max(c.fee_basis_points(3), c.slow_fee_basis_points(3)),
+            90
+        );
         let mut a = SlotReferenceFeeAmount::default();
+        assert_eq!(a.next_in_window(100, 1_280), 1);
         assert_eq!(a.reference(100, 1_280), 1);
+        assert_eq!(a.next_in_window(1_000, 1_280), 2);
         assert_eq!(a.reference(1_000, 1_280), 2);
         assert_eq!(a.reference(1_280, 1_280), 1);
         assert_eq!(u64::from(a.window), 1);
         assert_eq!(a.reference_in_slot(7), 1);
+        assert_eq!(a.next_in_slot(7), 2);
         assert_eq!(a.reference_in_slot(7), 2);
+        assert_eq!(a.next_in_slot(8), 1);
         assert_eq!(a.reference_in_slot(8), 1);
     }
 

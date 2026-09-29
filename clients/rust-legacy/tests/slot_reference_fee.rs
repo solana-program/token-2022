@@ -51,20 +51,31 @@ struct Fixture {
 
 /// Bytes of an `Initialized` `StakeStateV2`: tag 1, then Meta with the given
 /// withdrawer and lockup epoch. Enough for the program's check.
-fn stake_account_data(withdrawer: &Pubkey, lockup_epoch: u64) -> Vec<u8> {
+fn stake_account_data(withdrawer: &Pubkey, lockup_epoch: u64, custodian: &Pubkey) -> Vec<u8> {
     let mut data = vec![0u8; 200];
     data[0..4].copy_from_slice(&1u32.to_le_bytes());
     data[12..44].copy_from_slice(withdrawer.as_ref()); // staker
     data[44..76].copy_from_slice(withdrawer.as_ref()); // withdrawer
     data[84..92].copy_from_slice(&lockup_epoch.to_le_bytes());
+    data[92..124].copy_from_slice(custodian.as_ref());
     data
 }
 
-/// Put a stake-program-owned account on the ledger.
+/// Put a stake-program-owned account with no lockup custodian on the ledger.
 async fn plant_stake_account(
     context: &TestContext,
     withdrawer: &Pubkey,
     lockup_epoch: u64,
+) -> Pubkey {
+    plant_stake_account_with_custodian(context, withdrawer, lockup_epoch, &Pubkey::default()).await
+}
+
+/// Put a stake-program-owned account on the ledger.
+async fn plant_stake_account_with_custodian(
+    context: &TestContext,
+    withdrawer: &Pubkey,
+    lockup_epoch: u64,
+    custodian: &Pubkey,
 ) -> Pubkey {
     let key = Pubkey::new_unique();
     let mut ctx = context.context.lock().await;
@@ -72,7 +83,7 @@ async fn plant_stake_account(
         &key,
         &solana_sdk::account::Account {
             lamports: 10_000_000_000,
-            data: stake_account_data(withdrawer, lockup_epoch),
+            data: stake_account_data(withdrawer, lockup_epoch, custodian),
             owner: solana_sdk_ids::stake::id(),
             executable: false,
             rent_epoch: 0,
@@ -200,6 +211,43 @@ async fn transfer(f: &Fixture, amount: u64) -> Result<(), TokenClientError> {
         .process_ixs(&[ix], &[&ctx.alice])
         .await
         .map(|_| ())
+}
+
+/// Another token account of the mint, owned by alice.
+async fn new_account(f: &Fixture) -> Pubkey {
+    let ctx = f.context.token_context.as_ref().unwrap();
+    let keypair = Keypair::new();
+    ctx.token
+        .create_auxiliary_token_account(&keypair, &ctx.alice.pubkey())
+        .await
+        .unwrap();
+    keypair.pubkey()
+}
+
+/// Transfer between two token accounts owned by alice.
+async fn send(f: &Fixture, from: &Pubkey, to: &Pubkey, amount: u64) {
+    let ctx = f.context.token_context.as_ref().unwrap();
+    let ix = srf_instruction::transfer_checked_writable_mint(
+        &id(),
+        from,
+        ctx.token.get_address(),
+        to,
+        &ctx.alice.pubkey(),
+        &[],
+        amount,
+        ctx.decimals,
+    )
+    .unwrap();
+    ctx.token.process_ixs(&[ix], &[&ctx.alice]).await.unwrap();
+}
+
+async fn counters(f: &Fixture, account: &Pubkey) -> SlotReferenceFeeAmount {
+    *token(f)
+        .get_account_info(account)
+        .await
+        .unwrap()
+        .get_extension::<SlotReferenceFeeAmount>()
+        .unwrap()
 }
 
 async fn withheld(f: &Fixture, account: &Pubkey) -> u64 {
@@ -400,33 +448,129 @@ async fn escalates_within_a_slot_and_resets_on_the_next() {
 #[tokio::test]
 async fn bystander_in_a_busy_slot_pays_nothing() {
     let f = setup().await;
-    let ctx = f.context.token_context.as_ref().unwrap();
+    // carol and dave hold accounts of their own; carol is funded in an earlier slot
+    let carol = new_account(&f).await;
+    let dave = new_account(&f).await;
+    send(&f, &f.alice_account, &carol, 50_000_000).await;
+    warp(&f, 1).await;
     // alice walks the mint four times in one slot: her 3rd and 4th pay
     for i in 0..4u64 {
         transfer(&f, 100_000_000 + i).await.unwrap();
     }
     let paid = withheld(&f, &f.bob_account).await;
     assert_eq!(paid, ceil_bps(100_000_002, 90) + ceil_bps(100_000_003, 160));
-    // bob, in the same slot, sends once: global #5, his own #1: free
+    // carol, in the same slot, sends once: global #5, her own #1: free
+    send(&f, &carol, &dave, 1_000_000).await;
+    assert_eq!(withheld(&f, &dave).await, 0, "the bystander paid nothing");
+    let c = config(&f).await;
+    assert_eq!(u64::from(c.count), 5);
+}
+
+#[tokio::test]
+async fn buyers_from_a_busy_vault_pay_on_their_own_count() {
+    let f = setup().await;
+    // alice's account stands in for a pool vault: every buy is a transfer out of it
+    let mut buyers = vec![];
+    for _ in 0..20 {
+        buyers.push(new_account(&f).await);
+    }
+    // three buyers in one slot: the vault is on its third reference, each buyer on their
+    // first, so nobody pays the fast fee
+    warp(&f, 1).await;
+    for (i, buyer) in buyers.iter().take(3).enumerate() {
+        send(&f, &f.alice_account, buyer, 10_000_000 + i as u64).await;
+        assert_eq!(withheld(&f, buyer).await, 0);
+    }
+    // seventeen more over the window: the vault goes past sixteen, no buyer does
+    for (i, buyer) in buyers.iter().skip(3).enumerate() {
+        warp(&f, 3).await;
+        send(&f, &f.alice_account, buyer, 10_000_000 + i as u64).await;
+        assert_eq!(
+            withheld(&f, buyer).await,
+            0,
+            "a buyer paid the vault's count"
+        );
+    }
+    assert_eq!(u64::from(counters(&f, &f.alice_account).await.count), 20);
+    assert_eq!(u64::from(counters(&f, &buyers[19]).await.count), 1);
+    // one account that keeps coming back to the vault is priced on its own count
+    let a = 1_000_000;
+    for i in 0..15u64 {
+        warp(&f, 3).await;
+        send(&f, &f.alice_account, &buyers[0], a + i).await;
+    }
+    assert_eq!(withheld(&f, &buyers[0]).await, 0);
+    warp(&f, 3).await;
+    send(&f, &f.alice_account, &buyers[0], a).await;
+    assert_eq!(withheld(&f, &buyers[0]).await, ceil_bps(a, 578));
+}
+
+#[tokio::test]
+async fn dust_cannot_raise_the_receiver_count() {
+    let f = setup().await;
+    let carol = new_account(&f).await;
+    // twenty dust transfers into bob: none of them counts on bob's account
+    for i in 1..=20u64 {
+        warp(&f, 3).await;
+        transfer(&f, MIN_REF - i).await.unwrap();
+    }
+    let bob = counters(&f, &f.bob_account).await;
+    assert_eq!(u64::from(bob.count), 0);
+    assert_eq!(u64::from(bob.slot_count), 0);
+    // bob's own first real transfer is his first reference, and free
+    let ctx = f.context.token_context.as_ref().unwrap();
     let ix = srf_instruction::transfer_checked_writable_mint(
         &id(),
         &f.bob_account,
         ctx.token.get_address(),
-        &f.alice_account,
+        &carol,
         &ctx.bob.pubkey(),
         &[],
-        1_000_000,
+        5_000,
         ctx.decimals,
     )
     .unwrap();
     ctx.token.process_ixs(&[ix], &[&ctx.bob]).await.unwrap();
+    assert_eq!(withheld(&f, &carol).await, 0);
+    assert_eq!(u64::from(counters(&f, &f.bob_account).await.count), 1);
+}
+
+#[tokio::test]
+async fn fail_initialize_destination_with_a_lockup_custodian() {
+    // a custodian can lift the lockup, so a destination that has one is refused
+    let mut context = TestContext::new().await;
+    let withdrawer = Keypair::new();
+    let fee_destination = plant_stake_account_with_custodian(
+        &context,
+        &withdrawer.pubkey(),
+        LOCKUP_EPOCH,
+        &Pubkey::new_unique(),
+    )
+    .await;
+    let err = context
+        .init_token_with_mint(vec![
+            ExtensionInitializationParams::SlotReferenceFeeConfig {
+                authority: None,
+                fee_destination,
+                settler: Pubkey::new_unique(),
+                floor_basis_points: FLOOR_BPS,
+                cap_basis_points: CAP_BPS,
+                free_references: FREE_REFS,
+                slow_floor_basis_points: SLOW_FLOOR_BPS,
+                slow_cap_basis_points: SLOW_CAP_BPS,
+                slow_free_references: SLOW_FREE_REFS,
+                slow_window_slots: SLOW_WINDOW,
+                stake_withdrawer: withdrawer.pubkey(),
+                stake_lockup_epoch: LOCKUP_EPOCH,
+                min_reference_amount: MIN_REF,
+            },
+        ])
+        .await
+        .unwrap_err();
     assert_eq!(
-        withheld(&f, &f.alice_account).await,
-        0,
-        "the bystander paid nothing"
+        err,
+        custom_at(1, TokenError::SlotReferenceFeeDestinationNotStake)
     );
-    let c = config(&f).await;
-    assert_eq!(u64::from(c.count), 5);
 }
 
 #[tokio::test]
@@ -527,7 +671,7 @@ async fn fail_withdraw_anywhere_but_the_settler() {
         .process_ixs::<[&dyn Signer; 0]>(&[ix], &[])
         .await
         .unwrap_err();
-    assert_eq!(err, custom(TokenError::SlotReferenceFeeInvalidSink));
+    assert_eq!(err, custom(TokenError::SlotReferenceFeeInvalidSettler));
 }
 
 #[tokio::test]
@@ -568,26 +712,14 @@ async fn fail_close_with_withheld() {
 }
 
 #[tokio::test]
-async fn set_schedule_and_authority() {
+async fn set_destination_and_authority() {
     let f = setup().await;
     let ctx = f.context.token_context.as_ref().unwrap();
+    let mint = ctx.token.get_address();
 
     // the wrong signer cannot set
-    let ix = srf_instruction::set(
-        &id(),
-        ctx.token.get_address(),
-        &ctx.alice.pubkey(),
-        &[],
-        &f.fee_destination,
-        20,
-        5_000,
-        3,
-        SLOW_FLOOR_BPS,
-        SLOW_CAP_BPS,
-        SLOW_FREE_REFS,
-        SLOW_WINDOW,
-    )
-    .unwrap();
+    let ix =
+        srf_instruction::set(&id(), mint, &ctx.alice.pubkey(), &[], &f.fee_destination).unwrap();
     let err = ctx
         .token
         .process_ixs(&[ix], &[&ctx.alice])
@@ -597,21 +729,7 @@ async fn set_schedule_and_authority() {
 
     // the authority cannot move the destination to a stake account with a shorter lockup
     let short = plant_stake_account(&f.context, &f.stake_withdrawer.pubkey(), 1).await;
-    let ix = srf_instruction::set(
-        &id(),
-        ctx.token.get_address(),
-        &f.authority.pubkey(),
-        &[],
-        &short,
-        20,
-        5_000,
-        3,
-        SLOW_FLOOR_BPS,
-        SLOW_CAP_BPS,
-        SLOW_FREE_REFS,
-        SLOW_WINDOW,
-    )
-    .unwrap();
+    let ix = srf_instruction::set(&id(), mint, &f.authority.pubkey(), &[], &short).unwrap();
     let err = ctx
         .token
         .process_ixs(&[ix], &[&f.authority])
@@ -619,45 +737,22 @@ async fn set_schedule_and_authority() {
         .unwrap_err();
     assert_eq!(err, custom(TokenError::SlotReferenceFeeDestinationNotStake));
 
-    // the authority can, to a qualifying one
+    // the authority can, to a qualifying one, and the schedule does not move
     let longer =
         plant_stake_account(&f.context, &f.stake_withdrawer.pubkey(), LOCKUP_EPOCH + 1).await;
-    let ix = srf_instruction::set(
-        &id(),
-        ctx.token.get_address(),
-        &f.authority.pubkey(),
-        &[],
-        &longer,
-        20,
-        5_000,
-        3,
-        SLOW_FLOOR_BPS,
-        SLOW_CAP_BPS,
-        SLOW_FREE_REFS,
-        SLOW_WINDOW,
-    )
-    .unwrap();
+    let ix = srf_instruction::set(&id(), mint, &f.authority.pubkey(), &[], &longer).unwrap();
     ctx.token.process_ixs(&[ix], &[&f.authority]).await.unwrap();
     let c = config(&f).await;
     assert_eq!(c.fee_destination, longer);
-    assert_eq!(u16::from(c.floor_basis_points), 20);
-    assert_eq!(u16::from(c.cap_basis_points), 5_000);
-    assert_eq!(u16::from(c.free_references), 3);
+    assert_eq!(u16::from(c.floor_basis_points), FLOOR_BPS);
+    assert_eq!(u16::from(c.cap_basis_points), CAP_BPS);
+    assert_eq!(u16::from(c.free_references), FREE_REFS);
     assert_eq!(c.settler, f.settler.pubkey());
 
-    // three free references on the fast ratchet now, and sixteen on the slow one
-    transfer(&f, 1_000_000).await.unwrap();
-    transfer(&f, 1_000_001).await.unwrap();
-    transfer(&f, 1_000_002).await.unwrap();
-    assert_eq!(withheld(&f, &f.bob_account).await, 0);
-    // the fourth is fast #4 at 20 bp * 16 = 320 bp
-    transfer(&f, 1_000_003).await.unwrap();
-    assert_eq!(withheld(&f, &f.bob_account).await, ceil_bps(1_000_003, 320));
-
-    // revoke the authority; the schedule is now immutable
+    // revoke the authority; the destination is now fixed too
     ctx.token
         .set_authority(
-            ctx.token.get_address(),
+            mint,
             &f.authority.pubkey(),
             None,
             AuthorityType::SlotReferenceFee,
@@ -667,21 +762,7 @@ async fn set_schedule_and_authority() {
         .unwrap();
     let c = config(&f).await;
     assert_eq!(Option::<Pubkey>::from(c.authority), None);
-    let ix = srf_instruction::set(
-        &id(),
-        ctx.token.get_address(),
-        &f.authority.pubkey(),
-        &[],
-        &longer,
-        10,
-        10_000,
-        1,
-        SLOW_FLOOR_BPS,
-        SLOW_CAP_BPS,
-        SLOW_FREE_REFS,
-        SLOW_WINDOW,
-    )
-    .unwrap();
+    let ix = srf_instruction::set(&id(), mint, &f.authority.pubkey(), &[], &longer).unwrap();
     let err = ctx
         .token
         .process_ixs(&[ix], &[&f.authority])
