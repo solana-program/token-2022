@@ -1,6 +1,5 @@
 import { expect } from 'chai';
-import type { Connection, Signer } from '@solana/web3.js';
-import { PublicKey } from '@solana/web3.js';
+import type { Connection, PublicKey, Signer } from '@solana/web3.js';
 import { Keypair, SystemProgram, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
 import { TEST_PROGRAM_ID, newAccountWithLamports, getConnection } from '../common';
 
@@ -79,7 +78,7 @@ describe('scaledUiAmount', () => {
         const scaledUiAmountConfig = getScaledUiAmountConfig(mintInfo);
         expect(scaledUiAmountConfig).to.not.equal(null);
         if (scaledUiAmountConfig !== null) {
-            expect(scaledUiAmountConfig.authority).to.eql(PublicKey.default);
+            expect(scaledUiAmountConfig.authority).to.equal(null);
         }
     });
 

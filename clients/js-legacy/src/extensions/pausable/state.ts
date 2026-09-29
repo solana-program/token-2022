@@ -1,27 +1,34 @@
 import { struct } from '@solana/buffer-layout';
 import { publicKey, bool } from '@solana/buffer-layout-utils';
-import type { PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import type { Account } from '../../state/account.js';
 import type { Mint } from '../../state/mint.js';
 import { ExtensionType, getExtensionData } from '../extensionType.js';
 
 /** PausableConfig as stored by the program */
 export interface PausableConfig {
-    /** Authority that can pause or resume activity on the mint */
-    authority: PublicKey;
+    /** Optional authority that can pause or resume activity on the mint */
+    authority: PublicKey | null;
     /** Whether minting / transferring / burning tokens is paused */
     paused: boolean;
 }
 
 /** Buffer layout for de/serializing a pausable config */
-export const PausableConfigLayout = struct<PausableConfig>([publicKey('authority'), bool('paused')]);
+export const PausableConfigLayout = struct<{ authority: PublicKey; paused: boolean }>([
+    publicKey('authority'),
+    bool('paused'),
+]);
 
 export const PAUSABLE_CONFIG_SIZE = PausableConfigLayout.span;
 
 export function getPausableConfig(mint: Mint): PausableConfig | null {
     const extensionData = getExtensionData(ExtensionType.PausableConfig, mint.tlvData);
     if (extensionData !== null) {
-        return PausableConfigLayout.decode(extensionData);
+        const { authority, paused } = PausableConfigLayout.decode(extensionData);
+        return {
+            authority: authority.equals(PublicKey.default) ? null : authority,
+            paused,
+        };
     } else {
         return null;
     }
