@@ -141,6 +141,11 @@ async fn main() {
         async_trial!(transfer_fee, test_validator, payer),
         async_trial!(transfer_fee_basis_point, test_validator, payer),
         async_trial!(confidential_transfer, test_validator, payer),
+        async_trial!(
+            configure_confidential_transfer_partial_failure,
+            test_validator,
+            payer
+        ),
         async_trial!(approve_confidential_transfer_account, test_validator, payer),
         async_trial!(empty_confidential_transfer_account, test_validator, payer),
         async_trial!(multisig_transfer, test_validator, payer),
@@ -219,9 +224,11 @@ fn test_config_with_default_signer<'a>(
 ) -> Config<'a> {
     let websocket_url = test_validator.rpc_pubsub_url();
     let rpc_client = Arc::new(test_validator.get_async_rpc_client());
-    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction>> = Arc::new(
-        ProgramRpcClient::new(rpc_client.clone(), ProgramRpcClientSendTransaction),
-    );
+    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync> =
+        Arc::new(ProgramRpcClient::new(
+            rpc_client.clone(),
+            ProgramRpcClientSendTransaction,
+        ));
     Config {
         rpc_client,
         program_client,
@@ -248,9 +255,11 @@ fn test_config_without_default_signer<'a>(
 ) -> Config<'a> {
     let websocket_url = test_validator.rpc_pubsub_url();
     let rpc_client = Arc::new(test_validator.get_async_rpc_client());
-    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction>> = Arc::new(
-        ProgramRpcClient::new(rpc_client.clone(), ProgramRpcClientSendTransaction),
-    );
+    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync> =
+        Arc::new(ProgramRpcClient::new(
+            rpc_client.clone(),
+            ProgramRpcClientSendTransaction,
+        ));
     Config {
         rpc_client,
         program_client,
@@ -3109,6 +3118,78 @@ async fn approve_confidential_transfer_account(test_validator: &TestValidator, p
     assert!(bool::from(extension.approved));
 }
 
+async fn configure_confidential_transfer_partial_failure(
+    test_validator: &TestValidator,
+    payer: &Keypair,
+) {
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    let payer_file = NamedTempFile::new().unwrap();
+    write_keypair_file(payer, &payer_file).unwrap();
+    // Reallocation succeeds, but configuration fails because this mint does not
+    // support confidential transfers.
+    let mint = create_token(&config, payer).await;
+    for format in ["json", "json-compact"] {
+        let account = create_auxiliary_account(&config, payer, mint).await;
+        let original_len = config
+            .rpc_client
+            .get_account(&account)
+            .await
+            .unwrap()
+            .data
+            .len();
+        let output = std::process::Command::new(assert_cmd::cargo::cargo_bin!("spl-token"))
+            .args([
+                "--url",
+                &test_validator.rpc_url(),
+                "--program-2022",
+                "--output",
+                format,
+                "--fee-payer",
+                payer_file.path().to_str().unwrap(),
+                "configure-confidential-transfer-account",
+                "--address",
+                &account.to_string(),
+                "--owner",
+                payer_file.path().to_str().unwrap(),
+            ])
+            .output()
+            .unwrap();
+        assert!(!output.status.success());
+        let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+            .unwrap_or_else(|error| panic!("{error}: {output:?}"));
+        assert!(!value["error"].as_str().unwrap().is_empty());
+        let transactions = value["transactions"].as_array().unwrap();
+        assert_eq!(transactions.len(), 2);
+        assert_eq!(transactions[0]["status"], "confirmed");
+        assert_eq!(transactions[1]["status"], "unknown");
+        assert!(transactions[1]["error"].as_str().is_some());
+        let signature = transactions[0]["signature"]
+            .as_str()
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(
+            config
+                .rpc_client
+                .get_signature_status(&signature)
+                .await
+                .unwrap(),
+            Some(Ok(()))
+        );
+        assert!(
+            config
+                .rpc_client
+                .get_account(&account)
+                .await
+                .unwrap()
+                .data
+                .len()
+                > original_len
+        );
+    }
+}
+
 async fn empty_confidential_transfer_account(test_validator: &TestValidator, payer: &Keypair) {
     use solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext;
 
@@ -3608,6 +3689,67 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     .unwrap(); // configure destination account for confidential transfers first
 
     let transfer_amount = 100.0;
+    // Reject the transfer after its proof accounts have been created.
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::DisableConfidentialCredits.into(),
+            "--address",
+            &destination_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    let error = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Transfer.into(),
+            &token_pubkey.to_string(),
+            &transfer_amount.to_string(),
+            &destination_account.to_string(),
+            "--confidential",
+        ],
+    )
+    .await
+    .unwrap_err();
+    let report = error
+        .downcast_ref::<spl_token_cli::ConfidentialTransactionError>()
+        .unwrap();
+    let report = serde_json::to_value(report).unwrap();
+    let transactions = report["transactions"].as_array().unwrap();
+    // Five confirmed setup transactions precede the rejected transfer request.
+    assert_eq!(transactions.len(), 6);
+    assert_eq!(transactions[5]["status"], "unknown");
+    assert!(transactions[5]["error"].as_str().is_some());
+    for transaction in &transactions[..5] {
+        assert_eq!(transaction["status"], "confirmed");
+        let signature = transaction["signature"].as_str().unwrap().parse().unwrap();
+        assert_eq!(
+            config
+                .rpc_client
+                .get_signature_status(&signature)
+                .await
+                .unwrap(),
+            Some(Ok(()))
+        );
+    }
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::EnableConfidentialCredits.into(),
+            "--address",
+            &destination_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
     let output = process_test_command(
         &config,
         payer,
@@ -4610,11 +4752,12 @@ async fn do_offline_multisig_transfer(
             .await
             .unwrap();
 
-        let offline_program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction>> =
-            Arc::new(ProgramOfflineClient::new(
-                blockhash,
-                ProgramRpcClientSendTransaction,
-            ));
+        let offline_program_client: Arc<
+            dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync,
+        > = Arc::new(ProgramOfflineClient::new(
+            blockhash,
+            ProgramRpcClientSendTransaction,
+        ));
         let mut args = vec![
             "spl-token".to_string(),
             CommandName::Transfer.as_ref().to_string(),
@@ -4673,9 +4816,12 @@ async fn do_offline_multisig_transfer(
         assert!(!absent_signers.contains(&token.to_string()));
 
         // now send the transaction
-        let rpc_program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction>> = Arc::new(
-            ProgramRpcClient::new(config.rpc_client.clone(), ProgramRpcClientSendTransaction),
-        );
+        let rpc_program_client: Arc<
+            dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync,
+        > = Arc::new(ProgramRpcClient::new(
+            config.rpc_client.clone(),
+            ProgramRpcClientSendTransaction,
+        ));
         config.program_client = rpc_program_client;
         let mut args = vec![
             "spl-token".to_string(),
@@ -5334,9 +5480,11 @@ async fn transfer_hook(test_validator: &TestValidator, payer: &Keypair) {
     // Make sure that parsing transfer hook accounts works
     let real_program_client = config.program_client;
     let blockhash = Hash::default();
-    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction>> = Arc::new(
-        ProgramOfflineClient::new(blockhash, ProgramRpcClientSendTransaction),
-    );
+    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync> =
+        Arc::new(ProgramOfflineClient::new(
+            blockhash,
+            ProgramRpcClientSendTransaction,
+        ));
     config.program_client = program_client;
     let _result = exec_test_cmd(
         &config,
@@ -5450,9 +5598,11 @@ async fn transfer_hook_with_transfer_fee(test_validator: &TestValidator, payer: 
 
     // Make sure that parsing transfer hook accounts and expected-fee works
     let blockhash = Hash::default();
-    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction>> = Arc::new(
-        ProgramOfflineClient::new(blockhash, ProgramRpcClientSendTransaction),
-    );
+    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync> =
+        Arc::new(ProgramOfflineClient::new(
+            blockhash,
+            ProgramRpcClientSendTransaction,
+        ));
     config.program_client = program_client;
 
     let _result = exec_test_cmd(

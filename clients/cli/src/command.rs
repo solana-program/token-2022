@@ -7,6 +7,7 @@ use {
         encryption_keypair::*,
         output::*,
         sort::{sort_and_parse_token_accounts, AccountFilter},
+        transaction_report::ReportingClient,
     },
     clap::{value_t, value_t_or_exit, ArgMatches},
     futures::try_join,
@@ -4959,6 +4960,46 @@ struct ConfidentialTransferArgs {
 }
 
 pub async fn process_command(
+    sub_command: &CommandName,
+    sub_matches: &ArgMatches,
+    config: &Config<'_>,
+    wallet_manager: Option<Rc<RemoteWalletManager>>,
+    bulk_signers: Vec<Arc<dyn Signer>>,
+) -> CommandResult {
+    let report_transactions = !config.sign_only
+        && (matches!(
+            sub_command,
+            CommandName::ConfigureConfidentialTransferAccount
+        ) || (matches!(sub_command, CommandName::Transfer)
+            && sub_matches.is_present("confidential")));
+    if !report_transactions {
+        return process_command_inner(
+            sub_command,
+            sub_matches,
+            config,
+            wallet_manager,
+            bulk_signers,
+        )
+        .await;
+    }
+
+    let client = Arc::new(ReportingClient::new(config.program_client.clone()));
+    let config = Config {
+        program_client: client.clone(),
+        ..config.clone()
+    };
+    process_command_inner(
+        sub_command,
+        sub_matches,
+        &config,
+        wallet_manager,
+        bulk_signers,
+    )
+    .await
+    .map_err(|error| client.report_error(error))
+}
+
+async fn process_command_inner(
     sub_command: &CommandName,
     sub_matches: &ArgMatches,
     config: &Config<'_>,
