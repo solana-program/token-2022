@@ -30,7 +30,7 @@ struct ReportedTransaction {
 
 /// Transaction outcomes recorded before a confidential CLI command failed.
 /// An unknown outcome does not establish whether the transaction was submitted
-/// or confirmed, including when another parallel operation cancelled its future.
+/// or confirmed, including when another parallel operation canceled its future.
 #[derive(Serialize)]
 pub struct ConfidentialTransactionError {
     error: String,
