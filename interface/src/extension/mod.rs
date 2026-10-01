@@ -1563,6 +1563,7 @@ mod test {
             state::test::{TEST_ACCOUNT_SLICE, TEST_MINT_SLICE},
         },
         bytemuck::Pod,
+        core::{ptr::copy_nonoverlapping, slice::from_raw_parts},
         pinocchio::{account::RuntimeAccount, entrypoint::NON_DUP_MARKER},
         solana_account_info::MAX_PERMITTED_DATA_INCREASE,
         solana_address::Address,
@@ -2781,27 +2782,38 @@ mod test {
     /// Test helper for mimicking the data layout an on-chain `AccountInfo`,
     /// which permits "reallocs" as the Solana runtime does it
     struct SolanaAccountData {
-        data: Vec<u8>,
+        data: Vec<u64>,
     }
     impl SolanaAccountData {
         /// Create a new fake solana account data. The underlying vector is
         /// overallocated to mimic the runtime
         fn new(account_data: &[u8]) -> Self {
-            let mut data =
-                vec![
-                    0;
-                    size_of::<RuntimeAccount>() + account_data.len() + MAX_PERMITTED_DATA_INCREASE
-                ];
-            let account = data.as_mut_ptr() as *mut RuntimeAccount;
+            let account_storage_len =
+                size_of::<RuntimeAccount>() + account_data.len() + MAX_PERMITTED_DATA_INCREASE;
+            // make sure the account data is aligned to 8 bytes
+            let mut data = vec![0u64; account_storage_len.div_ceil(size_of::<u64>())];
+
+            // SAFETY: The first 88 bytes of the account data correspond to the
+            // `RuntimeAccount` struct (metadata).
             unsafe {
+                let account = data.as_mut_ptr() as *mut RuntimeAccount;
                 (*account).borrow_state = NON_DUP_MARKER;
                 (*account).is_writable = true as u8;
                 (*account).owner = Address::new_unique();
                 (*account).lamports = 10;
                 (*account).data_len = account_data.len() as u64;
             }
-            data[size_of::<RuntimeAccount>()..size_of::<RuntimeAccount>() + account_data.len()]
-                .copy_from_slice(account_data);
+
+            // SAFETY: The account data is allocated to be large enough to hold
+            // the data.
+            unsafe {
+                copy_nonoverlapping(
+                    account_data.as_ptr(),
+                    (data.as_mut_ptr() as *mut u8).add(size_of::<RuntimeAccount>()),
+                    account_data.len(),
+                );
+            }
+
             Self { data }
         }
 
@@ -2810,11 +2822,13 @@ mod test {
         fn data(&self) -> &[u8] {
             let start = size_of::<RuntimeAccount>();
             let len = self.len();
-            &self.data[start..start + len]
+            // SAFETY: The account data is allocated to be large enough to hold the data.
+            unsafe { from_raw_parts((self.data.as_ptr() as *const u8).add(start), len) }
         }
 
         /// Gets the runtime length of the account data
         fn len(&self) -> usize {
+            // SAFETY: The length of the data is stored as a field of `RuntimeAccount`.
             unsafe { (*(self.data.as_ptr() as *const RuntimeAccount)).data_len as usize }
         }
 
