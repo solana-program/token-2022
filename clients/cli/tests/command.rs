@@ -3004,7 +3004,7 @@ async fn configure_confidential_transfer_with_registry(
 
     // Match the registry client's test wallet to keep the PDA bump search reproducible.
     let owner = Keypair::new_from_array([42; 32]);
-    let (elgamal_keypair, _) = derive_confidential_keys(&owner, b"").unwrap();
+    let (elgamal_keypair, aes_key) = derive_confidential_keys(&owner, b"").unwrap();
     let registry = spl_elgamal_registry_interface::get_elgamal_registry_address(
         &owner.pubkey(),
         &spl_elgamal_registry_interface::id(),
@@ -3153,7 +3153,92 @@ async fn configure_confidential_transfer_with_registry(
             u64::from(extension.maximum_pending_balance_credit_counter),
             65536
         );
+        assert_eq!(extension.available_balance, Default::default());
+        assert_eq!(extension.decryptable_available_balance, Default::default());
     }
+
+    config.default_signer = Some(Arc::new(clone_keypair(payer)));
+    mint_tokens(&config, payer, mint.pubkey(), 2.0, account)
+        .await
+        .unwrap();
+    config.default_signer = Some(Arc::new(clone_keypair(&owner)));
+
+    // Apply once from the registry's initial state, then with an existing balance.
+    for expected_balance in [1.0, 2.0] {
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::DepositConfidentialTokens.into(),
+                &mint.pubkey().to_string(),
+                "1",
+            ],
+        )
+        .await
+        .unwrap();
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::ApplyPendingBalance.into(),
+                &mint.pubkey().to_string(),
+            ],
+        )
+        .await
+        .unwrap();
+
+        let updated = config.rpc_client.get_account(&account).await.unwrap();
+        let state = StateWithExtensionsOwned::<Account>::unpack(updated.data).unwrap();
+        let extension = state
+            .get_extension::<ConfidentialTransferAccount>()
+            .unwrap();
+        let expected_amount = spl_token_2022::ui_amount_to_amount(expected_balance, TEST_DECIMALS);
+        assert_eq!(
+            aes_key.decrypt(&extension.decryptable_available_balance.try_into().unwrap()),
+            Some(expected_amount)
+        );
+        assert_eq!(
+            elgamal_keypair
+                .secret()
+                .decrypt_u32(&extension.available_balance.try_into().unwrap()),
+            Some(expected_amount)
+        );
+        assert_eq!(u64::from(extension.pending_balance_credit_counter), 0);
+    }
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::WithdrawConfidentialTokens.into(),
+            &mint.pubkey().to_string(),
+            "2",
+        ],
+    )
+    .await
+    .unwrap();
+    let withdrawn = config.rpc_client.get_account(&account).await.unwrap();
+    let state = StateWithExtensionsOwned::<Account>::unpack(withdrawn.data).unwrap();
+    assert_eq!(
+        state.base.amount,
+        spl_token_2022::ui_amount_to_amount(2.0, TEST_DECIMALS)
+    );
+    let extension = state
+        .get_extension::<ConfidentialTransferAccount>()
+        .unwrap();
+    assert_eq!(
+        aes_key.decrypt(&extension.decryptable_available_balance.try_into().unwrap()),
+        Some(0)
+    );
+    assert_eq!(
+        elgamal_keypair
+            .secret()
+            .decrypt_u32(&extension.available_balance.try_into().unwrap()),
+        Some(0)
+    );
 }
 
 async fn approve_confidential_transfer_account(test_validator: &TestValidator, payer: &Keypair) {

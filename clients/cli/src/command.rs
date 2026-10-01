@@ -4548,8 +4548,15 @@ async fn command_apply_pending_balance(
     let state_with_extension = StateWithExtensionsOwned::<Account>::unpack(account.data)?;
     let token = token_client_from_config(config, &state_with_extension.base.mint, None)?;
 
-    let extension_state = state_with_extension.get_extension::<ConfidentialTransferAccount>()?;
-    let account_info = ApplyPendingBalanceAccountInfo::new(extension_state);
+    let mut extension_state =
+        *state_with_extension.get_extension::<ConfidentialTransferAccount>()?;
+    // Registry configuration cannot initialize the balance without the owner's AES key.
+    if extension_state.decryptable_available_balance == Default::default()
+        && extension_state.available_balance == Default::default()
+    {
+        extension_state.decryptable_available_balance = aes_key.encrypt(0).into();
+    }
+    let account_info = ApplyPendingBalanceAccountInfo::new(&extension_state);
 
     let res = token
         .confidential_transfer_apply_pending_balance(
