@@ -42,7 +42,10 @@ use {
         derivation::derive_confidential_keys,
         elgamal::{self, ElGamalKeypair},
     },
-    solana_zk_sdk_pod::encryption::{auth_encryption::PodAeCiphertext, elgamal::PodElGamalPubkey},
+    solana_zk_sdk_pod::encryption::{
+        auth_encryption::PodAeCiphertext,
+        elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
+    },
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     spl_token_2022_interface::{
         extension::{
@@ -4551,8 +4554,8 @@ async fn command_apply_pending_balance(
     let mut extension_state =
         *state_with_extension.get_extension::<ConfidentialTransferAccount>()?;
     // Registry configuration cannot initialize the balance without the owner's AES key.
-    if extension_state.decryptable_available_balance == Default::default()
-        && extension_state.available_balance == Default::default()
+    if extension_state.decryptable_available_balance == PodAeCiphertext::default()
+        && extension_state.available_balance == PodElGamalCiphertext::default()
     {
         extension_state.decryptable_available_balance = aes_key.encrypt(0).into();
     }

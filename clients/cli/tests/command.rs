@@ -18,7 +18,10 @@ use {
         encryption::derivation::derive_confidential_keys,
         zk_elgamal_proof_program::build_pubkey_validity_proof_data,
     },
-    solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
+    solana_zk_sdk_pod::encryption::{
+        auth_encryption::PodAeCiphertext,
+        elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
+    },
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     spl_token_2022_interface::{
         extension::{
@@ -3153,8 +3156,11 @@ async fn configure_confidential_transfer_with_registry(
             u64::from(extension.maximum_pending_balance_credit_counter),
             65536
         );
-        assert_eq!(extension.available_balance, Default::default());
-        assert_eq!(extension.decryptable_available_balance, Default::default());
+        assert_eq!(extension.available_balance, PodElGamalCiphertext::default());
+        assert_eq!(
+            extension.decryptable_available_balance,
+            PodAeCiphertext::default()
+        );
     }
 
     config.default_signer = Some(Arc::new(clone_keypair(payer)));
