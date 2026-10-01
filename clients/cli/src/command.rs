@@ -44,6 +44,7 @@ use {
         auth_encryption::AeKey,
         derivation::derive_confidential_keys,
         elgamal::{self, ElGamalKeypair},
+        pedersen::{Pedersen, PedersenOpening},
     },
     solana_zk_sdk_pod::encryption::{auth_encryption::PodAeCiphertext, elgamal::PodElGamalPubkey},
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
@@ -3281,9 +3282,7 @@ async fn command_address(
 }
 
 /// Derives the ElGamal keypair and AES key from a signer and checks that the
-/// derived ElGamal public key matches the one stored on-chain. Falls back to
-/// the legacy (pre-HKDF) key derivation for accounts configured with an older
-/// version of the CLI.
+/// derived ElGamal public key matches the one stored on-chain.
 fn derive_confidential_keys_matching(
     signer: &dyn Signer,
     expected_elgamal_pubkey: &PodElGamalPubkey,
@@ -3294,19 +3293,11 @@ fn derive_confidential_keys_matching(
         return Ok((elgamal_keypair, aes_key));
     }
 
-    #[allow(deprecated)]
-    let legacy_elgamal_keypair =
-        ElGamalKeypair::new_from_signer_legacy(signer, b"").map_err(|e| e.to_string())?;
-    if PodElGamalPubkey::from(*legacy_elgamal_keypair.pubkey()) == *expected_elgamal_pubkey {
-        #[allow(deprecated)]
-        let legacy_aes_key =
-            AeKey::new_from_signer_legacy(signer, b"").map_err(|e| e.to_string())?;
-        return Ok((legacy_elgamal_keypair, legacy_aes_key));
-    }
-
     Err(format!(
         "The encryption key derived from signer {} does not match the encryption key {} \
-         found on-chain. Use `--owner` to specify the keypair that configured the account.",
+         found on-chain. Use `--owner` to specify the keypair that configured the account. \
+         Accounts configured with spl-token-cli 5.6.0 or earlier use an older key derivation \
+         that this version does not support.",
         signer.pubkey(),
         expected_elgamal_pubkey,
     )
@@ -3332,15 +3323,51 @@ fn decrypt_confidential_balances(
     let account_info = ApplyPendingBalanceAccountInfo::new(extension);
     let pending_balance = account_info
         .get_pending_balance(elgamal_keypair.secret())
-        .map_err(|_| "Failed to decrypt pending balance")?;
-    let available_balance = account_info
-        .get_available_balance(&aes_key)
-        .map_err(|_| "Failed to decrypt available balance")?;
+        .map_err(|err| format!("Failed to decrypt pending balance: {err}"))?;
+    let available_balance = decrypt_available_balance(extension, &elgamal_keypair, &aes_key)?;
 
     Ok(CliDecryptedConfidentialBalances {
         pending_balance: token_amount_to_ui_amount_v3(pending_balance, additional_data),
         available_balance: token_amount_to_ui_amount_v3(available_balance, additional_data),
     })
+}
+
+fn decrypt_available_balance(
+    extension: &ConfidentialTransferAccount,
+    elgamal_keypair: &ElGamalKeypair,
+    aes_key: &AeKey,
+) -> Result<u64, Error> {
+    // Registry configuration leaves the AES cache uninitialized. Zero is only
+    // a candidate balance here; verify it against the ElGamal ciphertext below.
+    let available_balance = if extension.decryptable_available_balance == PodAeCiphertext::default()
+    {
+        0
+    } else {
+        ApplyPendingBalanceAccountInfo::new(extension)
+            .get_available_balance(aes_key)
+            .map_err(|err| format!("Failed to decrypt available balance: {err}"))?
+    };
+
+    // ApplyPendingBalance can leave the AES cache stale when credits race with
+    // the instruction. Compare group elements to verify the full u64 amount
+    // without a discrete-log search, even if the credit counters match.
+    let encrypted_available_balance: elgamal::ElGamalCiphertext = extension
+        .available_balance
+        .try_into()
+        .map_err(|err| format!("Failed to decode available balance: {err}"))?;
+    let expected_balance = Pedersen::with(available_balance, &PedersenOpening::default());
+    if encrypted_available_balance
+        .decrypt(elgamal_keypair.secret())
+        .target
+        != *expected_balance.get_point()
+    {
+        return Err(
+            "The decryptable available balance is out of sync with the ElGamal available balance"
+                .into(),
+        );
+    }
+
+    Ok(available_balance)
 }
 
 /// Decrypts the confidential supply of a confidential mint-burn mint using
@@ -3361,11 +3388,11 @@ fn decrypt_confidential_supply(
 
     let supply = SupplyAccountInfo::new(extension)
         .decrypted_current_supply(&aes_key, &elgamal_keypair)
-        .map_err(|_| {
-            "Failed to decrypt confidential supply. The decryptable supply may be out of sync \
-             with the confidential supply by more than 2^32 base units (for example after \
-             large burns were applied), in which case the supply authority must update the \
-             decryptable supply first."
+        .map_err(|err| {
+            format!("Failed to decrypt confidential supply: {err}. The decryptable supply may be out of sync \
+             with the confidential supply by 2^32 base units or more (for example after \
+             large burns were applied). Use `update-decryptable-supply` to update the \
+             decryptable supply first.")
         })?;
 
     Ok(token_amount_to_ui_amount_v3(supply, additional_data))
@@ -3452,6 +3479,11 @@ async fn command_display(config: &Config<'_>, address: Pubkey, decrypt: bool) ->
             Ok(config.output_format.formatted_string(&cli_output))
         }
         Ok(TokenAccountType::Multisig(multisig)) => {
+            if decrypt {
+                return Err(
+                    "Multisig accounts do not have confidential balances to decrypt".into(),
+                );
+            }
             let cli_output = CliMultisig {
                 address: address.to_string(),
                 program_id: config.program_id.to_string(),
@@ -6573,5 +6605,50 @@ async fn finish_tx(
             // Implement this once the CLI supports dry-running / simulation
             unreachable!()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn display_available_balance_rejects_stale_cache() {
+        let elgamal = ElGamalKeypair::new_rand();
+        let aes = AeKey::new_rand();
+        let mut account = ConfidentialTransferAccount {
+            available_balance: elgamal.pubkey().encrypt(u64::MAX).into(),
+            decryptable_available_balance: aes.encrypt(u64::MAX).into(),
+            ..ConfidentialTransferAccount::default()
+        };
+        assert_eq!(
+            decrypt_available_balance(&account, &elgamal, &aes).unwrap(),
+            u64::MAX,
+        );
+
+        // Matching credit counters do not guarantee a fresh cache.
+        account.decryptable_available_balance = aes.encrypt(u64::MAX - 1).into();
+        assert!(decrypt_available_balance(&account, &elgamal, &aes)
+            .unwrap_err()
+            .to_string()
+            .contains("out of sync"));
+    }
+
+    #[test]
+    fn display_available_balance_handles_registry_initial_state() {
+        let elgamal = ElGamalKeypair::new_rand();
+        let aes = AeKey::new_rand();
+        let mut account = ConfidentialTransferAccount::default();
+        assert_eq!(
+            decrypt_available_balance(&account, &elgamal, &aes).unwrap(),
+            0,
+        );
+
+        // An uninitialized AES cache must not hide a nonzero available balance.
+        account.available_balance = elgamal.pubkey().encrypt(1_u64).into();
+        assert!(decrypt_available_balance(&account, &elgamal, &aes)
+            .unwrap_err()
+            .to_string()
+            .contains("out of sync"));
     }
 }
