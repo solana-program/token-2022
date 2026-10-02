@@ -13,9 +13,6 @@ edition = { workspace = true }
 [features]
 no-entrypoint = []
 test-sbf = []
-default = ["zk-ops"]
-# Remove this feature once the underlying syscalls are released on all networks
-zk-ops = []
 
 [dependencies]
 bytemuck = { version = "1.25.0", features = ["derive"] }

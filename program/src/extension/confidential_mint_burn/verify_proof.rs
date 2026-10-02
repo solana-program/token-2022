@@ -1,5 +1,3 @@
-use spl_token_2022_interface::error::TokenError;
-#[cfg(feature = "zk-ops")]
 use {
     solana_account_info::{next_account_info, AccountInfo},
     solana_program_error::ProgramError,
@@ -9,6 +7,7 @@ use {
         BatchedRangeProofU128Data, CiphertextCommitmentEqualityProofContext,
         CiphertextCommitmentEqualityProofData,
     },
+    spl_token_2022_interface::error::TokenError,
     spl_token_confidential_transfer_proof_extraction::{
         burn::BurnProofContext, instruction::verify_and_extract_context, mint::MintProofContext,
     },
@@ -17,7 +16,6 @@ use {
 
 /// Verify zero-knowledge proofs needed for a `ConfidentialMint` instruction
 /// and return the corresponding proof context information.
-#[cfg(feature = "zk-ops")]
 pub fn verify_mint_proof(
     account_info_iter: &mut Iter<'_, AccountInfo<'_>>,
     equality_proof_instruction_offset: i8,
@@ -68,7 +66,6 @@ pub fn verify_mint_proof(
 
 /// Verify zero-knowledge proofs needed for a `ConfidentialBurn` instruction
 /// and return the corresponding proof context information.
-#[cfg(feature = "zk-ops")]
 pub fn verify_burn_proof(
     account_info_iter: &mut Iter<'_, AccountInfo<'_>>,
     equality_proof_instruction_offset: i8,

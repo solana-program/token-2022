@@ -130,7 +130,6 @@ pub(crate) fn check_elgamal_registry_program_account(
 }
 
 /// Check instruction data and proof data auditor ciphertext consistency
-#[cfg(feature = "zk-ops")]
 pub(crate) fn check_auditor_ciphertext(
     instruction_data_auditor_ciphertext_lo: &PodElGamalCiphertext,
     instruction_data_auditor_ciphertext_hi: &PodElGamalCiphertext,
