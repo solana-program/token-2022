@@ -1,7 +1,7 @@
-// Remove feature once zk ops syscalls are enabled on all networks
 #[cfg(feature = "zk-ops")]
 use {
     crate::check_auditor_ciphertext,
+    pinocchio_transfer_hook_interface::instructions::Execute,
     spl_token_2022_interface::extension::{
         confidential_mint_burn::ConfidentialMintBurn, non_transferable::NonTransferableAccount,
     },
@@ -17,15 +17,14 @@ use {
         processor::Processor,
     },
     bytemuck::Zeroable,
-    solana_account_info::{next_account_info, AccountInfo},
+    pinocchio::{account::next_account_view, AccountView, Resize},
+    pinocchio_system::instructions::Transfer,
     solana_address::Address,
     solana_clock::Clock,
-    solana_cpi::invoke,
     solana_msg::msg,
     solana_nullable::MaybeNull,
     solana_program_error::{ProgramError, ProgramResult},
     solana_rent::Rent,
-    solana_system_interface::instruction as system_instruction,
     solana_sysvar::Sysvar,
     solana_zero_copy::unaligned::{Bool, U64},
     solana_zk_elgamal_proof_interface::proof_data::{
@@ -65,16 +64,16 @@ use {
 
 /// Processes an [`InitializeMint`] instruction.
 fn process_initialize_mint(
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     authority: &MaybeNull<Address>,
     auto_approve_new_account: Bool,
     auditor_encryption_pubkey: &MaybeNull<PodElGamalPubkey>,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let mint_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let mint_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_info.owner)?;
-    let mint_data = &mut mint_info.data.borrow_mut();
+    check_program_account(mint_info.owner())?;
+    let mint_data = &mut mint_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(mint_data)?;
     let confidential_transfer_mint = mint.init_extension::<ConfidentialTransferMint>(true)?;
 
@@ -87,16 +86,16 @@ fn process_initialize_mint(
 
 /// Processes an [`UpdateMint`] instruction.
 fn process_update_mint(
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     auto_approve_new_account: Bool,
     auditor_encryption_pubkey: &MaybeNull<PodElGamalPubkey>,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let mint_info = next_account_info(account_info_iter)?;
-    let authority_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let mint_info = next_account_view(account_info_iter)?;
+    let authority_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_info.owner)?;
-    let mint_data = &mut mint_info.data.borrow_mut();
+    check_program_account(mint_info.owner())?;
+    let mint_data = &mut mint_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(mint_data)?;
     let confidential_transfer_mint = mint.get_extension_mut::<ConfidentialTransferMint>()?;
     let maybe_confidential_transfer_mint_authority: Option<Address> =
@@ -104,11 +103,11 @@ fn process_update_mint(
     let confidential_transfer_mint_authority =
         maybe_confidential_transfer_mint_authority.ok_or(TokenError::NoAuthorityExists)?;
 
-    if !authority_info.is_signer {
+    if !authority_info.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    if confidential_transfer_mint_authority != *authority_info.key {
+    if confidential_transfer_mint_authority != *authority_info.address() {
         return Err(TokenError::OwnerMismatch.into());
     }
 
@@ -125,26 +124,27 @@ enum ElGamalPubkeySource<'a> {
 /// Processes a [`ConfigureAccountWithRegistry`] instruction.
 fn process_configure_account_with_registry(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let token_account_info = next_account_info(account_info_iter)?;
-    let _mint_info = next_account_info(account_info_iter)?;
-    let elgamal_registry_account = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let token_account_info = next_account_view(account_info_iter)?;
+    let _mint_info = next_account_view(account_info_iter)?;
+    let elgamal_registry_account = next_account_view(account_info_iter)?;
 
-    check_elgamal_registry_program_account(elgamal_registry_account.owner)?;
+    check_elgamal_registry_program_account(elgamal_registry_account.owner())?;
 
     // if a payer account for reallcation is provided, then reallocate
-    if let Ok(payer_info) = next_account_info(account_info_iter) {
-        let system_program_info = next_account_info(account_info_iter)?;
-        reallocate_for_configure_account_with_registry(
-            token_account_info,
-            payer_info,
-            system_program_info,
-        )?;
+    if let Ok(payer_info) = next_account_view(account_info_iter) {
+        let _system_program_info = next_account_view(account_info_iter)?;
+        reallocate_for_configure_account_with_registry(token_account_info, payer_info)?;
     }
 
-    let elgamal_registry_account_data = &elgamal_registry_account.data.borrow();
+    // Note: Make a copy of the ElGamalRegistry account so we can use the accounts array
+    // again without violating the borrow checker. The account is not re-borrowed on the
+    // processor.
+    let account = *elgamal_registry_account;
+    let elgamal_registry_account_data = &account.try_borrow()?;
+
     let elgamal_registry_account =
         bytemuck::try_from_bytes::<ElGamalRegistry>(elgamal_registry_account_data)
             .map_err(|_| ProgramError::InvalidArgument)?;
@@ -162,13 +162,12 @@ fn process_configure_account_with_registry(
     )
 }
 
-fn reallocate_for_configure_account_with_registry<'a>(
-    token_account_info: &AccountInfo<'a>,
-    payer_info: &AccountInfo<'a>,
-    system_program_info: &AccountInfo<'a>,
+fn reallocate_for_configure_account_with_registry(
+    token_account_info: &mut AccountView,
+    payer_info: &AccountView,
 ) -> ProgramResult {
     let mut current_extension_types = {
-        let token_account = token_account_info.data.borrow();
+        let token_account = token_account_info.try_borrow()?;
         let account = PodStateWithExtensions::<PodAccount>::unpack(&token_account)?;
         account.get_extension_types()?
     };
@@ -200,18 +199,16 @@ fn reallocate_for_configure_account_with_registry<'a>(
     let current_lamport_reserve = token_account_info.lamports();
     let lamports_diff = new_rent_exempt_reserve.saturating_sub(current_lamport_reserve);
     if lamports_diff > 0 {
-        invoke(
-            &system_instruction::transfer(payer_info.key, token_account_info.key, lamports_diff),
-            &[
-                payer_info.clone(),
-                token_account_info.clone(),
-                system_program_info.clone(),
-            ],
-        )?;
+        Transfer {
+            from: payer_info,
+            to: token_account_info,
+            lamports: lamports_diff,
+        }
+        .invoke()?;
     }
 
     // set account_type, if needed
-    let mut token_account_data = token_account_info.data.borrow_mut();
+    let mut token_account_data = token_account_info.try_borrow_mut()?;
     set_account_type::<Account>(&mut token_account_data)?;
 
     Ok(())
@@ -220,14 +217,14 @@ fn reallocate_for_configure_account_with_registry<'a>(
 /// Processes a [`ConfigureAccount`] instruction.
 fn process_configure_account(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     decryptable_zero_balance: &DecryptableBalance,
     maximum_pending_balance_credit_counter: &U64,
     elgamal_pubkey_source: ElGamalPubkeySource,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let token_account_info = next_account_info(account_info_iter)?;
-    let mint_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let token_account_info = next_account_view(account_info_iter)?;
+    let mint_info = next_account_view(account_info_iter)?;
 
     let elgamal_pubkey = match elgamal_pubkey_source {
         ElGamalPubkeySource::ProofInstructionOffset(offset) => {
@@ -239,22 +236,22 @@ fn process_configure_account(
             proof_context.pubkey
         }
         ElGamalPubkeySource::ElGamalRegistry(elgamal_registry_account) => {
-            let _elgamal_registry_account = next_account_info(account_info_iter)?;
+            let _elgamal_registry_account = next_account_view(account_info_iter)?;
             elgamal_registry_account.elgamal_pubkey
         }
     };
 
-    check_program_account(token_account_info.owner)?;
-    let token_account_data = &mut token_account_info.data.borrow_mut();
+    check_program_account(token_account_info.owner())?;
+    let token_account_data = &mut token_account_info.try_borrow_mut()?;
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
 
-    if token_account.base.mint != *mint_info.key {
+    if token_account.base.mint != *mint_info.address() {
         return Err(TokenError::MintMismatch.into());
     }
 
     match elgamal_pubkey_source {
         ElGamalPubkeySource::ProofInstructionOffset(_) => {
-            let authority_info = next_account_info(account_info_iter)?;
+            let authority_info = next_account_view(account_info_iter)?;
             let authority_info_data_len = authority_info.data_len();
 
             Processor::validate_owner(
@@ -275,8 +272,8 @@ fn process_configure_account(
         }
     };
 
-    check_program_account(mint_info.owner)?;
-    let mint_data = &mut mint_info.data.borrow();
+    check_program_account(mint_info.owner())?;
+    let mint_data = &mut mint_info.try_borrow()?;
     let mint = PodStateWithExtensions::<PodMint>::unpack(mint_data)?;
     let confidential_transfer_mint = mint.get_extension::<ConfidentialTransferMint>()?;
 
@@ -315,22 +312,22 @@ fn process_configure_account(
 }
 
 /// Processes an [`ApproveAccount`] instruction.
-fn process_approve_account(accounts: &[AccountInfo]) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let token_account_info = next_account_info(account_info_iter)?;
-    let mint_info = next_account_info(account_info_iter)?;
-    let authority_info = next_account_info(account_info_iter)?;
+fn process_approve_account(accounts: &mut [AccountView]) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter_mut();
+    let token_account_info = next_account_view(account_info_iter)?;
+    let mint_info = next_account_view(account_info_iter)?;
+    let authority_info = next_account_view(account_info_iter)?;
 
-    check_program_account(token_account_info.owner)?;
-    let token_account_data = &mut token_account_info.data.borrow_mut();
+    check_program_account(token_account_info.owner())?;
+    let token_account_data = &mut token_account_info.try_borrow_mut()?;
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
 
-    if *mint_info.key != token_account.base.mint {
+    if *mint_info.address() != token_account.base.mint {
         return Err(TokenError::MintMismatch.into());
     }
 
-    check_program_account(mint_info.owner)?;
-    let mint_data = &mint_info.data.borrow_mut();
+    check_program_account(mint_info.owner())?;
+    let mint_data = &mint_info.try_borrow_mut()?;
     let mint = PodStateWithExtensions::<PodMint>::unpack(mint_data)?;
     let confidential_transfer_mint = mint.get_extension::<ConfidentialTransferMint>()?;
     let maybe_confidential_transfer_mint_authority: Option<Address> =
@@ -338,7 +335,9 @@ fn process_approve_account(accounts: &[AccountInfo]) -> ProgramResult {
     let confidential_transfer_mint_authority =
         maybe_confidential_transfer_mint_authority.ok_or(TokenError::NoAuthorityExists)?;
 
-    if authority_info.is_signer && *authority_info.key == confidential_transfer_mint_authority {
+    if authority_info.is_signer()
+        && *authority_info.address() == confidential_transfer_mint_authority
+    {
         let confidential_transfer_state =
             token_account.get_extension_mut::<ConfidentialTransferAccount>()?;
         confidential_transfer_state.approved = true.into();
@@ -351,11 +350,11 @@ fn process_approve_account(accounts: &[AccountInfo]) -> ProgramResult {
 /// Processes an [`EmptyAccount`] instruction.
 fn process_empty_account(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     proof_instruction_offset: i64,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let token_account_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let token_account_info = next_account_view(account_info_iter)?;
 
     // zero-knowledge proof certifies that the available balance ciphertext holds
     // the balance of 0.
@@ -364,11 +363,11 @@ fn process_empty_account(
         ZeroCiphertextProofContext,
     >(account_info_iter, proof_instruction_offset, None)?;
 
-    let authority_info = next_account_info(account_info_iter)?;
+    let authority_info = next_account_view(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
 
-    check_program_account(token_account_info.owner)?;
-    let token_account_data = &mut token_account_info.data.borrow_mut();
+    check_program_account(token_account_info.owner())?;
+    let token_account_data = &mut token_account_info.try_borrow_mut()?;
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
 
     Processor::validate_owner(
@@ -405,18 +404,23 @@ fn process_empty_account(
 #[cfg(feature = "zk-ops")]
 fn process_deposit(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     amount: u64,
     expected_decimals: u8,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let token_account_info = next_account_info(account_info_iter)?;
-    let mint_info = next_account_info(account_info_iter)?;
-    let authority_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let token_account_info = next_account_view(account_info_iter)?;
+    let mint_info = next_account_view(account_info_iter)?;
+    let authority_info = next_account_view(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
 
-    check_program_account(mint_info.owner)?;
-    let mint_data = &mint_info.data.borrow_mut();
+    check_program_account(mint_info.owner())?;
+
+    // Note: Storing the address of the mint so borrow checker doesn't complain about
+    // multiple borrows of `mint_info`.
+    let mint_address = *mint_info.address();
+
+    let mint_data = &mint_info.try_borrow_mut()?;
     let mint = PodStateWithExtensions::<PodMint>::unpack(mint_data)?;
 
     if let Ok(extension) = mint.get_extension::<PausableConfig>() {
@@ -433,8 +437,8 @@ fn process_deposit(
         return Err(TokenError::IllegalMintBurnConversion.into());
     }
 
-    check_program_account(token_account_info.owner)?;
-    let token_account_data = &mut token_account_info.data.borrow_mut();
+    check_program_account(token_account_info.owner())?;
+    let token_account_data = &mut token_account_info.try_borrow_mut()?;
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
     if token_account
         .get_extension::<NonTransferableAccount>()
@@ -455,7 +459,7 @@ fn process_deposit(
         return Err(TokenError::AccountFrozen.into());
     }
 
-    if token_account.base.mint != *mint_info.key {
+    if token_account.base.mint != mint_address {
         return Err(TokenError::MintMismatch.into());
     }
 
@@ -514,16 +518,16 @@ pub fn verify_and_split_deposit_amount(amount: u64) -> Result<(u64, u64), TokenE
 #[cfg(feature = "zk-ops")]
 fn process_withdraw(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     amount: u64,
     expected_decimals: u8,
     new_decryptable_available_balance: DecryptableBalance,
     equality_proof_instruction_offset: i64,
     range_proof_instruction_offset: i64,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let token_account_info = next_account_info(account_info_iter)?;
-    let mint_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let token_account_info = next_account_view(account_info_iter)?;
+    let mint_info = next_account_view(account_info_iter)?;
 
     // zero-knowledge proof certifies that the account has enough available balance
     // to withdraw the amount.
@@ -533,11 +537,16 @@ fn process_withdraw(
         range_proof_instruction_offset,
     )?;
 
-    let authority_info = next_account_info(account_info_iter)?;
+    let authority_info = next_account_view(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
 
-    check_program_account(mint_info.owner)?;
-    let mint_data = &mint_info.data.borrow_mut();
+    check_program_account(mint_info.owner())?;
+
+    // Note: Storing the address of the mint so borrow checker doesn't complain about
+    // multiple borrows of `mint_info`.
+    let mint_address = *mint_info.address();
+
+    let mint_data = &mint_info.try_borrow_mut()?;
     let mint = PodStateWithExtensions::<PodMint>::unpack(mint_data)?;
 
     if expected_decimals != mint.base.decimals {
@@ -554,8 +563,8 @@ fn process_withdraw(
         }
     }
 
-    check_program_account(token_account_info.owner)?;
-    let token_account_data = &mut token_account_info.data.borrow_mut();
+    check_program_account(token_account_info.owner())?;
+    let token_account_data = &mut token_account_info.try_borrow_mut()?;
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
     if token_account
         .get_extension::<NonTransferableAccount>()
@@ -576,7 +585,7 @@ fn process_withdraw(
         return Err(TokenError::AccountFrozen.into());
     }
 
-    if token_account.base.mint != *mint_info.key {
+    if token_account.base.mint != mint_address {
         return Err(TokenError::MintMismatch.into());
     }
 
@@ -627,7 +636,7 @@ fn process_withdraw(
 #[cfg(feature = "zk-ops")]
 fn process_transfer(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     new_source_decryptable_available_balance: DecryptableBalance,
     transfer_amount_auditor_ciphertext_lo: &PodElGamalCiphertext,
     transfer_amount_auditor_ciphertext_hi: &PodElGamalCiphertext,
@@ -637,13 +646,13 @@ fn process_transfer(
     fee_ciphertext_validity_proof_instruction_offset: Option<i64>,
     range_proof_instruction_offset: i64,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let source_account_info = next_account_info(account_info_iter)?;
-    let mint_info = next_account_info(account_info_iter)?;
-    let destination_account_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let source_account_info = next_account_view(account_info_iter)?;
+    let mint_info = next_account_view(account_info_iter)?;
+    let destination_account_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_info.owner)?;
-    let mint_data = mint_info.data.borrow_mut();
+    check_program_account(mint_info.owner())?;
+    let mint_data = mint_info.try_borrow_mut()?;
     let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
 
     if let Ok(extension) = mint.get_extension::<PausableConfig>() {
@@ -653,6 +662,7 @@ fn process_transfer(
     }
 
     let confidential_transfer_mint = mint.get_extension::<ConfidentialTransferMint>()?;
+    let transfer_hook_program_id = transfer_hook::get_program_id(&mint);
 
     // A `Transfer` instruction must be accompanied by a zero-knowledge proof
     // instruction that certify the validity of the transfer amounts. The kind
@@ -678,7 +688,7 @@ fn process_transfer(
             range_proof_instruction_offset,
         )?;
 
-        let authority_info = next_account_info(account_info_iter)?;
+        let authority_info = next_account_view(account_info_iter)?;
 
         // Check that the auditor encryption public key associated wth the confidential
         // mint is consistent with what was actually used to generate the zkp.
@@ -703,6 +713,9 @@ fn process_transfer(
             &proof_context_auditor_ciphertext_lo,
             &proof_context_auditor_ciphertext_hi,
         )?;
+
+        // can't doubly-borrow the mint data either
+        drop(mint_data);
 
         process_source_for_transfer(
             program_id,
@@ -744,7 +757,7 @@ fn process_transfer(
             fee_parameters,
         )?;
 
-        let authority_info = next_account_info(account_info_iter)?;
+        let authority_info = next_account_view(account_info_iter)?;
 
         // Check that the encryption public keys associated with the mint confidential
         // transfer and confidential transfer fee extensions are consistent with
@@ -784,6 +797,9 @@ fn process_transfer(
             &proof_context_auditor_ciphertext_hi,
         )?;
 
+        // can't doubly-borrow the mint data either
+        drop(mint_data);
+
         process_source_for_transfer_with_fee(
             program_id,
             source_account_info,
@@ -794,7 +810,7 @@ fn process_transfer(
             new_source_decryptable_available_balance,
         )?;
 
-        let is_self_transfer = source_account_info.key == destination_account_info.key;
+        let is_self_transfer = source_account_info.address() == destination_account_info.address();
         process_destination_for_transfer_with_fee(
             destination_account_info,
             mint_info,
@@ -805,39 +821,40 @@ fn process_transfer(
         authority_info
     };
 
-    if let Some(program_id) = transfer_hook::get_program_id(&mint) {
+    if let Some(program_id) = transfer_hook_program_id {
         // set transferring flags, scope the borrow to avoid double-borrow during CPI
         {
-            let mut source_account_data = source_account_info.data.borrow_mut();
+            let mut source_account_data = source_account_info.try_borrow_mut()?;
             let mut source_account =
                 PodStateWithExtensionsMut::<PodAccount>::unpack(&mut source_account_data)?;
             transfer_hook::set_transferring(&mut source_account)?;
         }
         {
-            let mut destination_account_data = destination_account_info.data.borrow_mut();
+            let mut destination_account_data = destination_account_info.try_borrow_mut()?;
             let mut destination_account =
                 PodStateWithExtensionsMut::<PodAccount>::unpack(&mut destination_account_data)?;
             transfer_hook::set_transferring(&mut destination_account)?;
         }
 
-        // can't doubly-borrow the mint data either
-        drop(mint_data);
-
         // Since the amount is unknown during a confidential transfer, pass in
         // u64::MAX as a convention.
-        spl_transfer_hook_interface::onchain::invoke_execute(
-            &program_id,
-            source_account_info.clone(),
-            mint_info.clone(),
-            destination_account_info.clone(),
-            authority_info.clone(),
-            account_info_iter.as_slice(),
-            u64::MAX,
-        )?;
+        Execute {
+            program_id: &program_id,
+            source: source_account_info,
+            mint: mint_info,
+            destination: destination_account_info,
+            authority: authority_info,
+            additional_accounts: account_info_iter.as_slice(),
+            amount: u64::MAX,
+        }
+        .invoke()?;
 
         // unset transferring flag
-        transfer_hook::unset_transferring(source_account_info)?;
-        transfer_hook::unset_transferring(destination_account_info)?;
+        #[allow(deprecated)]
+        {
+            crate::state::unset_transferring(source_account_info)?;
+            crate::state::unset_transferring(destination_account_info)?;
+        }
     }
 
     Ok(())
@@ -847,16 +864,16 @@ fn process_transfer(
 #[cfg(feature = "zk-ops")]
 fn process_source_for_transfer(
     program_id: &Address,
-    source_account_info: &AccountInfo,
-    mint_info: &AccountInfo,
-    authority_info: &AccountInfo,
-    signers: &[AccountInfo],
+    source_account_info: &mut AccountView,
+    mint_info: &AccountView,
+    authority_info: &AccountView,
+    signers: &[AccountView],
     proof_context: &TransferProofContext,
     new_source_decryptable_available_balance: DecryptableBalance,
 ) -> ProgramResult {
-    check_program_account(source_account_info.owner)?;
+    check_program_account(source_account_info.owner())?;
     let authority_info_data_len = authority_info.data_len();
-    let token_account_data = &mut source_account_info.data.borrow_mut();
+    let token_account_data = &mut source_account_info.try_borrow_mut()?;
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
     if token_account
         .get_extension::<NonTransferableAccount>()
@@ -878,7 +895,9 @@ fn process_source_for_transfer(
         // enabled, including:
         // * the account is delegated to the owner
         // * the account owner is the permanent delegate
-        if *authority_info.key == token_account.base.owner && cpi_guard.lock_cpi.into() && in_cpi()
+        if *authority_info.address() == token_account.base.owner
+            && cpi_guard.lock_cpi.into()
+            && in_cpi()
         {
             return Err(TokenError::CpiGuardTransferBlocked.into());
         }
@@ -888,7 +907,7 @@ fn process_source_for_transfer(
         return Err(TokenError::AccountFrozen.into());
     }
 
-    if token_account.base.mint != *mint_info.key {
+    if token_account.base.mint != *mint_info.address() {
         return Err(TokenError::MintMismatch.into());
     }
 
@@ -933,12 +952,12 @@ fn process_source_for_transfer(
 
 #[cfg(feature = "zk-ops")]
 fn process_destination_for_transfer(
-    destination_account_info: &AccountInfo,
-    mint_info: &AccountInfo,
+    destination_account_info: &mut AccountView,
+    mint_info: &AccountView,
     proof_context: &TransferProofContext,
 ) -> ProgramResult {
-    check_program_account(destination_account_info.owner)?;
-    let destination_token_account_data = &mut destination_account_info.data.borrow_mut();
+    check_program_account(destination_account_info.owner())?;
+    let destination_token_account_data = &mut destination_account_info.try_borrow_mut()?;
     let mut destination_token_account =
         PodStateWithExtensionsMut::<PodAccount>::unpack(destination_token_account_data)?;
 
@@ -946,7 +965,7 @@ fn process_destination_for_transfer(
         return Err(TokenError::AccountFrozen.into());
     }
 
-    if destination_token_account.base.mint != *mint_info.key {
+    if destination_token_account.base.mint != *mint_info.address() {
         return Err(TokenError::MintMismatch.into());
     }
 
@@ -994,16 +1013,16 @@ fn process_destination_for_transfer(
 #[cfg(feature = "zk-ops")]
 fn process_source_for_transfer_with_fee(
     program_id: &Address,
-    source_account_info: &AccountInfo,
-    mint_info: &AccountInfo,
-    authority_info: &AccountInfo,
-    signers: &[AccountInfo],
+    source_account_info: &mut AccountView,
+    mint_info: &AccountView,
+    authority_info: &AccountView,
+    signers: &[AccountView],
     proof_context: &TransferWithFeeProofContext,
     new_source_decryptable_available_balance: DecryptableBalance,
 ) -> ProgramResult {
-    check_program_account(source_account_info.owner)?;
+    check_program_account(source_account_info.owner())?;
     let authority_info_data_len = authority_info.data_len();
-    let token_account_data = &mut source_account_info.data.borrow_mut();
+    let token_account_data = &mut source_account_info.try_borrow_mut()?;
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
     if token_account
         .get_extension::<NonTransferableAccount>()
@@ -1025,7 +1044,9 @@ fn process_source_for_transfer_with_fee(
         // enabled, including:
         // * the account is delegated to the owner
         // * the account owner is the permanent delegate
-        if *authority_info.key == token_account.base.owner && cpi_guard.lock_cpi.into() && in_cpi()
+        if *authority_info.address() == token_account.base.owner
+            && cpi_guard.lock_cpi.into()
+            && in_cpi()
         {
             return Err(TokenError::CpiGuardTransferBlocked.into());
         }
@@ -1035,7 +1056,7 @@ fn process_source_for_transfer_with_fee(
         return Err(TokenError::AccountFrozen.into());
     }
 
-    if token_account.base.mint != *mint_info.key {
+    if token_account.base.mint != *mint_info.address() {
         return Err(TokenError::MintMismatch.into());
     }
 
@@ -1082,13 +1103,13 @@ fn process_source_for_transfer_with_fee(
 
 #[cfg(feature = "zk-ops")]
 fn process_destination_for_transfer_with_fee(
-    destination_account_info: &AccountInfo,
-    mint_info: &AccountInfo,
+    destination_account_info: &mut AccountView,
+    mint_info: &AccountView,
     proof_context: &TransferWithFeeProofContext,
     is_self_transfer: bool,
 ) -> ProgramResult {
-    check_program_account(destination_account_info.owner)?;
-    let destination_token_account_data = &mut destination_account_info.data.borrow_mut();
+    check_program_account(destination_account_info.owner())?;
+    let destination_token_account_data = &mut destination_account_info.try_borrow_mut()?;
     let mut destination_token_account =
         PodStateWithExtensionsMut::<PodAccount>::unpack(destination_token_account_data)?;
 
@@ -1096,7 +1117,7 @@ fn process_destination_for_transfer_with_fee(
         return Err(TokenError::AccountFrozen.into());
     }
 
-    if destination_token_account.base.mint != *mint_info.key {
+    if destination_token_account.base.mint != *mint_info.address() {
         return Err(TokenError::MintMismatch.into());
     }
 
@@ -1195,19 +1216,19 @@ fn process_destination_for_transfer_with_fee(
 #[cfg(feature = "zk-ops")]
 fn process_apply_pending_balance(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     ApplyPendingBalanceData {
         expected_pending_balance_credit_counter,
         new_decryptable_available_balance,
     }: &ApplyPendingBalanceData,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let token_account_info = next_account_info(account_info_iter)?;
-    let authority_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let token_account_info = next_account_view(account_info_iter)?;
+    let authority_info = next_account_view(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
 
-    check_program_account(token_account_info.owner)?;
-    let token_account_data = &mut token_account_info.data.borrow_mut();
+    check_program_account(token_account_info.owner())?;
+    let token_account_data = &mut token_account_info.try_borrow_mut()?;
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
 
     Processor::validate_owner(
@@ -1249,16 +1270,16 @@ fn process_apply_pending_balance(
 /// instruction.
 fn process_allow_confidential_credits(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     allow_confidential_credits: bool,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let token_account_info = next_account_info(account_info_iter)?;
-    let authority_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let token_account_info = next_account_view(account_info_iter)?;
+    let authority_info = next_account_view(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
 
-    check_program_account(token_account_info.owner)?;
-    let token_account_data = &mut token_account_info.data.borrow_mut();
+    check_program_account(token_account_info.owner())?;
+    let token_account_data = &mut token_account_info.try_borrow_mut()?;
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
 
     Processor::validate_owner(
@@ -1280,16 +1301,16 @@ fn process_allow_confidential_credits(
 /// [`EnableNonConfidentialCredits`] instruction.
 fn process_allow_non_confidential_credits(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     allow_non_confidential_credits: bool,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let token_account_info = next_account_info(account_info_iter)?;
-    let authority_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let token_account_info = next_account_view(account_info_iter)?;
+    let authority_info = next_account_view(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
 
-    check_program_account(token_account_info.owner)?;
-    let token_account_data = &mut token_account_info.data.borrow_mut();
+    check_program_account(token_account_info.owner())?;
+    let token_account_data = &mut token_account_info.try_borrow_mut()?;
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
 
     Processor::validate_owner(
@@ -1311,7 +1332,7 @@ fn process_allow_non_confidential_credits(
 #[allow(dead_code)]
 pub(crate) fn process_instruction(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     input: &[u8],
 ) -> ProgramResult {
     check_program_account(program_id)?;

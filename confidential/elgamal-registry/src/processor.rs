@@ -1,11 +1,11 @@
 use {
-    solana_account_info::{next_account_info, AccountInfo},
+    pinocchio_system::instructions::CreateAccountAllowPrefund,
+    solana_account_view::{next_account_view, AccountView},
     solana_address::Address,
-    solana_cpi::invoke_signed,
+    solana_instruction_view::{cpi::Signer, seeds},
     solana_msg::msg,
     solana_program_error::{ProgramError, ProgramResult},
     solana_rent::Rent,
-    solana_system_interface::instruction::{allocate, assign},
     solana_sysvar::Sysvar,
     solana_zk_elgamal_proof_interface::proof_data::pubkey_validity::{
         PubkeyValidityProofContext, PubkeyValidityProofData,
@@ -22,15 +22,15 @@ use {
 /// Processes `CreateRegistry` instruction
 pub fn process_create_registry_account(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     proof_instruction_offset: i64,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let elgamal_registry_account_info = next_account_info(account_info_iter)?;
-    let wallet_account_info = next_account_info(account_info_iter)?;
-    let system_program_info = next_account_info(account_info_iter)?;
+    let account_info_iter = &mut accounts.iter_mut();
+    let elgamal_registry_account_info = next_account_view(account_info_iter)?;
+    let wallet_account_info = next_account_view(account_info_iter)?;
+    let _system_program_info = next_account_view(account_info_iter)?;
 
-    if !wallet_account_info.is_signer {
+    if !wallet_account_info.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
@@ -40,34 +40,34 @@ pub fn process_create_registry_account(
         PubkeyValidityProofContext,
     >(account_info_iter, proof_instruction_offset, None)?;
 
-    let (elgamal_registry_account_address, bump_seed) =
-        get_elgamal_registry_address_and_bump_seed(wallet_account_info.key, program_id);
-    if elgamal_registry_account_address != *elgamal_registry_account_info.key {
+    let (elgamal_registry_account_address, bump) =
+        get_elgamal_registry_address_and_bump_seed(wallet_account_info.address(), program_id);
+    if elgamal_registry_account_address != *elgamal_registry_account_info.address() {
         msg!("Error: ElGamal registry account address does not match seed derivation");
         return Err(ProgramError::InvalidSeeds);
     }
 
-    let elgamal_registry_account_seeds: &[&[_]] = &[
+    let bump_seed = [bump];
+    let elgamal_registry_account_seeds = seeds!(
         REGISTRY_ADDRESS_SEED,
-        wallet_account_info.key.as_ref(),
-        &[bump_seed],
-    ];
+        wallet_account_info.address().as_ref(),
+        &bump_seed
+    );
     let rent = Rent::get()?;
 
     create_pda_account(
         &rent,
         ELGAMAL_REGISTRY_ACCOUNT_LEN,
         program_id,
-        system_program_info,
         elgamal_registry_account_info,
-        elgamal_registry_account_seeds,
+        Signer::from(&elgamal_registry_account_seeds),
     )?;
 
-    let elgamal_registry_account_data = &mut elgamal_registry_account_info.data.borrow_mut();
+    let elgamal_registry_account_data = &mut elgamal_registry_account_info.try_borrow_mut()?;
     let elgamal_registry_account =
         bytemuck::try_from_bytes_mut::<ElGamalRegistry>(elgamal_registry_account_data)
             .map_err(|_| ProgramError::InvalidArgument)?;
-    elgamal_registry_account.owner = *wallet_account_info.key;
+    elgamal_registry_account.owner = *wallet_account_info.address();
     elgamal_registry_account.elgamal_pubkey = proof_context.pubkey;
 
     Ok(())
@@ -76,12 +76,17 @@ pub fn process_create_registry_account(
 /// Processes `UpdateRegistry` instruction
 pub fn process_update_registry_account(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     proof_instruction_offset: i64,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    let elgamal_registry_account_info = next_account_info(account_info_iter)?;
-    let elgamal_registry_account_data = &mut elgamal_registry_account_info.data.borrow_mut();
+    let account_info_iter = &mut accounts.iter_mut();
+    let elgamal_registry_account_info = next_account_view(account_info_iter)?;
+
+    // Note: Storing the owner of the account so borrow checker doesn't complain about
+    // multiple borrows of `elgamal_registry_account_info`.
+    let elgamal_registry_account_owner = *elgamal_registry_account_info.owner();
+
+    let elgamal_registry_account_data = &mut elgamal_registry_account_info.try_borrow_mut()?;
     let elgamal_registry_account =
         bytemuck::try_from_bytes_mut::<ElGamalRegistry>(elgamal_registry_account_data)
             .map_err(|_| ProgramError::InvalidArgument)?;
@@ -92,9 +97,9 @@ pub fn process_update_registry_account(
         PubkeyValidityProofContext,
     >(account_info_iter, proof_instruction_offset, None)?;
 
-    let owner_info = next_account_info(account_info_iter)?;
+    let owner_info = next_account_view(account_info_iter)?;
     validate_registry_owner(owner_info, &elgamal_registry_account.owner)?;
-    validate_program_owner(elgamal_registry_account_info, program_id)?;
+    validate_program_owner(&elgamal_registry_account_owner, program_id)?;
 
     elgamal_registry_account.elgamal_pubkey = proof_context.pubkey;
     Ok(())
@@ -103,7 +108,7 @@ pub fn process_update_registry_account(
 /// Instruction processor
 pub fn process_instruction(
     program_id: &Address,
-    accounts: &[AccountInfo],
+    accounts: &mut [AccountView],
     input: &[u8],
 ) -> ProgramResult {
     let instruction = RegistryInstruction::unpack(input)?;
@@ -123,18 +128,18 @@ pub fn process_instruction(
     }
 }
 
-fn validate_registry_owner(owner_info: &AccountInfo, expected_owner: &Address) -> ProgramResult {
-    if expected_owner != owner_info.key {
+fn validate_registry_owner(owner_info: &AccountView, expected_owner: &Address) -> ProgramResult {
+    if expected_owner != owner_info.address() {
         return Err(ProgramError::InvalidAccountOwner);
     }
-    if !owner_info.is_signer {
+    if !owner_info.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
     Ok(())
 }
 
-fn validate_program_owner(registry_info: &AccountInfo, program_id: &Address) -> ProgramResult {
-    if registry_info.owner != program_id {
+fn validate_program_owner(owner: &Address, program_id: &Address) -> ProgramResult {
+    if owner != program_id {
         return Err(ProgramError::InvalidAccountOwner);
     }
     Ok(())
@@ -143,13 +148,12 @@ fn validate_program_owner(registry_info: &AccountInfo, program_id: &Address) -> 
 /// Allocate ElGamal registry account using Program Derived Address for the
 /// given seeds
 #[inline(always)]
-pub fn create_pda_account<'a>(
+pub fn create_pda_account(
     rent: &Rent,
     space: usize,
     owner: &Address,
-    system_program: &AccountInfo<'a>,
-    new_pda_account: &AccountInfo<'a>,
-    new_pda_signer_seeds: &[&[u8]],
+    new_pda_account: &AccountView,
+    new_pda_signer: Signer,
 ) -> ProgramResult {
     let required_lamports = rent
         .minimum_balance(space)
@@ -159,15 +163,11 @@ pub fn create_pda_account<'a>(
         return Err(ProgramError::AccountNotRentExempt);
     }
 
-    invoke_signed(
-        &allocate(new_pda_account.key, space as u64),
-        &[new_pda_account.clone(), system_program.clone()],
-        &[new_pda_signer_seeds],
-    )?;
-
-    invoke_signed(
-        &assign(new_pda_account.key, owner),
-        &[new_pda_account.clone(), system_program.clone()],
-        &[new_pda_signer_seeds],
-    )
+    CreateAccountAllowPrefund {
+        to: new_pda_account,
+        owner,
+        space: space as u64,
+        funding: None,
+    }
+    .invoke_signed(&[new_pda_signer])
 }

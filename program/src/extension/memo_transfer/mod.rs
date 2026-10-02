@@ -34,6 +34,7 @@ pub fn check_previous_sibling_instruction_is_memo() -> Result<(), ProgramError> 
 
 /// Re-implementation of `get_processed_sibling_instruction` from `solana_program`
 /// to avoid pulling in the whole crate
+#[allow(deprecated)]
 fn get_processed_sibling_instruction() -> Option<Instruction> {
     #[cfg(target_os = "solana")]
     #[allow(unsafe_code)]
