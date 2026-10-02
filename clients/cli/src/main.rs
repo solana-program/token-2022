@@ -1,6 +1,8 @@
 use {
     solana_sdk::signer::Signer,
-    spl_token_cli::{clap_app::*, command::process_command, config::Config},
+    spl_token_cli::{
+        clap_app::*, command::process_command, config::Config, ConfidentialTransactionError,
+    },
     std::{str::FromStr, sync::Arc},
 };
 
@@ -32,8 +34,13 @@ async fn main() -> Result<(), Error> {
     .await;
 
     solana_logger::setup_with_default("solana=info");
-    let result =
-        process_command(&sub_command, matches, &config, wallet_manager, bulk_signers).await?;
+    let result = process_command(&sub_command, matches, &config, wallet_manager, bulk_signers)
+        .await
+        .inspect_err(|error| {
+            if let Some(report) = error.downcast_ref::<ConfidentialTransactionError>() {
+                println!("{}", config.output_format.formatted_string(report));
+            }
+        })?;
     println!("{}", result);
     Ok(())
 }
