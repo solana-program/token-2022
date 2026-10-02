@@ -234,8 +234,6 @@ pub(crate) struct CliTokenAccount {
     pub(crate) decrypted_confidential_balances: Option<CliDecryptedConfidentialBalances>,
 }
 
-/// Decrypted confidential balances of a token account, shown when
-/// `spl-token display --decrypt` is used with the account owner's keypair
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CliDecryptedConfidentialBalances {
@@ -356,8 +354,6 @@ pub(crate) struct CliMint {
     pub(crate) epoch: u64,
     #[serde(flatten)]
     pub(crate) mint: UiMint,
-    /// Decrypted confidential supply, shown when `spl-token display --decrypt`
-    /// is used with the supply keypair of a confidential mint-burn mint
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) decrypted_confidential_supply: Option<UiTokenAmount>,
 }
