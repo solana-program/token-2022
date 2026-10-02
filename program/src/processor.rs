@@ -8,7 +8,7 @@ use {
             default_account_state, group_member_pointer, group_pointer, interest_bearing_mint,
             memo_transfer::{self, check_previous_sibling_instruction_is_memo},
             metadata_pointer, pausable, permissioned_burn, reallocate, scaled_ui_amount,
-            token_group, token_metadata, transfer_fee, transfer_hook,
+            slot_reference_fee, token_group, token_metadata, transfer_fee, transfer_hook,
         },
         pod_instruction::{
             decode_instruction_data_with_coption_pubkey, decode_instruction_data_with_coption_u64,
@@ -55,6 +55,7 @@ use {
             permanent_delegate::{get_permanent_delegate, PermanentDelegate},
             permissioned_burn::PermissionedBurnConfig,
             scaled_ui_amount::ScaledUiAmountConfig,
+            slot_reference_fee::{SlotReferenceFeeAmount, SlotReferenceFeeConfig},
             transfer_fee::{TransferFeeAmount, TransferFeeConfig},
             transfer_hook::{TransferHook, TransferHookAccount},
             BaseStateWithExtensions, BaseStateWithExtensionsMut, ExtensionType,
@@ -431,6 +432,15 @@ impl Processor {
                     return Err(TokenError::MintRequiredForTransfer.into());
                 }
 
+                // Slot reference fee extension exists on the account, but no mint
+                // was provided to count the reference, abort
+                if source_account
+                    .get_extension::<SlotReferenceFeeAmount>()
+                    .is_ok()
+                {
+                    return Err(TokenError::MintRequiredForTransfer.into());
+                }
+
                 // Pausable extension exists on the account, but no mint
                 // was provided to see if it's paused, abort
                 if source_account.get_extension::<PausableAccount>().is_ok() {
@@ -537,12 +547,29 @@ impl Processor {
             confidential_transfer_state.non_confidential_transfer_allowed()?
         }
 
+        // Register this transfer as a reference to the mint in the current slot
+        // and take the escalating slot reference fee on what is left after the
+        // transfer fee. No-op for mints without the extension.
+        let slot_reference_fee = if let Some((mint_info, _)) = expected_mint_info {
+            slot_reference_fee::processor::reference_and_fee(
+                mint_info,
+                &mut source_account,
+                &mut destination_account,
+                amount
+                    .checked_sub(calculated_fee)
+                    .ok_or(TokenError::Overflow)?,
+            )?
+        } else {
+            0
+        };
+
         source_account.base.amount = source_amount
             .checked_sub(amount)
             .ok_or(TokenError::Overflow)?
             .into();
         let credited_amount = amount
             .checked_sub(calculated_fee)
+            .and_then(|amount| amount.checked_sub(slot_reference_fee))
             .ok_or(TokenError::Overflow)?;
         destination_account.base.amount = u64::from(destination_account.base.amount)
             .checked_add(credited_amount)
@@ -558,6 +585,19 @@ impl Processor {
                 // Use the generic error since this should never happen. If there's
                 // a fee, then the mint has a fee configured, which means all accounts
                 // must have the withholding.
+                return Err(TokenError::InvalidState.into());
+            }
+        }
+        if slot_reference_fee > 0 {
+            if let Ok(extension) = destination_account.get_extension_mut::<SlotReferenceFeeAmount>()
+            {
+                let new_withheld_amount = u64::from(extension.withheld_amount)
+                    .checked_add(slot_reference_fee)
+                    .ok_or(TokenError::Overflow)?;
+                extension.withheld_amount = new_withheld_amount.into();
+            } else {
+                // Same reasoning as above: a mint with the extension requires the
+                // account extension on every token account.
                 return Err(TokenError::InvalidState.into());
             }
         }
@@ -1013,6 +1053,19 @@ impl Processor {
                     )?;
                     extension.authority = new_authority.try_into()?;
                 }
+                AuthorityType::SlotReferenceFee => {
+                    let extension = mint.get_extension_mut::<SlotReferenceFeeConfig>()?;
+                    let maybe_authority: Option<Address> = extension.authority.into();
+                    let authority = maybe_authority.ok_or(TokenError::AuthorityTypeNotSupported)?;
+                    Self::validate_owner(
+                        program_id,
+                        &authority,
+                        authority_info,
+                        authority_info_data_len,
+                        account_info_iter.as_slice(),
+                    )?;
+                    extension.authority = new_authority.try_into()?;
+                }
                 _ => {
                     return Err(TokenError::AuthorityTypeNotSupported.into());
                 }
@@ -1359,6 +1412,12 @@ impl Processor {
 
             if let Ok(transfer_fee_state) = source_account.get_extension::<TransferFeeAmount>() {
                 transfer_fee_state.closable()?
+            }
+
+            if let Ok(slot_reference_fee_state) =
+                source_account.get_extension::<SlotReferenceFeeAmount>()
+            {
+                slot_reference_fee_state.closable()?
             }
         } else if let Ok(mint) = PodStateWithExtensions::<PodMint>::unpack(&source_account_data) {
             let extension = mint.get_extension::<MintCloseAuthority>()?;
@@ -2110,6 +2169,13 @@ impl Processor {
                 }
                 PodTokenInstruction::TransferFeeExtension => {
                     transfer_fee::processor::process_instruction(program_id, accounts, &input[1..])
+                }
+                PodTokenInstruction::SlotReferenceFeeExtension => {
+                    slot_reference_fee::processor::process_instruction(
+                        program_id,
+                        accounts,
+                        &input[1..],
+                    )
                 }
                 PodTokenInstruction::ConfidentialTransferExtension => {
                     confidential_transfer::processor::process_instruction(
