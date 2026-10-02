@@ -13,11 +13,12 @@ cargo build
 
 ## Testing
 
-The tests require a locally built program for Token-2022. To build it, run the
-following command from the root directory of this repository:
+The tests require locally built Token-2022 and ElGamal registry programs. To build
+them, run the following commands from the root directory of this repository:
 
 ```sh
 cargo build-sbf --manifest-path program/Cargo.toml
+cargo build-sbf --manifest-path confidential/elgamal-registry/Cargo.toml
 ```
 
 After that, you can run the tests as any other Rust project:
