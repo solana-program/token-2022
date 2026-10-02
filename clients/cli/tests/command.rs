@@ -472,6 +472,33 @@ async fn run_transfer_test(config: &Config<'_>, payer: &Keypair) {
     assert_eq!(token_account.base.amount, amount);
 }
 
+/// Runs `spl-token display --decrypt` on a token account and returns the
+/// decrypted (pending, available) confidential balances as UI amounts
+async fn decrypted_confidential_balances(
+    config: &Config<'_>,
+    payer: &Keypair,
+    account: &Pubkey,
+) -> (f64, f64) {
+    let result = process_test_command(
+        config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Display.into(),
+            &account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let balances = &value["decryptedConfidentialBalances"];
+    (
+        balances["pendingBalance"]["uiAmount"].as_f64().unwrap(),
+        balances["availableBalance"]["uiAmount"].as_f64().unwrap(),
+    )
+}
+
 async fn process_test_command<I, T>(config: &Config<'_>, payer: &Keypair, args: I) -> CommandResult
 where
     I: IntoIterator<Item = T>,
@@ -3862,6 +3889,12 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     .await
     .unwrap();
 
+    // decrypted balances: deposit is pending until applied
+    assert_eq!(
+        decrypted_confidential_balances(&config, payer, &token_account).await,
+        (deposit_amount, 0.0)
+    );
+
     // apply pending balance
     process_test_command(
         &config,
@@ -3874,6 +3907,73 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     )
     .await
     .unwrap();
+
+    assert_eq!(
+        decrypted_confidential_balances(&config, payer, &token_account).await,
+        (0.0, deposit_amount)
+    );
+
+    // decrypting with a keypair that did not configure the account fails
+    let wrong_owner = Keypair::new();
+    let wrong_owner_config = test_config_with_default_signer(
+        test_validator,
+        &wrong_owner,
+        &spl_token_2022_interface::id(),
+    );
+    let result = process_test_command(
+        &wrong_owner_config,
+        &wrong_owner,
+        &[
+            "spl-token",
+            CommandName::Display.into(),
+            &token_account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await;
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("does not match the encryption key"));
+
+    // An explicit owner overrides the default signer for decryption.
+    let owner_file = NamedTempFile::new().unwrap();
+    write_keypair_file(payer, &owner_file).unwrap();
+    let result = exec_test_cmd(
+        &wrong_owner_config,
+        &[
+            "spl-token",
+            CommandName::Display.into(),
+            &token_account.to_string(),
+            "--decrypt",
+            "--owner",
+            owner_file.path().to_str().unwrap(),
+            "--output",
+            "json-compact",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["availableBalance"]["uiAmount"],
+        deposit_amount,
+    );
+
+    // display without `--decrypt` does not include decrypted balances
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Display.into(),
+            &token_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert!(value.get("decryptedConfidentialBalances").is_none());
 
     // confidential transfer
     let destination_account = create_auxiliary_account(&config, payer, token_pubkey).await;
@@ -4778,6 +4878,23 @@ async fn multisig_transfer(test_validator: &TestValidator, payer: &Keypair) {
         let multisig = Multisig::unpack(&account.data).unwrap();
         assert_eq!(multisig.m, m);
         assert_eq!(multisig.n, n);
+
+        let error = process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::Display.into(),
+                &multisig_pubkey.to_string(),
+                "--decrypt",
+            ],
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Multisig accounts do not have confidential balances to decrypt",
+        );
 
         let source = create_associated_account(&config, payer, &token, &multisig_pubkey).await;
         let destination = create_auxiliary_account(&config, payer, token).await;
@@ -6533,6 +6650,21 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
     .await
     .unwrap();
 
+    let display_args = [
+        "spl-token",
+        CommandName::Display.into(),
+        &token_pubkey.to_string(),
+        "--decrypt",
+    ];
+    let result = process_test_command(&config, payer, display_args)
+        .await
+        .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialSupply"]["uiAmount"],
+        mint_amount
+    );
+
     // Burn confidentially
     let burn_amount = 50.0;
     process_test_command(
@@ -6560,6 +6692,16 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
     )
     .await
     .unwrap();
+
+    // The decryptable supply is not updated by burns, so once the applied
+    // burns exceed 2^32 base units the current supply can no longer be
+    // recovered from it, and decryption reports an error instead
+    let error = process_test_command(&config, payer, display_args)
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("Failed to decrypt confidential supply"));
+    assert!(error.contains("update-decryptable-supply"));
 }
 
 async fn confidential_mint_burn_update_decryptable_supply_cli(
