@@ -14,7 +14,6 @@ use {
 
 /// Verify zero-knowledge proofs needed for a `Withdraw` instruction and return
 /// the corresponding proof context.
-#[cfg(feature = "zk-ops")]
 pub fn verify_withdraw_proof(
     account_info_iter: &mut Iter<AccountInfo>,
     equality_proof_instruction_offset: i64,
@@ -55,7 +54,6 @@ pub fn verify_withdraw_proof(
 
 /// Verify zero-knowledge proof needed for a `Transfer` instruction without fee
 /// and return the corresponding proof context.
-#[cfg(feature = "zk-ops")]
 pub fn verify_transfer_proof(
     account_info_iter: &mut Iter<AccountInfo>,
     equality_proof_instruction_offset: i64,
@@ -111,7 +109,6 @@ pub fn verify_transfer_proof(
 
 /// Verify zero-knowledge proof needed for a `Transfer` instruction with fee and
 /// return the corresponding proof context.
-#[cfg(feature = "zk-ops")]
 #[allow(clippy::too_many_arguments)]
 pub fn verify_transfer_with_fee_proof(
     account_info_iter: &mut Iter<AccountInfo>,
