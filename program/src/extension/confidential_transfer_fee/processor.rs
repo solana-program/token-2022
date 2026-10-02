@@ -1,6 +1,3 @@
-// Remove feature once zk ops syscalls are enabled on all networks
-#[cfg(feature = "zk-ops")]
-use spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic;
 use {
     crate::processor::Processor,
     bytemuck::Zeroable,
@@ -35,6 +32,7 @@ use {
         instruction::{decode_instruction_data, decode_instruction_type},
         pod::{PodAccount, PodMint},
     },
+    spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic,
     spl_token_confidential_transfer_proof_extraction::instruction::verify_and_extract_context,
 };
 
@@ -61,7 +59,6 @@ fn process_initialize_confidential_transfer_fee_config(
 }
 
 /// Processes a [`WithdrawWithheldTokensFromMint`] instruction.
-#[cfg(feature = "zk-ops")]
 fn process_withdraw_withheld_tokens_from_mint(
     program_id: &Address,
     accounts: &mut [AccountView],
@@ -172,7 +169,6 @@ fn process_withdraw_withheld_tokens_from_mint(
 }
 
 /// Processes a [`WithdrawWithheldTokensFromAccounts`] instruction.
-#[cfg(feature = "zk-ops")]
 fn process_withdraw_withheld_tokens_from_accounts(
     program_id: &Address,
     accounts: &mut [AccountView],
@@ -320,7 +316,6 @@ fn process_withdraw_withheld_tokens_from_accounts(
     Ok(())
 }
 
-#[cfg(feature = "zk-ops")]
 fn harvest_from_account<'b>(
     mint_key: &'b Address,
     token_account_info: &'b mut AccountView,
@@ -351,7 +346,6 @@ fn harvest_from_account<'b>(
 }
 
 /// Process a [`HarvestWithheldTokensToMint`] instruction.
-#[cfg(feature = "zk-ops")]
 fn process_harvest_withheld_tokens_to_mint(accounts: &mut [AccountView]) -> ProgramResult {
     let account_info_iter = &mut accounts.iter_mut();
     let mint_account_info = next_account_view(account_info_iter)?;
@@ -485,50 +479,28 @@ pub(crate) fn process_instruction(
         }
         ConfidentialTransferFeeInstruction::WithdrawWithheldTokensFromMint => {
             msg!("ConfidentialTransferFeeInstruction::WithdrawWithheldTokensFromMint");
-            #[cfg(feature = "zk-ops")]
-            {
-                let data = decode_instruction_data::<WithdrawWithheldTokensFromMintData>(input)?;
-                process_withdraw_withheld_tokens_from_mint(
-                    program_id,
-                    accounts,
-                    &data.new_decryptable_available_balance,
-                    data.proof_instruction_offset as i64,
-                )
-            }
-            #[cfg(not(feature = "zk-ops"))]
-            {
-                Err(ProgramError::InvalidInstructionData)
-            }
+            let data = decode_instruction_data::<WithdrawWithheldTokensFromMintData>(input)?;
+            process_withdraw_withheld_tokens_from_mint(
+                program_id,
+                accounts,
+                &data.new_decryptable_available_balance,
+                data.proof_instruction_offset as i64,
+            )
         }
         ConfidentialTransferFeeInstruction::WithdrawWithheldTokensFromAccounts => {
             msg!("ConfidentialTransferFeeInstruction::WithdrawWithheldTokensFromAccounts");
-            #[cfg(feature = "zk-ops")]
-            {
-                let data =
-                    decode_instruction_data::<WithdrawWithheldTokensFromAccountsData>(input)?;
-                process_withdraw_withheld_tokens_from_accounts(
-                    program_id,
-                    accounts,
-                    data.num_token_accounts,
-                    &data.new_decryptable_available_balance,
-                    data.proof_instruction_offset as i64,
-                )
-            }
-            #[cfg(not(feature = "zk-ops"))]
-            {
-                Err(ProgramError::InvalidInstructionData)
-            }
+            let data = decode_instruction_data::<WithdrawWithheldTokensFromAccountsData>(input)?;
+            process_withdraw_withheld_tokens_from_accounts(
+                program_id,
+                accounts,
+                data.num_token_accounts,
+                &data.new_decryptable_available_balance,
+                data.proof_instruction_offset as i64,
+            )
         }
         ConfidentialTransferFeeInstruction::HarvestWithheldTokensToMint => {
             msg!("ConfidentialTransferFeeInstruction::HarvestWithheldTokensToMint");
-            #[cfg(feature = "zk-ops")]
-            {
-                process_harvest_withheld_tokens_to_mint(accounts)
-            }
-            #[cfg(not(feature = "zk-ops"))]
-            {
-                Err(ProgramError::InvalidInstructionData)
-            }
+            process_harvest_withheld_tokens_to_mint(accounts)
         }
         ConfidentialTransferFeeInstruction::EnableHarvestToMint => {
             msg!("ConfidentialTransferFeeInstruction::EnableHarvestToMint");
