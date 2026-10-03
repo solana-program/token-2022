@@ -3889,6 +3889,44 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     .await
     .unwrap();
 
+    // A balance query still returns the public amount without `--decrypt`.
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
+            &token_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(value["uiAmount"], 0.0);
+    assert!(value.get("decryptedConfidentialBalances").is_none());
+
+    // With `--decrypt`, the balance query returns the pending confidential
+    // balance through the same fields as `display --decrypt`.
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
+            &token_account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["pendingBalance"]["uiAmount"],
+        deposit_amount
+    );
+
     // decrypted balances: deposit is pending until applied
     assert_eq!(
         decrypted_confidential_balances(&config, payer, &token_account).await,
@@ -3911,6 +3949,25 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     assert_eq!(
         decrypted_confidential_balances(&config, payer, &token_account).await,
         (0.0, deposit_amount)
+    );
+
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
+            &token_account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["availableBalance"]["uiAmount"],
+        deposit_amount
     );
 
     // decrypting with a keypair that did not configure the account fails
@@ -3936,6 +3993,23 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         .to_string()
         .contains("does not match the encryption key"));
 
+    let result = process_test_command(
+        &wrong_owner_config,
+        &wrong_owner,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
+            &token_account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await;
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("does not match the encryption key"));
+
     // An explicit owner overrides the default signer for decryption.
     let owner_file = NamedTempFile::new().unwrap();
     write_keypair_file(payer, &owner_file).unwrap();
@@ -3944,6 +4018,28 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         &[
             "spl-token",
             CommandName::Display.into(),
+            &token_account.to_string(),
+            "--decrypt",
+            "--owner",
+            owner_file.path().to_str().unwrap(),
+            "--output",
+            "json-compact",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["availableBalance"]["uiAmount"],
+        deposit_amount,
+    );
+
+    let result = exec_test_cmd(
+        &wrong_owner_config,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
             &token_account.to_string(),
             "--decrypt",
             "--owner",
@@ -6664,6 +6760,59 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
         value["decryptedConfidentialSupply"]["uiAmount"],
         mint_amount
     );
+
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Supply.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert!(value.get("decryptedConfidentialSupply").is_none());
+
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Supply.into(),
+            &token_pubkey.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialSupply"]["uiAmount"],
+        mint_amount
+    );
+
+    let wrong_owner = Keypair::new();
+    let wrong_owner_config = test_config_with_default_signer(
+        test_validator,
+        &wrong_owner,
+        &spl_token_2022_interface::id(),
+    );
+    let error = process_test_command(
+        &wrong_owner_config,
+        &wrong_owner,
+        &[
+            "spl-token",
+            CommandName::Supply.into(),
+            &token_pubkey.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("does not match the encryption key"));
 
     // Burn confidentially
     let burn_amount = 50.0;
