@@ -3204,19 +3204,49 @@ async fn command_close_mint(
     })
 }
 
-async fn command_balance(config: &Config<'_>, address: Pubkey) -> CommandResult {
+async fn command_balance(config: &Config<'_>, address: Pubkey, decrypt: bool) -> CommandResult {
     let balance = config
         .rpc_client
         .get_token_account_balance(&address)
         .await
         .map_err(|_| format!("Could not find token account {}", address))?;
-    let cli_token_amount = CliTokenAmount { amount: balance };
+    let decrypted_confidential_balances = if decrypt {
+        let account_data = config.get_account_checked(&address).await?;
+        let additional_data = SplTokenAdditionalDataV2::with_decimals(balance.decimals);
+        Some(decrypt_confidential_balances(
+            config,
+            &account_data.data,
+            &additional_data,
+        )?)
+    } else {
+        None
+    };
+    let cli_token_amount = CliTokenAmount {
+        amount: balance,
+        decrypted_confidential_balances,
+        decrypted_confidential_supply: None,
+    };
     Ok(config.output_format.formatted_string(&cli_token_amount))
 }
 
-async fn command_supply(config: &Config<'_>, token: Pubkey) -> CommandResult {
+async fn command_supply(config: &Config<'_>, token: Pubkey, decrypt: bool) -> CommandResult {
     let supply = config.rpc_client.get_token_supply(&token).await?;
-    let cli_token_amount = CliTokenAmount { amount: supply };
+    let decrypted_confidential_supply = if decrypt {
+        let mint_data = config.get_account_checked(&token).await?;
+        let additional_data = SplTokenAdditionalDataV2::with_decimals(supply.decimals);
+        Some(decrypt_confidential_supply(
+            config,
+            &mint_data.data,
+            &additional_data,
+        )?)
+    } else {
+        None
+    };
+    let cli_token_amount = CliTokenAmount {
+        amount: supply,
+        decrypted_confidential_balances: None,
+        decrypted_confidential_supply,
+    };
     Ok(config.output_format.formatted_string(&cli_token_amount))
 }
 
@@ -5834,16 +5864,23 @@ pub async fn process_command(
             command_close_mint(config, token, close_authority, recipient, bulk_signers).await
         }
         (CommandName::Balance, arg_matches) => {
+            let decrypt = arg_matches.is_present("decrypt");
+            if !decrypt && arg_matches.is_present("address") && arg_matches.is_present("owner") {
+                return Err(
+                    "The argument '--owner' cannot be used with '--address' unless '--decrypt' is specified"
+                        .into(),
+                );
+            }
             let address = config
                 .associated_token_address_or_override(arg_matches, "address", &mut wallet_manager)
                 .await?;
-            command_balance(config, address).await
+            command_balance(config, address, decrypt).await
         }
         (CommandName::Supply, arg_matches) => {
             let token = pubkey_of_signer(arg_matches, "token", &mut wallet_manager)
                 .unwrap()
                 .unwrap();
-            command_supply(config, token).await
+            command_supply(config, token, arg_matches.is_present("decrypt")).await
         }
         (CommandName::Accounts, arg_matches) => {
             let token = pubkey_of_signer(arg_matches, "token", &mut wallet_manager).unwrap();
