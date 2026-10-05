@@ -629,11 +629,8 @@ impl Processor {
                 .invoke()?;
 
                 // unset transferring flag
-                #[allow(deprecated)]
-                {
-                    crate::extension::unset_transferring(source_account_info)?;
-                    crate::extension::unset_transferring(destination_account_info)?;
-                }
+                crate::extension::unset_transferring(source_account_info)?;
+                crate::extension::unset_transferring(destination_account_info)?;
             } else {
                 return Err(TokenError::MintRequiredForTransfer.into());
             }

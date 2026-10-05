@@ -794,9 +794,6 @@ fn process_transfer(
             &proof_context_auditor_ciphertext_hi,
         )?;
 
-        // can't doubly-borrow the mint data either
-        drop(mint_data);
-
         process_source_for_transfer_with_fee(
             program_id,
             source_account_info,
@@ -847,11 +844,8 @@ fn process_transfer(
         .invoke()?;
 
         // unset transferring flag
-        #[allow(deprecated)]
-        {
-            crate::extension::unset_transferring(source_account_info)?;
-            crate::extension::unset_transferring(destination_account_info)?;
-        }
+        crate::extension::unset_transferring(source_account_info)?;
+        crate::extension::unset_transferring(destination_account_info)?;
     }
 
     Ok(())
