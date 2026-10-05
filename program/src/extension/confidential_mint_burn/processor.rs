@@ -1,5 +1,4 @@
 #[cfg(feature = "zk-ops")]
-#[cfg(feature = "zk-ops")]
 use {
     crate::{
         check_auditor_ciphertext,

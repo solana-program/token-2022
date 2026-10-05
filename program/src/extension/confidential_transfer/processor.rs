@@ -652,7 +652,7 @@ fn process_transfer(
     let destination_account_info = next_account_view(account_info_iter)?;
 
     check_program_account(mint_info.owner())?;
-    let mint_data = mint_info.try_borrow_mut()?;
+    let mint_data = mint_info.try_borrow()?;
     let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
 
     if let Ok(extension) = mint.get_extension::<PausableConfig>() {
@@ -713,9 +713,6 @@ fn process_transfer(
             &proof_context_auditor_ciphertext_lo,
             &proof_context_auditor_ciphertext_hi,
         )?;
-
-        // can't doubly-borrow the mint data either
-        drop(mint_data);
 
         process_source_for_transfer(
             program_id,
@@ -852,8 +849,8 @@ fn process_transfer(
         // unset transferring flag
         #[allow(deprecated)]
         {
-            crate::state::unset_transferring(source_account_info)?;
-            crate::state::unset_transferring(destination_account_info)?;
+            crate::extension::unset_transferring(source_account_info)?;
+            crate::extension::unset_transferring(destination_account_info)?;
         }
     }
 
