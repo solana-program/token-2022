@@ -10,9 +10,9 @@ use {
             UiConfidentialTransferFeeConfig, UiConfidentialTransferMint, UiCpiGuard,
             UiDefaultAccountState, UiExtension, UiGroupMemberPointer, UiGroupPointer,
             UiInterestBearingConfig, UiMemoTransfer, UiMetadataPointer, UiMintCloseAuthority,
-            UiPausableConfig, UiPermanentDelegate, UiScaledUiAmountConfig, UiTokenGroup,
-            UiTokenGroupMember, UiTokenMetadata, UiTransferFeeAmount, UiTransferFeeConfig,
-            UiTransferHook, UiTransferHookAccount,
+            UiPausableConfig, UiPermanentDelegate, UiPermissionedBurnConfig,
+            UiScaledUiAmountConfig, UiTokenGroup, UiTokenGroupMember, UiTokenMetadata,
+            UiTransferFeeAmount, UiTransferFeeConfig, UiTransferHook, UiTransferHookAccount,
         },
     },
     solana_cli_output::{display::writeln_name_value, OutputFormat, QuietDisplay, VerboseDisplay},
@@ -778,6 +778,13 @@ fn display_ui_extension(
         UiExtension::PermanentDelegate(UiPermanentDelegate { delegate }) => {
             if let Some(delegate) = delegate {
                 writeln_name_value(f, "  Permanent delegate:", delegate)
+            } else {
+                Ok(())
+            }
+        }
+        UiExtension::PermissionedBurnConfig(UiPermissionedBurnConfig { authority }) => {
+            if let Some(authority) = authority {
+                writeln_name_value(f, "  Permissioned burn authority:", authority)
             } else {
                 Ok(())
             }
