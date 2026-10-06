@@ -55,6 +55,11 @@ decryptable cache is uninitialized, the available ciphertext must be all-zero be
 the command can initialize the cache to an encrypted zero balance. Fee withdrawal
 also verifies that `--recipient-elgamal-pubkey` matches the key derived from `--owner`.
 
+Each withheld-fee withdrawal aggregate must fit in `u32` base units, matching the
+existing legacy client's amount recovery limit. Splitting source accounts across
+separate invocations can reduce an aggregate; a larger individual account balance
+or mint total remains unsupported by that client, online and offline.
+
 `--proof-account-lamports` specifies funding for **each** temporary proof context
 and record account. Obtain the required rent beforehand and provide enough for
 the largest account in the operation, including its proof record. The offline
