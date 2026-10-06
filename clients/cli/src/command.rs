@@ -42,7 +42,7 @@ use {
         BatchedRangeProofU64Data,
     },
     solana_zk_sdk::encryption::{
-        auth_encryption::AeKey,
+        auth_encryption::{AeCiphertext, AeKey},
         derivation::derive_confidential_keys,
         elgamal::{self, ElGamalKeypair},
         pedersen::{Pedersen, PedersenOpening},
@@ -53,6 +53,7 @@ use {
     },
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     spl_token_2022_interface::{
+        error::TokenError as TokenProgramError,
         extension::{
             confidential_mint_burn::ConfidentialMintBurn,
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
@@ -3551,7 +3552,12 @@ fn decrypt_confidential_balances(
     let pending_balance = account_info
         .get_pending_balance(elgamal_keypair.secret())
         .map_err(|err| format!("Failed to decrypt pending balance: {err}"))?;
-    let available_balance = decrypt_available_balance(extension, &elgamal_keypair, &aes_key)?;
+    let available_balance = decrypt_available_balance(
+        &extension.available_balance,
+        &extension.decryptable_available_balance,
+        &elgamal_keypair,
+        &aes_key,
+    )?;
 
     Ok(CliDecryptedConfidentialBalances {
         pending_balance: token_amount_to_ui_amount_v3(pending_balance, additional_data),
@@ -3560,26 +3566,30 @@ fn decrypt_confidential_balances(
 }
 
 fn decrypt_available_balance(
-    extension: &ConfidentialTransferAccount,
+    available_balance_ciphertext: &PodElGamalCiphertext,
+    decryptable_available_balance: &PodAeCiphertext,
     elgamal_keypair: &ElGamalKeypair,
     aes_key: &AeKey,
 ) -> Result<u64, Error> {
     // Registry configuration leaves the AES cache uninitialized. Zero is only
     // a candidate balance here; verify it against the ElGamal ciphertext below.
-    let available_balance = if extension.decryptable_available_balance == PodAeCiphertext::default()
-    {
+    let available_balance = if *decryptable_available_balance == PodAeCiphertext::default() {
         0
     } else {
-        ApplyPendingBalanceAccountInfo::new(extension)
-            .get_available_balance(aes_key)
+        AeCiphertext::try_from(*decryptable_available_balance)
+            .map_err(|_| TokenProgramError::MalformedCiphertext)
+            .and_then(|ciphertext| {
+                aes_key
+                    .decrypt(&ciphertext)
+                    .ok_or(TokenProgramError::AccountDecryption)
+            })
             .map_err(|err| format!("Failed to decrypt available balance: {err}"))?
     };
 
     // ApplyPendingBalance can leave the AES cache stale when credits race with
     // the instruction. Compare group elements to verify the full u64 amount
     // without a discrete-log search, even if the credit counters match.
-    let encrypted_available_balance: elgamal::ElGamalCiphertext = extension
-        .available_balance
+    let encrypted_available_balance: elgamal::ElGamalCiphertext = (*available_balance_ciphertext)
         .try_into()
         .map_err(|err| format!("Failed to decode available balance: {err}"))?;
     let expected_balance = Pedersen::with(available_balance, &PedersenOpening::default());
@@ -4285,6 +4295,7 @@ async fn command_withdraw_withheld_confidential_tokens(
     authority: Pubkey,
     include_mint: bool,
     withdraw_withheld_elgamal_keypair: &ElGamalKeypair,
+    destination_elgamal_keypair: &ElGamalKeypair,
     destination_aes_key: &AeKey,
     bulk_signers: BulkSigners,
     offline: Option<&ArgMatches>,
@@ -4318,10 +4329,23 @@ async fn command_withdraw_withheld_confidential_tokens(
         }
         let destination_elgamal_pubkey: elgamal::ElGamalPubkey =
             offline_arg::<PodElGamalPubkey>(matches, "recipient_elgamal_pubkey")?.try_into()?;
+        if destination_elgamal_pubkey != *destination_elgamal_keypair.pubkey() {
+            return Err("The --recipient-elgamal-pubkey does not match the encryption key derived from --owner; specify the signing key that configured the recipient account".into());
+        }
         let balance: PodAeCiphertext = offline_arg(matches, "decryptable_available_balance")?;
-        let mut available_balance = destination_aes_key
-            .decrypt(&balance.try_into()?)
-            .ok_or("Could not decrypt the recipient's available balance")?;
+        let available_balance_ciphertext: PodElGamalCiphertext =
+            offline_arg(matches, "available_balance")?;
+        if balance == PodAeCiphertext::default()
+            && available_balance_ciphertext != PodElGamalCiphertext::default()
+        {
+            return Err("An uninitialized decryptable balance requires an all-zero available balance ciphertext".into());
+        }
+        let mut available_balance = decrypt_available_balance(
+            &available_balance_ciphertext,
+            &balance,
+            destination_elgamal_keypair,
+            destination_aes_key,
+        )?;
         let token = token_client_from_config(config, &mint, None)?;
         let mut responses = Vec::new();
         for (index, (sources, amount)) in batches.into_iter().zip(amounts).enumerate() {
@@ -5387,12 +5411,19 @@ async fn command_apply_pending_balance(
         let account = maybe_account.unwrap_or_else(|| token.get_associated_token_address(&owner));
         let mut decryptable_available_balance: PodAeCiphertext =
             offline_arg(matches, "decryptable_available_balance")?;
+        let available_balance: PodElGamalCiphertext = offline_arg(matches, "available_balance")?;
+        if decryptable_available_balance == PodAeCiphertext::default()
+            && available_balance != PodElGamalCiphertext::default()
+        {
+            return Err("An uninitialized decryptable balance requires an all-zero available balance ciphertext".into());
+        }
+        decrypt_available_balance(
+            &available_balance,
+            &decryptable_available_balance,
+            elgamal_keypair,
+            aes_key,
+        )?;
         if decryptable_available_balance == PodAeCiphertext::default() {
-            let available_balance: PodElGamalCiphertext =
-                offline_arg(matches, "available_balance")?;
-            if available_balance != PodElGamalCiphertext::default() {
-                return Err("An uninitialized decryptable balance requires an all-zero available balance ciphertext".into());
-            }
             decryptable_available_balance = aes_key.encrypt(0).into();
         }
         let account_info = ApplyPendingBalanceAccountInfo::from_balances(
@@ -6159,6 +6190,11 @@ pub async fn process_command(
 
             let (owner_signer, owner) =
                 config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
+            if config.sign_only && arg_matches.is_present("confidential") {
+                // Confidential burns need the actual owner signer for key derivation.
+                // Keep it before a public-key-only permissioned role with the same key.
+                push_signer_with_dedup(owner_signer.clone(), &mut bulk_signers);
+            }
             let permissioned_burn_authority = get_signer(
                 arg_matches,
                 "permissioned_burn_authority",
@@ -6688,7 +6724,7 @@ pub async fn process_command(
                         .map_err(|err| err.to_string())?;
                 let (owner_signer, owner) =
                     config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
-                let (_, destination_aes_key) =
+                let (destination_elgamal_keypair, destination_aes_key) =
                     derive_confidential_keys(&*owner_signer, b"").map_err(|err| err.to_string())?;
 
                 command_withdraw_withheld_confidential_tokens(
@@ -6699,6 +6735,7 @@ pub async fn process_command(
                     authority,
                     include_mint,
                     &withdraw_withheld_elgamal_keypair,
+                    &destination_elgamal_keypair,
                     &destination_aes_key,
                     bulk_signers,
                     offline,
@@ -7202,19 +7239,6 @@ async fn finish_labeled_txs(
     mut tx_responses: LabeledTransactionResponses,
     no_wait: bool,
 ) -> CommandResult {
-    if config.sign_only {
-        for (label, response) in &tx_responses {
-            let RpcClientResponse::Transaction(transaction) = response else {
-                return Err("Expected an offline transaction".into());
-            };
-            let size = bincode::serialized_size(transaction)?;
-            if size > PACKET_DATA_SIZE as u64 {
-                return Err(format!(
-                    "Offline transaction '{label}' is {size} bytes, exceeding the {PACKET_DATA_SIZE}-byte packet limit; reduce source accounts, memo, or extra account inputs"
-                ).into());
-            }
-        }
-    }
     if tx_responses.len() == 1 {
         let (_, response) = tx_responses.pop().expect("transaction response");
         let tx_return = finish_tx(config, &response, no_wait).await?;
@@ -7222,6 +7246,12 @@ async fn finish_labeled_txs(
     }
 
     if config.sign_only {
+        for (label, response) in &tx_responses {
+            let RpcClientResponse::Transaction(transaction) = response else {
+                return Err("Expected an offline transaction".into());
+            };
+            check_offline_transaction_size(transaction, label)?;
+        }
         if config.nonce_account.is_some() {
             return Err(
                 "A single durable nonce cannot be used for multiple offline transactions".into(),
@@ -7276,6 +7306,7 @@ async fn finish_tx(
 ) -> Result<TransactionReturnData, Error> {
     match rpc_response {
         RpcClientResponse::Transaction(transaction) => {
+            check_offline_transaction_size(transaction, "operation")?;
             Ok(TransactionReturnData::CliSignOnlyData(return_signers_data(
                 transaction,
                 &ReturnSignersConfig {
@@ -7310,6 +7341,19 @@ async fn finish_tx(
     }
 }
 
+fn check_offline_transaction_size(
+    transaction: &solana_sdk::transaction::Transaction,
+    label: &str,
+) -> Result<(), Error> {
+    let size = bincode::serialized_size(transaction)?;
+    if size > PACKET_DATA_SIZE as u64 {
+        return Err(format!(
+            "Offline transaction '{label}' is {size} bytes, exceeding the {PACKET_DATA_SIZE}-byte packet limit; reduce source accounts, signers, memo, or extra account inputs"
+        ).into());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -7324,16 +7368,27 @@ mod tests {
             ..ConfidentialTransferAccount::default()
         };
         assert_eq!(
-            decrypt_available_balance(&account, &elgamal, &aes).unwrap(),
+            decrypt_available_balance(
+                &account.available_balance,
+                &account.decryptable_available_balance,
+                &elgamal,
+                &aes,
+            )
+            .unwrap(),
             u64::MAX,
         );
 
         // Matching credit counters do not guarantee a fresh cache.
         account.decryptable_available_balance = aes.encrypt(u64::MAX - 1).into();
-        assert!(decrypt_available_balance(&account, &elgamal, &aes)
-            .unwrap_err()
-            .to_string()
-            .contains("out of sync"));
+        assert!(decrypt_available_balance(
+            &account.available_balance,
+            &account.decryptable_available_balance,
+            &elgamal,
+            &aes,
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("out of sync"));
     }
 
     #[test]
@@ -7342,15 +7397,26 @@ mod tests {
         let aes = AeKey::new_rand();
         let mut account = ConfidentialTransferAccount::default();
         assert_eq!(
-            decrypt_available_balance(&account, &elgamal, &aes).unwrap(),
+            decrypt_available_balance(
+                &account.available_balance,
+                &account.decryptable_available_balance,
+                &elgamal,
+                &aes,
+            )
+            .unwrap(),
             0,
         );
 
         // An uninitialized AES cache must not hide a nonzero available balance.
         account.available_balance = elgamal.pubkey().encrypt(1_u64).into();
-        assert!(decrypt_available_balance(&account, &elgamal, &aes)
-            .unwrap_err()
-            .to_string()
-            .contains("out of sync"));
+        assert!(decrypt_available_balance(
+            &account.available_balance,
+            &account.decryptable_available_balance,
+            &elgamal,
+            &aes,
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("out of sync"));
     }
 }

@@ -407,7 +407,7 @@ fn proof_account_lamports_arg<'a>() -> Arg<'a> {
         .long("proof-account-lamports")
         .takes_value(true)
         .value_name("LAMPORTS")
-        .value_parser(clap::value_parser!(u64))
+        .value_parser(clap::value_parser!(u64).range(1..))
         .requires(SIGN_ONLY_ARG.name)
         .help("Lamports to fund each temporary proof context or record account. Required for offline proof-based operations; choose enough for rent exemption.")
 }
@@ -2582,6 +2582,8 @@ pub fn app<'a>(
                     "The recipient account's ElGamal public key for offline confidential fee withdrawals.").requires("confidential"))
                 .arg(confidential_decryptable_ciphertext_arg("decryptable_available_balance", "decryptable-available-balance",
                     "The recipient account's current decryptable available balance for offline confidential fee withdrawals.").requires("confidential"))
+                .arg(confidential_ciphertext_arg("available_balance", "available-balance",
+                    "The recipient account's actual available balance ciphertext, required offline to verify that its decryptable balance is in sync.").requires("confidential"))
                 .arg(confidential_ciphertext_arg("withheld_amount", "withheld-amount",
                     "The encrypted withheld amount for each withdrawal, in execution order: mint first, then sorted distinct source accounts in batches of at most eight. Repeat once per batch.")
                     .requires("confidential")
@@ -3193,7 +3195,7 @@ pub fn app<'a>(
                 .arg(confidential_ciphertext_arg("pending_balance_hi", "pending-balance-hi",
                     "The account's current high pending balance ciphertext for offline balance application."))
                 .arg(confidential_ciphertext_arg("available_balance", "available-balance",
-                    "The account's actual available balance ciphertext. Required when the decryptable balance is uninitialized after registry configuration."))
+                    "The account's actual available balance ciphertext, required offline to verify that its decryptable balance is in sync."))
                 .arg(confidential_decryptable_ciphertext_arg("decryptable_available_balance", "decryptable-available-balance",
                     "The account's current decryptable available balance for offline balance application."))
                 .arg(

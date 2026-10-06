@@ -3074,7 +3074,12 @@ where
         let expected_pending_balance_credit_counter = account_info.pending_balance_credit_counter();
         let new_decryptable_available_balance = account_info
             .new_decryptable_available_balance(elgamal_secret_key, aes_key)
-            .map_err(|_| TokenError::AccountDecryption)?
+            .map_err(|error| match error {
+                spl_token_2022_interface::error::TokenError::Overflow => {
+                    TokenError::Client(error.into())
+                }
+                _ => TokenError::AccountDecryption,
+            })?
             .into();
 
         self.process_ixs(

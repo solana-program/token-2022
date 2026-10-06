@@ -3,8 +3,10 @@
 mod offline_confidential;
 
 use offline_confidential::{
-    offline_confidential_commands, offline_confidential_mint_burn, offline_confidential_registry,
-    offline_confidential_transfer, offline_confidential_transfer_fees,
+    offline_confidential_commands, offline_confidential_fee_account_batches,
+    offline_confidential_mint_burn, offline_confidential_permissioned_burn,
+    offline_confidential_registry, offline_confidential_transfer,
+    offline_confidential_transfer_fees,
 };
 
 use {
@@ -160,6 +162,16 @@ async fn main() {
         async_trial!(offline_confidential_registry, test_validator, payer),
         async_trial!(offline_confidential_transfer, test_validator, payer),
         async_trial!(offline_confidential_transfer_fees, test_validator, payer),
+        async_trial!(
+            offline_confidential_fee_account_batches,
+            test_validator,
+            payer
+        ),
+        async_trial!(
+            offline_confidential_permissioned_burn,
+            test_validator,
+            payer
+        ),
         async_trial!(offline_confidential_mint_burn, test_validator, payer),
         async_trial!(
             configure_confidential_transfer_with_registry,

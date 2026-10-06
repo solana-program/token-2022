@@ -22,8 +22,9 @@ change accounts. Online commands retain their existing behavior. Mint creation
 retains the CLI's existing online-only behavior.
 
 Ciphertexts and ElGamal public keys use their existing base64 encodings. Provide
-the actual current encrypted state; pending transactions or subsequent account
-changes can invalidate the generated proofs. Amounts must be explicit: `ALL`
+the actual encrypted balances and counters from the same current account snapshot.
+Subsequent account changes can invalidate proofs or leave a pending-balance
+application's decryptable cache out of sync. Amounts must be explicit: `ALL`
 requires online account information.
 
 | Command | Additional offline information |
@@ -33,11 +34,11 @@ requires online account information.
 | `empty-confidential-transfer-account` | `--available-balance`. |
 | `deposit-confidential-tokens` | `--mint-decimals`. |
 | `withdraw-confidential-tokens` | `--mint-decimals`, `--available-balance`, `--decryptable-available-balance`, `--proof-account-lamports`. |
-| `apply-pending-balance` | `--pending-balance-lo`, `--pending-balance-hi`, `--pending-balance-credit-counter`, `--decryptable-available-balance`; also `--available-balance` when the decryptable balance cache is uninitialized, as after registry configuration. |
+| `apply-pending-balance` | `--pending-balance-lo`, `--pending-balance-hi`, `--pending-balance-credit-counter`, `--available-balance`, `--decryptable-available-balance`. |
 | `transfer --confidential` | `--mint-decimals`, `--available-balance`, `--decryptable-available-balance`, `--recipient-elgamal-pubkey`, `--auditor-pubkey`, `--proof-account-lamports`. With `--expected-fee`, also supply `--transfer-fee-basis-points`, `--transfer-fee-maximum-fee` in base units, `--withdraw-withheld-authority-elgamal-pubkey`, and `--with-compute-unit-limit` sufficient for the U256 range proof, for example `500000`. The default compute budget is too small for that proof. |
 | `mint --confidential` | `--mint-decimals`, `--confidential-supply`, `--decryptable-supply`, `--recipient-elgamal-pubkey`, `--auditor-pubkey`, `--proof-account-lamports`. |
 | `burn --confidential` | `--mint-address`, `--mint-decimals`, `--available-balance`, `--decryptable-available-balance`, `--supply-elgamal-pubkey`, `--auditor-pubkey`, `--proof-account-lamports`. |
-| `withdraw-withheld-tokens --confidential` | `--mint-address`, `--recipient-elgamal-pubkey`, `--decryptable-available-balance`, and one `--withheld-amount` per withdrawal: mint first when included, then source accounts sorted by public-key bytes and deduplicated, in batches of at most eight. Each amount is the batch's aggregate ciphertext. |
+| `withdraw-withheld-tokens --confidential` | `--mint-address`, `--recipient-elgamal-pubkey`, `--available-balance`, `--decryptable-available-balance`, and one `--withheld-amount` per withdrawal: mint first when included, then source accounts sorted by public-key bytes and deduplicated, in batches of at most eight. Each amount is the batch's aggregate ciphertext. |
 | `update-confidential-transfer-settings` | Both `--approve-policy` and `--auditor-pubkey`. |
 | `apply-pending-burn`, `update-decryptable-supply`, confidential fee harvesting and harvesting toggles | Existing command inputs suffice. |
 
@@ -48,9 +49,11 @@ account by default, matching `--no-recipient-is-ata-owner`. The existing
 `--recipient-is-ata-owner` flag (deprecated) derives the associated token account
 from a recipient owner instead.
 
-When applying a pending balance with an uninitialized decryptable cache, supply
-the actual `--available-balance` ciphertext too. It must be all-zero before the
-command can initialize the cache to an encrypted zero balance.
+Offline balance application and fee withdrawal verify that the decryptable balance
+matches the supplied `--available-balance` ciphertext before updating it. If the
+decryptable cache is uninitialized, the available ciphertext must be all-zero before
+the command can initialize the cache to an encrypted zero balance. Fee withdrawal
+also verifies that `--recipient-elgamal-pubkey` matches the key derived from `--owner`.
 
 `--proof-account-lamports` specifies funding for **each** temporary proof context
 and record account. Obtain the required rent beforehand and provide enough for

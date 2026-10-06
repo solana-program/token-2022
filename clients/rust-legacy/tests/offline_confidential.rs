@@ -230,6 +230,71 @@ fn supplied_pending_balances_report_overflow() {
 }
 
 #[tokio::test]
+async fn offline_apply_pending_balance_preserves_overflow_error() {
+    let payer = Arc::new(Keypair::new());
+    let client = Arc::new(ProgramOfflineClient::new(
+        Hash::new_unique(),
+        ProgramRpcClientSendTransaction,
+    ));
+    let token = Token::new(
+        client,
+        &spl_token_2022_interface::id(),
+        &Address::new_unique(),
+        None,
+        payer.clone(),
+    );
+    let elgamal_keypair = ElGamalKeypair::new_rand();
+    let aes_key = AeKey::new_rand();
+    let info = ApplyPendingBalanceAccountInfo::from_balances(
+        1,
+        elgamal_keypair.pubkey().encrypt(1_u64).into(),
+        elgamal_keypair.pubkey().encrypt(0_u64).into(),
+        aes_key.encrypt(u64::MAX).into(),
+    );
+    let error = token
+        .confidential_transfer_apply_pending_balance(
+            &Address::new_unique(),
+            &payer.pubkey(),
+            Some(info),
+            elgamal_keypair.secret(),
+            &aes_key,
+            &[payer.as_ref()],
+        )
+        .await
+        .unwrap_err();
+    let spl_token_client::token::TokenError::Client(source) = error else {
+        panic!("the client must preserve the pending-balance overflow condition: {error}");
+    };
+    assert!(matches!(
+        source.downcast_ref::<TokenError>(),
+        Some(TokenError::Overflow)
+    ));
+
+    // Authentication failures retain their existing public error category.
+    let invalid_info = ApplyPendingBalanceAccountInfo::from_balances(
+        1,
+        elgamal_keypair.pubkey().encrypt(1_u64).into(),
+        elgamal_keypair.pubkey().encrypt(0_u64).into(),
+        AeKey::new_rand().encrypt(0).into(),
+    );
+    let error = token
+        .confidential_transfer_apply_pending_balance(
+            &Address::new_unique(),
+            &payer.pubkey(),
+            Some(invalid_info),
+            elgamal_keypair.secret(),
+            &aes_key,
+            &[payer.as_ref()],
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        spl_token_client::token::TokenError::AccountDecryption
+    ));
+}
+
+#[tokio::test]
 async fn offline_transfers_use_explicit_hook_accounts_without_fetching_state() {
     let payer = Arc::new(Keypair::new());
     let owner = Keypair::new();
