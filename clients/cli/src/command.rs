@@ -5025,7 +5025,11 @@ pub async fn process_command(
         bulk_signers,
     )
     .await
-    .map_err(|error| client.report_error(error))
+    .inspect_err(|error| {
+        if let Some(report) = client.report(error) {
+            println!("{}", config.output_format.formatted_string(&report));
+        }
+    })
 }
 
 async fn process_command_inner(

@@ -3412,7 +3412,7 @@ async fn configure_confidential_transfer_partial_failure(
     // Reallocation succeeds, but configuration fails because this mint does not
     // support confidential transfers.
     let mint = create_token(&config, payer).await;
-    for format in ["json", "json-compact"] {
+    for format in [Some("json"), Some("json-compact"), None] {
         let account = create_auxiliary_account(&config, payer, mint).await;
         let original_len = config
             .rpc_client
@@ -3421,24 +3421,39 @@ async fn configure_confidential_transfer_partial_failure(
             .unwrap()
             .data
             .len();
-        let output = std::process::Command::new(assert_cmd::cargo::cargo_bin!("spl-token"))
-            .args([
-                "--url",
-                &test_validator.rpc_url(),
-                "--program-2022",
-                "--output",
-                format,
-                "--fee-payer",
-                payer_file.path().to_str().unwrap(),
-                "configure-confidential-transfer-account",
-                "--address",
-                &account.to_string(),
-                "--owner",
-                payer_file.path().to_str().unwrap(),
-            ])
-            .output()
-            .unwrap();
+        let mut command = std::process::Command::new(assert_cmd::cargo::cargo_bin!("spl-token"));
+        command.args([
+            "--url",
+            &test_validator.rpc_url(),
+            "--program-2022",
+            "--fee-payer",
+            payer_file.path().to_str().unwrap(),
+            "configure-confidential-transfer-account",
+            "--address",
+            &account.to_string(),
+            "--owner",
+            payer_file.path().to_str().unwrap(),
+        ]);
+        if let Some(format) = format {
+            command.args(["--output", format]);
+        }
+        let output = command.output().unwrap();
         assert!(!output.status.success());
+        if format.is_none() {
+            let stdout = String::from_utf8(output.stdout).unwrap();
+            let stderr = String::from_utf8(output.stderr).unwrap();
+            assert!(stdout.contains("Confirmed:"));
+            assert!(!stdout.lines().any(|line| line.starts_with("Error:")));
+            assert_eq!(
+                stderr
+                    .lines()
+                    .filter(|line| line.starts_with("Error:"))
+                    .count(),
+                1,
+                "{stderr}",
+            );
+            continue;
+        }
         let value: serde_json::Value = serde_json::from_slice(&output.stdout)
             .unwrap_or_else(|error| panic!("{error}: {output:?}"));
         assert!(!value["error"].as_str().unwrap().is_empty());
@@ -3732,10 +3747,23 @@ async fn empty_confidential_transfer_account(test_validator: &TestValidator, pay
 }
 
 async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) {
-    use solana_zk_sdk::encryption::elgamal::ElGamalKeypair;
+    use {
+        solana_sdk::message::Message,
+        solana_zk_elgamal_proof_interface::{
+            proof_data::{
+                BatchedGroupedCiphertext3HandlesValidityProofContext, BatchedRangeProofContext,
+                BatchedRangeProofU128Data, CiphertextCommitmentEqualityProofContext,
+            },
+            state::ProofContextState,
+        },
+        solana_zk_sdk::encryption::elgamal::ElGamalKeypair,
+        spl_record::state::RecordData,
+    };
 
     let config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    let payer_file = NamedTempFile::new().unwrap();
+    write_keypair_file(payer, &payer_file).unwrap();
 
     // create token with confidential transfers enabled
     let auto_approve = false;
@@ -3971,7 +3999,7 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     .await
     .unwrap(); // configure destination account for confidential transfers first
 
-    let transfer_amount = 100.0;
+    let transfer_amount = 50.0;
     // Reject the transfer after its proof accounts have been created.
     process_test_command(
         &config,
@@ -3985,24 +4013,28 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     )
     .await
     .unwrap();
-    let error = process_test_command(
-        &config,
-        payer,
-        &[
-            "spl-token",
-            CommandName::Transfer.into(),
+    let output = std::process::Command::new(assert_cmd::cargo::cargo_bin!("spl-token"))
+        .args([
+            "--url",
+            &test_validator.rpc_url(),
+            "--program-2022",
+            "--output",
+            "json",
+            "--fee-payer",
+            payer_file.path().to_str().unwrap(),
+            "transfer",
             &token_pubkey.to_string(),
             &transfer_amount.to_string(),
             &destination_account.to_string(),
             "--confidential",
-        ],
-    )
-    .await
-    .unwrap_err();
-    let report = error
-        .downcast_ref::<spl_token_cli::ConfidentialTransactionError>()
+            "--owner",
+            payer_file.path().to_str().unwrap(),
+        ])
+        .output()
         .unwrap();
-    let report = serde_json::to_value(report).unwrap();
+    assert!(!output.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|error| panic!("{error}: {output:?}"));
     let transactions = report["transactions"].as_array().unwrap();
     // Five confirmed setup transactions precede the rejected transfer request.
     assert_eq!(transactions.len(), 6);
@@ -4032,6 +4064,131 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     )
     .await
     .unwrap();
+
+    // Fund setup and transfer, but leave no SOL to pay for proof-account cleanup.
+    // A fixed priority fee keeps the payer rent-exempt until the transfer drains it.
+    let cleanup_fee_payer = Keypair::new();
+    let cleanup_fee_payer_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&cleanup_fee_payer, &cleanup_fee_payer_file).unwrap();
+    let blockhash = config.rpc_client.get_latest_blockhash().await.unwrap();
+    let signature_fee = config
+        .rpc_client
+        .get_fee_for_message(&Message::new_with_blockhash(
+            &[],
+            Some(&cleanup_fee_payer.pubkey()),
+            &blockhash,
+        ))
+        .await
+        .unwrap();
+    // Four account creations (two signers each), one record write (one signer),
+    // and the transfer (fee payer and token owner): six transactions, 11 signatures.
+    let mut funding = 11 * signature_fee + 6 * 1_400_000;
+    for space in [
+        size_of::<ProofContextState<CiphertextCommitmentEqualityProofContext>>(),
+        size_of::<ProofContextState<BatchedGroupedCiphertext3HandlesValidityProofContext>>(),
+        size_of::<ProofContextState<BatchedRangeProofContext>>(),
+        size_of::<BatchedRangeProofU128Data>() + RecordData::WRITABLE_START_INDEX,
+    ] {
+        funding += config
+            .rpc_client
+            .get_minimum_balance_for_rent_exemption(space)
+            .await
+            .unwrap();
+    }
+    let funding_transaction = Transaction::new_signed_with_payer(
+        &[system_instruction::transfer(
+            &payer.pubkey(),
+            &cleanup_fee_payer.pubkey(),
+            funding,
+        )],
+        Some(&payer.pubkey()),
+        &[payer],
+        blockhash,
+    );
+    config
+        .rpc_client
+        .send_and_confirm_transaction(&funding_transaction)
+        .await
+        .unwrap();
+    let output = std::process::Command::new(assert_cmd::cargo::cargo_bin!("spl-token"))
+        .args([
+            "--url",
+            &test_validator.rpc_url(),
+            "--program-2022",
+            "--output",
+            "json-compact",
+            "--fee-payer",
+            cleanup_fee_payer_file.path().to_str().unwrap(),
+            "--with-compute-unit-limit",
+            "1400000",
+            "--with-compute-unit-price",
+            "1000000",
+            "transfer",
+            &token_pubkey.to_string(),
+            &transfer_amount.to_string(),
+            &destination_account.to_string(),
+            "--confidential",
+            "--owner",
+            payer_file.path().to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|error| panic!("{error}: {output:?}"));
+    assert!(!report["error"].as_str().unwrap().is_empty());
+    let transactions = report["transactions"].as_array().unwrap();
+    assert!(transactions.len() > 6, "{report}");
+    for transaction in &transactions[..6] {
+        assert_eq!(transaction["status"], "confirmed");
+    }
+    let transfer_signature = transactions[5]["signature"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert_eq!(
+        config
+            .rpc_client
+            .get_signature_status(&transfer_signature)
+            .await
+            .unwrap(),
+        Some(Ok(())),
+    );
+    assert!(transactions[6..].iter().any(|transaction| {
+        transaction["status"] == "unknown" && transaction["error"].as_str().is_some()
+    }));
+    assert_eq!(
+        config
+            .rpc_client
+            .get_balance(&cleanup_fee_payer.pubkey())
+            .await
+            .unwrap(),
+        0
+    );
+    let account = config
+        .rpc_client
+        .get_account(&destination_account)
+        .await
+        .unwrap();
+    let state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
+    let extension = state
+        .get_extension::<ConfidentialTransferAccount>()
+        .unwrap();
+    assert_eq!(u64::from(extension.pending_balance_credit_counter), 1);
+    let account = config.rpc_client.get_account(&token_account).await.unwrap();
+    let state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
+    let extension = state
+        .get_extension::<ConfidentialTransferAccount>()
+        .unwrap();
+    let (_, aes_key) = derive_confidential_keys(payer, b"").unwrap();
+    assert_eq!(
+        aes_key.decrypt(&extension.decryptable_available_balance.try_into().unwrap()),
+        Some(spl_token_2022::ui_amount_to_amount(
+            transfer_amount,
+            test_mint.base.decimals,
+        )),
+    );
 
     let output = process_test_command(
         &config,

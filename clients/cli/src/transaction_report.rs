@@ -32,16 +32,13 @@ struct ReportedTransaction {
 /// An unknown outcome does not establish whether the transaction was submitted
 /// or confirmed, including when another parallel operation canceled its future.
 #[derive(Serialize)]
-pub struct ConfidentialTransactionError {
+pub(crate) struct ConfidentialTransactionReport {
     error: String,
     transactions: Vec<ReportedTransaction>,
-    #[serde(skip)]
-    source: Error,
 }
 
-impl fmt::Display for ConfidentialTransactionError {
+impl fmt::Display for ConfidentialTransactionReport {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Error: {}", self.error)?;
         for transaction in &self.transactions {
             let status = match transaction.status {
                 TransactionStatus::Confirmed => "Confirmed",
@@ -66,20 +63,8 @@ impl fmt::Display for ConfidentialTransactionError {
     }
 }
 
-impl fmt::Debug for ConfidentialTransactionError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.source, f)
-    }
-}
-
-impl std::error::Error for ConfidentialTransactionError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(self.source.as_ref())
-    }
-}
-
-impl QuietDisplay for ConfidentialTransactionError {}
-impl VerboseDisplay for ConfidentialTransactionError {}
+impl QuietDisplay for ConfidentialTransactionReport {}
+impl VerboseDisplay for ConfidentialTransactionReport {}
 
 pub(crate) struct ReportingClient {
     inner: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync>,
@@ -96,15 +81,14 @@ impl ReportingClient {
         }
     }
 
-    pub(crate) fn report_error(&self, source: Error) -> Error {
+    pub(crate) fn report(&self, error: &Error) -> Option<ConfidentialTransactionReport> {
         let transactions = self.transactions.lock().unwrap().clone();
         if transactions.is_empty() {
-            source
+            None
         } else {
-            Box::new(ConfidentialTransactionError {
-                error: source.to_string(),
+            Some(ConfidentialTransactionReport {
+                error: error.to_string(),
                 transactions,
-                source,
             })
         }
     }
@@ -262,13 +246,10 @@ mod tests {
             );
         }
         let error = client.send_transaction(&failed).await.unwrap_err();
-        let error = client.report_error(error);
-        let report = error
-            .downcast_ref::<ConfidentialTransactionError>()
-            .unwrap();
+        let report = client.report(&error).unwrap();
         for format in [OutputFormat::Json, OutputFormat::JsonCompact] {
             let value: serde_json::Value =
-                serde_json::from_str(&format.formatted_string(report)).unwrap();
+                serde_json::from_str(&format.formatted_string(&report)).unwrap();
             assert_eq!(value["error"], "confirmation failed");
             assert_eq!(value["transactions"].as_array().unwrap().len(), 3);
             assert_eq!(
@@ -288,7 +269,8 @@ mod tests {
             assert_eq!(value["transactions"][2]["status"], "unknown");
             assert_eq!(value["transactions"][2]["error"], "confirmation failed");
         }
-        let display = OutputFormat::Display.formatted_string(report);
+        let display = OutputFormat::Display.formatted_string(&report);
+        assert!(!display.contains("Error:"));
         assert!(display.contains(&format!("Confirmed: {}", first.signatures[0])));
         assert!(display.contains(&format!("Unknown: {}", failed.signatures[0])));
     }
@@ -305,10 +287,7 @@ mod tests {
             client.send_transaction(&failed),
         )
         .unwrap_err();
-        let error = client.report_error(error);
-        let report = error
-            .downcast_ref::<ConfidentialTransactionError>()
-            .unwrap();
+        let report = client.report(&error).unwrap();
         let value = serde_json::to_value(report).unwrap();
         assert_eq!(value["transactions"].as_array().unwrap().len(), 3);
         assert_eq!(value["transactions"][0]["status"], "confirmed");
@@ -352,10 +331,7 @@ mod tests {
             )
             .await
             .unwrap_err();
-        let error = client.report_error(error.into());
-        let report = error
-            .downcast_ref::<ConfidentialTransactionError>()
-            .unwrap();
+        let report = client.report(&error.into()).unwrap();
         let value = serde_json::to_value(report).unwrap();
         assert_eq!(value["transactions"].as_array().unwrap().len(), 2);
         assert_eq!(value["transactions"][0]["status"], "confirmed");
@@ -364,16 +340,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn does_not_wrap_errors_without_signed_transactions() {
+    async fn does_not_report_errors_without_signed_transactions() {
         let client = client(0, None);
         let error = client
             .send_transaction(&Transaction::default())
             .await
             .unwrap_err();
-        let error = client.report_error(error);
-        assert!(error
-            .downcast_ref::<ConfidentialTransactionError>()
-            .is_none());
+        assert!(client.report(&error).is_none());
         assert_eq!(error.to_string(), "confirmation failed");
     }
 }
