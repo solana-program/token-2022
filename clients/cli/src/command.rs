@@ -34,6 +34,7 @@ use {
         program_option::COption,
         pubkey::Pubkey,
         signature::{Keypair, Signer},
+        signer::EncodableKey,
     },
     solana_system_interface::program as system_program,
     solana_zk_elgamal_proof_interface::proof_data::{
@@ -3292,17 +3293,31 @@ fn derive_confidential_keys_matching(
 ) -> Result<(ElGamalKeypair, AeKey), Error> {
     let (elgamal_keypair, aes_key) =
         derive_confidential_keys(signer, b"").map_err(|e| e.to_string())?;
-    if PodElGamalPubkey::from(*elgamal_keypair.pubkey()) == *expected_elgamal_pubkey {
-        return Ok((elgamal_keypair, aes_key));
-    }
+    validate_confidential_keypair_matches(&elgamal_keypair, expected_elgamal_pubkey).map_err(
+        |_| {
+            format!(
+                "The encryption key derived from signer {} does not match the encryption key {} \
+                 found on-chain. Use `--owner` to specify the keypair that configured the account. \
+                 Accounts configured with spl-token-cli 5.6.0 or earlier use an older key derivation \
+                 that this version does not support.",
+                signer.pubkey(),
+                expected_elgamal_pubkey,
+            )
+        },
+    )?;
+    Ok((elgamal_keypair, aes_key))
+}
 
+fn validate_confidential_keypair_matches(
+    elgamal_keypair: &ElGamalKeypair,
+    expected_elgamal_pubkey: &PodElGamalPubkey,
+) -> Result<(), Error> {
+    if PodElGamalPubkey::from(*elgamal_keypair.pubkey()) == *expected_elgamal_pubkey {
+        return Ok(());
+    }
     Err(format!(
-        "The encryption key derived from signer {} does not match the encryption key {} \
-         found on-chain. Use `--owner` to specify the keypair that configured the account. \
-         Accounts configured with spl-token-cli 5.6.0 or earlier use an older key derivation \
-         that this version does not support.",
-        signer.pubkey(),
-        expected_elgamal_pubkey,
+        "The ElGamal keypair does not match the encryption key {} found on-chain",
+        expected_elgamal_pubkey
     )
     .into())
 }
@@ -3313,15 +3328,26 @@ fn decrypt_confidential_balances(
     config: &Config<'_>,
     account_data: &[u8],
     additional_data: &SplTokenAdditionalDataV2,
+    custom_keys: Option<&(ElGamalKeypair, AeKey)>,
 ) -> Result<CliDecryptedConfidentialBalances, Error> {
     let state = StateWithExtensionsOwned::<Account>::unpack(account_data.to_vec())?;
     let extension = state
         .get_extension::<ConfidentialTransferAccount>()
         .map_err(|_| "Account is not configured for confidential transfers")?;
 
-    let signer = config.default_signer()?;
-    let (elgamal_keypair, aes_key) =
-        derive_confidential_keys_matching(&*signer, &extension.elgamal_pubkey)?;
+    let derived_keys = if custom_keys.is_none() {
+        let signer = config.default_signer()?;
+        Some(derive_confidential_keys_matching(
+            &*signer,
+            &extension.elgamal_pubkey,
+        )?)
+    } else {
+        None
+    };
+    let (elgamal_keypair, aes_key) = custom_keys
+        .or(derived_keys.as_ref())
+        .expect("confidential keys are available");
+    validate_confidential_keypair_matches(elgamal_keypair, &extension.elgamal_pubkey)?;
 
     let account_info = ApplyPendingBalanceAccountInfo::new(extension);
     let pending_balance = account_info
@@ -3379,15 +3405,26 @@ fn decrypt_confidential_supply(
     config: &Config<'_>,
     mint_data: &[u8],
     additional_data: &SplTokenAdditionalDataV2,
+    custom_keys: Option<&(ElGamalKeypair, AeKey)>,
 ) -> Result<UiTokenAmount, Error> {
     let state = StateWithExtensionsOwned::<Mint>::unpack(mint_data.to_vec())?;
     let extension = state
         .get_extension::<ConfidentialMintBurn>()
         .map_err(|_| "Mint is not configured for confidential mint and burn")?;
 
-    let signer = config.default_signer()?;
-    let (elgamal_keypair, aes_key) =
-        derive_confidential_keys_matching(&*signer, &extension.supply_elgamal_pubkey)?;
+    let derived_keys = if custom_keys.is_none() {
+        let signer = config.default_signer()?;
+        Some(derive_confidential_keys_matching(
+            &*signer,
+            &extension.supply_elgamal_pubkey,
+        )?)
+    } else {
+        None
+    };
+    let (elgamal_keypair, aes_key) = custom_keys
+        .or(derived_keys.as_ref())
+        .expect("confidential keys are available");
+    validate_confidential_keypair_matches(elgamal_keypair, &extension.supply_elgamal_pubkey)?;
 
     let supply = SupplyAccountInfo::new(extension)
         .decrypted_current_supply(&aes_key, &elgamal_keypair)
@@ -3401,7 +3438,12 @@ fn decrypt_confidential_supply(
     Ok(token_amount_to_ui_amount_v3(supply, additional_data))
 }
 
-async fn command_display(config: &Config<'_>, address: Pubkey, decrypt: bool) -> CommandResult {
+async fn command_display(
+    config: &Config<'_>,
+    address: Pubkey,
+    decrypt: bool,
+    custom_keys: Option<&(ElGamalKeypair, AeKey)>,
+) -> CommandResult {
     let account_data = config.get_account_checked(&address).await?;
 
     let (additional_data, has_permanent_delegate) =
@@ -3443,6 +3485,7 @@ async fn command_display(config: &Config<'_>, address: Pubkey, decrypt: bool) ->
                     config,
                     &account_data.data,
                     additional_data,
+                    custom_keys,
                 )?)
             } else {
                 None
@@ -3467,6 +3510,7 @@ async fn command_display(config: &Config<'_>, address: Pubkey, decrypt: bool) ->
                     config,
                     &account_data.data,
                     &additional_data,
+                    custom_keys,
                 )?)
             } else {
                 None
@@ -5874,20 +5918,29 @@ pub async fn process_command(
             let address = config
                 .associated_token_address_or_override(arg_matches, "address", &mut wallet_manager)
                 .await?;
-            command_display(config, address, false).await
+            command_display(config, address, false, None).await
         }
         (CommandName::MultisigInfo, arg_matches) => {
             let address = pubkey_of_signer(arg_matches, "address", &mut wallet_manager)
                 .unwrap()
                 .unwrap();
-            command_display(config, address, false).await
+            command_display(config, address, false, None).await
         }
         (CommandName::Display, arg_matches) => {
             let address = pubkey_of_signer(arg_matches, "address", &mut wallet_manager)
                 .unwrap()
                 .unwrap();
             let decrypt = arg_matches.is_present("decrypt");
-            command_display(config, address, decrypt).await
+            let custom_keys = if arg_matches.value_of("elgamal_keypair").is_some() {
+                let elgamal_keypair = elgamal_keypair_of(arg_matches, "elgamal_keypair")
+                    .map_err(|err| format!("Failed to read ElGamal keypair: {err}"))?;
+                let aes_key = AeKey::read_from_file(arg_matches.value_of("aes_key").unwrap())
+                    .map_err(|err| format!("Failed to read AES key: {err}"))?;
+                Some((elgamal_keypair, aes_key))
+            } else {
+                None
+            };
+            command_display(config, address, decrypt, custom_keys.as_ref()).await
         }
         (CommandName::Gc, arg_matches) => {
             match config.output_format {
