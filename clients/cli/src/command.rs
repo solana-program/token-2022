@@ -3204,20 +3204,106 @@ async fn command_close_mint(
     })
 }
 
-async fn command_balance(config: &Config<'_>, address: Pubkey) -> CommandResult {
-    let balance = config
-        .rpc_client
-        .get_token_account_balance(&address)
-        .await
-        .map_err(|_| format!("Could not find token account {}", address))?;
-    let cli_token_amount = CliTokenAmount { amount: balance };
+async fn command_balance(config: &Config<'_>, address: Pubkey, decrypt: bool) -> CommandResult {
+    let (balance, decrypted_confidential_balances) = if decrypt {
+        let account_data = config.get_account_checked(&address).await?;
+        let mint_address = get_token_account_mint(&account_data.data)
+            .ok_or_else(|| format!("Could not find token account {}", address))?;
+        let mint_data = config.get_account_checked(&mint_address).await?;
+        let mint_state = StateWithExtensionsOwned::<Mint>::unpack(mint_data.data)
+            .map_err(|_| format!("Could not deserialize token mint {}", mint_address))?;
+        let unix_timestamp = mint_unix_timestamp(config, &mint_state).await?;
+        let token_account = StateWithExtensionsOwned::<Account>::unpack(account_data.data.clone())
+            .map_err(|_| format!("Could not find token account {}", address))?;
+        let balance = token_amount_to_ui_amount_for_mint(
+            token_account.base.amount,
+            &mint_state,
+            unix_timestamp,
+        );
+        let decrypted_confidential_balances =
+            decrypt_confidential_balances(config, &account_data.data, |amount| {
+                token_amount_to_ui_amount_for_mint(amount, &mint_state, unix_timestamp)
+            })?;
+        (balance, Some(decrypted_confidential_balances))
+    } else {
+        let balance = config
+            .rpc_client
+            .get_token_account_balance(&address)
+            .await
+            .map_err(|_| format!("Could not find token account {}", address))?;
+        (balance, None)
+    };
+    let cli_token_amount = CliTokenAmount {
+        amount: balance,
+        decrypted_confidential_balances,
+        decrypted_confidential_supply: None,
+    };
     Ok(config.output_format.formatted_string(&cli_token_amount))
 }
 
-async fn command_supply(config: &Config<'_>, token: Pubkey) -> CommandResult {
-    let supply = config.rpc_client.get_token_supply(&token).await?;
-    let cli_token_amount = CliTokenAmount { amount: supply };
+async fn command_supply(config: &Config<'_>, token: Pubkey, decrypt: bool) -> CommandResult {
+    let (supply, decrypted_confidential_supply) = if decrypt {
+        let mint_data = config.get_account_checked(&token).await?;
+        let mint_state = StateWithExtensionsOwned::<Mint>::unpack(mint_data.data.clone())
+            .map_err(|_| format!("Could not deserialize token mint {}", token))?;
+        let unix_timestamp = mint_unix_timestamp(config, &mint_state).await?;
+        let supply =
+            token_amount_to_ui_amount_for_mint(mint_state.base.supply, &mint_state, unix_timestamp);
+        let decrypted_confidential_supply =
+            decrypt_confidential_supply(config, &mint_data.data, |amount| {
+                token_amount_to_ui_amount_for_mint(amount, &mint_state, unix_timestamp)
+            })?;
+        (supply, Some(decrypted_confidential_supply))
+    } else {
+        (config.rpc_client.get_token_supply(&token).await?, None)
+    };
+    let cli_token_amount = CliTokenAmount {
+        amount: supply,
+        decrypted_confidential_balances: None,
+        decrypted_confidential_supply,
+    };
     Ok(config.output_format.formatted_string(&cli_token_amount))
+}
+
+async fn mint_unix_timestamp(
+    config: &Config<'_>,
+    mint_state: &StateWithExtensionsOwned<Mint>,
+) -> Result<i64, Error> {
+    if mint_state.get_extension::<InterestBearingConfig>().is_ok()
+        || mint_state.get_extension::<ScaledUiAmountConfig>().is_ok()
+    {
+        let slot = config.rpc_client.get_slot().await?;
+        Ok(config.rpc_client.get_block_time(slot).await?)
+    } else {
+        Ok(0)
+    }
+}
+
+fn token_amount_to_ui_amount_for_mint(
+    amount: u64,
+    mint_state: &StateWithExtensionsOwned<Mint>,
+    unix_timestamp: i64,
+) -> UiTokenAmount {
+    let decimals = mint_state.base.decimals;
+    let ui_amount_string = if let Ok(config) = mint_state.get_extension::<InterestBearingConfig>() {
+        config.amount_to_ui_amount(amount, decimals, unix_timestamp)
+    } else if let Ok(config) = mint_state.get_extension::<ScaledUiAmountConfig>() {
+        config.amount_to_ui_amount(amount, decimals, unix_timestamp)
+    } else {
+        return token_amount_to_ui_amount_v3(
+            amount,
+            &SplTokenAdditionalDataV2::with_decimals(decimals),
+        );
+    };
+
+    UiTokenAmount {
+        amount: amount.to_string(),
+        ui_amount: ui_amount_string
+            .as_ref()
+            .and_then(|amount| f64::from_str(amount).ok()),
+        decimals,
+        ui_amount_string: ui_amount_string.unwrap_or_default(),
+    }
 }
 
 async fn command_accounts(
@@ -3312,7 +3398,7 @@ fn derive_confidential_keys_matching(
 fn decrypt_confidential_balances(
     config: &Config<'_>,
     account_data: &[u8],
-    additional_data: &SplTokenAdditionalDataV2,
+    token_amount_to_ui_amount: impl Fn(u64) -> UiTokenAmount,
 ) -> Result<CliDecryptedConfidentialBalances, Error> {
     let state = StateWithExtensionsOwned::<Account>::unpack(account_data.to_vec())?;
     let extension = state
@@ -3330,8 +3416,8 @@ fn decrypt_confidential_balances(
     let available_balance = decrypt_available_balance(extension, &elgamal_keypair, &aes_key)?;
 
     Ok(CliDecryptedConfidentialBalances {
-        pending_balance: token_amount_to_ui_amount_v3(pending_balance, additional_data),
-        available_balance: token_amount_to_ui_amount_v3(available_balance, additional_data),
+        pending_balance: token_amount_to_ui_amount(pending_balance),
+        available_balance: token_amount_to_ui_amount(available_balance),
     })
 }
 
@@ -3378,7 +3464,7 @@ fn decrypt_available_balance(
 fn decrypt_confidential_supply(
     config: &Config<'_>,
     mint_data: &[u8],
-    additional_data: &SplTokenAdditionalDataV2,
+    token_amount_to_ui_amount: impl Fn(u64) -> UiTokenAmount,
 ) -> Result<UiTokenAmount, Error> {
     let state = StateWithExtensionsOwned::<Mint>::unpack(mint_data.to_vec())?;
     let extension = state
@@ -3398,7 +3484,7 @@ fn decrypt_confidential_supply(
              decryptable supply first.")
         })?;
 
-    Ok(token_amount_to_ui_amount_v3(supply, additional_data))
+    Ok(token_amount_to_ui_amount(supply))
 }
 
 async fn command_display(config: &Config<'_>, address: Pubkey, decrypt: bool) -> CommandResult {
@@ -3442,7 +3528,7 @@ async fn command_display(config: &Config<'_>, address: Pubkey, decrypt: bool) ->
                 Some(decrypt_confidential_balances(
                     config,
                     &account_data.data,
-                    additional_data,
+                    |amount| token_amount_to_ui_amount_v3(amount, additional_data),
                 )?)
             } else {
                 None
@@ -3466,7 +3552,7 @@ async fn command_display(config: &Config<'_>, address: Pubkey, decrypt: bool) ->
                 Some(decrypt_confidential_supply(
                     config,
                     &account_data.data,
-                    &additional_data,
+                    |amount| token_amount_to_ui_amount_v3(amount, &additional_data),
                 )?)
             } else {
                 None
@@ -5834,16 +5920,23 @@ pub async fn process_command(
             command_close_mint(config, token, close_authority, recipient, bulk_signers).await
         }
         (CommandName::Balance, arg_matches) => {
+            let decrypt = arg_matches.is_present("decrypt");
+            if !decrypt && arg_matches.is_present("address") && arg_matches.is_present("owner") {
+                return Err(
+                    "The argument '--owner' cannot be used with '--address' unless '--decrypt' is specified"
+                        .into(),
+                );
+            }
             let address = config
                 .associated_token_address_or_override(arg_matches, "address", &mut wallet_manager)
                 .await?;
-            command_balance(config, address).await
+            command_balance(config, address, decrypt).await
         }
         (CommandName::Supply, arg_matches) => {
             let token = pubkey_of_signer(arg_matches, "token", &mut wallet_manager)
                 .unwrap()
                 .unwrap();
-            command_supply(config, token).await
+            command_supply(config, token, arg_matches.is_present("decrypt")).await
         }
         (CommandName::Accounts, arg_matches) => {
             let token = pubkey_of_signer(arg_matches, "token", &mut wallet_manager).unwrap();
