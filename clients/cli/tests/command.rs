@@ -12,6 +12,7 @@ use {
         program_pack::Pack,
         pubkey::Pubkey,
         signature::{write_keypair_file, Keypair, Signer},
+        signer::EncodableKey,
         transaction::Transaction,
     },
     solana_sdk_ids::bpf_loader_upgradeable,
@@ -4268,6 +4269,14 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         deposit_amount,
     );
 
+    // Explicit encryption key files can decrypt without the matching signer.
+    let (elgamal_keypair, aes_key) = derive_confidential_keys(payer, b"").unwrap();
+    let elgamal_keypair_file = NamedTempFile::new().unwrap();
+    elgamal_keypair
+        .write_json_file(elgamal_keypair_file.path())
+        .unwrap();
+    let aes_key_file = NamedTempFile::new().unwrap();
+    aes_key.write_to_file(aes_key_file.path()).unwrap();
     let result = exec_test_cmd(
         &wrong_owner_config,
         &[
@@ -4278,6 +4287,29 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
             "--decrypt",
             "--owner",
             owner_file.path().to_str().unwrap(),
+            "--output",
+            "json-compact",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["availableBalance"]["uiAmount"],
+        deposit_amount,
+    );
+
+    let result = exec_test_cmd(
+        &wrong_owner_config,
+        &[
+            "spl-token",
+            CommandName::Display.into(),
+            &token_account.to_string(),
+            "--decrypt",
+            "--elgamal-keypair",
+            elgamal_keypair_file.path().to_str().unwrap(),
+            "--aes-key",
+            aes_key_file.path().to_str().unwrap(),
             "--output",
             "json-compact",
         ],
