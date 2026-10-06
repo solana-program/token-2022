@@ -2142,6 +2142,28 @@ pub fn app<'a>(
                             defaults to the client keypair. Note that the auditor key cannot \
                             decrypt account balances, only transfer amounts."),
                 )
+                .arg(
+                    Arg::with_name("elgamal_keypair")
+                        .long("elgamal-keypair")
+                        .takes_value(true)
+                        .value_name("FILE")
+                        .requires("decrypt")
+                        .requires("aes_key")
+                        .conflicts_with("owner")
+                        .help("Use an ElGamal keypair file instead of deriving keys from a signer. \
+                            The keypair must match the confidential key stored on-chain."),
+                )
+                .arg(
+                    Arg::with_name("aes_key")
+                        .long("aes-key")
+                        .takes_value(true)
+                        .value_name("FILE")
+                        .requires("decrypt")
+                        .requires("elgamal_keypair")
+                        .conflicts_with("owner")
+                        .help("Use an AES key file instead of deriving keys from a signer. \
+                            Provide this together with --elgamal-keypair."),
+                )
                 .arg(owner_keypair_arg()),
         )
         .subcommand(
