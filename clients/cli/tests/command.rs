@@ -2,7 +2,10 @@
 use {
     libtest_mimic::{Arguments, Trial},
     solana_cli_output::OutputFormat,
-    solana_client::{nonblocking::rpc_client::RpcClient, rpc_request::TokenAccountsFilter},
+    solana_client::{
+        nonblocking::rpc_client::RpcClient,
+        rpc_request::{RpcRequest, TokenAccountsFilter},
+    },
     solana_sdk::{
         hash::Hash,
         program_option::COption,
@@ -148,6 +151,7 @@ async fn main() {
         async_trial!(transfer_fee, test_validator, payer),
         async_trial!(transfer_fee_basis_point, test_validator, payer),
         async_trial!(confidential_transfer, test_validator, payer),
+        async_trial!(confidential_query_ui_conversions, test_validator, payer),
         async_trial!(
             configure_confidential_transfer_with_registry,
             test_validator,
@@ -258,6 +262,22 @@ fn test_config_with_default_signer<'a>(
         compute_unit_price: None,
         compute_unit_limit: ComputeUnitLimit::Simulated,
     }
+}
+
+fn mock_account_info_response(
+    address: &Pubkey,
+    account: &solana_sdk::account::Account,
+) -> serde_json::Value {
+    serde_json::json!({
+        "context": { "slot": 1 },
+        "value": solana_account_decoder::encode_ui_account(
+            address,
+            account,
+            solana_account_decoder::UiAccountEncoding::Base64,
+            None,
+            None,
+        ),
+    })
 }
 
 fn test_config_without_default_signer<'a>(
@@ -3876,6 +3896,28 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         .await
         .unwrap();
 
+    // The public amount and confidential fields in this result are parsed from
+    // the same account data snapshot.
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
+            &token_account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(value["uiAmount"], deposit_amount);
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["pendingBalance"]["uiAmount"],
+        0.0
+    );
+
     process_test_command(
         &config,
         payer,
@@ -3906,10 +3948,49 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     assert_eq!(value["uiAmount"], 0.0);
     assert!(value.get("decryptedConfidentialBalances").is_none());
 
-    // With `--decrypt`, the balance query returns the pending confidential
-    // balance through the same fields as `display --decrypt`.
+    // Simulate a public-balance RPC response from before the deposit while
+    // returning the account state after the deposit. The decrypted query must
+    // use the public amount from the latter account snapshot.
+    let token_account_snapshot = config.rpc_client.get_account(&token_account).await.unwrap();
+    let mint_snapshot = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let mut snapshot_config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    snapshot_config.rpc_client = Arc::new(RpcClient::new_mock_with_mocks_map(
+        "succeeds",
+        vec![
+            (
+                RpcRequest::GetTokenAccountBalance,
+                serde_json::json!({
+                    "context": { "slot": 1 },
+                    "value": {
+                        "amount": "100000000000",
+                        "decimals": 9,
+                        "uiAmount": 100.0,
+                        "uiAmountString": "100"
+                    }
+                }),
+            ),
+            (
+                RpcRequest::GetAccountInfo,
+                mock_account_info_response(&token_account, &token_account_snapshot),
+            ),
+            (
+                RpcRequest::GetAccountInfo,
+                mock_account_info_response(&token_pubkey, &mint_snapshot),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+    ));
+    snapshot_config.program_client = Arc::new(ProgramRpcClient::new(
+        snapshot_config.rpc_client.clone(),
+        ProgramRpcClientSendTransaction,
+    ));
+
+    // With `--decrypt`, the public amount and pending confidential balance
+    // come from the same account snapshot.
     let result = process_test_command(
-        &config,
+        &snapshot_config,
         payer,
         &[
             "spl-token",
@@ -3922,6 +4003,7 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     .await
     .unwrap();
     let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(value["uiAmount"], 0.0);
     assert_eq!(
         value["decryptedConfidentialBalances"]["pendingBalance"]["uiAmount"],
         deposit_amount
@@ -4168,6 +4250,237 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         .get_extension::<ConfidentialTransferMint>()
         .unwrap();
     assert_eq!(Option::<Pubkey>::from(extension.authority), None,);
+}
+
+async fn confidential_query_ui_conversions(test_validator: &TestValidator, payer: &Keypair) {
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+
+    // A scaled confidential mint exercises the same UI multiplier for both
+    // decrypted account balances and mint supply.
+    let scaled_token = Keypair::new();
+    let scaled_token_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&scaled_token, &scaled_token_file).unwrap();
+    let scaled_token_pubkey = scaled_token.pubkey();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::CreateToken.into(),
+            scaled_token_file.path().to_str().unwrap(),
+            "--enable-confidential-transfers",
+            "auto",
+            "--enable-confidential-mint-burn",
+            "--ui-amount-multiplier",
+            "5",
+        ],
+    )
+    .await
+    .unwrap();
+    let scaled_account =
+        create_associated_account(&config, payer, &scaled_token_pubkey, &payer.pubkey()).await;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ConfigureConfidentialTransferAccount.into(),
+            &scaled_token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let scaled_amount = 100.0;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Mint.into(),
+            &scaled_token_pubkey.to_string(),
+            &scaled_amount.to_string(),
+            &scaled_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            &scaled_token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
+            &scaled_account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(value["amount"], "0");
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["availableBalance"]["uiAmount"],
+        scaled_amount * 5.0
+    );
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["availableBalance"]["uiAmountString"],
+        "500"
+    );
+
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Supply.into(),
+            &scaled_token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(value["amount"], "0");
+    assert!(value.get("decryptedConfidentialSupply").is_none());
+
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Supply.into(),
+            &scaled_token_pubkey.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialSupply"]["uiAmount"],
+        scaled_amount * 5.0
+    );
+    assert_eq!(
+        value["decryptedConfidentialSupply"]["uiAmountString"],
+        "500"
+    );
+
+    // An interest-bearing mint exercises time-adjusted conversion for both
+    // the confidential account balance and confidential supply.
+    let interest_token = Keypair::new();
+    let interest_token_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&interest_token, &interest_token_file).unwrap();
+    let interest_token_pubkey = interest_token.pubkey();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::CreateToken.into(),
+            interest_token_file.path().to_str().unwrap(),
+            "--enable-confidential-transfers",
+            "auto",
+            "--enable-confidential-mint-burn",
+            "--interest-rate",
+            "10000",
+        ],
+    )
+    .await
+    .unwrap();
+    let interest_account =
+        create_associated_account(&config, payer, &interest_token_pubkey, &payer.pubkey()).await;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ConfigureConfidentialTransferAccount.into(),
+            &interest_token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let interest_amount = 1_000.0;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Mint.into(),
+            &interest_token_pubkey.to_string(),
+            &interest_amount.to_string(),
+            &interest_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            &interest_token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
+            &interest_account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert!(
+        value["decryptedConfidentialBalances"]["availableBalance"]["uiAmount"]
+            .as_f64()
+            .unwrap()
+            > interest_amount
+    );
+
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Supply.into(),
+            &interest_token_pubkey.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert!(
+        value["decryptedConfidentialSupply"]["uiAmount"]
+            .as_f64()
+            .unwrap()
+            > interest_amount
+    );
 }
 
 async fn confidential_transfer_with_fee(test_validator: &TestValidator, payer: &Keypair) {
