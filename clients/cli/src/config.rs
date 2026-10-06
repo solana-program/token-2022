@@ -88,6 +88,7 @@ pub struct Config<'a> {
     pub nonce_blockhash: Option<Hash>,
     pub sign_only: bool,
     pub dump_transaction_message: bool,
+    pub proof_account_lamports: Option<u64>,
     pub multisigner_pubkeys: Vec<&'a Pubkey>,
     pub program_id: Pubkey,
     pub restrict_to_program_id: bool,
@@ -360,6 +361,11 @@ impl<'a> Config<'a> {
             nonce_blockhash,
             sign_only,
             dump_transaction_message,
+            proof_account_lamports: matches
+                .try_get_one::<u64>("proof_account_lamports")
+                .ok()
+                .flatten()
+                .copied(),
             multisigner_pubkeys,
             program_id,
             restrict_to_program_id,

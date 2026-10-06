@@ -11170,6 +11170,7 @@ version = "5.6.1"
 dependencies = [
  "assert_cmd",
  "base64 0.23.1",
+ "bincode",
  "clap 3.2.25",
  "console 0.16.6",
  "futures 0.3.34",
@@ -11185,6 +11186,7 @@ dependencies = [
  "solana-commitment-config",
  "solana-logger",
  "solana-nonce",
+ "solana-packet 4.2.0",
  "solana-remote-wallet 3.1.14",
  "solana-sdk",
  "solana-sdk-ids",
