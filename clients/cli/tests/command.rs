@@ -12,7 +12,10 @@ use offline_confidential::{
 use {
     libtest_mimic::{Arguments, Trial},
     solana_cli_output::OutputFormat,
-    solana_client::{nonblocking::rpc_client::RpcClient, rpc_request::TokenAccountsFilter},
+    solana_client::{
+        nonblocking::rpc_client::RpcClient,
+        rpc_request::{RpcRequest, TokenAccountsFilter},
+    },
     solana_sdk::{
         hash::Hash,
         program_option::COption,
@@ -173,6 +176,12 @@ async fn main() {
             payer
         ),
         async_trial!(offline_confidential_mint_burn, test_validator, payer),
+        async_trial!(confidential_query_ui_conversions, test_validator, payer),
+        async_trial!(
+            configure_confidential_transfer_partial_failure,
+            test_validator,
+            payer
+        ),
         async_trial!(
             configure_confidential_transfer_with_registry,
             test_validator,
@@ -262,9 +271,11 @@ fn test_config_with_default_signer<'a>(
 ) -> Config<'a> {
     let websocket_url = test_validator.rpc_pubsub_url();
     let rpc_client = Arc::new(test_validator.get_async_rpc_client());
-    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction>> = Arc::new(
-        ProgramRpcClient::new(rpc_client.clone(), ProgramRpcClientSendTransaction),
-    );
+    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync> =
+        Arc::new(ProgramRpcClient::new(
+            rpc_client.clone(),
+            ProgramRpcClientSendTransaction,
+        ));
     Config {
         rpc_client,
         program_client,
@@ -286,15 +297,33 @@ fn test_config_with_default_signer<'a>(
     }
 }
 
+fn mock_account_info_response(
+    address: &Pubkey,
+    account: &solana_sdk::account::Account,
+) -> serde_json::Value {
+    serde_json::json!({
+        "context": { "slot": 1 },
+        "value": solana_account_decoder::encode_ui_account(
+            address,
+            account,
+            solana_account_decoder::UiAccountEncoding::Base64,
+            None,
+            None,
+        ),
+    })
+}
+
 fn test_config_without_default_signer<'a>(
     test_validator: &TestValidator,
     program_id: &Pubkey,
 ) -> Config<'a> {
     let websocket_url = test_validator.rpc_pubsub_url();
     let rpc_client = Arc::new(test_validator.get_async_rpc_client());
-    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction>> = Arc::new(
-        ProgramRpcClient::new(rpc_client.clone(), ProgramRpcClientSendTransaction),
-    );
+    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync> =
+        Arc::new(ProgramRpcClient::new(
+            rpc_client.clone(),
+            ProgramRpcClientSendTransaction,
+        ));
     Config {
         rpc_client,
         program_client,
@@ -3446,6 +3475,93 @@ async fn approve_confidential_transfer_account(test_validator: &TestValidator, p
     assert!(bool::from(extension.approved));
 }
 
+async fn configure_confidential_transfer_partial_failure(
+    test_validator: &TestValidator,
+    payer: &Keypair,
+) {
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    let payer_file = NamedTempFile::new().unwrap();
+    write_keypair_file(payer, &payer_file).unwrap();
+    // Reallocation succeeds, but configuration fails because this mint does not
+    // support confidential transfers.
+    let mint = create_token(&config, payer).await;
+    for format in [Some("json"), Some("json-compact"), None] {
+        let account = create_auxiliary_account(&config, payer, mint).await;
+        let original_len = config
+            .rpc_client
+            .get_account(&account)
+            .await
+            .unwrap()
+            .data
+            .len();
+        let mut command = std::process::Command::new(assert_cmd::cargo::cargo_bin!("spl-token"));
+        command.args([
+            "--url",
+            &test_validator.rpc_url(),
+            "--program-2022",
+            "--fee-payer",
+            payer_file.path().to_str().unwrap(),
+            "configure-confidential-transfer-account",
+            "--address",
+            &account.to_string(),
+            "--owner",
+            payer_file.path().to_str().unwrap(),
+        ]);
+        if let Some(format) = format {
+            command.args(["--output", format]);
+        }
+        let output = command.output().unwrap();
+        assert!(!output.status.success());
+        if format.is_none() {
+            let stdout = String::from_utf8(output.stdout).unwrap();
+            let stderr = String::from_utf8(output.stderr).unwrap();
+            assert!(stdout.contains("Confirmed:"));
+            assert!(!stdout.lines().any(|line| line.starts_with("Error:")));
+            assert_eq!(
+                stderr
+                    .lines()
+                    .filter(|line| line.starts_with("Error:"))
+                    .count(),
+                1,
+                "{stderr}",
+            );
+            continue;
+        }
+        let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+            .unwrap_or_else(|error| panic!("{error}: {output:?}"));
+        assert!(!value["error"].as_str().unwrap().is_empty());
+        let transactions = value["transactions"].as_array().unwrap();
+        assert_eq!(transactions.len(), 2);
+        assert_eq!(transactions[0]["status"], "confirmed");
+        assert_eq!(transactions[1]["status"], "unknown");
+        assert!(transactions[1]["error"].as_str().is_some());
+        let signature = transactions[0]["signature"]
+            .as_str()
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(
+            config
+                .rpc_client
+                .get_signature_status(&signature)
+                .await
+                .unwrap(),
+            Some(Ok(()))
+        );
+        assert!(
+            config
+                .rpc_client
+                .get_account(&account)
+                .await
+                .unwrap()
+                .data
+                .len()
+                > original_len
+        );
+    }
+}
+
 async fn empty_confidential_transfer_account(test_validator: &TestValidator, payer: &Keypair) {
     use solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext;
 
@@ -3705,10 +3821,23 @@ async fn empty_confidential_transfer_account(test_validator: &TestValidator, pay
 }
 
 async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) {
-    use solana_zk_sdk::encryption::elgamal::ElGamalKeypair;
+    use {
+        solana_sdk::message::Message,
+        solana_zk_elgamal_proof_interface::{
+            proof_data::{
+                BatchedGroupedCiphertext3HandlesValidityProofContext, BatchedRangeProofContext,
+                BatchedRangeProofU128Data, CiphertextCommitmentEqualityProofContext,
+            },
+            state::ProofContextState,
+        },
+        solana_zk_sdk::encryption::elgamal::ElGamalKeypair,
+        spl_record::state::RecordData,
+    };
 
     let config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    let payer_file = NamedTempFile::new().unwrap();
+    write_keypair_file(payer, &payer_file).unwrap();
 
     // create token with confidential transfers enabled
     let auto_approve = false;
@@ -3903,6 +4032,28 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         .await
         .unwrap();
 
+    // The public amount and confidential fields in this result are parsed from
+    // the same account data snapshot.
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
+            &token_account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(value["uiAmount"], deposit_amount);
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["pendingBalance"]["uiAmount"],
+        0.0
+    );
+
     process_test_command(
         &config,
         payer,
@@ -3915,6 +4066,84 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     )
     .await
     .unwrap();
+
+    // A balance query still returns the public amount without `--decrypt`.
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
+            &token_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(value["uiAmount"], 0.0);
+    assert!(value.get("decryptedConfidentialBalances").is_none());
+
+    // Simulate a public-balance RPC response from before the deposit while
+    // returning the account state after the deposit. The decrypted query must
+    // use the public amount from the latter account snapshot.
+    let token_account_snapshot = config.rpc_client.get_account(&token_account).await.unwrap();
+    let mint_snapshot = config.rpc_client.get_account(&token_pubkey).await.unwrap();
+    let mut snapshot_config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    snapshot_config.rpc_client = Arc::new(RpcClient::new_mock_with_mocks_map(
+        "succeeds",
+        vec![
+            (
+                RpcRequest::GetTokenAccountBalance,
+                serde_json::json!({
+                    "context": { "slot": 1 },
+                    "value": {
+                        "amount": "100000000000",
+                        "decimals": 9,
+                        "uiAmount": 100.0,
+                        "uiAmountString": "100"
+                    }
+                }),
+            ),
+            (
+                RpcRequest::GetAccountInfo,
+                mock_account_info_response(&token_account, &token_account_snapshot),
+            ),
+            (
+                RpcRequest::GetAccountInfo,
+                mock_account_info_response(&token_pubkey, &mint_snapshot),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+    ));
+    snapshot_config.program_client = Arc::new(ProgramRpcClient::new(
+        snapshot_config.rpc_client.clone(),
+        ProgramRpcClientSendTransaction,
+    ));
+
+    // With `--decrypt`, the public amount and pending confidential balance
+    // come from the same account snapshot.
+    let result = process_test_command(
+        &snapshot_config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
+            &token_account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(value["uiAmount"], 0.0);
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["pendingBalance"]["uiAmount"],
+        deposit_amount
+    );
 
     // decrypted balances: deposit is pending until applied
     assert_eq!(
@@ -3940,6 +4169,25 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         (0.0, deposit_amount)
     );
 
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
+            &token_account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["availableBalance"]["uiAmount"],
+        deposit_amount
+    );
+
     // decrypting with a keypair that did not configure the account fails
     let wrong_owner = Keypair::new();
     let wrong_owner_config = test_config_with_default_signer(
@@ -3963,6 +4211,23 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         .to_string()
         .contains("does not match the encryption key"));
 
+    let result = process_test_command(
+        &wrong_owner_config,
+        &wrong_owner,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
+            &token_account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await;
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("does not match the encryption key"));
+
     // An explicit owner overrides the default signer for decryption.
     let owner_file = NamedTempFile::new().unwrap();
     write_keypair_file(payer, &owner_file).unwrap();
@@ -3971,6 +4236,28 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         &[
             "spl-token",
             CommandName::Display.into(),
+            &token_account.to_string(),
+            "--decrypt",
+            "--owner",
+            owner_file.path().to_str().unwrap(),
+            "--output",
+            "json-compact",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["availableBalance"]["uiAmount"],
+        deposit_amount,
+    );
+
+    let result = exec_test_cmd(
+        &wrong_owner_config,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
             &token_account.to_string(),
             "--decrypt",
             "--owner",
@@ -4017,7 +4304,197 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     .await
     .unwrap(); // configure destination account for confidential transfers first
 
-    let transfer_amount = 100.0;
+    let transfer_amount = 50.0;
+    // Reject the transfer after its proof accounts have been created.
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::DisableConfidentialCredits.into(),
+            "--address",
+            &destination_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    let output = std::process::Command::new(assert_cmd::cargo::cargo_bin!("spl-token"))
+        .args([
+            "--url",
+            &test_validator.rpc_url(),
+            "--program-2022",
+            "--output",
+            "json",
+            "--fee-payer",
+            payer_file.path().to_str().unwrap(),
+            "transfer",
+            &token_pubkey.to_string(),
+            &transfer_amount.to_string(),
+            &destination_account.to_string(),
+            "--confidential",
+            "--owner",
+            payer_file.path().to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|error| panic!("{error}: {output:?}"));
+    let transactions = report["transactions"].as_array().unwrap();
+    // Five confirmed setup transactions precede the rejected transfer request.
+    assert_eq!(transactions.len(), 6);
+    assert_eq!(transactions[5]["status"], "unknown");
+    assert!(transactions[5]["error"].as_str().is_some());
+    for transaction in &transactions[..5] {
+        assert_eq!(transaction["status"], "confirmed");
+        let signature = transaction["signature"].as_str().unwrap().parse().unwrap();
+        assert_eq!(
+            config
+                .rpc_client
+                .get_signature_status(&signature)
+                .await
+                .unwrap(),
+            Some(Ok(()))
+        );
+    }
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::EnableConfidentialCredits.into(),
+            "--address",
+            &destination_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    // Fund setup and transfer, but leave no SOL to pay for proof-account cleanup.
+    // A fixed priority fee keeps the payer rent-exempt until the transfer drains it.
+    let cleanup_fee_payer = Keypair::new();
+    let cleanup_fee_payer_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&cleanup_fee_payer, &cleanup_fee_payer_file).unwrap();
+    let blockhash = config.rpc_client.get_latest_blockhash().await.unwrap();
+    let signature_fee = config
+        .rpc_client
+        .get_fee_for_message(&Message::new_with_blockhash(
+            &[],
+            Some(&cleanup_fee_payer.pubkey()),
+            &blockhash,
+        ))
+        .await
+        .unwrap();
+    // Four account creations (two signers each), one record write (one signer),
+    // and the transfer (fee payer and token owner): six transactions, 11 signatures.
+    let mut funding = 11 * signature_fee + 6 * 1_400_000;
+    for space in [
+        size_of::<ProofContextState<CiphertextCommitmentEqualityProofContext>>(),
+        size_of::<ProofContextState<BatchedGroupedCiphertext3HandlesValidityProofContext>>(),
+        size_of::<ProofContextState<BatchedRangeProofContext>>(),
+        size_of::<BatchedRangeProofU128Data>() + RecordData::WRITABLE_START_INDEX,
+    ] {
+        funding += config
+            .rpc_client
+            .get_minimum_balance_for_rent_exemption(space)
+            .await
+            .unwrap();
+    }
+    let funding_transaction = Transaction::new_signed_with_payer(
+        &[system_instruction::transfer(
+            &payer.pubkey(),
+            &cleanup_fee_payer.pubkey(),
+            funding,
+        )],
+        Some(&payer.pubkey()),
+        &[payer],
+        blockhash,
+    );
+    config
+        .rpc_client
+        .send_and_confirm_transaction(&funding_transaction)
+        .await
+        .unwrap();
+    let output = std::process::Command::new(assert_cmd::cargo::cargo_bin!("spl-token"))
+        .args([
+            "--url",
+            &test_validator.rpc_url(),
+            "--program-2022",
+            "--output",
+            "json-compact",
+            "--fee-payer",
+            cleanup_fee_payer_file.path().to_str().unwrap(),
+            "--with-compute-unit-limit",
+            "1400000",
+            "--with-compute-unit-price",
+            "1000000",
+            "transfer",
+            &token_pubkey.to_string(),
+            &transfer_amount.to_string(),
+            &destination_account.to_string(),
+            "--confidential",
+            "--owner",
+            payer_file.path().to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|error| panic!("{error}: {output:?}"));
+    assert!(!report["error"].as_str().unwrap().is_empty());
+    let transactions = report["transactions"].as_array().unwrap();
+    assert!(transactions.len() > 6, "{report}");
+    for transaction in &transactions[..6] {
+        assert_eq!(transaction["status"], "confirmed");
+    }
+    let transfer_signature = transactions[5]["signature"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert_eq!(
+        config
+            .rpc_client
+            .get_signature_status(&transfer_signature)
+            .await
+            .unwrap(),
+        Some(Ok(())),
+    );
+    assert!(transactions[6..].iter().any(|transaction| {
+        transaction["status"] == "unknown" && transaction["error"].as_str().is_some()
+    }));
+    assert_eq!(
+        config
+            .rpc_client
+            .get_balance(&cleanup_fee_payer.pubkey())
+            .await
+            .unwrap(),
+        0
+    );
+    let account = config
+        .rpc_client
+        .get_account(&destination_account)
+        .await
+        .unwrap();
+    let state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
+    let extension = state
+        .get_extension::<ConfidentialTransferAccount>()
+        .unwrap();
+    assert_eq!(u64::from(extension.pending_balance_credit_counter), 1);
+    let account = config.rpc_client.get_account(&token_account).await.unwrap();
+    let state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
+    let extension = state
+        .get_extension::<ConfidentialTransferAccount>()
+        .unwrap();
+    let (_, aes_key) = derive_confidential_keys(payer, b"").unwrap();
+    assert_eq!(
+        aes_key.decrypt(&extension.decryptable_available_balance.try_into().unwrap()),
+        Some(spl_token_2022::ui_amount_to_amount(
+            transfer_amount,
+            test_mint.base.decimals,
+        )),
+    );
+
     let output = process_test_command(
         &config,
         payer,
@@ -4099,6 +4576,237 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         .get_extension::<ConfidentialTransferMint>()
         .unwrap();
     assert_eq!(Option::<Pubkey>::from(extension.authority), None,);
+}
+
+async fn confidential_query_ui_conversions(test_validator: &TestValidator, payer: &Keypair) {
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+
+    // A scaled confidential mint exercises the same UI multiplier for both
+    // decrypted account balances and mint supply.
+    let scaled_token = Keypair::new();
+    let scaled_token_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&scaled_token, &scaled_token_file).unwrap();
+    let scaled_token_pubkey = scaled_token.pubkey();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::CreateToken.into(),
+            scaled_token_file.path().to_str().unwrap(),
+            "--enable-confidential-transfers",
+            "auto",
+            "--enable-confidential-mint-burn",
+            "--ui-amount-multiplier",
+            "5",
+        ],
+    )
+    .await
+    .unwrap();
+    let scaled_account =
+        create_associated_account(&config, payer, &scaled_token_pubkey, &payer.pubkey()).await;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ConfigureConfidentialTransferAccount.into(),
+            &scaled_token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let scaled_amount = 100.0;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Mint.into(),
+            &scaled_token_pubkey.to_string(),
+            &scaled_amount.to_string(),
+            &scaled_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            &scaled_token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
+            &scaled_account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(value["amount"], "0");
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["availableBalance"]["uiAmount"],
+        scaled_amount * 5.0
+    );
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["availableBalance"]["uiAmountString"],
+        "500"
+    );
+
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Supply.into(),
+            &scaled_token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(value["amount"], "0");
+    assert!(value.get("decryptedConfidentialSupply").is_none());
+
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Supply.into(),
+            &scaled_token_pubkey.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialSupply"]["uiAmount"],
+        scaled_amount * 5.0
+    );
+    assert_eq!(
+        value["decryptedConfidentialSupply"]["uiAmountString"],
+        "500"
+    );
+
+    // An interest-bearing mint exercises time-adjusted conversion for both
+    // the confidential account balance and confidential supply.
+    let interest_token = Keypair::new();
+    let interest_token_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&interest_token, &interest_token_file).unwrap();
+    let interest_token_pubkey = interest_token.pubkey();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::CreateToken.into(),
+            interest_token_file.path().to_str().unwrap(),
+            "--enable-confidential-transfers",
+            "auto",
+            "--enable-confidential-mint-burn",
+            "--interest-rate",
+            "10000",
+        ],
+    )
+    .await
+    .unwrap();
+    let interest_account =
+        create_associated_account(&config, payer, &interest_token_pubkey, &payer.pubkey()).await;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ConfigureConfidentialTransferAccount.into(),
+            &interest_token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let interest_amount = 1_000.0;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Mint.into(),
+            &interest_token_pubkey.to_string(),
+            &interest_amount.to_string(),
+            &interest_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            &interest_token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
+            &interest_account.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert!(
+        value["decryptedConfidentialBalances"]["availableBalance"]["uiAmount"]
+            .as_f64()
+            .unwrap()
+            > interest_amount
+    );
+
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Supply.into(),
+            &interest_token_pubkey.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert!(
+        value["decryptedConfidentialSupply"]["uiAmount"]
+            .as_f64()
+            .unwrap()
+            > interest_amount
+    );
 }
 
 async fn confidential_transfer_with_fee(test_validator: &TestValidator, payer: &Keypair) {
@@ -5037,11 +5745,12 @@ async fn do_offline_multisig_transfer(
             .await
             .unwrap();
 
-        let offline_program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction>> =
-            Arc::new(ProgramOfflineClient::new(
-                blockhash,
-                ProgramRpcClientSendTransaction,
-            ));
+        let offline_program_client: Arc<
+            dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync,
+        > = Arc::new(ProgramOfflineClient::new(
+            blockhash,
+            ProgramRpcClientSendTransaction,
+        ));
         let mut args = vec![
             "spl-token".to_string(),
             CommandName::Transfer.as_ref().to_string(),
@@ -5100,9 +5809,12 @@ async fn do_offline_multisig_transfer(
         assert!(!absent_signers.contains(&token.to_string()));
 
         // now send the transaction
-        let rpc_program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction>> = Arc::new(
-            ProgramRpcClient::new(config.rpc_client.clone(), ProgramRpcClientSendTransaction),
-        );
+        let rpc_program_client: Arc<
+            dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync,
+        > = Arc::new(ProgramRpcClient::new(
+            config.rpc_client.clone(),
+            ProgramRpcClientSendTransaction,
+        ));
         config.program_client = rpc_program_client;
         let mut args = vec![
             "spl-token".to_string(),
@@ -5761,9 +6473,11 @@ async fn transfer_hook(test_validator: &TestValidator, payer: &Keypair) {
     // Make sure that parsing transfer hook accounts works
     let real_program_client = config.program_client;
     let blockhash = Hash::default();
-    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction>> = Arc::new(
-        ProgramOfflineClient::new(blockhash, ProgramRpcClientSendTransaction),
-    );
+    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync> =
+        Arc::new(ProgramOfflineClient::new(
+            blockhash,
+            ProgramRpcClientSendTransaction,
+        ));
     config.program_client = program_client;
     let _result = exec_test_cmd(
         &config,
@@ -5877,9 +6591,11 @@ async fn transfer_hook_with_transfer_fee(test_validator: &TestValidator, payer: 
 
     // Make sure that parsing transfer hook accounts and expected-fee works
     let blockhash = Hash::default();
-    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction>> = Arc::new(
-        ProgramOfflineClient::new(blockhash, ProgramRpcClientSendTransaction),
-    );
+    let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync> =
+        Arc::new(ProgramOfflineClient::new(
+            blockhash,
+            ProgramRpcClientSendTransaction,
+        ));
     config.program_client = program_client;
 
     let _result = exec_test_cmd(
@@ -6691,6 +7407,59 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
         value["decryptedConfidentialSupply"]["uiAmount"],
         mint_amount
     );
+
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Supply.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert!(value.get("decryptedConfidentialSupply").is_none());
+
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Supply.into(),
+            &token_pubkey.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialSupply"]["uiAmount"],
+        mint_amount
+    );
+
+    let wrong_owner = Keypair::new();
+    let wrong_owner_config = test_config_with_default_signer(
+        test_validator,
+        &wrong_owner,
+        &spl_token_2022_interface::id(),
+    );
+    let error = process_test_command(
+        &wrong_owner_config,
+        &wrong_owner,
+        &[
+            "spl-token",
+            CommandName::Supply.into(),
+            &token_pubkey.to_string(),
+            "--decrypt",
+        ],
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("does not match the encryption key"));
 
     // Burn confidentially
     let burn_amount = 50.0;

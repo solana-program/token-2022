@@ -2109,7 +2109,14 @@ pub fn app<'a>(
                         .required_unless("address")
                         .help("Token of associated account. To query a specific account, use the `--address` parameter instead"),
                 )
-                .arg(owner_address_arg().conflicts_with("address"))
+                .arg(
+                    Arg::with_name(OWNER_ADDRESS_ARG.name)
+                        .long(OWNER_ADDRESS_ARG.long)
+                        .takes_value(true)
+                        .value_name("OWNER_ADDRESS_OR_KEYPAIR")
+                        .validator(|s| is_valid_signer(s))
+                        .help("Owner address for the associated account, or owner keypair for decryption. Defaults to the client keypair."),
+                )
                 .arg(
                     Arg::with_name("address")
                         .validator(|s| is_valid_pubkey(s))
@@ -2119,6 +2126,12 @@ pub fn app<'a>(
                         .conflicts_with("token")
                         .help("Specify the token account to query \
                             [default: owner's associated token account]"),
+                )
+                .arg(
+                    Arg::with_name("decrypt")
+                        .long("decrypt")
+                        .takes_value(false)
+                        .help("Decrypt the confidential balances using keys derived from the owner keypair, which defaults to the client keypair."),
                 ),
         )
         .subcommand(
@@ -2132,7 +2145,14 @@ pub fn app<'a>(
                         .index(1)
                         .required(true)
                         .help("The token address"),
-                ),
+                )
+                .arg(
+                    Arg::with_name("decrypt")
+                        .long("decrypt")
+                        .takes_value(false)
+                        .help("Decrypt the confidential supply using keys derived from the supply keypair, which defaults to the client keypair."),
+                )
+                .arg(owner_keypair_arg()),
         )
         .subcommand(
             SubCommand::with_name(CommandName::Accounts.into())

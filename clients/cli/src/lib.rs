@@ -5,3 +5,4 @@ pub mod config;
 mod encryption_keypair;
 mod output;
 mod sort;
+mod transaction_report;

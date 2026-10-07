@@ -180,6 +180,10 @@ impl fmt::Display for CliSignOnlyList {
 pub(crate) struct CliTokenAmount {
     #[serde(flatten)]
     pub(crate) amount: UiTokenAmount,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) decrypted_confidential_balances: Option<CliDecryptedConfidentialBalances>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) decrypted_confidential_supply: Option<UiTokenAmount>,
 }
 
 impl QuietDisplay for CliTokenAmount {}
@@ -187,13 +191,31 @@ impl VerboseDisplay for CliTokenAmount {
     fn write_str(&self, w: &mut dyn fmt::Write) -> fmt::Result {
         writeln!(w, "ui amount: {}", self.amount.real_number_string_trimmed())?;
         writeln!(w, "decimals: {}", self.amount.decimals)?;
-        writeln!(w, "amount: {}", self.amount.amount)
+        writeln!(w, "amount: {}", self.amount.amount)?;
+        if let Some(balances) = &self.decrypted_confidential_balances {
+            write!(w, "{balances}")?;
+        }
+        if let Some(supply) = &self.decrypted_confidential_supply {
+            writeln!(
+                w,
+                "decrypted supply: {}",
+                supply.real_number_string_trimmed()
+            )?;
+        }
+        Ok(())
     }
 }
 
 impl fmt::Display for CliTokenAmount {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "{}", self.amount.real_number_string_trimmed())
+        writeln!(f, "{}", self.amount.real_number_string_trimmed())?;
+        if let Some(balances) = &self.decrypted_confidential_balances {
+            write!(f, "{balances}")?;
+        }
+        if let Some(supply) = &self.decrypted_confidential_supply {
+            writeln_name_value(f, "Decrypted Supply:", &supply.real_number_string_trimmed())?;
+        }
+        Ok(())
     }
 }
 

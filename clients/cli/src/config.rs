@@ -76,10 +76,11 @@ pub(crate) struct MintInfo {
 const DEFAULT_RPC_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_CONFIRM_TX_TIMEOUT: Duration = Duration::from_secs(5);
 
+#[derive(Clone)]
 pub struct Config<'a> {
     pub default_signer: Option<Arc<dyn Signer>>,
     pub rpc_client: Arc<RpcClient>,
-    pub program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction>>,
+    pub program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync>,
     pub websocket_url: String,
     pub output_format: OutputFormat,
     pub fee_payer: Option<Arc<dyn Signer>>,
@@ -119,21 +120,22 @@ impl<'a> Config<'a> {
             DEFAULT_CONFIRM_TX_TIMEOUT,
         ));
         let sign_only = matches.try_contains_id(SIGN_ONLY_ARG.name).unwrap_or(false);
-        let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction>> = if sign_only {
-            let blockhash = matches
-                .get_one::<Hash>(BLOCKHASH_ARG.name)
-                .copied()
-                .unwrap_or_default();
-            Arc::new(ProgramOfflineClient::new(
-                blockhash,
-                ProgramRpcClientSendTransaction,
-            ))
-        } else {
-            Arc::new(ProgramRpcClient::new(
-                rpc_client.clone(),
-                ProgramRpcClientSendTransaction,
-            ))
-        };
+        let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync> =
+            if sign_only {
+                let blockhash = matches
+                    .get_one::<Hash>(BLOCKHASH_ARG.name)
+                    .copied()
+                    .unwrap_or_default();
+                Arc::new(ProgramOfflineClient::new(
+                    blockhash,
+                    ProgramRpcClientSendTransaction,
+                ))
+            } else {
+                Arc::new(ProgramRpcClient::new(
+                    rpc_client.clone(),
+                    ProgramRpcClientSendTransaction,
+                ))
+            };
         Self::new_with_clients_and_ws_url(
             matches,
             wallet_manager,
@@ -172,7 +174,7 @@ impl<'a> Config<'a> {
         bulk_signers: &mut Vec<Arc<dyn Signer>>,
         multisigner_ids: &'a mut Vec<Pubkey>,
         rpc_client: Arc<RpcClient>,
-        program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction>>,
+        program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync>,
         websocket_url: String,
     ) -> Config<'a> {
         let cli_config = get_cli_config(matches);
