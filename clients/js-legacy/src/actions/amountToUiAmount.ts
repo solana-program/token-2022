@@ -48,7 +48,8 @@ export async function amountToUiAmount(
 function calculateExponentForTimesAndRate(t1: number, t2: number, r: number): number {
     const timespan = t2 - t1;
     const numerator = r * timespan;
-    const exponent = numerator / (SECONDS_PER_YEAR * ONE_IN_BASIS_POINTS);
+    // Divide in the same order as the program so the result rounds the same way
+    const exponent = numerator / SECONDS_PER_YEAR / ONE_IN_BASIS_POINTS;
     return Math.exp(exponent);
 }
 
