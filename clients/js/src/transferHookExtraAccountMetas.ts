@@ -646,8 +646,8 @@ export type ResolveExtraAccountMetasForExecuteInput = {
  * de-escalated against the transfer's base accounts and each other), followed by the transfer
  * hook program and its validation account.
  *
- * Returns an empty array if the mint has no transfer hook validation account, mirroring the
- * legacy `addExtraAccountMetasForExecute`'s no-op when none is configured.
+ * If the mint has no transfer hook validation account, returns only the transfer hook program:
+ * Token-2022 then invokes the hook with no extra accounts, but still needs its program.
  *
  * Mirrors legacy's `addExtraAccountMetasForExecute`, adapted from mutating a
  * `TransactionInstruction`'s `keys` array to returning the additional `AccountMeta`s for the
@@ -662,7 +662,7 @@ export async function resolveExtraAccountMetasForExecute(
 
     const validateStateAccount = await fetchEncodedAccount(input.rpc, validateStatePubkey);
     if (!validateStateAccount.exists) {
-        return [];
+        return [{ address: input.transferHookProgramAddress, role: AccountRole.READONLY }];
     }
 
     const validateStateData = getExtraAccountMetasDecoder().decode(validateStateAccount.data);
@@ -865,7 +865,8 @@ export async function getTransferCheckedWithTransferHookInstructionAsync(
     const transferHook = (unwrapOption(mint.extensions) ?? []).find(
         (extension): extension is Extract<Extension, { __kind: 'TransferHook' }> => extension.__kind === 'TransferHook',
     );
-    if (!transferHook) {
+    // An unset hook program is stored as the default address, and Token-2022 then invokes no hook.
+    if (!transferHook || transferHook.programId === SYSTEM_PROGRAM_ADDRESS) {
         return instruction;
     }
 
