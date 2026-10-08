@@ -14,4 +14,6 @@ pub enum TokenProofExtractionError {
     CurveArithmetic,
     #[error("Ciphertext extraction failed")]
     CiphertextExtraction,
+    #[error("Delta commitment mismatch")]
+    DeltaCommitmentMismatch,
 }
