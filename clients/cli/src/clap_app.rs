@@ -14,6 +14,11 @@ use {
         ArgConstant,
     },
     solana_sdk::{instruction::AccountMeta, pubkey::Pubkey},
+    solana_zk_sdk::encryption::elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey},
+    solana_zk_sdk_pod::encryption::{
+        auth_encryption::PodAeCiphertext,
+        elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
+    },
     spl_token_2022_interface::instruction::{AuthorityType, MAX_SIGNERS, MIN_SIGNERS},
     std::{fmt, str::FromStr},
     strum::IntoEnumIterator,
@@ -329,6 +334,82 @@ pub fn mint_decimals_arg<'a>() -> Arg<'a> {
         .value_name("MINT_DECIMALS")
         .value_parser(clap::value_parser!(u8))
         .help(MINT_DECIMALS_ARG.help)
+}
+
+fn confidential_ciphertext_arg<'a>(name: &'a str, long: &'a str, help: &'a str) -> Arg<'a> {
+    Arg::with_name(name)
+        .long(long)
+        .takes_value(true)
+        .value_name("BASE64_CIPHERTEXT")
+        .requires(SIGN_ONLY_ARG.name)
+        .validator(|s| {
+            let ciphertext = PodElGamalCiphertext::from_str(s).map_err(|e| e.to_string())?;
+            ElGamalCiphertext::try_from(ciphertext)
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        })
+        .help(help)
+}
+
+fn confidential_decryptable_ciphertext_arg<'a>(
+    name: &'a str,
+    long: &'a str,
+    help: &'a str,
+) -> Arg<'a> {
+    Arg::with_name(name)
+        .long(long)
+        .takes_value(true)
+        .value_name("BASE64_CIPHERTEXT")
+        .requires(SIGN_ONLY_ARG.name)
+        .validator(|s| {
+            PodAeCiphertext::from_str(s)
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        })
+        .help(help)
+}
+
+fn confidential_pubkey_arg<'a>(name: &'a str, long: &'a str, help: &'a str) -> Arg<'a> {
+    Arg::with_name(name)
+        .long(long)
+        .takes_value(true)
+        .value_name("BASE64_ELGAMAL_PUBKEY")
+        .requires(SIGN_ONLY_ARG.name)
+        .validator(|s| {
+            let pubkey = PodElGamalPubkey::from_str(s).map_err(|e| e.to_string())?;
+            ElGamalPubkey::try_from(pubkey)
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        })
+        .help(help)
+}
+
+fn confidential_auditor_arg<'a>() -> Arg<'a> {
+    confidential_pubkey_arg(
+        "auditor_pubkey",
+        "auditor-pubkey",
+        "The mint's auditor ElGamal public key, or none if auditing is disabled. Required for offline confidential mint, burn, and transfer.",
+    )
+    .value_name("AUDITOR_PUBKEY_OR_NONE")
+    .validator(|s| {
+        if s == "none" || ElGamalKeypair::read_json_file(s).is_ok() {
+            return Ok(());
+        }
+        let pubkey = PodElGamalPubkey::from_str(s).map_err(|e| e.to_string())?;
+        ElGamalPubkey::try_from(pubkey)
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    })
+}
+
+fn proof_account_lamports_arg<'a>() -> Arg<'a> {
+    Arg::with_name("proof_account_lamports")
+        .long("proof-account-lamports")
+        .takes_value(true)
+        .value_name("LAMPORTS")
+        .value_parser(clap::value_parser!(u64).range(1..))
+        .requires(SIGN_ONLY_ARG.name)
+        .help("Lamports to fund each temporary proof context or record account. Required for offline proof-based operations; choose enough for rent exemption.")
 }
 
 pub trait MintArgs {
@@ -1524,6 +1605,35 @@ pub fn app<'a>(
                         .help("Send tokens confidentially. Both sender and recipient accounts must \
                             be pre-configured for confidential transfers.")
                 )
+                .arg(confidential_ciphertext_arg("available_balance", "available-balance",
+                    "The sender's current available balance ciphertext for offline confidential transfers.").requires("confidential"))
+                .arg(confidential_decryptable_ciphertext_arg("decryptable_available_balance", "decryptable-available-balance",
+                    "The sender's current decryptable available balance for offline confidential transfers.").requires("confidential"))
+                .arg(confidential_pubkey_arg("recipient_elgamal_pubkey", "recipient-elgamal-pubkey",
+                    "The recipient account's ElGamal public key for offline confidential transfers.").requires("confidential"))
+                .arg(confidential_auditor_arg().requires("confidential"))
+                .arg(proof_account_lamports_arg().requires("confidential"))
+                .arg(
+                    Arg::with_name("transfer_fee_basis_points")
+                        .long("transfer-fee-basis-points")
+                        .takes_value(true)
+                        .value_name("BASIS_POINTS")
+                        .value_parser(clap::value_parser!(u16))
+                        .requires_all(&[SIGN_ONLY_ARG.name, "confidential", "expected_fee"])
+                        .help("The mint's applicable transfer fee rate for offline confidential transfers with fees."),
+                )
+                .arg(
+                    Arg::with_name("transfer_fee_maximum_fee")
+                        .long("transfer-fee-maximum-fee")
+                        .takes_value(true)
+                        .value_name("RAW_TOKEN_AMOUNT")
+                        .value_parser(clap::value_parser!(u64))
+                        .requires_all(&[SIGN_ONLY_ARG.name, "confidential", "expected_fee"])
+                        .help("The mint's applicable maximum transfer fee in base units for offline confidential transfers with fees."),
+                )
+                .arg(confidential_pubkey_arg("withdraw_withheld_authority_elgamal_pubkey", "withdraw-withheld-authority-elgamal-pubkey",
+                    "The mint's withdraw withheld authority ElGamal public key for offline confidential transfers with fees.")
+                    .requires_all(&["confidential", "expected_fee"]))
                 .arg(multisig_signer_arg())
                 .arg(mint_decimals_arg())
                 .nonce_args(true)
@@ -1576,6 +1686,14 @@ pub fn app<'a>(
                     .help("Burn tokens confidentially. Required for \
                             offline signing on confidential mints."),
                 )
+                .arg(confidential_ciphertext_arg("available_balance", "available-balance",
+                    "The account's current available balance ciphertext for offline confidential burns.").requires("confidential"))
+                .arg(confidential_decryptable_ciphertext_arg("decryptable_available_balance", "decryptable-available-balance",
+                    "The account's current decryptable available balance for offline confidential burns.").requires("confidential"))
+                .arg(confidential_pubkey_arg("supply_elgamal_pubkey", "supply-elgamal-pubkey",
+                    "The mint's supply ElGamal public key for offline confidential burns.").requires("confidential"))
+                .arg(confidential_auditor_arg().requires("confidential"))
+                .arg(proof_account_lamports_arg().requires("confidential"))
                 .arg(multisig_signer_arg())
                 .mint_args()
                 .nonce_args(true)
@@ -1642,6 +1760,14 @@ pub fn app<'a>(
                         .help("Mint tokens confidentially. Required for \
                             offline signing on confidential mints."),
                 )
+                .arg(confidential_ciphertext_arg("confidential_supply", "confidential-supply",
+                    "The mint's current confidential supply ciphertext for offline confidential mints.").requires("confidential"))
+                .arg(confidential_decryptable_ciphertext_arg("decryptable_supply", "decryptable-supply",
+                    "The mint's current decryptable supply for offline confidential mints.").requires("confidential"))
+                .arg(confidential_pubkey_arg("recipient_elgamal_pubkey", "recipient-elgamal-pubkey",
+                    "The recipient account's ElGamal public key for offline confidential mints.").requires("confidential"))
+                .arg(confidential_auditor_arg().requires("confidential"))
+                .arg(proof_account_lamports_arg().requires("confidential"))
                 .arg(mint_decimals_arg())
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
@@ -2471,6 +2597,18 @@ pub fn app<'a>(
                             configured for confidential transfers, and --owner must specify its \
                             owner keypair to update the decryptable balance."),
                 )
+                .arg(mint_address_arg().requires_all(&[SIGN_ONLY_ARG.name, "confidential"]))
+                .arg(confidential_pubkey_arg("recipient_elgamal_pubkey", "recipient-elgamal-pubkey",
+                    "The recipient account's ElGamal public key for offline confidential fee withdrawals.").requires("confidential"))
+                .arg(confidential_decryptable_ciphertext_arg("decryptable_available_balance", "decryptable-available-balance",
+                    "The recipient account's current decryptable available balance for offline confidential fee withdrawals.").requires("confidential"))
+                .arg(confidential_ciphertext_arg("available_balance", "available-balance",
+                    "The recipient account's actual available balance ciphertext, required offline to verify that its decryptable balance is in sync.").requires("confidential"))
+                .arg(confidential_ciphertext_arg("withheld_amount", "withheld-amount",
+                    "The encrypted withheld amount for each withdrawal, in execution order: mint first, then sorted distinct source accounts in batches of at most eight. Repeat once per batch.")
+                    .requires("confidential")
+                    .action(clap::ArgAction::Append)
+                    .multiple_values(false))
                 .arg(
                     Arg::with_name("withdraw_withheld_authority")
                         .long("withdraw-withheld-authority")
@@ -2498,6 +2636,7 @@ pub fn app<'a>(
                         .multiple(true)
                         .required(true)
                 )
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::HarvestWithheldConfidentialTokens.into())
@@ -2522,6 +2661,7 @@ pub fn app<'a>(
                         .required(true)
                         .help("The token account(s) to harvest confidential fees from"),
                 )
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::EnableConfidentialFeeHarvesting.into())
@@ -2547,6 +2687,7 @@ pub fn app<'a>(
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::DisableConfidentialFeeHarvesting.into())
@@ -2572,6 +2713,7 @@ pub fn app<'a>(
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::SetTransferFee.into())
@@ -2742,8 +2884,33 @@ pub fn app<'a>(
                         .help("Configure using an existing ElGamal registry account. \
                             Does not require the owner's signature. The fee payer funds any account reallocation.")
                 )
+                .arg(mint_address_arg().requires(SIGN_ONLY_ARG.name))
+                .arg(
+                    Arg::with_name("reallocate")
+                        .long("reallocate")
+                        .takes_value(false)
+                        .requires(SIGN_ONLY_ARG.name)
+                        .conflicts_with_all(&["account_is_preallocated", "elgamal_registry"])
+                        .help("Include account reallocation before offline owner-based configuration. The fee payer funds any required rent on submission."),
+                )
+                .arg(
+                    Arg::with_name("account_is_preallocated")
+                        .long("account-is-preallocated")
+                        .takes_value(false)
+                        .requires(SIGN_ONLY_ARG.name)
+                        .conflicts_with_all(&["reallocate", "elgamal_registry"])
+                        .help("The account already has space for its confidential extensions; omit reallocation from offline owner-based configuration."),
+                )
+                .arg(
+                    Arg::with_name("confidential_transfer_fee")
+                        .long("confidential-transfer-fee")
+                        .takes_value(false)
+                        .requires_all(&[SIGN_ONLY_ARG.name, "reallocate"])
+                        .help("Also allocate the confidential transfer fee amount extension. Required for offline reallocation when the mint has confidential transfer fees."),
+                )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::ApproveConfidentialTransferAccount.into())
@@ -2767,6 +2934,7 @@ pub fn app<'a>(
                         .help("The address of the token account to approve for confidential transfers \
                             [default: owner's associated token account]")
                 )
+                .arg(mint_address_arg().requires(SIGN_ONLY_ARG.name))
                 .arg(owner_address_arg())
                 .arg(
                     Arg::with_name("confidential_transfer_authority")
@@ -2780,6 +2948,7 @@ pub fn app<'a>(
                         )
                 )
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::EmptyConfidentialTransferAccount.into())
@@ -2805,9 +2974,13 @@ pub fn app<'a>(
                         .help("The address of the confidential transfer account to empty \
                             [default: owner's associated token account]")
                 )
+                .arg(mint_address_arg().requires(SIGN_ONLY_ARG.name))
+                .arg(confidential_ciphertext_arg("available_balance", "available-balance",
+                    "The account's current available balance ciphertext for offline emptying."))
                 .arg(owner_address_arg())
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::EnableConfidentialCredits.into())
@@ -2832,11 +3005,13 @@ pub fn app<'a>(
                         .help("The address of the token account to enable confidential transfers for \
                             [default: owner's associated token account]")
                 )
+                .arg(mint_address_arg().requires(SIGN_ONLY_ARG.name))
                 .arg(
                     owner_address_arg()
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::DisableConfidentialCredits.into())
@@ -2860,11 +3035,13 @@ pub fn app<'a>(
                         .help("The address of the token account to disable confidential transfers for \
                             [default: owner's associated token account]")
                 )
+                .arg(mint_address_arg().requires(SIGN_ONLY_ARG.name))
                 .arg(
                     owner_address_arg()
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::EnableNonConfidentialCredits.into())
@@ -2888,11 +3065,13 @@ pub fn app<'a>(
                         .help("The address of the token account to enable non-confidential transfers for \
                             [default: owner's associated token account]")
                 )
+                .arg(mint_address_arg().requires(SIGN_ONLY_ARG.name))
                 .arg(
                     owner_address_arg()
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::DisableNonConfidentialCredits.into())
@@ -2916,11 +3095,13 @@ pub fn app<'a>(
                         .help("The address of the token account to disable non-confidential transfers for \
                             [default: owner's associated token account]")
                 )
+                .arg(mint_address_arg().requires(SIGN_ONLY_ARG.name))
                 .arg(
                     owner_address_arg()
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::DepositConfidentialTokens.into())
@@ -2958,6 +3139,7 @@ pub fn app<'a>(
                 .arg(multisig_signer_arg())
                 .arg(mint_decimals_arg())
                 .nonce_args(true)
+                .offline_args_config(&SignOnlyNeedsMintDecimals{})
         )
         .subcommand(
             SubCommand::with_name(CommandName::WithdrawConfidentialTokens.into())
@@ -2994,7 +3176,13 @@ pub fn app<'a>(
                 )
                 .arg(multisig_signer_arg())
                 .arg(mint_decimals_arg())
+                .arg(confidential_ciphertext_arg("available_balance", "available-balance",
+                    "The account's current available balance ciphertext for offline withdrawals."))
+                .arg(confidential_decryptable_ciphertext_arg("decryptable_available_balance", "decryptable-available-balance",
+                    "The account's current decryptable available balance for offline withdrawals."))
+                .arg(proof_account_lamports_arg())
                 .nonce_args(true)
+                .offline_args_config(&SignOnlyNeedsMintDecimals{})
         )
         .subcommand(
             SubCommand::with_name(CommandName::ApplyPendingBalance.into())
@@ -3021,7 +3209,26 @@ pub fn app<'a>(
                     owner_address_arg()
                 )
                 .arg(multisig_signer_arg())
+                .arg(mint_address_arg().requires(SIGN_ONLY_ARG.name))
+                .arg(confidential_ciphertext_arg("pending_balance_lo", "pending-balance-lo",
+                    "The account's current low pending balance ciphertext for offline balance application."))
+                .arg(confidential_ciphertext_arg("pending_balance_hi", "pending-balance-hi",
+                    "The account's current high pending balance ciphertext for offline balance application."))
+                .arg(confidential_ciphertext_arg("available_balance", "available-balance",
+                    "The account's actual available balance ciphertext, required offline to verify that its decryptable balance is in sync."))
+                .arg(confidential_decryptable_ciphertext_arg("decryptable_available_balance", "decryptable-available-balance",
+                    "The account's current decryptable available balance for offline balance application."))
+                .arg(
+                    Arg::with_name("pending_balance_credit_counter")
+                        .long("pending-balance-credit-counter")
+                        .takes_value(true)
+                        .value_name("CREDIT_COUNTER")
+                        .value_parser(clap::value_parser!(u64))
+                        .requires(SIGN_ONLY_ARG.name)
+                        .help("The account's current pending balance credit counter for offline balance application."),
+                )
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::ApplyPendingBurn.into())
@@ -3045,6 +3252,7 @@ pub fn app<'a>(
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::UpdateDecryptableSupply.into())
@@ -3076,6 +3284,7 @@ pub fn app<'a>(
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::UpdateUiAmountMultiplier.into())
@@ -3174,4 +3383,121 @@ pub fn app<'a>(
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
         )
+}
+
+#[cfg(test)]
+mod tests {
+    use {
+        super::*,
+        base64::{prelude::BASE64_STANDARD, Engine},
+        clap::ErrorKind,
+    };
+
+    #[test]
+    fn offline_confidential_ciphertext_arguments() {
+        let keypair = ElGamalKeypair::new_rand();
+        let ciphertext = PodElGamalCiphertext::from(keypair.pubkey().encrypt(0_u64)).to_string();
+        let valid = [
+            "spl-token",
+            "empty-confidential-transfer-account",
+            "11111111111111111111111111111111",
+            "--sign-only",
+            "--blockhash",
+            "11111111111111111111111111111111",
+            "--available-balance",
+            &ciphertext,
+        ];
+        let matches = app("9", "minimum signers", "members")
+            .try_get_matches_from(valid)
+            .unwrap();
+        let command = matches
+            .subcommand_matches("empty-confidential-transfer-account")
+            .unwrap();
+        assert_eq!(
+            command.value_of("available_balance"),
+            Some(ciphertext.as_str())
+        );
+
+        for malformed in ["AAAA".to_string(), BASE64_STANDARD.encode([255_u8; 64])] {
+            let mut arguments = valid;
+            arguments[7] = &malformed;
+            assert_eq!(
+                app("9", "minimum signers", "members")
+                    .try_get_matches_from(arguments)
+                    .unwrap_err()
+                    .kind(),
+                ErrorKind::ValueValidation,
+            );
+        }
+    }
+
+    #[test]
+    fn offline_confidential_pubkey_arguments() {
+        let keypair = ElGamalKeypair::new_rand();
+        let pubkey = PodElGamalPubkey::from(*keypair.pubkey()).to_string();
+        let valid = [
+            "spl-token",
+            "mint",
+            "11111111111111111111111111111111",
+            "1",
+            "--confidential",
+            "--sign-only",
+            "--blockhash",
+            "11111111111111111111111111111111",
+            "--mint-decimals",
+            "9",
+            "--recipient-elgamal-pubkey",
+            &pubkey,
+            "--auditor-pubkey",
+            "none",
+        ];
+        assert!(app("9", "minimum signers", "members")
+            .try_get_matches_from(valid)
+            .is_ok());
+        for malformed in ["AAAA".to_string(), BASE64_STANDARD.encode([255_u8; 32])] {
+            let mut arguments = valid;
+            arguments[11] = &malformed;
+            assert_eq!(
+                app("9", "minimum signers", "members")
+                    .try_get_matches_from(arguments)
+                    .unwrap_err()
+                    .kind(),
+                ErrorKind::ValueValidation,
+            );
+        }
+    }
+
+    #[test]
+    fn offline_confidential_reallocation_arguments() {
+        let valid = [
+            "spl-token",
+            "configure-confidential-transfer-account",
+            "11111111111111111111111111111111",
+            "--sign-only",
+            "--blockhash",
+            "11111111111111111111111111111111",
+            "--reallocate",
+        ];
+        assert!(app("9", "minimum signers", "members")
+            .try_get_matches_from(valid)
+            .is_ok());
+        for invalid in [
+            valid
+                .into_iter()
+                .chain(["--account-is-preallocated"])
+                .collect::<Vec<_>>(),
+            valid
+                .into_iter()
+                .filter(|arg| *arg != "--sign-only")
+                .collect::<Vec<_>>(),
+            valid
+                .into_iter()
+                .filter(|arg| *arg != "--blockhash")
+                .collect::<Vec<_>>(),
+        ] {
+            assert!(app("9", "minimum signers", "members")
+                .try_get_matches_from(invalid)
+                .is_err());
+        }
+    }
 }

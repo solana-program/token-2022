@@ -15,7 +15,9 @@ use {
             UiTransferHook, UiTransferHookAccount,
         },
     },
-    solana_cli_output::{display::writeln_name_value, OutputFormat, QuietDisplay, VerboseDisplay},
+    solana_cli_output::{
+        display::writeln_name_value, CliSignOnlyData, OutputFormat, QuietDisplay, VerboseDisplay,
+    },
     std::fmt::{self, Display},
 };
 
@@ -139,6 +141,35 @@ impl fmt::Display for CliSignatureList {
                 &format!("  {}:", signature.transaction),
                 &signature.signature,
             )?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CliTransactionSignOnly {
+    pub(crate) transaction: String,
+    #[serde(flatten)]
+    pub(crate) sign_only_data: CliSignOnlyData,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CliSignOnlyList {
+    pub(crate) transactions: Vec<CliTransactionSignOnly>,
+}
+
+impl QuietDisplay for CliSignOnlyList {}
+impl VerboseDisplay for CliSignOnlyList {}
+
+impl fmt::Display for CliSignOnlyList {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f)?;
+        writeln!(f, "Transactions (execute in this order):")?;
+        for (index, transaction) in self.transactions.iter().enumerate() {
+            writeln!(f, "{}. {}", index + 1, transaction.transaction)?;
+            Display::fmt(&transaction.sign_only_data, f)?;
         }
         Ok(())
     }

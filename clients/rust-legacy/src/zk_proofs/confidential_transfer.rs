@@ -31,6 +31,11 @@ pub struct EmptyAccountAccountInfo {
     pub(crate) available_balance: EncryptedBalance,
 }
 impl EmptyAccountAccountInfo {
+    /// Create account information from a caller-supplied available balance.
+    pub fn from_available_balance(available_balance: EncryptedBalance) -> Self {
+        Self { available_balance }
+    }
+
     /// Create the `EmptyAccount` instruction account information from
     /// `ConfidentialTransferAccount`.
     pub fn new(account: &ConfidentialTransferAccount) -> Self {
@@ -69,6 +74,21 @@ pub struct ApplyPendingBalanceAccountInfo {
     pub(crate) decryptable_available_balance: DecryptableBalance,
 }
 impl ApplyPendingBalanceAccountInfo {
+    /// Create account information from caller-supplied balances and credit counter.
+    pub fn from_balances(
+        pending_balance_credit_counter: u64,
+        pending_balance_lo: EncryptedBalance,
+        pending_balance_hi: EncryptedBalance,
+        decryptable_available_balance: DecryptableBalance,
+    ) -> Self {
+        Self {
+            pending_balance_credit_counter,
+            pending_balance_lo,
+            pending_balance_hi,
+            decryptable_available_balance,
+        }
+    }
+
     /// Create the `ApplyPendingBalance` instruction account information from
     /// `ConfidentialTransferAccount`.
     pub fn new(account: &ConfidentialTransferAccount) -> Self {
@@ -135,7 +155,7 @@ impl ApplyPendingBalanceAccountInfo {
         let current_available_balance = self.decrypted_available_balance(aes_key)?;
         let new_decrypted_available_balance = current_available_balance
             .checked_add(pending_balance)
-            .unwrap(); // total balance cannot exceed `u64`
+            .ok_or(TokenError::Overflow)?;
 
         Ok(aes_key.encrypt(new_decrypted_available_balance))
     }

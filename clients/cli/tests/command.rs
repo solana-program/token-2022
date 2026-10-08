@@ -1,4 +1,14 @@
 #![allow(clippy::arithmetic_side_effects)]
+#[path = "command/offline_confidential.rs"]
+mod offline_confidential;
+
+use offline_confidential::{
+    offline_confidential_commands, offline_confidential_fee_account_batches,
+    offline_confidential_mint_burn, offline_confidential_permissioned_burn,
+    offline_confidential_registry, offline_confidential_transfer,
+    offline_confidential_transfer_fees,
+};
+
 use {
     libtest_mimic::{Arguments, Trial},
     solana_cli_output::OutputFormat,
@@ -151,6 +161,21 @@ async fn main() {
         async_trial!(transfer_fee, test_validator, payer),
         async_trial!(transfer_fee_basis_point, test_validator, payer),
         async_trial!(confidential_transfer, test_validator, payer),
+        async_trial!(offline_confidential_commands, test_validator, payer),
+        async_trial!(offline_confidential_registry, test_validator, payer),
+        async_trial!(offline_confidential_transfer, test_validator, payer),
+        async_trial!(offline_confidential_transfer_fees, test_validator, payer),
+        async_trial!(
+            offline_confidential_fee_account_batches,
+            test_validator,
+            payer
+        ),
+        async_trial!(
+            offline_confidential_permissioned_burn,
+            test_validator,
+            payer
+        ),
+        async_trial!(offline_confidential_mint_burn, test_validator, payer),
         async_trial!(confidential_query_ui_conversions, test_validator, payer),
         async_trial!(
             configure_confidential_transfer_partial_failure,
@@ -263,6 +288,7 @@ fn test_config_with_default_signer<'a>(
         nonce_blockhash: None,
         sign_only: false,
         dump_transaction_message: false,
+        proof_account_lamports: None,
         multisigner_pubkeys: vec![],
         program_id: *program_id,
         restrict_to_program_id: true,
@@ -310,6 +336,7 @@ fn test_config_without_default_signer<'a>(
         nonce_blockhash: None,
         sign_only: false,
         dump_transaction_message: false,
+        proof_account_lamports: None,
         multisigner_pubkeys: vec![],
         program_id: *program_id,
         restrict_to_program_id: true,

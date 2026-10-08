@@ -415,8 +415,10 @@ pub struct Token<T> {
     nonce_blockhash: Option<Hash>,
     memo: Arc<RwLock<Option<TokenMemo>>>,
     transfer_hook_accounts: Option<Vec<AccountMeta>>,
+    transfer_hook_accounts_explicitly_set: bool,
     compute_unit_price: Option<u64>,
     compute_unit_limit: ComputeUnitLimit,
+    proof_account_lamports: Option<u64>,
 }
 
 impl<T> fmt::Debug for Token<T> {
@@ -436,6 +438,7 @@ impl<T> fmt::Debug for Token<T> {
             .field("transfer_hook_accounts", &self.transfer_hook_accounts)
             .field("compute_unit_price", &self.compute_unit_price)
             .field("compute_unit_limit", &self.compute_unit_limit)
+            .field("proof_account_lamports", &self.proof_account_lamports)
             .finish()
     }
 }
@@ -482,8 +485,10 @@ where
             nonce_blockhash: None,
             memo: Arc::new(RwLock::new(None)),
             transfer_hook_accounts: None,
+            transfer_hook_accounts_explicitly_set: false,
             compute_unit_price: None,
             compute_unit_limit: ComputeUnitLimit::Default,
+            proof_account_lamports: None,
         }
     }
 
@@ -525,12 +530,89 @@ where
         self.nonce_authority = Some(nonce_authority);
         self.nonce_blockhash = Some(*nonce_blockhash);
         self.transfer_hook_accounts = Some(vec![]);
+        self.transfer_hook_accounts_explicitly_set = false;
         self
     }
 
     pub fn with_transfer_hook_accounts(mut self, transfer_hook_accounts: Vec<AccountMeta>) -> Self {
         self.transfer_hook_accounts = Some(transfer_hook_accounts);
+        self.transfer_hook_accounts_explicitly_set = true;
         self
+    }
+
+    /// Fund each temporary proof or record account with the supplied lamports,
+    /// instead of fetching its rent exemption balance from the client.
+    pub fn with_proof_account_lamports(mut self, lamports: u64) -> Self {
+        self.proof_account_lamports = Some(lamports);
+        self
+    }
+
+    async fn proof_account_lamports(&self, space: usize) -> TokenResult<u64> {
+        if let Some(lamports) = self.proof_account_lamports {
+            Ok(lamports)
+        } else {
+            self.client
+                .get_minimum_balance_for_rent_exemption(space)
+                .await
+                .map_err(TokenError::Client)
+        }
+    }
+
+    fn record_max_chunk_size<F>(
+        &self,
+        create_record_instructions: F,
+        first_instruction: bool,
+    ) -> usize
+    where
+        F: Fn(bool, &[u8], u64) -> Vec<Instruction>,
+    {
+        let mut instructions = create_record_instructions(first_instruction, &[], 0);
+        if let Some(memo) = self.memo.read().unwrap().as_ref() {
+            instructions.insert(0, memo.to_instruction());
+        }
+        if let (Some(nonce_account), Some(nonce_authority), Some(_)) = (
+            self.nonce_account,
+            &self.nonce_authority,
+            self.nonce_blockhash,
+        ) {
+            instructions.insert(
+                0,
+                system_instruction::advance_nonce_account(
+                    &nonce_account,
+                    &nonce_authority.pubkey(),
+                ),
+            );
+        }
+        if let Some(compute_unit_price) = self.compute_unit_price {
+            instructions.push(ComputeBudgetInstruction::set_compute_unit_price(
+                compute_unit_price,
+            ));
+        }
+        match self.compute_unit_limit {
+            ComputeUnitLimit::Default => {}
+            ComputeUnitLimit::Simulated => {
+                instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(1_400_000));
+            }
+            ComputeUnitLimit::Static(compute_unit_limit) => {
+                instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(
+                    compute_unit_limit,
+                ));
+            }
+        }
+
+        let message = Message::new_with_blockhash(
+            &instructions,
+            Some(&self.payer.pubkey()),
+            &Hash::default(),
+        );
+        let tx_size = bincode::serialized_size(&Transaction {
+            signatures: vec![Signature::default(); message.header.num_required_signatures as usize],
+            message,
+        })
+        .unwrap() as usize;
+        // Leave room for the extra byte in the instruction-data length when
+        // adding a proof chunk makes it larger than 127 bytes.
+        PACKET_DATA_SIZE.saturating_sub(tx_size).saturating_sub(1)
     }
 
     pub fn with_compute_unit_price(mut self, compute_unit_price: u64) -> Self {
@@ -2510,21 +2592,34 @@ where
             ciphertext_validity_proof_location,
             range_proof_location,
         )?;
-        offchain::add_extra_account_metas(
-            &mut instructions[0],
-            source_account,
-            self.get_address(),
-            destination_account,
-            source_authority,
-            u64::MAX,
-            |address| {
-                self.client
-                    .get_account(address)
-                    .map_ok(|opt| opt.map(|acc| acc.data))
-            },
-        )
-        .await
-        .map_err(|_| TokenError::AccountNotFound)?;
+        // The implicit empty hook list from `with_nonce` keeps its existing
+        // behavior for ordinary transfers; confidential transfers use an
+        // explicit override to bypass account fetching.
+        if let Some(transfer_hook_accounts) = self
+            .transfer_hook_accounts
+            .as_ref()
+            .filter(|_| self.transfer_hook_accounts_explicitly_set)
+        {
+            instructions[0]
+                .accounts
+                .extend(transfer_hook_accounts.clone());
+        } else {
+            offchain::add_extra_account_metas(
+                &mut instructions[0],
+                source_account,
+                self.get_address(),
+                destination_account,
+                source_authority,
+                u64::MAX,
+                |address| {
+                    self.client
+                        .get_account(address)
+                        .map_ok(|opt| opt.map(|acc| acc.data))
+                },
+            )
+            .await
+            .map_err(|_| TokenError::AccountNotFound)?;
+        }
         self.process_ixs(&instructions, signing_keypairs).await
     }
 
@@ -2547,15 +2642,10 @@ where
         let space = proof_data
             .len()
             .saturating_add(RecordData::WRITABLE_START_INDEX);
-        let rent = self
-            .client
-            .get_minimum_balance_for_rent_exemption(space)
-            .await
-            .map_err(TokenError::Client)?;
+        let rent = self.proof_account_lamports(space).await?;
 
         // A closure that constructs a vector of instructions needed to create and write
-        // to record accounts. The closure is defined as a convenience function
-        // to be fed into the function `calculate_record_max_chunk_size`.
+        // to record accounts, including their transaction-size overhead.
         let create_record_instructions = |first_instruction: bool, bytes: &[u8], offset: u64| {
             let mut ixs = vec![];
             if first_instruction {
@@ -2579,8 +2669,13 @@ where
             ));
             ixs
         };
-        let first_chunk_size = calculate_record_max_chunk_size(create_record_instructions, true);
-        let (first_chunk, rest) = if space <= first_chunk_size {
+        let first_chunk_size = self.record_max_chunk_size(create_record_instructions, true);
+        if first_chunk_size == 0 {
+            return Err(TokenError::Client(
+                "Proof record transaction is too large".into(),
+            ));
+        }
+        let (first_chunk, rest) = if proof_data.len() <= first_chunk_size {
             (proof_data, &[] as &[u8])
         } else {
             proof_data.split_at(first_chunk_size)
@@ -2590,8 +2685,12 @@ where
         let first_ixs_signers: [&dyn Signer; 2] = [record_account_signer, record_authority_signer];
         let first_response = self.process_ixs(&first_ixs, &first_ixs_signers).await?;
 
-        let subsequent_chunk_size =
-            calculate_record_max_chunk_size(create_record_instructions, false);
+        let subsequent_chunk_size = self.record_max_chunk_size(create_record_instructions, false);
+        if subsequent_chunk_size == 0 {
+            return Err(TokenError::Client(
+                "Proof record transaction is too large".into(),
+            ));
+        }
         let mut record_offset = first_chunk_size;
         let mut ixs_batch = vec![];
         for chunk in rest.chunks(subsequent_chunk_size) {
@@ -2652,11 +2751,7 @@ where
     ) -> TokenResult<T::Output> {
         let instruction_type = zk_proof_type_to_instruction(ZK::PROOF_TYPE)?;
         let space = size_of::<ProofContextState<U>>();
-        let rent = self
-            .client
-            .get_minimum_balance_for_rent_exemption(space)
-            .await
-            .map_err(TokenError::Client)?;
+        let rent = self.proof_account_lamports(space).await?;
 
         let context_state_info = ContextStateInfo {
             context_state_account,
@@ -2696,11 +2791,7 @@ where
 
         let instruction_type = zk_proof_type_to_instruction(ZK::PROOF_TYPE)?;
         let space = size_of::<ProofContextState<U>>();
-        let rent = self
-            .client
-            .get_minimum_balance_for_rent_exemption(space)
-            .await
-            .map_err(TokenError::Client)?;
+        let rent = self.proof_account_lamports(space).await?;
 
         let context_state_info = ContextStateInfo {
             context_state_account,
@@ -2929,21 +3020,31 @@ where
             fee_ciphertext_validity_proof_location,
             range_proof_location,
         )?;
-        offchain::add_extra_account_metas(
-            &mut instructions[0],
-            source_account,
-            self.get_address(),
-            destination_account,
-            source_authority,
-            u64::MAX,
-            |address| {
-                self.client
-                    .get_account(address)
-                    .map_ok(|opt| opt.map(|acc| acc.data))
-            },
-        )
-        .await
-        .map_err(|_| TokenError::AccountNotFound)?;
+        if let Some(transfer_hook_accounts) = self
+            .transfer_hook_accounts
+            .as_ref()
+            .filter(|_| self.transfer_hook_accounts_explicitly_set)
+        {
+            instructions[0]
+                .accounts
+                .extend(transfer_hook_accounts.clone());
+        } else {
+            offchain::add_extra_account_metas(
+                &mut instructions[0],
+                source_account,
+                self.get_address(),
+                destination_account,
+                source_authority,
+                u64::MAX,
+                |address| {
+                    self.client
+                        .get_account(address)
+                        .map_ok(|opt| opt.map(|acc| acc.data))
+                },
+            )
+            .await
+            .map_err(|_| TokenError::AccountNotFound)?;
+        }
         self.process_ixs(&instructions, signing_keypairs).await
     }
 
@@ -2973,7 +3074,12 @@ where
         let expected_pending_balance_credit_counter = account_info.pending_balance_credit_counter();
         let new_decryptable_available_balance = account_info
             .new_decryptable_available_balance(elgamal_secret_key, aes_key)
-            .map_err(|_| TokenError::AccountDecryption)?
+            .map_err(|error| match error {
+                spl_token_2022_interface::error::TokenError::Overflow => {
+                    TokenError::Client(error.into())
+                }
+                _ => TokenError::AccountDecryption,
+            })?
             .into();
 
         self.process_ixs(
@@ -4250,23 +4356,4 @@ where
 
         Ok(account_info.has_pending_balance())
     }
-}
-
-/// Calculates the maximum chunk size for a zero-knowledge proof record
-/// instruction to fit inside a single transaction.
-fn calculate_record_max_chunk_size<F>(
-    create_record_instructions: F,
-    first_instruction: bool,
-) -> usize
-where
-    F: Fn(bool, &[u8], u64) -> Vec<Instruction>,
-{
-    let ixs = create_record_instructions(first_instruction, &[], 0);
-    let message = Message::new_with_blockhash(&ixs, Some(&Address::default()), &Hash::default());
-    let tx_size = bincode::serialized_size(&Transaction {
-        signatures: vec![Signature::default(); message.header.num_required_signatures as usize],
-        message,
-    })
-    .unwrap() as usize;
-    PACKET_DATA_SIZE.saturating_sub(tx_size).saturating_sub(1)
 }
