@@ -2,6 +2,8 @@
 
 A generated JavaScript library for the Token 2022 program.
 
+See [examples](./examples) for a runnable mint-with-metadata example.
+
 ## Getting started
 
 To build and test your JavaScript client from the root of the repository, you
