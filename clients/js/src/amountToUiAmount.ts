@@ -22,7 +22,6 @@ function calculateExponentForTimesAndRate(t1: number, t2: number, r: number) {
     }
 
     const numerator = r * timespan;
-    // Divide in the same order as the program so the result rounds the same way
     const exponent = numerator / SECONDS_PER_YEAR / ONE_IN_BASIS_POINTS;
     return Math.exp(exponent);
 }

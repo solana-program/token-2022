@@ -326,8 +326,6 @@ describe('amountToUiAmountForMintWithoutSimulation', () => {
     });
 
     it('should compute the interest exponent like the program', async () => {
-        // The program divides by SECONDS_PER_YEAR and then by ONE_IN_BASIS_POINTS,
-        // which can round differently from dividing once by their product
         connection.setClockTimestamp(ONE_YEAR_IN_SECONDS + 198369);
         connection.setAccountInfo({
             owner: TOKEN_2022_PROGRAM_ID,

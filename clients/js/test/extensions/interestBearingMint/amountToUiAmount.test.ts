@@ -253,8 +253,6 @@ test('should handle huge values correctly for amount to ui amount', async () => 
 });
 
 test('should compute the interest exponent like the program', async () => {
-    // The program divides by SECONDS_PER_YEAR and then by ONE_IN_BASIS_POINTS,
-    // which can round differently from dividing once by their product
     const rpc = getMockRpc({
         [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS + 198369),
         [mint]: createMockMintAccountInfo(18, true),
