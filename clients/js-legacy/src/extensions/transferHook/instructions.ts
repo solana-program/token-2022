@@ -1,6 +1,6 @@
 import { struct, u8 } from '@solana/buffer-layout';
-import type { AccountMeta, Commitment, Connection, PublicKey, Signer } from '@solana/web3.js';
-import { TransactionInstruction } from '@solana/web3.js';
+import type { AccountMeta, Commitment, Connection, Signer } from '@solana/web3.js';
+import { PublicKey, TransactionInstruction } from '@solana/web3.js';
 import { programSupportsExtensions, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '../../constants.js';
 import { TokenUnsupportedInstructionError } from '../../errors.js';
 import { addSigners } from '../../instructions/internal.js';
@@ -200,6 +200,8 @@ export async function addExtraAccountMetasForExecute(
     const validateStatePubkey = getExtraAccountMetaAddress(mint, programId);
     const validateStateAccount = await connection.getAccountInfo(validateStatePubkey, commitment);
     if (validateStateAccount == null) {
+        // Token-2022 then invokes the hook with no extra accounts, but still needs its program.
+        instruction.keys.push({ pubkey: programId, isSigner: false, isWritable: false });
         return instruction;
     }
     const validateStateData = getExtraAccountMetas(validateStateAccount);
@@ -284,7 +286,8 @@ export async function createTransferCheckedWithTransferHookInstruction(
     const mintInfo = await getMint(connection, mint, commitment, programId);
     const transferHook = getTransferHook(mintInfo);
 
-    if (transferHook) {
+    // An unset hook program is stored as the default key, and Token-2022 then invokes no hook.
+    if (transferHook && !transferHook.programId.equals(PublicKey.default)) {
         await addExtraAccountMetasForExecute(
             connection,
             instruction,
@@ -346,7 +349,8 @@ export async function createTransferCheckedWithFeeAndTransferHookInstruction(
     const mintInfo = await getMint(connection, mint, commitment, programId);
     const transferHook = getTransferHook(mintInfo);
 
-    if (transferHook) {
+    // An unset hook program is stored as the default key, and Token-2022 then invokes no hook.
+    if (transferHook && !transferHook.programId.equals(PublicKey.default)) {
         await addExtraAccountMetasForExecute(
             connection,
             instruction,
