@@ -8,6 +8,7 @@ import type { Account } from '../../state/account.js';
 import { TokenTransferHookAccountNotFound } from '../../errors.js';
 import { unpackSeeds } from './seeds.js';
 import { unpackPubkeyData } from './pubkeyData.js';
+import type { PreloadedAccounts } from './preloadedAccounts.js';
 
 /** TransferHook as stored by the program */
 export interface TransferHook {
@@ -113,6 +114,7 @@ export async function resolveExtraAccountMeta(
     previousMetas: AccountMeta[],
     instructionData: Buffer,
     transferHookProgramId: PublicKey,
+    preloadedAccounts?: PreloadedAccounts,
 ): Promise<AccountMeta> {
     if (extraMeta.discriminator === 0) {
         return {
@@ -121,7 +123,13 @@ export async function resolveExtraAccountMeta(
             isWritable: extraMeta.isWritable,
         };
     } else if (extraMeta.discriminator === 2) {
-        const pubkey = await unpackPubkeyData(extraMeta.addressConfig, previousMetas, instructionData, connection);
+        const pubkey = await unpackPubkeyData(
+            extraMeta.addressConfig,
+            previousMetas,
+            instructionData,
+            connection,
+            preloadedAccounts,
+        );
         return {
             pubkey,
             isSigner: extraMeta.isSigner,
@@ -141,7 +149,13 @@ export async function resolveExtraAccountMeta(
         programId = previousMetas[accountIndex].pubkey;
     }
 
-    const seeds = await unpackSeeds(extraMeta.addressConfig, previousMetas, instructionData, connection);
+    const seeds = await unpackSeeds(
+        extraMeta.addressConfig,
+        previousMetas,
+        instructionData,
+        connection,
+        preloadedAccounts,
+    );
     const pubkey = PublicKey.findProgramAddressSync(seeds, programId)[0];
 
     return { pubkey, isSigner: extraMeta.isSigner, isWritable: extraMeta.isWritable };
