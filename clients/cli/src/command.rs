@@ -5711,9 +5711,7 @@ async fn process_command_inner(
             let amount = *arg_matches.get_one::<Amount>("amount").unwrap();
             let mint_address =
                 pubkey_of_signer(arg_matches, MINT_ADDRESS_ARG.name, &mut wallet_manager).unwrap();
-            let mint_decimals = arg_matches
-                .get_one(MINT_DECIMALS_ARG.name)
-                .map(|v: &String| v.parse::<u8>().unwrap());
+            let mint_decimals = arg_matches.get_one::<u8>(MINT_DECIMALS_ARG.name).copied();
             let use_unchecked_instruction = arg_matches.is_present("use_unchecked_instruction");
             let memo = value_t!(arg_matches, "memo", String).ok();
             let confidential = arg_matches.is_present("confidential");
@@ -5897,9 +5895,7 @@ async fn process_command_inner(
                 .unwrap();
             let mint_address =
                 pubkey_of_signer(arg_matches, MINT_ADDRESS_ARG.name, &mut wallet_manager).unwrap();
-            let mint_decimals = arg_matches
-                .get_one(MINT_DECIMALS_ARG.name)
-                .map(|v: &String| v.parse::<u8>().unwrap());
+            let mint_decimals = arg_matches.get_one::<u8>(MINT_DECIMALS_ARG.name).copied();
             let use_unchecked_instruction = arg_matches.is_present("use_unchecked_instruction");
             command_approve(
                 config,
