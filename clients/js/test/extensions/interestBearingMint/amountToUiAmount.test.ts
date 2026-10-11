@@ -252,6 +252,18 @@ test('should handle huge values correctly for amount to ui amount', async () => 
     expect(result).toBe(18446744073709551615n);
 });
 
+test('should compute the interest exponent like the program', async () => {
+    const rpc = getMockRpc({
+        [clock]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS + 198369),
+        [mint]: createMockMintAccountInfo(18, true),
+    });
+
+    const uiAmount = await amountToUiAmountForMintWithoutSimulation(rpc, mint, BigInt('1000000000000000000'));
+    expect(uiAmount).toBe('1.051601568405994058');
+    const amount = await uiAmountToAmountForMintWithoutSimulation(rpc, mint, '1');
+    expect(amount).toBe(950930495012278016n);
+});
+
 test('should convert plain mint amounts exactly across the u64 range', async () => {
     const rpc = getMockRpc({
         [clock]: createMockClockAccountInfo(0),

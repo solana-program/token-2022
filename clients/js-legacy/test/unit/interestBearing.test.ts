@@ -324,6 +324,24 @@ describe('amountToUiAmountForMintWithoutSimulation', () => {
         );
         expect(result).to.equal(18446744073709551615n);
     });
+
+    it('should compute the interest exponent like the program', async () => {
+        connection.setClockTimestamp(ONE_YEAR_IN_SECONDS + 198369);
+        connection.setAccountInfo({
+            owner: TOKEN_2022_PROGRAM_ID,
+            lamports: 1000000,
+            data: createMockMintData(18, true),
+        });
+
+        const uiAmount = await amountToUiAmountForMintWithoutSimulation(
+            connection as unknown as Connection,
+            mint,
+            BigInt('1000000000000000000'),
+        );
+        expect(uiAmount).to.equal('1.051601568405994058');
+        const amount = await uiAmountToAmountForMintWithoutSimulation(connection as unknown as Connection, mint, '1');
+        expect(amount).to.equal(950930495012278016n);
+    });
 });
 
 describe('plain mint exact conversions', () => {

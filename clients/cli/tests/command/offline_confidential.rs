@@ -3,8 +3,7 @@ use {
     assert_cmd::cargo::cargo_bin_cmd,
     base64::{engine::general_purpose::STANDARD, Engine},
     serde_json::Value,
-    solana_sdk::{message::Message, signature::Signature},
-    std::{collections::BTreeSet, process::Output, time::Duration},
+    std::{process::Output, time::Duration},
 };
 
 fn args(values: &[&str]) -> Vec<String> {
@@ -15,15 +14,15 @@ struct Fixture {
     config: Config<'static>,
     payer: Keypair,
     owner: Keypair,
+    payer_file: NamedTempFile,
     owner_file: NamedTempFile,
     cli_config_file: NamedTempFile,
     mint: Pubkey,
     watched: Vec<Pubkey>,
-    proof_lamports: u64,
 }
 
 impl Fixture {
-    async fn new(test_validator: &TestValidator, payer: &Keypair, mint_options: &[&str]) -> Self {
+    async fn new(test_validator: &TestValidator, payer: &Keypair, options: &[&str]) -> Self {
         let fixture_payer = Keypair::new();
         let owner = Keypair::new();
         let rpc = test_validator.get_async_rpc_client();
@@ -46,57 +45,51 @@ impl Fixture {
             &owner,
             &spl_token_2022_interface::id(),
         );
+        let payer_file = NamedTempFile::new().unwrap();
         let owner_file = NamedTempFile::new().unwrap();
+        write_keypair_file(&fixture_payer, &payer_file).unwrap();
         write_keypair_file(&owner, &owner_file).unwrap();
         let cli_config_file = NamedTempFile::new().unwrap();
-        let cli_config = solana_cli_config::Config {
-            keypair_path: owner_file.path().to_str().unwrap().to_string(),
+        solana_cli_config::Config {
+            keypair_path: payer_file.path().to_str().unwrap().to_string(),
             json_rpc_url: "http://127.0.0.1:1".to_string(),
+            commitment: config.rpc_client.commitment().commitment.to_string(),
             ..solana_cli_config::Config::default()
-        };
-        cli_config
-            .save(cli_config_file.path().to_str().unwrap())
-            .unwrap();
+        }
+        .save(cli_config_file.path().to_str().unwrap())
+        .unwrap();
         let mint = Keypair::new();
         let mint_file = NamedTempFile::new().unwrap();
         write_keypair_file(&mint, &mint_file).unwrap();
-        let mut create_args = args(&[
+        let mut create = args(&[
             "spl-token",
             "create-token",
             mint_file.path().to_str().unwrap(),
             "--decimals",
             "0",
         ]);
-        create_args.extend(args(mint_options));
-        process_test_command(&config, &owner, create_args)
-            .await
-            .unwrap();
-        // Fetch a real rent budget before going offline, large enough for each
-        // supported proof context and the largest range-proof record.
-        let proof_lamports = rpc
-            .get_minimum_balance_for_rent_exemption(4096)
-            .await
-            .unwrap();
+        create.extend(args(options));
+        process_test_command(&config, &owner, create).await.unwrap();
         Self {
             watched: vec![fixture_payer.pubkey(), owner.pubkey(), mint.pubkey()],
             config,
             payer: fixture_payer,
             owner,
+            payer_file,
             owner_file,
             cli_config_file,
             mint: mint.pubkey(),
-            proof_lamports,
         }
     }
 
-    async fn online(&self, command: &[&str]) -> String {
+    async fn online(&self, command: &[&str]) {
         process_test_command(
             &self.config,
             &self.owner,
             args(&["spl-token"]).into_iter().chain(args(command)),
         )
         .await
-        .unwrap()
+        .unwrap();
     }
 
     async fn account(&mut self, associated: bool) -> Pubkey {
@@ -107,6 +100,12 @@ impl Fixture {
             create_auxiliary_account(&self.config, &self.owner, self.mint).await
         };
         self.watched.push(account);
+        self.online(&[
+            "configure-confidential-transfer-account",
+            "--address",
+            &account.to_string(),
+        ])
+        .await;
         account
     }
 
@@ -131,32 +130,56 @@ impl Fixture {
     fn binary(
         &self,
         command: &[String],
-        blockhash: Hash,
-        format: Option<&str>,
-        dump: bool,
+        hash: Hash,
+        offline: bool,
+        signatures: &[String],
+        format: &str,
     ) -> assert_cmd::Command {
         let mut binary = cargo_bin_cmd!("spl-token");
+        let mut command = command.to_vec();
+        if !signatures.is_empty() {
+            for argument in &mut command {
+                if argument == self.owner_file.path().to_str().unwrap() {
+                    *argument = self.owner.pubkey().to_string();
+                }
+            }
+        }
+        if !offline {
+            if let Some(index) = command.iter().position(|arg| arg == "--mint-address") {
+                command.drain(index..index + 2);
+            }
+        }
+        let rpc_url = if offline {
+            "http://127.0.0.1:1".to_string()
+        } else {
+            self.config.rpc_client.url()
+        };
+        let fee_payer = if offline {
+            self.payer.pubkey().to_string()
+        } else {
+            self.payer_file.path().to_str().unwrap().to_string()
+        };
         binary
             .args(command)
             .args([
                 "--config",
                 self.cli_config_file.path().to_str().unwrap(),
                 "--url",
-                "http://127.0.0.1:1",
-                "--program-id",
-                &spl_token_2022_interface::id().to_string(),
+                &rpc_url,
+                "--program-2022",
                 "--fee-payer",
-                &self.payer.pubkey().to_string(),
-                "--sign-only",
+                &fee_payer,
                 "--blockhash",
-                &blockhash.to_string(),
+                &hash.to_string(),
+                "--output",
+                format,
             ])
             .timeout(Duration::from_secs(60));
-        if let Some(format) = format {
-            binary.args(["--output", format]);
+        if offline {
+            binary.arg("--sign-only");
         }
-        if dump {
-            binary.arg("--dump-transaction-message");
+        for signature in signatures {
+            binary.args(["--signer", signature]);
         }
         binary
     }
@@ -164,9 +187,9 @@ impl Fixture {
     async fn output(
         &self,
         command: &[String],
-        blockhash: Hash,
-        format: Option<&str>,
-        dump: bool,
+        hash: Hash,
+        signatures: &[String],
+        format: &str,
     ) -> Output {
         let before = self
             .config
@@ -175,7 +198,8 @@ impl Fixture {
             .await
             .unwrap();
         let output = self
-            .binary(command, blockhash, format, dump)
+            .binary(command, hash, true, signatures, format)
+            .arg("--dump-transaction-message")
             .output()
             .unwrap();
         let after = self
@@ -188,246 +212,111 @@ impl Fixture {
         output
     }
 
-    async fn generate(&self, command: &[String]) -> Value {
-        let blockhash = self.config.rpc_client.get_latest_blockhash().await.unwrap();
-        let output = self
-            .output(command, blockhash, Some("json-compact"), true)
-            .await;
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
+    async fn complete(&mut self, command: &[String]) {
+        let hash = self.config.rpc_client.get_latest_blockhash().await.unwrap();
+        let _ = self.sign(command, hash).await;
+
+        // Online CLI construction fixes the supplied hash only with a durable nonce.
+        let nonce = create_nonce(&self.config, &self.owner).await;
+        self.watched.push(nonce);
+        let nonce_before = self.config.rpc_client.get_account(&nonce).await.unwrap();
+        let nonce_hash = Hash::new_from_array(nonce_before.data[40..72].try_into().unwrap());
+        let mut nonce_command = command.to_vec();
+        nonce_command.extend(args(&[
+            "--nonce",
+            &nonce.to_string(),
+            "--nonce-authority",
+            self.owner_file.path().to_str().unwrap(),
+        ]));
+        self.complete_at(&nonce_command, nonce_hash).await;
+        assert_ne!(
+            self.config
+                .rpc_client
+                .get_account(&nonce)
+                .await
+                .unwrap()
+                .data,
+            nonce_before.data,
+            "CLI submission did not advance the nonce"
         );
-        let value: Value = serde_json::from_slice(&output.stdout).unwrap();
-        for transaction in transaction_data(&value) {
-            assert_eq!(transaction["blockhash"], blockhash.to_string());
-        }
-        value
+    }
+
+    async fn sign(&self, command: &[String], hash: Hash) -> Vec<String> {
+        let parse = |output: Output| {
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            serde_json::from_slice::<Value>(&output.stdout).unwrap()
+        };
+        let first = parse(self.output(command, hash, &[], "json-compact").await);
+        assert_eq!(first["blockhash"], hash.to_string());
+        assert!(first["absent"]
+            .as_array()
+            .unwrap()
+            .contains(&Value::String(self.payer.pubkey().to_string())));
+        let second = parse(self.output(command, hash, &[], "json").await);
+        assert_eq!(
+            first, second,
+            "same command did not reproduce the signed message"
+        );
+        let signatures: Vec<String> = first.get("signers").map_or_else(Vec::new, |signers| {
+            signers
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|s| s.as_str().unwrap().to_string())
+                .collect()
+        });
+        let replay = parse(
+            self.output(command, hash, &signatures, "json-compact")
+                .await,
+        );
+        assert_eq!(
+            first, replay,
+            "--signer replay changed the message or signatures"
+        );
+        let normal = parse(
+            self.binary(command, hash, true, &signatures, "json-compact")
+                .output()
+                .unwrap(),
+        );
+        assert!(normal.get("message").is_none());
+        assert_eq!(normal["signers"], first["signers"]);
+        assert_eq!(normal["absent"], first["absent"]);
+        signatures
+    }
+
+    async fn complete_at(&self, command: &[String], hash: Hash) {
+        let signatures = self.sign(command, hash).await;
+        let submitted = self
+            .binary(command, hash, false, &signatures, "json-compact")
+            .output()
+            .unwrap();
+        assert!(
+            submitted.status.success(),
+            "CLI submission failed for {command:?}: {}",
+            String::from_utf8_lossy(&submitted.stderr)
+        );
+        serde_json::from_slice::<Value>(&submitted.stdout).unwrap();
     }
 
     async fn error(&self, command: &[String], expected: &str) {
-        let blockhash = self.config.rpc_client.get_latest_blockhash().await.unwrap();
-        let output = self
-            .output(command, blockhash, Some("json-compact"), true)
-            .await;
+        let hash = self.config.rpc_client.get_latest_blockhash().await.unwrap();
+        let output = self.output(command, hash, &[], "json-compact").await;
         assert!(
             !output.status.success(),
-            "expected rejection of {command:?}, got successful output: {}",
+            "expected rejection, got {}",
             String::from_utf8_lossy(&output.stdout)
         );
         let error = String::from_utf8_lossy(&output.stderr);
-        assert!(
-            error.contains(expected),
-            "expected {expected:?}, got {error}"
-        );
+        assert!(error.contains(expected), "expected {expected}, got {error}");
         assert!(!error.contains("panicked"), "{error}");
     }
-
-    async fn submit(&self, value: &Value, expected_labels: &[&str]) {
-        self.submit_with_signers(value, expected_labels, &[]).await;
-    }
-
-    async fn submit_with_signers(
-        &self,
-        value: &Value,
-        expected_labels: &[&str],
-        extra_signers: &[&Keypair],
-    ) {
-        let data = transaction_data(value);
-        let labels = value
-            .get("transactions")
-            .map(|transactions| {
-                transactions
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .map(|transaction| transaction["transaction"].as_str().unwrap())
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        let mut previous_index = 0;
-        for expected in expected_labels {
-            let index = labels
-                .iter()
-                .position(|label| *label == *expected || label.starts_with(&format!("{expected} ")))
-                .unwrap_or_else(|| panic!("missing {expected} in {labels:?}"));
-            assert!(
-                index >= previous_index,
-                "invalid execution order: {labels:?}"
-            );
-            previous_index = index;
-        }
-        let mut temporary_accounts = BTreeSet::new();
-        for transaction_data in data {
-            let bytes = STANDARD
-                .decode(transaction_data["message"].as_str().unwrap())
-                .unwrap();
-            let message: Message = bincode::deserialize(&bytes).unwrap();
-            assert_eq!(message.serialize(), bytes);
-            assert_eq!(
-                message.recent_blockhash.to_string(),
-                transaction_data["blockhash"]
-            );
-            let required_signers = message.account_keys
-                [..usize::from(message.header.num_required_signatures)]
-                .to_vec();
-            let mut transaction = Transaction::new_unsigned(message);
-            let mut original_signatures = Vec::new();
-            for signer in transaction_data
-                .get("signers")
-                .and_then(Value::as_array)
-                .into_iter()
-                .flatten()
-            {
-                let (pubkey, signature) = signer.as_str().unwrap().split_once('=').unwrap();
-                let pubkey = Pubkey::from_str(pubkey).unwrap();
-                let signature = Signature::from_str(signature).unwrap();
-                assert!(signature.verify(pubkey.as_ref(), &bytes));
-                let index = required_signers
-                    .iter()
-                    .position(|required| required == &pubkey)
-                    .unwrap();
-                transaction.signatures[index] = signature;
-                original_signatures.push((index, signature));
-            }
-            for pubkey in &required_signers {
-                if *pubkey != self.owner.pubkey()
-                    && *pubkey != self.payer.pubkey()
-                    && !extra_signers
-                        .iter()
-                        .any(|signer| signer.pubkey() == *pubkey)
-                {
-                    let index = required_signers
-                        .iter()
-                        .position(|required| required == pubkey)
-                        .unwrap();
-                    assert_ne!(
-                        transaction.signatures[index],
-                        Signature::default(),
-                        "temporary signer signature omitted"
-                    );
-                    temporary_accounts.insert(*pubkey);
-                }
-            }
-            let signing_keypairs: Vec<&dyn Signer> = [&self.payer, &self.owner]
-                .into_iter()
-                .chain(extra_signers.iter().copied())
-                .filter(|signer| required_signers.contains(&signer.pubkey()))
-                .map(|signer| signer as &dyn Signer)
-                .collect();
-            transaction.partial_sign(&signing_keypairs, transaction.message.recent_blockhash);
-            assert_eq!(transaction.message.serialize(), bytes);
-            for (index, signature) in original_signatures {
-                assert_eq!(transaction.signatures[index], signature);
-            }
-            transaction.verify().unwrap();
-            self.config
-                .rpc_client
-                .send_and_confirm_transaction(&transaction)
-                .await
-                .unwrap();
-        }
-        for temporary in temporary_accounts {
-            assert!(
-                self.config
-                    .rpc_client
-                    .get_account(&temporary)
-                    .await
-                    .is_err(),
-                "proof account {temporary} was not cleaned up"
-            );
-        }
-    }
-
-    async fn apply_args(&self, account: Pubkey) -> Vec<String> {
-        let extension = self.extension(account).await;
-        args(&[
-            "apply-pending-balance",
-            "--address",
-            &account.to_string(),
-            "--mint-address",
-            &self.mint.to_string(),
-            "--pending-balance-lo",
-            &extension.pending_balance_lo.to_string(),
-            "--pending-balance-hi",
-            &extension.pending_balance_hi.to_string(),
-            "--decryptable-available-balance",
-            &extension.decryptable_available_balance.to_string(),
-            "--available-balance",
-            &extension.available_balance.to_string(),
-            "--pending-balance-credit-counter",
-            &u64::from(extension.pending_balance_credit_counter).to_string(),
-        ])
-    }
-
-    async fn apply(&self, account: Pubkey) {
-        let command = self.apply_args(account).await;
-        self.submit(&self.generate(&command).await, &[]).await;
-    }
-
-    async fn balances(&self, account: Pubkey, pending: u64, available: u64) {
-        assert_eq!(
-            decrypted_confidential_balances(&self.config, &self.owner, &account).await,
-            (pending as f64, available as f64)
-        );
-    }
-
-    async fn fund_confidential(&self, account: Pubkey, amount: &str) {
-        self.online(&["mint", &self.mint.to_string(), amount, &account.to_string()])
-            .await;
-        self.online(&[
-            "deposit-confidential-tokens",
-            &self.mint.to_string(),
-            amount,
-            "--address",
-            &account.to_string(),
-        ])
-        .await;
-        self.online(&["apply-pending-balance", "--address", &account.to_string()])
-            .await;
-    }
-
-    async fn transfer_args(
-        &self,
-        source: Pubkey,
-        destination: Pubkey,
-        amount: &str,
-    ) -> Vec<String> {
-        let source_extension = self.extension(source).await;
-        let destination_extension = self.extension(destination).await;
-        args(&[
-            "transfer",
-            &self.mint.to_string(),
-            amount,
-            &destination.to_string(),
-            "--confidential",
-            "--no-recipient-is-ata-owner",
-            "--from",
-            &source.to_string(),
-            "--mint-decimals",
-            "0",
-            "--available-balance",
-            &source_extension.available_balance.to_string(),
-            "--decryptable-available-balance",
-            &source_extension.decryptable_available_balance.to_string(),
-            "--recipient-elgamal-pubkey",
-            &destination_extension.elgamal_pubkey.to_string(),
-            "--auditor-pubkey",
-            "none",
-            "--proof-account-lamports",
-            &self.proof_lamports.to_string(),
-        ])
-    }
 }
 
-fn transaction_data(value: &Value) -> Vec<&Value> {
-    value.get("transactions").map_or_else(
-        || vec![value],
-        |transactions| transactions.as_array().unwrap().iter().collect(),
-    )
-}
-
-pub async fn offline_confidential_commands(test_validator: &TestValidator, payer: &Keypair) {
+pub async fn offline_confidential_controls(test_validator: &TestValidator, payer: &Keypair) {
     let mut fixture = Fixture::new(
         test_validator,
         payer,
@@ -435,46 +324,42 @@ pub async fn offline_confidential_commands(test_validator: &TestValidator, payer
     )
     .await;
     let account = fixture.account(true).await;
-    let configure = args(&[
-        "configure-confidential-transfer-account",
-        &fixture.mint.to_string(),
-    ]);
-    fixture.error(&configure, "reallocate").await;
-    let mut configure = configure;
-    configure.push("--reallocate".to_string());
-    fixture
-        .submit(
-            &fixture.generate(&configure).await,
-            &[
-                "reallocate account",
-                "configure confidential transfer account",
-            ],
-        )
-        .await;
     assert!(!bool::from(fixture.extension(account).await.approved));
-    let approve = args(&[
+    let mut approve = args(&[
         "approve-confidential-transfer-account",
         "--address",
         &account.to_string(),
-        "--mint-address",
-        &fixture.mint.to_string(),
+        "--confidential-transfer-authority",
+        fixture.owner_file.path().to_str().unwrap(),
     ]);
-    fixture.submit(&fixture.generate(&approve).await, &[]).await;
+    fixture.error(&approve, "--mint-address").await;
+    approve.extend(args(&["--mint-address", &fixture.mint.to_string()]));
+    fixture.complete(&approve).await;
     assert!(bool::from(fixture.extension(account).await.approved));
 
-    for (command, confidential, enabled) in [
+    for (index, (command, confidential, enabled)) in [
         ("disable-confidential-credits", true, false),
         ("enable-confidential-credits", true, true),
         ("disable-non-confidential-credits", false, false),
         ("enable-non-confidential-credits", false, true),
-    ] {
-        let command = args(&[
-            command,
-            &fixture.mint.to_string(),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut command = if index % 2 == 0 {
+            args(&[command, &fixture.mint.to_string()])
+        } else {
+            args(&[command, "--address", &account.to_string()])
+        };
+        command.extend(args(&[
             "--owner",
-            &fixture.owner.pubkey().to_string(),
-        ]);
-        fixture.submit(&fixture.generate(&command).await, &[]).await;
+            fixture.owner_file.path().to_str().unwrap(),
+        ]));
+        if index % 2 != 0 {
+            fixture.error(&command, "--mint-address").await;
+            command.extend(args(&["--mint-address", &fixture.mint.to_string()]));
+        }
+        fixture.complete(&command).await;
         let extension = fixture.extension(account).await;
         assert_eq!(
             bool::from(if confidential {
@@ -485,20 +370,24 @@ pub async fn offline_confidential_commands(test_validator: &TestValidator, payer
             enabled
         );
     }
+
     let settings = args(&[
         "update-confidential-transfer-settings",
         &fixture.mint.to_string(),
+        "--confidential-transfer-authority",
+        fixture.owner_file.path().to_str().unwrap(),
         "--approve-policy",
         "auto",
         "--auditor-pubkey",
         "none",
     ]);
     fixture
-        .error(&settings[..settings.len() - 2], "auditor")
+        .error(&settings[..settings.len() - 2], "--auditor-pubkey")
         .await;
-    fixture
-        .submit(&fixture.generate(&settings).await, &[])
-        .await;
+    let mut no_policy = settings.clone();
+    no_policy.drain(no_policy.len() - 4..no_policy.len() - 2);
+    fixture.error(&no_policy, "--approve-policy").await;
+    fixture.complete(&settings).await;
     assert!(bool::from(
         fixture
             .mint_state()
@@ -519,337 +408,44 @@ pub async fn offline_confidential_commands(test_validator: &TestValidator, payer
     let deposit = args(&[
         "deposit-confidential-tokens",
         &fixture.mint.to_string(),
-        "100",
-        "--mint-decimals",
-        "0",
-    ]);
-    let blockhash = fixture
-        .config
-        .rpc_client
-        .get_latest_blockhash()
-        .await
-        .unwrap();
-    for format in [None, Some("json"), Some("json-compact")] {
-        let output = fixture.output(&deposit, blockhash, format, true).await;
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        if format.is_some() {
-            let value: Value = serde_json::from_slice(&output.stdout).unwrap();
-            assert!(value.get("transactions").is_none());
-            assert_eq!(value["blockhash"], blockhash.to_string());
-            assert!(value["message"].is_string());
-        } else {
-            let output = String::from_utf8(output.stdout).unwrap();
-            assert!(output.contains("Blockhash:"));
-            assert!(output.contains("Message:"));
-        }
-    }
-    let no_message = fixture
-        .output(&deposit, blockhash, Some("json-compact"), false)
-        .await;
-    assert!(no_message.status.success());
-    assert!(serde_json::from_slice::<Value>(&no_message.stdout)
-        .unwrap()
-        .get("message")
-        .is_none());
-    let mut public_owner = deposit.clone();
-    public_owner.extend(args(&["--owner", &fixture.owner.pubkey().to_string()]));
-    let unsigned = fixture.generate(&public_owner).await;
-    let message: Message = bincode::deserialize(
-        &STANDARD
-            .decode(unsigned["message"].as_str().unwrap())
-            .unwrap(),
-    )
-    .unwrap();
-    let blockhash = message.recent_blockhash;
-    let mut signed = Transaction::new_unsigned(message);
-    signed.sign(&[&fixture.owner, &fixture.payer], blockhash);
-    for (pubkey, signature) in signed.message.account_keys.iter().zip(&signed.signatures) {
-        public_owner.extend(args(&["--signer", &format!("{pubkey}={signature}")]));
-    }
-    let output = fixture
-        .output(&public_owner, blockhash, Some("json-compact"), true)
-        .await;
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let completed: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(completed["message"], unsigned["message"]);
-    assert_eq!(completed["signers"].as_array().unwrap().len(), 2);
-    assert!(completed
-        .get("absent")
-        .and_then(Value::as_array)
-        .is_none_or(Vec::is_empty));
-    fixture.submit(&completed, &[]).await;
-    fixture.balances(account, 100, 0).await;
-    fixture.apply(account).await;
-    fixture.balances(account, 0, 100).await;
-
-    let extension = fixture.extension(account).await;
-    let withdraw = args(&[
-        "withdraw-confidential-tokens",
-        &fixture.mint.to_string(),
-        "100",
+        "10",
         "--address",
         &account.to_string(),
-        "--mint-decimals",
-        "0",
-        "--available-balance",
-        &extension.available_balance.to_string(),
-        "--decryptable-available-balance",
-        &extension.decryptable_available_balance.to_string(),
-        "--proof-account-lamports",
-        &fixture.proof_lamports.to_string(),
-    ]);
-    let mut missing = withdraw.clone();
-    let index = missing
-        .iter()
-        .position(|arg| arg == "--available-balance")
-        .unwrap();
-    missing.drain(index..index + 2);
-    fixture.error(&missing, "available-balance").await;
-    let mut malformed = withdraw.clone();
-    malformed[index + 1] = "invalid-ciphertext".to_string();
-    fixture.error(&malformed, "invalid").await;
-    let mut public_owner = withdraw.clone();
-    public_owner.extend(args(&["--owner", &fixture.owner.pubkey().to_string()]));
-    fixture.error(&public_owner, "sign").await;
-    let mut multisig = withdraw.clone();
-    multisig.extend(args(&[
-        "--multisig-signer",
+        "--owner",
         fixture.owner_file.path().to_str().unwrap(),
-    ]));
-    fixture
-        .error(
-            &multisig,
-            "Encryption-key derivation for multisig authorities is unsupported offline",
-        )
-        .await;
-    let mut multisig = fixture.apply_args(account).await;
-    multisig.extend(args(&[
-        "--multisig-signer",
-        fixture.owner_file.path().to_str().unwrap(),
-    ]));
-    fixture
-        .error(
-            &multisig,
-            "Encryption-key derivation for multisig authorities is unsupported offline",
-        )
-        .await;
-    let mut missing_rent = withdraw.clone();
-    missing_rent.truncate(missing_rent.len() - 2);
-    fixture.error(&missing_rent, "proof-account-lamports").await;
-    let mut zero_rent = withdraw.clone();
-    *zero_rent.last_mut().unwrap() = "0".to_string();
-    fixture.error(&zero_rent, "proof-account-lamports").await;
-    fixture
-        .submit(
-            &fixture.generate(&withdraw).await,
-            &[
-                "create equality proof context",
-                "create range proof record",
-                "create range proof context",
-                "confidential withdrawal",
-                "close equality proof context",
-                "close range proof context",
-                "close range proof record",
-            ],
-        )
-        .await;
-    fixture.balances(account, 0, 0).await;
-    let state = fixture
-        .config
-        .rpc_client
-        .get_account(&account)
-        .await
-        .unwrap();
-    assert_eq!(
-        StateWithExtensionsOwned::<Account>::unpack(state.data)
-            .unwrap()
-            .base
-            .amount,
-        100
-    );
-    let extension = fixture.extension(account).await;
-    let empty = args(&[
-        "empty-confidential-transfer-account",
-        "--address",
-        &account.to_string(),
-        "--mint-address",
-        &fixture.mint.to_string(),
-        "--available-balance",
-        &extension.available_balance.to_string(),
-    ]);
-    fixture.submit(&fixture.generate(&empty).await, &[]).await;
-
-    // Offline configuration also supports accounts already allocated online.
-    let preallocated = fixture.account(false).await;
-    Token::new(
-        fixture.config.program_client.clone(),
-        &fixture.config.program_id,
-        &fixture.mint,
-        Some(0),
-        fixture.config.fee_payer().unwrap(),
-    )
-    .reallocate(
-        &preallocated,
-        &fixture.owner.pubkey(),
-        &[ExtensionType::ConfidentialTransferAccount],
-        &[&fixture.owner],
-    )
-    .await
-    .unwrap();
-    let configure = args(&[
-        "configure-confidential-transfer-account",
-        "--address",
-        &preallocated.to_string(),
-        "--mint-address",
-        &fixture.mint.to_string(),
-        "--account-is-preallocated",
-    ]);
-    let output = fixture.generate(&configure).await;
-    assert!(output.get("transactions").is_none());
-    fixture.submit(&output, &[]).await;
-    assert!(bool::from(fixture.extension(preallocated).await.approved));
-
-    let ordinary_transfer = args(&[
-        "transfer",
-        &fixture.mint.to_string(),
-        "1",
-        &preallocated.to_string(),
-        "--from",
-        &account.to_string(),
         "--mint-decimals",
         "0",
-        "--no-recipient-is-ata-owner",
     ]);
-    let output = fixture.generate(&ordinary_transfer).await;
-    assert!(output.get("transactions").is_none());
-    fixture.submit(&output, &[]).await;
-    let state = fixture
-        .config
-        .rpc_client
-        .get_account(&preallocated)
-        .await
-        .unwrap();
+    fixture
+        .error(&deposit[..deposit.len() - 2], "mint-decimals")
+        .await;
+    let mut all = deposit.clone();
+    all[2] = "ALL".to_string();
+    fixture.error(&all, "explicit amount").await;
+    fixture.complete(&deposit).await;
     assert_eq!(
-        StateWithExtensionsOwned::<Account>::unpack(state.data)
-            .unwrap()
-            .base
-            .amount,
-        1
+        decrypted_confidential_balances(&fixture.config, &fixture.owner, &account).await,
+        (10.0, 0.0)
     );
 
-    // State-free operations retain ordinary multisig partial signing.
-    let multisig = Keypair::new();
-    let multisig_file = NamedTempFile::new().unwrap();
-    write_keypair_file(&multisig, &multisig_file).unwrap();
-    let member_one = Keypair::new();
-    let member_two = Keypair::new();
-    let member_one_file = NamedTempFile::new().unwrap();
-    write_keypair_file(&member_one, &member_one_file).unwrap();
-    fixture
-        .online(&[
-            "create-multisig",
-            "1",
-            &member_one.pubkey().to_string(),
-            &member_two.pubkey().to_string(),
-            "--address-keypair",
-            multisig_file.path().to_str().unwrap(),
-        ])
-        .await;
-    fixture.watched.push(multisig.pubkey());
-    fixture
-        .online(&[
-            "authorize",
-            &preallocated.to_string(),
-            "owner",
-            &multisig.pubkey().to_string(),
-        ])
-        .await;
-    let deposit = args(&[
+    let nonce = create_nonce(&fixture.config, &fixture.owner).await;
+    fixture.watched.push(nonce);
+    let nonce_account = fixture.config.rpc_client.get_account(&nonce).await.unwrap();
+    let hash = Hash::new_from_array(nonce_account.data[40..72].try_into().unwrap());
+    let nonce_deposit = args(&[
         "deposit-confidential-tokens",
         &fixture.mint.to_string(),
         "1",
-        "--address",
-        &preallocated.to_string(),
         "--mint-decimals",
         "0",
         "--owner",
-        &multisig.pubkey().to_string(),
-        "--multisig-signer",
-        member_one_file.path().to_str().unwrap(),
-        "--multisig-signer",
-        &member_two.pubkey().to_string(),
-    ]);
-    let output = fixture.generate(&deposit).await;
-    assert!(output["signers"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .any(|signature| signature
-            .as_str()
-            .unwrap()
-            .starts_with(&member_one.pubkey().to_string())));
-    assert!(output["absent"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .any(|pubkey| pubkey == &member_two.pubkey().to_string()));
-    fixture
-        .submit_with_signers(&output, &[], &[&member_one, &member_two])
-        .await;
-    let state = fixture
-        .config
-        .rpc_client
-        .get_account(&preallocated)
-        .await
-        .unwrap();
-    let state = StateWithExtensionsOwned::<Account>::unpack(state.data).unwrap();
-    assert_eq!(state.base.amount, 0);
-    assert_eq!(
-        u64::from(
-            state
-                .get_extension::<ConfidentialTransferAccount>()
-                .unwrap()
-                .pending_balance_credit_counter
-        ),
-        1
-    );
-
-    // A single transaction keeps the existing durable nonce semantics.
-    let nonce = create_nonce(&fixture.config, &fixture.owner).await;
-    let nonce_account = fixture.config.rpc_client.get_account(&nonce).await.unwrap();
-    let nonce_hash = Hash::new_from_array(nonce_account.data[40..72].try_into().unwrap());
-    let mut nonce_deposit = args(&[
-        "deposit-confidential-tokens",
-        &fixture.mint.to_string(),
-        "1",
-        "--mint-decimals",
-        "0",
-    ]);
-    nonce_deposit.extend(args(&[
+        fixture.owner_file.path().to_str().unwrap(),
         "--nonce",
         &nonce.to_string(),
         "--nonce-authority",
         fixture.owner_file.path().to_str().unwrap(),
-    ]));
-    let output = fixture
-        .output(&nonce_deposit, nonce_hash, Some("json-compact"), true)
-        .await;
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["blockhash"], nonce_hash.to_string());
-    fixture.submit(&value, &[]).await;
+    ]);
+    fixture.complete_at(&nonce_deposit, hash).await;
     assert_ne!(
         fixture
             .config
@@ -860,531 +456,38 @@ pub async fn offline_confidential_commands(test_validator: &TestValidator, payer
             .data,
         nonce_account.data
     );
-}
-
-pub async fn offline_confidential_registry(test_validator: &TestValidator, payer: &Keypair) {
-    let mut fixture = Fixture::new(
-        test_validator,
-        payer,
-        &["--enable-confidential-transfers", "auto"],
-    )
-    .await;
-    let account = fixture.account(true).await;
-    let (elgamal_keypair, _) = derive_confidential_keys(&fixture.owner, b"").unwrap();
-    let registry = spl_elgamal_registry_interface::get_elgamal_registry_address(
-        &fixture.owner.pubkey(),
-        &spl_elgamal_registry_interface::id(),
-    );
-    let proof = build_pubkey_validity_proof_data(&elgamal_keypair).unwrap();
-    let rent = fixture
-        .config
-        .rpc_client
-        .get_minimum_balance_for_rent_exemption(
-            spl_elgamal_registry_interface::state::ELGAMAL_REGISTRY_ACCOUNT_LEN,
-        )
-        .await
-        .unwrap();
-    let mut instructions = vec![system_instruction::transfer(
-        &fixture.payer.pubkey(),
-        &registry,
-        rent,
-    )];
-    instructions.extend(
-        spl_elgamal_registry_interface::instruction::create_registry(
-            &fixture.owner.pubkey(),
-            ProofLocation::InstructionOffset(1.try_into().unwrap(), &proof),
-        )
-        .unwrap(),
-    );
-    let transaction = Transaction::new_signed_with_payer(
-        &instructions,
-        Some(&fixture.payer.pubkey()),
-        &[&fixture.payer, &fixture.owner],
-        fixture
-            .config
-            .rpc_client
-            .get_latest_blockhash()
-            .await
-            .unwrap(),
-    );
-    fixture
-        .config
-        .rpc_client
-        .send_and_confirm_transaction(&transaction)
-        .await
-        .unwrap();
-    fixture.watched.push(registry);
-
-    let configure = args(&[
-        "configure-confidential-transfer-account",
-        &fixture.mint.to_string(),
-        "--owner",
-        &fixture.owner.pubkey().to_string(),
-        "--elgamal-registry",
-        &registry.to_string(),
-    ]);
-    let output = fixture.generate(&configure).await;
-    let message: Message = bincode::deserialize(
-        &STANDARD
-            .decode(output["message"].as_str().unwrap())
-            .unwrap(),
-    )
-    .unwrap();
-    assert_eq!(message.header.num_required_signatures, 1);
-    assert_eq!(message.account_keys[0], fixture.payer.pubkey());
-    fixture.submit(&output, &[]).await;
-    let extension = fixture.extension(account).await;
-    assert_eq!(extension.available_balance, PodElGamalCiphertext::default());
     assert_eq!(
-        extension.decryptable_available_balance,
-        PodAeCiphertext::default()
+        decrypted_confidential_balances(&fixture.config, &fixture.owner, &account).await,
+        (11.0, 0.0)
     );
-    fixture
-        .online(&["mint", &fixture.mint.to_string(), "2", &account.to_string()])
-        .await;
-
-    for available in [1, 2] {
-        let deposit = args(&[
-            "deposit-confidential-tokens",
-            &fixture.mint.to_string(),
-            "1",
-            "--mint-decimals",
-            "0",
-            "--owner",
-            &fixture.owner.pubkey().to_string(),
-        ]);
-        fixture.submit(&fixture.generate(&deposit).await, &[]).await;
-        if available == 1 {
-            let apply = fixture.apply_args(account).await;
-            for flag in [
-                "--available-balance",
-                "--pending-balance-credit-counter",
-                "--decryptable-available-balance",
-            ] {
-                let mut missing = apply.clone();
-                let index = missing.iter().position(|arg| arg == flag).unwrap();
-                missing.drain(index..index + 2);
-                fixture.error(&missing, flag).await;
-            }
-            for (flag, malformed) in [
-                ("--pending-balance-credit-counter", "invalid-counter"),
-                ("--decryptable-available-balance", "invalid-ciphertext"),
-            ] {
-                let mut invalid = apply.clone();
-                let index = invalid.iter().position(|arg| arg == flag).unwrap();
-                invalid[index + 1] = malformed.to_string();
-                fixture.error(&invalid, flag).await;
-            }
-            let mut invalid = apply;
-            let (_, wrong_aes) = derive_confidential_keys(&Keypair::new(), b"").unwrap();
-            let ciphertext: PodAeCiphertext = wrong_aes.encrypt(0).into();
-            let index = invalid
-                .iter()
-                .position(|arg| arg == "--decryptable-available-balance")
-                .unwrap();
-            invalid[index + 1] = ciphertext.to_string();
-            fixture
-                .error(&invalid, "Failed to decrypt available balance")
-                .await;
-        } else {
-            let apply = fixture.apply_args(account).await;
-            // The cached value is authenticated under the correct owner's key,
-            // but represents zero while the actual available balance is one.
-            // Signing it would make the next cache update disagree with the
-            // homomorphically updated account balance.
-            let (elgamal_keypair, aes_key) = derive_confidential_keys(&fixture.owner, b"").unwrap();
-            let stale_cache: PodAeCiphertext = aes_key.encrypt(0).into();
-            let mut stale = apply.clone();
-            let index = stale
-                .iter()
-                .position(|arg| arg == "--decryptable-available-balance")
-                .unwrap();
-            stale[index + 1] = stale_cache.to_string();
-            fixture.error(&stale, "out of sync").await;
-
-            // This deliberately crafted caller snapshot agrees on the full
-            // u64::MAX available amount. The fixture's actual one-token pending
-            // balance must produce overflow without signing or changing accounts.
-            let mut overflow = apply.clone();
-            let ciphertext: PodElGamalCiphertext =
-                elgamal_keypair.pubkey().encrypt(u64::MAX).into();
-            let cache: PodAeCiphertext = aes_key.encrypt(u64::MAX).into();
-            let index = overflow
-                .iter()
-                .position(|arg| arg == "--available-balance")
-                .unwrap();
-            overflow[index + 1] = ciphertext.to_string();
-            let index = overflow
-                .iter()
-                .position(|arg| arg == "--decryptable-available-balance")
-                .unwrap();
-            overflow[index + 1] = cache.to_string();
-            fixture.error(&overflow, "Overflow").await;
-
-            let mut missing = apply.clone();
-            let index = missing
-                .iter()
-                .position(|arg| arg == "--available-balance")
-                .unwrap();
-            missing.drain(index..index + 2);
-            fixture.error(&missing, "--available-balance").await;
-
-            for malformed in ["AAAA".to_string(), STANDARD.encode([255_u8; 64])] {
-                let mut invalid = apply.clone();
-                let index = invalid
-                    .iter()
-                    .position(|arg| arg == "--available-balance")
-                    .unwrap();
-                invalid[index + 1] = malformed;
-                fixture.error(&invalid, "--available-balance").await;
-            }
-        }
-        fixture.apply(account).await;
-        fixture.balances(account, 0, available).await;
-    }
 }
 
-pub async fn offline_confidential_transfer(test_validator: &TestValidator, payer: &Keypair) {
-    let mut fixture = Fixture::new(
-        test_validator,
-        payer,
-        &["--enable-confidential-transfers", "auto"],
-    )
-    .await;
-    let source = fixture.account(true).await;
-    let destination = fixture.account(false).await;
-    // A state-free, single-transaction command must reject a message that
-    // cannot be submitted even after its missing fee-payer signature is added.
-    let mut oversized_deposit = args(&[
-        "deposit-confidential-tokens",
-        &fixture.mint.to_string(),
-        "1",
-        "--address",
-        &source.to_string(),
-        "--mint-decimals",
-        "0",
-        "--owner",
-        &Pubkey::new_unique().to_string(),
-    ]);
-    for _ in 0..11 {
-        oversized_deposit.extend(args(&[
-            "--multisig-signer",
-            &Pubkey::new_unique().to_string(),
-        ]));
-    }
-    fixture.error(&oversized_deposit, "packet limit").await;
-    for account in [source, destination] {
-        fixture
-            .online(&[
-                "configure-confidential-transfer-account",
-                "--address",
-                &account.to_string(),
-            ])
-            .await;
-    }
-    fixture.fund_confidential(source, "100").await;
-    let mut transfer = fixture.transfer_args(source, destination, "60").await;
-    let mut oversized = transfer.clone();
-    oversized.extend(args(&["--with-memo", &"m".repeat(1233)]));
-    fixture.error(&oversized, "packet limit").await;
-    transfer.extend(args(&["--with-memo", "offline confidential transfer"]));
-    let blockhash = fixture
-        .config
-        .rpc_client
-        .get_latest_blockhash()
-        .await
-        .unwrap();
-    for format in [None, Some("json"), Some("json-compact")] {
-        // Multi-transaction messages are retained even without --dump so their
-        // generated temporary signer signatures remain usable later.
-        let output = fixture.output(&transfer, blockhash, format, false).await;
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        if format.is_some() {
-            let value: Value = serde_json::from_slice(&output.stdout).unwrap();
-            assert!(value["transactions"].as_array().unwrap().len() > 1);
-            for transaction in transaction_data(&value) {
-                assert!(transaction["message"].is_string());
-                assert_eq!(transaction["blockhash"], blockhash.to_string());
-            }
-        } else {
-            let output = String::from_utf8(output.stdout).unwrap();
-            assert!(output.contains("execute in this order"));
-            assert!(output.contains("create range proof record"));
-            assert!(output.contains("close range proof record"));
-        }
-    }
-    let mut nonce_transfer = transfer.clone();
-    nonce_transfer.extend(args(&[
-        "--nonce",
-        &Pubkey::new_unique().to_string(),
-        "--nonce-authority",
-        fixture.owner_file.path().to_str().unwrap(),
-    ]));
-    fixture.error(&nonce_transfer, "nonce").await;
-    let output = fixture.generate(&transfer).await;
-    for transaction in output["transactions"].as_array().unwrap() {
-        let message: Message = bincode::deserialize(
-            &STANDARD
-                .decode(transaction["message"].as_str().unwrap())
-                .unwrap(),
-        )
-        .unwrap();
-        let memos = message
-            .instructions
-            .iter()
-            .filter(|instruction| {
-                message.account_keys[usize::from(instruction.program_id_index)]
-                    == spl_memo_interface::v4::id()
-            })
-            .collect::<Vec<_>>();
-        if transaction["transaction"] == "confidential transfer" {
-            assert_eq!(memos.len(), 1);
-            assert_eq!(memos[0].data, b"offline confidential transfer");
-        } else {
-            assert!(
-                memos.is_empty(),
-                "setup and cleanup must not consume the operation memo"
-            );
-        }
-    }
-    assert!(
-        output["transactions"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .filter(|transaction| {
-                transaction["transaction"]
-                    .as_str()
-                    .unwrap()
-                    .starts_with("create range proof record")
-            })
-            .count()
-            >= 2,
-        "range proof setup and subsequent writes must all be returned"
-    );
-    fixture
-        .submit(
-            &output,
-            &[
-                "create equality proof context",
-                "create ciphertext validity proof context",
-                "create range proof record",
-                "create range proof context",
-                "confidential transfer",
-                "close equality proof context",
-                "close ciphertext validity proof context",
-                "close range proof context",
-                "close range proof record",
-            ],
-        )
-        .await;
-    fixture.balances(source, 0, 40).await;
-    fixture.balances(destination, 60, 0).await;
-    fixture.apply(destination).await;
-    fixture.balances(destination, 0, 60).await;
-}
-
-pub async fn offline_confidential_transfer_fees(test_validator: &TestValidator, payer: &Keypair) {
+pub async fn offline_confidential_fee_controls(test_validator: &TestValidator, payer: &Keypair) {
     let mut fixture = Fixture::new(
         test_validator,
         payer,
         &[
             "--enable-confidential-transfers",
             "auto",
-            "--transfer-fee-basis-points",
+            "--transfer-fee",
             "1000",
-            "--transfer-fee-maximum-fee",
             "100",
         ],
     )
     .await;
     let source = fixture.account(true).await;
     let destination = fixture.account(false).await;
-    for account in [source, destination] {
-        let configure = args(&[
-            "configure-confidential-transfer-account",
-            "--address",
-            &account.to_string(),
-            "--mint-address",
-            &fixture.mint.to_string(),
-            "--reallocate",
-            "--confidential-transfer-fee",
-        ]);
-        fixture
-            .submit(
-                &fixture.generate(&configure).await,
-                &[
-                    "reallocate account",
-                    "configure confidential transfer account",
-                ],
-            )
-            .await;
-    }
-    fixture.fund_confidential(source, "200").await;
-    let mint = fixture.mint_state().await;
-    let fee_config = mint
-        .get_extension::<ConfidentialTransferFeeConfig>()
-        .unwrap();
-    let fee = mint
-        .get_extension::<TransferFeeConfig>()
-        .unwrap()
-        .get_epoch_fee(
-            fixture
-                .config
-                .rpc_client
-                .get_epoch_info()
-                .await
-                .unwrap()
-                .epoch,
-        );
-    let mut transfer = fixture.transfer_args(source, destination, "100").await;
-    let fee_args = args(&[
-        "--expected-fee",
-        "10",
-        "--transfer-fee-basis-points",
-        &u16::from(fee.transfer_fee_basis_points).to_string(),
-        "--transfer-fee-maximum-fee",
-        &u64::from(fee.maximum_fee).to_string(),
-        "--withdraw-withheld-authority-elgamal-pubkey",
-        &fee_config
-            .withdraw_withheld_authority_elgamal_pubkey
-            .to_string(),
-    ]);
-    transfer.extend(fee_args);
-    fixture.error(&transfer, "with-compute-unit-limit").await;
-    transfer.extend(args(&["--with-compute-unit-limit", "500000"]));
-    let mut invalid_fee = transfer.clone();
-    let index = invalid_fee
-        .iter()
-        .position(|arg| arg == "--transfer-fee-basis-points")
-        .unwrap();
-    invalid_fee[index + 1] = "10001".to_string();
-    fixture.error(&invalid_fee, "cannot exceed 10000").await;
-    for flag in ["--transfer-fee-maximum-fee", "--recipient-elgamal-pubkey"] {
-        let mut missing = transfer.clone();
-        let index = missing.iter().position(|arg| arg == flag).unwrap();
-        missing.drain(index..index + 2);
-        fixture.error(&missing, flag).await;
-    }
-    fixture
-        .submit(
-            &fixture.generate(&transfer).await,
-            &[
-                "create equality proof context",
-                "create ciphertext validity proof context",
-                "create percentage with cap proof context",
-                "create fee ciphertext validity proof context",
-                "create range proof record",
-                "create range proof context",
-                "confidential transfer with fee",
-                "close equality proof context",
-                "close ciphertext validity proof context",
-                "close percentage with cap proof context",
-                "close fee ciphertext validity proof context",
-                "close range proof context",
-                "close range proof record",
-            ],
-        )
-        .await;
-    fixture.balances(source, 0, 100).await;
-    fixture.balances(destination, 90, 0).await;
-    fixture.apply(destination).await;
-    fixture.balances(destination, 0, 90).await;
-
-    // Withdraw an account's actual encrypted fees without fetching it while signing.
-    let account = fixture
-        .config
-        .rpc_client
-        .get_account(&destination)
-        .await
-        .unwrap();
-    let state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
-    let amount = state
-        .get_extension::<ConfidentialTransferFeeAmount>()
-        .unwrap()
-        .withheld_amount;
-    let extension = fixture.extension(source).await;
-    let withdrawal = args(&[
-        "withdraw-withheld-tokens",
-        &source.to_string(),
-        &destination.to_string(),
-        "--confidential",
-        "--mint-address",
-        &fixture.mint.to_string(),
-        "--recipient-elgamal-pubkey",
-        &extension.elgamal_pubkey.to_string(),
-        "--decryptable-available-balance",
-        &extension.decryptable_available_balance.to_string(),
-        "--available-balance",
-        &extension.available_balance.to_string(),
-        "--withheld-amount",
-        &amount.to_string(),
-    ]);
-    let (_, aes_key) = derive_confidential_keys(&fixture.owner, b"").unwrap();
-    let stale_cache: PodAeCiphertext = aes_key.encrypt(99).into();
-    let mut stale = withdrawal.clone();
-    let index = stale
-        .iter()
-        .position(|arg| arg == "--decryptable-available-balance")
-        .unwrap();
-    stale[index + 1] = stale_cache.to_string();
-    fixture.error(&stale, "out of sync").await;
-
-    let mut missing = withdrawal.clone();
-    let index = missing
-        .iter()
-        .position(|arg| arg == "--available-balance")
-        .unwrap();
-    missing.drain(index..index + 2);
-    fixture.error(&missing, "--available-balance").await;
-
-    let (wrong_key, _) = derive_confidential_keys(&Keypair::new(), b"").unwrap();
-    let mut wrong_recipient = withdrawal.clone();
-    let index = wrong_recipient
-        .iter()
-        .position(|arg| arg == "--recipient-elgamal-pubkey")
-        .unwrap();
-    wrong_recipient[index + 1] = PodElGamalPubkey::from(*wrong_key.pubkey()).to_string();
-    fixture.error(&wrong_recipient, "recipient").await;
-
-    // A caller-supplied snapshot may authenticate yet overflow when fees are
-    // added. Reject it before emitting or submitting a transaction.
-    let (elgamal_keypair, _) = derive_confidential_keys(&fixture.owner, b"").unwrap();
-    let mut overflow = withdrawal.clone();
-    for (flag, value) in [
-        (
-            "--available-balance",
-            PodElGamalCiphertext::from(elgamal_keypair.pubkey().encrypt(u64::MAX)).to_string(),
-        ),
-        (
-            "--decryptable-available-balance",
-            PodAeCiphertext::from(aes_key.encrypt(u64::MAX)).to_string(),
-        ),
-    ] {
-        let index = overflow.iter().position(|arg| arg == flag).unwrap();
-        overflow[index + 1] = value;
-    }
-    fixture.error(&overflow, "overflow").await;
-    fixture
-        .submit(&fixture.generate(&withdrawal).await, &[])
-        .await;
-    fixture.balances(source, 0, 110).await;
-
     for (command, enabled) in [
         ("disable-confidential-fee-harvesting", false),
         ("enable-confidential-fee-harvesting", true),
     ] {
         fixture
-            .submit(
-                &fixture
-                    .generate(&args(&[command, &fixture.mint.to_string()]))
-                    .await,
-                &[],
-            )
+            .complete(&args(&[
+                command,
+                &fixture.mint.to_string(),
+                "--owner",
+                fixture.owner_file.path().to_str().unwrap(),
+            ]))
             .await;
         assert_eq!(
             bool::from(
@@ -1398,264 +501,153 @@ pub async fn offline_confidential_transfer_fees(test_validator: &TestValidator, 
             enabled
         );
     }
-
-    // Keep a nonzero fee on the mint and a different nonzero fee on an account,
-    // so a two-transaction withdrawal must update the decryptable balance twice.
-    for harvest in [true, false] {
-        let mut transfer = fixture.transfer_args(source, destination, "10").await;
-        transfer.extend(args(&[
+    fixture
+        .online(&[
+            "mint",
+            &fixture.mint.to_string(),
+            "100",
+            &source.to_string(),
+        ])
+        .await;
+    fixture
+        .online(&[
+            "deposit-confidential-tokens",
+            &fixture.mint.to_string(),
+            "100",
+        ])
+        .await;
+    fixture
+        .online(&["apply-pending-balance", &fixture.mint.to_string()])
+        .await;
+    fixture
+        .online(&[
+            "transfer",
+            &fixture.mint.to_string(),
+            "10",
+            &destination.to_string(),
+            "--confidential",
             "--expected-fee",
             "1",
-            "--transfer-fee-basis-points",
-            &u16::from(fee.transfer_fee_basis_points).to_string(),
-            "--transfer-fee-maximum-fee",
-            &u64::from(fee.maximum_fee).to_string(),
-            "--withdraw-withheld-authority-elgamal-pubkey",
-            &fee_config
-                .withdraw_withheld_authority_elgamal_pubkey
-                .to_string(),
-        ]));
-        transfer.extend(args(&["--with-compute-unit-limit", "500000"]));
-        fixture
-            .submit(&fixture.generate(&transfer).await, &[])
-            .await;
-        if harvest {
-            let harvest = args(&[
-                "harvest-withheld-confidential-tokens",
-                &fixture.mint.to_string(),
-                &destination.to_string(),
-            ]);
-            fixture.submit(&fixture.generate(&harvest).await, &[]).await;
-        }
-    }
-    fixture.balances(source, 0, 90).await;
-    let mint = fixture.mint_state().await;
-    let mint_amount = mint
-        .get_extension::<ConfidentialTransferFeeConfig>()
-        .unwrap()
-        .withheld_amount;
-    let account = fixture
-        .config
-        .rpc_client
-        .get_account(&destination)
-        .await
-        .unwrap();
-    let state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
-    let account_amount = state
-        .get_extension::<ConfidentialTransferFeeAmount>()
-        .unwrap()
-        .withheld_amount;
-    let extension = fixture.extension(source).await;
-    let mut withdrawal = args(&[
-        "withdraw-withheld-tokens",
-        &source.to_string(),
-        &destination.to_string(),
-        &destination.to_string(),
-        "--include-mint",
-        "--confidential",
-        "--mint-address",
-        &fixture.mint.to_string(),
-        "--recipient-elgamal-pubkey",
-        &extension.elgamal_pubkey.to_string(),
-        "--decryptable-available-balance",
-        &extension.decryptable_available_balance.to_string(),
-        "--available-balance",
-        &extension.available_balance.to_string(),
-        "--withheld-amount",
-        &mint_amount.to_string(),
-    ]);
-    fixture.error(&withdrawal, "one --withheld-amount").await;
-    withdrawal.extend(args(&["--withheld-amount", &account_amount.to_string()]));
-    let output = fixture.generate(&withdrawal).await;
-    assert_eq!(output["transactions"].as_array().unwrap().len(), 2);
-    fixture
-        .submit(
-            &output,
-            &[
-                "withdraw confidential fees 1",
-                "withdraw confidential fees 2",
-            ],
-        )
+        ])
         .await;
-    fixture.balances(source, 0, 92).await;
-    let mint = fixture.mint_state().await;
-    assert_eq!(
-        mint.get_extension::<ConfidentialTransferFeeConfig>()
-            .unwrap()
-            .withheld_amount,
-        PodElGamalCiphertext::default()
-    );
-    let account = fixture
+    let destination_state = fixture
         .config
         .rpc_client
         .get_account(&destination)
         .await
         .unwrap();
-    let state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
-    assert_eq!(
-        state
+    assert_ne!(
+        StateWithExtensionsOwned::<Account>::unpack(destination_state.data)
+            .unwrap()
             .get_extension::<ConfidentialTransferFeeAmount>()
             .unwrap()
             .withheld_amount,
         PodElGamalCiphertext::default()
     );
-}
 
-pub async fn offline_confidential_fee_account_batches(
-    test_validator: &TestValidator,
-    payer: &Keypair,
-) {
-    use solana_zk_sdk::encryption::elgamal::ElGamalCiphertext;
-
-    let mut fixture = Fixture::new(
-        test_validator,
-        payer,
-        &[
-            "--enable-confidential-transfers",
-            "auto",
-            "--transfer-fee-basis-points",
-            "1000",
-            "--transfer-fee-maximum-fee",
-            "100",
-        ],
-    )
-    .await;
-    let destination = fixture.account(true).await;
-    let mut sources = Vec::new();
-    for _ in 0..9 {
-        sources.push(fixture.account(false).await);
-    }
-    sources.sort_unstable();
-    for account in std::iter::once(&destination).chain(&sources) {
-        fixture
-            .online(&[
-                "configure-confidential-transfer-account",
-                "--address",
-                &account.to_string(),
-            ])
-            .await;
-    }
-    fixture.fund_confidential(destination, "200").await;
-    let mint = fixture.mint_state().await;
-    let fee_config = mint
-        .get_extension::<ConfidentialTransferFeeConfig>()
-        .unwrap();
-    // Both the full batch and the final one-account batch must contain a real
-    // nonzero fee; the other accounts retain their actual zero ciphertexts.
-    for source in [sources[0], sources[8]] {
-        let mut transfer = fixture.transfer_args(destination, source, "10").await;
-        transfer.extend(args(&[
-            "--expected-fee",
-            "1",
-            "--transfer-fee-basis-points",
-            "1000",
-            "--transfer-fee-maximum-fee",
-            "100",
-            "--withdraw-withheld-authority-elgamal-pubkey",
-            &fee_config
-                .withdraw_withheld_authority_elgamal_pubkey
-                .to_string(),
-            "--with-compute-unit-limit",
-            "500000",
-        ]));
-        fixture
-            .submit(&fixture.generate(&transfer).await, &[])
-            .await;
-    }
-    fixture.balances(destination, 0, 180).await;
-
-    let mut aggregates = Vec::new();
-    for batch in sources.chunks(8) {
-        let mut aggregate = ElGamalCiphertext::default();
-        for source in batch {
-            let account = fixture.config.rpc_client.get_account(source).await.unwrap();
-            let state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
-            let withheld: ElGamalCiphertext = state
-                .get_extension::<ConfidentialTransferFeeAmount>()
-                .unwrap()
-                .withheld_amount
-                .try_into()
-                .unwrap();
-            aggregate = aggregate + withheld;
-        }
-        aggregates.push(PodElGamalCiphertext::from(aggregate));
-    }
-    let extension = fixture.extension(destination).await;
-    let mut withdrawal = args(&["withdraw-withheld-tokens", &destination.to_string()]);
-    withdrawal.extend(sources.iter().rev().map(ToString::to_string));
-    withdrawal.extend([sources[0].to_string(), sources[8].to_string()]);
-    withdrawal.extend(args(&[
-        "--confidential",
-        "--mint-address",
+    let mut oversized = args(&[
+        "harvest-withheld-confidential-tokens",
         &fixture.mint.to_string(),
-        "--recipient-elgamal-pubkey",
-        &extension.elgamal_pubkey.to_string(),
-        "--decryptable-available-balance",
-        &extension.decryptable_available_balance.to_string(),
-        "--available-balance",
-        &extension.available_balance.to_string(),
-    ]));
-    for aggregate in aggregates {
-        withdrawal.extend(args(&["--withheld-amount", &aggregate.to_string()]));
-    }
-    let output = fixture.generate(&withdrawal).await;
-    let transactions = output["transactions"].as_array().unwrap();
-    assert_eq!(transactions.len(), 2);
-    for (transaction, batch) in transactions.iter().zip(sources.chunks(8)) {
-        let message: Message = bincode::deserialize(
-            &STANDARD
-                .decode(transaction["message"].as_str().unwrap())
-                .unwrap(),
-        )
-        .unwrap();
-        let instruction = message
-            .instructions
-            .iter()
-            .find(|instruction| {
-                message.account_keys[usize::from(instruction.program_id_index)]
-                    == spl_token_2022_interface::id()
-            })
-            .unwrap();
-        let actual_sources = instruction.accounts[4..]
-            .iter()
-            .map(|index| message.account_keys[usize::from(*index)])
-            .collect::<Vec<_>>();
-        assert_eq!(actual_sources, batch);
-    }
+    ]);
+    oversized.extend((0..26).map(|_| Pubkey::new_unique().to_string()));
     fixture
-        .submit(
-            &output,
-            &[
-                "withdraw confidential fees 1",
-                "withdraw confidential fees 2",
-            ],
-        )
+        .error(&oversized, "25 distinct source accounts")
         .await;
-    fixture.balances(destination, 0, 182).await;
-    for source in sources {
-        let account = fixture
-            .config
-            .rpc_client
-            .get_account(&source)
+    let hash = fixture
+        .config
+        .rpc_client
+        .get_latest_blockhash()
+        .await
+        .unwrap();
+    let boundary = fixture
+        .output(&oversized[..oversized.len() - 1], hash, &[], "json-compact")
+        .await;
+    assert!(
+        boundary.status.success(),
+        "{}",
+        String::from_utf8_lossy(&boundary.stderr)
+    );
+    // A distinct nonce authority and both budget instructions need two source slots.
+    let nonce = create_nonce(&fixture.config, &fixture.owner).await;
+    fixture.watched.push(nonce);
+    let nonce_account = fixture.config.rpc_client.get_account(&nonce).await.unwrap();
+    let nonce_hash = Hash::new_from_array(nonce_account.data[40..72].try_into().unwrap());
+    let mut nonce_harvest = args(&[
+        "harvest-withheld-confidential-tokens",
+        &fixture.mint.to_string(),
+    ]);
+    nonce_harvest.extend((0..23).map(|_| Pubkey::new_unique().to_string()));
+    nonce_harvest.extend(args(&[
+        "--nonce",
+        &nonce.to_string(),
+        "--nonce-authority",
+        fixture.owner_file.path().to_str().unwrap(),
+        "--with-compute-unit-price",
+        "1000",
+        "--with-compute-unit-limit",
+        "200000",
+    ]));
+    let boundary = fixture
+        .output(&nonce_harvest, nonce_hash, &[], "json-compact")
+        .await;
+    assert!(
+        boundary.status.success(),
+        "{}",
+        String::from_utf8_lossy(&boundary.stderr)
+    );
+    let value: Value = serde_json::from_slice(&boundary.stdout).unwrap();
+    let message = STANDARD.decode(value["message"].as_str().unwrap()).unwrap();
+    assert_eq!(
+        message[0], 2,
+        "payer and nonce authority must be distinct signers"
+    );
+    // With two signatures, the compact signature count occupies one byte.
+    let transaction_size = 1 + 2 * 64 + message.len();
+    assert!(
+        transaction_size <= 1232,
+        "transaction exceeds Solana's 1232-byte packet limit: {transaction_size}"
+    );
+    nonce_harvest.insert(2, Pubkey::new_unique().to_string());
+    fixture
+        .error(&nonce_harvest, "23 distinct source accounts")
+        .await;
+
+    let mut harvest = args(&[
+        "harvest-withheld-confidential-tokens",
+        &fixture.mint.to_string(),
+        &source.to_string(),
+    ]);
+    harvest.extend((0..26).map(|_| destination.to_string()));
+    fixture.complete(&harvest).await;
+    let destination_state = fixture
+        .config
+        .rpc_client
+        .get_account(&destination)
+        .await
+        .unwrap();
+    assert_eq!(
+        StateWithExtensionsOwned::<Account>::unpack(destination_state.data)
+            .unwrap()
+            .get_extension::<ConfidentialTransferFeeAmount>()
+            .unwrap()
+            .withheld_amount,
+        PodElGamalCiphertext::default()
+    );
+    assert_ne!(
+        fixture
+            .mint_state()
             .await
-            .unwrap();
-        let state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
-        assert_eq!(
-            state
-                .get_extension::<ConfidentialTransferFeeAmount>()
-                .unwrap()
-                .withheld_amount,
-            PodElGamalCiphertext::default()
-        );
-    }
+            .get_extension::<ConfidentialTransferFeeConfig>()
+            .unwrap()
+            .withheld_amount,
+        PodElGamalCiphertext::default()
+    );
 }
 
-pub async fn offline_confidential_permissioned_burn(
+pub async fn offline_confidential_apply_pending_burn(
     test_validator: &TestValidator,
     payer: &Keypair,
 ) {
-    use solana_zk_sdk::encryption::elgamal::ElGamalCiphertext;
-
     let mut fixture = Fixture::new(
         test_validator,
         payer,
@@ -1663,244 +655,47 @@ pub async fn offline_confidential_permissioned_burn(
             "--enable-confidential-transfers",
             "auto",
             "--enable-confidential-mint-burn",
-            "--enable-permissioned-burn",
         ],
     )
     .await;
     let account = fixture.account(true).await;
-    fixture
-        .online(&[
-            "configure-confidential-transfer-account",
-            &fixture.mint.to_string(),
-        ])
-        .await;
     fixture
         .online(&[
             "mint",
             &fixture.mint.to_string(),
             "100",
             &account.to_string(),
+            "--confidential",
         ])
         .await;
-    fixture.apply(account).await;
-    let mint = fixture.mint_state().await;
-    let supply = mint.get_extension::<ConfidentialMintBurn>().unwrap();
-    let extension = fixture.extension(account).await;
-    let burn = args(&[
-        "burn",
-        &account.to_string(),
-        "20",
-        "--confidential",
-        "--mint-address",
-        &fixture.mint.to_string(),
-        "--mint-decimals",
-        "0",
-        "--available-balance",
-        &extension.available_balance.to_string(),
-        "--decryptable-available-balance",
-        &extension.decryptable_available_balance.to_string(),
-        "--supply-elgamal-pubkey",
-        &supply.supply_elgamal_pubkey.to_string(),
-        "--auditor-pubkey",
-        "none",
-        "--proof-account-lamports",
-        &fixture.proof_lamports.to_string(),
-        "--permissioned-burn-authority",
-        &fixture.owner.pubkey().to_string(),
-    ]);
-    let output = fixture.generate(&burn).await;
-    let operation = output["transactions"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|transaction| transaction["transaction"] == "confidential burn")
-        .unwrap();
-    // The public-key-only permissioned role must not hide the actual signing
-    // owner when both roles use the same public key.
-    let owner_signature_prefix = format!("{}=", fixture.owner.pubkey());
-    assert!(
-        operation
-            .get("signers")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-            .any(|signature| signature
-                .as_str()
-                .unwrap()
-                .starts_with(&owner_signature_prefix)),
-        "available owner signature omitted: {operation}"
-    );
     fixture
-        .submit(
-            &output,
-            &[
-                "create equality proof context",
-                "create ciphertext validity proof context",
-                "create range proof record",
-                "create range proof context",
-                "confidential burn",
-                "close equality proof context",
-                "close ciphertext validity proof context",
-                "close range proof context",
-                "close range proof record",
-            ],
-        )
+        .online(&["apply-pending-balance", &fixture.mint.to_string()])
         .await;
-    fixture.balances(account, 0, 80).await;
-    let mint = fixture.mint_state().await;
-    let supply = mint.get_extension::<ConfidentialMintBurn>().unwrap();
-    let pending_burn: ElGamalCiphertext = supply.pending_burn.try_into().unwrap();
-    let (supply_keypair, _) = derive_confidential_keys(&fixture.owner, b"").unwrap();
-    assert_eq!(pending_burn.decrypt_u32(supply_keypair.secret()), Some(20));
-}
-
-pub async fn offline_confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair) {
-    use solana_zk_sdk::encryption::elgamal::ElGamalCiphertext;
-
-    let mut fixture = Fixture::new(
-        test_validator,
-        payer,
-        &[
-            "--enable-confidential-transfers",
-            "auto",
-            "--enable-confidential-mint-burn",
-        ],
-    )
-    .await;
-    let account = fixture.account(true).await;
     fixture
-        .online(&[
-            "configure-confidential-transfer-account",
-            &fixture.mint.to_string(),
-        ])
+        .online(&["burn", &account.to_string(), "20", "--confidential"])
         .await;
-    let mint = fixture.mint_state().await;
-    let supply = mint.get_extension::<ConfidentialMintBurn>().unwrap();
-    let extension = fixture.extension(account).await;
-    let command = args(&[
-        "mint",
-        &fixture.mint.to_string(),
-        "100",
-        &account.to_string(),
-        "--confidential",
-        "--mint-decimals",
-        "0",
-        "--mint-authority",
-        fixture.owner_file.path().to_str().unwrap(),
-        "--confidential-supply",
-        &supply.confidential_supply.to_string(),
-        "--decryptable-supply",
-        &supply.decryptable_supply.to_string(),
-        "--recipient-elgamal-pubkey",
-        &extension.elgamal_pubkey.to_string(),
-        "--auditor-pubkey",
-        "none",
-        "--proof-account-lamports",
-        &fixture.proof_lamports.to_string(),
-    ]);
-    // Supply key derivation must use the explicit mint authority, even when
-    // the CLI configuration identifies a different default signer.
-    let wrong_default_file = NamedTempFile::new().unwrap();
-    write_keypair_file(&Keypair::new(), &wrong_default_file).unwrap();
-    let mut cli_config = solana_cli_config::Config {
-        keypair_path: wrong_default_file.path().to_str().unwrap().to_string(),
-        json_rpc_url: "http://127.0.0.1:1".to_string(),
-        ..solana_cli_config::Config::default()
-    };
-    cli_config
-        .save(fixture.cli_config_file.path().to_str().unwrap())
-        .unwrap();
-    let output = fixture.generate(&command).await;
-    cli_config.keypair_path = fixture.owner_file.path().to_str().unwrap().to_string();
-    cli_config
-        .save(fixture.cli_config_file.path().to_str().unwrap())
-        .unwrap();
-    fixture
-        .submit(
-            &output,
-            &[
-                "create equality proof context",
-                "create ciphertext validity proof context",
-                "create range proof record",
-                "create range proof context",
-                "confidential mint",
-                "close equality proof context",
-                "close ciphertext validity proof context",
-                "close range proof context",
-                "close range proof record",
-            ],
-        )
-        .await;
-    fixture.balances(account, 100, 0).await;
-    fixture.apply(account).await;
-    fixture.balances(account, 0, 100).await;
-    let mint = fixture.mint_state().await;
-    let supply = mint.get_extension::<ConfidentialMintBurn>().unwrap();
-    let extension = fixture.extension(account).await;
-    let command = args(&[
-        "burn",
-        &account.to_string(),
-        "40",
-        "--confidential",
-        "--mint-address",
-        &fixture.mint.to_string(),
-        "--mint-decimals",
-        "0",
-        "--available-balance",
-        &extension.available_balance.to_string(),
-        "--decryptable-available-balance",
-        &extension.decryptable_available_balance.to_string(),
-        "--supply-elgamal-pubkey",
-        &supply.supply_elgamal_pubkey.to_string(),
-        "--auditor-pubkey",
-        "none",
-        "--proof-account-lamports",
-        &fixture.proof_lamports.to_string(),
-    ]);
-    fixture
-        .submit(
-            &fixture.generate(&command).await,
-            &[
-                "create equality proof context",
-                "create ciphertext validity proof context",
-                "create range proof record",
-                "create range proof context",
-                "confidential burn",
-                "close equality proof context",
-                "close ciphertext validity proof context",
-                "close range proof context",
-                "close range proof record",
-            ],
-        )
-        .await;
-    fixture.balances(account, 0, 60).await;
-    let command = args(&[
-        "apply-pending-burn",
-        &fixture.mint.to_string(),
-        "--owner",
-        &fixture.owner.pubkey().to_string(),
-    ]);
-    fixture.submit(&fixture.generate(&command).await, &[]).await;
-    let (supply_keypair, supply_aes_key) = derive_confidential_keys(&fixture.owner, b"").unwrap();
-    let mint = fixture.mint_state().await;
-    let supply = mint.get_extension::<ConfidentialMintBurn>().unwrap();
-    let ciphertext: ElGamalCiphertext = supply.confidential_supply.try_into().unwrap();
-    assert_eq!(ciphertext.decrypt_u32(supply_keypair.secret()), Some(60));
-    assert_eq!(supply.pending_burn, PodElGamalCiphertext::default());
-    let decryptable_supply: PodAeCiphertext = supply_aes_key.encrypt(60).into();
-    let command = args(&[
-        "update-decryptable-supply",
-        &fixture.mint.to_string(),
-        &decryptable_supply.to_string(),
-    ]);
-    fixture.submit(&fixture.generate(&command).await, &[]).await;
-    assert_eq!(
+    assert_ne!(
         fixture
             .mint_state()
             .await
             .get_extension::<ConfidentialMintBurn>()
             .unwrap()
-            .decryptable_supply,
-        decryptable_supply
+            .pending_burn,
+        PodElGamalCiphertext::default()
     );
+    fixture
+        .complete(&args(&[
+            "apply-pending-burn",
+            &fixture.mint.to_string(),
+            "--owner",
+            fixture.owner_file.path().to_str().unwrap(),
+        ]))
+        .await;
+    let state = fixture.mint_state().await;
+    let supply = state.get_extension::<ConfidentialMintBurn>().unwrap();
+    assert_eq!(supply.pending_burn, PodElGamalCiphertext::default());
+    let (keypair, _) = derive_confidential_keys(&fixture.owner, b"").unwrap();
+    let ciphertext: solana_zk_sdk::encryption::elgamal::ElGamalCiphertext =
+        supply.confidential_supply.try_into().unwrap();
+    assert_eq!(ciphertext.decrypt_u32(keypair.secret()), Some(80));
 }

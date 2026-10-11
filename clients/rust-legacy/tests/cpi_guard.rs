@@ -677,6 +677,9 @@ async fn test_cpi_guard_unwrap_lamports() {
         .await
         .unwrap();
 
+    // refresh the blockhash
+    token.get_new_latest_blockhash().await.unwrap();
+
     token
         .process_ixs(&unwrap_lamports, &[&alice])
         .await

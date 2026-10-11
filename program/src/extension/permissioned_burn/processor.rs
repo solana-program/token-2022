@@ -1,10 +1,6 @@
-#[cfg(feature = "zk-ops")]
-use {
-    crate::extension::confidential_mint_burn::processor::process_confidential_burn,
-    spl_token_2022_interface::extension::confidential_mint_burn::instruction::BurnInstructionData,
-};
 use {
     crate::{
+        extension::confidential_mint_burn::processor::process_confidential_burn,
         pod_instruction::{AmountCheckedData, AmountData},
         processor::{BurnInstructionVariant, InstructionVariant, Processor},
     },
@@ -15,6 +11,7 @@ use {
     spl_token_2022_interface::{
         check_program_account,
         extension::{
+            confidential_mint_burn::instruction::BurnInstructionData,
             permissioned_burn::{
                 instruction::{InitializeInstructionData, PermissionedBurnInstruction},
                 PermissionedBurnConfig,
@@ -85,18 +82,13 @@ pub(crate) fn process_instruction(
         }
         PermissionedBurnInstruction::ConfidentialBurn => {
             msg!("PermissionedBurnInstruction::ConfidentialBurn");
-            #[cfg(feature = "zk-ops")]
-            {
-                let data = decode_instruction_data::<BurnInstructionData>(input)?;
-                process_confidential_burn(
-                    program_id,
-                    accounts,
-                    data,
-                    BurnInstructionVariant::Permissioned,
-                )
-            }
-            #[cfg(not(feature = "zk-ops"))]
-            Err(solana_program_error::ProgramError::InvalidInstructionData)
+            let data = decode_instruction_data::<BurnInstructionData>(input)?;
+            process_confidential_burn(
+                program_id,
+                accounts,
+                data,
+                BurnInstructionVariant::Permissioned,
+            )
         }
     }
 }

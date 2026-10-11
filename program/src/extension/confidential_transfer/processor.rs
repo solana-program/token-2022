@@ -1,15 +1,6 @@
-#[cfg(feature = "zk-ops")]
-use {
-    crate::check_auditor_ciphertext,
-    pinocchio_transfer_hook_interface::instructions::Execute,
-    spl_token_2022_interface::extension::{
-        confidential_mint_burn::ConfidentialMintBurn, non_transferable::NonTransferableAccount,
-    },
-    spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic,
-};
 use {
     crate::{
-        check_elgamal_registry_program_account,
+        check_auditor_ciphertext, check_elgamal_registry_program_account,
         extension::{
             confidential_transfer::verify_proof::*, cpi_guard::in_cpi,
             memo_transfer::check_previous_sibling_instruction_is_memo,
@@ -19,6 +10,7 @@ use {
     bytemuck::Zeroable,
     pinocchio::{account::next_account_view, AccountView, Resize},
     pinocchio_system::instructions::Transfer,
+    pinocchio_transfer_hook_interface::instructions::Execute,
     solana_address::Address,
     solana_clock::Clock,
     solana_msg::msg,
@@ -39,6 +31,7 @@ use {
         check_program_account,
         error::TokenError,
         extension::{
+            confidential_mint_burn::ConfidentialMintBurn,
             confidential_transfer::{instruction::*, *},
             confidential_transfer_fee::{
                 ConfidentialTransferFeeAmount, ConfidentialTransferFeeConfig,
@@ -46,6 +39,7 @@ use {
             },
             cpi_guard::CpiGuard,
             memo_transfer::memo_required,
+            non_transferable::NonTransferableAccount,
             pausable::PausableConfig,
             set_account_type,
             transfer_fee::TransferFeeConfig,
@@ -56,6 +50,7 @@ use {
         pod::{PodAccount, PodMint},
         state::Account,
     },
+    spl_token_confidential_transfer_ciphertext_arithmetic as ciphertext_arithmetic,
     spl_token_confidential_transfer_proof_extraction::{
         instruction::verify_and_extract_context, transfer::TransferProofContext,
         transfer_with_fee::TransferWithFeeProofContext,
@@ -401,7 +396,6 @@ fn process_empty_account(
 }
 
 /// Processes a [`Deposit`] instruction.
-#[cfg(feature = "zk-ops")]
 fn process_deposit(
     program_id: &Address,
     accounts: &mut [AccountView],
@@ -504,7 +498,6 @@ fn process_deposit(
 
 /// Verifies that a deposit amount is a 48-bit number and returns the least
 /// significant 16 bits and most significant 32 bits of the amount.
-#[cfg(feature = "zk-ops")]
 pub fn verify_and_split_deposit_amount(amount: u64) -> Result<(u64, u64), TokenError> {
     if amount > MAXIMUM_DEPOSIT_TRANSFER_AMOUNT {
         return Err(TokenError::MaximumDepositAmountExceeded);
@@ -515,7 +508,6 @@ pub fn verify_and_split_deposit_amount(amount: u64) -> Result<(u64, u64), TokenE
 }
 
 /// Processes a [`Withdraw`] instruction.
-#[cfg(feature = "zk-ops")]
 fn process_withdraw(
     program_id: &Address,
     accounts: &mut [AccountView],
@@ -633,7 +625,6 @@ fn process_withdraw(
 
 /// Processes a [`Transfer`] or [`TransferWithFee`] instruction.
 #[allow(clippy::too_many_arguments)]
-#[cfg(feature = "zk-ops")]
 fn process_transfer(
     program_id: &Address,
     accounts: &mut [AccountView],
@@ -852,7 +843,6 @@ fn process_transfer(
 }
 
 /// Processes the changes for the sending party of a confidential transfer
-#[cfg(feature = "zk-ops")]
 fn process_source_for_transfer(
     program_id: &Address,
     source_account_info: &mut AccountView,
@@ -941,7 +931,6 @@ fn process_source_for_transfer(
     Ok(())
 }
 
-#[cfg(feature = "zk-ops")]
 fn process_destination_for_transfer(
     destination_account_info: &mut AccountView,
     mint_info: &AccountView,
@@ -1001,7 +990,6 @@ fn process_destination_for_transfer(
 }
 
 #[allow(clippy::too_many_arguments)]
-#[cfg(feature = "zk-ops")]
 fn process_source_for_transfer_with_fee(
     program_id: &Address,
     source_account_info: &mut AccountView,
@@ -1092,7 +1080,6 @@ fn process_source_for_transfer_with_fee(
     Ok(())
 }
 
-#[cfg(feature = "zk-ops")]
 fn process_destination_for_transfer_with_fee(
     destination_account_info: &mut AccountView,
     mint_info: &AccountView,
@@ -1204,7 +1191,6 @@ fn process_destination_for_transfer_with_fee(
 }
 
 /// Processes an [`ApplyPendingBalance`] instruction.
-#[cfg(feature = "zk-ops")]
 fn process_apply_pending_balance(
     program_id: &Address,
     accounts: &mut [AccountView],
@@ -1370,67 +1356,45 @@ pub(crate) fn process_instruction(
         }
         ConfidentialTransferInstruction::Deposit => {
             msg!("ConfidentialTransferInstruction::Deposit");
-            #[cfg(feature = "zk-ops")]
-            {
-                let data = decode_instruction_data::<DepositInstructionData>(input)?;
-                process_deposit(program_id, accounts, data.amount.into(), data.decimals)
-            }
-            #[cfg(not(feature = "zk-ops"))]
-            Err(ProgramError::InvalidInstructionData)
+            let data = decode_instruction_data::<DepositInstructionData>(input)?;
+            process_deposit(program_id, accounts, data.amount.into(), data.decimals)
         }
         ConfidentialTransferInstruction::Withdraw => {
             msg!("ConfidentialTransferInstruction::Withdraw");
-            #[cfg(feature = "zk-ops")]
-            {
-                let data = decode_instruction_data::<WithdrawInstructionData>(input)?;
-                process_withdraw(
-                    program_id,
-                    accounts,
-                    data.amount.into(),
-                    data.decimals,
-                    data.new_decryptable_available_balance,
-                    data.equality_proof_instruction_offset as i64,
-                    data.range_proof_instruction_offset as i64,
-                )
-            }
-            #[cfg(not(feature = "zk-ops"))]
-            Err(ProgramError::InvalidInstructionData)
+            let data = decode_instruction_data::<WithdrawInstructionData>(input)?;
+            process_withdraw(
+                program_id,
+                accounts,
+                data.amount.into(),
+                data.decimals,
+                data.new_decryptable_available_balance,
+                data.equality_proof_instruction_offset as i64,
+                data.range_proof_instruction_offset as i64,
+            )
         }
         ConfidentialTransferInstruction::Transfer => {
             msg!("ConfidentialTransferInstruction::Transfer");
-            #[cfg(feature = "zk-ops")]
-            {
-                let data = decode_instruction_data::<TransferInstructionData>(input)?;
-                process_transfer(
-                    program_id,
-                    accounts,
-                    data.new_source_decryptable_available_balance,
-                    &data.transfer_amount_auditor_ciphertext_lo,
-                    &data.transfer_amount_auditor_ciphertext_hi,
-                    data.equality_proof_instruction_offset as i64,
-                    data.ciphertext_validity_proof_instruction_offset as i64,
-                    None,
-                    None,
-                    data.range_proof_instruction_offset as i64,
-                )
-            }
-            #[cfg(not(feature = "zk-ops"))]
-            Err(ProgramError::InvalidInstructionData)
+            let data = decode_instruction_data::<TransferInstructionData>(input)?;
+            process_transfer(
+                program_id,
+                accounts,
+                data.new_source_decryptable_available_balance,
+                &data.transfer_amount_auditor_ciphertext_lo,
+                &data.transfer_amount_auditor_ciphertext_hi,
+                data.equality_proof_instruction_offset as i64,
+                data.ciphertext_validity_proof_instruction_offset as i64,
+                None,
+                None,
+                data.range_proof_instruction_offset as i64,
+            )
         }
         ConfidentialTransferInstruction::ApplyPendingBalance => {
             msg!("ConfidentialTransferInstruction::ApplyPendingBalance");
-            #[cfg(feature = "zk-ops")]
-            {
-                process_apply_pending_balance(
-                    program_id,
-                    accounts,
-                    decode_instruction_data::<ApplyPendingBalanceData>(input)?,
-                )
-            }
-            #[cfg(not(feature = "zk-ops"))]
-            {
-                Err(ProgramError::InvalidInstructionData)
-            }
+            process_apply_pending_balance(
+                program_id,
+                accounts,
+                decode_instruction_data::<ApplyPendingBalanceData>(input)?,
+            )
         }
         ConfidentialTransferInstruction::DisableConfidentialCredits => {
             msg!("ConfidentialTransferInstruction::DisableConfidentialCredits");
@@ -1450,24 +1414,19 @@ pub(crate) fn process_instruction(
         }
         ConfidentialTransferInstruction::TransferWithFee => {
             msg!("ConfidentialTransferInstruction::TransferWithFee");
-            #[cfg(feature = "zk-ops")]
-            {
-                let data = decode_instruction_data::<TransferWithFeeInstructionData>(input)?;
-                process_transfer(
-                    program_id,
-                    accounts,
-                    data.new_source_decryptable_available_balance,
-                    &data.transfer_amount_auditor_ciphertext_lo,
-                    &data.transfer_amount_auditor_ciphertext_hi,
-                    data.equality_proof_instruction_offset as i64,
-                    data.transfer_amount_ciphertext_validity_proof_instruction_offset as i64,
-                    Some(data.fee_sigma_proof_instruction_offset as i64),
-                    Some(data.fee_ciphertext_validity_proof_instruction_offset as i64),
-                    data.range_proof_instruction_offset as i64,
-                )
-            }
-            #[cfg(not(feature = "zk-ops"))]
-            Err(ProgramError::InvalidInstructionData)
+            let data = decode_instruction_data::<TransferWithFeeInstructionData>(input)?;
+            process_transfer(
+                program_id,
+                accounts,
+                data.new_source_decryptable_available_balance,
+                &data.transfer_amount_auditor_ciphertext_lo,
+                &data.transfer_amount_auditor_ciphertext_hi,
+                data.equality_proof_instruction_offset as i64,
+                data.transfer_amount_ciphertext_validity_proof_instruction_offset as i64,
+                Some(data.fee_sigma_proof_instruction_offset as i64),
+                Some(data.fee_ciphertext_validity_proof_instruction_offset as i64),
+                data.range_proof_instruction_offset as i64,
+            )
         }
         ConfidentialTransferInstruction::ConfigureAccountWithRegistry => {
             msg!("ConfidentialTransferInstruction::ConfigureAccountWithRegistry");

@@ -1,4 +1,3 @@
-#[cfg(feature = "zk-ops")]
 use {
     pinocchio::{account::next_account_view, AccountView},
     solana_program_error::ProgramError,
@@ -17,7 +16,6 @@ use {
 
 /// Verify zero-knowledge proofs needed for a `ConfidentialMint` instruction
 /// and return the corresponding proof context information.
-#[cfg(feature = "zk-ops")]
 pub fn verify_mint_proof(
     account_info_iter: &mut IterMut<'_, AccountView>,
     equality_proof_instruction_offset: i8,
@@ -68,7 +66,6 @@ pub fn verify_mint_proof(
 
 /// Verify zero-knowledge proofs needed for a `ConfidentialBurn` instruction
 /// and return the corresponding proof context information.
-#[cfg(feature = "zk-ops")]
 pub fn verify_burn_proof(
     account_info_iter: &mut IterMut<'_, AccountView>,
     equality_proof_instruction_offset: i8,
