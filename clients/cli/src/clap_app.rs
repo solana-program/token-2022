@@ -2522,6 +2522,8 @@ pub fn app<'a>(
                         .required(true)
                         .help("The token account(s) to harvest confidential fees from"),
                 )
+                .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::EnableConfidentialFeeHarvesting.into())
@@ -2547,6 +2549,7 @@ pub fn app<'a>(
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::DisableConfidentialFeeHarvesting.into())
@@ -2572,6 +2575,7 @@ pub fn app<'a>(
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::SetTransferFee.into())
@@ -2779,7 +2783,9 @@ pub fn app<'a>(
                             Defaults to the client keypair address."
                         )
                 )
+                .arg(mint_address_arg().requires(SIGN_ONLY_ARG.name))
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::EmptyConfidentialTransferAccount.into())
@@ -2836,7 +2842,9 @@ pub fn app<'a>(
                     owner_address_arg()
                 )
                 .arg(multisig_signer_arg())
+                .arg(mint_address_arg().requires(SIGN_ONLY_ARG.name))
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::DisableConfidentialCredits.into())
@@ -2864,7 +2872,9 @@ pub fn app<'a>(
                     owner_address_arg()
                 )
                 .arg(multisig_signer_arg())
+                .arg(mint_address_arg().requires(SIGN_ONLY_ARG.name))
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::EnableNonConfidentialCredits.into())
@@ -2892,7 +2902,9 @@ pub fn app<'a>(
                     owner_address_arg()
                 )
                 .arg(multisig_signer_arg())
+                .arg(mint_address_arg().requires(SIGN_ONLY_ARG.name))
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::DisableNonConfidentialCredits.into())
@@ -2920,7 +2932,9 @@ pub fn app<'a>(
                     owner_address_arg()
                 )
                 .arg(multisig_signer_arg())
+                .arg(mint_address_arg().requires(SIGN_ONLY_ARG.name))
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::DepositConfidentialTokens.into())
@@ -2958,6 +2972,7 @@ pub fn app<'a>(
                 .arg(multisig_signer_arg())
                 .arg(mint_decimals_arg())
                 .nonce_args(true)
+                .offline_args_config(&SignOnlyNeedsMintDecimals{})
         )
         .subcommand(
             SubCommand::with_name(CommandName::WithdrawConfidentialTokens.into())
@@ -3045,6 +3060,7 @@ pub fn app<'a>(
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::UpdateDecryptableSupply.into())

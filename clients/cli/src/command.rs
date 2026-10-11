@@ -4300,6 +4300,17 @@ async fn command_harvest_withheld_confidential_tokens(
     let source_refs = source_token_accounts.iter().collect::<Vec<_>>();
     // Batch sources to keep each transaction within the packet size limit.
     const MAX_HARVEST_ACCOUNTS: usize = 25;
+    // Reserve room for a separate nonce authority and both compute budget instructions.
+    let max_offline_accounts = if config.nonce_account.is_some() {
+        23
+    } else {
+        MAX_HARVEST_ACCOUNTS
+    };
+    if config.sign_only && source_refs.len() > max_offline_accounts {
+        return Err(format!(
+            "Offline confidential harvesting supports at most {max_offline_accounts} distinct source accounts for this invocation; split sources across separate invocations"
+        ).into());
+    }
     let mut results = vec![];
     for sources in source_refs.chunks(MAX_HARVEST_ACCOUNTS) {
         let res = token
@@ -4400,9 +4411,10 @@ async fn command_update_confidential_transfer_settings(
             .into());
         }
     } else {
-        let new_auto_approve = auto_approve.expect("The approve policy must be provided");
+        let new_auto_approve = auto_approve
+            .ok_or("--approve-policy is required for offline confidential settings updates")?;
         let new_auditor_pubkey = auditor_pubkey
-            .expect("The auditor encryption pubkey must be provided")
+            .ok_or("--auditor-pubkey is required offline; use 'none' if auditing is disabled")?
             .into();
 
         (new_auto_approve, new_auditor_pubkey)
@@ -4556,8 +4568,9 @@ async fn command_approve_confidential_transfer_account(
     account: Pubkey,
     authority: Pubkey,
     bulk_signers: BulkSigners,
+    mint_address: Option<Pubkey>,
 ) -> CommandResult {
-    let mint_address = config.check_account(&account, None).await?;
+    let mint_address = config.check_account(&account, mint_address).await?;
     let token = token_client_from_config(config, &mint_address, None)?;
 
     println_display(
@@ -4630,7 +4643,49 @@ async fn command_enable_disable_confidential_transfers(
     allow_non_confidential_credits: Option<bool>,
 ) -> CommandResult {
     if config.sign_only {
-        panic!("Sign-only is not yet supported.");
+        let mint = maybe_token.ok_or("--mint-address is required with --address offline")?;
+        let token = token_client_from_config(config, &mint, None)?;
+        let account = maybe_account.unwrap_or_else(|| token.get_associated_token_address(&owner));
+        let response = match (allow_confidential_credits, allow_non_confidential_credits) {
+            (Some(true), _) => {
+                token
+                    .confidential_transfer_enable_confidential_credits(
+                        &account,
+                        &owner,
+                        &bulk_signers,
+                    )
+                    .await?
+            }
+            (Some(false), _) => {
+                token
+                    .confidential_transfer_disable_confidential_credits(
+                        &account,
+                        &owner,
+                        &bulk_signers,
+                    )
+                    .await?
+            }
+            (_, Some(true)) => {
+                token
+                    .confidential_transfer_enable_non_confidential_credits(
+                        &account,
+                        &owner,
+                        &bulk_signers,
+                    )
+                    .await?
+            }
+            (_, Some(false)) => {
+                token
+                    .confidential_transfer_disable_non_confidential_credits(
+                        &account,
+                        &owner,
+                        &bulk_signers,
+                    )
+                    .await?
+            }
+            _ => return Err("No credit setting provided".into()),
+        };
+        return format_transaction_return(config, finish_tx(config, &response, false).await?);
     }
 
     let token_account_address = if let Some(account) = maybe_account {
@@ -4757,7 +4812,30 @@ async fn command_deposit_withdraw_confidential_tokens(
     aes_key: Option<&AeKey>,
 ) -> CommandResult {
     if config.sign_only {
-        panic!("Sign-only is not yet supported.");
+        if instruction_type == ConfidentialInstructionType::Withdraw {
+            return Err("Offline confidential withdrawals are not supported".into());
+        }
+        let decimals = mint_decimals.ok_or("--mint-decimals is required for offline deposits")?;
+        let amount = match ui_amount {
+            Amount::Raw(amount) => amount,
+            Amount::Decimal(amount) => spl_token_2022::ui_amount_to_amount(amount, decimals),
+            Amount::All => {
+                return Err("ALL is unsupported offline; provide an explicit amount".into())
+            }
+        };
+        let token = token_client_from_config(config, &token_pubkey, Some(decimals))?;
+        let account = maybe_account.unwrap_or_else(|| token.get_associated_token_address(&owner));
+        println_display(
+            config,
+            format!(
+                "Depositing {} confidential tokens",
+                spl_token_2022::amount_to_ui_amount(amount, decimals),
+            ),
+        );
+        let response = token
+            .confidential_transfer_deposit(&account, &owner, amount, decimals, &bulk_signers)
+            .await?;
+        return format_transaction_return(config, finish_tx(config, &response, false).await?);
     }
 
     // check if mint decimals provided is consistent
@@ -5276,6 +5354,26 @@ async fn process_command_inner(
     mut wallet_manager: Option<Rc<RemoteWalletManager>>,
     mut bulk_signers: Vec<Arc<dyn Signer>>,
 ) -> CommandResult {
+    if config.sign_only
+        && matches!(
+            sub_command,
+            CommandName::ApproveConfidentialTransferAccount
+                | CommandName::EnableConfidentialCredits
+                | CommandName::DisableConfidentialCredits
+                | CommandName::EnableNonConfidentialCredits
+                | CommandName::DisableNonConfidentialCredits
+                | CommandName::DepositConfidentialTokens
+                | CommandName::HarvestWithheldConfidentialTokens
+                | CommandName::EnableConfidentialFeeHarvesting
+                | CommandName::DisableConfidentialFeeHarvesting
+                | CommandName::UpdateConfidentialTransferSettings
+                | CommandName::ApplyPendingBurn
+        )
+        && config.program_id == spl_token_interface::id()
+    {
+        return Err("Offline confidential transactions require --program-2022 or the Token-2022 --program-id".into());
+    }
+
     match (sub_command, sub_matches) {
         (CommandName::Bench, arg_matches) => {
             bench_process_command(
@@ -6433,8 +6531,24 @@ async fn process_command_inner(
             );
             push_signer_with_dedup(authority_signer, &mut bulk_signers);
 
-            command_approve_confidential_transfer_account(config, account, authority, bulk_signers)
-                .await
+            let mint_address = if config.sign_only {
+                Some(
+                    value_t!(arg_matches, "token", Pubkey)
+                        .ok()
+                        .or_else(|| value_t!(arg_matches, "mint_address", Pubkey).ok())
+                        .ok_or("--mint-address is required with --address offline")?,
+                )
+            } else {
+                None
+            };
+            command_approve_confidential_transfer_account(
+                config,
+                account,
+                authority,
+                bulk_signers,
+                mint_address,
+            )
+            .await
         }
         (CommandName::EmptyConfidentialTransferAccount, arg_matches) => {
             let account = config
@@ -6465,6 +6579,14 @@ async fn process_command_inner(
         | (c @ CommandName::EnableNonConfidentialCredits, arg_matches)
         | (c @ CommandName::DisableNonConfidentialCredits, arg_matches) => {
             let token = pubkey_of_signer(arg_matches, "token", &mut wallet_manager).unwrap();
+            let token = if config.sign_only && token.is_none() {
+                Some(
+                    value_t!(arg_matches, "mint_address", Pubkey)
+                        .map_err(|_| "--mint-address is required with --address offline")?,
+                )
+            } else {
+                token
+            };
 
             let (owner_signer, owner) =
                 config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
