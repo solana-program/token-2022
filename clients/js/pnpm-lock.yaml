@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@noble/curves':
-        specifier: ^2.4.0
-        version: 2.4.0
       '@solana-program/record':
         specifier: ^0.5.0
         version: 0.5.0(@solana/kit@8.4.0(typescript@6.0.3))
@@ -43,8 +40,8 @@ importers:
         specifier: ^0.19.0
         version: 0.19.0(@solana/kit@8.4.0(typescript@6.0.3))
       '@solana/zk-sdk':
-        specifier: ^0.5.3
-        version: 0.5.3
+        specifier: ^0.5.4
+        version: 0.5.4
       '@types/node':
         specifier: ^26
         version: 26.6.4
@@ -252,14 +249,6 @@ packages:
     engines: {node: ^22.20 || ^24.12 || >=25}
     cpu: [x64]
     os: [linux]
-
-  '@noble/curves@2.4.0':
-    resolution: {integrity: sha512-P4/62zrgfH33CneE3Dn4WhJVA22YUU0eR51wKIan4NVRvwsA0YnPTwWGpNbpuacSujmSFLvyzpyuR30+fbq2Ew==}
-    engines: {node: '>= 20.19.0'}
-
-  '@noble/hashes@2.4.0':
-    resolution: {integrity: sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA==}
-    engines: {node: '>= 20.19.0'}
 
   '@oxc-project/types@0.153.0':
     resolution: {integrity: sha512-jSNrRIyvPVLL5E1z/tS5zLAprosGz/FuI1PWwEOz59j3E4TTTzSpqKb/RDGqJhhW0QHYISGXxq582wGx6T11Tw==}
@@ -1350,8 +1339,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/zk-sdk@0.5.3':
-    resolution: {integrity: sha512-vgne1g223Yw7AIgEfX5WnhBZ1gTyYjMzXu/fkXl/yimYSPOJZvn54UI4J/OrxwHGgxfsG6Rs+hUR6ovfPIX6Yg==}
+  '@solana/zk-sdk@0.5.4':
+    resolution: {integrity: sha512-pz9zvcRDg1rrB79rv2no5Ko2jOChxZYbKAm+nsbXMAFVGuFbkbnn1H77iTdxzvlxc3szPym/xRfsvlkOhVVh1g==}
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -2081,12 +2070,6 @@ snapshots:
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
-
-  '@noble/curves@2.4.0':
-    dependencies:
-      '@noble/hashes': 2.4.0
-
-  '@noble/hashes@2.4.0': {}
 
   '@oxc-project/types@0.153.0': {}
 
@@ -3038,7 +3021,7 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/zk-sdk@0.5.3': {}
+  '@solana/zk-sdk@0.5.4': {}
 
   '@types/chai@5.2.3':
     dependencies:

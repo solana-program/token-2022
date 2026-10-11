@@ -57,13 +57,6 @@ import {
 } from '@solana/zk-sdk/bundler';
 
 import {
-    addWithLoHiCiphertexts,
-    extractCiphertextFromGroupedBytes,
-    subtractAmountFromCiphertext,
-    subtractCiphertexts,
-    subtractWithLoHiCiphertexts,
-} from './confidentialTransferArithmetic';
-import {
     ExtensionType,
     Extension,
     Mint,
@@ -757,13 +750,13 @@ export function decryptConfidentialMintBurnSupply(input: {
 }): bigint {
     const mintBurnExtension = getRequiredMintExtension(input.mintAccount, 'ConfidentialMintBurn');
     const cachedSupply = input.supplyAesKey.decrypt(parseAeCiphertext(mintBurnExtension.decryptableSupply));
-    const supplyDeltaCiphertext = subtractCiphertexts(
-        input.supplyElgamalKeypair.pubkey().encryptU64(cachedSupply).toBytes(),
-        mintBurnExtension.confidentialSupply,
-    );
+    const supplyDeltaCiphertext = input.supplyElgamalKeypair
+        .pubkey()
+        .encryptU64(cachedSupply)
+        .subtract(parseElGamalCiphertext(mintBurnExtension.confidentialSupply));
     let supplyDelta: bigint | undefined;
     try {
-        supplyDelta = input.supplyElgamalKeypair.secret().decrypt(parseElGamalCiphertext(supplyDeltaCiphertext));
+        supplyDelta = input.supplyElgamalKeypair.secret().decrypt(supplyDeltaCiphertext);
     } catch {
         supplyDelta = undefined;
     }
@@ -856,9 +849,7 @@ function buildConfidentialWithdrawProofData(
 
     const remainingBalanceOpening = new PedersenOpening();
     const remainingBalanceCommitment = PedersenCommitment.from(newAvailableBalance, remainingBalanceOpening);
-    const remainingBalanceCiphertext = parseElGamalCiphertext(
-        subtractAmountFromCiphertext(account.availableBalance, amount),
-    );
+    const remainingBalanceCiphertext = parseElGamalCiphertext(account.availableBalance).subtractAmount(amount);
 
     const equalityProofData = new CiphertextCommitmentEqualityProofData(
         input.elgamalKeypair,
@@ -1018,10 +1009,10 @@ async function buildConfidentialTransferProofData(
 
     const groupedCiphertextLoBytes = groupedCiphertextLo.toBytes();
     const groupedCiphertextHiBytes = groupedCiphertextHi.toBytes();
-    const transferAmountSourceCiphertextLo = extractCiphertextFromGroupedBytes(groupedCiphertextLoBytes, 0);
-    const transferAmountSourceCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 0);
-    const transferAmountAuditorCiphertextLo = extractCiphertextFromGroupedBytes(groupedCiphertextLoBytes, 2);
-    const transferAmountAuditorCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 2);
+    const transferAmountSourceCiphertextLo = groupedCiphertextLo.toElGamalCiphertext(0);
+    const transferAmountSourceCiphertextHi = groupedCiphertextHi.toElGamalCiphertext(0);
+    const transferAmountAuditorCiphertextLo = groupedCiphertextLo.toElGamalCiphertext(2).toBytes();
+    const transferAmountAuditorCiphertextHi = groupedCiphertextHi.toElGamalCiphertext(2).toBytes();
 
     const newAvailableBalance = computeNewAvailableBalance(
         decryptAvailableBalance(sourceAccount, input.aesKey),
@@ -1029,12 +1020,11 @@ async function buildConfidentialTransferProofData(
     );
     const newAvailableBalanceOpening = new PedersenOpening();
     const newAvailableBalanceCommitment = PedersenCommitment.from(newAvailableBalance, newAvailableBalanceOpening);
-    const newAvailableBalanceCiphertext = parseElGamalCiphertext(
-        subtractWithLoHiCiphertexts(
-            sourceAccount.availableBalance,
+    const newAvailableBalanceCiphertext = parseElGamalCiphertext(sourceAccount.availableBalance).subtract(
+        ElGamalCiphertext.combineLoHi(
             transferAmountSourceCiphertextLo,
             transferAmountSourceCiphertextHi,
-            TRANSFER_AMOUNT_LO_BIT_LENGTH,
+            Number(TRANSFER_AMOUNT_LO_BIT_LENGTH),
         ),
     );
 
@@ -1270,22 +1260,10 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
 
     const transferAmountGroupedCiphertextLoBytes = transferAmountGroupedCiphertextLo.toBytes();
     const transferAmountGroupedCiphertextHiBytes = transferAmountGroupedCiphertextHi.toBytes();
-    const transferAmountSourceCiphertextLo = extractCiphertextFromGroupedBytes(
-        transferAmountGroupedCiphertextLoBytes,
-        0,
-    );
-    const transferAmountSourceCiphertextHi = extractCiphertextFromGroupedBytes(
-        transferAmountGroupedCiphertextHiBytes,
-        0,
-    );
-    const transferAmountAuditorCiphertextLo = extractCiphertextFromGroupedBytes(
-        transferAmountGroupedCiphertextLoBytes,
-        2,
-    );
-    const transferAmountAuditorCiphertextHi = extractCiphertextFromGroupedBytes(
-        transferAmountGroupedCiphertextHiBytes,
-        2,
-    );
+    const transferAmountSourceCiphertextLo = transferAmountGroupedCiphertextLo.toElGamalCiphertext(0);
+    const transferAmountSourceCiphertextHi = transferAmountGroupedCiphertextHi.toElGamalCiphertext(0);
+    const transferAmountAuditorCiphertextLo = transferAmountGroupedCiphertextLo.toElGamalCiphertext(2).toBytes();
+    const transferAmountAuditorCiphertextHi = transferAmountGroupedCiphertextHi.toElGamalCiphertext(2).toBytes();
 
     const currentAvailableBalance = decryptAvailableBalance(sourceAccount, input.aesKey);
     const newAvailableBalance = computeNewAvailableBalance(currentAvailableBalance, amount);
@@ -1293,12 +1271,11 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
 
     const newAvailableBalanceOpening = new PedersenOpening();
     const newAvailableBalanceCommitment = PedersenCommitment.from(newAvailableBalance, newAvailableBalanceOpening);
-    const newAvailableBalanceCiphertext = parseElGamalCiphertext(
-        subtractWithLoHiCiphertexts(
-            sourceAccount.availableBalance,
+    const newAvailableBalanceCiphertext = parseElGamalCiphertext(sourceAccount.availableBalance).subtract(
+        ElGamalCiphertext.combineLoHi(
             transferAmountSourceCiphertextLo,
             transferAmountSourceCiphertextHi,
-            TRANSFER_AMOUNT_LO_BIT_LENGTH,
+            Number(TRANSFER_AMOUNT_LO_BIT_LENGTH),
         ),
     );
 
@@ -1625,18 +1602,13 @@ async function buildConfidentialMintProofPlan(
     const groupedCiphertextLoBytes = groupedCiphertextLo.toBytes();
     const groupedCiphertextHiBytes = groupedCiphertextHi.toBytes();
     // New supply ciphertext = current supply + combine_lo_hi(supply handle, index 1).
-    const supplyCiphertextLo = extractCiphertextFromGroupedBytes(groupedCiphertextLoBytes, 1);
-    const supplyCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 1);
-    const mintAmountAuditorCiphertextLo = extractCiphertextFromGroupedBytes(groupedCiphertextLoBytes, 2);
-    const mintAmountAuditorCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 2);
+    const supplyCiphertextLo = groupedCiphertextLo.toElGamalCiphertext(1);
+    const supplyCiphertextHi = groupedCiphertextHi.toElGamalCiphertext(1);
+    const mintAmountAuditorCiphertextLo = groupedCiphertextLo.toElGamalCiphertext(2).toBytes();
+    const mintAmountAuditorCiphertextHi = groupedCiphertextHi.toElGamalCiphertext(2).toBytes();
 
-    const newSupplyCiphertext = parseElGamalCiphertext(
-        addWithLoHiCiphertexts(
-            mintBurnExtension.confidentialSupply,
-            supplyCiphertextLo,
-            supplyCiphertextHi,
-            MINT_BURN_AMOUNT_LO_BIT_LENGTH,
-        ),
+    const newSupplyCiphertext = parseElGamalCiphertext(mintBurnExtension.confidentialSupply).add(
+        ElGamalCiphertext.combineLoHi(supplyCiphertextLo, supplyCiphertextHi, Number(MINT_BURN_AMOUNT_LO_BIT_LENGTH)),
     );
 
     const newSupplyOpening = new PedersenOpening();
@@ -1853,18 +1825,13 @@ async function buildConfidentialBurnProofPlan(
     const groupedCiphertextLoBytes = groupedCiphertextLo.toBytes();
     const groupedCiphertextHiBytes = groupedCiphertextHi.toBytes();
     // New available balance ciphertext = current balance − combine_lo_hi(source handle, index 0).
-    const sourceCiphertextLo = extractCiphertextFromGroupedBytes(groupedCiphertextLoBytes, 0);
-    const sourceCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 0);
-    const burnAmountAuditorCiphertextLo = extractCiphertextFromGroupedBytes(groupedCiphertextLoBytes, 2);
-    const burnAmountAuditorCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 2);
+    const sourceCiphertextLo = groupedCiphertextLo.toElGamalCiphertext(0);
+    const sourceCiphertextHi = groupedCiphertextHi.toElGamalCiphertext(0);
+    const burnAmountAuditorCiphertextLo = groupedCiphertextLo.toElGamalCiphertext(2).toBytes();
+    const burnAmountAuditorCiphertextHi = groupedCiphertextHi.toElGamalCiphertext(2).toBytes();
 
-    const newAvailableBalanceCiphertext = parseElGamalCiphertext(
-        subtractWithLoHiCiphertexts(
-            sourceAccount.availableBalance,
-            sourceCiphertextLo,
-            sourceCiphertextHi,
-            MINT_BURN_AMOUNT_LO_BIT_LENGTH,
-        ),
+    const newAvailableBalanceCiphertext = parseElGamalCiphertext(sourceAccount.availableBalance).subtract(
+        ElGamalCiphertext.combineLoHi(sourceCiphertextLo, sourceCiphertextHi, Number(MINT_BURN_AMOUNT_LO_BIT_LENGTH)),
     );
 
     const newAvailableBalanceOpening = new PedersenOpening();
