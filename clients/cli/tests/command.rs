@@ -74,6 +74,13 @@ use {
     tempfile::NamedTempFile,
 };
 
+#[path = "command/offline_confidential.rs"]
+mod offline_confidential;
+use offline_confidential::{
+    offline_confidential_apply_pending_burn, offline_confidential_controls,
+    offline_confidential_fee_controls,
+};
+
 macro_rules! async_trial {
     ($test_func:ident, $test_validator:ident, $payer:ident) => {{
         let local_test_validator = $test_validator.clone();
@@ -183,6 +190,13 @@ async fn main() {
         async_trial!(confidential_transfer_with_fee, test_validator, payer),
         async_trial!(withdraw_withheld_confidential_tokens, test_validator, payer),
         async_trial!(confidential_fee_harvesting, test_validator, payer),
+        async_trial!(offline_confidential_controls, test_validator, payer),
+        async_trial!(offline_confidential_fee_controls, test_validator, payer),
+        async_trial!(
+            offline_confidential_apply_pending_burn,
+            test_validator,
+            payer
+        ),
         async_trial!(compute_budget, test_validator, payer),
         async_trial!(scaled_ui_amount, test_validator, payer),
         async_trial!(pause, test_validator, payer),
