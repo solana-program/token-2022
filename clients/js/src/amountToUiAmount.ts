@@ -1,4 +1,8 @@
-import { type GetAccountInfoApi, type Rpc, Address, UnixTimestamp, unwrapOption } from '@solana/kit';
+import { type GetAccountInfoApi, type Rpc, UnixTimestamp, unwrapOption } from '@solana/kit';
+import {
+    getAddressFromResolvedInstructionAccount,
+    type InstructionAccountInput,
+} from '@solana/kit/program-client-core';
 import { fetchSysvarClock } from '@solana/sysvars';
 
 import { fetchMint } from './generated';
@@ -367,10 +371,10 @@ export function uiAmountToAmountForScaledUiAmountMintWithoutSimulation(
  */
 export async function amountToUiAmountForMintWithoutSimulation(
     rpc: Rpc<GetAccountInfoApi>,
-    mint: Address,
+    mint: InstructionAccountInput,
     amount: bigint,
 ): Promise<string> {
-    const accountInfo = await fetchMint(rpc, mint);
+    const accountInfo = await fetchMint(rpc, getAddressFromResolvedInstructionAccount('mint', mint));
     const extensions = unwrapOption(accountInfo.data.extensions);
 
     // Check for interest bearing mint extension
@@ -425,10 +429,10 @@ export async function amountToUiAmountForMintWithoutSimulation(
  */
 export async function uiAmountToAmountForMintWithoutSimulation(
     rpc: Rpc<GetAccountInfoApi>,
-    mint: Address,
+    mint: InstructionAccountInput,
     uiAmount: string,
 ): Promise<bigint> {
-    const accountInfo = await fetchMint(rpc, mint);
+    const accountInfo = await fetchMint(rpc, getAddressFromResolvedInstructionAccount('mint', mint));
     const extensions = unwrapOption(accountInfo.data.extensions);
 
     // Check for interest bearing mint extension
