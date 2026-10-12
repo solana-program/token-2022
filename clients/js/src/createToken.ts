@@ -6,6 +6,7 @@ import {
     sequentialInstructionPlan,
     TransactionSigner,
 } from '@solana/kit';
+import type { InstructionAccountInput } from '@solana/kit/program-client-core';
 
 import { ExtensionArgs, getInitializeAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from './generated';
 import { getPostInitializeInstructionsForTokenExtensions } from './getInitializeInstructionsForExtensions';
@@ -17,7 +18,7 @@ export type CreateTokenInstructionPlanInput = {
     /** New token account to create. */
     newToken: TransactionSigner;
     /** The token mint for the token account. */
-    mint: Address;
+    mint: InstructionAccountInput;
     /** The owner of the token account. */
     owner: TransactionSigner | Address;
     /** The optional token-account extensions to initialize on the account. */

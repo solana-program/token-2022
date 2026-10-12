@@ -1,4 +1,8 @@
 import { Address, InstructionPlan, sequentialInstructionPlan, TransactionSigner } from '@solana/kit';
+import {
+    getAddressFromResolvedInstructionAccount,
+    type InstructionAccountInput,
+} from '@solana/kit/program-client-core';
 
 import {
     findAssociatedTokenPda,
@@ -12,9 +16,9 @@ export type TransferToATAInstructionPlanInput = {
     /** Funding account (must be a system account). */
     payer: TransactionSigner;
     /** The token mint to transfer. */
-    mint: Address;
+    mint: InstructionAccountInput;
     /** The source account for the transfer. */
-    source: Address;
+    source: InstructionAccountInput;
     /** The source account's owner/delegate or its multisignature account. */
     authority: Address | TransactionSigner;
     /**
@@ -23,9 +27,9 @@ export type TransferToATAInstructionPlanInput = {
      * Note: Use {@link getTransferToATAInstructionPlanAsync} instead to derive this automatically.
      * Note: Use {@link findAssociatedTokenPda} to derive the associated token account address.
      */
-    destination: Address;
+    destination: InstructionAccountInput;
     /** Wallet address for the destination. */
-    recipient: Address;
+    recipient: InstructionAccountInput;
     /** The amount of tokens to transfer. */
     amount: number | bigint;
     /** Expected number of base 10 digits to the right of the decimal place. */
@@ -85,23 +89,23 @@ export async function getTransferToATAInstructionPlanAsync(
 ): Promise<InstructionPlan> {
     const tokenProgram = config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS;
 
+    const mint = getAddressFromResolvedInstructionAccount('mint', input.mint);
+
     let destination = input.destination;
     if (!destination) {
         [destination] = await findAssociatedTokenPda({
-            owner: input.recipient,
+            owner: getAddressFromResolvedInstructionAccount('recipient', input.recipient),
             tokenProgram,
-            mint: input.mint,
+            mint,
         });
     }
 
     let source = input.source;
     if (!source) {
-        const authorityAddress: Address =
-            typeof input.authority === 'string' ? input.authority : input.authority.address;
         const [sourceAta] = await findAssociatedTokenPda({
-            owner: authorityAddress,
+            owner: getAddressFromResolvedInstructionAccount('authority', input.authority),
             tokenProgram,
-            mint: input.mint,
+            mint,
         });
         source = sourceAta;
     }

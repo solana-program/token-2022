@@ -1,4 +1,8 @@
 import { Address, InstructionPlan, sequentialInstructionPlan, TransactionSigner } from '@solana/kit';
+import {
+    getAddressFromResolvedInstructionAccount,
+    type InstructionAccountInput,
+} from '@solana/kit/program-client-core';
 
 import {
     findAssociatedTokenPda,
@@ -17,11 +21,11 @@ export type MintToATAInstructionPlanInput = {
      * Note: Use {@link getMintToATAInstructionPlanAsync} instead to derive this automatically.
      * Note: Use {@link findAssociatedTokenPda} to derive the associated token account address.
      */
-    ata: Address;
+    ata: InstructionAccountInput;
     /** Wallet address for the associated token account. */
-    owner: Address;
+    owner: InstructionAccountInput;
     /** The token mint for the associated token account. */
-    mint: Address;
+    mint: InstructionAccountInput;
     /** The mint's minting authority or its multisignature account. */
     mintAuthority: Address | TransactionSigner;
     /** The amount of new tokens to mint. */
@@ -81,9 +85,9 @@ export async function getMintToATAInstructionPlanAsync(
     let ata = input.ata;
     if (!ata) {
         [ata] = await findAssociatedTokenPda({
-            owner: input.owner,
+            owner: getAddressFromResolvedInstructionAccount('owner', input.owner),
             tokenProgram,
-            mint: input.mint,
+            mint: getAddressFromResolvedInstructionAccount('mint', input.mint),
         });
     }
     return getMintToATAInstructionPlan(
