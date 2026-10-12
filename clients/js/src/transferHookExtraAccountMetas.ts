@@ -51,6 +51,10 @@ import {
     type Rpc,
     type TransactionSigner,
 } from '@solana/kit';
+import {
+    getAddressFromResolvedInstructionAccount,
+    type InstructionAccountInput,
+} from '@solana/kit/program-client-core';
 
 import { fetchMint, getTransferCheckedInstruction, TOKEN_2022_PROGRAM_ADDRESS, type Extension } from './generated';
 
@@ -631,10 +635,10 @@ function getExecuteInstructionData(amount: bigint): ReadonlyUint8Array {
 export type ResolveExtraAccountMetasForExecuteInput = {
     rpc: Rpc<GetAccountInfoApi>;
     transferHookProgramAddress: Address;
-    source: Address;
-    mint: Address;
-    destination: Address;
-    owner: Address;
+    source: InstructionAccountInput;
+    mint: InstructionAccountInput;
+    destination: InstructionAccountInput;
+    owner: InstructionAccountInput;
     amount: number | bigint;
     /** The transfer hook's validation account. Derived via `findExtraAccountMetaListPda` if omitted. */
     validateStatePubkey?: Address;
@@ -656,9 +660,10 @@ export type ResolveExtraAccountMetasForExecuteInput = {
 export async function resolveExtraAccountMetasForExecute(
     input: ResolveExtraAccountMetasForExecuteInput,
 ): Promise<AccountMeta<Address>[]> {
+    const mint = getAddressFromResolvedInstructionAccount('mint', input.mint);
     const [validateStatePubkey] = input.validateStatePubkey
         ? [input.validateStatePubkey]
-        : await findExtraAccountMetaListPda({ mint: input.mint }, { programAddress: input.transferHookProgramAddress });
+        : await findExtraAccountMetaListPda({ mint }, { programAddress: input.transferHookProgramAddress });
 
     const validateStateAccount = await fetchEncodedAccount(input.rpc, validateStatePubkey);
     if (!validateStateAccount.exists) {
@@ -669,10 +674,10 @@ export async function resolveExtraAccountMetasForExecute(
     const instructionData = getExecuteInstructionData(BigInt(input.amount));
 
     const baseMetas: AccountMeta<Address>[] = [
-        input.source,
-        input.mint,
-        input.destination,
-        input.owner,
+        getAddressFromResolvedInstructionAccount('source', input.source),
+        mint,
+        getAddressFromResolvedInstructionAccount('destination', input.destination),
+        getAddressFromResolvedInstructionAccount('owner', input.owner),
         validateStatePubkey,
     ].map(address => ({ address, role: AccountRole.READONLY }));
     const previousAddresses: Address[] = baseMetas.map(meta => meta.address);
@@ -726,15 +731,15 @@ function getExtraAccountMetaListInstructionData(
 
 export type DefaultExtraAccountMetaListInstructionAsyncInput = {
     /** The mint the transfer hook is configured for. */
-    mint: Address;
+    mint: InstructionAccountInput;
     /** The transfer hook program's extra-account-meta-list update authority. */
     authority: Address | TransactionSigner;
     /** The extra accounts to write into the validation account. */
     extraAccountMetas: ExtraAccountMeta[];
     /** The transfer hook program that owns the validation account. */
-    transferHookProgram: Address;
+    transferHookProgram: InstructionAccountInput;
     /** The validation account. Derived via `findExtraAccountMetaListPda` if omitted. */
-    extraAccountMetaList?: Address;
+    extraAccountMetaList?: InstructionAccountInput;
 };
 
 export type DefaultInitializeExtraAccountMetaListInstructionAsyncConfig = {
@@ -760,14 +765,19 @@ export async function getDefaultInitializeExtraAccountMetaListInstructionAsync(
     input: DefaultExtraAccountMetaListInstructionAsyncInput,
     config?: DefaultInitializeExtraAccountMetaListInstructionAsyncConfig,
 ): Promise<Instruction> {
+    const mint = getAddressFromResolvedInstructionAccount('mint', input.mint);
+    const transferHookProgram = getAddressFromResolvedInstructionAccount(
+        'transferHookProgram',
+        input.transferHookProgram,
+    );
     const [extraAccountMetaList] = input.extraAccountMetaList
-        ? [input.extraAccountMetaList]
-        : await findExtraAccountMetaListPda({ mint: input.mint }, { programAddress: input.transferHookProgram });
+        ? [getAddressFromResolvedInstructionAccount('extraAccountMetaList', input.extraAccountMetaList)]
+        : await findExtraAccountMetaListPda({ mint }, { programAddress: transferHookProgram });
 
     return {
         accounts: [
             { address: extraAccountMetaList, role: AccountRole.WRITABLE },
-            { address: input.mint, role: AccountRole.READONLY },
+            { address: mint, role: AccountRole.READONLY },
             getAuthorityMeta(input.authority),
             { address: config?.systemProgram ?? SYSTEM_PROGRAM_ADDRESS, role: AccountRole.READONLY },
         ],
@@ -775,7 +785,7 @@ export async function getDefaultInitializeExtraAccountMetaListInstructionAsync(
             INITIALIZE_EXTRA_ACCOUNT_META_LIST_DISCRIMINATOR,
             input.extraAccountMetas,
         ),
-        programAddress: input.transferHookProgram,
+        programAddress: transferHookProgram,
     };
 }
 
@@ -790,31 +800,36 @@ export async function getDefaultInitializeExtraAccountMetaListInstructionAsync(
 export async function getDefaultUpdateExtraAccountMetaListInstructionAsync(
     input: DefaultExtraAccountMetaListInstructionAsyncInput,
 ): Promise<Instruction> {
+    const mint = getAddressFromResolvedInstructionAccount('mint', input.mint);
+    const transferHookProgram = getAddressFromResolvedInstructionAccount(
+        'transferHookProgram',
+        input.transferHookProgram,
+    );
     const [extraAccountMetaList] = input.extraAccountMetaList
-        ? [input.extraAccountMetaList]
-        : await findExtraAccountMetaListPda({ mint: input.mint }, { programAddress: input.transferHookProgram });
+        ? [getAddressFromResolvedInstructionAccount('extraAccountMetaList', input.extraAccountMetaList)]
+        : await findExtraAccountMetaListPda({ mint }, { programAddress: transferHookProgram });
 
     return {
         accounts: [
             { address: extraAccountMetaList, role: AccountRole.WRITABLE },
-            { address: input.mint, role: AccountRole.READONLY },
+            { address: mint, role: AccountRole.READONLY },
             getAuthorityMeta(input.authority),
         ],
         data: getExtraAccountMetaListInstructionData(
             UPDATE_EXTRA_ACCOUNT_META_LIST_DISCRIMINATOR,
             input.extraAccountMetas,
         ),
-        programAddress: input.transferHookProgram,
+        programAddress: transferHookProgram,
     };
 }
 
 export type TransferCheckedWithTransferHookInstructionAsyncInput = {
     /** The source account. */
-    source: Address;
+    source: InstructionAccountInput;
     /** The token mint. */
-    mint: Address;
+    mint: InstructionAccountInput;
     /** The destination account. */
-    destination: Address;
+    destination: InstructionAccountInput;
     /** The source account's owner/delegate, or its multisignature account. */
     authority: Address | TransactionSigner;
     amount: number | bigint;
@@ -861,7 +876,7 @@ export async function getTransferCheckedWithTransferHookInstructionAsync(
         { programAddress },
     );
 
-    const { data: mint } = await fetchMint(client.rpc, input.mint);
+    const { data: mint } = await fetchMint(client.rpc, getAddressFromResolvedInstructionAccount('mint', input.mint));
     const transferHook = (unwrapOption(mint.extensions) ?? []).find(
         (extension): extension is Extract<Extension, { __kind: 'TransferHook' }> => extension.__kind === 'TransferHook',
     );
@@ -869,12 +884,11 @@ export async function getTransferCheckedWithTransferHookInstructionAsync(
         return instruction;
     }
 
-    const owner = typeof input.authority === 'string' ? input.authority : input.authority.address;
     const extraMetas = await resolveExtraAccountMetasForExecute({
         amount: input.amount,
         destination: input.destination,
         mint: input.mint,
-        owner,
+        owner: input.authority,
         rpc: client.rpc,
         source: input.source,
         transferHookProgramAddress: transferHook.programId,

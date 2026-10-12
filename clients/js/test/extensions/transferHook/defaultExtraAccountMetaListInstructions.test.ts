@@ -69,6 +69,29 @@ describe('getDefaultInitializeExtraAccountMetaListInstructionAsync', () => {
 
         expect(instruction.accounts![0]).toStrictEqual({ address: explicitList, role: AccountRole.WRITABLE });
     });
+
+    it('accepts address wrappers for the mint and transfer hook program', async () => {
+        const authority = address('D5jyaVjrWuq7ostc8JYywr3QDPtM6y6TZKG1TgRhZYSp');
+        const [extraAccountMetaList] = await findExtraAccountMetaListPda(
+            { mint },
+            { programAddress: transferHookProgramId },
+        );
+
+        const instruction = await getDefaultInitializeExtraAccountMetaListInstructionAsync({
+            mint: { address: mint },
+            authority,
+            extraAccountMetas: [],
+            transferHookProgram: { address: transferHookProgramId },
+        });
+
+        expect(instruction.programAddress).toBe(transferHookProgramId);
+        expect(instruction.accounts).toStrictEqual([
+            { address: extraAccountMetaList, role: AccountRole.WRITABLE },
+            { address: mint, role: AccountRole.READONLY },
+            { address: authority, role: AccountRole.READONLY_SIGNER },
+            { address: SYSTEM_PROGRAM_ADDRESS, role: AccountRole.READONLY },
+        ]);
+    });
 });
 
 describe('getDefaultUpdateExtraAccountMetaListInstructionAsync', () => {
