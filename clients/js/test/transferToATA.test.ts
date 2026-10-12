@@ -141,3 +141,48 @@ it('derives both source and destination ATAs and transfers tokens', async () => 
     expect(tokenDataA).toMatchObject(<Token>{ amount: 50n });
     expect(tokenDataB).toMatchObject(<Token>{ amount: 50n });
 });
+
+it('accepts address wrappers for the mint and recipient', async () => {
+    // Given a mint account and ownerA's ATA with 100 tokens.
+    const client = await createTestClient();
+    const [mintAuthority, ownerA, ownerB, mint] = await Promise.all([
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+    ]);
+    const decimals = 2;
+    await client.token2022.instructions.createMint({ newMint: mint, decimals, mintAuthority }).sendTransaction();
+    const tokenA = await createTokenPdaWithAmount({
+        client,
+        mint: mint.address,
+        mintAuthority,
+        owner: ownerA.address,
+        amount: 100n,
+        decimals,
+    });
+
+    // When owner A transfers 50 tokens to owner B using HasAddress wrappers.
+    await client.token2022.instructions
+        .transferToATA({
+            mint: { address: mint.address },
+            authority: ownerA,
+            recipient: { address: ownerB.address },
+            amount: 50n,
+            decimals,
+        })
+        .sendTransaction();
+
+    // Then we expect both ATAs to have the correct balances.
+    const [tokenB] = await findAssociatedTokenPda({
+        owner: ownerB.address,
+        mint: mint.address,
+        tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+    });
+    const [{ data: tokenDataA }, { data: tokenDataB }] = await Promise.all([
+        fetchToken(client.rpc, tokenA),
+        fetchToken(client.rpc, tokenB),
+    ]);
+    expect(tokenDataA).toMatchObject(<Token>{ amount: 50n });
+    expect(tokenDataB).toMatchObject(<Token>{ amount: 50n });
+});

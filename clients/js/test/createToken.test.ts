@@ -60,3 +60,26 @@ it('creates a token account with extensions', async () => {
         },
     });
 });
+
+it('accepts an address wrapper for the mint', async () => {
+    // Given a mint account and a token owner.
+    const client = await createTestClient();
+    const [mintAuthority, owner, token, mint] = await Promise.all([
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+    ]);
+    await client.token2022.instructions.createMint({ newMint: mint, mintAuthority }).sendTransaction();
+
+    // When we create a token account using a HasAddress wrapper for the mint.
+    await client.token2022.instructions
+        .createToken({ newToken: token, mint: { address: mint.address }, owner })
+        .sendTransaction();
+
+    // Then we expect the token account to be initialized for that mint.
+    expect(await fetchToken(client.rpc, token.address)).toMatchObject(<Account<Token>>{
+        address: token.address,
+        data: { mint: mint.address, owner: owner.address },
+    });
+});
