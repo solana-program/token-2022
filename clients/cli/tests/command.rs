@@ -2025,6 +2025,28 @@ async fn burn(test_validator: &TestValidator, payer: &Keypair) {
                 "spl-token",
                 CommandName::Burn.into(),
                 &source.to_string(),
+                "10",
+                "--mint-address",
+                &token.to_string(),
+                "--mint-decimals",
+                &format!("{}", TEST_DECIMALS),
+            ],
+        )
+        .await
+        .unwrap();
+
+        let account = config.rpc_client.get_account(&source).await.unwrap();
+        let token_account = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
+        let amount = spl_token_2022::ui_amount_to_amount(80.0, TEST_DECIMALS);
+        assert_eq!(token_account.base.amount, amount);
+
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::Burn.into(),
+                &source.to_string(),
                 "ALL",
             ],
         )
@@ -2109,6 +2131,10 @@ async fn burn_with_account_delegate(test_validator: &TestValidator, payer: &Keyp
                 fee_payer_keypair_file.path().to_str().unwrap(),
                 "--program-id",
                 &program_id.to_string(),
+                "--mint-address",
+                &token.to_string(),
+                "--mint-decimals",
+                &format!("{}", TEST_DECIMALS),
             ],
         )
         .await
