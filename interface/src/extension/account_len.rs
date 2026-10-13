@@ -149,7 +149,7 @@ mod tests {
         Account::SIZE_OF;
         "mint extension with no required account extensions"
     )]
-    // 165 base + 1 account type + (4 header + 0 `ImmutableOwner`) + (4 header + 1
+    // 213 base + 1 account type + (4 header + 0 `ImmutableOwner`) + (4 header + 1
     // `MemoTransfer`) + (4 header + 1 `CpiGuard`)
     #[test_case(
         TEST_MINT_SLICE.to_vec(),
@@ -158,10 +158,10 @@ mod tests {
             ExtensionType::MemoTransfer,
             ExtensionType::CpiGuard,
         ],
-        180;
+        228;
         "standalone account extensions"
     )]
-    // 165 base + 1 account type + (4 header + 0 `NonTransferableAccount`) + (4 header + 0
+    // 213 base + 1 account type + (4 header + 0 `NonTransferableAccount`) + (4 header + 0
     // `ImmutableOwner`)
     #[test_case(
         mint_data_with_tlv_entries(&[(ExtensionType::NonTransferable, 0)]),
@@ -170,7 +170,7 @@ mod tests {
             ExtensionType::NonTransferableAccount,
             ExtensionType::ImmutableOwner,
         ],
-        174;
+        222;
         "requested extensions overlap required ones"
     )]
     #[test_case(
@@ -180,7 +180,7 @@ mod tests {
             data
         },
         &[],
-        178;
+        250;
         "trailing realloc byte is ignored"
     )]
     #[test_case(
@@ -217,12 +217,12 @@ mod tests {
             (ExtensionType::NonTransferable, 0),
             (ExtensionType::NonTransferable, 0),
         ]),
-        174;
+        222;
         "duplicate mint extensions"
     )]
     #[test_case(
         mint_data_with_tlv_entries(&[(ExtensionType::TransferFeeConfig, 5)]),
-        178;
+        250;
         "account size is computed from the extension types alone"
     )]
     #[test_case(
@@ -232,7 +232,7 @@ mod tests {
             data.extend_from_slice(&[0xff; 7]);
             data
         },
-        178;
+        250;
         "bytes after uninitialized terminator are ignored"
     )]
     fn sizes_unwritable_mint_bytes_to_known_len(mint_data: Vec<u8>, expected_len: usize) {

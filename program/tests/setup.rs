@@ -3,13 +3,16 @@ use {
     solana_address::Address,
     solana_program_pack::Pack,
     solana_rent::Rent,
-    spl_token_2022_interface::state::{Account, AccountState, Mint},
+    spl_token_2022_interface::{
+        state::{Account, AccountState, Mint},
+        U256,
+    },
 };
 
 pub fn setup_mint_account(
     mint_authority: Option<&Address>,
     freeze_authority: Option<&Address>,
-    supply: u64,
+    supply: U256,
     decimals: u8,
 ) -> SolanaAccount {
     let data = {
@@ -36,7 +39,7 @@ pub fn setup_mint_account(
     }
 }
 
-pub fn setup_token_account(mint: &Address, owner: &Address, amount: u64) -> SolanaAccount {
+pub fn setup_token_account(mint: &Address, owner: &Address, amount: U256) -> SolanaAccount {
     let data = {
         let mut data = vec![0; Account::LEN];
         let state = Account {
@@ -46,7 +49,7 @@ pub fn setup_token_account(mint: &Address, owner: &Address, amount: u64) -> Sola
             delegate: None.into(),
             state: AccountState::Initialized,
             is_native: None.into(),
-            delegated_amount: 0,
+            delegated_amount: U256::ZERO,
             close_authority: None.into(),
         };
         state.pack_into_slice(&mut data);

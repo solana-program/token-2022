@@ -1,5 +1,5 @@
 use {
-    crate::processor::Processor,
+    crate::processor::{amount_to_u64, Processor},
     pinocchio::{account::next_account_view, AccountView, Resize},
     pinocchio_system::instructions::Transfer,
     solana_address::Address,
@@ -45,7 +45,12 @@ pub fn process_reallocate(
             authority_info_data_len,
             account_info_iter.as_slice(),
         )?;
-        let native_token_amount = account.base.is_native().then_some(account.base.amount);
+        // native token amounts are lamports, so they always fit in a `u64`
+        let native_token_amount = account
+            .base
+            .is_native()
+            .then(|| amount_to_u64(account.base.amount))
+            .transpose()?;
         (account.get_extension_types()?, native_token_amount)
     };
 

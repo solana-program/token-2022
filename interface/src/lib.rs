@@ -19,6 +19,8 @@ pub mod state;
 
 // Export current sdk types for downstream users building with a different sdk
 // version
+/// 256-bit unsigned integer used for all token amounts
+pub use ethnum::U256;
 pub use solana_zk_elgamal_proof_interface;
 use {
     alloc::string::{String, ToString},
@@ -26,7 +28,7 @@ use {
     solana_program_error::{ProgramError, ProgramResult},
 };
 
-solana_address::declare_id!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+solana_address::declare_id!("Tokenis9xgQh7yMRbNBnV6uFq7LANbuZJwebxWBWixf");
 
 /// Checks that the supplied program ID is correct for spl-token-2022
 pub fn check_program_account(spl_token_program_id: &Address) -> ProgramResult {

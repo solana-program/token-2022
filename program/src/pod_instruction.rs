@@ -6,8 +6,7 @@ use {
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_address::{Address, ADDRESS_BYTES},
     solana_program_error::ProgramError,
-    solana_zero_copy::unaligned::U64,
-    spl_token_2022_interface::pod::PodCOption,
+    spl_token_2022_interface::pod::{PodCOption, PodU256},
 };
 
 #[repr(C)]
@@ -31,13 +30,13 @@ pub(crate) struct InitializeMultisigData {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub(crate) struct AmountData {
     /// The amount of tokens to transfer.
-    pub(crate) amount: U64,
+    pub(crate) amount: PodU256,
 }
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub(crate) struct AmountCheckedData {
     /// The amount of tokens to transfer.
-    pub(crate) amount: U64,
+    pub(crate) amount: PodU256,
     /// Decimals of the mint
     pub(crate) decimals: u8,
 }
@@ -195,6 +194,7 @@ mod tests {
                 decode_instruction_data, decode_instruction_type, AuthorityType, TokenInstruction,
             },
         },
+        ethnum::U256,
         proptest::prelude::*,
         solana_program_option::COption,
     };
@@ -325,7 +325,7 @@ mod tests {
 
     #[test]
     fn test_transfer_packing() {
-        let amount = 1;
+        let amount = U256::ONE;
         #[allow(deprecated)]
         let check = TokenInstruction::Transfer { amount };
         let packed = check.pack();
@@ -338,7 +338,7 @@ mod tests {
 
     #[test]
     fn test_approve_packing() {
-        let amount = 1;
+        let amount = U256::ONE;
         let check = TokenInstruction::Approve { amount };
         let packed = check.pack();
 
@@ -379,7 +379,7 @@ mod tests {
 
     #[test]
     fn test_mint_to_packing() {
-        let amount = 1;
+        let amount = U256::ONE;
         let check = TokenInstruction::MintTo { amount };
         let packed = check.pack();
 
@@ -391,7 +391,7 @@ mod tests {
 
     #[test]
     fn test_burn_packing() {
-        let amount = 1;
+        let amount = U256::ONE;
         let check = TokenInstruction::Burn { amount };
         let packed = check.pack();
 
@@ -427,7 +427,7 @@ mod tests {
 
     #[test]
     fn test_transfer_checked_packing() {
-        let amount = 1;
+        let amount = U256::ONE;
         let decimals = 2;
         let check = TokenInstruction::TransferChecked { amount, decimals };
         let packed = check.pack();
@@ -441,7 +441,7 @@ mod tests {
 
     #[test]
     fn test_approve_checked_packing() {
-        let amount = 1;
+        let amount = U256::ONE;
         let decimals = 2;
 
         let check = TokenInstruction::ApproveChecked { amount, decimals };
@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn test_mint_to_checked_packing() {
-        let amount = 1;
+        let amount = U256::ONE;
         let decimals = 2;
         let check = TokenInstruction::MintToChecked { amount, decimals };
         let packed = check.pack();
@@ -469,7 +469,7 @@ mod tests {
 
     #[test]
     fn test_burn_checked_packing() {
-        let amount = 1;
+        let amount = U256::ONE;
         let decimals = 2;
         let check = TokenInstruction::BurnChecked { amount, decimals };
         let packed = check.pack();
@@ -569,7 +569,10 @@ mod tests {
     fn test_batch_packing() {
         let create_account_instr_data = TokenInstruction::InitializeAccount {}.pack();
         let close_account_instr_data = TokenInstruction::CloseAccount {}.pack();
-        let approve_instr_data = TokenInstruction::Approve { amount: 500 }.pack();
+        let approve_instr_data = TokenInstruction::Approve {
+            amount: U256::new(500),
+        }
+        .pack();
 
         let mut batch_data = Vec::new();
         batch_data.push(4);
@@ -630,7 +633,7 @@ mod tests {
 
     #[test]
     fn test_amount_to_ui_amount_packing() {
-        let amount = 42;
+        let amount = U256::new(42);
         let check = TokenInstruction::AmountToUiAmount { amount };
         let packed = check.pack();
 

@@ -1,11 +1,13 @@
 use {
     crate::{
         extension::{Extension, ExtensionType},
+        pod::u256_from_f64,
         trim_ui_amount_string,
     },
     alloc::{format, string::String},
     bytemuck::{Pod, Zeroable},
     core::convert::TryInto,
+    ethnum::U256,
     num_traits::{pow, Float},
     solana_address::Address,
     solana_nullable::MaybeNull,
@@ -89,12 +91,12 @@ impl InterestBearingConfig {
     /// field. Excess zeroes or unneeded decimal point are trimmed.
     pub fn amount_to_ui_amount(
         &self,
-        amount: u64,
+        amount: U256,
         decimals: u8,
         unix_timestamp: i64,
     ) -> Option<String> {
         let scaled_amount_with_interest =
-            (amount as f64) * self.total_scale(decimals, unix_timestamp)?;
+            amount.as_f64() * self.total_scale(decimals, unix_timestamp)?;
         let ui_amount = format!("{scaled_amount_with_interest:.*}", decimals as usize);
         Some(trim_ui_amount_string(ui_amount, decimals))
     }
@@ -106,7 +108,7 @@ impl InterestBearingConfig {
         ui_amount: &str,
         decimals: u8,
         unix_timestamp: i64,
-    ) -> Result<u64, ProgramError> {
+    ) -> Result<U256, ProgramError> {
         let scaled_amount = ui_amount
             .parse::<f64>()
             .map_err(|_| ProgramError::InvalidArgument)?;
@@ -114,13 +116,9 @@ impl InterestBearingConfig {
             / self
                 .total_scale(decimals, unix_timestamp)
                 .ok_or(ProgramError::InvalidArgument)?;
-        if amount > (u64::MAX as f64) || amount < (u64::MIN as f64) || amount.is_nan() {
-            Err(ProgramError::InvalidArgument)
-        } else {
-            // this is important, if you round earlier, you'll get wrong "inf"
-            // answers
-            Ok(Float::round(amount) as u64)
-        }
+        // this is important, if you round earlier, you'll get wrong "inf"
+        // answers
+        u256_from_f64(amount, Float::round)
     }
 
     /// The new average rate is the time-weighted average of the current rate
@@ -173,7 +171,7 @@ mod tests {
 
     #[test]
     fn specific_amount_to_ui_amount() {
-        const ONE: u64 = 1_000_000_000_000_000_000;
+        const ONE: U256 = U256::new(1_000_000_000_000_000_000);
         // constant 5%
         let config = InterestBearingConfig {
             rate_authority: MaybeNull::<Address>::default(),
@@ -200,7 +198,7 @@ mod tests {
 
         // huge amount with 10 decimal places
         let ui_amount = config
-            .amount_to_ui_amount(10_000_000_000, 10, INT_SECONDS_PER_YEAR)
+            .amount_to_ui_amount(U256::new(10_000_000_000), 10, INT_SECONDS_PER_YEAR)
             .unwrap();
         assert_eq!(ui_amount, "1.0512710964");
 
@@ -228,7 +226,7 @@ mod tests {
         };
         // 1 year at -5% and 1 year at 5% gives a total of 1
         let ui_amount = config
-            .amount_to_ui_amount(1, 0, INT_SECONDS_PER_YEAR * 2)
+            .amount_to_ui_amount(U256::ONE, 0, INT_SECONDS_PER_YEAR * 2)
             .unwrap();
         assert_eq!(ui_amount, "1");
 
@@ -241,11 +239,11 @@ mod tests {
             current_rate: I16::from(500),
         };
         let ui_amount = config
-            .amount_to_ui_amount(u64::MAX, 0, INT_SECONDS_PER_YEAR * 2)
+            .amount_to_ui_amount(U256::from(u64::MAX), 0, INT_SECONDS_PER_YEAR * 2)
             .unwrap();
         assert_eq!(ui_amount, "20386805083448098816");
         let ui_amount = config
-            .amount_to_ui_amount(u64::MAX, 0, INT_SECONDS_PER_YEAR * 10_000)
+            .amount_to_ui_amount(U256::from(u64::MAX), 0, INT_SECONDS_PER_YEAR * 10_000)
             .unwrap();
         // there's an underflow risk, but it works!
         assert_eq!(ui_amount, "258917064265813826192025834755112557504850551118283225815045099303279643822914042296793377611277551888244755303462190670431480816358154467489350925148558569427069926786360814068189956495940285398273555561779717914539956777398245259214848");
@@ -265,23 +263,23 @@ mod tests {
         let amount = config
             .try_ui_amount_into_amount("1.0512710963760241", 0, INT_SECONDS_PER_YEAR)
             .unwrap();
-        assert_eq!(1, amount);
+        assert_eq!(U256::ONE, amount);
         // with 1 decimal place
         let amount = config
             .try_ui_amount_into_amount("0.10512710963760241", 1, INT_SECONDS_PER_YEAR)
             .unwrap();
-        assert_eq!(amount, 1);
+        assert_eq!(amount, U256::ONE);
         // with 10 decimal places
         let amount = config
             .try_ui_amount_into_amount("0.00000000010512710963760242", 10, INT_SECONDS_PER_YEAR)
             .unwrap();
-        assert_eq!(amount, 1);
+        assert_eq!(amount, U256::ONE);
 
         // huge amount with 10 decimal places
         let amount = config
             .try_ui_amount_into_amount("1.0512710963760241", 10, INT_SECONDS_PER_YEAR)
             .unwrap();
-        assert_eq!(amount, 10_000_000_000);
+        assert_eq!(amount, U256::new(10_000_000_000));
 
         // negative
         let config = InterestBearingConfig {
@@ -295,7 +293,7 @@ mod tests {
         let amount = config
             .try_ui_amount_into_amount("0.951229424500714", 0, INT_SECONDS_PER_YEAR)
             .unwrap();
-        assert_eq!(amount, 1);
+        assert_eq!(amount, U256::ONE);
 
         // net out
         let config = InterestBearingConfig {
@@ -309,9 +307,11 @@ mod tests {
         let amount = config
             .try_ui_amount_into_amount("1", 0, INT_SECONDS_PER_YEAR * 2)
             .unwrap();
-        assert_eq!(amount, 1);
+        assert_eq!(amount, U256::ONE);
 
-        // huge values
+        // huge values: `u64::MAX` is not representable as an `f64`, the nearest
+        // value is `2^64`, which is now a valid amount
+        let two_pow_64 = U256::from(u64::MAX) + 1;
         let config = InterestBearingConfig {
             rate_authority: MaybeNull::<Address>::default(),
             initialization_timestamp: 0.into(),
@@ -322,26 +322,26 @@ mod tests {
         let amount = config
             .try_ui_amount_into_amount("20386805083448100000", 0, INT_SECONDS_PER_YEAR * 2)
             .unwrap();
-        assert_eq!(amount, u64::MAX);
+        assert_eq!(amount, two_pow_64);
         let amount = config
             .try_ui_amount_into_amount("258917064265813830000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", 0, INT_SECONDS_PER_YEAR * 10_000)
             .unwrap();
-        assert_eq!(amount, u64::MAX);
+        assert_eq!(amount, two_pow_64);
         // scientific notation "e"
         let amount = config
             .try_ui_amount_into_amount("2.5891706426581383e236", 0, INT_SECONDS_PER_YEAR * 10_000)
             .unwrap();
-        assert_eq!(amount, u64::MAX);
+        assert_eq!(amount, two_pow_64);
         // scientific notation "E"
         let amount = config
             .try_ui_amount_into_amount("2.5891706426581383E236", 0, INT_SECONDS_PER_YEAR * 10_000)
             .unwrap();
-        assert_eq!(amount, u64::MAX);
+        assert_eq!(amount, two_pow_64);
 
-        // overflow u64 fail
+        // overflow U256 fail
         assert_eq!(
             Err(ProgramError::InvalidArgument),
-            config.try_ui_amount_into_amount("20386805083448200001", 0, INT_SECONDS_PER_YEAR)
+            config.try_ui_amount_into_amount("1e78", 0, INT_SECONDS_PER_YEAR)
         );
 
         for fail_ui_amount in ["-0.0000000000000000000001", "inf", "-inf", "NaN"] {
@@ -363,7 +363,7 @@ mod tests {
         };
         for (amount, expected) in [(23, "0.23"), (110, "1.1"), (4200, "42"), (0, "0")] {
             let ui_amount = config
-                .amount_to_ui_amount(amount, TEST_DECIMALS, INT_SECONDS_PER_YEAR)
+                .amount_to_ui_amount(U256::new(amount), TEST_DECIMALS, INT_SECONDS_PER_YEAR)
                 .unwrap();
             assert_eq!(ui_amount, expected);
         }
@@ -392,14 +392,14 @@ mod tests {
             let amount = config
                 .try_ui_amount_into_amount(ui_amount, TEST_DECIMALS, INT_SECONDS_PER_YEAR)
                 .unwrap();
-            assert_eq!(expected, amount);
+            assert_eq!(U256::new(expected), amount);
         }
 
         // this is invalid with normal mints, but rounding for this mint makes it ok
         let amount = config
             .try_ui_amount_into_amount("0.111", TEST_DECIMALS, INT_SECONDS_PER_YEAR)
             .unwrap();
-        assert_eq!(11, amount);
+        assert_eq!(U256::new(11), amount);
 
         // fail if invalid ui_amount passed in
         for ui_amount in ["", ".", "0.t"] {
@@ -459,7 +459,8 @@ mod tests {
                 last_update_timestamp: last_update_timestamp.into(),
                 current_rate: current_rate.into(),
             };
-            let ui_amount = config.amount_to_ui_amount(amount, decimals, current_timestamp);
+            let ui_amount =
+                config.amount_to_ui_amount(U256::from(amount), decimals, current_timestamp);
             assert!(ui_amount.is_some());
         }
     }

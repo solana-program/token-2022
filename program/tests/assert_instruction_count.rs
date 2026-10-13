@@ -8,10 +8,11 @@ use {
     spl_token_2022_interface::{
         id, instruction,
         state::{Account, Mint},
+        U256,
     },
 };
 
-const TRANSFER_AMOUNT: u64 = 1_000_000_000_000_000;
+const TRANSFER_AMOUNT: U256 = U256::new(1_000_000_000_000_000);
 
 #[test]
 fn initialize_mint() {
@@ -37,7 +38,7 @@ fn initialize_mint() {
         &[
             Check::success(),
             Check::account(&mint)
-                .data(setup::setup_mint_account(Some(&owner), None, 0, decimals).data())
+                .data(setup::setup_mint_account(Some(&owner), None, U256::ZERO, decimals).data())
                 .build(),
         ],
     );
@@ -53,7 +54,7 @@ fn initialize_account() {
     let account = Address::new_unique();
     let decimals = 9;
 
-    let mint_account = setup::setup_mint_account(None, None, 0, decimals);
+    let mint_account = setup::setup_mint_account(None, None, U256::ZERO, decimals);
     let token_account = {
         let space = Account::LEN;
         let lamports = mollusk.sysvars.rent.minimum_balance(space);
@@ -71,7 +72,7 @@ fn initialize_account() {
         &[
             Check::success(),
             Check::account(&account)
-                .data(setup::setup_token_account(&mint, &owner, 0).data())
+                .data(setup::setup_token_account(&mint, &owner, U256::ZERO).data())
                 .build(),
         ],
     );
@@ -87,8 +88,8 @@ fn mint_to() {
     let account = Address::new_unique();
     let decimals = 9;
 
-    let mint_account = setup::setup_mint_account(Some(&owner), None, 0, decimals);
-    let token_account = setup::setup_token_account(&mint, &owner, 0);
+    let mint_account = setup::setup_mint_account(Some(&owner), None, U256::ZERO, decimals);
+    let token_account = setup::setup_token_account(&mint, &owner, U256::ZERO);
 
     mollusk.process_and_validate_instruction(
         &instruction::mint_to(&id(), &mint, &account, &owner, &[], TRANSFER_AMOUNT).unwrap(),
@@ -122,7 +123,7 @@ fn transfer() {
     let destination = Address::new_unique();
 
     let source_token_account = setup::setup_token_account(&mint, &owner, TRANSFER_AMOUNT);
-    let destination_token_account = setup::setup_token_account(&mint, &owner, 0);
+    let destination_token_account = setup::setup_token_account(&mint, &owner, U256::ZERO);
 
     mollusk.process_and_validate_instruction(
         #[allow(deprecated)]
@@ -135,7 +136,7 @@ fn transfer() {
         &[
             Check::success(),
             Check::account(&source)
-                .data(setup::setup_token_account(&mint, &owner, 0).data())
+                .data(setup::setup_token_account(&mint, &owner, U256::ZERO).data())
                 .build(),
             Check::account(&destination)
                 .data(setup::setup_token_account(&mint, &owner, TRANSFER_AMOUNT).data())
@@ -157,7 +158,7 @@ fn transfer_checked() {
 
     let source_token_account = setup::setup_token_account(&mint, &owner, TRANSFER_AMOUNT);
     let mint_account = setup::setup_mint_account(None, None, TRANSFER_AMOUNT, decimals);
-    let destination_token_account = setup::setup_token_account(&mint, &owner, 0);
+    let destination_token_account = setup::setup_token_account(&mint, &owner, U256::ZERO);
 
     mollusk.process_and_validate_instruction(
         &instruction::transfer_checked(
@@ -180,7 +181,7 @@ fn transfer_checked() {
         &[
             Check::success(),
             Check::account(&source)
-                .data(setup::setup_token_account(&mint, &owner, 0).data())
+                .data(setup::setup_token_account(&mint, &owner, U256::ZERO).data())
                 .build(),
             Check::account(&destination)
                 .data(setup::setup_token_account(&mint, &owner, TRANSFER_AMOUNT).data())
@@ -212,7 +213,7 @@ fn burn() {
         &[
             Check::success(),
             Check::account(&account)
-                .data(setup::setup_token_account(&mint, &owner, 0).data())
+                .data(setup::setup_token_account(&mint, &owner, U256::ZERO).data())
                 .build(),
         ],
     );
@@ -228,8 +229,8 @@ fn close_account() {
     let account = Address::new_unique();
     let decimals = 9;
 
-    let mint_account = setup::setup_mint_account(None, None, 0, decimals);
-    let token_account = setup::setup_token_account(&mint, &owner, 0);
+    let mint_account = setup::setup_mint_account(None, None, U256::ZERO, decimals);
+    let token_account = setup::setup_token_account(&mint, &owner, U256::ZERO);
 
     mollusk.process_and_validate_instruction(
         &instruction::close_account(&id(), &account, &owner, &owner, &[]).unwrap(),

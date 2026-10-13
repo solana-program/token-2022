@@ -2,6 +2,8 @@
 //! correct accounts
 
 use {
+    crate::processor::amount_to_u64,
+    ethnum::U256,
     solana_account_info::AccountInfo,
     solana_address::Address,
     solana_cpi::invoke_signed,
@@ -56,9 +58,9 @@ fn transfer_instruction_and_account_infos<'a>(
     destination_info: AccountInfo<'a>,
     authority_info: AccountInfo<'a>,
     additional_accounts: &[AccountInfo<'a>],
-    amount: u64,
+    amount: U256,
     decimals: u8,
-    fee: Option<u64>,
+    fee: Option<U256>,
 ) -> Result<(Instruction, Vec<AccountInfo<'a>>), ProgramError> {
     let mut cpi_instruction = match fee {
         None => instruction::transfer_checked(
@@ -120,6 +122,8 @@ fn transfer_instruction_and_account_infos<'a>(
         let mint_data = mint_info.try_borrow_data()?;
         let mint = StateWithExtensions::<Mint>::unpack(&mint_data)?;
         if let Some(program_id) = transfer_hook::get_program_id(&mint) {
+            // The transfer hook interface carries a 64-bit amount
+            let amount = amount_to_u64(amount)?;
             add_extra_accounts_for_execute_cpi(
                 &mut cpi_instruction,
                 &mut cpi_account_infos,
@@ -145,9 +149,9 @@ fn invoke_transfer_internal<'a>(
     destination_info: AccountInfo<'a>,
     authority_info: AccountInfo<'a>,
     additional_accounts: &[AccountInfo<'a>],
-    amount: u64,
+    amount: U256,
     decimals: u8,
-    fee: Option<u64>,
+    fee: Option<U256>,
     seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let (cpi_instruction, cpi_account_infos) = transfer_instruction_and_account_infos(
@@ -175,7 +179,7 @@ pub fn invoke_transfer_checked<'a>(
     destination_info: AccountInfo<'a>,
     authority_info: AccountInfo<'a>,
     additional_accounts: &[AccountInfo<'a>],
-    amount: u64,
+    amount: U256,
     decimals: u8,
     seeds: &[&[&[u8]]],
 ) -> ProgramResult {
@@ -204,9 +208,9 @@ pub fn invoke_transfer_checked_with_fee<'a>(
     destination_info: AccountInfo<'a>,
     authority_info: AccountInfo<'a>,
     additional_accounts: &[AccountInfo<'a>],
-    amount: u64,
+    amount: U256,
     decimals: u8,
-    fee: u64,
+    fee: U256,
     seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     invoke_transfer_internal(
@@ -249,7 +253,7 @@ mod tests {
         let state = Mint {
             decimals: 10,
             is_initialized: true,
-            supply: 100_000,
+            supply: U256::new(100_000),
             mint_authority: COption::Some(Address::new_unique()),
             freeze_authority: COption::None,
         };
@@ -557,9 +561,9 @@ mod tests {
             destination_info.clone(),
             authority_info.clone(),
             &additional_accounts,
-            200,
+            U256::new(200),
             6,
-            with_fee.then_some(120),
+            with_fee.then_some(U256::new(120)),
         )
         .unwrap();
         let account_keys = account_infos

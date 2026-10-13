@@ -1,6 +1,5 @@
 use {
     crate::{
-        extension::confidential_mint_burn::processor::process_confidential_burn,
         pod_instruction::{AmountCheckedData, AmountData},
         processor::{BurnInstructionVariant, InstructionVariant, Processor},
     },
@@ -10,8 +9,8 @@ use {
     solana_program_error::{ProgramError, ProgramResult},
     spl_token_2022_interface::{
         check_program_account,
+        error::TokenError,
         extension::{
-            confidential_mint_burn::instruction::BurnInstructionData,
             permissioned_burn::{
                 instruction::{InitializeInstructionData, PermissionedBurnInstruction},
                 PermissionedBurnConfig,
@@ -82,13 +81,7 @@ pub(crate) fn process_instruction(
         }
         PermissionedBurnInstruction::ConfidentialBurn => {
             msg!("PermissionedBurnInstruction::ConfidentialBurn");
-            let data = decode_instruction_data::<BurnInstructionData>(input)?;
-            process_confidential_burn(
-                program_id,
-                accounts,
-                data,
-                BurnInstructionVariant::Permissioned,
-            )
+            Err(TokenError::ConfidentialTransferDisabled.into())
         }
     }
 }

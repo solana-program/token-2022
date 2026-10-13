@@ -11,11 +11,12 @@ license = { workspace = true }
 edition = { workspace = true }
 
 [features]
-serde = ["dep:serde", "dep:serde_with", "serde/alloc", "solana-address/serde", "solana-address/decode", "solana-nullable/serde", "solana-nullable/serde-with", "solana-zero-copy/serde", "solana-zk-sdk-pod/serde"]
+serde = ["dep:serde", "dep:serde_with", "serde/alloc", "ethnum/serde", "solana-address/serde", "solana-address/decode", "solana-nullable/serde", "solana-nullable/serde-with", "solana-zero-copy/serde", "solana-zk-sdk-pod/serde"]
 
 [dependencies]
 arrayref = "0.3.9"
 bytemuck = { version = "1.25.0", features = ["derive"] }
+ethnum = { version = "1.5", default-features = false }
 num-derive = "0.5"
 num-traits = { version = "0.2", features = ["libm"], default-features = false }
 num_enum = { version = "0.7.6", default-features = false }
@@ -63,4 +64,4 @@ targets = ["x86_64-unknown-linux-gnu"]
 workspace = true
 
 [package.metadata.solana]
-program-id = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+program-id = "Tokenis9xgQh7yMRbNBnV6uFq7LANbuZJwebxWBWixf"

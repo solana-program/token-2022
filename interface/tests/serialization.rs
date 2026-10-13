@@ -6,7 +6,7 @@ use {
     solana_nullable::MaybeNull,
     solana_program_option::COption,
     solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
-    spl_token_2022_interface::{extension::confidential_transfer, instruction},
+    spl_token_2022_interface::{extension::confidential_transfer, instruction, U256},
     std::str::FromStr,
 };
 
@@ -68,9 +68,12 @@ fn serde_instruction_coption_u64_with_none() {
 #[test]
 fn serde_instruction_batch() {
     let create_account_instr_data = instruction::TokenInstruction::InitializeAccount {}.pack();
-    let mint_to_instr_data = instruction::TokenInstruction::MintTo { amount: 100 }.pack();
+    let mint_to_instr_data = instruction::TokenInstruction::MintTo {
+        amount: U256::new(100),
+    }
+    .pack();
     let transfer_instr_data = instruction::TokenInstruction::TransferChecked {
-        amount: 500,
+        amount: U256::new(500),
         decimals: 9,
     }
     .pack();
@@ -91,7 +94,7 @@ fn serde_instruction_batch() {
     let serialized = serde_json::to_string(&batch_instr).unwrap();
     assert_eq!(
         &serialized,
-        "{\"batch\":{\"data\":[{\"accountCount\":4,\"dataLength\":1,\"instruction\":\"initializeAccount\"},{\"accountCount\":3,\"dataLength\":9,\"instruction\":{\"mintTo\":{\"amount\":100}}},{\"accountCount\":4,\"dataLength\":10,\"instruction\":{\"transferChecked\":{\"amount\":500,\"decimals\":9}}}]}}"
+        "{\"batch\":{\"data\":[{\"accountCount\":4,\"dataLength\":1,\"instruction\":\"initializeAccount\"},{\"accountCount\":3,\"dataLength\":33,\"instruction\":{\"mintTo\":{\"amount\":\"100\"}}},{\"accountCount\":4,\"dataLength\":34,\"instruction\":{\"transferChecked\":{\"amount\":\"500\",\"decimals\":9}}}]}}"
     );
 
     serde_json::from_str::<instruction::TokenInstruction>(&serialized).unwrap();

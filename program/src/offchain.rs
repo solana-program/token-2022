@@ -2,6 +2,8 @@
 
 pub use spl_transfer_hook_interface::offchain::{AccountDataResult, AccountFetchError};
 use {
+    crate::processor::amount_to_u64,
+    ethnum::U256,
     solana_address::Address,
     solana_instruction::Instruction,
     solana_program_error::ProgramError,
@@ -43,7 +45,7 @@ pub async fn create_transfer_checked_instruction_with_extra_metas<F, Fut>(
     destination_pubkey: &Address,
     authority_pubkey: &Address,
     signer_pubkeys: &[&Address],
-    amount: u64,
+    amount: U256,
     decimals: u8,
     fetch_account_data_fn: F,
 ) -> Result<Instruction, AccountFetchError>
@@ -107,9 +109,9 @@ pub async fn create_transfer_checked_with_fee_instruction_with_extra_metas<F, Fu
     destination_pubkey: &Address,
     authority_pubkey: &Address,
     signer_pubkeys: &[&Address],
-    amount: u64,
+    amount: U256,
     decimals: u8,
-    fee: u64,
+    fee: U256,
     fetch_account_data_fn: F,
 ) -> Result<Instruction, AccountFetchError>
 where
@@ -176,7 +178,7 @@ pub async fn add_extra_account_metas<F, Fut>(
     mint_pubkey: &Address,
     destination_pubkey: &Address,
     authority_pubkey: &Address,
-    amount: u64,
+    amount: U256,
     fetch_account_data_fn: F,
 ) -> Result<(), AccountFetchError>
 where
@@ -189,6 +191,8 @@ where
     let mint = StateWithExtensions::<Mint>::unpack(&mint_data)?;
 
     if let Some(program_id) = transfer_hook::get_program_id(&mint) {
+        // The transfer hook interface carries a 64-bit amount
+        let amount = amount_to_u64(amount)?;
         add_extra_account_metas_for_execute(
             instruction,
             &program_id,
@@ -294,7 +298,8 @@ mod tests {
         let source = Address::new_unique();
         let destination = Address::new_unique();
         let authority = Address::new_unique();
-        let amount = 100u64;
+        let amount = U256::new(100);
+        let hook_amount = amount_to_u64(amount).unwrap();
 
         let validate_state_pubkey =
             get_extra_account_metas_address(&MINT_PUBKEY, &TRANSFER_HOOK_PROGRAM_ID);
@@ -309,7 +314,7 @@ mod tests {
         .0;
         let extra_meta_4_pubkey = Address::find_program_address(
             &[
-                amount.to_le_bytes().as_ref(),
+                hook_amount.to_le_bytes().as_ref(),
                 destination.as_ref(),
                 EXTRA_META_1.as_ref(),
                 extra_meta_3_pubkey.as_ref(),
@@ -390,8 +395,9 @@ mod tests {
         let source = Address::new_unique();
         let destination = Address::new_unique();
         let authority = Address::new_unique();
-        let amount = 100u64;
-        let fee = 1u64;
+        let amount = U256::new(100);
+        let fee = U256::new(1);
+        let hook_amount = amount_to_u64(amount).unwrap();
 
         let validate_state_pubkey =
             get_extra_account_metas_address(&MINT_PUBKEY, &TRANSFER_HOOK_PROGRAM_ID);
@@ -406,7 +412,7 @@ mod tests {
         .0;
         let extra_meta_4_pubkey = Address::find_program_address(
             &[
-                amount.to_le_bytes().as_ref(),
+                hook_amount.to_le_bytes().as_ref(),
                 destination.as_ref(),
                 EXTRA_META_1.as_ref(),
                 extra_meta_3_pubkey.as_ref(),

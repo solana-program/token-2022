@@ -1,5 +1,6 @@
 use {
     crate::processor::{Processor, TransferInstruction},
+    ethnum::U256,
     pinocchio::{account::next_account_view, AccountView},
     solana_address::Address,
     solana_clock::Clock,
@@ -18,7 +19,7 @@ use {
             BaseStateWithExtensions, BaseStateWithExtensionsMut, PodStateWithExtensions,
             PodStateWithExtensionsMut,
         },
-        pod::{PodAccount, PodMint},
+        pod::{PodAccount, PodMint, PodU256},
     },
 };
 
@@ -27,7 +28,7 @@ fn process_initialize_transfer_fee_config(
     transfer_fee_config_authority: COption<Address>,
     withdraw_withheld_authority: COption<Address>,
     transfer_fee_basis_points: u16,
-    maximum_fee: u64,
+    maximum_fee: U256,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter_mut();
     let mint_account_info = next_account_view(account_info_iter)?;
@@ -42,7 +43,7 @@ fn process_initialize_transfer_fee_config(
     extension.withdraw_withheld_authority = withdraw_withheld_authority
         .try_into()
         .map_err(|_| ProgramError::InvalidArgument)?;
-    extension.withheld_amount = 0u64.into();
+    extension.withheld_amount = PodU256::ZERO;
 
     if transfer_fee_basis_points > MAX_FEE_BASIS_POINTS {
         return Err(TokenError::TransferFeeExceedsMaximum.into());
@@ -65,7 +66,7 @@ fn process_set_transfer_fee(
     program_id: &Address,
     accounts: &mut [AccountView],
     transfer_fee_basis_points: u16,
-    maximum_fee: u64,
+    maximum_fee: U256,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter_mut();
     let mint_account_info = next_account_view(account_info_iter)?;
@@ -156,9 +157,9 @@ fn process_withdraw_withheld_tokens_from_mint(
     if destination_account.base.is_frozen() {
         return Err(TokenError::AccountFrozen.into());
     }
-    let withheld_amount = u64::from(extension.withheld_amount);
-    extension.withheld_amount = 0.into();
-    destination_account.base.amount = u64::from(destination_account.base.amount)
+    let withheld_amount = U256::from(extension.withheld_amount);
+    extension.withheld_amount = PodU256::ZERO;
+    destination_account.base.amount = U256::from(destination_account.base.amount)
         .checked_add(withheld_amount)
         .ok_or(TokenError::Overflow)?
         .into();
@@ -169,7 +170,7 @@ fn process_withdraw_withheld_tokens_from_mint(
 fn harvest_from_account<'b>(
     mint_key: &'b Address,
     token_account_info: &'b mut AccountView,
-) -> Result<u64, TokenError> {
+) -> Result<U256, TokenError> {
     // Note: Storing the address value so borrow checker doesn't complain about
     // multiple borrows of `token_account_info`.
     let token_account_owner = *token_account_info.owner();
@@ -187,8 +188,8 @@ fn harvest_from_account<'b>(
     let token_account_extension = token_account
         .get_extension_mut::<TransferFeeAmount>()
         .map_err(|_| TokenError::InvalidState)?;
-    let account_withheld_amount = u64::from(token_account_extension.withheld_amount);
-    token_account_extension.withheld_amount = 0.into();
+    let account_withheld_amount = U256::from(token_account_extension.withheld_amount);
+    token_account_extension.withheld_amount = PodU256::ZERO;
     Ok(account_withheld_amount)
 }
 
@@ -208,7 +209,7 @@ fn process_harvest_withheld_tokens_to_mint(accounts: &mut [AccountView]) -> Prog
     for token_account_info in account_info_iter {
         match harvest_from_account(&mint_account_address, token_account_info) {
             Ok(amount) => {
-                let mint_withheld_amount = u64::from(mint_extension.withheld_amount);
+                let mint_withheld_amount = U256::from(mint_extension.withheld_amount);
                 mint_extension.withheld_amount = mint_withheld_amount
                     .checked_add(amount)
                     .ok_or(TokenError::Overflow)?
@@ -279,16 +280,16 @@ fn process_withdraw_withheld_tokens_from_accounts(
             let token_account_extension = destination_account
                 .get_extension_mut::<TransferFeeAmount>()
                 .map_err(|_| TokenError::InvalidState)?;
-            let account_withheld_amount = u64::from(token_account_extension.withheld_amount);
-            token_account_extension.withheld_amount = 0.into();
-            destination_account.base.amount = u64::from(destination_account.base.amount)
+            let account_withheld_amount = U256::from(token_account_extension.withheld_amount);
+            token_account_extension.withheld_amount = PodU256::ZERO;
+            destination_account.base.amount = U256::from(destination_account.base.amount)
                 .checked_add(account_withheld_amount)
                 .ok_or(TokenError::Overflow)?
                 .into();
         } else {
             match harvest_from_account(mint_account_info.address(), account_info) {
                 Ok(amount) => {
-                    destination_account.base.amount = u64::from(destination_account.base.amount)
+                    destination_account.base.amount = U256::from(destination_account.base.amount)
                         .checked_add(amount)
                         .ok_or(TokenError::Overflow)?
                         .into();

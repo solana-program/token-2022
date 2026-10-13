@@ -22,14 +22,15 @@ use {
     crate::{
         check_program_account,
         instruction::{encode_instruction, TokenInstruction},
+        pod::PodU256,
     },
     alloc::{vec, vec::Vec},
     bytemuck::{Pod, Zeroable},
+    ethnum::U256,
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
-    solana_zero_copy::unaligned::U64,
 };
 
 /// Permissioned Burn extension instructions
@@ -139,7 +140,7 @@ pub struct InitializeInstructionData {
 #[repr(C)]
 pub struct BurnInstructionData {
     /// The amount of tokens to burn.
-    pub amount: U64,
+    pub amount: PodU256,
 }
 
 /// Data expected by `PermissionedBurnInstruction::BurnChecked`
@@ -149,7 +150,7 @@ pub struct BurnInstructionData {
 #[repr(C)]
 pub struct BurnCheckedInstructionData {
     /// The amount of tokens to burn.
-    pub amount: U64,
+    pub amount: PodU256,
     /// Expected number of base 10 digits to the right of the decimal place.
     pub decimals: u8,
 }
@@ -181,7 +182,7 @@ pub fn burn(
     permissioned_burn_authority: &Address,
     authority: &Address,
     signer_pubkeys: &[&Address],
-    amount: u64,
+    amount: U256,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;
     let data = BurnInstructionData {
@@ -221,7 +222,7 @@ pub fn burn_checked(
     permissioned_burn_authority: &Address,
     authority: &Address,
     signer_pubkeys: &[&Address],
-    amount: u64,
+    amount: U256,
     decimals: u8,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(token_program_id)?;

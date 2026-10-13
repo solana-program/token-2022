@@ -1,9 +1,11 @@
 //! Extensions available to token mints and accounts
+//!
+//! The confidential transfer, confidential transfer fee and confidential
+//! mint-burn extensions are not supported on Jupnet: their instructions fail
+//! with [`TokenError::ConfidentialTransferDisabled`].
+//!
+//! [`TokenError::ConfidentialTransferDisabled`]: spl_token_2022_interface::error::TokenError::ConfidentialTransferDisabled
 
-/// Confidential Transfer extension
-pub mod confidential_transfer;
-/// Confidential Transfer Fee extension
-pub mod confidential_transfer_fee;
 /// CPI Guard extension
 pub mod cpi_guard;
 /// Default Account State extension
@@ -42,9 +44,6 @@ pub mod token_metadata;
 pub mod transfer_fee;
 /// Transfer Hook extension
 pub mod transfer_hook;
-
-/// Confidential mint-burn extension
-pub mod confidential_mint_burn;
 
 use pinocchio::AccountView;
 use solana_program_error::ProgramError;

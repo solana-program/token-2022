@@ -290,16 +290,16 @@ fn check_account_type<S: BaseState>(account_type: AccountType) -> Result<(), Pro
 
 /// Any account with extensions must be at least `Account::LEN`.  Both mints and
 /// accounts can have extensions
-/// A mint with extensions that takes it past 165 could be indiscernible from an
+/// A mint with extensions that takes it past 213 could be indiscernible from an
 /// Account with an extension, even if we add the account type. For example,
 /// let's say we have:
 ///
 /// ```text
-/// Account: 165 bytes... + [2, 0, 3, 0, 100, ....]
+/// Account: 213 bytes... + [2, 0, 3, 0, 100, ....]
 ///                          ^     ^       ^     ^
 ///                     acct type  extension length data...
 ///
-/// Mint: 82 bytes... + 83 bytes of other extension data
+/// Mint: 106 bytes... + 107 bytes of other extension data
 ///     + [2, 0, 3, 0, 100, ....]
 ///      (data in extension just happens to look like this)
 /// ```
@@ -336,7 +336,7 @@ fn type_and_tlv_indices<S: BaseState>(
 /// Checks a base buffer to verify if it is an Account without having to
 /// completely deserialize it
 fn is_initialized_account(input: &[u8]) -> Result<bool, ProgramError> {
-    const ACCOUNT_INITIALIZED_INDEX: usize = 108; // See state.rs#L99
+    const ACCOUNT_INITIALIZED_INDEX: usize = 132; // See state.rs
 
     if input.len() != BASE_ACCOUNT_LENGTH {
         return Err(ProgramError::InvalidAccountData);
@@ -1400,23 +1400,21 @@ pub trait Extension {
 }
 
 /// Padding a mint account to be exactly `Multisig::LEN`.
-/// We need to pad 185 bytes, since `Multisig::LEN = 355`, `Account::LEN = 165`,
+/// We need to pad 137 bytes, since `Multisig::LEN = 355`, `Account::LEN = 213`,
 /// `size_of::<AccountType>() = 1`, `size_of::<ExtensionType>() = 2`,
 /// `size_of::<Length>() = 2`.
 ///
 /// ```
-/// assert_eq!(355 - 165 - 1 - 2 - 2, 185);
+/// assert_eq!(355 - 213 - 1 - 2 - 2, 137);
 /// ```
 #[cfg(test)]
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 pub struct MintPaddingTest {
-    /// Largest value under 185 that implements Pod
+    /// Largest value under 137 that implements Pod
     pub padding1: [u8; 128],
-    /// Largest value under 57 that implements Pod
-    pub padding2: [u8; 48],
     /// Exact value needed to finish the padding
-    pub padding3: [u8; 9],
+    pub padding2: [u8; 9],
 }
 #[cfg(test)]
 impl Extension for MintPaddingTest {
@@ -1427,8 +1425,7 @@ impl Default for MintPaddingTest {
     fn default() -> Self {
         Self {
             padding1: [1; 128],
-            padding2: [2; 48],
-            padding3: [3; 9],
+            padding2: [2; 9],
         }
     }
 }
@@ -1559,16 +1556,20 @@ mod test {
     use {
         super::*,
         crate::{
-            pod::test::{TEST_POD_ACCOUNT, TEST_POD_MINT},
+            pod::{
+                test::{TEST_POD_ACCOUNT, TEST_POD_MINT},
+                PodU256,
+            },
             state::test::{TEST_ACCOUNT_SLICE, TEST_MINT_SLICE},
         },
         bytemuck::Pod,
         core::{ptr::copy_nonoverlapping, slice::from_raw_parts},
+        ethnum::U256,
         pinocchio::{account::RuntimeAccount, entrypoint::NON_DUP_MARKER},
         solana_account_info::MAX_PERMITTED_DATA_INCREASE,
         solana_address::Address,
         solana_nullable::MaybeNull,
-        solana_zero_copy::unaligned::{Bool, U64},
+        solana_zero_copy::unaligned::Bool,
         transfer_fee::test::test_transfer_fee_config,
     };
 
@@ -1618,21 +1619,25 @@ mod test {
 
     const MINT_WITH_ACCOUNT_TYPE: &[u8] = &[
         1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 42, 0, 0, 0, 0, 0, 0, 0, 7, 1, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, // base mint
+        1, 1, 1, 1, 1, 1, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 7, 1, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, // base mint
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // padding
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // padding
         1, // account type
     ];
 
     const MINT_WITH_EXTENSION: &[u8] = &[
         1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 42, 0, 0, 0, 0, 0, 0, 0, 7, 1, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, // base mint
+        1, 1, 1, 1, 1, 1, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 7, 1, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, // base mint
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // padding
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // padding
         1, // account type
         3, 0, // extension type
         32, 0, // length
@@ -1645,12 +1650,14 @@ mod test {
         1, 1, // mint
         2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
         2, 2, // owner
-        3, 0, 0, 0, 0, 0, 0, 0, // amount
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, // amount
         1, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
         4, 4, 4, 4, 4, 4, // delegate
         2, // account state
         1, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, // is native
-        6, 0, 0, 0, 0, 0, 0, 0, // delegated amount
+        6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, // delegated amount
         1, 0, 0, 0, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
         7, 7, 7, 7, 7, 7, // close authority
         2, // account type
@@ -1694,7 +1701,8 @@ mod test {
         assert_eq!(extension.transferring, transferring);
         assert_eq!(
             PodStateWithExtensions::<PodMint>::unpack(ACCOUNT_WITH_EXTENSION),
-            Err(ProgramError::InvalidAccountData)
+            // the byte at the offset of PodMint's is_initialized happens to be 0
+            Err(ProgramError::UninitializedAccount)
         );
 
         let state = PodStateWithExtensions::<PodAccount>::unpack(TEST_ACCOUNT_SLICE).unwrap();
@@ -1732,7 +1740,7 @@ mod test {
 
         // clear the mint initialized byte
         let mut buffer = MINT_WITH_EXTENSION.to_vec();
-        buffer[45] = 0;
+        buffer[69] = 0;
         assert_eq!(
             PodStateWithExtensions::<PodMint>::unpack(&buffer),
             Err(ProgramError::UninitializedAccount)
@@ -1821,7 +1829,7 @@ mod test {
 
         // clear the state byte
         let mut buffer = ACCOUNT_WITH_EXTENSION.to_vec();
-        buffer[108] = 0;
+        buffer[132] = 0;
         assert_eq!(
             PodStateWithExtensions::<PodAccount>::unpack(&buffer),
             Err(ProgramError::UninitializedAccount)
@@ -1977,7 +1985,7 @@ mod test {
 
         // update base
         *state.base = TEST_POD_MINT;
-        state.base.supply = (u64::from(state.base.supply) + 100).into();
+        state.base.supply = (U256::from(state.base.supply) + 100).into();
 
         // check unpacking
         let unpacked_extension = state.get_extension_mut::<MintCloseAuthority>().unwrap();
@@ -2161,8 +2169,7 @@ mod test {
         // write padding
         let extension = state.init_extension::<MintPaddingTest>(true).unwrap();
         extension.padding1 = [1; 128];
-        extension.padding2 = [1; 48];
-        extension.padding3 = [1; 9];
+        extension.padding2 = [1; 9];
 
         assert_eq!(
             &state.get_extension_types().unwrap(),
@@ -2202,7 +2209,7 @@ mod test {
             Err(ProgramError::InvalidAccountData),
         );
         // success write extension
-        let withheld_amount = U64::from(u64::MAX);
+        let withheld_amount = PodU256::from(u64::MAX);
         let extension = state.init_extension::<TransferFeeAmount>(true).unwrap();
         extension.withheld_amount = withheld_amount;
 
@@ -2229,7 +2236,7 @@ mod test {
         expect.push(AccountType::Account.into());
         expect.extend_from_slice(&(ExtensionType::TransferFeeAmount as u16).to_le_bytes());
         expect.extend_from_slice(&(size_of::<TransferFeeAmount>() as u16).to_le_bytes());
-        expect.extend_from_slice(&u64::from(withheld_amount).to_le_bytes());
+        expect.extend_from_slice(&withheld_amount.0);
         assert_eq!(expect, buffer);
 
         // check unpacking
@@ -2242,14 +2249,14 @@ mod test {
 
         // update base
         *state.base = TEST_POD_ACCOUNT;
-        state.base.amount = (u64::from(state.base.amount) + 100).into();
+        state.base.amount = (U256::from(state.base.amount) + 100).into();
 
         // check unpacking
         let unpacked_extension = state.get_extension_mut::<TransferFeeAmount>().unwrap();
         assert_eq!(*unpacked_extension, TransferFeeAmount { withheld_amount });
 
         // update extension
-        let withheld_amount = U64::from(u32::MAX as u64);
+        let withheld_amount = PodU256::from(u32::MAX as u64);
         unpacked_extension.withheld_amount = withheld_amount;
 
         // check updates are propagated
@@ -2265,13 +2272,14 @@ mod test {
         expect.push(AccountType::Account.into());
         expect.extend_from_slice(&(ExtensionType::TransferFeeAmount as u16).to_le_bytes());
         expect.extend_from_slice(&(size_of::<TransferFeeAmount>() as u16).to_le_bytes());
-        expect.extend_from_slice(&u64::from(withheld_amount).to_le_bytes());
+        expect.extend_from_slice(&withheld_amount.0);
         assert_eq!(expect, buffer);
 
         // fail unpack as a mint
         assert_eq!(
             PodStateWithExtensions::<PodMint>::unpack(&buffer),
-            Err(ProgramError::InvalidAccountData),
+            // the byte at the offset of PodMint's is_initialized happens to be 0
+            Err(ProgramError::UninitializedAccount),
         );
     }
 
@@ -2298,8 +2306,7 @@ mod test {
         // write padding
         let extension = state.init_extension::<AccountPaddingTest>(true).unwrap();
         extension.0.padding1 = [2; 128];
-        extension.0.padding2 = [2; 48];
-        extension.0.padding3 = [2; 9];
+        extension.0.padding2 = [2; 9];
 
         assert_eq!(
             &state.get_extension_types().unwrap(),
@@ -2513,8 +2520,7 @@ mod test {
         state.init_account_type().unwrap();
         let extension = state.init_extension::<MintPaddingTest>(true).unwrap();
         assert_eq!(extension.padding1, [1; 128]);
-        assert_eq!(extension.padding2, [2; 48]);
-        assert_eq!(extension.padding3, [3; 9]);
+        assert_eq!(extension.padding2, [2; 9]);
     }
 
     #[test]

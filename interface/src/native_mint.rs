@@ -4,7 +4,7 @@
 pub const DECIMALS: u8 = 9;
 
 // The Mint for native SOL Token accounts
-solana_address::declare_id!("9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP");
+solana_address::declare_id!("63xMcBYhmnBJjoNKMQ3naiHSLtkpZr5ZAEDfU3YbaHYo");
 
 /// Seed for the native mint's program-derived address
 pub const PROGRAM_ADDRESS_SEEDS: &[&[u8]] = &["native-mint".as_bytes(), &[255]];

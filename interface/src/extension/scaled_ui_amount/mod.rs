@@ -1,10 +1,12 @@
 use {
     crate::{
         extension::{Extension, ExtensionType},
+        pod::u256_from_f64,
         trim_ui_amount_string,
     },
     alloc::{format, string::String},
     bytemuck::{Pod, Zeroable},
+    ethnum::U256,
     num_traits::{pow, Float},
     solana_address::Address,
     solana_nullable::MaybeNull,
@@ -81,11 +83,11 @@ impl ScaledUiAmountConfig {
     /// zeroes or unneeded decimal point are trimmed.
     pub fn amount_to_ui_amount(
         &self,
-        amount: u64,
+        amount: U256,
         decimals: u8,
         unix_timestamp: i64,
     ) -> Option<String> {
-        let scaled_amount = (amount as f64) * self.current_multiplier(unix_timestamp);
+        let scaled_amount = amount.as_f64() * self.current_multiplier(unix_timestamp);
         let truncated_amount = Float::trunc(scaled_amount) / pow(10_f64, decimals as usize);
         let ui_amount = format!("{truncated_amount:.*}", decimals as usize);
         Some(trim_ui_amount_string(ui_amount, decimals))
@@ -101,18 +103,14 @@ impl ScaledUiAmountConfig {
         ui_amount: &str,
         decimals: u8,
         unix_timestamp: i64,
-    ) -> Result<u64, ProgramError> {
+    ) -> Result<U256, ProgramError> {
         let scaled_amount = ui_amount
             .parse::<f64>()
             .map_err(|_| ProgramError::InvalidArgument)?;
         let amount = scaled_amount / self.total_multiplier(decimals, unix_timestamp);
-        if amount > (u64::MAX as f64) || amount < (u64::MIN as f64) || amount.is_nan() {
-            Err(ProgramError::InvalidArgument)
-        } else {
-            // this is important, if you truncate earlier, you'll get wrong "inf"
-            // answers
-            Ok(Float::trunc(amount) as u64)
-        }
+        // this is important, if you truncate earlier, you'll get wrong "inf"
+        // answers
+        u256_from_f64(amount, Float::trunc)
     }
 }
 impl Extension for ScaledUiAmountConfig {
@@ -159,17 +157,19 @@ mod tests {
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
             ..Default::default()
         };
-        let ui_amount = config.amount_to_ui_amount(1, 0, 0).unwrap();
+        let ui_amount = config.amount_to_ui_amount(U256::ONE, 0, 0).unwrap();
         assert_eq!(ui_amount, "5");
         // with 1 decimal place
-        let ui_amount = config.amount_to_ui_amount(1, 1, 0).unwrap();
+        let ui_amount = config.amount_to_ui_amount(U256::ONE, 1, 0).unwrap();
         assert_eq!(ui_amount, "0.5");
         // with 10 decimal places
-        let ui_amount = config.amount_to_ui_amount(1, 10, 0).unwrap();
+        let ui_amount = config.amount_to_ui_amount(U256::ONE, 10, 0).unwrap();
         assert_eq!(ui_amount, "0.0000000005");
 
         // huge amount with 10 decimal places
-        let ui_amount = config.amount_to_ui_amount(10_000_000_000, 10, 0).unwrap();
+        let ui_amount = config
+            .amount_to_ui_amount(U256::new(10_000_000_000), 10, 0)
+            .unwrap();
         assert_eq!(ui_amount, "5");
 
         // huge values
@@ -178,7 +178,9 @@ mod tests {
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
             ..Default::default()
         };
-        let ui_amount = config.amount_to_ui_amount(u64::MAX, 0, 0).unwrap();
+        let ui_amount = config
+            .amount_to_ui_amount(U256::from(u64::MAX), 0, 0)
+            .unwrap();
         assert_eq!(ui_amount, "inf");
 
         // truncation
@@ -188,7 +190,7 @@ mod tests {
             ..Default::default()
         };
         // This is really 0.99999... but it gets truncated
-        let ui_amount = config.amount_to_ui_amount(101, 2, 0).unwrap();
+        let ui_amount = config.amount_to_ui_amount(U256::new(101), 2, 0).unwrap();
         assert_eq!(ui_amount, "0.99");
     }
 
@@ -201,25 +203,27 @@ mod tests {
             ..Default::default()
         };
         let amount = config.try_ui_amount_into_amount("5.0", 0, 0).unwrap();
-        assert_eq!(1, amount);
+        assert_eq!(U256::ONE, amount);
         // with 1 decimal place
         let amount = config
             .try_ui_amount_into_amount("0.500000000", 1, 0)
             .unwrap();
-        assert_eq!(amount, 1);
+        assert_eq!(amount, U256::ONE);
         // with 10 decimal places
         let amount = config
             .try_ui_amount_into_amount("0.00000000050000000000000000", 10, 0)
             .unwrap();
-        assert_eq!(amount, 1);
+        assert_eq!(amount, U256::ONE);
 
         // huge amount with 10 decimal places
         let amount = config
             .try_ui_amount_into_amount("5.0000000000000000", 10, 0)
             .unwrap();
-        assert_eq!(amount, 10_000_000_000);
+        assert_eq!(amount, U256::new(10_000_000_000));
 
-        // huge values
+        // huge values: `u64::MAX` is not representable as an `f64`, the nearest
+        // value is `2^64`, which is now a valid amount
+        let two_pow_64 = U256::from(u64::MAX) + 1;
         let config = ScaledUiAmountConfig {
             multiplier: 5.0.into(),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
@@ -228,7 +232,7 @@ mod tests {
         let amount = config
             .try_ui_amount_into_amount("92233720368547758075", 0, 0)
             .unwrap();
-        assert_eq!(amount, u64::MAX);
+        assert_eq!(amount, two_pow_64);
         let config = ScaledUiAmountConfig {
             multiplier: f64::MAX.into(),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
@@ -238,7 +242,7 @@ mod tests {
         let amount = config
             .try_ui_amount_into_amount("1.7976931348623157e308", 0, 0)
             .unwrap();
-        assert_eq!(amount, 1);
+        assert_eq!(amount, U256::ONE);
         let config = ScaledUiAmountConfig {
             multiplier: 9.745314011399998e288.into(),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
@@ -247,27 +251,27 @@ mod tests {
         let amount = config
             .try_ui_amount_into_amount("1.7976931348623157e308", 0, 0)
             .unwrap();
-        assert_eq!(amount, u64::MAX);
+        assert_eq!(amount, two_pow_64);
         // scientific notation "E"
         let amount = config
             .try_ui_amount_into_amount("1.7976931348623157E308", 0, 0)
             .unwrap();
-        assert_eq!(amount, u64::MAX);
+        assert_eq!(amount, two_pow_64);
 
-        // this is unfortunate, but underflows can happen due to floats
+        // `u64::MAX + 1` is a valid 256-bit amount
         let config = ScaledUiAmountConfig {
             multiplier: 1.0.into(),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
             ..Default::default()
         };
         assert_eq!(
-            u64::MAX,
+            two_pow_64,
             config
                 .try_ui_amount_into_amount("18446744073709551616", 0, 0)
                 .unwrap() // u64::MAX + 1
         );
 
-        // overflow u64 fail
+        // overflow U256 fail
         let config = ScaledUiAmountConfig {
             multiplier: 0.1.into(),
             new_multiplier_effective_timestamp: UnixTimestamp::from(1),
@@ -275,7 +279,7 @@ mod tests {
         };
         assert_eq!(
             Err(ProgramError::InvalidArgument),
-            config.try_ui_amount_into_amount("18446744073709551615", 0, 0) // u64::MAX + 1
+            config.try_ui_amount_into_amount("1e77", 0, 0) // 1e78 > 2^256
         );
 
         for fail_ui_amount in ["-0.0000000000000000000001", "inf", "-inf", "NaN"] {
@@ -295,7 +299,7 @@ mod tests {
         // or 100 underlying tokens, but the result gives the fewest possible
         // tokens that give that UI amount.
         let amount = config.try_ui_amount_into_amount("0.99", 2, 0).unwrap();
-        assert_eq!(amount, 100);
+        assert_eq!(amount, U256::new(100));
     }
 
     #[test]
@@ -307,7 +311,7 @@ mod tests {
         };
         for (amount, expected) in [(23, "0.23"), (110, "1.1"), (4200, "42"), (0, "0")] {
             let ui_amount = config
-                .amount_to_ui_amount(amount, TEST_DECIMALS, 0)
+                .amount_to_ui_amount(U256::new(amount), TEST_DECIMALS, 0)
                 .unwrap();
             assert_eq!(ui_amount, expected);
         }
@@ -364,7 +368,7 @@ mod tests {
                 new_multiplier_effective_timestamp: UnixTimestamp::from(1),
                 ..Default::default()
             };
-            let ui_amount = config.amount_to_ui_amount(amount, decimals, 0);
+            let ui_amount = config.amount_to_ui_amount(U256::from(amount), decimals, 0);
             assert!(ui_amount.is_some());
         }
     }

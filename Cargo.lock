@@ -2683,6 +2683,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5692dd7b5a1978a5aeb0ce83b7655c58ca8efdcb79d21036ea249da95afec2c6"
 
 [[package]]
+name = "ethnum"
+version = "1.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40404c3f5f511ec4da6fe866ddf6a717c309fdbb69fbbad7b0f3edab8f2e835f"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "event-listener"
 version = "5.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11057,6 +11066,7 @@ name = "spl-token-2022"
 version = "11.1.0"
 dependencies = [
  "bytemuck",
+ "ethnum",
  "mollusk-svm",
  "num_enum",
  "pinocchio",
@@ -11082,14 +11092,9 @@ dependencies = [
  "solana-system-interface 3.2.0",
  "solana-sysvar",
  "solana-zero-copy",
- "solana-zk-elgamal-proof-interface",
- "solana-zk-sdk-pod",
- "spl-elgamal-registry-interface",
  "spl-memo-interface",
  "spl-tlv-account-resolution",
  "spl-token-2022-interface 3.1.2",
- "spl-token-confidential-transfer-ciphertext-arithmetic",
- "spl-token-confidential-transfer-proof-extraction 0.6.1",
  "spl-token-group-interface",
  "spl-token-metadata-interface 1.0.1",
  "spl-transfer-hook-interface",
@@ -11132,6 +11137,7 @@ dependencies = [
  "arrayref",
  "base64 0.23.1",
  "bytemuck",
+ "ethnum",
  "getrandom 0.2.15",
  "num-derive 0.5.1",
  "num-traits",

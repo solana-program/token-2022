@@ -24,28 +24,31 @@ mod entrypoint;
 )]
 pub use spl_token_2022_interface::{check_id, check_program_account, id, ID};
 use {
+    ethnum::{AsU256, U256},
     solana_address::Address,
     solana_program_error::{ProgramError, ProgramResult},
     solana_sdk_ids::system_program,
-    solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
-    spl_token_2022_interface::error::TokenError,
 };
 
 /// Convert the UI representation of a token amount (using the decimals field
 /// defined in its mint) to the raw amount
-pub fn ui_amount_to_amount(ui_amount: f64, decimals: u8) -> u64 {
-    (ui_amount * 10_usize.pow(decimals as u32) as f64) as u64
+///
+/// Like the `f64 as u64` cast this used to be, the conversion saturates:
+/// `NaN` and negative values become `0`, values of `2^256` or more become
+/// `U256::MAX`.
+pub fn ui_amount_to_amount(ui_amount: f64, decimals: u8) -> U256 {
+    (ui_amount * 10_usize.pow(decimals as u32) as f64).as_u256()
 }
 
 /// Convert a raw amount to its UI representation (using the decimals field
 /// defined in its mint)
-pub fn amount_to_ui_amount(amount: u64, decimals: u8) -> f64 {
-    amount as f64 / 10_usize.pow(decimals as u32) as f64
+pub fn amount_to_ui_amount(amount: U256, decimals: u8) -> f64 {
+    amount.as_f64() / 10_usize.pow(decimals as u32) as f64
 }
 
 /// Convert a raw amount to its UI representation (using the decimals field
 /// defined in its mint)
-pub fn amount_to_ui_amount_string(amount: u64, decimals: u8) -> String {
+pub fn amount_to_ui_amount_string(amount: U256, decimals: u8) -> String {
     let decimals = decimals as usize;
     if decimals > 0 {
         // Left-pad zeros to decimals + 1, so we at least have an integer zero
@@ -60,7 +63,7 @@ pub fn amount_to_ui_amount_string(amount: u64, decimals: u8) -> String {
 
 /// Convert a raw amount to its UI representation using the given decimals field
 /// Excess zeroes or unneeded decimal point are trimmed.
-pub fn amount_to_ui_amount_string_trimmed(amount: u64, decimals: u8) -> String {
+pub fn amount_to_ui_amount_string_trimmed(amount: U256, decimals: u8) -> String {
     let s = amount_to_ui_amount_string(amount, decimals);
     trim_ui_amount_string(s, decimals)
 }
@@ -76,7 +79,7 @@ fn trim_ui_amount_string(mut ui_amount: String, decimals: u8) -> String {
 
 /// Try to convert a UI representation of a token amount to its raw amount using
 /// the given decimals field
-pub fn try_ui_amount_into_amount(ui_amount: String, decimals: u8) -> Result<u64, ProgramError> {
+pub fn try_ui_amount_into_amount(ui_amount: String, decimals: u8) -> Result<U256, ProgramError> {
     let decimals = decimals as usize;
     let mut parts = ui_amount.split('.');
     // splitting a string, even an empty one, will always yield an iterator of at
@@ -96,51 +99,14 @@ pub fn try_ui_amount_into_amount(ui_amount: String, decimals: u8) -> Result<u64,
         amount_str.push('0');
     }
     amount_str
-        .parse::<u64>()
+        .parse::<U256>()
         .map_err(|_| ProgramError::InvalidArgument)
-}
-
-/// Checks that the supplied program ID is correct for the ZK ElGamal proof
-/// program
-pub fn check_zk_elgamal_proof_program_account(
-    zk_elgamal_proof_program_id: &Address,
-) -> ProgramResult {
-    if zk_elgamal_proof_program_id != &solana_zk_elgamal_proof_interface::id() {
-        return Err(ProgramError::IncorrectProgramId);
-    }
-    Ok(())
 }
 
 /// Checks if the supplied program ID is that of the system program
 pub fn check_system_program_account(system_program_id: &Address) -> ProgramResult {
     if system_program_id != &system_program::id() {
         return Err(ProgramError::IncorrectProgramId);
-    }
-    Ok(())
-}
-
-/// Checks if the supplied program ID is that of the ElGamal registry program
-pub(crate) fn check_elgamal_registry_program_account(
-    elgamal_registry_account_program_id: &Address,
-) -> ProgramResult {
-    if elgamal_registry_account_program_id != &spl_elgamal_registry_interface::id() {
-        return Err(ProgramError::IncorrectProgramId);
-    }
-    Ok(())
-}
-
-/// Check instruction data and proof data auditor ciphertext consistency
-pub(crate) fn check_auditor_ciphertext(
-    instruction_data_auditor_ciphertext_lo: &PodElGamalCiphertext,
-    instruction_data_auditor_ciphertext_hi: &PodElGamalCiphertext,
-    proof_context_auditor_ciphertext_lo: &PodElGamalCiphertext,
-    proof_context_auditor_ciphertext_hi: &PodElGamalCiphertext,
-) -> ProgramResult {
-    if instruction_data_auditor_ciphertext_lo != proof_context_auditor_ciphertext_lo {
-        return Err(TokenError::ConfidentialTransferBalanceMismatch.into());
-    }
-    if instruction_data_auditor_ciphertext_hi != proof_context_auditor_ciphertext_hi {
-        return Err(TokenError::ConfidentialTransferBalanceMismatch.into());
     }
     Ok(())
 }

@@ -8,6 +8,7 @@ use {
         state::{AccountState, PackedSizeOf},
     },
     bytemuck::{Pod, Zeroable},
+    ethnum::U256,
     solana_address::Address,
     solana_nullable::MaybeNull,
     solana_program_error::ProgramError,
@@ -15,6 +16,78 @@ use {
     solana_program_pack::IsInitialized,
     solana_zero_copy::unaligned::{Bool, U64},
 };
+
+/// A 256-bit unsigned integer stored as little-endian bytes, usable as a Pod.
+///
+/// Token amounts (mint supply, account balances, delegated amounts,
+/// transfer fees) are 256 bits wide on Jupnet. Lamport amounts remain `u64`.
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Pod, Zeroable)]
+pub struct PodU256(pub [u8; 32]);
+impl PodU256 {
+    /// Zero value
+    pub const ZERO: Self = Self([0; 32]);
+
+    /// Creates a `PodU256` from a `u64`, usable in `const` contexts
+    pub const fn from_u64(value: u64) -> Self {
+        let mut bytes = [0u8; 32];
+        let value_bytes = value.to_le_bytes();
+        let mut i = 0;
+        while i < 8 {
+            bytes[i] = value_bytes[i];
+            i += 1;
+        }
+        Self(bytes)
+    }
+
+    /// Creates a `PodU256` from a `U256`
+    pub fn from_primitive(value: U256) -> Self {
+        Self(value.to_le_bytes())
+    }
+}
+impl From<U256> for PodU256 {
+    fn from(n: U256) -> Self {
+        Self::from_primitive(n)
+    }
+}
+impl From<PodU256> for U256 {
+    fn from(pod: PodU256) -> Self {
+        U256::from_le_bytes(pod.0)
+    }
+}
+impl From<u64> for PodU256 {
+    fn from(n: u64) -> Self {
+        Self::from_u64(n)
+    }
+}
+/// Converts an `f64` into a `U256` using the given rounding function, failing
+/// for `NaN`, negative values and values of `2^256` or more.
+///
+/// The range check happens before rounding, so that tiny negative values are
+/// rejected instead of rounding to zero.
+pub fn u256_from_f64(value: f64, round: fn(f64) -> f64) -> Result<U256, ProgramError> {
+    // 2^256 as an f64; every finite f64 at or above this cannot be represented
+    const TWO_POW_256: f64 =
+        115792089237316195423570985008687907853269984665640564039457584007913129639936.0;
+    if value.is_nan() || !(0.0..TWO_POW_256).contains(&value) {
+        Err(ProgramError::InvalidArgument)
+    } else {
+        Ok(ethnum::AsU256::as_u256(round(value)))
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for PodU256 {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        ethnum::serde::decimal::serialize(&U256::from(*self), serializer)
+    }
+}
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for PodU256 {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        ethnum::serde::decimal::deserialize::<U256, D>(deserializer).map(Self::from)
+    }
+}
 
 /// [crate::state::Mint] data stored as a Pod type
 #[repr(C)]
@@ -26,7 +99,7 @@ pub struct PodMint {
     /// minted.
     pub mint_authority: PodCOption<Address>,
     /// Total supply of tokens.
-    pub supply: U64,
+    pub supply: PodU256,
     /// Number of base 10 digits to the right of the decimal place.
     pub decimals: u8,
     /// If `true`, this structure has been initialized
@@ -64,7 +137,7 @@ pub struct PodAccount {
     /// The owner of this account.
     pub owner: Address,
     /// The amount of tokens this account holds.
-    pub amount: U64,
+    pub amount: PodU256,
     /// If `delegate` is `Some` then `delegated_amount` represents
     /// the amount authorized by the delegate
     pub delegate: PodCOption<Address>,
@@ -76,7 +149,7 @@ pub struct PodAccount {
     /// drop below this threshold.
     pub is_native: PodCOption<U64>,
     /// The amount delegated
-    pub delegated_amount: U64,
+    pub delegated_amount: PodU256,
     /// Optional authority to close the account.
     pub close_authority: PodCOption<Address>,
 }
@@ -275,7 +348,7 @@ pub(crate) mod test {
 
     pub const TEST_POD_MINT: PodMint = PodMint {
         mint_authority: PodCOption::some(Address::new_from_array([1; 32])),
-        supply: U64::from_primitive(42),
+        supply: PodU256::from_u64(42),
         decimals: 7,
         is_initialized: Bool::from_bool(true),
         freeze_authority: PodCOption::some(Address::new_from_array([2; 32])),
@@ -283,11 +356,11 @@ pub(crate) mod test {
     pub const TEST_POD_ACCOUNT: PodAccount = PodAccount {
         mint: Address::new_from_array([1; 32]),
         owner: Address::new_from_array([2; 32]),
-        amount: U64::from_primitive(3),
+        amount: PodU256::from_u64(3),
         delegate: PodCOption::some(Address::new_from_array([4; 32])),
         state: AccountState::Frozen as u8,
         is_native: PodCOption::some(U64::from_primitive(5)),
-        delegated_amount: U64::from_primitive(6),
+        delegated_amount: PodU256::from_u64(6),
         close_authority: PodCOption::some(Address::new_from_array([7; 32])),
     };
 

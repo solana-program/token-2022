@@ -53,7 +53,7 @@ pub trait GenericTokenAccount {
 }
 
 /// The offset of state field in Account's C representation
-pub const ACCOUNT_INITIALIZED_INDEX: usize = 108;
+pub const ACCOUNT_INITIALIZED_INDEX: usize = 132;
 
 /// Check if the account data buffer represents an initialized account.
 /// This is checking the `state` (`AccountState`) field of an Account object.
