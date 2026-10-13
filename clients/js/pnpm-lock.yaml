@@ -44,7 +44,7 @@ importers:
         version: 0.19.0(@solana/kit@8.4.0(typescript@6.0.3))
       '@solana/zk-sdk':
         specifier: ^0.5.3
-        version: 0.5.3
+        version: 0.5.4
       '@types/node':
         specifier: ^26
         version: 26.6.4
@@ -62,7 +62,7 @@ importers:
         version: 6.1.3
       tsup:
         specifier: ^8.1.2
-        version: 8.5.1(postcss@8.5.29)(typescript@6.0.3)(yaml@2.9.1)
+        version: 8.5.1(postcss@8.5.30)(typescript@6.0.3)(yaml@2.9.1)
       typedoc:
         specifier: ^0.28.0
         version: 0.28.20(typescript@6.0.3)
@@ -1350,8 +1350,8 @@ packages:
       typescript:
         optional: true
 
-  '@solana/zk-sdk@0.5.3':
-    resolution: {integrity: sha512-vgne1g223Yw7AIgEfX5WnhBZ1gTyYjMzXu/fkXl/yimYSPOJZvn54UI4J/OrxwHGgxfsG6Rs+hUR6ovfPIX6Yg==}
+  '@solana/zk-sdk@0.5.4':
+    resolution: {integrity: sha512-pz9zvcRDg1rrB79rv2no5Ko2jOChxZYbKAm+nsbXMAFVGuFbkbnn1H77iTdxzvlxc3szPym/xRfsvlkOhVVh1g==}
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -1748,8 +1748,8 @@ packages:
       yaml:
         optional: true
 
-  postcss@8.5.29:
-    resolution: {integrity: sha512-49cGhUbXj8Qenv0iTMxA1cFBzxXoctpC9Ujd77t1WcbJIr6nF/eI7g/8MgxrYldFRuAXvja7xQRwavoW7kgrxQ==}
+  postcss@8.5.30:
+    resolution: {integrity: sha512-zkd+e9S1AQHhmaBKye9zlFHWjOwVgqXl1q3ECYy8561K7qxR2cREf/STLskulBFd78k6AOFeA+ff1TtEzk9bAA==}
     engines: {node: ^10 || ^12 || >=14}
 
   punycode.js@2.3.1:
@@ -3038,7 +3038,7 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/zk-sdk@0.5.3': {}
+  '@solana/zk-sdk@0.5.4': {}
 
   '@types/chai@5.2.3':
     dependencies:
@@ -3395,14 +3395,14 @@ snapshots:
       mlly: 1.8.2
       pathe: 2.0.3
 
-  postcss-load-config@6.0.1(postcss@8.5.29)(yaml@2.9.1):
+  postcss-load-config@6.0.1(postcss@8.5.30)(yaml@2.9.1):
     dependencies:
       lilconfig: 3.1.3
     optionalDependencies:
-      postcss: 8.5.29
+      postcss: 8.5.30
       yaml: 2.9.1
 
-  postcss@8.5.29:
+  postcss@8.5.30:
     dependencies:
       nanoid: 3.3.20
       picocolors: 1.1.1
@@ -3513,7 +3513,7 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  tsup@8.5.1(postcss@8.5.29)(typescript@6.0.3)(yaml@2.9.1):
+  tsup@8.5.1(postcss@8.5.30)(typescript@6.0.3)(yaml@2.9.1):
     dependencies:
       bundle-require: 5.1.0(esbuild@0.27.7)
       cac: 6.7.14
@@ -3524,7 +3524,7 @@ snapshots:
       fix-dts-default-cjs-exports: 1.0.1
       joycon: 3.1.1
       picocolors: 1.1.1
-      postcss-load-config: 6.0.1(postcss@8.5.29)(yaml@2.9.1)
+      postcss-load-config: 6.0.1(postcss@8.5.30)(yaml@2.9.1)
       resolve-from: 5.0.0
       rollup: 4.63.4
       source-map: 0.7.6
@@ -3533,7 +3533,7 @@ snapshots:
       tinyglobby: 0.2.17
       tree-kill: 1.2.2
     optionalDependencies:
-      postcss: 8.5.29
+      postcss: 8.5.30
       typescript: 6.0.3
     transitivePeerDependencies:
       - jiti
@@ -3564,7 +3564,7 @@ snapshots:
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
-      postcss: 8.5.29
+      postcss: 8.5.30
       rolldown: 1.2.13
       tinyglobby: 0.2.17
     optionalDependencies:
