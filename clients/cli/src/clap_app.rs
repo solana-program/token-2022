@@ -754,6 +754,7 @@ pub fn app<'a>(
                 .arg(
                     Arg::with_name("interest_rate")
                         .long("interest-rate")
+                        .value_parser(clap::value_parser!(i16))
                         .value_name("RATE_BPS")
                         .takes_value(true)
                         .conflicts_with("ui_amount_multiplier")
@@ -919,6 +920,7 @@ pub fn app<'a>(
                 .arg(
                     Arg::with_name("ui_amount_multiplier")
                         .long("ui-amount-multiplier")
+                        .value_parser(clap::value_parser!(f64))
                         .value_name("MULTIPLIER")
                         .takes_value(true)
                         .conflicts_with("interest_rate")
