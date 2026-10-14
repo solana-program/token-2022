@@ -25,6 +25,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -82,7 +83,7 @@ export type UpdateTransferHookInstructionData = {
 
 export type UpdateTransferHookInstructionDataArgs = {
     /** The program id that performs logic during transfers */
-    programId: OptionOrNullable<Address>;
+    programId: OptionOrNullable<Address | HasAddress>;
 };
 
 export function getUpdateTransferHookInstructionDataEncoder(): FixedSizeEncoder<UpdateTransferHookInstructionDataArgs> {

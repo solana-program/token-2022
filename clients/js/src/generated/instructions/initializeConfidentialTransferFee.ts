@@ -24,6 +24,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -74,9 +75,9 @@ export type InitializeConfidentialTransferFeeInstructionData = {
 
 export type InitializeConfidentialTransferFeeInstructionDataArgs = {
     /** Optional authority to set the withdraw withheld authority ElGamal key */
-    authority: OptionOrNullable<Address>;
+    authority: OptionOrNullable<Address | HasAddress>;
     /** Withheld fees from accounts must be encrypted with this ElGamal key */
-    withdrawWithheldAuthorityElGamalPubkey: Address;
+    withdrawWithheldAuthorityElGamalPubkey: Address | HasAddress;
 };
 
 export function getInitializeConfidentialTransferFeeInstructionDataEncoder(): FixedSizeEncoder<InitializeConfidentialTransferFeeInstructionDataArgs> {

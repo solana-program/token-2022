@@ -25,6 +25,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -84,7 +85,7 @@ export type UpdateMetadataPointerInstructionData = {
 
 export type UpdateMetadataPointerInstructionDataArgs = {
     /** The new account address that holds the metadata. */
-    metadataAddress: OptionOrNullable<Address>;
+    metadataAddress: OptionOrNullable<Address | HasAddress>;
 };
 
 export function getUpdateMetadataPointerInstructionDataEncoder(): FixedSizeEncoder<UpdateMetadataPointerInstructionDataArgs> {

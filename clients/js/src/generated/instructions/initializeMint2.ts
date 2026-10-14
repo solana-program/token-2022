@@ -25,6 +25,7 @@ import {
     type Codec,
     type Decoder,
     type Encoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -72,9 +73,9 @@ export type InitializeMint2InstructionDataArgs = {
     /** Number of base 10 digits to the right of the decimal place. */
     decimals: number;
     /** The authority/multisignature to mint tokens. */
-    mintAuthority: Address;
+    mintAuthority: Address | HasAddress;
     /** The optional freeze authority/multisignature of the mint. */
-    freezeAuthority?: OptionOrNullable<Address>;
+    freezeAuthority?: OptionOrNullable<Address | HasAddress>;
 };
 
 export function getInitializeMint2InstructionDataEncoder(): Encoder<InitializeMint2InstructionDataArgs> {

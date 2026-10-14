@@ -24,6 +24,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -72,7 +73,7 @@ export type InitializePausableConfigInstructionData = {
 
 export type InitializePausableConfigInstructionDataArgs = {
     /** The authority that can pause and resume the mint. */
-    authority: OptionOrNullable<Address>;
+    authority: OptionOrNullable<Address | HasAddress>;
 };
 
 export function getInitializePausableConfigInstructionDataEncoder(): FixedSizeEncoder<InitializePausableConfigInstructionDataArgs> {

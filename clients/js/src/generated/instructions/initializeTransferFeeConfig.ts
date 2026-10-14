@@ -28,6 +28,7 @@ import {
     type Codec,
     type Decoder,
     type Encoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -82,9 +83,9 @@ export type InitializeTransferFeeConfigInstructionData = {
 
 export type InitializeTransferFeeConfigInstructionDataArgs = {
     /** Pubkey that may update the fees. */
-    transferFeeConfigAuthority: OptionOrNullable<Address>;
+    transferFeeConfigAuthority: OptionOrNullable<Address | HasAddress>;
     /** Withdraw instructions must be signed by this key. */
-    withdrawWithheldAuthority: OptionOrNullable<Address>;
+    withdrawWithheldAuthority: OptionOrNullable<Address | HasAddress>;
     /** Amount of transfer collected as fees, expressed as basis points of the transfer amount. */
     transferFeeBasisPoints: number;
     /** Maximum fee assessed on transfers. */

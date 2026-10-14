@@ -22,6 +22,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -76,7 +77,7 @@ export type InitializeConfidentialMintBurnInstructionData = {
 
 export type InitializeConfidentialMintBurnInstructionDataArgs = {
     /** The ElGamal pubkey used to encrypt the confidential supply. */
-    supplyElgamalPubkey: Address;
+    supplyElgamalPubkey: Address | HasAddress;
     /** The initial 0 supply encrypted with the supply aes key. */
     decryptableSupply: DecryptableBalanceArgs;
 };

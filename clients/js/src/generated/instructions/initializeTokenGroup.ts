@@ -29,6 +29,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -86,7 +87,7 @@ export type InitializeTokenGroupInstructionData = {
 
 export type InitializeTokenGroupInstructionDataArgs = {
     /** Update authority for the group */
-    updateAuthority: OptionOrNullable<Address>;
+    updateAuthority: OptionOrNullable<Address | HasAddress>;
     /** The maximum number of group members */
     maxSize: number | bigint;
 };

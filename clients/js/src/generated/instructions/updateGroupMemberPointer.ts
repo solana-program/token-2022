@@ -25,6 +25,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -84,7 +85,7 @@ export type UpdateGroupMemberPointerInstructionData = {
 
 export type UpdateGroupMemberPointerInstructionDataArgs = {
     /** The new account address that holds the member. */
-    memberAddress: OptionOrNullable<Address>;
+    memberAddress: OptionOrNullable<Address | HasAddress>;
 };
 
 export function getUpdateGroupMemberPointerInstructionDataEncoder(): FixedSizeEncoder<UpdateGroupMemberPointerInstructionDataArgs> {

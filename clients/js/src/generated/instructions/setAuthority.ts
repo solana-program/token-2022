@@ -25,6 +25,7 @@ import {
     type Codec,
     type Decoder,
     type Encoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -80,7 +81,7 @@ export type SetAuthorityInstructionDataArgs = {
     /** The type of authority to update. */
     authorityType: AuthorityTypeArgs;
     /** The new authority */
-    newAuthority: OptionOrNullable<Address>;
+    newAuthority: OptionOrNullable<Address | HasAddress>;
 };
 
 export function getSetAuthorityInstructionDataEncoder(): Encoder<SetAuthorityInstructionDataArgs> {

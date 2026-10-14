@@ -22,6 +22,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -67,7 +68,7 @@ export type InitializeAccount3InstructionData = {
 
 export type InitializeAccount3InstructionDataArgs = {
     /** The new account's owner/multisignature. */
-    owner: Address;
+    owner: Address | HasAddress;
 };
 
 export function getInitializeAccount3InstructionDataEncoder(): FixedSizeEncoder<InitializeAccount3InstructionDataArgs> {

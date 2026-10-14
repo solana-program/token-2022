@@ -24,6 +24,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -74,9 +75,9 @@ export type InitializeGroupPointerInstructionData = {
 
 export type InitializeGroupPointerInstructionDataArgs = {
     /** The public key for the account that can update the group address. */
-    authority: OptionOrNullable<Address>;
+    authority: OptionOrNullable<Address | HasAddress>;
     /** The account address that holds the group. */
-    groupAddress: OptionOrNullable<Address>;
+    groupAddress: OptionOrNullable<Address | HasAddress>;
 };
 
 export function getInitializeGroupPointerInstructionDataEncoder(): FixedSizeEncoder<InitializeGroupPointerInstructionDataArgs> {

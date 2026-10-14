@@ -31,6 +31,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type MaybeAccount,
     type MaybeEncodedAccount,
 } from '@solana/kit';
@@ -46,7 +47,16 @@ export type Multisig = {
     signers: Array<Address>;
 };
 
-export type MultisigArgs = Multisig;
+export type MultisigArgs = {
+    /** Number of signers required. */
+    m: number;
+    /** Number of valid signers. */
+    n: number;
+    /** Is `true` if this structure has been initialized. */
+    isInitialized: boolean;
+    /** Signer public keys. */
+    signers: Array<Address | HasAddress>;
+};
 
 /** Gets the encoder for {@link MultisigArgs} account data. */
 export function getMultisigEncoder(): FixedSizeEncoder<MultisigArgs> {

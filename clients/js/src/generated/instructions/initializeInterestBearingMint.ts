@@ -26,6 +26,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -76,7 +77,7 @@ export type InitializeInterestBearingMintInstructionData = {
 
 export type InitializeInterestBearingMintInstructionDataArgs = {
     /** The public key for the account that can update the rate */
-    rateAuthority: OptionOrNullable<Address>;
+    rateAuthority: OptionOrNullable<Address | HasAddress>;
     /** The initial interest rate */
     rate: number;
 };

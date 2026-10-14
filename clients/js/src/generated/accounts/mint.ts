@@ -40,6 +40,7 @@ import {
     type Encoder,
     type FetchAccountConfig,
     type FetchAccountsConfig,
+    type HasAddress,
     type MaybeAccount,
     type MaybeEncodedAccount,
     type Option,
@@ -72,7 +73,7 @@ export type MintArgs = {
      * be provided during mint creation. If no mint authority is present
      * then the mint has a fixed supply and no further tokens may be minted.
      */
-    mintAuthority: OptionOrNullable<Address>;
+    mintAuthority: OptionOrNullable<Address | HasAddress>;
     /** Total supply of tokens. */
     supply: number | bigint;
     /** Number of base 10 digits to the right of the decimal place. */
@@ -80,7 +81,7 @@ export type MintArgs = {
     /** Is `true` if this structure has been initialized. */
     isInitialized: boolean;
     /** Optional authority to freeze token accounts. */
-    freezeAuthority: OptionOrNullable<Address>;
+    freezeAuthority: OptionOrNullable<Address | HasAddress>;
     /** The extensions activated on the mint account. */
     extensions: OptionOrNullable<ExtensionsArgs>;
 };

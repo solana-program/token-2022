@@ -27,6 +27,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -79,7 +80,7 @@ export type UpdateTokenGroupUpdateAuthorityInstructionData = {
 
 export type UpdateTokenGroupUpdateAuthorityInstructionDataArgs = {
     /** New authority for the group, or unset if `None` */
-    newUpdateAuthority: OptionOrNullable<Address>;
+    newUpdateAuthority: OptionOrNullable<Address | HasAddress>;
 };
 
 export function getUpdateTokenGroupUpdateAuthorityInstructionDataEncoder(): FixedSizeEncoder<UpdateTokenGroupUpdateAuthorityInstructionDataArgs> {

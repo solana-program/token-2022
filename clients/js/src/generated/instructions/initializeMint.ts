@@ -25,6 +25,7 @@ import {
     type Codec,
     type Decoder,
     type Encoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -78,9 +79,9 @@ export type InitializeMintInstructionDataArgs = {
     /** Number of decimals in token account amounts. */
     decimals: number;
     /** Minting authority. */
-    mintAuthority: Address;
+    mintAuthority: Address | HasAddress;
     /** Optional authority that can freeze token accounts. */
-    freezeAuthority?: OptionOrNullable<Address>;
+    freezeAuthority?: OptionOrNullable<Address | HasAddress>;
 };
 
 export function getInitializeMintInstructionDataEncoder(): Encoder<InitializeMintInstructionDataArgs> {

@@ -24,6 +24,7 @@ import {
     type Codec,
     type Decoder,
     type Encoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -65,7 +66,7 @@ export type InitializeMintCloseAuthorityInstructionData = {
 
 export type InitializeMintCloseAuthorityInstructionDataArgs = {
     /** Authority that must sign the `CloseAccount` instruction on a mint. */
-    closeAuthority: OptionOrNullable<Address>;
+    closeAuthority: OptionOrNullable<Address | HasAddress>;
 };
 
 export function getInitializeMintCloseAuthorityInstructionDataEncoder(): Encoder<InitializeMintCloseAuthorityInstructionDataArgs> {

@@ -25,6 +25,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -93,7 +94,7 @@ export type RotateSupplyElgamalPubkeyInstructionData = {
 
 export type RotateSupplyElgamalPubkeyInstructionDataArgs = {
     /** The new ElGamal pubkey for supply encryption. */
-    newSupplyElgamalPubkey: Address;
+    newSupplyElgamalPubkey: Address | HasAddress;
     /**
      * The location of the
      * `ProofInstruction::VerifyCiphertextCiphertextEquality` instruction

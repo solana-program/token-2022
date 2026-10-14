@@ -22,6 +22,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -61,7 +62,7 @@ export type InitializePermanentDelegateInstructionData = {
 
 export type InitializePermanentDelegateInstructionDataArgs = {
     /** Authority that may sign for `Transfer`s and `Burn`s on any account */
-    delegate: Address;
+    delegate: Address | HasAddress;
 };
 
 export function getInitializePermanentDelegateInstructionDataEncoder(): FixedSizeEncoder<InitializePermanentDelegateInstructionDataArgs> {

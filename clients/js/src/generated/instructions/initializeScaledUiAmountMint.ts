@@ -26,6 +26,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -76,7 +77,7 @@ export type InitializeScaledUiAmountMintInstructionData = {
 
 export type InitializeScaledUiAmountMintInstructionDataArgs = {
     /** The authority that can update the multiplier */
-    authority: OptionOrNullable<Address>;
+    authority: OptionOrNullable<Address | HasAddress>;
     /** The initial multiplier for the scaled UI extension */
     multiplier: number;
 };

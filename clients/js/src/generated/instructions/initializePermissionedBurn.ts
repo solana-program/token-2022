@@ -22,6 +22,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -68,7 +69,7 @@ export type InitializePermissionedBurnInstructionData = {
 
 export type InitializePermissionedBurnInstructionDataArgs = {
     /** The public key for the account that is required for token burning. */
-    authority: Address;
+    authority: Address | HasAddress;
 };
 
 export function getInitializePermissionedBurnInstructionDataEncoder(): FixedSizeEncoder<InitializePermissionedBurnInstructionDataArgs> {
