@@ -1,10 +1,17 @@
 import path from 'node:path';
 
-import { address, generateKeyPairSigner, lamports, none, type Address, type ReadonlyUint8Array } from '@solana/kit';
+import {
+    address,
+    assertAccountExists,
+    fetchEncodedAccount,
+    generateKeyPairSigner,
+    getAddressEncoder,
+    getProgramDerivedAddress,
+    lamports,
+} from '@solana/kit';
 import { describe, expect, it } from 'vitest';
 
 import {
-    AccountState,
     TOKEN_2022_PROGRAM_ADDRESS,
     Token,
     extension,
@@ -13,7 +20,7 @@ import {
     findExtraAccountMetaListPda,
     getCreateAssociatedTokenIdempotentInstructionAsync,
     getDefaultInitializeExtraAccountMetaListInstructionAsync,
-    getTokenEncoder,
+    getNewAssociatedTokenAccountDataAsync,
 } from '../../../src';
 import { createTestClient, createTokenWithAmount } from '../../_setup';
 
@@ -115,22 +122,6 @@ async function setupHookMintWithAccountDataSeed() {
     return { client, decimals, destination, destinationOwner, mint, source, sourceOwner, validateStatePubkey };
 }
 
-// The data the destination ATA will hold once created. Only the byte ranges a seed reads have to
-// match, so the extensions an ATA on a hook mint also carries are left off.
-function encodeTokenAccountData(mint: Address, owner: Address): ReadonlyUint8Array {
-    return getTokenEncoder().encode({
-        mint,
-        owner,
-        amount: 0n,
-        delegate: none(),
-        state: AccountState.Initialized,
-        isNative: none(),
-        delegatedAmount: 0n,
-        closeAuthority: none(),
-        extensions: none(),
-    });
-}
-
 describe('transfer hook with an account-data seed on a destination that does not exist yet', () => {
     it('fails to resolve the extra accounts against an uncreated destination', async () => {
         const { client, decimals, destination, mint, source, sourceOwner } = await setupHookMintWithAccountDataSeed();
@@ -182,7 +173,7 @@ describe('transfer hook with an account-data seed on a destination that does not
         expect(destinationData).toMatchObject(<Token>{ amount: 40n });
     });
 
-    it('executes when the destination is created earlier in the same transaction and its data is overridden', async () => {
+    it('executes when the destination is created earlier in the same transaction', async () => {
         const { client, decimals, destination, destinationOwner, mint, source, sourceOwner } =
             await setupHookMintWithAccountDataSeed();
 
@@ -192,8 +183,8 @@ describe('transfer hook with an account-data seed on a destination that does not
             owner: destinationOwner.address,
         });
 
-        // Given the data the destination is about to hold, the helper resolves the account-data seed
-        // without fetching it.
+        // Given the destination's wallet, the helper derives the state the ATA is about to hold and
+        // resolves the account-data seed against it instead of fetching it.
         const transfer = await client.token2022.instructions.transferCheckedWithTransferHook(
             {
                 source,
@@ -203,11 +194,7 @@ describe('transfer hook with an account-data seed on a destination that does not
                 amount: 40n,
                 decimals,
             },
-            {
-                accountDataOverrides: new Map([
-                    [destination, encodeTokenAccountData(mint.address, destinationOwner.address)],
-                ]),
-            },
+            { recipient: destinationOwner.address },
         );
 
         // Then creating the destination and transferring in one transaction succeeds: the hook
@@ -222,7 +209,41 @@ describe('transfer hook with an account-data seed on a destination that does not
         expect(destinationData).toMatchObject(<Token>{ amount: 40n });
     });
 
-    it('is rejected on chain when the override does not match what the destination will hold', async () => {
+    it('rejects a recipient whose associated token account is not the destination', async () => {
+        const { client, decimals, destination, mint, source, sourceOwner } = await setupHookMintWithAccountDataSeed();
+
+        // A recipient that does not own the destination would derive a PDA the hook will not, so the
+        // helper refuses to build the instruction rather than leaving it to fail on chain.
+        await expect(
+            client.token2022.instructions.transferCheckedWithTransferHook(
+                { source, mint: mint.address, destination, authority: sourceOwner, amount: 40n, decimals },
+                { recipient: sourceOwner.address },
+            ),
+        ).rejects.toThrow(`${sourceOwner.address} does not own the destination ${destination}`);
+    });
+
+    it('derives the exact state the associated token program writes for the destination', async () => {
+        const { client, destination, destinationOwner, mint } = await setupHookMintWithAccountDataSeed();
+
+        // What the helper resolves seeds against, for a destination that does not exist yet.
+        const derived = await getNewAssociatedTokenAccountDataAsync(client.rpc, mint.address, destinationOwner.address);
+
+        await client.sendTransaction([
+            await getCreateAssociatedTokenIdempotentInstructionAsync({
+                payer: client.payer,
+                mint: mint.address,
+                owner: destinationOwner.address,
+            }),
+        ]);
+
+        // Byte for byte what the chain actually holds, extensions included. Any divergence would
+        // derive a different PDA than the hook does and the transfer would fail on chain.
+        const onChain = await fetchEncodedAccount(client.rpc, destination);
+        assertAccountExists(onChain);
+        expect(Buffer.from(derived).toString('hex')).toBe(Buffer.from(onChain.data).toString('hex'));
+    });
+
+    it('is rejected on chain when the resolved extra account is not the one the hook derives', async () => {
         const { client, decimals, destination, destinationOwner, mint, source, sourceOwner } =
             await setupHookMintWithAccountDataSeed();
 
@@ -231,27 +252,25 @@ describe('transfer hook with an account-data seed on a destination that does not
             mint: mint.address,
             owner: destinationOwner.address,
         });
-
-        // Given an override naming the wrong owner, the helper derives a PDA the hook will not.
         const transfer = await client.token2022.instructions.transferCheckedWithTransferHook(
-            {
-                source,
-                mint: mint.address,
-                destination,
-                authority: sourceOwner,
-                amount: 40n,
-                decimals,
-            },
-            {
-                accountDataOverrides: new Map([
-                    [destination, encodeTokenAccountData(mint.address, sourceOwner.address)],
-                ]),
-            },
+            { source, mint: mint.address, destination, authority: sourceOwner, amount: 40n, decimals },
+            { recipient: destinationOwner.address },
         );
 
-        // Then the hook re-derives the seed from the real account data and rejects the transfer.
+        // Swap the resolved PDA (the extra accounts end with the hook program and its validation
+        // account) for one seeded by the source owner instead of the destination's.
+        const [wrongPda] = await getProgramDerivedAddress({
+            programAddress: TRANSFER_HOOK_PROGRAM_ADDRESS,
+            seeds: [getAddressEncoder().encode(sourceOwner.address)],
+        });
+        const accounts = [...(transfer.accounts ?? [])];
+        const pdaIndex = accounts.length - 3;
+        accounts[pdaIndex] = { ...accounts[pdaIndex], address: wrongPda };
+
+        // Then the hook re-derives the seed from the real account data and rejects the transfer, so
+        // the passing cases above are not passing on a hook that ignores its extra account.
         // Instruction #2 is the transfer; a client-side failure would not reach the chain at all.
-        await expect(client.sendTransaction([createDestination, transfer])).rejects.toThrow(
+        await expect(client.sendTransaction([createDestination, { ...transfer, accounts }])).rejects.toThrow(
             /Custom program error.*instruction #2/,
         );
 
