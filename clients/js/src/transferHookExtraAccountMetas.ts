@@ -30,6 +30,7 @@ import {
     getUnionDecoder,
     getUnionEncoder,
     isSignerRole,
+    isTransactionSigner,
     isWritableRole,
     mergeRoles,
     padLeftDecoder,
@@ -45,6 +46,7 @@ import {
     type Decoder,
     type Encoder,
     type GetAccountInfoApi,
+    type HasAddress,
     type Instruction,
     type ProgramDerivedAddress,
     type ReadonlyUint8Array,
@@ -54,6 +56,7 @@ import {
 import {
     getAddressFromResolvedInstructionAccount,
     type InstructionAccountInput,
+    type InstructionSignerInput,
 } from '@solana/kit/program-client-core';
 
 import { fetchMint, getTransferCheckedInstruction, TOKEN_2022_PROGRAM_ADDRESS, type Extension } from './generated';
@@ -733,7 +736,7 @@ export type DefaultExtraAccountMetaListInstructionAsyncInput = {
     /** The mint the transfer hook is configured for. */
     mint: InstructionAccountInput;
     /** The transfer hook program's extra-account-meta-list update authority. */
-    authority: Address | TransactionSigner;
+    authority: Address | HasAddress;
     /** The extra accounts to write into the validation account. */
     extraAccountMetas: ExtraAccountMeta[];
     /** The transfer hook program that owns the validation account. */
@@ -744,13 +747,16 @@ export type DefaultExtraAccountMetaListInstructionAsyncInput = {
 
 export type DefaultInitializeExtraAccountMetaListInstructionAsyncConfig = {
     /** The system program. Defaults to the canonical system program address. */
-    systemProgram?: Address;
+    systemProgram?: Address | HasAddress;
 };
 
-function getAuthorityMeta(authority: Address | TransactionSigner): AccountMeta<Address> | AccountSignerMeta<Address> {
-    return typeof authority === 'string'
-        ? { address: authority, role: AccountRole.READONLY_SIGNER }
-        : { address: authority.address, role: AccountRole.READONLY_SIGNER, signer: authority };
+function getAuthorityMeta(authority: Address | HasAddress): AccountMeta<Address> | AccountSignerMeta<Address> {
+    if (typeof authority === 'string') {
+        return { address: authority, role: AccountRole.READONLY_SIGNER };
+    }
+    return isTransactionSigner(authority)
+        ? { address: authority.address, role: AccountRole.READONLY_SIGNER, signer: authority }
+        : { address: authority.address, role: AccountRole.READONLY_SIGNER };
 }
 
 /**
@@ -779,7 +785,13 @@ export async function getDefaultInitializeExtraAccountMetaListInstructionAsync(
             { address: extraAccountMetaList, role: AccountRole.WRITABLE },
             { address: mint, role: AccountRole.READONLY },
             getAuthorityMeta(input.authority),
-            { address: config?.systemProgram ?? SYSTEM_PROGRAM_ADDRESS, role: AccountRole.READONLY },
+            {
+                address: getAddressFromResolvedInstructionAccount(
+                    'systemProgram',
+                    config?.systemProgram ?? SYSTEM_PROGRAM_ADDRESS,
+                ),
+                role: AccountRole.READONLY,
+            },
         ],
         data: getExtraAccountMetaListInstructionData(
             INITIALIZE_EXTRA_ACCOUNT_META_LIST_DISCRIMINATOR,
@@ -831,7 +843,7 @@ export type TransferCheckedWithTransferHookInstructionAsyncInput = {
     /** The destination account. */
     destination: InstructionAccountInput;
     /** The source account's owner/delegate, or its multisignature account. */
-    authority: Address | TransactionSigner;
+    authority: InstructionAccountInput | InstructionSignerInput;
     amount: number | bigint;
     decimals: number;
     /** The signer accounts for a multisignature authority. */
@@ -840,7 +852,7 @@ export type TransferCheckedWithTransferHookInstructionAsyncInput = {
 
 export type TransferCheckedWithTransferHookInstructionAsyncConfig = {
     /** The token program the mint belongs to. Defaults to Token-2022. */
-    tokenProgram?: Address;
+    tokenProgram?: Address | HasAddress;
 };
 
 /**
@@ -862,7 +874,10 @@ export async function getTransferCheckedWithTransferHookInstructionAsync(
     input: TransferCheckedWithTransferHookInstructionAsyncInput,
     config?: TransferCheckedWithTransferHookInstructionAsyncConfig,
 ): Promise<Instruction> {
-    const programAddress = config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = getAddressFromResolvedInstructionAccount(
+        'tokenProgram',
+        config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
+    );
     const instruction = getTransferCheckedInstruction(
         {
             amount: input.amount,

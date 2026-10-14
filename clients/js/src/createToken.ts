@@ -2,11 +2,16 @@ import { getCreateAccountInstruction } from '@solana-program/system';
 import {
     Address,
     ClientWithGetMinimumBalance,
+    HasAddress,
     InstructionPlan,
     sequentialInstructionPlan,
     TransactionSigner,
 } from '@solana/kit';
-import type { InstructionAccountInput } from '@solana/kit/program-client-core';
+import {
+    getAddressFromResolvedInstructionAccount,
+    type InstructionAccountInput,
+    type InstructionSignerInput,
+} from '@solana/kit/program-client-core';
 
 import { ExtensionArgs, getInitializeAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from './generated';
 import { getPostInitializeInstructionsForTokenExtensions } from './getInitializeInstructionsForExtensions';
@@ -20,7 +25,7 @@ export type CreateTokenInstructionPlanInput = {
     /** The token mint for the token account. */
     mint: InstructionAccountInput;
     /** The owner of the token account. */
-    owner: TransactionSigner | Address;
+    owner: InstructionAccountInput | InstructionSignerInput;
     /** The optional token-account extensions to initialize on the account. */
     extensions?: ExtensionArgs[];
     multiSigners?: TransactionSigner[];
@@ -32,8 +37,8 @@ export type CreateTokenInstructionPlanInput = {
 };
 
 export type CreateTokenInstructionPlanConfig = {
-    systemProgram?: Address;
-    tokenProgram?: Address;
+    systemProgram?: Address | HasAddress;
+    tokenProgram?: Address | HasAddress;
 };
 
 export async function getCreateTokenInstructionPlan(
@@ -43,7 +48,11 @@ export async function getCreateTokenInstructionPlan(
 ): Promise<InstructionPlan> {
     const extensions = input.extensions ?? [];
     const space = getTokenSize(input.extensions);
-    const owner = typeof input.owner === 'string' ? input.owner : input.owner.address;
+    const owner = getAddressFromResolvedInstructionAccount('owner', input.owner);
+    const systemProgram =
+        config?.systemProgram && getAddressFromResolvedInstructionAccount('systemProgram', config.systemProgram);
+    const tokenProgram =
+        config?.tokenProgram && getAddressFromResolvedInstructionAccount('tokenProgram', config.tokenProgram);
     const lamports = input.tokenAccountLamports ?? (await client.getMinimumBalance(space));
     return sequentialInstructionPlan([
         getCreateAccountInstruction(
@@ -52,10 +61,10 @@ export async function getCreateTokenInstructionPlan(
                 newAccount: input.newToken,
                 lamports,
                 space,
-                programAddress: config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
+                programAddress: tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
             },
             {
-                programAddress: config?.systemProgram,
+                programAddress: systemProgram,
             },
         ),
         getInitializeAccountInstruction(
@@ -65,7 +74,7 @@ export async function getCreateTokenInstructionPlan(
                 owner,
             },
             {
-                programAddress: config?.tokenProgram,
+                programAddress: tokenProgram,
             },
         ),
         ...getPostInitializeInstructionsForTokenExtensions(

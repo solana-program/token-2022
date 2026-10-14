@@ -1,7 +1,8 @@
-import { Address, InstructionPlan, sequentialInstructionPlan, TransactionSigner } from '@solana/kit';
+import { Address, HasAddress, InstructionPlan, sequentialInstructionPlan, TransactionSigner } from '@solana/kit';
 import {
     getAddressFromResolvedInstructionAccount,
     type InstructionAccountInput,
+    type InstructionSignerInput,
 } from '@solana/kit/program-client-core';
 
 import {
@@ -27,7 +28,7 @@ export type MintToATAInstructionPlanInput = {
     /** The token mint for the associated token account. */
     mint: InstructionAccountInput;
     /** The mint's minting authority or its multisignature account. */
-    mintAuthority: Address | TransactionSigner;
+    mintAuthority: InstructionAccountInput | InstructionSignerInput;
     /** The amount of new tokens to mint. */
     amount: number | bigint;
     /** Expected number of base 10 digits to the right of the decimal place. */
@@ -36,15 +37,20 @@ export type MintToATAInstructionPlanInput = {
 };
 
 export type MintToATAInstructionPlanConfig = {
-    systemProgram?: Address;
-    tokenProgram?: Address;
-    associatedTokenProgram?: Address;
+    systemProgram?: Address | HasAddress;
+    tokenProgram?: Address | HasAddress;
+    associatedTokenProgram?: Address | HasAddress;
 };
 
 export function getMintToATAInstructionPlan(
     input: MintToATAInstructionPlanInput,
     config?: MintToATAInstructionPlanConfig,
 ): InstructionPlan {
+    const tokenProgram =
+        config?.tokenProgram && getAddressFromResolvedInstructionAccount('tokenProgram', config.tokenProgram);
+    const associatedTokenProgram =
+        config?.associatedTokenProgram &&
+        getAddressFromResolvedInstructionAccount('associatedTokenProgram', config.associatedTokenProgram);
     return sequentialInstructionPlan([
         getCreateAssociatedTokenIdempotentInstruction(
             {
@@ -53,10 +59,10 @@ export function getMintToATAInstructionPlan(
                 owner: input.owner,
                 mint: input.mint,
                 systemProgram: config?.systemProgram,
-                tokenProgram: config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
+                tokenProgram: tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
             },
             {
-                programAddress: config?.associatedTokenProgram,
+                programAddress: associatedTokenProgram,
             },
         ),
         getMintToCheckedInstruction(
@@ -69,7 +75,7 @@ export function getMintToATAInstructionPlan(
                 multiSigners: input.multiSigners,
             },
             {
-                programAddress: config?.tokenProgram,
+                programAddress: tokenProgram,
             },
         ),
     ]);
@@ -81,7 +87,9 @@ export async function getMintToATAInstructionPlanAsync(
     input: MintToATAInstructionPlanAsyncInput,
     config?: MintToATAInstructionPlanConfig,
 ): Promise<InstructionPlan> {
-    const tokenProgram = config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const tokenProgram =
+        (config?.tokenProgram && getAddressFromResolvedInstructionAccount('tokenProgram', config.tokenProgram)) ??
+        TOKEN_2022_PROGRAM_ADDRESS;
     let ata = input.ata;
     if (!ata) {
         [ata] = await findAssociatedTokenPda({

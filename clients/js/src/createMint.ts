@@ -2,11 +2,13 @@ import { getCreateAccountInstruction } from '@solana-program/system';
 import {
     Address,
     ClientWithGetMinimumBalance,
+    HasAddress,
     InstructionPlan,
     OptionOrNullable,
     sequentialInstructionPlan,
     TransactionSigner,
 } from '@solana/kit';
+import { getAddressFromResolvedInstructionAccount } from '@solana/kit/program-client-core';
 
 import { Extension, ExtensionArgs, getInitializeMintInstruction, TOKEN_2022_PROGRAM_ADDRESS } from './generated';
 import {
@@ -46,8 +48,8 @@ export type CreateMintInstructionPlanInput = {
 };
 
 export type CreateMintInstructionPlanConfig = {
-    systemProgram?: Address;
-    tokenProgram?: Address;
+    systemProgram?: Address | HasAddress;
+    tokenProgram?: Address | HasAddress;
 };
 
 export async function getCreateMintInstructionPlan(
@@ -64,6 +66,10 @@ export async function getCreateMintInstructionPlan(
         : getMintSize();
     const rentSpace = getMintSize(input.extensions);
     const lamports = input.mintAccountLamports ?? (await client.getMinimumBalance(rentSpace));
+    const systemProgram =
+        config?.systemProgram && getAddressFromResolvedInstructionAccount('systemProgram', config.systemProgram);
+    const tokenProgram =
+        config?.tokenProgram && getAddressFromResolvedInstructionAccount('tokenProgram', config.tokenProgram);
     return sequentialInstructionPlan([
         getCreateAccountInstruction(
             {
@@ -71,10 +77,10 @@ export async function getCreateMintInstructionPlan(
                 newAccount: input.newMint,
                 lamports,
                 space,
-                programAddress: config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
+                programAddress: tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
             },
             {
-                programAddress: config?.systemProgram,
+                programAddress: systemProgram,
             },
         ),
         ...getPreInitializeInstructionsForMintExtensions(input.newMint.address, extensions),
@@ -86,7 +92,7 @@ export async function getCreateMintInstructionPlan(
                 freezeAuthority: input.freezeAuthority,
             },
             {
-                programAddress: config?.tokenProgram,
+                programAddress: tokenProgram,
             },
         ),
         ...getPostInitializeInstructionsForMintExtensions(input.newMint.address, input.mintAuthority, extensions),

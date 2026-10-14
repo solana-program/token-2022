@@ -92,6 +92,36 @@ describe('getDefaultInitializeExtraAccountMetaListInstructionAsync', () => {
             { address: SYSTEM_PROGRAM_ADDRESS, role: AccountRole.READONLY },
         ]);
     });
+
+    it('does not attach a signer for an address wrapper authority', async () => {
+        const authority = address('D5jyaVjrWuq7ostc8JYywr3QDPtM6y6TZKG1TgRhZYSp');
+
+        const instruction = await getDefaultInitializeExtraAccountMetaListInstructionAsync({
+            mint,
+            authority: { address: authority },
+            extraAccountMetas: [],
+            transferHookProgram: transferHookProgramId,
+        });
+
+        expect(instruction.accounts![2]).toStrictEqual({ address: authority, role: AccountRole.READONLY_SIGNER });
+    });
+
+    it('accepts an address wrapper for the system program override', async () => {
+        const authority = address('D5jyaVjrWuq7ostc8JYywr3QDPtM6y6TZKG1TgRhZYSp');
+        const systemProgram = address('AKPu7hnbAfsjixnPvGReDbmAYUJErkw8H6cRc3ohh2xf');
+
+        const instruction = await getDefaultInitializeExtraAccountMetaListInstructionAsync(
+            {
+                mint,
+                authority,
+                extraAccountMetas: [],
+                transferHookProgram: transferHookProgramId,
+            },
+            { systemProgram: { address: systemProgram } },
+        );
+
+        expect(instruction.accounts![3]).toStrictEqual({ address: systemProgram, role: AccountRole.READONLY });
+    });
 });
 
 describe('getDefaultUpdateExtraAccountMetaListInstructionAsync', () => {

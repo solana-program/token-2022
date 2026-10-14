@@ -30,6 +30,7 @@ import {
     type GetAccountInfoApi,
     type GetMinimumBalanceForRentExemptionApi,
     type FetchAccountConfig,
+    type HasAddress,
     type InstructionPlan,
     type ReadonlyUint8Array,
     type Rpc,
@@ -37,6 +38,7 @@ import {
 import {
     getAddressFromResolvedInstructionAccount,
     type InstructionAccountInput,
+    type InstructionSignerInput,
 } from '@solana/kit/program-client-core';
 import {
     AeCiphertext,
@@ -118,27 +120,27 @@ type ContextStateProofPlan = Readonly<{ address: Address; setup: InstructionPlan
 
 export type GetCreateConfidentialTransferAccountInstructionPlanInput = {
     payer: TransactionSigner;
-    owner: Address | TransactionSigner;
+    owner: InstructionAccountInput | InstructionSignerInput;
     mint: InstructionAccountInput;
     token?: InstructionAccountInput;
-    authority?: Address | TransactionSigner;
+    authority?: InstructionAccountInput | InstructionSignerInput;
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
     elgamalKeypair: ElGamalKeypair;
     aesKey: AeKey;
     maximumPendingBalanceCreditCounter?: number | bigint;
     includeConfidentialTransferFeeAmount?: boolean;
     multiSigners?: Array<TransactionSigner>;
-    programAddress?: Address;
+    programAddress?: Address | HasAddress;
 };
 
 export type GetApplyConfidentialPendingBalanceInstructionFromTokenInput = {
     token: InstructionAccountInput;
     tokenAccount: Token;
-    authority: Address | TransactionSigner;
+    authority: InstructionAccountInput | InstructionSignerInput;
     elgamalSecretKey: ElGamalSecretKey;
     aesKey: AeKey;
     multiSigners?: Array<TransactionSigner>;
-    programAddress?: Address;
+    programAddress?: Address | HasAddress;
 };
 
 export type DecryptConfidentialTransferBalanceInput = {
@@ -167,13 +169,13 @@ export type GetConfidentialWithdrawInstructionPlanInput = {
     token: InstructionAccountInput;
     mint: InstructionAccountInput;
     tokenAccount: Token;
-    authority: Address | TransactionSigner;
+    authority: InstructionAccountInput | InstructionSignerInput;
     amount: number | bigint;
     decimals: number;
     elgamalKeypair: ElGamalKeypair;
     aesKey: AeKey;
     multiSigners?: Array<TransactionSigner>;
-    programAddress?: Address;
+    programAddress?: Address | HasAddress;
     payer: TransactionSigner;
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
 };
@@ -191,10 +193,10 @@ export type GetConfidentialWithdrawWithRecordInstructionPlanInput = GetConfident
 export type GetEmptyConfidentialTransferAccountInstructionPlanInput = {
     token: InstructionAccountInput;
     tokenAccount: Token;
-    authority: Address | TransactionSigner;
+    authority: InstructionAccountInput | InstructionSignerInput;
     elgamalKeypair: ElGamalKeypair;
     multiSigners?: Array<TransactionSigner>;
-    programAddress?: Address;
+    programAddress?: Address | HasAddress;
     payer: TransactionSigner;
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
 };
@@ -217,12 +219,12 @@ export type GetConfidentialTransferInstructionPlanInput = {
      * key is used.
      */
     auditorElgamalPubkey?: Address;
-    authority: Address | TransactionSigner;
+    authority: InstructionAccountInput | InstructionSignerInput;
     amount: number | bigint;
     sourceElgamalKeypair: ElGamalKeypair;
     aesKey: AeKey;
     multiSigners?: Array<TransactionSigner>;
-    programAddress?: Address;
+    programAddress?: Address | HasAddress;
     payer: TransactionSigner;
     // The transfer helpers may need to read the mint account to resolve the
     // auditor ElGamal key, so the RPC must support account reads as well.
@@ -274,7 +276,7 @@ type GetConfidentialMintBurnInstructionPlanBaseInput = {
     mint: InstructionAccountInput;
     /** Decoded mint account, read for the `ConfidentialMintBurn` supply state and auditor key. */
     mintAccount: Mint;
-    authority: Address | TransactionSigner;
+    authority: InstructionAccountInput | InstructionSignerInput;
     amount: number | bigint;
     /**
      * Auditor ElGamal public key to use for the auditor ciphertexts. When
@@ -284,7 +286,7 @@ type GetConfidentialMintBurnInstructionPlanBaseInput = {
      */
     auditorElgamalPubkey?: Address;
     multiSigners?: Array<TransactionSigner>;
-    programAddress?: Address;
+    programAddress?: Address | HasAddress;
     payer: TransactionSigner;
     // The mint/burn helpers resolve the auditor ElGamal key through the same
     // path as the transfer helpers, so the RPC must support account reads as
@@ -333,25 +335,17 @@ export type GetPermissionedConfidentialBurnWithRecordInstructionPlanInput =
 
 export type GetUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupplyInput = {
     mint: InstructionAccountInput;
-    authority: Address | TransactionSigner;
+    authority: InstructionAccountInput | InstructionSignerInput;
     /** The supply AES key that encrypts the decryptable supply. */
     supplyAesKey: AeKey;
     /** The true current supply to encode into the decryptable supply. */
     supply: number | bigint;
     multiSigners?: Array<TransactionSigner>;
-    programAddress?: Address;
+    programAddress?: Address | HasAddress;
 };
 
-function getTokenProgramAddress(programAddress?: Address) {
-    return programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
-}
-
-function addressOf(value: Address | TransactionSigner): Address {
-    return isSigner(value) ? value.address : value;
-}
-
-function isSigner(value: Address | TransactionSigner): value is TransactionSigner {
-    return typeof value !== 'string';
+function getTokenProgramAddress(programAddress?: Address | HasAddress) {
+    return getAddressFromResolvedInstructionAccount('programAddress', programAddress ?? TOKEN_2022_PROGRAM_ADDRESS);
 }
 
 function getRequiredConfidentialTransferAccountExtension(tokenAccount: Token): ConfidentialTransferAccountExtension {
@@ -470,10 +464,13 @@ function decryptPendingBalance(account: ConfidentialTransferAccountExtension, el
 }
 
 function assertCreateHelperOwnerMatchesAuthority(
-    owner: Address | TransactionSigner,
-    authority: Address | TransactionSigner,
+    owner: InstructionAccountInput | InstructionSignerInput,
+    authority: InstructionAccountInput | InstructionSignerInput,
 ) {
-    if (addressOf(owner) !== addressOf(authority)) {
+    if (
+        getAddressFromResolvedInstructionAccount('owner', owner) !==
+        getAddressFromResolvedInstructionAccount('authority', authority)
+    ) {
         throw new Error(
             'This helper is scoped to the token-account owner. For the ATA convenience flow, authority must match owner.',
         );
@@ -649,7 +646,7 @@ export async function getCreateConfidentialTransferAccountInstructionPlan(
     const authority = input.authority ?? input.owner;
     assertCreateHelperOwnerMatchesAuthority(input.owner, authority);
 
-    const ownerAddress = addressOf(input.owner);
+    const ownerAddress = getAddressFromResolvedInstructionAccount('owner', input.owner);
     const token =
         input.token ??
         (
@@ -909,7 +906,7 @@ function assembleConfidentialWithdrawPlan(
                 rangeProofInstructionOffset: 0,
                 multiSigners: input.multiSigners,
             },
-            { programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS },
+            { programAddress: getTokenProgramAddress(input.programAddress) },
         ),
         parallelInstructionPlan([equalityProofPlan.cleanup, rangeProofPlan.cleanup]),
     ]);
@@ -1122,7 +1119,7 @@ function assembleConfidentialTransferPlan(
                 rangeProofInstructionOffset: 0,
                 multiSigners: input.multiSigners,
             },
-            { programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS },
+            { programAddress: getTokenProgramAddress(input.programAddress) },
         ),
         parallelInstructionPlan([
             equalityProofPlan.cleanup,
@@ -1533,7 +1530,7 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
                 rangeProofInstructionOffset: 0,
                 multiSigners: input.multiSigners,
             },
-            { programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS },
+            { programAddress: getTokenProgramAddress(input.programAddress) },
         ),
         parallelInstructionPlan([
             equalityProofPlan.cleanup,
