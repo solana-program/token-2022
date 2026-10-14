@@ -372,11 +372,37 @@ function getExtraAccountMetaSeedsDecoder(): Decoder<ExtraAccountMetaSeed[]> {
     });
 }
 
+/**
+ * Account data to resolve against in place of what is on chain, keyed by account address. Consulted
+ * by {@link resolveSeeds} and {@link resolvePubkeyData} before the RPC, so a caller can resolve a
+ * transfer hook's extra accounts against an account that an earlier instruction in the same
+ * transaction creates.
+ *
+ * Data that differs from what the account holds by the time the hook's `Execute` runs derives a
+ * different address than the hook derives, and the transfer fails.
+ */
+export type AccountDataOverrides = ReadonlyMap<Address, ReadonlyUint8Array>;
+
+// Returns the caller's override for `address`, else the on-chain data, else `undefined`.
+async function getAccountDataForResolution(
+    address: Address,
+    rpc: Rpc<GetAccountInfoApi>,
+    accountDataOverrides: AccountDataOverrides | undefined,
+): Promise<ReadonlyUint8Array | undefined> {
+    const override = accountDataOverrides?.get(address);
+    if (override !== undefined) {
+        return override;
+    }
+    const account = await fetchEncodedAccount(rpc, address);
+    return account.exists ? account.data : undefined;
+}
+
 async function resolveSeed(
     seed: ExtraAccountMetaSeed,
     previousMetas: Address[],
     instructionData: ReadonlyUint8Array,
     rpc: Rpc<GetAccountInfoApi>,
+    accountDataOverrides?: AccountDataOverrides,
 ): Promise<ReadonlyUint8Array> {
     switch (seed.__kind) {
         case 'Literal':
@@ -401,19 +427,19 @@ async function resolveSeed(
                     'Invalid transfer hook seed: account-data seed references an out-of-bounds account index.',
                 );
             }
-            const account = await fetchEncodedAccount(rpc, previousMetas[seed.accountIndex]);
-            if (!account.exists) {
+            const data = await getAccountDataForResolution(previousMetas[seed.accountIndex], rpc, accountDataOverrides);
+            if (data === undefined) {
                 throw new Error(
                     `Invalid transfer hook seed: account ${previousMetas[seed.accountIndex]} required by an ` +
                         'account-data seed was not found.',
                 );
             }
-            if (account.data.length < seed.dataIndex + seed.length) {
+            if (data.length < seed.dataIndex + seed.length) {
                 throw new Error(
                     "Invalid transfer hook seed: account data is shorter than the seed's declared offset/length.",
                 );
             }
-            return account.data.slice(seed.dataIndex, seed.dataIndex + seed.length);
+            return data.slice(seed.dataIndex, seed.dataIndex + seed.length);
         }
     }
 }
@@ -428,8 +454,11 @@ export async function resolveSeeds(
     previousMetas: Address[],
     instructionData: ReadonlyUint8Array,
     rpc: Rpc<GetAccountInfoApi>,
+    accountDataOverrides?: AccountDataOverrides,
 ): Promise<ReadonlyUint8Array[]> {
-    return await Promise.all(seeds.map(seed => resolveSeed(seed, previousMetas, instructionData, rpc)));
+    return await Promise.all(
+        seeds.map(seed => resolveSeed(seed, previousMetas, instructionData, rpc, accountDataOverrides)),
+    );
 }
 
 /**
@@ -499,6 +528,7 @@ export async function resolvePubkeyData(
     previousMetas: Address[],
     instructionData: ReadonlyUint8Array,
     rpc: Rpc<GetAccountInfoApi>,
+    accountDataOverrides?: AccountDataOverrides,
 ): Promise<Address> {
     if (config.__kind === 'InstructionData') {
         if (instructionData.length < config.index + PUBLIC_KEY_LENGTH) {
@@ -515,18 +545,18 @@ export async function resolvePubkeyData(
             'Invalid transfer hook pubkey data: account-data source references an out-of-bounds account index.',
         );
     }
-    const account = await fetchEncodedAccount(rpc, previousMetas[config.accountIndex]);
-    if (!account.exists) {
+    const data = await getAccountDataForResolution(previousMetas[config.accountIndex], rpc, accountDataOverrides);
+    if (data === undefined) {
         throw new Error(
             `Invalid transfer hook pubkey data: account ${previousMetas[config.accountIndex]} was not found.`,
         );
     }
-    if (account.data.length < config.dataIndex + PUBLIC_KEY_LENGTH) {
+    if (data.length < config.dataIndex + PUBLIC_KEY_LENGTH) {
         throw new Error(
             'Invalid transfer hook pubkey data: account data is too small to contain a pubkey at the declared offset.',
         );
     }
-    return getAddressDecoder().decode(account.data, config.dataIndex);
+    return getAddressDecoder().decode(data, config.dataIndex);
 }
 
 /** An `ExtraAccountMeta` resolved into the real account it refers to. */
@@ -550,6 +580,7 @@ export async function resolveExtraAccountMeta(
     instructionData: ReadonlyUint8Array,
     transferHookProgramAddress: Address,
     rpc: Rpc<GetAccountInfoApi>,
+    accountDataOverrides?: AccountDataOverrides,
 ): Promise<ResolvedExtraAccountMeta> {
     const { config, isSigner, isWritable } = extraMeta;
 
@@ -557,7 +588,13 @@ export async function resolveExtraAccountMeta(
         case 'Literal':
             return { address: config.address, isSigner, isWritable };
         case 'PubkeyData': {
-            const address = await resolvePubkeyData(config.pubkeyData, previousMetas, instructionData, rpc);
+            const address = await resolvePubkeyData(
+                config.pubkeyData,
+                previousMetas,
+                instructionData,
+                rpc,
+                accountDataOverrides,
+            );
             return { address, isSigner, isWritable };
         }
         case 'ProgramPda':
@@ -574,7 +611,7 @@ export async function resolveExtraAccountMeta(
                 }
                 programAddress = previousMetas[config.accountIndex];
             }
-            const seeds = await resolveSeeds(config.seeds, previousMetas, instructionData, rpc);
+            const seeds = await resolveSeeds(config.seeds, previousMetas, instructionData, rpc, accountDataOverrides);
             const [address] = await getProgramDerivedAddress({ programAddress, seeds });
             return { address, isSigner, isWritable };
         }
@@ -638,6 +675,11 @@ export type ResolveExtraAccountMetasForExecuteInput = {
     amount: number | bigint;
     /** The transfer hook's validation account. Derived via `findExtraAccountMetaListPda` if omitted. */
     validateStatePubkey?: Address;
+    /**
+     * Account data to resolve seeds and pubkey data against instead of fetching it. Does not apply
+     * to the validation account itself, which is always read from the chain.
+     */
+    accountDataOverrides?: AccountDataOverrides;
 };
 
 /**
@@ -685,6 +727,7 @@ export async function resolveExtraAccountMetasForExecute(
             instructionData,
             input.transferHookProgramAddress,
             input.rpc,
+            input.accountDataOverrides,
         );
         const role = accountRoleFromBooleans(resolved.isSigner, resolved.isWritable);
         const deEscalated = deEscalateAccountMeta({ address: resolved.address, role }, [
@@ -826,6 +869,12 @@ export type TransferCheckedWithTransferHookInstructionAsyncInput = {
 export type TransferCheckedWithTransferHookInstructionAsyncConfig = {
     /** The token program the mint belongs to. Defaults to Token-2022. */
     tokenProgram?: Address;
+    /**
+     * Account data to resolve the hook's seeds and pubkey data against instead of fetching it. Set
+     * this when an earlier instruction in the same transaction creates an account the hook's
+     * configuration reads, since that account cannot be fetched while the instruction is built.
+     */
+    accountDataOverrides?: AccountDataOverrides;
 };
 
 /**
@@ -871,6 +920,7 @@ export async function getTransferCheckedWithTransferHookInstructionAsync(
 
     const owner = typeof input.authority === 'string' ? input.authority : input.authority.address;
     const extraMetas = await resolveExtraAccountMetasForExecute({
+        accountDataOverrides: config?.accountDataOverrides,
         amount: input.amount,
         destination: input.destination,
         mint: input.mint,
