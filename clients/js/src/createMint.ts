@@ -37,7 +37,7 @@ export type CreateMintInstructionPlanInput = {
     /** The authority/multisignature to mint tokens and to configure extensions. */
     mintAuthority: TransactionSigner;
     /** The optional freeze authority/multisignature of the mint. */
-    freezeAuthority?: OptionOrNullable<Address>;
+    freezeAuthority?: OptionOrNullable<Address | HasAddress>;
     /** The optional mint extensions to initialize on the account. */
     extensions?: ExtensionArgs[];
     /**

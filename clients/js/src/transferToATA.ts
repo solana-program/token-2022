@@ -93,9 +93,7 @@ export async function getTransferToATAInstructionPlanAsync(
     input: TransferToATAInstructionPlanAsyncInput,
     config?: TransferToATAInstructionPlanConfig,
 ): Promise<InstructionPlan> {
-    const tokenProgram =
-        (config?.tokenProgram && getAddressFromResolvedInstructionAccount('tokenProgram', config.tokenProgram)) ??
-        TOKEN_2022_PROGRAM_ADDRESS;
+    const tokenProgram = config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS;
 
     const mint = getAddressFromResolvedInstructionAccount('mint', input.mint);
 

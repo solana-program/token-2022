@@ -87,9 +87,7 @@ export async function getMintToATAInstructionPlanAsync(
     input: MintToATAInstructionPlanAsyncInput,
     config?: MintToATAInstructionPlanConfig,
 ): Promise<InstructionPlan> {
-    const tokenProgram =
-        (config?.tokenProgram && getAddressFromResolvedInstructionAccount('tokenProgram', config.tokenProgram)) ??
-        TOKEN_2022_PROGRAM_ADDRESS;
+    const tokenProgram = config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS;
     let ata = input.ata;
     if (!ata) {
         [ata] = await findAssociatedTokenPda({
