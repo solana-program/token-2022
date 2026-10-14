@@ -2,6 +2,7 @@ import {
     AccountRole,
     addDecoderSizePrefix,
     addEncoderSizePrefix,
+    address,
     combineCodec,
     createDecoder,
     downgradeRoleToNonSigner,
@@ -397,9 +398,15 @@ async function getAccountDataForResolution(
     return account.exists ? account.data : pendingAccountData?.get(address);
 }
 
+// The token-2022 native mint. A new account for it is not derivable from the mint alone: the
+// program seeds `isNative` with a rent-exempt reserve taken from the account's own lamports.
+const NATIVE_MINT_ADDRESS = address('9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP');
+
 // The `AccountType::Account` extensions the token program initializes on a new token account,
 // keyed by the mint extension that requires them. Mirrors the program's
-// `ExtensionType::required_init_account_extensions`.
+// `ExtensionType::required_init_account_extensions`. The other four account extensions
+// (`ConfidentialTransferAccount`, `ConfidentialTransferFeeAmount`, `MemoTransfer`, `CpiGuard`) are
+// opt-in: each is written only by its own instruction, never by `InitializeAccount`.
 function getRequiredAccountExtensions(mintExtension: Extension): ExtensionArgs[] {
     switch (mintExtension.__kind) {
         case 'NonTransferable':
@@ -417,8 +424,10 @@ function getRequiredAccountExtensions(mintExtension: Extension): ExtensionArgs[]
 
 /**
  * The state the associated token program leaves on a newly created associated token account for
- * `mint` / `owner`: empty and initialized, carrying `ImmutableOwner` plus whatever extensions the
- * mint requires. Fetches the mint to discover those extensions.
+ * `mint` / `owner`: an empty balance in the mint's default account state, carrying
+ * `ImmutableOwner` plus whatever account extensions the mint requires. Fetches the mint to read
+ * both. Describes the account at creation; an instruction that mutates it before the transfer
+ * runs is not modelled.
  *
  * Lets a transfer hook's seeds resolve against a destination an earlier instruction in the same
  * transaction creates. {@link getTransferCheckedWithTransferHookInstructionAsync}'s `recipient`
@@ -429,9 +438,18 @@ export async function getNewAssociatedTokenAccountDataAsync(
     mint: Address,
     owner: Address,
 ): Promise<ReadonlyUint8Array> {
+    if (mint === NATIVE_MINT_ADDRESS) {
+        throw new Error(
+            "Cannot derive a new associated token account for the native mint: its `isNative` rent-exempt reserve depends on the account's lamports. Create the account before resolving transfer hook seeds against it.",
+        );
+    }
     const { data: mintData } = await fetchMint(rpc, mint);
     const extensions: ExtensionArgs[] = [extension('ImmutableOwner', {})];
+    let state = AccountState.Initialized;
     for (const mintExtension of unwrapOption(mintData.extensions) ?? []) {
+        if (mintExtension.__kind === 'DefaultAccountState') {
+            state = mintExtension.state;
+        }
         for (const accountExtension of getRequiredAccountExtensions(mintExtension)) {
             if (!extensions.some(({ __kind }) => __kind === accountExtension.__kind)) {
                 extensions.push(accountExtension);
@@ -447,7 +465,7 @@ export async function getNewAssociatedTokenAccountDataAsync(
         isNative: null,
         mint,
         owner,
-        state: AccountState.Initialized,
+        state,
     });
 }
 

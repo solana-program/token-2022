@@ -12,6 +12,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import {
+    AccountState,
     TOKEN_2022_PROGRAM_ADDRESS,
     Token,
     extension,
@@ -25,6 +26,7 @@ import {
 import { createTestClient, createTokenWithAmount } from '../../_setup';
 
 const TRANSFER_HOOK_PROGRAM_ADDRESS = address('TokenHookExampLe8smaVNrxTBezWTRbEwxwb1Zykrb');
+const NATIVE_MINT_ADDRESS = address('9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP');
 const TRANSFER_HOOK_BINARY_PATH = path.resolve(
     __dirname,
     '..',
@@ -275,5 +277,67 @@ describe('transfer hook with an account-data seed on a destination that does not
         );
 
         expect((await fetchToken(client.rpc, source)).data).toMatchObject(<Token>{ amount: 100n });
+    });
+    it("derives the mint's default account state instead of assuming the account starts initialized", async () => {
+        const client = await createTestClient();
+        const [mintAuthority, freezeAuthority, destinationOwner, mint] = await Promise.all([
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+        ]);
+
+        // A hook mint whose new accounts are frozen on creation. `state` sits at byte 108 of the
+        // base layout, so a seed reading it resolves to a different PDA than one over an
+        // initialized account.
+        await client.token2022.instructions
+            .createMint({
+                newMint: mint,
+                decimals: 2,
+                mintAuthority,
+                freezeAuthority: freezeAuthority.address,
+                extensions: [
+                    extension('TransferHook', {
+                        authority: mintAuthority.address,
+                        programId: TRANSFER_HOOK_PROGRAM_ADDRESS,
+                    }),
+                    extension('DefaultAccountState', { state: AccountState.Frozen }),
+                ],
+            })
+            .sendTransaction();
+
+        const derived = await getNewAssociatedTokenAccountDataAsync(client.rpc, mint.address, destinationOwner.address);
+
+        await client.sendTransaction([
+            await getCreateAssociatedTokenIdempotentInstructionAsync({
+                payer: client.payer,
+                mint: mint.address,
+                owner: destinationOwner.address,
+            }),
+        ]);
+        const [destination] = await findAssociatedTokenPda({
+            mint: mint.address,
+            owner: destinationOwner.address,
+            tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+        });
+
+        const onChain = await fetchEncodedAccount(client.rpc, destination);
+        assertAccountExists(onChain);
+        expect(Buffer.from(derived).toString('hex')).toBe(Buffer.from(onChain.data).toString('hex'));
+
+        // And the chain really did write Frozen, so the comparison above is not the initialized
+        // case passing under a different name.
+        expect((await fetchToken(client.rpc, destination)).data.state).toBe(AccountState.Frozen);
+    });
+
+    it('refuses to derive a new account for the native mint', async () => {
+        const client = await createTestClient();
+        const owner = await generateKeyPairSigner();
+
+        // A native account's `isNative` holds a rent-exempt reserve taken from its own lamports,
+        // which the mint does not determine. Guessing it would resolve seeds against wrong bytes.
+        await expect(
+            getNewAssociatedTokenAccountDataAsync(client.rpc, NATIVE_MINT_ADDRESS, owner.address),
+        ).rejects.toThrow(/native mint/);
     });
 });
