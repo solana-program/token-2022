@@ -19,6 +19,7 @@ import {
     type ClientWithTransactionPlanning,
     type ClientWithTransactionSending,
     type ExtendedClient,
+    type HasAddress,
     type Instruction,
     type InstructionWithData,
     type ReadonlyUint8Array,
@@ -123,12 +124,15 @@ export type AssociatedTokenPlugin = {
 export type AssociatedTokenPluginInstructions = {
     createAssociatedToken: (
         input: MakeOptional<CreateAssociatedTokenAsyncInput, 'payer'>,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getCreateAssociatedTokenInstructionAsync> & SelfPlanAndSendFunctions;
     createAssociatedTokenIdempotent: (
         input: MakeOptional<CreateAssociatedTokenIdempotentAsyncInput, 'payer'>,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getCreateAssociatedTokenIdempotentInstructionAsync> & SelfPlanAndSendFunctions;
     recoverNestedAssociatedToken: (
         input: RecoverNestedAssociatedTokenAsyncInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getRecoverNestedAssociatedTokenInstructionAsync> & SelfPlanAndSendFunctions;
 };
 
@@ -138,30 +142,43 @@ export type AssociatedTokenPluginRequirements = ClientWithPayer &
     ClientWithTransactionPlanning &
     ClientWithTransactionSending;
 
-export function associatedTokenProgram() {
+export function associatedTokenProgram(config: { programAddress?: Address | HasAddress } = {}) {
     return <T extends AssociatedTokenPluginRequirements>(
         client: T,
     ): ExtendedClient<T, { associatedToken: AssociatedTokenPlugin }> => {
         return extendClient(client, {
             associatedToken: <AssociatedTokenPlugin>{
                 instructions: {
-                    createAssociatedToken: input =>
+                    createAssociatedToken: (input, instructionConfig) =>
                         addSelfPlanAndSendFunctions(
                             client,
-                            getCreateAssociatedTokenInstructionAsync({ ...input, payer: input.payer ?? client.payer }),
+                            getCreateAssociatedTokenInstructionAsync(
+                                { ...input, payer: input.payer ?? client.payer },
+                                { programAddress: instructionConfig?.programAddress ?? config.programAddress },
+                            ),
                         ),
-                    createAssociatedTokenIdempotent: input =>
+                    createAssociatedTokenIdempotent: (input, instructionConfig) =>
                         addSelfPlanAndSendFunctions(
                             client,
-                            getCreateAssociatedTokenIdempotentInstructionAsync({
-                                ...input,
-                                payer: input.payer ?? client.payer,
+                            getCreateAssociatedTokenIdempotentInstructionAsync(
+                                { ...input, payer: input.payer ?? client.payer },
+                                { programAddress: instructionConfig?.programAddress ?? config.programAddress },
+                            ),
+                        ),
+                    recoverNestedAssociatedToken: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getRecoverNestedAssociatedTokenInstructionAsync(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
                             }),
                         ),
-                    recoverNestedAssociatedToken: input =>
-                        addSelfPlanAndSendFunctions(client, getRecoverNestedAssociatedTokenInstructionAsync(input)),
                 },
-                pdas: { associatedToken: findAssociatedTokenPda },
+                pdas: {
+                    associatedToken: (seeds, pdaConfig) =>
+                        findAssociatedTokenPda(seeds, {
+                            programAddress: pdaConfig?.programAddress ?? config.programAddress,
+                        }),
+                },
                 identifyInstruction: identifyAssociatedTokenInstruction,
                 parseInstruction: parseAssociatedTokenInstruction,
             },

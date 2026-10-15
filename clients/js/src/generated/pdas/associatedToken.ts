@@ -25,11 +25,13 @@ export type AssociatedTokenSeeds = {
 
 export async function findAssociatedTokenPda(
     seeds: AssociatedTokenSeeds,
-    config: { programAddress?: Address | undefined } = {},
+    config: { programAddress?: Address | HasAddress | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
     const {
-        programAddress = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>,
+        programAddress:
+            programAddressInput = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>,
     } = config;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
     return await getProgramDerivedAddress({
         programAddress,
         seeds: [

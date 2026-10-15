@@ -48,11 +48,6 @@ export function getTransferToATAInstructionPlan(
     input: TransferToATAInstructionPlanInput,
     config?: TransferToATAInstructionPlanConfig,
 ): InstructionPlan {
-    const tokenProgram =
-        config?.tokenProgram && getAddressFromResolvedInstructionAccount('tokenProgram', config.tokenProgram);
-    const associatedTokenProgram =
-        config?.associatedTokenProgram &&
-        getAddressFromResolvedInstructionAccount('associatedTokenProgram', config.associatedTokenProgram);
     return sequentialInstructionPlan([
         getCreateAssociatedTokenIdempotentInstruction(
             {
@@ -61,10 +56,10 @@ export function getTransferToATAInstructionPlan(
                 owner: input.recipient,
                 mint: input.mint,
                 systemProgram: config?.systemProgram,
-                tokenProgram: tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
+                tokenProgram: config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
             },
             {
-                programAddress: associatedTokenProgram,
+                programAddress: config?.associatedTokenProgram,
             },
         ),
         getTransferCheckedInstruction(
@@ -78,7 +73,7 @@ export function getTransferToATAInstructionPlan(
                 multiSigners: input.multiSigners,
             },
             {
-                programAddress: tokenProgram,
+                programAddress: config?.tokenProgram,
             },
         ),
     ]);

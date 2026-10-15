@@ -59,7 +59,7 @@ import {
     type InstructionSignerInput,
 } from '@solana/kit/program-client-core';
 
-import { fetchMint, getTransferCheckedInstruction, TOKEN_2022_PROGRAM_ADDRESS, type Extension } from './generated';
+import { fetchMint, getTransferCheckedInstruction, type Extension } from './generated';
 
 const EXTRA_ACCOUNT_METAS_SEED = 'extra-account-metas';
 
@@ -874,10 +874,6 @@ export async function getTransferCheckedWithTransferHookInstructionAsync(
     input: TransferCheckedWithTransferHookInstructionAsyncInput,
     config?: TransferCheckedWithTransferHookInstructionAsyncConfig,
 ): Promise<Instruction> {
-    const programAddress = getAddressFromResolvedInstructionAccount(
-        'tokenProgram',
-        config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
-    );
     const instruction = getTransferCheckedInstruction(
         {
             amount: input.amount,
@@ -888,7 +884,7 @@ export async function getTransferCheckedWithTransferHookInstructionAsync(
             multiSigners: input.multiSigners,
             source: input.source,
         },
-        { programAddress },
+        { programAddress: config?.tokenProgram },
     );
 
     const { data: mint } = await fetchMint(client.rpc, getAddressFromResolvedInstructionAccount('mint', input.mint));

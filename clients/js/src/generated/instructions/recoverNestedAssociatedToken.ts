@@ -153,7 +153,7 @@ export async function getRecoverNestedAssociatedTokenInstructionAsync<
         TAccountWalletAddress,
         TAccountTokenProgram
     >,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): Promise<
     RecoverNestedAssociatedTokenInstruction<
         TProgramAddress,
@@ -182,7 +182,8 @@ export async function getRecoverNestedAssociatedTokenInstructionAsync<
     >
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? ASSOCIATED_TOKEN_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? ASSOCIATED_TOKEN_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
@@ -342,7 +343,7 @@ export function getRecoverNestedAssociatedTokenInstruction<
         TAccountWalletAddress,
         TAccountTokenProgram
     >,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): RecoverNestedAssociatedTokenInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<
@@ -369,7 +370,8 @@ export function getRecoverNestedAssociatedTokenInstruction<
     ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? ASSOCIATED_TOKEN_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? ASSOCIATED_TOKEN_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

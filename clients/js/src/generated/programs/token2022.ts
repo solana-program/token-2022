@@ -24,6 +24,7 @@ import {
     type ExtendedClient,
     type GetAccountInfoApi,
     type GetMultipleAccountsApi,
+    type HasAddress,
     type Instruction,
     type InstructionWithData,
     type ReadonlyUint8Array,
@@ -1836,290 +1837,414 @@ export type Token2022PluginAccounts = {
 export type Token2022PluginInstructions = {
     initializeMint: (
         input: InitializeMintInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeMintInstruction> & SelfPlanAndSendFunctions;
     initializeAccount: (
         input: InitializeAccountInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeAccountInstruction> & SelfPlanAndSendFunctions;
     initializeMultisig: (
         input: InitializeMultisigInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeMultisigInstruction> & SelfPlanAndSendFunctions;
-    transfer: (input: TransferInput) => ReturnType<typeof getTransferInstruction> & SelfPlanAndSendFunctions;
-    approve: (input: ApproveInput) => ReturnType<typeof getApproveInstruction> & SelfPlanAndSendFunctions;
-    revoke: (input: RevokeInput) => ReturnType<typeof getRevokeInstruction> & SelfPlanAndSendFunctions;
+    transfer: (
+        input: TransferInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getTransferInstruction> & SelfPlanAndSendFunctions;
+    approve: (
+        input: ApproveInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getApproveInstruction> & SelfPlanAndSendFunctions;
+    revoke: (
+        input: RevokeInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getRevokeInstruction> & SelfPlanAndSendFunctions;
     setAuthority: (
         input: SetAuthorityInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getSetAuthorityInstruction> & SelfPlanAndSendFunctions;
-    mintTo: (input: MintToInput) => ReturnType<typeof getMintToInstruction> & SelfPlanAndSendFunctions;
-    burn: (input: BurnInput) => ReturnType<typeof getBurnInstruction> & SelfPlanAndSendFunctions;
+    mintTo: (
+        input: MintToInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getMintToInstruction> & SelfPlanAndSendFunctions;
+    burn: (
+        input: BurnInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getBurnInstruction> & SelfPlanAndSendFunctions;
     closeAccount: (
         input: CloseAccountInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getCloseAccountInstruction> & SelfPlanAndSendFunctions;
     freezeAccount: (
         input: FreezeAccountInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getFreezeAccountInstruction> & SelfPlanAndSendFunctions;
-    thawAccount: (input: ThawAccountInput) => ReturnType<typeof getThawAccountInstruction> & SelfPlanAndSendFunctions;
+    thawAccount: (
+        input: ThawAccountInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getThawAccountInstruction> & SelfPlanAndSendFunctions;
     transferChecked: (
         input: TransferCheckedInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getTransferCheckedInstruction> & SelfPlanAndSendFunctions;
     approveChecked: (
         input: ApproveCheckedInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getApproveCheckedInstruction> & SelfPlanAndSendFunctions;
     mintToChecked: (
         input: MintToCheckedInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getMintToCheckedInstruction> & SelfPlanAndSendFunctions;
-    burnChecked: (input: BurnCheckedInput) => ReturnType<typeof getBurnCheckedInstruction> & SelfPlanAndSendFunctions;
+    burnChecked: (
+        input: BurnCheckedInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getBurnCheckedInstruction> & SelfPlanAndSendFunctions;
     initializeAccount2: (
         input: InitializeAccount2Input,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeAccount2Instruction> & SelfPlanAndSendFunctions;
-    syncNative: (input: SyncNativeInput) => ReturnType<typeof getSyncNativeInstruction> & SelfPlanAndSendFunctions;
+    syncNative: (
+        input: SyncNativeInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getSyncNativeInstruction> & SelfPlanAndSendFunctions;
     initializeAccount3: (
         input: InitializeAccount3Input,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeAccount3Instruction> & SelfPlanAndSendFunctions;
     initializeMultisig2: (
         input: InitializeMultisig2Input,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeMultisig2Instruction> & SelfPlanAndSendFunctions;
     initializeMint2: (
         input: InitializeMint2Input,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeMint2Instruction> & SelfPlanAndSendFunctions;
     getAccountDataSize: (
         input: GetAccountDataSizeInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getGetAccountDataSizeInstruction> & SelfPlanAndSendFunctions;
     initializeImmutableOwner: (
         input: InitializeImmutableOwnerInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeImmutableOwnerInstruction> & SelfPlanAndSendFunctions;
     amountToUiAmount: (
         input: AmountToUiAmountInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getAmountToUiAmountInstruction> & SelfPlanAndSendFunctions;
     uiAmountToAmount: (
         input: UiAmountToAmountInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getUiAmountToAmountInstruction> & SelfPlanAndSendFunctions;
     initializeMintCloseAuthority: (
         input: InitializeMintCloseAuthorityInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeMintCloseAuthorityInstruction> & SelfPlanAndSendFunctions;
     initializeTransferFeeConfig: (
         input: InitializeTransferFeeConfigInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeTransferFeeConfigInstruction> & SelfPlanAndSendFunctions;
     transferCheckedWithFee: (
         input: TransferCheckedWithFeeInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getTransferCheckedWithFeeInstruction> & SelfPlanAndSendFunctions;
     withdrawWithheldTokensFromMint: (
         input: WithdrawWithheldTokensFromMintInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getWithdrawWithheldTokensFromMintInstruction> & SelfPlanAndSendFunctions;
     withdrawWithheldTokensFromAccounts: (
         input: WithdrawWithheldTokensFromAccountsInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getWithdrawWithheldTokensFromAccountsInstruction> & SelfPlanAndSendFunctions;
     harvestWithheldTokensToMint: (
         input: HarvestWithheldTokensToMintInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getHarvestWithheldTokensToMintInstruction> & SelfPlanAndSendFunctions;
     setTransferFee: (
         input: SetTransferFeeInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getSetTransferFeeInstruction> & SelfPlanAndSendFunctions;
     initializeConfidentialTransferMint: (
         input: InitializeConfidentialTransferMintInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeConfidentialTransferMintInstruction> & SelfPlanAndSendFunctions;
     updateConfidentialTransferMint: (
         input: UpdateConfidentialTransferMintInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getUpdateConfidentialTransferMintInstruction> & SelfPlanAndSendFunctions;
     configureConfidentialTransferAccount: (
         input: ConfigureConfidentialTransferAccountInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getConfigureConfidentialTransferAccountInstruction> & SelfPlanAndSendFunctions;
     approveConfidentialTransferAccount: (
         input: ApproveConfidentialTransferAccountInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getApproveConfidentialTransferAccountInstruction> & SelfPlanAndSendFunctions;
     emptyConfidentialTransferAccount: (
         input: EmptyConfidentialTransferAccountInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getEmptyConfidentialTransferAccountInstruction> & SelfPlanAndSendFunctions;
     confidentialDeposit: (
         input: ConfidentialDepositInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getConfidentialDepositInstruction> & SelfPlanAndSendFunctions;
     confidentialWithdraw: (
         input: ConfidentialWithdrawInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getConfidentialWithdrawInstruction> & SelfPlanAndSendFunctions;
     confidentialTransfer: (
         input: ConfidentialTransferInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getConfidentialTransferInstruction> & SelfPlanAndSendFunctions;
     applyConfidentialPendingBalance: (
         input: ApplyConfidentialPendingBalanceInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getApplyConfidentialPendingBalanceInstruction> & SelfPlanAndSendFunctions;
     enableConfidentialCredits: (
         input: EnableConfidentialCreditsInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getEnableConfidentialCreditsInstruction> & SelfPlanAndSendFunctions;
     disableConfidentialCredits: (
         input: DisableConfidentialCreditsInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getDisableConfidentialCreditsInstruction> & SelfPlanAndSendFunctions;
     enableNonConfidentialCredits: (
         input: EnableNonConfidentialCreditsInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getEnableNonConfidentialCreditsInstruction> & SelfPlanAndSendFunctions;
     disableNonConfidentialCredits: (
         input: DisableNonConfidentialCreditsInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getDisableNonConfidentialCreditsInstruction> & SelfPlanAndSendFunctions;
     confidentialTransferWithFee: (
         input: ConfidentialTransferWithFeeInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getConfidentialTransferWithFeeInstruction> & SelfPlanAndSendFunctions;
     configureConfidentialTransferAccountWithRegistry: (
         input: ConfigureConfidentialTransferAccountWithRegistryInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getConfigureConfidentialTransferAccountWithRegistryInstruction> & SelfPlanAndSendFunctions;
     initializeDefaultAccountState: (
         input: InitializeDefaultAccountStateInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeDefaultAccountStateInstruction> & SelfPlanAndSendFunctions;
     updateDefaultAccountState: (
         input: UpdateDefaultAccountStateInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getUpdateDefaultAccountStateInstruction> & SelfPlanAndSendFunctions;
-    reallocate: (input: ReallocateInput) => ReturnType<typeof getReallocateInstruction> & SelfPlanAndSendFunctions;
+    reallocate: (
+        input: ReallocateInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getReallocateInstruction> & SelfPlanAndSendFunctions;
     enableMemoTransfers: (
         input: EnableMemoTransfersInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getEnableMemoTransfersInstruction> & SelfPlanAndSendFunctions;
     disableMemoTransfers: (
         input: DisableMemoTransfersInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getDisableMemoTransfersInstruction> & SelfPlanAndSendFunctions;
     createNativeMint: (
         input: CreateNativeMintInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getCreateNativeMintInstruction> & SelfPlanAndSendFunctions;
     initializeNonTransferableMint: (
         input: InitializeNonTransferableMintInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeNonTransferableMintInstruction> & SelfPlanAndSendFunctions;
     initializeInterestBearingMint: (
         input: InitializeInterestBearingMintInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeInterestBearingMintInstruction> & SelfPlanAndSendFunctions;
     updateRateInterestBearingMint: (
         input: UpdateRateInterestBearingMintInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getUpdateRateInterestBearingMintInstruction> & SelfPlanAndSendFunctions;
     enableCpiGuard: (
         input: EnableCpiGuardInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getEnableCpiGuardInstruction> & SelfPlanAndSendFunctions;
     disableCpiGuard: (
         input: DisableCpiGuardInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getDisableCpiGuardInstruction> & SelfPlanAndSendFunctions;
     initializePermanentDelegate: (
         input: InitializePermanentDelegateInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializePermanentDelegateInstruction> & SelfPlanAndSendFunctions;
     initializeTransferHook: (
         input: InitializeTransferHookInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeTransferHookInstruction> & SelfPlanAndSendFunctions;
     updateTransferHook: (
         input: UpdateTransferHookInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getUpdateTransferHookInstruction> & SelfPlanAndSendFunctions;
     initializeConfidentialTransferFee: (
         input: InitializeConfidentialTransferFeeInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeConfidentialTransferFeeInstruction> & SelfPlanAndSendFunctions;
     withdrawWithheldTokensFromMintForConfidentialTransferFee: (
         input: WithdrawWithheldTokensFromMintForConfidentialTransferFeeInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction> &
         SelfPlanAndSendFunctions;
     withdrawWithheldTokensFromAccountsForConfidentialTransferFee: (
         input: WithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruction> &
         SelfPlanAndSendFunctions;
     harvestWithheldTokensToMintForConfidentialTransferFee: (
         input: HarvestWithheldTokensToMintForConfidentialTransferFeeInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction> &
         SelfPlanAndSendFunctions;
     enableHarvestToMint: (
         input: EnableHarvestToMintInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getEnableHarvestToMintInstruction> & SelfPlanAndSendFunctions;
     disableHarvestToMint: (
         input: DisableHarvestToMintInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getDisableHarvestToMintInstruction> & SelfPlanAndSendFunctions;
     withdrawExcessLamports: (
         input: WithdrawExcessLamportsInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getWithdrawExcessLamportsInstruction> & SelfPlanAndSendFunctions;
     initializeMetadataPointer: (
         input: InitializeMetadataPointerInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeMetadataPointerInstruction> & SelfPlanAndSendFunctions;
     updateMetadataPointer: (
         input: UpdateMetadataPointerInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getUpdateMetadataPointerInstruction> & SelfPlanAndSendFunctions;
     initializeGroupPointer: (
         input: InitializeGroupPointerInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeGroupPointerInstruction> & SelfPlanAndSendFunctions;
     updateGroupPointer: (
         input: UpdateGroupPointerInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getUpdateGroupPointerInstruction> & SelfPlanAndSendFunctions;
     initializeGroupMemberPointer: (
         input: InitializeGroupMemberPointerInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeGroupMemberPointerInstruction> & SelfPlanAndSendFunctions;
     updateGroupMemberPointer: (
         input: UpdateGroupMemberPointerInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getUpdateGroupMemberPointerInstruction> & SelfPlanAndSendFunctions;
     initializeConfidentialMintBurn: (
         input: InitializeConfidentialMintBurnInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeConfidentialMintBurnInstruction> & SelfPlanAndSendFunctions;
     rotateSupplyElgamalPubkey: (
         input: RotateSupplyElgamalPubkeyInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getRotateSupplyElgamalPubkeyInstruction> & SelfPlanAndSendFunctions;
     updateConfidentialMintBurnDecryptableSupply: (
         input: UpdateConfidentialMintBurnDecryptableSupplyInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getUpdateConfidentialMintBurnDecryptableSupplyInstruction> & SelfPlanAndSendFunctions;
     confidentialMint: (
         input: ConfidentialMintInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getConfidentialMintInstruction> & SelfPlanAndSendFunctions;
     confidentialBurn: (
         input: ConfidentialBurnInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getConfidentialBurnInstruction> & SelfPlanAndSendFunctions;
     applyConfidentialPendingBurn: (
         input: ApplyConfidentialPendingBurnInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getApplyConfidentialPendingBurnInstruction> & SelfPlanAndSendFunctions;
     initializeScaledUiAmountMint: (
         input: InitializeScaledUiAmountMintInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeScaledUiAmountMintInstruction> & SelfPlanAndSendFunctions;
     updateMultiplierScaledUiMint: (
         input: UpdateMultiplierScaledUiMintInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getUpdateMultiplierScaledUiMintInstruction> & SelfPlanAndSendFunctions;
     initializePausableConfig: (
         input: InitializePausableConfigInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializePausableConfigInstruction> & SelfPlanAndSendFunctions;
-    pause: (input: PauseInput) => ReturnType<typeof getPauseInstruction> & SelfPlanAndSendFunctions;
-    resume: (input: ResumeInput) => ReturnType<typeof getResumeInstruction> & SelfPlanAndSendFunctions;
+    pause: (
+        input: PauseInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getPauseInstruction> & SelfPlanAndSendFunctions;
+    resume: (
+        input: ResumeInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getResumeInstruction> & SelfPlanAndSendFunctions;
     initializeTokenMetadata: (
         input: InitializeTokenMetadataInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeTokenMetadataInstruction> & SelfPlanAndSendFunctions;
     updateTokenMetadataField: (
         input: UpdateTokenMetadataFieldInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getUpdateTokenMetadataFieldInstruction> & SelfPlanAndSendFunctions;
     removeTokenMetadataKey: (
         input: RemoveTokenMetadataKeyInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getRemoveTokenMetadataKeyInstruction> & SelfPlanAndSendFunctions;
     updateTokenMetadataUpdateAuthority: (
         input: UpdateTokenMetadataUpdateAuthorityInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getUpdateTokenMetadataUpdateAuthorityInstruction> & SelfPlanAndSendFunctions;
     emitTokenMetadata: (
         input: EmitTokenMetadataInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getEmitTokenMetadataInstruction> & SelfPlanAndSendFunctions;
     initializeTokenGroup: (
         input: InitializeTokenGroupInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeTokenGroupInstruction> & SelfPlanAndSendFunctions;
     updateTokenGroupMaxSize: (
         input: UpdateTokenGroupMaxSizeInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getUpdateTokenGroupMaxSizeInstruction> & SelfPlanAndSendFunctions;
     updateTokenGroupUpdateAuthority: (
         input: UpdateTokenGroupUpdateAuthorityInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getUpdateTokenGroupUpdateAuthorityInstruction> & SelfPlanAndSendFunctions;
     initializeTokenGroupMember: (
         input: InitializeTokenGroupMemberInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeTokenGroupMemberInstruction> & SelfPlanAndSendFunctions;
     unwrapLamports: (
         input: UnwrapLamportsInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getUnwrapLamportsInstruction> & SelfPlanAndSendFunctions;
     initializePermissionedBurn: (
         input: InitializePermissionedBurnInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializePermissionedBurnInstruction> & SelfPlanAndSendFunctions;
     permissionedBurn: (
         input: PermissionedBurnInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getPermissionedBurnInstruction> & SelfPlanAndSendFunctions;
     permissionedBurnChecked: (
         input: PermissionedBurnCheckedInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getPermissionedBurnCheckedInstruction> & SelfPlanAndSendFunctions;
     permissionedConfidentialBurn: (
         input: PermissionedConfidentialBurnInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getPermissionedConfidentialBurnInstruction> & SelfPlanAndSendFunctions;
-    batch: (input: BatchInput) => ReturnType<typeof getBatchInstruction> & SelfPlanAndSendFunctions;
+    batch: (
+        input: BatchInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getBatchInstruction> & SelfPlanAndSendFunctions;
 };
 
 export type Token2022PluginRequirements = ClientWithRpc<GetAccountInfoApi & GetMultipleAccountsApi> &
     ClientWithTransactionPlanning &
     ClientWithTransactionSending;
 
-export function token2022Program() {
+export function token2022Program(config: { programAddress?: Address | HasAddress } = {}) {
     return <T extends Token2022PluginRequirements>(client: T): ExtendedClient<T, { token2022: Token2022Plugin }> => {
         return extendClient(client, {
             token2022: <Token2022Plugin>{
@@ -2129,197 +2254,706 @@ export function token2022Program() {
                     multisig: addSelfFetchFunctions(client, getMultisigCodec()),
                 },
                 instructions: {
-                    initializeMint: input => addSelfPlanAndSendFunctions(client, getInitializeMintInstruction(input)),
-                    initializeAccount: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeAccountInstruction(input)),
-                    initializeMultisig: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeMultisigInstruction(input)),
-                    transfer: input => addSelfPlanAndSendFunctions(client, getTransferInstruction(input)),
-                    approve: input => addSelfPlanAndSendFunctions(client, getApproveInstruction(input)),
-                    revoke: input => addSelfPlanAndSendFunctions(client, getRevokeInstruction(input)),
-                    setAuthority: input => addSelfPlanAndSendFunctions(client, getSetAuthorityInstruction(input)),
-                    mintTo: input => addSelfPlanAndSendFunctions(client, getMintToInstruction(input)),
-                    burn: input => addSelfPlanAndSendFunctions(client, getBurnInstruction(input)),
-                    closeAccount: input => addSelfPlanAndSendFunctions(client, getCloseAccountInstruction(input)),
-                    freezeAccount: input => addSelfPlanAndSendFunctions(client, getFreezeAccountInstruction(input)),
-                    thawAccount: input => addSelfPlanAndSendFunctions(client, getThawAccountInstruction(input)),
-                    transferChecked: input => addSelfPlanAndSendFunctions(client, getTransferCheckedInstruction(input)),
-                    approveChecked: input => addSelfPlanAndSendFunctions(client, getApproveCheckedInstruction(input)),
-                    mintToChecked: input => addSelfPlanAndSendFunctions(client, getMintToCheckedInstruction(input)),
-                    burnChecked: input => addSelfPlanAndSendFunctions(client, getBurnCheckedInstruction(input)),
-                    initializeAccount2: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeAccount2Instruction(input)),
-                    syncNative: input => addSelfPlanAndSendFunctions(client, getSyncNativeInstruction(input)),
-                    initializeAccount3: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeAccount3Instruction(input)),
-                    initializeMultisig2: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeMultisig2Instruction(input)),
-                    initializeMint2: input => addSelfPlanAndSendFunctions(client, getInitializeMint2Instruction(input)),
-                    getAccountDataSize: input =>
-                        addSelfPlanAndSendFunctions(client, getGetAccountDataSizeInstruction(input)),
-                    initializeImmutableOwner: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeImmutableOwnerInstruction(input)),
-                    amountToUiAmount: input =>
-                        addSelfPlanAndSendFunctions(client, getAmountToUiAmountInstruction(input)),
-                    uiAmountToAmount: input =>
-                        addSelfPlanAndSendFunctions(client, getUiAmountToAmountInstruction(input)),
-                    initializeMintCloseAuthority: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeMintCloseAuthorityInstruction(input)),
-                    initializeTransferFeeConfig: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeTransferFeeConfigInstruction(input)),
-                    transferCheckedWithFee: input =>
-                        addSelfPlanAndSendFunctions(client, getTransferCheckedWithFeeInstruction(input)),
-                    withdrawWithheldTokensFromMint: input =>
-                        addSelfPlanAndSendFunctions(client, getWithdrawWithheldTokensFromMintInstruction(input)),
-                    withdrawWithheldTokensFromAccounts: input =>
-                        addSelfPlanAndSendFunctions(client, getWithdrawWithheldTokensFromAccountsInstruction(input)),
-                    harvestWithheldTokensToMint: input =>
-                        addSelfPlanAndSendFunctions(client, getHarvestWithheldTokensToMintInstruction(input)),
-                    setTransferFee: input => addSelfPlanAndSendFunctions(client, getSetTransferFeeInstruction(input)),
-                    initializeConfidentialTransferMint: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeConfidentialTransferMintInstruction(input)),
-                    updateConfidentialTransferMint: input =>
-                        addSelfPlanAndSendFunctions(client, getUpdateConfidentialTransferMintInstruction(input)),
-                    configureConfidentialTransferAccount: input =>
-                        addSelfPlanAndSendFunctions(client, getConfigureConfidentialTransferAccountInstruction(input)),
-                    approveConfidentialTransferAccount: input =>
-                        addSelfPlanAndSendFunctions(client, getApproveConfidentialTransferAccountInstruction(input)),
-                    emptyConfidentialTransferAccount: input =>
-                        addSelfPlanAndSendFunctions(client, getEmptyConfidentialTransferAccountInstruction(input)),
-                    confidentialDeposit: input =>
-                        addSelfPlanAndSendFunctions(client, getConfidentialDepositInstruction(input)),
-                    confidentialWithdraw: input =>
-                        addSelfPlanAndSendFunctions(client, getConfidentialWithdrawInstruction(input)),
-                    confidentialTransfer: input =>
-                        addSelfPlanAndSendFunctions(client, getConfidentialTransferInstruction(input)),
-                    applyConfidentialPendingBalance: input =>
-                        addSelfPlanAndSendFunctions(client, getApplyConfidentialPendingBalanceInstruction(input)),
-                    enableConfidentialCredits: input =>
-                        addSelfPlanAndSendFunctions(client, getEnableConfidentialCreditsInstruction(input)),
-                    disableConfidentialCredits: input =>
-                        addSelfPlanAndSendFunctions(client, getDisableConfidentialCreditsInstruction(input)),
-                    enableNonConfidentialCredits: input =>
-                        addSelfPlanAndSendFunctions(client, getEnableNonConfidentialCreditsInstruction(input)),
-                    disableNonConfidentialCredits: input =>
-                        addSelfPlanAndSendFunctions(client, getDisableNonConfidentialCreditsInstruction(input)),
-                    confidentialTransferWithFee: input =>
-                        addSelfPlanAndSendFunctions(client, getConfidentialTransferWithFeeInstruction(input)),
-                    configureConfidentialTransferAccountWithRegistry: input =>
+                    initializeMint: (input, instructionConfig) =>
                         addSelfPlanAndSendFunctions(
                             client,
-                            getConfigureConfidentialTransferAccountWithRegistryInstruction(input),
+                            getInitializeMintInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
                         ),
-                    initializeDefaultAccountState: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeDefaultAccountStateInstruction(input)),
-                    updateDefaultAccountState: input =>
-                        addSelfPlanAndSendFunctions(client, getUpdateDefaultAccountStateInstruction(input)),
-                    reallocate: input => addSelfPlanAndSendFunctions(client, getReallocateInstruction(input)),
-                    enableMemoTransfers: input =>
-                        addSelfPlanAndSendFunctions(client, getEnableMemoTransfersInstruction(input)),
-                    disableMemoTransfers: input =>
-                        addSelfPlanAndSendFunctions(client, getDisableMemoTransfersInstruction(input)),
-                    createNativeMint: input =>
-                        addSelfPlanAndSendFunctions(client, getCreateNativeMintInstruction(input)),
-                    initializeNonTransferableMint: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeNonTransferableMintInstruction(input)),
-                    initializeInterestBearingMint: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeInterestBearingMintInstruction(input)),
-                    updateRateInterestBearingMint: input =>
-                        addSelfPlanAndSendFunctions(client, getUpdateRateInterestBearingMintInstruction(input)),
-                    enableCpiGuard: input => addSelfPlanAndSendFunctions(client, getEnableCpiGuardInstruction(input)),
-                    disableCpiGuard: input => addSelfPlanAndSendFunctions(client, getDisableCpiGuardInstruction(input)),
-                    initializePermanentDelegate: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializePermanentDelegateInstruction(input)),
-                    initializeTransferHook: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeTransferHookInstruction(input)),
-                    updateTransferHook: input =>
-                        addSelfPlanAndSendFunctions(client, getUpdateTransferHookInstruction(input)),
-                    initializeConfidentialTransferFee: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeConfidentialTransferFeeInstruction(input)),
-                    withdrawWithheldTokensFromMintForConfidentialTransferFee: input =>
+                    initializeAccount: (input, instructionConfig) =>
                         addSelfPlanAndSendFunctions(
                             client,
-                            getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction(input),
+                            getInitializeAccountInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
                         ),
-                    withdrawWithheldTokensFromAccountsForConfidentialTransferFee: input =>
+                    initializeMultisig: (input, instructionConfig) =>
                         addSelfPlanAndSendFunctions(
                             client,
-                            getWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruction(input),
+                            getInitializeMultisigInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
                         ),
-                    harvestWithheldTokensToMintForConfidentialTransferFee: input =>
+                    transfer: (input, instructionConfig) =>
                         addSelfPlanAndSendFunctions(
                             client,
-                            getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction(input),
+                            getTransferInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
                         ),
-                    enableHarvestToMint: input =>
-                        addSelfPlanAndSendFunctions(client, getEnableHarvestToMintInstruction(input)),
-                    disableHarvestToMint: input =>
-                        addSelfPlanAndSendFunctions(client, getDisableHarvestToMintInstruction(input)),
-                    withdrawExcessLamports: input =>
-                        addSelfPlanAndSendFunctions(client, getWithdrawExcessLamportsInstruction(input)),
-                    initializeMetadataPointer: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeMetadataPointerInstruction(input)),
-                    updateMetadataPointer: input =>
-                        addSelfPlanAndSendFunctions(client, getUpdateMetadataPointerInstruction(input)),
-                    initializeGroupPointer: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeGroupPointerInstruction(input)),
-                    updateGroupPointer: input =>
-                        addSelfPlanAndSendFunctions(client, getUpdateGroupPointerInstruction(input)),
-                    initializeGroupMemberPointer: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeGroupMemberPointerInstruction(input)),
-                    updateGroupMemberPointer: input =>
-                        addSelfPlanAndSendFunctions(client, getUpdateGroupMemberPointerInstruction(input)),
-                    initializeConfidentialMintBurn: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeConfidentialMintBurnInstruction(input)),
-                    rotateSupplyElgamalPubkey: input =>
-                        addSelfPlanAndSendFunctions(client, getRotateSupplyElgamalPubkeyInstruction(input)),
-                    updateConfidentialMintBurnDecryptableSupply: input =>
+                    approve: (input, instructionConfig) =>
                         addSelfPlanAndSendFunctions(
                             client,
-                            getUpdateConfidentialMintBurnDecryptableSupplyInstruction(input),
+                            getApproveInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
                         ),
-                    confidentialMint: input =>
-                        addSelfPlanAndSendFunctions(client, getConfidentialMintInstruction(input)),
-                    confidentialBurn: input =>
-                        addSelfPlanAndSendFunctions(client, getConfidentialBurnInstruction(input)),
-                    applyConfidentialPendingBurn: input =>
-                        addSelfPlanAndSendFunctions(client, getApplyConfidentialPendingBurnInstruction(input)),
-                    initializeScaledUiAmountMint: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeScaledUiAmountMintInstruction(input)),
-                    updateMultiplierScaledUiMint: input =>
-                        addSelfPlanAndSendFunctions(client, getUpdateMultiplierScaledUiMintInstruction(input)),
-                    initializePausableConfig: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializePausableConfigInstruction(input)),
-                    pause: input => addSelfPlanAndSendFunctions(client, getPauseInstruction(input)),
-                    resume: input => addSelfPlanAndSendFunctions(client, getResumeInstruction(input)),
-                    initializeTokenMetadata: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeTokenMetadataInstruction(input)),
-                    updateTokenMetadataField: input =>
-                        addSelfPlanAndSendFunctions(client, getUpdateTokenMetadataFieldInstruction(input)),
-                    removeTokenMetadataKey: input =>
-                        addSelfPlanAndSendFunctions(client, getRemoveTokenMetadataKeyInstruction(input)),
-                    updateTokenMetadataUpdateAuthority: input =>
-                        addSelfPlanAndSendFunctions(client, getUpdateTokenMetadataUpdateAuthorityInstruction(input)),
-                    emitTokenMetadata: input =>
-                        addSelfPlanAndSendFunctions(client, getEmitTokenMetadataInstruction(input)),
-                    initializeTokenGroup: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeTokenGroupInstruction(input)),
-                    updateTokenGroupMaxSize: input =>
-                        addSelfPlanAndSendFunctions(client, getUpdateTokenGroupMaxSizeInstruction(input)),
-                    updateTokenGroupUpdateAuthority: input =>
-                        addSelfPlanAndSendFunctions(client, getUpdateTokenGroupUpdateAuthorityInstruction(input)),
-                    initializeTokenGroupMember: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializeTokenGroupMemberInstruction(input)),
-                    unwrapLamports: input => addSelfPlanAndSendFunctions(client, getUnwrapLamportsInstruction(input)),
-                    initializePermissionedBurn: input =>
-                        addSelfPlanAndSendFunctions(client, getInitializePermissionedBurnInstruction(input)),
-                    permissionedBurn: input =>
-                        addSelfPlanAndSendFunctions(client, getPermissionedBurnInstruction(input)),
-                    permissionedBurnChecked: input =>
-                        addSelfPlanAndSendFunctions(client, getPermissionedBurnCheckedInstruction(input)),
-                    permissionedConfidentialBurn: input =>
-                        addSelfPlanAndSendFunctions(client, getPermissionedConfidentialBurnInstruction(input)),
-                    batch: input => addSelfPlanAndSendFunctions(client, getBatchInstruction(input)),
+                    revoke: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getRevokeInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    setAuthority: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getSetAuthorityInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    mintTo: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getMintToInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    burn: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getBurnInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    closeAccount: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getCloseAccountInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    freezeAccount: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getFreezeAccountInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    thawAccount: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getThawAccountInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    transferChecked: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getTransferCheckedInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    approveChecked: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getApproveCheckedInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    mintToChecked: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getMintToCheckedInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    burnChecked: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getBurnCheckedInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeAccount2: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeAccount2Instruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    syncNative: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getSyncNativeInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeAccount3: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeAccount3Instruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeMultisig2: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeMultisig2Instruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeMint2: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeMint2Instruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    getAccountDataSize: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getGetAccountDataSizeInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeImmutableOwner: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeImmutableOwnerInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    amountToUiAmount: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getAmountToUiAmountInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    uiAmountToAmount: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUiAmountToAmountInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeMintCloseAuthority: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeMintCloseAuthorityInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeTransferFeeConfig: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeTransferFeeConfigInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    transferCheckedWithFee: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getTransferCheckedWithFeeInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    withdrawWithheldTokensFromMint: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getWithdrawWithheldTokensFromMintInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    withdrawWithheldTokensFromAccounts: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getWithdrawWithheldTokensFromAccountsInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    harvestWithheldTokensToMint: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getHarvestWithheldTokensToMintInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    setTransferFee: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getSetTransferFeeInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeConfidentialTransferMint: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeConfidentialTransferMintInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    updateConfidentialTransferMint: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUpdateConfidentialTransferMintInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    configureConfidentialTransferAccount: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getConfigureConfidentialTransferAccountInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    approveConfidentialTransferAccount: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getApproveConfidentialTransferAccountInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    emptyConfidentialTransferAccount: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getEmptyConfidentialTransferAccountInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    confidentialDeposit: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getConfidentialDepositInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    confidentialWithdraw: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getConfidentialWithdrawInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    confidentialTransfer: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getConfidentialTransferInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    applyConfidentialPendingBalance: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getApplyConfidentialPendingBalanceInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    enableConfidentialCredits: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getEnableConfidentialCreditsInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    disableConfidentialCredits: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getDisableConfidentialCreditsInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    enableNonConfidentialCredits: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getEnableNonConfidentialCreditsInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    disableNonConfidentialCredits: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getDisableNonConfidentialCreditsInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    confidentialTransferWithFee: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getConfidentialTransferWithFeeInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    configureConfidentialTransferAccountWithRegistry: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getConfigureConfidentialTransferAccountWithRegistryInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeDefaultAccountState: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeDefaultAccountStateInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    updateDefaultAccountState: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUpdateDefaultAccountStateInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    reallocate: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getReallocateInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    enableMemoTransfers: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getEnableMemoTransfersInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    disableMemoTransfers: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getDisableMemoTransfersInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    createNativeMint: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getCreateNativeMintInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeNonTransferableMint: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeNonTransferableMintInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeInterestBearingMint: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeInterestBearingMintInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    updateRateInterestBearingMint: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUpdateRateInterestBearingMintInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    enableCpiGuard: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getEnableCpiGuardInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    disableCpiGuard: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getDisableCpiGuardInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializePermanentDelegate: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializePermanentDelegateInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeTransferHook: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeTransferHookInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    updateTransferHook: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUpdateTransferHookInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeConfidentialTransferFee: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeConfidentialTransferFeeInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    withdrawWithheldTokensFromMintForConfidentialTransferFee: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getWithdrawWithheldTokensFromMintForConfidentialTransferFeeInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    withdrawWithheldTokensFromAccountsForConfidentialTransferFee: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getWithdrawWithheldTokensFromAccountsForConfidentialTransferFeeInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    harvestWithheldTokensToMintForConfidentialTransferFee: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    enableHarvestToMint: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getEnableHarvestToMintInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    disableHarvestToMint: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getDisableHarvestToMintInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    withdrawExcessLamports: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getWithdrawExcessLamportsInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeMetadataPointer: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeMetadataPointerInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    updateMetadataPointer: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUpdateMetadataPointerInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeGroupPointer: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeGroupPointerInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    updateGroupPointer: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUpdateGroupPointerInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeGroupMemberPointer: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeGroupMemberPointerInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    updateGroupMemberPointer: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUpdateGroupMemberPointerInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeConfidentialMintBurn: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeConfidentialMintBurnInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    rotateSupplyElgamalPubkey: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getRotateSupplyElgamalPubkeyInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    updateConfidentialMintBurnDecryptableSupply: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUpdateConfidentialMintBurnDecryptableSupplyInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    confidentialMint: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getConfidentialMintInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    confidentialBurn: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getConfidentialBurnInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    applyConfidentialPendingBurn: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getApplyConfidentialPendingBurnInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeScaledUiAmountMint: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeScaledUiAmountMintInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    updateMultiplierScaledUiMint: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUpdateMultiplierScaledUiMintInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializePausableConfig: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializePausableConfigInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    pause: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getPauseInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    resume: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getResumeInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeTokenMetadata: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeTokenMetadataInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    updateTokenMetadataField: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUpdateTokenMetadataFieldInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    removeTokenMetadataKey: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getRemoveTokenMetadataKeyInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    updateTokenMetadataUpdateAuthority: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUpdateTokenMetadataUpdateAuthorityInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    emitTokenMetadata: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getEmitTokenMetadataInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeTokenGroup: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeTokenGroupInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    updateTokenGroupMaxSize: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUpdateTokenGroupMaxSizeInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    updateTokenGroupUpdateAuthority: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUpdateTokenGroupUpdateAuthorityInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializeTokenGroupMember: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeTokenGroupMemberInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    unwrapLamports: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getUnwrapLamportsInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initializePermissionedBurn: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializePermissionedBurnInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    permissionedBurn: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getPermissionedBurnInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    permissionedBurnChecked: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getPermissionedBurnCheckedInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    permissionedConfidentialBurn: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getPermissionedConfidentialBurnInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    batch: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getBatchInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
                 },
                 identifyAccount: identifyToken2022Account,
                 identifyInstruction: identifyToken2022Instruction,

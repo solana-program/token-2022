@@ -123,7 +123,7 @@ export function getEnableNonConfidentialCreditsInstruction<
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: EnableNonConfidentialCreditsInput<TAccountToken, TAccountAuthority>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): EnableNonConfidentialCreditsInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountToken, InstructionAccountInputAddress<TAccountToken>>,
@@ -135,7 +135,8 @@ export function getEnableNonConfidentialCreditsInstruction<
     >
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

@@ -344,10 +344,6 @@ export type GetUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupplyI
     programAddress?: Address | HasAddress;
 };
 
-function getTokenProgramAddress(programAddress?: Address | HasAddress) {
-    return getAddressFromResolvedInstructionAccount('programAddress', programAddress ?? TOKEN_2022_PROGRAM_ADDRESS);
-}
-
 function getRequiredConfidentialTransferAccountExtension(tokenAccount: Token): ConfidentialTransferAccountExtension {
     if (!isSome(tokenAccount.extensions)) {
         throw new Error('Token account is missing extensions.');
@@ -642,7 +638,7 @@ async function buildContextStateProofPlan(
 export async function getCreateConfidentialTransferAccountInstructionPlan(
     input: GetCreateConfidentialTransferAccountInstructionPlanInput,
 ): Promise<InstructionPlan> {
-    const programAddress = getTokenProgramAddress(input.programAddress);
+    const programAddress = input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
     const authority = input.authority ?? input.owner;
     assertCreateHelperOwnerMatchesAuthority(input.owner, authority);
 
@@ -805,7 +801,7 @@ export function getApplyConfidentialPendingBalanceInstructionFromToken(
             newDecryptableAvailableBalance,
             multiSigners: input.multiSigners,
         },
-        { programAddress: getTokenProgramAddress(input.programAddress) },
+        { programAddress: input.programAddress },
     );
 }
 
@@ -838,7 +834,7 @@ export async function getEmptyConfidentialTransferAccountInstructionPlan(
                 proofInstructionOffset: 0,
                 multiSigners: input.multiSigners,
             },
-            { programAddress: getTokenProgramAddress(input.programAddress) },
+            { programAddress: input.programAddress },
         ),
         proofPlan.cleanup,
     ]);
@@ -906,7 +902,7 @@ function assembleConfidentialWithdrawPlan(
                 rangeProofInstructionOffset: 0,
                 multiSigners: input.multiSigners,
             },
-            { programAddress: getTokenProgramAddress(input.programAddress) },
+            { programAddress: input.programAddress },
         ),
         parallelInstructionPlan([equalityProofPlan.cleanup, rangeProofPlan.cleanup]),
     ]);
@@ -1119,7 +1115,7 @@ function assembleConfidentialTransferPlan(
                 rangeProofInstructionOffset: 0,
                 multiSigners: input.multiSigners,
             },
-            { programAddress: getTokenProgramAddress(input.programAddress) },
+            { programAddress: input.programAddress },
         ),
         parallelInstructionPlan([
             equalityProofPlan.cleanup,
@@ -1530,7 +1526,7 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
                 rangeProofInstructionOffset: 0,
                 multiSigners: input.multiSigners,
             },
-            { programAddress: getTokenProgramAddress(input.programAddress) },
+            { programAddress: input.programAddress },
         ),
         parallelInstructionPlan([
             equalityProofPlan.cleanup,
@@ -1767,7 +1763,7 @@ export async function getConfidentialMintInstructionPlan(
     const { setup, cleanup, mintArgs } = await buildConfidentialMintProofPlan(input);
     return sequentialInstructionPlan([
         setup,
-        getConfidentialMintInstruction(mintArgs, { programAddress: getTokenProgramAddress(input.programAddress) }),
+        getConfidentialMintInstruction(mintArgs, { programAddress: input.programAddress }),
         cleanup,
     ]);
 }
@@ -1790,7 +1786,7 @@ export async function getConfidentialMintWithRecordInstructionPlan(
     const { setup, cleanup, mintArgs } = await buildConfidentialMintProofPlan(input, input);
     return sequentialInstructionPlan([
         setup,
-        getConfidentialMintInstruction(mintArgs, { programAddress: getTokenProgramAddress(input.programAddress) }),
+        getConfidentialMintInstruction(mintArgs, { programAddress: input.programAddress }),
         cleanup,
     ]);
 }
@@ -1994,7 +1990,7 @@ export async function getConfidentialBurnInstructionPlan(
         setup,
         getConfidentialBurnInstruction(
             { ...burnArgs, multiSigners: input.multiSigners },
-            { programAddress: getTokenProgramAddress(input.programAddress) },
+            { programAddress: input.programAddress },
         ),
         cleanup,
     ]);
@@ -2020,7 +2016,7 @@ export async function getConfidentialBurnWithRecordInstructionPlan(
         setup,
         getConfidentialBurnInstruction(
             { ...burnArgs, multiSigners: input.multiSigners },
-            { programAddress: getTokenProgramAddress(input.programAddress) },
+            { programAddress: input.programAddress },
         ),
         cleanup,
     ]);
@@ -2051,7 +2047,7 @@ export async function getPermissionedConfidentialBurnInstructionPlan(
                 multiSigners: input.multiSigners,
                 permissionedBurnAuthority: input.permissionedBurnAuthority,
             },
-            { programAddress: getTokenProgramAddress(input.programAddress) },
+            { programAddress: input.programAddress },
         ),
         cleanup,
     ]);
@@ -2081,7 +2077,7 @@ export async function getPermissionedConfidentialBurnWithRecordInstructionPlan(
                 multiSigners: input.multiSigners,
                 permissionedBurnAuthority: input.permissionedBurnAuthority,
             },
-            { programAddress: getTokenProgramAddress(input.programAddress) },
+            { programAddress: input.programAddress },
         ),
         cleanup,
     ]);
@@ -2115,6 +2111,6 @@ export function getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSup
             newDecryptableSupply: input.supplyAesKey.encrypt(supply).toBytes(),
             multiSigners: input.multiSigners,
         },
-        { programAddress: getTokenProgramAddress(input.programAddress) },
+        { programAddress: input.programAddress },
     );
 }
