@@ -60,6 +60,10 @@ const EQUALITY_VERIFY_DATA_LENGTH = 1 + 320;
 const CIPHERTEXT_VALIDITY_VERIFY_DATA_LENGTH = 1 + 544;
 const RANGE_VERIFY_DATA_LENGTH = 1 + 264 + 736;
 
+// The v1 transaction size limit (SIMD-0385). `@solana/kit` does not re-export
+// `V1_TRANSACTION_SIZE_LIMIT` from `@solana/transactions`, so it is mirrored here.
+const V1_TRANSACTION_SIZE_LIMIT = 4096;
+
 type ProofInstructionOffsets = {
     equalityProofInstructionOffset: number;
     ciphertextValidityProofInstructionOffset: number;
@@ -150,8 +154,8 @@ function expectInstructionOffsetProofsLayout(
 // the v1 limit and reads its consumed compute units back from the validator.
 async function sendSingleV1Transaction(client: ValidatorClient, plan: InstructionPlan) {
     const { transaction } = getSingleTransactionContext(await client.sendTransaction(plan));
-    // A 4096-byte size limit means the planner produced a v1 transaction.
-    expect(getTransactionSizeLimit(transaction)).toBe(4096);
+    // A v1 size limit means the planner produced a v1 transaction.
+    expect(getTransactionSizeLimit(transaction)).toBe(V1_TRANSACTION_SIZE_LIMIT);
     const size = getTransactionSize(transaction);
     expect(size).toBeLessThanOrEqual(getTransactionSizeLimit(transaction));
 
