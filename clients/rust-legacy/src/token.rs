@@ -64,8 +64,8 @@ use {
             },
             cpi_guard, default_account_state, group_member_pointer, group_pointer,
             interest_bearing_mint, memo_transfer, metadata_pointer, pausable, permissioned_burn,
-            scaled_ui_amount, transfer_fee, transfer_hook, BaseStateWithExtensions, Extension,
-            ExtensionType, StateWithExtensionsOwned,
+            scaled_ui_amount, slot_reference_fee, transfer_fee, transfer_hook,
+            BaseStateWithExtensions, Extension, ExtensionType, StateWithExtensionsOwned,
         },
         instruction,
         state::{Account, AccountState, Mint, Multisig},
@@ -210,6 +210,21 @@ pub enum ExtensionInitializationParams {
     PermissionedBurnConfig {
         authority: Address,
     },
+    SlotReferenceFeeConfig {
+        authority: Option<Address>,
+        fee_destination: Address,
+        settler: Address,
+        floor_basis_points: u16,
+        cap_basis_points: u16,
+        free_references: u16,
+        slow_floor_basis_points: u16,
+        slow_cap_basis_points: u16,
+        slow_free_references: u16,
+        slow_window_slots: u64,
+        stake_withdrawer: Address,
+        stake_lockup_epoch: u64,
+        min_reference_amount: u64,
+    },
     ConfidentialMintBurn {
         supply_elgamal_pubkey: PodElGamalPubkey,
         decryptable_supply: PodAeCiphertext,
@@ -236,6 +251,7 @@ impl ExtensionInitializationParams {
             Self::ScaledUiAmountConfig { .. } => ExtensionType::ScaledUiAmount,
             Self::PausableConfig { .. } => ExtensionType::Pausable,
             Self::PermissionedBurnConfig { .. } => ExtensionType::PermissionedBurn,
+            Self::SlotReferenceFeeConfig { .. } => ExtensionType::SlotReferenceFeeConfig,
             Self::ConfidentialMintBurn { .. } => ExtensionType::ConfidentialMintBurn,
         }
     }
@@ -361,6 +377,37 @@ impl ExtensionInitializationParams {
             Self::PermissionedBurnConfig { authority } => {
                 permissioned_burn::instruction::initialize(token_program_id, mint, &authority)
             }
+            Self::SlotReferenceFeeConfig {
+                authority,
+                fee_destination,
+                settler,
+                floor_basis_points,
+                cap_basis_points,
+                free_references,
+                slow_floor_basis_points,
+                slow_cap_basis_points,
+                slow_free_references,
+                slow_window_slots,
+                stake_withdrawer,
+                stake_lockup_epoch,
+                min_reference_amount,
+            } => slot_reference_fee::instruction::initialize(
+                token_program_id,
+                mint,
+                authority.as_ref(),
+                &fee_destination,
+                &settler,
+                floor_basis_points,
+                cap_basis_points,
+                free_references,
+                slow_floor_basis_points,
+                slow_cap_basis_points,
+                slow_free_references,
+                slow_window_slots,
+                &stake_withdrawer,
+                stake_lockup_epoch,
+                min_reference_amount,
+            ),
             Self::ConfidentialMintBurn {
                 supply_elgamal_pubkey,
                 decryptable_supply,
