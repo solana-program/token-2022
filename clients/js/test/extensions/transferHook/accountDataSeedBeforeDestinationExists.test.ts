@@ -389,12 +389,12 @@ describe('transfer hook with an account-data seed on a destination that does not
         expect((await fetchToken(client.rpc, destination)).data).toMatchObject(<Token>{ amount: 40n });
     });
 
-    it('creates the destination and runs the hook through transferToATA', async () => {
+    it('creates the destination and runs the hook through transferToATAWithTransferHook', async () => {
         const { client, decimals, destination, destinationOwner, mint, source, sourceOwner } =
             await setupHookMintWithAccountDataSeed();
 
         await client.token2022.instructions
-            .transferToATA({
+            .transferToATAWithTransferHook({
                 mint: mint.address,
                 source,
                 authority: sourceOwner,
@@ -405,6 +405,27 @@ describe('transfer hook with an account-data seed on a destination that does not
             .sendTransaction();
 
         expect((await fetchToken(client.rpc, destination)).data).toMatchObject(<Token>{ amount: 40n });
+    });
+
+    it('rejects a destination owned by a program other than the token program', async () => {
+        const { client, decimals, destination, destinationOwner, mint, source, sourceOwner } =
+            await setupHookMintWithAccountDataSeed();
+
+        client.svm.setAccount({
+            address: destination,
+            data: new Uint8Array(165),
+            executable: false,
+            lamports: lamports(1_000_000n),
+            programAddress: TRANSFER_HOOK_PROGRAM_ADDRESS,
+            space: 165n,
+        });
+
+        await expect(
+            client.token2022.instructions.transferCheckedWithTransferHook(
+                { source, mint: mint.address, destination, authority: sourceOwner, amount: 40n, decimals },
+                { recipient: destinationOwner.address },
+            ),
+        ).rejects.toThrow(`is owned by ${TRANSFER_HOOK_PROGRAM_ADDRESS}`);
     });
 
     it('rejects a mismatched recipient even when the mint has no transfer hook', async () => {

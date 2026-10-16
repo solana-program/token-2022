@@ -116,14 +116,11 @@ async function resolveTransferToATAInput(
     if (!source) {
         const authorityAddress: Address =
             typeof input.authority === 'string' ? input.authority : input.authority.address;
-        const [sourceAta] = await findAssociatedTokenPda(
-            {
-                owner: authorityAddress,
-                tokenProgram,
-                mint: input.mint,
-            },
-            { programAddress: config?.associatedTokenProgram },
-        );
+        const [sourceAta] = await findAssociatedTokenPda({
+            owner: authorityAddress,
+            tokenProgram,
+            mint: input.mint,
+        });
         source = sourceAta;
     }
 

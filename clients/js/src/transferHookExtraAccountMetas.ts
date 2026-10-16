@@ -402,6 +402,8 @@ async function getAccountDataForResolution(
     return account.exists ? account.data : undefined;
 }
 
+const SYSTEM_PROGRAM_ADDRESS = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+
 const NATIVE_MINT_ADDRESSES: Address[] = [
     address('9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP'),
     address('So11111111111111111111111111111111111111112'),
@@ -458,7 +460,6 @@ function assertNotNativeMint(mint: Address): void {
 }
 
 function getNewAssociatedTokenAccountData(mint: Account<Mint>, owner: Address): ReadonlyUint8Array {
-    assertNotNativeMint(mint.address);
     const base = {
         amount: 0n,
         closeAuthority: null,
@@ -783,7 +784,8 @@ export type ResolveExtraAccountMetasForExecuteInput = {
     /**
      * The wallet `destination` is the associated token account of. Set this when an earlier
      * instruction in the same transaction creates the destination, so seeds that read it resolve
-     * against the data that instruction writes.
+     * against the data that instruction writes. Like any existing destination, that data is read
+     * before this transfer credits it.
      *
      * Throws if `destination` is not the associated token account for this wallet and mint.
      */
@@ -827,9 +829,16 @@ async function getDestinationDataOverrides(
         return undefined;
     }
     const destination = await fetchEncodedAccount(input.rpc, input.destination);
-    if (destination.exists && destination.programAddress === (input.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS)) {
+    const tokenProgram = input.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS;
+    if (destination.exists && destination.programAddress === tokenProgram) {
         return new Map([[input.destination, destination.data]]);
     }
+    if (destination.exists && destination.programAddress !== SYSTEM_PROGRAM_ADDRESS) {
+        throw new Error(
+            `Invalid transfer hook recipient: the destination ${input.destination} is owned by ${destination.programAddress}, not ${tokenProgram}.`,
+        );
+    }
+    assertNotNativeMint(input.mint);
     const data = getNewAssociatedTokenAccountData(mint ?? (await fetchMint(input.rpc, input.mint)), input.recipient);
     return new Map([[input.destination, data]]);
 }
@@ -850,6 +859,7 @@ async function getDestinationDataOverrides(
 export async function resolveExtraAccountMetasForExecute(
     input: ResolveExtraAccountMetasForExecuteInput,
 ): Promise<AccountMeta<Address>[]> {
+    await assertRecipientOwnsDestination(input);
     return await resolveExtraAccountMetasForExecuteWithMint(input, undefined);
 }
 
@@ -857,8 +867,6 @@ async function resolveExtraAccountMetasForExecuteWithMint(
     input: ResolveExtraAccountMetasForExecuteInput,
     mint: Account<Mint> | undefined,
 ): Promise<AccountMeta<Address>[]> {
-    await assertRecipientOwnsDestination(input);
-
     const [validateStatePubkey] = input.validateStatePubkey
         ? [input.validateStatePubkey]
         : await findExtraAccountMetaListPda({ mint: input.mint }, { programAddress: input.transferHookProgramAddress });
@@ -907,9 +915,6 @@ async function resolveExtraAccountMetasForExecuteWithMint(
         { address: validateStatePubkey, role: AccountRole.READONLY },
     ];
 }
-
-// The default system program address, used when initializing a validation account.
-const SYSTEM_PROGRAM_ADDRESS = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
 
 // `spl-transfer-hook-interface:initialize-extra-account-metas` and `...:update-extra-account-metas`,
 // as `sha256(namespace)[0..8]`. The instruction data is the discriminator followed by the extra
@@ -1035,7 +1040,8 @@ export type TransferCheckedWithTransferHookInstructionAsyncConfig = {
     /**
      * The wallet `destination` is the associated token account of. Set this when an earlier
      * instruction in the same transaction creates the destination, so seeds that read it resolve
-     * against the data that instruction writes.
+     * against the data that instruction writes. Like any existing destination, that data is read
+     * before this transfer credits it.
      *
      * Throws if `destination` is not the associated token account for this wallet and mint.
      */

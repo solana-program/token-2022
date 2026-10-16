@@ -29,6 +29,7 @@ import {
     TransferCheckedWithTransferHookInstructionAsyncInput,
 } from './transferHookExtraAccountMetas';
 import {
+    getTransferToATAInstructionPlanAsync,
     getTransferToATAWithTransferHookInstructionPlanAsync,
     TransferToATAInstructionPlanAsyncInput,
     TransferToATAInstructionPlanConfig,
@@ -64,8 +65,13 @@ export type Token2022PluginInstructions = Omit<GeneratedToken2022PluginInstructi
         input: MakeOptional<MintToATAInstructionPlanAsyncInput, 'payer'>,
         config?: MintToATAInstructionPlanConfig,
     ) => ReturnType<typeof getMintToATAInstructionPlanAsync> & SelfPlanAndSendFunctions;
-    /** Transfer tokens to a recipient's ATA (created if needed), with the mint's transfer hook accounts. */
+    /** Transfer tokens to a recipient's ATA (created if needed). */
     transferToATA: (
+        input: MakeOptional<TransferToATAInstructionPlanAsyncInput, 'payer'>,
+        config?: TransferToATAInstructionPlanConfig,
+    ) => ReturnType<typeof getTransferToATAInstructionPlanAsync> & SelfPlanAndSendFunctions;
+    /** Transfer tokens to a recipient's ATA (created if needed), appending the mint's transfer hook accounts. */
+    transferToATAWithTransferHook: (
         input: MakeOptional<TransferToATAInstructionPlanAsyncInput, 'payer'>,
         config?: TransferToATAInstructionPlanConfig,
     ) => ReturnType<typeof getTransferToATAWithTransferHookInstructionPlanAsync> & SelfPlanAndSendFunctions;
@@ -113,6 +119,14 @@ export function token2022Program() {
                                 ),
                             ),
                         transferToATA: (input, config) =>
+                            addSelfPlanAndSendFunctions(
+                                client,
+                                getTransferToATAInstructionPlanAsync(
+                                    { ...input, payer: input.payer ?? client.payer },
+                                    config,
+                                ),
+                            ),
+                        transferToATAWithTransferHook: (input, config) =>
                             addSelfPlanAndSendFunctions(
                                 client,
                                 getTransferToATAWithTransferHookInstructionPlanAsync(
