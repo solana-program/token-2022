@@ -29,7 +29,7 @@ import {
     TransferCheckedWithTransferHookInstructionAsyncInput,
 } from './transferHookExtraAccountMetas';
 import {
-    getTransferToATAInstructionPlanAsync,
+    getTransferToATAWithTransferHookInstructionPlanAsync,
     TransferToATAInstructionPlanAsyncInput,
     TransferToATAInstructionPlanConfig,
 } from './transferToATA';
@@ -64,11 +64,11 @@ export type Token2022PluginInstructions = Omit<GeneratedToken2022PluginInstructi
         input: MakeOptional<MintToATAInstructionPlanAsyncInput, 'payer'>,
         config?: MintToATAInstructionPlanConfig,
     ) => ReturnType<typeof getMintToATAInstructionPlanAsync> & SelfPlanAndSendFunctions;
-    /** Transfer tokens to a recipient's ATA (created if needed). */
+    /** Transfer tokens to a recipient's ATA (created if needed), with the mint's transfer hook accounts. */
     transferToATA: (
         input: MakeOptional<TransferToATAInstructionPlanAsyncInput, 'payer'>,
         config?: TransferToATAInstructionPlanConfig,
-    ) => ReturnType<typeof getTransferToATAInstructionPlanAsync> & SelfPlanAndSendFunctions;
+    ) => ReturnType<typeof getTransferToATAWithTransferHookInstructionPlanAsync> & SelfPlanAndSendFunctions;
     /** Transfer tokens, appending the extra accounts the mint's transfer hook needs (if any). */
     transferCheckedWithTransferHook: (
         input: TransferCheckedWithTransferHookInstructionAsyncInput,
@@ -115,7 +115,8 @@ export function token2022Program() {
                         transferToATA: (input, config) =>
                             addSelfPlanAndSendFunctions(
                                 client,
-                                getTransferToATAInstructionPlanAsync(
+                                getTransferToATAWithTransferHookInstructionPlanAsync(
+                                    client,
                                     { ...input, payer: input.payer ?? client.payer },
                                     config,
                                 ),

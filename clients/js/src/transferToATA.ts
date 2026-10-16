@@ -1,4 +1,11 @@
-import { Address, InstructionPlan, sequentialInstructionPlan, TransactionSigner } from '@solana/kit';
+import {
+    Address,
+    ClientWithRpc,
+    GetAccountInfoApi,
+    InstructionPlan,
+    sequentialInstructionPlan,
+    TransactionSigner,
+} from '@solana/kit';
 
 import {
     findAssociatedTokenPda,
@@ -6,6 +13,7 @@ import {
     getTransferCheckedInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from './generated';
+import { getTransferCheckedWithTransferHookInstructionAsync } from './transferHookExtraAccountMetas';
 import { MakeOptional } from './types';
 
 export type TransferToATAInstructionPlanInput = {
@@ -39,24 +47,31 @@ export type TransferToATAInstructionPlanConfig = {
     associatedTokenProgram?: Address;
 };
 
+function getCreateDestinationInstruction(
+    input: TransferToATAInstructionPlanInput,
+    config?: TransferToATAInstructionPlanConfig,
+) {
+    return getCreateAssociatedTokenIdempotentInstruction(
+        {
+            payer: input.payer,
+            ata: input.destination,
+            owner: input.recipient,
+            mint: input.mint,
+            systemProgram: config?.systemProgram,
+            tokenProgram: config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
+        },
+        {
+            programAddress: config?.associatedTokenProgram,
+        },
+    );
+}
+
 export function getTransferToATAInstructionPlan(
     input: TransferToATAInstructionPlanInput,
     config?: TransferToATAInstructionPlanConfig,
 ): InstructionPlan {
     return sequentialInstructionPlan([
-        getCreateAssociatedTokenIdempotentInstruction(
-            {
-                payer: input.payer,
-                ata: input.destination,
-                owner: input.recipient,
-                mint: input.mint,
-                systemProgram: config?.systemProgram,
-                tokenProgram: config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
-            },
-            {
-                programAddress: config?.associatedTokenProgram,
-            },
-        ),
+        getCreateDestinationInstruction(input, config),
         getTransferCheckedInstruction(
             {
                 source: input.source,
@@ -79,39 +94,75 @@ export type TransferToATAInstructionPlanAsyncInput = MakeOptional<
     'source' | 'destination'
 >;
 
-export async function getTransferToATAInstructionPlanAsync(
+async function resolveTransferToATAInput(
     input: TransferToATAInstructionPlanAsyncInput,
     config?: TransferToATAInstructionPlanConfig,
-): Promise<InstructionPlan> {
+): Promise<TransferToATAInstructionPlanInput> {
     const tokenProgram = config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS;
 
     let destination = input.destination;
     if (!destination) {
-        [destination] = await findAssociatedTokenPda({
-            owner: input.recipient,
-            tokenProgram,
-            mint: input.mint,
-        });
+        [destination] = await findAssociatedTokenPda(
+            {
+                owner: input.recipient,
+                tokenProgram,
+                mint: input.mint,
+            },
+            { programAddress: config?.associatedTokenProgram },
+        );
     }
 
     let source = input.source;
     if (!source) {
         const authorityAddress: Address =
             typeof input.authority === 'string' ? input.authority : input.authority.address;
-        const [sourceAta] = await findAssociatedTokenPda({
-            owner: authorityAddress,
-            tokenProgram,
-            mint: input.mint,
-        });
+        const [sourceAta] = await findAssociatedTokenPda(
+            {
+                owner: authorityAddress,
+                tokenProgram,
+                mint: input.mint,
+            },
+            { programAddress: config?.associatedTokenProgram },
+        );
         source = sourceAta;
     }
 
-    return getTransferToATAInstructionPlan(
+    return { ...input, source, destination };
+}
+
+export async function getTransferToATAInstructionPlanAsync(
+    input: TransferToATAInstructionPlanAsyncInput,
+    config?: TransferToATAInstructionPlanConfig,
+): Promise<InstructionPlan> {
+    return getTransferToATAInstructionPlan(await resolveTransferToATAInput(input, config), config);
+}
+
+/**
+ * Like {@link getTransferToATAInstructionPlanAsync}, but the transfer carries the extra accounts
+ * the mint's transfer hook needs, resolved against the destination this plan creates.
+ */
+export async function getTransferToATAWithTransferHookInstructionPlanAsync(
+    client: ClientWithRpc<GetAccountInfoApi>,
+    input: TransferToATAInstructionPlanAsyncInput,
+    config?: TransferToATAInstructionPlanConfig,
+): Promise<InstructionPlan> {
+    const resolved = await resolveTransferToATAInput(input, config);
+    const transfer = await getTransferCheckedWithTransferHookInstructionAsync(
+        client,
         {
-            ...input,
-            source,
-            destination,
+            source: resolved.source,
+            mint: resolved.mint,
+            destination: resolved.destination,
+            authority: resolved.authority,
+            amount: resolved.amount,
+            decimals: resolved.decimals,
+            multiSigners: resolved.multiSigners,
         },
-        config,
+        {
+            associatedTokenProgram: config?.associatedTokenProgram,
+            recipient: resolved.recipient,
+            tokenProgram: config?.tokenProgram,
+        },
     );
+    return sequentialInstructionPlan([getCreateDestinationInstruction(resolved, config), transfer]);
 }

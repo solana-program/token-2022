@@ -1,6 +1,7 @@
 import path from 'node:path';
 
 import {
+    Address,
     address,
     assertAccountExists,
     fetchEncodedAccount,
@@ -8,12 +9,15 @@ import {
     getAddressEncoder,
     getProgramDerivedAddress,
     lamports,
+    some,
 } from '@solana/kit';
 import { describe, expect, it } from 'vitest';
 
 import {
     AccountState,
+    ExtensionArgs,
     TOKEN_2022_PROGRAM_ADDRESS,
+    TOKEN_PROGRAM_ADDRESS,
     Token,
     extension,
     fetchToken,
@@ -24,6 +28,8 @@ import {
     getNewAssociatedTokenAccountDataAsync,
 } from '../../../src';
 import { createTestClient, createTokenWithAmount } from '../../_setup';
+
+type TestClient = Awaited<ReturnType<typeof createTestClient>>;
 
 const TRANSFER_HOOK_PROGRAM_ADDRESS = address('TokenHookExampLe8smaVNrxTBezWTRbEwxwb1Zykrb');
 const NATIVE_MINT_ADDRESS = address('9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP');
@@ -122,6 +128,28 @@ async function setupHookMintWithAccountDataSeed() {
     });
 
     return { client, decimals, destination, destinationOwner, mint, source, sourceOwner, validateStatePubkey };
+}
+
+// Creates the ATA for `mint` / `owner` and checks it holds exactly the bytes derived beforehand.
+async function expectDerivedDataMatchesChain(
+    client: TestClient,
+    mint: Address,
+    owner: Address,
+    tokenProgram: Address = TOKEN_2022_PROGRAM_ADDRESS,
+) {
+    const derived = await getNewAssociatedTokenAccountDataAsync(client.rpc, mint, owner);
+    await client.sendTransaction([
+        await getCreateAssociatedTokenIdempotentInstructionAsync({
+            payer: client.payer,
+            mint,
+            owner,
+            tokenProgram,
+        }),
+    ]);
+    const [ata] = await findAssociatedTokenPda({ mint, owner, tokenProgram });
+    const onChain = await fetchEncodedAccount(client.rpc, ata);
+    assertAccountExists(onChain);
+    expect(Buffer.from(derived).toString('hex')).toBe(Buffer.from(onChain.data).toString('hex'));
 }
 
 describe('transfer hook with an account-data seed on a destination that does not exist yet', () => {
@@ -339,5 +367,130 @@ describe('transfer hook with an account-data seed on a destination that does not
         await expect(
             getNewAssociatedTokenAccountDataAsync(client.rpc, NATIVE_MINT_ADDRESS, owner.address),
         ).rejects.toThrow(/native mint/);
+    });
+    it('executes when the destination address already holds lamports before it is created', async () => {
+        const { client, decimals, destination, destinationOwner, mint, source, sourceOwner } =
+            await setupHookMintWithAccountDataSeed();
+
+        // Given SOL sent to the future ATA, so the address exists as an empty system account.
+        await client.airdrop(destination, lamports(1_000_000n));
+
+        const createDestination = await getCreateAssociatedTokenIdempotentInstructionAsync({
+            payer: client.payer,
+            mint: mint.address,
+            owner: destinationOwner.address,
+        });
+        const transfer = await client.token2022.instructions.transferCheckedWithTransferHook(
+            { source, mint: mint.address, destination, authority: sourceOwner, amount: 40n, decimals },
+            { recipient: destinationOwner.address },
+        );
+        await client.sendTransaction([createDestination, transfer]);
+
+        expect((await fetchToken(client.rpc, destination)).data).toMatchObject(<Token>{ amount: 40n });
+    });
+
+    it('creates the destination and runs the hook through transferToATA', async () => {
+        const { client, decimals, destination, destinationOwner, mint, source, sourceOwner } =
+            await setupHookMintWithAccountDataSeed();
+
+        await client.token2022.instructions
+            .transferToATA({
+                mint: mint.address,
+                source,
+                authority: sourceOwner,
+                recipient: destinationOwner.address,
+                amount: 40n,
+                decimals,
+            })
+            .sendTransaction();
+
+        expect((await fetchToken(client.rpc, destination)).data).toMatchObject(<Token>{ amount: 40n });
+    });
+
+    it('rejects a mismatched recipient even when the mint has no transfer hook', async () => {
+        const client = await createTestClient();
+        const [mintAuthority, owner, recipient, mint] = await Promise.all([
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+        ]);
+        await client.token2022.instructions.createMint({ newMint: mint, decimals: 2, mintAuthority }).sendTransaction();
+        const [destination] = await findAssociatedTokenPda({
+            mint: mint.address,
+            owner: owner.address,
+            tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+        });
+
+        await expect(
+            client.token2022.instructions.transferCheckedWithTransferHook(
+                { source: destination, mint: mint.address, destination, authority: owner, amount: 1n, decimals: 2 },
+                { recipient: recipient.address },
+            ),
+        ).rejects.toThrow(`${recipient.address} does not own the destination ${destination}`);
+    });
+
+    it.each<[string, ExtensionArgs[]]>([
+        ['NonTransferable', [extension('NonTransferable', {})]],
+        [
+            'TransferFeeConfig',
+            [
+                extension('TransferFeeConfig', {
+                    transferFeeConfigAuthority: TRANSFER_HOOK_PROGRAM_ADDRESS,
+                    withdrawWithheldAuthority: TRANSFER_HOOK_PROGRAM_ADDRESS,
+                    withheldAmount: 0n,
+                    olderTransferFee: { epoch: 0n, maximumFee: 10n, transferFeeBasisPoints: 100 },
+                    newerTransferFee: { epoch: 0n, maximumFee: 10n, transferFeeBasisPoints: 100 },
+                }),
+            ],
+        ],
+        [
+            'PausableConfig',
+            [extension('PausableConfig', { authority: some(TRANSFER_HOOK_PROGRAM_ADDRESS), paused: false })],
+        ],
+        [
+            'all of them with a transfer hook',
+            [
+                extension('TransferFeeConfig', {
+                    transferFeeConfigAuthority: TRANSFER_HOOK_PROGRAM_ADDRESS,
+                    withdrawWithheldAuthority: TRANSFER_HOOK_PROGRAM_ADDRESS,
+                    withheldAmount: 0n,
+                    olderTransferFee: { epoch: 0n, maximumFee: 10n, transferFeeBasisPoints: 100 },
+                    newerTransferFee: { epoch: 0n, maximumFee: 10n, transferFeeBasisPoints: 100 },
+                }),
+                extension('NonTransferable', {}),
+                extension('TransferHook', {
+                    authority: TRANSFER_HOOK_PROGRAM_ADDRESS,
+                    programId: TRANSFER_HOOK_PROGRAM_ADDRESS,
+                }),
+                extension('PausableConfig', { authority: some(TRANSFER_HOOK_PROGRAM_ADDRESS), paused: false }),
+            ],
+        ],
+    ])('derives the exact new account data for a mint with %s', async (_, extensions) => {
+        const client = await createTestClient();
+        const [mintAuthority, owner, mint] = await Promise.all([
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+        ]);
+        await client.token2022.instructions
+            .createMint({ newMint: mint, decimals: 2, mintAuthority, extensions })
+            .sendTransaction();
+
+        await expectDerivedDataMatchesChain(client, mint.address, owner.address);
+    });
+
+    it('derives the exact new account data for a classic token mint', async () => {
+        const client = await createTestClient();
+        const [mintAuthority, owner, mint] = await Promise.all([
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+        ]);
+        await client.token2022.instructions
+            .createMint({ newMint: mint, decimals: 2, mintAuthority }, { tokenProgram: TOKEN_PROGRAM_ADDRESS })
+            .sendTransaction();
+
+        await expectDerivedDataMatchesChain(client, mint.address, owner.address, TOKEN_PROGRAM_ADDRESS);
     });
 });
