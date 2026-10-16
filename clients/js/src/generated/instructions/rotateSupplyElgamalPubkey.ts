@@ -25,6 +25,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -93,7 +94,7 @@ export type RotateSupplyElgamalPubkeyInstructionData = {
 
 export type RotateSupplyElgamalPubkeyInstructionDataArgs = {
     /** The new ElGamal pubkey for supply encryption. */
-    newSupplyElgamalPubkey: Address;
+    newSupplyElgamalPubkey: Address | HasAddress;
     /**
      * The location of the
      * `ProofInstruction::VerifyCiphertextCiphertextEquality` instruction
@@ -168,7 +169,7 @@ export function getRotateSupplyElgamalPubkeyInstruction<
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: RotateSupplyElgamalPubkeyInput<TAccountMint, TAccountInstructionsSysvarOrContextState, TAccountAuthority>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): RotateSupplyElgamalPubkeyInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
@@ -184,7 +185,8 @@ export function getRotateSupplyElgamalPubkeyInstruction<
     >
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

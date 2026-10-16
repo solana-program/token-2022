@@ -30,10 +30,16 @@ import {
     type GetAccountInfoApi,
     type GetMinimumBalanceForRentExemptionApi,
     type FetchAccountConfig,
+    type HasAddress,
     type InstructionPlan,
     type ReadonlyUint8Array,
     type Rpc,
 } from '@solana/kit';
+import {
+    getAddressFromResolvedInstructionAccount,
+    type InstructionAccountInput,
+    type InstructionSignerInput,
+} from '@solana/kit/program-client-core';
 import {
     AeCiphertext,
     AeKey,
@@ -107,27 +113,27 @@ type ContextStateProofPlan = Readonly<{ address: Address; setup: InstructionPlan
 
 export type GetCreateConfidentialTransferAccountInstructionPlanInput = {
     payer: TransactionSigner;
-    owner: Address | TransactionSigner;
-    mint: Address;
-    token?: Address;
-    authority?: Address | TransactionSigner;
+    owner: InstructionAccountInput | InstructionSignerInput;
+    mint: InstructionAccountInput;
+    token?: InstructionAccountInput;
+    authority?: InstructionAccountInput | InstructionSignerInput;
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
     elgamalKeypair: ElGamalKeypair;
     aesKey: AeKey;
     maximumPendingBalanceCreditCounter?: number | bigint;
     includeConfidentialTransferFeeAmount?: boolean;
     multiSigners?: Array<TransactionSigner>;
-    programAddress?: Address;
+    programAddress?: Address | HasAddress;
 };
 
 export type GetApplyConfidentialPendingBalanceInstructionFromTokenInput = {
-    token: Address;
+    token: InstructionAccountInput;
     tokenAccount: Token;
-    authority: Address | TransactionSigner;
+    authority: InstructionAccountInput | InstructionSignerInput;
     elgamalSecretKey: ElGamalSecretKey;
     aesKey: AeKey;
     multiSigners?: Array<TransactionSigner>;
-    programAddress?: Address;
+    programAddress?: Address | HasAddress;
 };
 
 export type DecryptConfidentialTransferBalanceInput = {
@@ -137,7 +143,7 @@ export type DecryptConfidentialTransferBalanceInput = {
 };
 
 export type FetchConfidentialTransferBalanceInput = Omit<DecryptConfidentialTransferBalanceInput, 'tokenAccount'> & {
-    token: Address;
+    token: InstructionAccountInput;
     rpc: Parameters<typeof fetchToken>[0];
     config?: FetchAccountConfig;
 };
@@ -153,16 +159,16 @@ export type ConfidentialTransferBalance = {
 };
 
 export type GetConfidentialWithdrawInstructionPlanInput = {
-    token: Address;
-    mint: Address;
+    token: InstructionAccountInput;
+    mint: InstructionAccountInput;
     tokenAccount: Token;
-    authority: Address | TransactionSigner;
+    authority: InstructionAccountInput | InstructionSignerInput;
     amount: number | bigint;
     decimals: number;
     elgamalKeypair: ElGamalKeypair;
     aesKey: AeKey;
     multiSigners?: Array<TransactionSigner>;
-    programAddress?: Address;
+    programAddress?: Address | HasAddress;
     payer: TransactionSigner;
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
 };
@@ -174,30 +180,30 @@ export type GetConfidentialWithdrawWithRecordInstructionPlanInput = GetConfident
     /** Signs the record account's write and close. Defaults to an ephemeral signer. */
     recordAuthority?: TransactionSigner;
     /** Receives the record account's reclaimed rent on close. Defaults to the record payer. */
-    recordRentReceiver?: Address;
+    recordRentReceiver?: InstructionAccountInput;
 };
 
 export type GetEmptyConfidentialTransferAccountInstructionPlanInput = {
-    token: Address;
+    token: InstructionAccountInput;
     tokenAccount: Token;
-    authority: Address | TransactionSigner;
+    authority: InstructionAccountInput | InstructionSignerInput;
     elgamalKeypair: ElGamalKeypair;
     multiSigners?: Array<TransactionSigner>;
-    programAddress?: Address;
+    programAddress?: Address | HasAddress;
     payer: TransactionSigner;
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
 };
 
 export type GetConfidentialTransferInstructionPlanInput = {
-    sourceToken: Address;
-    mint: Address;
+    sourceToken: InstructionAccountInput;
+    mint: InstructionAccountInput;
     /**
      * Decoded mint account used to resolve the configured auditor key when
      * `auditorElgamalPubkey` is omitted. Supplying this avoids an extra mint
      * fetch for callers that already have the mint account loaded.
      */
     mintAccount?: Mint;
-    destinationToken: Address;
+    destinationToken: InstructionAccountInput;
     sourceTokenAccount: Token;
     /**
      * Auditor ElGamal public key to use for the auditor ciphertexts. When
@@ -206,12 +212,12 @@ export type GetConfidentialTransferInstructionPlanInput = {
      * key is used.
      */
     auditorElgamalPubkey?: Address;
-    authority: Address | TransactionSigner;
+    authority: InstructionAccountInput | InstructionSignerInput;
     amount: number | bigint;
     sourceElgamalKeypair: ElGamalKeypair;
     aesKey: AeKey;
     multiSigners?: Array<TransactionSigner>;
-    programAddress?: Address;
+    programAddress?: Address | HasAddress;
     payer: TransactionSigner;
     // The transfer helpers may need to read the mint account to resolve the
     // auditor ElGamal key, so the RPC must support account reads as well.
@@ -228,7 +234,7 @@ export type GetConfidentialTransferWithRecordInstructionPlanInput = GetConfident
     /** Signs the record account's write and close. Defaults to an ephemeral signer. */
     recordAuthority?: TransactionSigner;
     /** Receives the record account's reclaimed rent on close. Defaults to the record payer. */
-    recordRentReceiver?: Address;
+    recordRentReceiver?: InstructionAccountInput;
 };
 
 export type GetConfidentialTransferWithFeeInstructionPlanInput = GetConfidentialTransferInstructionPlanInput & {
@@ -239,7 +245,7 @@ export type GetConfidentialTransferWithFeeInstructionPlanInput = GetConfidential
     /** Signs the record account's write and close. Defaults to an ephemeral signer. */
     recordAuthority?: TransactionSigner;
     /** Receives the record account's reclaimed rent on close. Defaults to the record payer. */
-    recordRentReceiver?: Address;
+    recordRentReceiver?: InstructionAccountInput;
 };
 
 /**
@@ -253,17 +259,17 @@ type RecordBackedProofOptions = {
     /** Signs the record account's write and close. Defaults to an ephemeral signer. */
     recordAuthority?: TransactionSigner;
     /** Receives the record account's reclaimed rent on close. Defaults to the record payer. */
-    recordRentReceiver?: Address;
+    recordRentReceiver?: InstructionAccountInput;
 };
 
 /** Fields shared by the confidential mint and burn instruction plan inputs. */
 type GetConfidentialMintBurnInstructionPlanBaseInput = {
     /** The token account the amount is minted into or burnt from. */
-    token: Address;
-    mint: Address;
+    token: InstructionAccountInput;
+    mint: InstructionAccountInput;
     /** Decoded mint account, read for the `ConfidentialMintBurn` supply state and auditor key. */
     mintAccount: Mint;
-    authority: Address | TransactionSigner;
+    authority: InstructionAccountInput | InstructionSignerInput;
     amount: number | bigint;
     /**
      * Auditor ElGamal public key to use for the auditor ciphertexts. When
@@ -273,7 +279,7 @@ type GetConfidentialMintBurnInstructionPlanBaseInput = {
      */
     auditorElgamalPubkey?: Address;
     multiSigners?: Array<TransactionSigner>;
-    programAddress?: Address;
+    programAddress?: Address | HasAddress;
     payer: TransactionSigner;
     // The mint/burn helpers resolve the auditor ElGamal key through the same
     // path as the transfer helpers, so the RPC must support account reads as
@@ -321,27 +327,15 @@ export type GetPermissionedConfidentialBurnWithRecordInstructionPlanInput =
     GetPermissionedConfidentialBurnInstructionPlanInput & RecordBackedProofOptions;
 
 export type GetUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupplyInput = {
-    mint: Address;
-    authority: Address | TransactionSigner;
+    mint: InstructionAccountInput;
+    authority: InstructionAccountInput | InstructionSignerInput;
     /** The supply AES key that encrypts the decryptable supply. */
     supplyAesKey: AeKey;
     /** The true current supply to encode into the decryptable supply. */
     supply: number | bigint;
     multiSigners?: Array<TransactionSigner>;
-    programAddress?: Address;
+    programAddress?: Address | HasAddress;
 };
-
-function getTokenProgramAddress(programAddress?: Address) {
-    return programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
-}
-
-function addressOf(value: Address | TransactionSigner): Address {
-    return isSigner(value) ? value.address : value;
-}
-
-function isSigner(value: Address | TransactionSigner): value is TransactionSigner {
-    return typeof value !== 'string';
-}
 
 function getRequiredConfidentialTransferAccountExtension(tokenAccount: Token): ConfidentialTransferAccountExtension {
     if (!isSome(tokenAccount.extensions)) {
@@ -410,14 +404,16 @@ function getDefaultAuditorElGamalPubkey() {
 async function getAuditorElGamalPubkey(input: {
     auditorElgamalPubkey?: Address;
     mintAccount?: Mint;
-    mint: Address;
+    mint: InstructionAccountInput;
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi & GetAccountInfoApi>;
 }) {
     if (input.auditorElgamalPubkey) {
         return getElGamalPubkeyFromAddress(input.auditorElgamalPubkey);
     }
 
-    const mint = input.mintAccount ?? (await fetchMint(input.rpc, input.mint)).data;
+    const mint =
+        input.mintAccount ??
+        (await fetchMint(input.rpc, getAddressFromResolvedInstructionAccount('mint', input.mint))).data;
     const extension = getRequiredMintExtension(mint, 'ConfidentialTransferMint');
     return isSome(extension.auditorElgamalPubkey)
         ? getElGamalPubkeyFromAddress(extension.auditorElgamalPubkey.value)
@@ -457,10 +453,13 @@ function decryptPendingBalance(account: ConfidentialTransferAccountExtension, el
 }
 
 function assertCreateHelperOwnerMatchesAuthority(
-    owner: Address | TransactionSigner,
-    authority: Address | TransactionSigner,
+    owner: InstructionAccountInput | InstructionSignerInput,
+    authority: InstructionAccountInput | InstructionSignerInput,
 ) {
-    if (addressOf(owner) !== addressOf(authority)) {
+    if (
+        getAddressFromResolvedInstructionAccount('owner', owner) !==
+        getAddressFromResolvedInstructionAccount('authority', authority)
+    ) {
         throw new Error(
             'This helper is scoped to the token-account owner. For the ATA convenience flow, authority must match owner.',
         );
@@ -545,7 +544,7 @@ async function buildContextStateProofPlan(
     contextStateAuthority: TransactionSigner = payer,
     recordPayer?: TransactionSigner,
     recordAuthority?: TransactionSigner,
-    recordRentReceiver?: Address,
+    recordRentReceiver?: InstructionAccountInput,
 ): Promise<ContextStateProofPlan> {
     const contextAccount = await generateKeyPairSigner();
     const proofDataBytes = new Uint8Array(proofData);
@@ -632,18 +631,18 @@ async function buildContextStateProofPlan(
 export async function getCreateConfidentialTransferAccountInstructionPlan(
     input: GetCreateConfidentialTransferAccountInstructionPlanInput,
 ): Promise<InstructionPlan> {
-    const programAddress = getTokenProgramAddress(input.programAddress);
+    const programAddress = input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
     const authority = input.authority ?? input.owner;
     assertCreateHelperOwnerMatchesAuthority(input.owner, authority);
 
-    const ownerAddress = addressOf(input.owner);
+    const ownerAddress = getAddressFromResolvedInstructionAccount('owner', input.owner);
     const token =
         input.token ??
         (
             await findAssociatedTokenPda({
                 owner: ownerAddress,
                 tokenProgram: programAddress,
-                mint: input.mint,
+                mint: getAddressFromResolvedInstructionAccount('mint', input.mint),
             })
         )[0];
 
@@ -717,7 +716,11 @@ export function decryptConfidentialTransferBalance(
 export async function fetchConfidentialTransferBalance(
     input: FetchConfidentialTransferBalanceInput,
 ): Promise<ConfidentialTransferBalance> {
-    const { data: tokenAccount } = await fetchToken(input.rpc, input.token, input.config);
+    const { data: tokenAccount } = await fetchToken(
+        input.rpc,
+        getAddressFromResolvedInstructionAccount('token', input.token),
+        input.config,
+    );
     return decryptConfidentialTransferBalance({
         tokenAccount,
         elgamalSecretKey: input.elgamalSecretKey,
@@ -791,7 +794,7 @@ export function getApplyConfidentialPendingBalanceInstructionFromToken(
             newDecryptableAvailableBalance,
             multiSigners: input.multiSigners,
         },
-        { programAddress: getTokenProgramAddress(input.programAddress) },
+        { programAddress: input.programAddress },
     );
 }
 
@@ -824,7 +827,7 @@ export async function getEmptyConfidentialTransferAccountInstructionPlan(
                 proofInstructionOffset: 0,
                 multiSigners: input.multiSigners,
             },
-            { programAddress: getTokenProgramAddress(input.programAddress) },
+            { programAddress: input.programAddress },
         ),
         proofPlan.cleanup,
     ]);
@@ -890,7 +893,7 @@ function assembleConfidentialWithdrawPlan(
                 rangeProofInstructionOffset: 0,
                 multiSigners: input.multiSigners,
             },
-            { programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS },
+            { programAddress: input.programAddress },
         ),
         parallelInstructionPlan([equalityProofPlan.cleanup, rangeProofPlan.cleanup]),
     ]);
@@ -1102,7 +1105,7 @@ function assembleConfidentialTransferPlan(
                 rangeProofInstructionOffset: 0,
                 multiSigners: input.multiSigners,
             },
-            { programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS },
+            { programAddress: input.programAddress },
         ),
         parallelInstructionPlan([
             equalityProofPlan.cleanup,
@@ -1500,7 +1503,7 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
                 rangeProofInstructionOffset: 0,
                 multiSigners: input.multiSigners,
             },
-            { programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS },
+            { programAddress: input.programAddress },
         ),
         parallelInstructionPlan([
             equalityProofPlan.cleanup,
@@ -1732,7 +1735,7 @@ export async function getConfidentialMintInstructionPlan(
     const { setup, cleanup, mintArgs } = await buildConfidentialMintProofPlan(input);
     return sequentialInstructionPlan([
         setup,
-        getConfidentialMintInstruction(mintArgs, { programAddress: getTokenProgramAddress(input.programAddress) }),
+        getConfidentialMintInstruction(mintArgs, { programAddress: input.programAddress }),
         cleanup,
     ]);
 }
@@ -1755,7 +1758,7 @@ export async function getConfidentialMintWithRecordInstructionPlan(
     const { setup, cleanup, mintArgs } = await buildConfidentialMintProofPlan(input, input);
     return sequentialInstructionPlan([
         setup,
-        getConfidentialMintInstruction(mintArgs, { programAddress: getTokenProgramAddress(input.programAddress) }),
+        getConfidentialMintInstruction(mintArgs, { programAddress: input.programAddress }),
         cleanup,
     ]);
 }
@@ -1954,7 +1957,7 @@ export async function getConfidentialBurnInstructionPlan(
         setup,
         getConfidentialBurnInstruction(
             { ...burnArgs, multiSigners: input.multiSigners },
-            { programAddress: getTokenProgramAddress(input.programAddress) },
+            { programAddress: input.programAddress },
         ),
         cleanup,
     ]);
@@ -1980,7 +1983,7 @@ export async function getConfidentialBurnWithRecordInstructionPlan(
         setup,
         getConfidentialBurnInstruction(
             { ...burnArgs, multiSigners: input.multiSigners },
-            { programAddress: getTokenProgramAddress(input.programAddress) },
+            { programAddress: input.programAddress },
         ),
         cleanup,
     ]);
@@ -2011,7 +2014,7 @@ export async function getPermissionedConfidentialBurnInstructionPlan(
                 multiSigners: input.multiSigners,
                 permissionedBurnAuthority: input.permissionedBurnAuthority,
             },
-            { programAddress: getTokenProgramAddress(input.programAddress) },
+            { programAddress: input.programAddress },
         ),
         cleanup,
     ]);
@@ -2041,7 +2044,7 @@ export async function getPermissionedConfidentialBurnWithRecordInstructionPlan(
                 multiSigners: input.multiSigners,
                 permissionedBurnAuthority: input.permissionedBurnAuthority,
             },
-            { programAddress: getTokenProgramAddress(input.programAddress) },
+            { programAddress: input.programAddress },
         ),
         cleanup,
     ]);
@@ -2075,6 +2078,6 @@ export function getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSup
             newDecryptableSupply: input.supplyAesKey.encrypt(supply).toBytes(),
             multiSigners: input.multiSigners,
         },
-        { programAddress: getTokenProgramAddress(input.programAddress) },
+        { programAddress: input.programAddress },
     );
 }

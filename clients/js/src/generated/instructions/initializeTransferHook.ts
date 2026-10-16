@@ -24,6 +24,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -74,9 +75,9 @@ export type InitializeTransferHookInstructionData = {
 
 export type InitializeTransferHookInstructionDataArgs = {
     /** The public key for the account that can update the program id */
-    authority: OptionOrNullable<Address>;
+    authority: OptionOrNullable<Address | HasAddress>;
     /** The program id that performs logic during transfers */
-    programId: OptionOrNullable<Address>;
+    programId: OptionOrNullable<Address | HasAddress>;
 };
 
 export function getInitializeTransferHookInstructionDataEncoder(): FixedSizeEncoder<InitializeTransferHookInstructionDataArgs> {
@@ -126,13 +127,14 @@ export function getInitializeTransferHookInstruction<
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: InitializeTransferHookInput<TAccountMint>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): InitializeTransferHookInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

@@ -36,6 +36,7 @@ import {
     type Encoder,
     type FetchAccountConfig,
     type FetchAccountsConfig,
+    type HasAddress,
     type MaybeAccount,
     type MaybeEncodedAccount,
     type Option,
@@ -75,16 +76,16 @@ export type Token = {
 
 export type TokenArgs = {
     /** The mint associated with this account. */
-    mint: Address;
+    mint: Address | HasAddress;
     /** The owner of this account. */
-    owner: Address;
+    owner: Address | HasAddress;
     /** The amount of tokens this account holds. */
     amount: number | bigint;
     /**
      * If `delegate` is `Some` then `delegated_amount` represents
      * the amount authorized by the delegate.
      */
-    delegate: OptionOrNullable<Address>;
+    delegate: OptionOrNullable<Address | HasAddress>;
     /** The account's state. */
     state: AccountStateArgs;
     /**
@@ -97,7 +98,7 @@ export type TokenArgs = {
     /** The amount delegated. */
     delegatedAmount: number | bigint;
     /** Optional authority to close the account. */
-    closeAuthority: OptionOrNullable<Address>;
+    closeAuthority: OptionOrNullable<Address | HasAddress>;
     /** The extensions activated on the token account. */
     extensions: OptionOrNullable<ExtensionsArgs>;
 };
@@ -163,7 +164,7 @@ export function decodeToken<TAddress extends string = string>(
 
 export async function fetchToken<TAddress extends string = string>(
     rpc: Parameters<typeof fetchEncodedAccount>[0],
-    address: Address<TAddress>,
+    address: Address<TAddress> | HasAddress<TAddress>,
     config?: FetchAccountConfig,
 ): Promise<Account<Token, TAddress>> {
     const maybeAccount = await fetchMaybeToken(rpc, address, config);
@@ -173,16 +174,20 @@ export async function fetchToken<TAddress extends string = string>(
 
 export async function fetchMaybeToken<TAddress extends string = string>(
     rpc: Parameters<typeof fetchEncodedAccount>[0],
-    address: Address<TAddress>,
+    address: Address<TAddress> | HasAddress<TAddress>,
     config?: FetchAccountConfig,
 ): Promise<MaybeAccount<Token, TAddress>> {
-    const maybeAccount = await fetchEncodedAccount(rpc, address, config);
+    const maybeAccount = await fetchEncodedAccount(
+        rpc,
+        typeof address === 'string' ? address : address.address,
+        config,
+    );
     return decodeToken(maybeAccount);
 }
 
 export async function fetchAllToken(
     rpc: Parameters<typeof fetchEncodedAccounts>[0],
-    addresses: Array<Address>,
+    addresses: Array<Address | HasAddress>,
     config?: FetchAccountsConfig,
 ): Promise<Account<Token>[]> {
     const maybeAccounts = await fetchAllMaybeToken(rpc, addresses, config);
@@ -192,9 +197,13 @@ export async function fetchAllToken(
 
 export async function fetchAllMaybeToken(
     rpc: Parameters<typeof fetchEncodedAccounts>[0],
-    addresses: Array<Address>,
+    addresses: Array<Address | HasAddress>,
     config?: FetchAccountsConfig,
 ): Promise<MaybeAccount<Token>[]> {
-    const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
+    const maybeAccounts = await fetchEncodedAccounts(
+        rpc,
+        addresses.map(a => (typeof a === 'string' ? a : a.address)),
+        config,
+    );
     return maybeAccounts.map(maybeAccount => decodeToken(maybeAccount));
 }

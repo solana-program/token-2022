@@ -40,6 +40,7 @@ import {
     type Encoder,
     type FetchAccountConfig,
     type FetchAccountsConfig,
+    type HasAddress,
     type MaybeAccount,
     type MaybeEncodedAccount,
     type Option,
@@ -72,7 +73,7 @@ export type MintArgs = {
      * be provided during mint creation. If no mint authority is present
      * then the mint has a fixed supply and no further tokens may be minted.
      */
-    mintAuthority: OptionOrNullable<Address>;
+    mintAuthority: OptionOrNullable<Address | HasAddress>;
     /** Total supply of tokens. */
     supply: number | bigint;
     /** Number of base 10 digits to the right of the decimal place. */
@@ -80,7 +81,7 @@ export type MintArgs = {
     /** Is `true` if this structure has been initialized. */
     isInitialized: boolean;
     /** Optional authority to freeze token accounts. */
-    freezeAuthority: OptionOrNullable<Address>;
+    freezeAuthority: OptionOrNullable<Address | HasAddress>;
     /** The extensions activated on the mint account. */
     extensions: OptionOrNullable<ExtensionsArgs>;
 };
@@ -144,7 +145,7 @@ export function decodeMint<TAddress extends string = string>(
 
 export async function fetchMint<TAddress extends string = string>(
     rpc: Parameters<typeof fetchEncodedAccount>[0],
-    address: Address<TAddress>,
+    address: Address<TAddress> | HasAddress<TAddress>,
     config?: FetchAccountConfig,
 ): Promise<Account<Mint, TAddress>> {
     const maybeAccount = await fetchMaybeMint(rpc, address, config);
@@ -154,16 +155,20 @@ export async function fetchMint<TAddress extends string = string>(
 
 export async function fetchMaybeMint<TAddress extends string = string>(
     rpc: Parameters<typeof fetchEncodedAccount>[0],
-    address: Address<TAddress>,
+    address: Address<TAddress> | HasAddress<TAddress>,
     config?: FetchAccountConfig,
 ): Promise<MaybeAccount<Mint, TAddress>> {
-    const maybeAccount = await fetchEncodedAccount(rpc, address, config);
+    const maybeAccount = await fetchEncodedAccount(
+        rpc,
+        typeof address === 'string' ? address : address.address,
+        config,
+    );
     return decodeMint(maybeAccount);
 }
 
 export async function fetchAllMint(
     rpc: Parameters<typeof fetchEncodedAccounts>[0],
-    addresses: Array<Address>,
+    addresses: Array<Address | HasAddress>,
     config?: FetchAccountsConfig,
 ): Promise<Account<Mint>[]> {
     const maybeAccounts = await fetchAllMaybeMint(rpc, addresses, config);
@@ -173,9 +178,13 @@ export async function fetchAllMint(
 
 export async function fetchAllMaybeMint(
     rpc: Parameters<typeof fetchEncodedAccounts>[0],
-    addresses: Array<Address>,
+    addresses: Array<Address | HasAddress>,
     config?: FetchAccountsConfig,
 ): Promise<MaybeAccount<Mint>[]> {
-    const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
+    const maybeAccounts = await fetchEncodedAccounts(
+        rpc,
+        addresses.map(a => (typeof a === 'string' ? a : a.address)),
+        config,
+    );
     return maybeAccounts.map(maybeAccount => decodeMint(maybeAccount));
 }

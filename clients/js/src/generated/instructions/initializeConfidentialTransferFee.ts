@@ -24,6 +24,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -74,9 +75,9 @@ export type InitializeConfidentialTransferFeeInstructionData = {
 
 export type InitializeConfidentialTransferFeeInstructionDataArgs = {
     /** Optional authority to set the withdraw withheld authority ElGamal key */
-    authority: OptionOrNullable<Address>;
+    authority: OptionOrNullable<Address | HasAddress>;
     /** Withheld fees from accounts must be encrypted with this ElGamal key */
-    withdrawWithheldAuthorityElGamalPubkey: Address;
+    withdrawWithheldAuthorityElGamalPubkey: Address | HasAddress;
 };
 
 export function getInitializeConfidentialTransferFeeInstructionDataEncoder(): FixedSizeEncoder<InitializeConfidentialTransferFeeInstructionDataArgs> {
@@ -129,13 +130,14 @@ export function getInitializeConfidentialTransferFeeInstruction<
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: InitializeConfidentialTransferFeeInput<TAccountMint>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): InitializeConfidentialTransferFeeInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

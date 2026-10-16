@@ -136,7 +136,7 @@ export async function getCreateAssociatedTokenIdempotentInstructionAsync<
         TAccountSystemProgram,
         TAccountTokenProgram
     >,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): Promise<
     CreateAssociatedTokenIdempotentInstruction<
         TProgramAddress,
@@ -149,7 +149,8 @@ export async function getCreateAssociatedTokenIdempotentInstructionAsync<
     >
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? ASSOCIATED_TOKEN_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? ASSOCIATED_TOKEN_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
@@ -246,7 +247,7 @@ export function getCreateAssociatedTokenIdempotentInstruction<
         TAccountSystemProgram,
         TAccountTokenProgram
     >,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): CreateAssociatedTokenIdempotentInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountPayer, InstructionAccountInputAddress<TAccountPayer>>,
@@ -257,7 +258,8 @@ export function getCreateAssociatedTokenIdempotentInstruction<
     ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? ASSOCIATED_TOKEN_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? ASSOCIATED_TOKEN_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

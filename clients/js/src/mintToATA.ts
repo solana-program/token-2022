@@ -1,7 +1,8 @@
-import { Address, InstructionPlan, sequentialInstructionPlan, TransactionSigner } from '@solana/kit';
+import { Address, HasAddress, InstructionPlan, sequentialInstructionPlan, TransactionSigner } from '@solana/kit';
 import {
     getAddressFromResolvedInstructionAccount,
     type InstructionAccountInput,
+    type InstructionSignerInput,
 } from '@solana/kit/program-client-core';
 
 import {
@@ -27,7 +28,7 @@ export type MintToATAInstructionPlanInput = {
     /** The token mint for the associated token account. */
     mint: InstructionAccountInput;
     /** The mint's minting authority or its multisignature account. */
-    mintAuthority: Address | TransactionSigner;
+    mintAuthority: InstructionAccountInput | InstructionSignerInput;
     /** The amount of new tokens to mint. */
     amount: number | bigint;
     /** Expected number of base 10 digits to the right of the decimal place. */
@@ -36,9 +37,9 @@ export type MintToATAInstructionPlanInput = {
 };
 
 export type MintToATAInstructionPlanConfig = {
-    systemProgram?: Address;
-    tokenProgram?: Address;
-    associatedTokenProgram?: Address;
+    systemProgram?: Address | HasAddress;
+    tokenProgram?: Address | HasAddress;
+    associatedTokenProgram?: Address | HasAddress;
 };
 
 export function getMintToATAInstructionPlan(
