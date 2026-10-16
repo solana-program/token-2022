@@ -8,7 +8,6 @@ import {
     sequentialInstructionPlan,
     TransactionSigner,
 } from '@solana/kit';
-import { getAddressFromResolvedInstructionAccount } from '@solana/kit/program-client-core';
 
 import { Extension, ExtensionArgs, getInitializeMintInstruction, TOKEN_2022_PROGRAM_ADDRESS } from './generated';
 import {
@@ -66,10 +65,6 @@ export async function getCreateMintInstructionPlan(
         : getMintSize();
     const rentSpace = getMintSize(input.extensions);
     const lamports = input.mintAccountLamports ?? (await client.getMinimumBalance(rentSpace));
-    const systemProgram =
-        config?.systemProgram && getAddressFromResolvedInstructionAccount('systemProgram', config.systemProgram);
-    const tokenProgram =
-        config?.tokenProgram && getAddressFromResolvedInstructionAccount('tokenProgram', config.tokenProgram);
     return sequentialInstructionPlan([
         getCreateAccountInstruction(
             {
@@ -77,10 +72,10 @@ export async function getCreateMintInstructionPlan(
                 newAccount: input.newMint,
                 lamports,
                 space,
-                programAddress: tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
+                programAddress: config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
             },
             {
-                programAddress: systemProgram,
+                programAddress: config?.systemProgram,
             },
         ),
         ...getPreInitializeInstructionsForMintExtensions(input.newMint.address, extensions),
@@ -92,7 +87,7 @@ export async function getCreateMintInstructionPlan(
                 freezeAuthority: input.freezeAuthority,
             },
             {
-                programAddress: tokenProgram,
+                programAddress: config?.tokenProgram,
             },
         ),
         ...getPostInitializeInstructionsForMintExtensions(input.newMint.address, input.mintAuthority, extensions),

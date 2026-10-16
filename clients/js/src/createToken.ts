@@ -49,10 +49,6 @@ export async function getCreateTokenInstructionPlan(
     const extensions = input.extensions ?? [];
     const space = getTokenSize(input.extensions);
     const owner = getAddressFromResolvedInstructionAccount('owner', input.owner);
-    const systemProgram =
-        config?.systemProgram && getAddressFromResolvedInstructionAccount('systemProgram', config.systemProgram);
-    const tokenProgram =
-        config?.tokenProgram && getAddressFromResolvedInstructionAccount('tokenProgram', config.tokenProgram);
     const lamports = input.tokenAccountLamports ?? (await client.getMinimumBalance(space));
     return sequentialInstructionPlan([
         getCreateAccountInstruction(
@@ -61,10 +57,10 @@ export async function getCreateTokenInstructionPlan(
                 newAccount: input.newToken,
                 lamports,
                 space,
-                programAddress: tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
+                programAddress: config?.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
             },
             {
-                programAddress: systemProgram,
+                programAddress: config?.systemProgram,
             },
         ),
         getInitializeAccountInstruction(
@@ -74,7 +70,7 @@ export async function getCreateTokenInstructionPlan(
                 owner,
             },
             {
-                programAddress: tokenProgram,
+                programAddress: config?.tokenProgram,
             },
         ),
         ...getPostInitializeInstructionsForTokenExtensions(

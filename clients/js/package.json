@@ -49,9 +49,9 @@
         "prepublishOnly": "pnpm build"
     },
     "dependencies": {
-        "@solana-program/record": "^0.5.0",
-        "@solana-program/system": "^0.15.0",
-        "@solana-program/zk-elgamal-proof": "^0.4.0"
+        "@solana-program/record": "^0.6.0",
+        "@solana-program/system": "^0.16.0",
+        "@solana-program/zk-elgamal-proof": "^0.5.0"
     },
     "devDependencies": {
         "@solana-config/oxc": "^0.1.1",

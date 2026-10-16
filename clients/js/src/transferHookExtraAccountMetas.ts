@@ -637,14 +637,14 @@ function getExecuteInstructionData(amount: bigint): ReadonlyUint8Array {
 
 export type ResolveExtraAccountMetasForExecuteInput = {
     rpc: Rpc<GetAccountInfoApi>;
-    transferHookProgramAddress: Address;
+    transferHookProgramAddress: InstructionAccountInput;
     source: InstructionAccountInput;
     mint: InstructionAccountInput;
     destination: InstructionAccountInput;
     owner: InstructionAccountInput;
     amount: number | bigint;
     /** The transfer hook's validation account. Derived via `findExtraAccountMetaListPda` if omitted. */
-    validateStatePubkey?: Address;
+    validateStatePubkey?: InstructionAccountInput;
 };
 
 /**
@@ -664,9 +664,13 @@ export async function resolveExtraAccountMetasForExecute(
     input: ResolveExtraAccountMetasForExecuteInput,
 ): Promise<AccountMeta<Address>[]> {
     const mint = getAddressFromResolvedInstructionAccount('mint', input.mint);
+    const transferHookProgramAddress = getAddressFromResolvedInstructionAccount(
+        'transferHookProgramAddress',
+        input.transferHookProgramAddress,
+    );
     const [validateStatePubkey] = input.validateStatePubkey
-        ? [input.validateStatePubkey]
-        : await findExtraAccountMetaListPda({ mint }, { programAddress: input.transferHookProgramAddress });
+        ? [getAddressFromResolvedInstructionAccount('validateStatePubkey', input.validateStatePubkey)]
+        : await findExtraAccountMetaListPda({ mint }, { programAddress: transferHookProgramAddress });
 
     const validateStateAccount = await fetchEncodedAccount(input.rpc, validateStatePubkey);
     if (!validateStateAccount.exists) {
@@ -691,7 +695,7 @@ export async function resolveExtraAccountMetasForExecute(
             extraAccountMeta,
             previousAddresses,
             instructionData,
-            input.transferHookProgramAddress,
+            transferHookProgramAddress,
             input.rpc,
         );
         const role = accountRoleFromBooleans(resolved.isSigner, resolved.isWritable);
@@ -705,7 +709,7 @@ export async function resolveExtraAccountMetasForExecute(
 
     return [
         ...resolvedMetas,
-        { address: input.transferHookProgramAddress, role: AccountRole.READONLY },
+        { address: transferHookProgramAddress, role: AccountRole.READONLY },
         { address: validateStatePubkey, role: AccountRole.READONLY },
     ];
 }

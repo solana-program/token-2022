@@ -9,14 +9,14 @@ importers:
   .:
     dependencies:
       '@solana-program/record':
+        specifier: ^0.6.0
+        version: 0.6.0(@solana/kit@8.5.0(typescript@6.0.3))
+      '@solana-program/system':
+        specifier: ^0.16.0
+        version: 0.16.0(@solana/kit@8.5.0(typescript@6.0.3))
+      '@solana-program/zk-elgamal-proof':
         specifier: ^0.5.0
         version: 0.5.0(@solana/kit@8.5.0(typescript@6.0.3))
-      '@solana-program/system':
-        specifier: ^0.15.0
-        version: 0.15.0(@solana/kit@8.5.0(typescript@6.0.3))
-      '@solana-program/zk-elgamal-proof':
-        specifier: ^0.4.0
-        version: 0.4.0(@solana/kit@8.5.0(typescript@6.0.3))
       '@solana/sysvars':
         specifier: ^8.0.0
         version: 8.5.0(typescript@6.0.3)
@@ -755,30 +755,30 @@ packages:
       oxlint:
         optional: true
 
-  '@solana-program/record@0.5.0':
-    resolution: {integrity: sha512-Hie4a3hJhyk0ER2O+T2YQFBRB69xraIcmH/U5S/DOGv6ig3DMsPCO1Jqt6+0BZ/fS+vHouX/wededWTviLEm7A==}
+  '@solana-program/record@0.6.0':
+    resolution: {integrity: sha512-8NeDjYA8OVWiL7sZqURsYFPXoT/i1c2A1Wt4k5MOMEItehX8fUOj7uCspU85lC+so+tsEmJ09qO0t8vN8kk/ZQ==}
     peerDependencies:
-      '@solana/kit': ^8.3.0
+      '@solana/kit': ^8.5.0
 
   '@solana-program/system@0.14.1':
     resolution: {integrity: sha512-K6ZiIrAKoJAfcwfUdsoFvfSAxeRJaRrV7BPFTJvUVRS4m3zszN+nLcdaNMMe2F1/zTriZqC+xh+Kgw6ziGUqpQ==}
     peerDependencies:
       '@solana/kit': ^8.0.0
 
-  '@solana-program/system@0.15.0':
-    resolution: {integrity: sha512-xE08wZCyNRhOaO/XNRd9A3kSLfUrTe/BnmAHhql8uqc2eriNy2ZmnvaGRrs0m+kOSihvUbANzHljmJsTzGL5kg==}
+  '@solana-program/system@0.16.0':
+    resolution: {integrity: sha512-/RG6q2E2vG/XpdOt8Jj/kbQktPlL5JyJuNGAeN9wDcxKDKQtrGTJpDrJgQUxiEy23fsPNXQbLN8XeCtYoMof3Q==}
     peerDependencies:
-      '@solana/kit': ^8.3.0
+      '@solana/kit': ^8.5.0
 
   '@solana-program/token@0.16.1':
     resolution: {integrity: sha512-X9dsvbh+VDq4SuCfvxn95P1DCvtBYHJOBiVmgBJMfW8l/lp8uSwEhy9IurpcdltnGi5kNIkCm4sk4YOXKAMiCw==}
     peerDependencies:
       '@solana/kit': ^8.0.0
 
-  '@solana-program/zk-elgamal-proof@0.4.0':
-    resolution: {integrity: sha512-bf2Q3f25xcCNaLm/MR4lwoAguJzEW2eeLdrJb6rUjMcA63qcgyJOWl6To7Bn4e+0OyWBa+J7YP2BUhi//VPz3g==}
+  '@solana-program/zk-elgamal-proof@0.5.0':
+    resolution: {integrity: sha512-2shlu/0a/WFjERyFyhZevXG7WXRUz0kmy5DPEse3TOjH0s4fTU+Uk9kE5ijPhF85Fh662m4xT1ZZm+KBGq5y1g==}
     peerDependencies:
-      '@solana/kit': ^8.0.0
+      '@solana/kit': ^8.5.0
 
   '@solana/accounts@8.5.0':
     resolution: {integrity: sha512-vwwXYCobg1oG4kFeUEsGiNORjPujI2ff3yKLp6lCa7QBIlKaD7kZ2QRI3PZFYcNrMJ6HYNwNeZXR7ixg02pWdA==}
@@ -2204,16 +2204,16 @@ snapshots:
       oxfmt: 0.72.0
       oxlint: 1.88.0(oxlint-tsgolint@7.0.2004)
 
-  '@solana-program/record@0.5.0(@solana/kit@8.5.0(typescript@6.0.3))':
+  '@solana-program/record@0.6.0(@solana/kit@8.5.0(typescript@6.0.3))':
     dependencies:
-      '@solana-program/system': 0.15.0(@solana/kit@8.5.0(typescript@6.0.3))
+      '@solana-program/system': 0.16.0(@solana/kit@8.5.0(typescript@6.0.3))
       '@solana/kit': 8.5.0(typescript@6.0.3)
 
   '@solana-program/system@0.14.1(@solana/kit@8.5.0(typescript@6.0.3))':
     dependencies:
       '@solana/kit': 8.5.0(typescript@6.0.3)
 
-  '@solana-program/system@0.15.0(@solana/kit@8.5.0(typescript@6.0.3))':
+  '@solana-program/system@0.16.0(@solana/kit@8.5.0(typescript@6.0.3))':
     dependencies:
       '@solana/kit': 8.5.0(typescript@6.0.3)
 
@@ -2222,9 +2222,9 @@ snapshots:
       '@solana-program/system': 0.14.1(@solana/kit@8.5.0(typescript@6.0.3))
       '@solana/kit': 8.5.0(typescript@6.0.3)
 
-  '@solana-program/zk-elgamal-proof@0.4.0(@solana/kit@8.5.0(typescript@6.0.3))':
+  '@solana-program/zk-elgamal-proof@0.5.0(@solana/kit@8.5.0(typescript@6.0.3))':
     dependencies:
-      '@solana-program/system': 0.14.1(@solana/kit@8.5.0(typescript@6.0.3))
+      '@solana-program/system': 0.16.0(@solana/kit@8.5.0(typescript@6.0.3))
       '@solana/kit': 8.5.0(typescript@6.0.3)
 
   '@solana/accounts@8.5.0(typescript@6.0.3)':
