@@ -69,23 +69,30 @@ export const createTestClient = () => {
 // execute proof verification, so those tests must run against a local
 // `solana-test-validator` (started by `make test-js-clients-js`).
 //
-// `estimateResourceLimits` is passed straight through to `solanaLocalRpc`, so
-// leaving it unset matches the plugin default (`true`): the planner reserves a
-// provisory `SetComputeUnitLimit` instruction and the executor simulates each
-// transaction to set the estimated limit before sending, mirroring what a
-// typical consumer gets. The record-backed proof helpers are exercised under
-// this default.
+// `version` and `estimateResourceLimits` are passed straight through to
+// `solanaLocalRpc`, so leaving them unset matches the plugin defaults (v0
+// transactions, estimation on): the planner reserves a provisory
+// `SetComputeUnitLimit` instruction and the executor simulates each transaction
+// to set the estimated limit before sending, mirroring what a typical consumer
+// gets. The record-backed proof helpers are exercised under this default.
 //
-// Set it to `false` for tests that send an inline range proof (e.g. the transfer
-// `BatchedRangeProofU128` or the withdraw `BatchedRangeProofU64`): those verify
-// transactions carry the proof in their instruction data and sit within a few
-// bytes of the transaction size limit, so they cannot also accommodate the
-// provisory compute-unit-limit instruction. They verify within the default
-// compute budget without it.
-export const createValidatorClient = ({ estimateResourceLimits }: { estimateResourceLimits?: boolean } = {}) => {
+// On legacy/v0, set `estimateResourceLimits` to `false` for tests that send an
+// inline range proof (e.g. the transfer `BatchedRangeProofU128` or the withdraw
+// `BatchedRangeProofU64`): those verify transactions carry the proof in their
+// instruction data and sit within a few bytes of the transaction size limit, so
+// they cannot also accommodate the provisory compute-unit-limit instruction.
+// They verify within the default compute budget without it.
+//
+// On tx v1 (`version: 1`), keep estimation on: v1 transactions carry their
+// resource limits in the message header, and unset limits mean 0 compute units
+// and 0 loaded account bytes, so every transaction would fail.
+export const createValidatorClient = ({
+    version,
+    estimateResourceLimits,
+}: { version?: 1; estimateResourceLimits?: boolean } = {}) => {
     return createClient()
         .use(generatedSigner())
-        .use(solanaLocalRpc({ transactionConfig: { estimateResourceLimits } }))
+        .use(solanaLocalRpc({ transactionConfig: { version, estimateResourceLimits } }))
         .use(airdropSigner(lamports(1_000_000_000n)))
         .use(systemProgram())
         .use(token2022Program())
