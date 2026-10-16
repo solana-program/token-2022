@@ -20,8 +20,6 @@ solana-cli-version:
 cargo-nightly:
 	cargo $(nightly) $(ARGS)
 
-# RUSTSEC-2026-0346 and RUSTSEC-2026-0349 affect rustls 0.21, which has no patched
-# release. It is only pulled in via the dev-only solana-test-validator (reqwest 0.11).
 audit:
 	cargo audit \
 			--ignore RUSTSEC-2022-0093 \
