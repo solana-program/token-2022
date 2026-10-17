@@ -3090,7 +3090,11 @@ where
         .await
     }
 
-    /// Withdraw withheld confidential tokens from mint
+    /// Withdraw withheld confidential tokens from mint, recovering the amount
+    /// with `decrypt_u32` when generating an inline proof.
+    ///
+    /// To supply a known amount, use
+    /// [`Self::confidential_transfer_withdraw_withheld_tokens_from_mint_with_amount`].
     #[allow(clippy::too_many_arguments)]
     pub async fn confidential_transfer_withdraw_withheld_tokens_from_mint<S: Signers>(
         &self,
@@ -3098,6 +3102,65 @@ where
         withdraw_withheld_authority: &Address,
         context_state_account: Option<&Address>,
         withheld_tokens_info: Option<WithheldTokensInfo>,
+        withdraw_withheld_authority_elgamal_keypair: &ElGamalKeypair,
+        destination_elgamal_pubkey: &ElGamalPubkey,
+        new_decryptable_available_balance: &DecryptableBalance,
+        signing_keypairs: &S,
+    ) -> TokenResult<T::Output> {
+        self.confidential_transfer_withdraw_withheld_tokens_from_mint_inner(
+            destination_account,
+            withdraw_withheld_authority,
+            context_state_account,
+            withheld_tokens_info,
+            None,
+            withdraw_withheld_authority_elgamal_keypair,
+            destination_elgamal_pubkey,
+            new_decryptable_available_balance,
+            signing_keypairs,
+        )
+        .await
+    }
+
+    /// Withdraw withheld confidential tokens from mint using a known amount in
+    /// base units. The amount is validated before constructing the transaction,
+    /// including when using a context-state proof.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn confidential_transfer_withdraw_withheld_tokens_from_mint_with_amount<
+        S: Signers,
+    >(
+        &self,
+        destination_account: &Address,
+        withdraw_withheld_authority: &Address,
+        context_state_account: Option<&Address>,
+        withheld_tokens_info: Option<WithheldTokensInfo>,
+        known_amount: u64,
+        withdraw_withheld_authority_elgamal_keypair: &ElGamalKeypair,
+        destination_elgamal_pubkey: &ElGamalPubkey,
+        new_decryptable_available_balance: &DecryptableBalance,
+        signing_keypairs: &S,
+    ) -> TokenResult<T::Output> {
+        self.confidential_transfer_withdraw_withheld_tokens_from_mint_inner(
+            destination_account,
+            withdraw_withheld_authority,
+            context_state_account,
+            withheld_tokens_info,
+            Some(known_amount),
+            withdraw_withheld_authority_elgamal_keypair,
+            destination_elgamal_pubkey,
+            new_decryptable_available_balance,
+            signing_keypairs,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn confidential_transfer_withdraw_withheld_tokens_from_mint_inner<S: Signers>(
+        &self,
+        destination_account: &Address,
+        withdraw_withheld_authority: &Address,
+        context_state_account: Option<&Address>,
+        withheld_tokens_info: Option<WithheldTokensInfo>,
+        known_amount: Option<u64>,
         withdraw_withheld_authority_elgamal_keypair: &ElGamalKeypair,
         destination_elgamal_pubkey: &ElGamalPubkey,
         new_decryptable_available_balance: &DecryptableBalance,
@@ -3116,18 +3179,21 @@ where
             WithheldTokensInfo::new(&confidential_transfer_fee_config.withheld_amount)
         };
 
-        let proof_data = if context_state_account.is_some() {
+        // Validate known amounts even when the transaction uses a context-state proof.
+        let proof_data = if context_state_account.is_some() && known_amount.is_none() {
             None
         } else {
             Some(
                 account_info
-                    .generate_proof_data(
+                    .generate_proof_data_inner(
                         withdraw_withheld_authority_elgamal_keypair,
                         destination_elgamal_pubkey,
+                        known_amount,
                     )
                     .map_err(|_| TokenError::ProofGeneration)?,
             )
-        };
+        }
+        .filter(|_| context_state_account.is_none());
 
         // cannot panic as long as either `proof_data` or `context_state_account` is `Some(..)`,
         // which is guaranteed by the previous check
@@ -3153,7 +3219,11 @@ where
         .await
     }
 
-    /// Withdraw withheld confidential tokens from accounts
+    /// Withdraw withheld confidential tokens from accounts, recovering the
+    /// aggregate amount with `decrypt_u32` when generating an inline proof.
+    ///
+    /// To supply a known amount, use
+    /// [`Self::confidential_transfer_withdraw_withheld_tokens_from_accounts_with_amount`].
     #[allow(clippy::too_many_arguments)]
     pub async fn confidential_transfer_withdraw_withheld_tokens_from_accounts<S: Signers>(
         &self,
@@ -3161,6 +3231,70 @@ where
         withdraw_withheld_authority: &Address,
         context_state_account: Option<&Address>,
         withheld_tokens_info: Option<WithheldTokensInfo>,
+        withdraw_withheld_authority_elgamal_keypair: &ElGamalKeypair,
+        destination_elgamal_pubkey: &ElGamalPubkey,
+        new_decryptable_available_balance: &DecryptableBalance,
+        sources: &[&Address],
+        signing_keypairs: &S,
+    ) -> TokenResult<T::Output> {
+        self.confidential_transfer_withdraw_withheld_tokens_from_accounts_inner(
+            destination_account,
+            withdraw_withheld_authority,
+            context_state_account,
+            withheld_tokens_info,
+            None,
+            withdraw_withheld_authority_elgamal_keypair,
+            destination_elgamal_pubkey,
+            new_decryptable_available_balance,
+            sources,
+            signing_keypairs,
+        )
+        .await
+    }
+
+    /// Withdraw withheld confidential tokens from accounts using a known total
+    /// amount in base units. The amount withheld by all sources is validated
+    /// before constructing the transaction, including when using a context-state
+    /// proof.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn confidential_transfer_withdraw_withheld_tokens_from_accounts_with_amount<
+        S: Signers,
+    >(
+        &self,
+        destination_account: &Address,
+        withdraw_withheld_authority: &Address,
+        context_state_account: Option<&Address>,
+        withheld_tokens_info: Option<WithheldTokensInfo>,
+        known_amount: u64,
+        withdraw_withheld_authority_elgamal_keypair: &ElGamalKeypair,
+        destination_elgamal_pubkey: &ElGamalPubkey,
+        new_decryptable_available_balance: &DecryptableBalance,
+        sources: &[&Address],
+        signing_keypairs: &S,
+    ) -> TokenResult<T::Output> {
+        self.confidential_transfer_withdraw_withheld_tokens_from_accounts_inner(
+            destination_account,
+            withdraw_withheld_authority,
+            context_state_account,
+            withheld_tokens_info,
+            Some(known_amount),
+            withdraw_withheld_authority_elgamal_keypair,
+            destination_elgamal_pubkey,
+            new_decryptable_available_balance,
+            sources,
+            signing_keypairs,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn confidential_transfer_withdraw_withheld_tokens_from_accounts_inner<S: Signers>(
+        &self,
+        destination_account: &Address,
+        withdraw_withheld_authority: &Address,
+        context_state_account: Option<&Address>,
+        withheld_tokens_info: Option<WithheldTokensInfo>,
+        known_amount: Option<u64>,
         withdraw_withheld_authority_elgamal_keypair: &ElGamalKeypair,
         destination_elgamal_pubkey: &ElGamalPubkey,
         new_decryptable_available_balance: &DecryptableBalance,
@@ -3190,18 +3324,21 @@ where
             WithheldTokensInfo::new(&aggregate_withheld_amount.into())
         };
 
-        let proof_data = if context_state_account.is_some() {
+        // Validate known amounts even when the transaction uses a context-state proof.
+        let proof_data = if context_state_account.is_some() && known_amount.is_none() {
             None
         } else {
             Some(
                 account_info
-                    .generate_proof_data(
+                    .generate_proof_data_inner(
                         withdraw_withheld_authority_elgamal_keypair,
                         destination_elgamal_pubkey,
+                        known_amount,
                     )
                     .map_err(|_| TokenError::ProofGeneration)?,
             )
-        };
+        }
+        .filter(|_| context_state_account.is_none());
 
         // cannot panic as long as either `proof_data` or `proof_account` is `Some(..)`,
         // which is guaranteed by the previous check
