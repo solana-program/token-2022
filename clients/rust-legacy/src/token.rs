@@ -533,6 +533,63 @@ where
         self
     }
 
+    fn record_max_chunk_size<F>(
+        &self,
+        create_record_instructions: F,
+        first_instruction: bool,
+    ) -> usize
+    where
+        F: Fn(bool, &[u8], u64) -> Vec<Instruction>,
+    {
+        let mut instructions = create_record_instructions(first_instruction, &[], 0);
+        if let Some(memo) = self.memo.read().unwrap().as_ref() {
+            instructions.insert(0, memo.to_instruction());
+        }
+        if let (Some(nonce_account), Some(nonce_authority), Some(_)) = (
+            self.nonce_account,
+            &self.nonce_authority,
+            self.nonce_blockhash,
+        ) {
+            instructions.insert(
+                0,
+                system_instruction::advance_nonce_account(
+                    &nonce_account,
+                    &nonce_authority.pubkey(),
+                ),
+            );
+        }
+        if let Some(compute_unit_price) = self.compute_unit_price {
+            instructions.push(ComputeBudgetInstruction::set_compute_unit_price(
+                compute_unit_price,
+            ));
+        }
+        match self.compute_unit_limit {
+            ComputeUnitLimit::Default => {}
+            ComputeUnitLimit::Simulated => {
+                instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(1_400_000));
+            }
+            ComputeUnitLimit::Static(compute_unit_limit) => {
+                instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(
+                    compute_unit_limit,
+                ));
+            }
+        }
+
+        let message = Message::new_with_blockhash(
+            &instructions,
+            Some(&self.payer.pubkey()),
+            &Hash::default(),
+        );
+        let tx_size = bincode::serialized_size(&Transaction {
+            signatures: vec![Signature::default(); message.header.num_required_signatures as usize],
+            message,
+        })
+        .unwrap() as usize;
+        // Leave room for the extra byte in the instruction-data length when
+        // adding a proof chunk makes it larger than 127 bytes.
+        PACKET_DATA_SIZE.saturating_sub(tx_size).saturating_sub(1)
+    }
+
     pub fn with_compute_unit_price(mut self, compute_unit_price: u64) -> Self {
         self.compute_unit_price = Some(compute_unit_price);
         self
@@ -2554,8 +2611,7 @@ where
             .map_err(TokenError::Client)?;
 
         // A closure that constructs a vector of instructions needed to create and write
-        // to record accounts. The closure is defined as a convenience function
-        // to be fed into the function `calculate_record_max_chunk_size`.
+        // to record accounts, including their transaction-size overhead.
         let create_record_instructions = |first_instruction: bool, bytes: &[u8], offset: u64| {
             let mut ixs = vec![];
             if first_instruction {
@@ -2579,8 +2635,13 @@ where
             ));
             ixs
         };
-        let first_chunk_size = calculate_record_max_chunk_size(create_record_instructions, true);
-        let (first_chunk, rest) = if space <= first_chunk_size {
+        let first_chunk_size = self.record_max_chunk_size(create_record_instructions, true);
+        if first_chunk_size == 0 {
+            return Err(TokenError::Client(
+                "Proof record transaction is too large".into(),
+            ));
+        }
+        let (first_chunk, rest) = if proof_data.len() <= first_chunk_size {
             (proof_data, &[] as &[u8])
         } else {
             proof_data.split_at(first_chunk_size)
@@ -2590,8 +2651,12 @@ where
         let first_ixs_signers: [&dyn Signer; 2] = [record_account_signer, record_authority_signer];
         let first_response = self.process_ixs(&first_ixs, &first_ixs_signers).await?;
 
-        let subsequent_chunk_size =
-            calculate_record_max_chunk_size(create_record_instructions, false);
+        let subsequent_chunk_size = self.record_max_chunk_size(create_record_instructions, false);
+        if subsequent_chunk_size == 0 {
+            return Err(TokenError::Client(
+                "Proof record transaction is too large".into(),
+            ));
+        }
         let mut record_offset = first_chunk_size;
         let mut ixs_batch = vec![];
         for chunk in rest.chunks(subsequent_chunk_size) {
@@ -4250,23 +4315,4 @@ where
 
         Ok(account_info.has_pending_balance())
     }
-}
-
-/// Calculates the maximum chunk size for a zero-knowledge proof record
-/// instruction to fit inside a single transaction.
-fn calculate_record_max_chunk_size<F>(
-    create_record_instructions: F,
-    first_instruction: bool,
-) -> usize
-where
-    F: Fn(bool, &[u8], u64) -> Vec<Instruction>,
-{
-    let ixs = create_record_instructions(first_instruction, &[], 0);
-    let message = Message::new_with_blockhash(&ixs, Some(&Address::default()), &Hash::default());
-    let tx_size = bincode::serialized_size(&Transaction {
-        signatures: vec![Signature::default(); message.header.num_required_signatures as usize],
-        message,
-    })
-    .unwrap() as usize;
-    PACKET_DATA_SIZE.saturating_sub(tx_size).saturating_sub(1)
 }
