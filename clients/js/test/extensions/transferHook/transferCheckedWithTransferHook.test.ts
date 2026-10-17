@@ -27,6 +27,19 @@ const TRANSFER_HOOK_BINARY_PATH = path.resolve(
     'spl_transfer_hook_example_no_default_features.so',
 );
 
+// A transfer hook program that always succeeds and needs no validation account.
+const SUCCESS_TRANSFER_HOOK_BINARY_PATH = path.resolve(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    '..',
+    'rust-legacy',
+    'tests',
+    'fixtures',
+    'spl_transfer_hook_example_success.so',
+);
+
 describe('transferCheckedWithTransferHook', () => {
     it('resolves and executes a transfer through a real transfer hook program', async () => {
         // Given a mint whose transfer hook points at the deployed example program, with `mintAuthority`
@@ -126,6 +139,142 @@ describe('transferCheckedWithTransferHook', () => {
             fetchToken(client.rpc, destination),
         ]);
         expect(sourceData).toMatchObject(<Token>{ amount: 60n });
+        expect(destinationData).toMatchObject(<Token>{ amount: 40n });
+    });
+
+    it('passes the hook program when the mint has no validation account', async () => {
+        // Given a mint whose transfer hook program needs no validation account, and never created one.
+        const client = await createTestClient();
+        const transferHookProgram = await generateKeyPairSigner();
+        client.svm.addProgramFromFile(transferHookProgram.address, SUCCESS_TRANSFER_HOOK_BINARY_PATH);
+        const [mintAuthority, sourceOwner, destinationOwner, mint] = await Promise.all([
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+        ]);
+        const decimals = 2;
+        await client.token2022.instructions
+            .createMint({
+                newMint: mint,
+                decimals,
+                mintAuthority,
+                extensions: [
+                    extension('TransferHook', {
+                        authority: mintAuthority.address,
+                        programId: transferHookProgram.address,
+                    }),
+                ],
+            })
+            .sendTransaction();
+        const source = await createTokenWithAmount({
+            client,
+            payer: client.payer,
+            mint: mint.address,
+            owner: sourceOwner,
+            mintAuthority,
+            amount: 100n,
+            extensions: [extension('TransferHookAccount', { transferring: false })],
+        });
+        const destination = await createTokenWithAmount({
+            client,
+            payer: client.payer,
+            mint: mint.address,
+            owner: destinationOwner,
+            mintAuthority,
+            amount: 0n,
+            extensions: [extension('TransferHookAccount', { transferring: false })],
+        });
+
+        // When the source owner transfers 40 tokens.
+        const instruction = await client.token2022.instructions.transferCheckedWithTransferHook({
+            source,
+            mint: mint.address,
+            destination,
+            authority: sourceOwner,
+            amount: 40n,
+            decimals,
+        });
+
+        // Then only the hook program is appended, which the token program needs to invoke the hook.
+        const resolvedAddresses = instruction.accounts?.map(account => account.address);
+        expect(resolvedAddresses).toStrictEqual([
+            source,
+            mint.address,
+            destination,
+            sourceOwner.address,
+            transferHookProgram.address,
+        ]);
+
+        await client.sendTransaction(instruction);
+
+        // And the tokens move.
+        const [{ data: sourceData }, { data: destinationData }] = await Promise.all([
+            fetchToken(client.rpc, source),
+            fetchToken(client.rpc, destination),
+        ]);
+        expect(sourceData).toMatchObject(<Token>{ amount: 60n });
+        expect(destinationData).toMatchObject(<Token>{ amount: 40n });
+    });
+
+    it('appends nothing when the transfer hook has no program set', async () => {
+        // Given a mint with the transfer hook extension but no hook program, stored as the default address.
+        const client = await createTestClient();
+        const [mintAuthority, sourceOwner, destinationOwner, mint] = await Promise.all([
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+        ]);
+        const decimals = 2;
+        await client.token2022.instructions
+            .createMint({
+                newMint: mint,
+                decimals,
+                mintAuthority,
+                extensions: [
+                    extension('TransferHook', {
+                        authority: mintAuthority.address,
+                        programId: address('11111111111111111111111111111111'),
+                    }),
+                ],
+            })
+            .sendTransaction();
+        const source = await createTokenWithAmount({
+            client,
+            payer: client.payer,
+            mint: mint.address,
+            owner: sourceOwner,
+            mintAuthority,
+            amount: 100n,
+            extensions: [extension('TransferHookAccount', { transferring: false })],
+        });
+        const destination = await createTokenWithAmount({
+            client,
+            payer: client.payer,
+            mint: mint.address,
+            owner: destinationOwner,
+            mintAuthority,
+            amount: 0n,
+            extensions: [extension('TransferHookAccount', { transferring: false })],
+        });
+
+        // When the source owner transfers 40 tokens.
+        const instruction = await client.token2022.instructions.transferCheckedWithTransferHook({
+            source,
+            mint: mint.address,
+            destination,
+            authority: sourceOwner,
+            amount: 40n,
+            decimals,
+        });
+
+        // Then it is a plain checked transfer, since Token-2022 invokes no hook.
+        const resolvedAddresses = instruction.accounts?.map(account => account.address);
+        expect(resolvedAddresses).toStrictEqual([source, mint.address, destination, sourceOwner.address]);
+
+        await client.sendTransaction(instruction);
+        const { data: destinationData } = await fetchToken(client.rpc, destination);
         expect(destinationData).toMatchObject(<Token>{ amount: 40n });
     });
 
