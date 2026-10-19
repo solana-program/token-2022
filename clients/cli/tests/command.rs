@@ -273,10 +273,9 @@ fn test_config_with_default_signer<'a>(
 
 // Spawned `spl-token` processes default to `confirmed` commitment, while the
 // test validator client uses `processed`, so they may not see fresh state.
-fn processed_cli_config_file(test_validator: &TestValidator) -> NamedTempFile {
+fn processed_cli_config_file() -> NamedTempFile {
     let file = NamedTempFile::new().unwrap();
     solana_cli_config::Config {
-        json_rpc_url: test_validator.rpc_url(),
         commitment: "processed".to_string(),
         ..solana_cli_config::Config::default()
     }
@@ -3496,7 +3495,7 @@ async fn configure_confidential_transfer_partial_failure(
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
     let payer_file = NamedTempFile::new().unwrap();
     write_keypair_file(payer, &payer_file).unwrap();
-    let cli_config_file = processed_cli_config_file(test_validator);
+    let cli_config_file = processed_cli_config_file();
     // Reallocation succeeds, but configuration fails because this mint does not
     // support confidential transfers.
     let mint = create_token(&config, payer).await;
@@ -3854,7 +3853,7 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
     let payer_file = NamedTempFile::new().unwrap();
     write_keypair_file(payer, &payer_file).unwrap();
-    let cli_config_file = processed_cli_config_file(test_validator);
+    let cli_config_file = processed_cli_config_file();
 
     // create token with confidential transfers enabled
     let auto_approve = false;
