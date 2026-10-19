@@ -334,6 +334,8 @@ async fn send_messages(
         &config.websocket_url,
         TpuClientConfig::default(),
     )?;
+    // Probably remove this whole command at some point
+    #[allow(deprecated)]
     let transaction_errors =
         tpu_client.send_and_confirm_messages_with_spinner(messages, &signers)?;
     for (i, transaction_error) in transaction_errors.into_iter().enumerate() {

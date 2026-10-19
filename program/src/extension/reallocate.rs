@@ -3,11 +3,11 @@ use {
     pinocchio::{account::next_account_view, AccountView, Resize},
     pinocchio_system::instructions::Transfer,
     solana_address::Address,
+    solana_get_sysvar::GetSysvar,
     solana_msg::msg,
     solana_program_error::ProgramResult,
     solana_program_option::COption,
     solana_rent::Rent,
-    solana_sysvar::Sysvar,
     spl_token_2022_interface::{
         check_program_account,
         error::TokenError,

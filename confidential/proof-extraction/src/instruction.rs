@@ -5,11 +5,8 @@ use {
     alloc::vec::Vec,
     bytemuck::Pod,
     core::{num::NonZeroI8, slice::IterMut},
-    pinocchio::{
-        account::next_account_view,
-        sysvars::instructions::{Instructions, IntrospectedInstruction},
-        AccountView,
-    },
+    pinocchio::sysvars::instructions::{Instructions, IntrospectedInstruction},
+    solana_account_view::{next_account_view, AccountView},
     solana_address::Address,
     solana_instruction::{AccountMeta, Instruction},
     solana_msg::msg,
