@@ -3227,10 +3227,12 @@ async fn command_balance(
             &mint_state,
             unix_timestamp,
         );
-        let decrypted_confidential_balances =
-            decrypt_confidential_balances(config, &account_data.data, |amount| {
-                token_amount_to_ui_amount_for_mint(amount, &mint_state, unix_timestamp)
-            }, custom_keys)?;
+        let decrypted_confidential_balances = decrypt_confidential_balances(
+            config,
+            &account_data.data,
+            |amount| token_amount_to_ui_amount_for_mint(amount, &mint_state, unix_timestamp),
+            custom_keys,
+        )?;
         (balance, Some(decrypted_confidential_balances))
     } else {
         let balance = config
@@ -3261,10 +3263,12 @@ async fn command_supply(
         let unix_timestamp = mint_unix_timestamp(config, &mint_state).await?;
         let supply =
             token_amount_to_ui_amount_for_mint(mint_state.base.supply, &mint_state, unix_timestamp);
-        let decrypted_confidential_supply =
-            decrypt_confidential_supply(config, &mint_data.data, |amount| {
-                token_amount_to_ui_amount_for_mint(amount, &mint_state, unix_timestamp)
-            }, custom_keys)?;
+        let decrypted_confidential_supply = decrypt_confidential_supply(
+            config,
+            &mint_data.data,
+            |amount| token_amount_to_ui_amount_for_mint(amount, &mint_state, unix_timestamp),
+            custom_keys,
+        )?;
         (supply, Some(decrypted_confidential_supply))
     } else {
         (config.rpc_client.get_token_supply(&token).await?, None)
@@ -3433,8 +3437,8 @@ fn validate_confidential_keypair_matches(
     .into())
 }
 
-/// Decrypts the pending and available balances of a confidential transfer
-/// account using keys derived from the default signer
+/// Decrypts the pending and available balances using custom key files or keys
+/// derived from the default signer.
 fn decrypt_confidential_balances(
     config: &Config<'_>,
     account_data: &[u8],
@@ -3481,7 +3485,9 @@ fn decrypt_available_balance(
     } else {
         ApplyPendingBalanceAccountInfo::new(extension)
             .get_available_balance(aes_key)
-            .map_err(|err| format!("Failed to decrypt available balance: {err}"))?
+            .map_err(|err| {
+                format!("Failed to decrypt available balance: {err}. Check that the AES key matches the one used to encrypt the balance.")
+            })?
     };
 
     // ApplyPendingBalance can leave the AES cache stale when credits race with
@@ -3507,7 +3513,7 @@ fn decrypt_available_balance(
 }
 
 /// Decrypts the confidential supply of a confidential mint-burn mint using
-/// keys derived from the default signer
+/// custom key files or keys derived from the default signer.
 fn decrypt_confidential_supply(
     config: &Config<'_>,
     mint_data: &[u8],
