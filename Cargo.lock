@@ -10750,7 +10750,7 @@ dependencies = [
 
 [[package]]
 name = "spl-token-client"
-version = "0.19.1"
+version = "0.20.0"
 dependencies = [
  "async-trait",
  "bincode",
