@@ -6,24 +6,32 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { getAddressEncoder, getProgramDerivedAddress, type Address, type ProgramDerivedAddress } from '@solana/kit';
+import {
+    getAddressEncoder,
+    getProgramDerivedAddress,
+    type Address,
+    type HasAddress,
+    type ProgramDerivedAddress,
+} from '@solana/kit';
 
 export type AssociatedTokenSeeds = {
     /** The wallet address of the associated token account. */
-    owner: Address;
+    owner: Address | HasAddress;
     /** The address of the token program to use. */
-    tokenProgram: Address;
+    tokenProgram: Address | HasAddress;
     /** The mint address of the associated token account. */
-    mint: Address;
+    mint: Address | HasAddress;
 };
 
 export async function findAssociatedTokenPda(
     seeds: AssociatedTokenSeeds,
-    config: { programAddress?: Address | undefined } = {},
+    config: { programAddress?: Address | HasAddress | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
     const {
-        programAddress = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>,
+        programAddress:
+            programAddressInput = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>,
     } = config;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
     return await getProgramDerivedAddress({
         programAddress,
         seeds: [

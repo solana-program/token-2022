@@ -1,7 +1,7 @@
 import { Account, generateKeyPairSigner, none, some } from '@solana/kit';
 import { expect, it } from 'vitest';
 
-import { AccountState, Token, extension, fetchToken } from '../src';
+import { AccountState, TOKEN_2022_PROGRAM_ADDRESS, Token, extension, fetchToken } from '../src';
 import { createTestClient } from './_setup';
 
 it('creates and initializes a new token account', async () => {
@@ -78,6 +78,34 @@ it('accepts an address wrapper for the mint', async () => {
         .sendTransaction();
 
     // Then we expect the token account to be initialized for that mint.
+    expect(await fetchToken(client.rpc, token.address)).toMatchObject(<Account<Token>>{
+        address: token.address,
+        data: { mint: mint.address, owner: owner.address },
+    });
+});
+
+it('accepts address wrappers for the owner and the token program override', async () => {
+    // Given a mint account and a token owner.
+    const client = await createTestClient();
+    const [mintAuthority, owner, token, mint] = await Promise.all([
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+    ]);
+    await client.token2022.instructions.createMint({ newMint: mint, mintAuthority }).sendTransaction();
+
+    // When we create a token account using HasAddress wrappers for the owner and the token program.
+    await client.token2022.instructions
+        .createToken(
+            { newToken: token, mint: mint.address, owner: { address: owner.address } },
+            { tokenProgram: { address: TOKEN_2022_PROGRAM_ADDRESS } },
+        )
+        .sendTransaction();
+
+    // Then we expect the token account to be owned by the token program and initialized for that owner.
+    const { value: accountInfo } = await client.rpc.getAccountInfo(token.address).send();
+    expect(accountInfo?.owner).toBe(TOKEN_2022_PROGRAM_ADDRESS);
     expect(await fetchToken(client.rpc, token.address)).toMatchObject(<Account<Token>>{
         address: token.address,
         data: { mint: mint.address, owner: owner.address },

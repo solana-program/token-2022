@@ -1,7 +1,8 @@
-import { Address, InstructionPlan, sequentialInstructionPlan, TransactionSigner } from '@solana/kit';
+import { Address, HasAddress, InstructionPlan, sequentialInstructionPlan, TransactionSigner } from '@solana/kit';
 import {
     getAddressFromResolvedInstructionAccount,
     type InstructionAccountInput,
+    type InstructionSignerInput,
 } from '@solana/kit/program-client-core';
 
 import {
@@ -20,7 +21,7 @@ export type TransferToATAInstructionPlanInput = {
     /** The source account for the transfer. */
     source: InstructionAccountInput;
     /** The source account's owner/delegate or its multisignature account. */
-    authority: Address | TransactionSigner;
+    authority: InstructionAccountInput | InstructionSignerInput;
     /**
      * Associated token account address to transfer to.
      * Will be created if it does not already exist.
@@ -38,9 +39,9 @@ export type TransferToATAInstructionPlanInput = {
 };
 
 export type TransferToATAInstructionPlanConfig = {
-    systemProgram?: Address;
-    tokenProgram?: Address;
-    associatedTokenProgram?: Address;
+    systemProgram?: Address | HasAddress;
+    tokenProgram?: Address | HasAddress;
+    associatedTokenProgram?: Address | HasAddress;
 };
 
 export function getTransferToATAInstructionPlan(

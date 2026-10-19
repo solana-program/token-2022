@@ -22,6 +22,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -68,7 +69,7 @@ export type InitializePermissionedBurnInstructionData = {
 
 export type InitializePermissionedBurnInstructionDataArgs = {
     /** The public key for the account that is required for token burning. */
-    authority: Address;
+    authority: Address | HasAddress;
 };
 
 export function getInitializePermissionedBurnInstructionDataEncoder(): FixedSizeEncoder<InitializePermissionedBurnInstructionDataArgs> {
@@ -115,13 +116,14 @@ export function getInitializePermissionedBurnInstruction<
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: InitializePermissionedBurnInput<TAccountMint>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): InitializePermissionedBurnInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

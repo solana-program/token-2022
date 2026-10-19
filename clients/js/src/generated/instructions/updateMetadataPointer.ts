@@ -25,6 +25,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -84,7 +85,7 @@ export type UpdateMetadataPointerInstructionData = {
 
 export type UpdateMetadataPointerInstructionDataArgs = {
     /** The new account address that holds the metadata. */
-    metadataAddress: OptionOrNullable<Address>;
+    metadataAddress: OptionOrNullable<Address | HasAddress>;
 };
 
 export function getUpdateMetadataPointerInstructionDataEncoder(): FixedSizeEncoder<UpdateMetadataPointerInstructionDataArgs> {
@@ -139,7 +140,7 @@ export function getUpdateMetadataPointerInstruction<
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: UpdateMetadataPointerInput<TAccountMint, TAccountMetadataPointerAuthority>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): UpdateMetadataPointerInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
@@ -151,7 +152,8 @@ export function getUpdateMetadataPointerInstruction<
     >
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

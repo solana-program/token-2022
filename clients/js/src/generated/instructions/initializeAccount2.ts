@@ -22,6 +22,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -69,7 +70,7 @@ export type InitializeAccount2InstructionData = {
 
 export type InitializeAccount2InstructionDataArgs = {
     /** The new account's owner/multisignature. */
-    owner: Address;
+    owner: Address | HasAddress;
 };
 
 export function getInitializeAccount2InstructionDataEncoder(): FixedSizeEncoder<InitializeAccount2InstructionDataArgs> {
@@ -117,7 +118,7 @@ export function getInitializeAccount2Instruction<
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: InitializeAccount2Input<TAccountAccount, TAccountMint, TAccountRent>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): InitializeAccount2Instruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountAccount, InstructionAccountInputAddress<TAccountAccount>>,
@@ -125,7 +126,8 @@ export function getInitializeAccount2Instruction<
     ResolvedInstructionAccountMeta<TAccountRent, InstructionAccountInputAddress<TAccountRent>>
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

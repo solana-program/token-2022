@@ -185,3 +185,53 @@ it('uses a provided mint account to resolve the auditor ElGamal pubkey', async (
     const destinationConfidential = getTokenExtension(updatedDestination, 'ConfidentialTransferAccount');
     expect(destinationConfidential.pendingBalanceCreditCounter).toBe(1n);
 });
+
+it('accepts address wrappers for the mint and token accounts', async () => {
+    // Given a confidential transfer mint configured with an auditor and two confidential accounts.
+    const client = await createValidatorClient({ estimateResourceLimits: false });
+    const payer = client.payer;
+    const [sourceOwner, destinationOwner] = await Promise.all([
+        generateKeyPairSignerWithSol(client),
+        generateKeyPairSignerWithSol(client),
+    ]);
+    const { mint, mintAuthority } = await createConfidentialMint({
+        client,
+        payer,
+        auditorElgamalPubkey: getElGamalPubkeyAddress(),
+    });
+    const source = await createConfidentialTokenAccountWithBalance({
+        client,
+        payer,
+        owner: sourceOwner,
+        mint,
+        mintAuthority,
+        decimals: 2,
+        amount: 1000n,
+    });
+    const destination = await createConfidentialTokenAccount({ client, payer, owner: destinationOwner, mint });
+
+    // When we transfer using HasAddress wrappers, letting the helper fetch the mint's auditor key.
+    const [{ data: sourceTokenAccount }, { data: destinationTokenAccount }] = await Promise.all([
+        fetchToken(client.rpc, source.token),
+        fetchToken(client.rpc, destination.token),
+    ]);
+    await client.sendTransactions(
+        await getConfidentialTransferInstructionPlan({
+            payer,
+            rpc: client.rpc,
+            sourceToken: { address: source.token },
+            mint: { address: mint },
+            destinationToken: { address: destination.token },
+            sourceTokenAccount,
+            destinationTokenAccount,
+            authority: sourceOwner,
+            amount: 600n,
+            sourceElgamalKeypair: source.elgamalKeypair,
+            aesKey: source.aesKey,
+        }),
+    );
+
+    // Then the destination received a pending confidential credit.
+    const updatedDestination = await fetchAssociatedToken(client, destinationOwner.address, mint);
+    expect(getTokenExtension(updatedDestination, 'ConfidentialTransferAccount').pendingBalanceCreditCounter).toBe(1n);
+});
