@@ -7,7 +7,9 @@ use {
         signer::{keypair::Keypair, Signer},
     },
     solana_zk_sdk::encryption::{
-        auth_encryption::*, derivation::derive_confidential_keys, elgamal::*,
+        auth_encryption::*,
+        derivation::{derive_confidential_keys_from_signature, STANDARD_DERIVATION_MESSAGE},
+        elgamal::*,
     },
     spl_token_2022_interface::{
         extension::{
@@ -25,6 +27,17 @@ use {
     },
     std::sync::Arc,
 };
+
+/// Derives the standard confidential keys for `signer`.
+///
+/// Equivalent to `solana_zk_sdk::encryption::derivation::derive_confidential_keys`,
+/// which takes a `solana-signer` `v4` signer, while the signers here are still `v3`.
+pub fn derive_confidential_keys(
+    signer: &dyn Signer,
+) -> Result<(ElGamalKeypair, AeKey), Box<dyn std::error::Error>> {
+    let signature = signer.try_sign_message(STANDARD_DERIVATION_MESSAGE)?;
+    derive_confidential_keys_from_signature(&signature).map_err(Into::into)
+}
 
 pub struct TokenContext {
     pub decimals: u8,
@@ -219,7 +232,7 @@ impl ConfidentialTokenAccountMeta {
             .unwrap();
         let token_account = token_account_keypair.pubkey();
 
-        let (elgamal_keypair, aes_key) = derive_confidential_keys(owner, b"").unwrap();
+        let (elgamal_keypair, aes_key) = derive_confidential_keys(owner).unwrap();
 
         token
             .confidential_transfer_configure_token_account(
