@@ -13,11 +13,11 @@ use {
     pinocchio_transfer_hook_interface::instructions::Execute,
     solana_address::Address,
     solana_clock::Clock,
+    solana_get_sysvar::GetSysvar,
     solana_msg::msg,
     solana_nullable::MaybeNull,
     solana_program_error::{ProgramError, ProgramResult},
     solana_rent::Rent,
-    solana_sysvar::Sysvar,
     solana_zero_copy::unaligned::{Bool, U64},
     solana_zk_elgamal_proof_interface::proof_data::{
         PubkeyValidityProofContext, ZeroCiphertextProofContext,

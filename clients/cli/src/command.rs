@@ -2873,7 +2873,7 @@ async fn command_unwrap(
         );
     }
 
-    println_display(config, format!("  Recipient: {}", &wallet_address));
+    println_display(config, format!("  Recipient: {}", wallet_address));
 
     let res = token
         .close_account(&account, &wallet_address, &wallet_address, &bulk_signers)
@@ -5291,11 +5291,11 @@ async fn process_command_inner(
             let mint_authority =
                 config.pubkey_or_default(arg_matches, "mint_authority", &mut wallet_manager)?;
             let memo = value_t!(arg_matches, "memo", String).ok();
-            let rate_bps = value_t!(arg_matches, "interest_rate", i16).ok();
+            let rate_bps = arg_matches.get_one::<i16>("interest_rate").copied();
             let metadata_address = value_t!(arg_matches, "metadata_address", Pubkey).ok();
             let group_address = value_t!(arg_matches, "group_address", Pubkey).ok();
             let member_address = value_t!(arg_matches, "member_address", Pubkey).ok();
-            let ui_multiplier = value_t!(arg_matches, "ui_amount_multiplier", f64).ok();
+            let ui_multiplier = arg_matches.get_one::<f64>("ui_amount_multiplier").copied();
 
             let transfer_fee = arg_matches.values_of("transfer_fee").map(|mut v| {
                 println_display(config,"transfer-fee has been deprecated and will be removed in a future release. Please specify --transfer-fee-basis-points and --transfer-fee-maximum-fee with a UI amount".to_string());
