@@ -16,6 +16,7 @@ import { describe, expect, it } from 'vitest';
 import {
     AccountState,
     ExtensionArgs,
+    ExtensionType,
     TOKEN_2022_PROGRAM_ADDRESS,
     TOKEN_PROGRAM_ADDRESS,
     Token,
@@ -513,5 +514,41 @@ describe('transfer hook with an account-data seed on a destination that does not
             .sendTransaction();
 
         await expectDerivedDataMatchesChain(client, mint.address, owner.address, TOKEN_PROGRAM_ADDRESS);
+    });
+
+    it('knows every extension type when listing required account extensions', () => {
+        // A new extension fails this test. Check the program's `required_init_account_extensions`,
+        // add it to `REQUIRED_ACCOUNT_EXTENSIONS` if it requires one, then add it here.
+        expect(Object.keys(ExtensionType).filter(key => Number.isNaN(Number(key)))).toEqual([
+            'Uninitialized',
+            'TransferFeeConfig',
+            'TransferFeeAmount',
+            'MintCloseAuthority',
+            'ConfidentialTransferMint',
+            'ConfidentialTransferAccount',
+            'DefaultAccountState',
+            'ImmutableOwner',
+            'MemoTransfer',
+            'NonTransferable',
+            'InterestBearingConfig',
+            'CpiGuard',
+            'PermanentDelegate',
+            'NonTransferableAccount',
+            'TransferHook',
+            'TransferHookAccount',
+            'ConfidentialTransferFee',
+            'ConfidentialTransferFeeAmount',
+            'MetadataPointer',
+            'TokenMetadata',
+            'GroupPointer',
+            'TokenGroup',
+            'GroupMemberPointer',
+            'TokenGroupMember',
+            'ConfidentialMintBurn',
+            'ScaledUiAmountConfig',
+            'PausableConfig',
+            'PausableAccount',
+            'PermissionedBurn',
+        ]);
     });
 });

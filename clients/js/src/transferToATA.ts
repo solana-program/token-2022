@@ -122,11 +122,14 @@ async function resolveTransferToATAInput(
 
     let source = input.source;
     if (!source) {
-        const [sourceAta] = await findAssociatedTokenPda({
-            owner: getAddressFromResolvedInstructionAccount('authority', input.authority),
-            tokenProgram,
-            mint,
-        });
+        const [sourceAta] = await findAssociatedTokenPda(
+            {
+                owner: getAddressFromResolvedInstructionAccount('authority', input.authority),
+                tokenProgram,
+                mint,
+            },
+            { programAddress: config?.associatedTokenProgram },
+        );
         source = sourceAta;
     }
 

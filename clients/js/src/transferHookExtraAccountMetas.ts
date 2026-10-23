@@ -417,46 +417,12 @@ const NATIVE_MINT_ADDRESSES: Address[] = [
 ];
 
 // Mirrors the program's `ExtensionType::required_init_account_extensions`.
-function getRequiredAccountExtensions(mintExtension: Extension): ExtensionArgs[] {
-    switch (mintExtension.__kind) {
-        case 'NonTransferable':
-            return [extension('NonTransferableAccount', {}), extension('ImmutableOwner', {})];
-        case 'PausableConfig':
-            return [extension('PausableAccount', {})];
-        case 'TransferFeeConfig':
-            return [extension('TransferFeeAmount', { withheldAmount: 0n })];
-        case 'TransferHook':
-            return [extension('TransferHookAccount', { transferring: false })];
-        case 'Uninitialized':
-        case 'ConfidentialMintBurn':
-        case 'ConfidentialTransferAccount':
-        case 'ConfidentialTransferFee':
-        case 'ConfidentialTransferFeeAmount':
-        case 'ConfidentialTransferMint':
-        case 'CpiGuard':
-        case 'DefaultAccountState':
-        case 'GroupMemberPointer':
-        case 'GroupPointer':
-        case 'ImmutableOwner':
-        case 'InterestBearingConfig':
-        case 'MemoTransfer':
-        case 'MetadataPointer':
-        case 'MintCloseAuthority':
-        case 'NonTransferableAccount':
-        case 'PausableAccount':
-        case 'PermanentDelegate':
-        case 'PermissionedBurn':
-        case 'ScaledUiAmountConfig':
-        case 'TokenGroup':
-        case 'TokenGroupMember':
-        case 'TokenMetadata':
-        case 'TransferFeeAmount':
-        case 'TransferHookAccount':
-            return [];
-        default:
-            return mintExtension satisfies never;
-    }
-}
+const REQUIRED_ACCOUNT_EXTENSIONS: Partial<Record<Extension['__kind'], ExtensionArgs[]>> = {
+    NonTransferable: [extension('NonTransferableAccount', {}), extension('ImmutableOwner', {})],
+    PausableConfig: [extension('PausableAccount', {})],
+    TransferFeeConfig: [extension('TransferFeeAmount', { withheldAmount: 0n })],
+    TransferHook: [extension('TransferHookAccount', { transferring: false })],
+};
 
 function assertNotNativeMint(mint: Address): void {
     if (NATIVE_MINT_ADDRESSES.includes(mint)) {
@@ -485,7 +451,7 @@ function getNewAssociatedTokenAccountData(mint: Account<Mint>, owner: Address): 
         if (mintExtension.__kind === 'DefaultAccountState') {
             state = mintExtension.state;
         }
-        for (const accountExtension of getRequiredAccountExtensions(mintExtension)) {
+        for (const accountExtension of REQUIRED_ACCOUNT_EXTENSIONS[mintExtension.__kind] ?? []) {
             if (!extensions.some(({ __kind }) => __kind === accountExtension.__kind)) {
                 extensions.push(accountExtension);
             }
@@ -503,11 +469,15 @@ function getNewAssociatedTokenAccountData(mint: Account<Mint>, owner: Address): 
  */
 export async function getNewAssociatedTokenAccountDataAsync(
     rpc: Rpc<GetAccountInfoApi>,
-    mint: Address,
-    owner: Address,
+    mint: Address | HasAddress,
+    owner: Address | HasAddress,
 ): Promise<ReadonlyUint8Array> {
-    assertNotNativeMint(mint);
-    return getNewAssociatedTokenAccountData(await fetchMint(rpc, mint), owner);
+    const mintAddress = getAddressFromResolvedInstructionAccount('mint', mint);
+    assertNotNativeMint(mintAddress);
+    return getNewAssociatedTokenAccountData(
+        await fetchMint(rpc, mintAddress),
+        getAddressFromResolvedInstructionAccount('owner', owner),
+    );
 }
 
 async function resolveSeed(
@@ -789,12 +759,8 @@ export type ResolveExtraAccountMetasForExecuteInput = {
     /** The transfer hook's validation account. Derived via `findExtraAccountMetaListPda` if omitted. */
     validateStatePubkey?: InstructionAccountInput;
     /**
-     * The wallet `destination` is the associated token account of. Set this when an earlier
-     * instruction in the same transaction creates the destination, so seeds that read it resolve
-     * against the data that instruction writes. Like any existing destination, that data is read
-     * before this transfer credits it.
-     *
-     * Throws if `destination` is not the associated token account for this wallet and mint.
+     * Wallet whose ATA is `destination`, when an earlier instruction in this transaction creates it.
+     * Throws if `destination` isn't that ATA.
      */
     recipient?: InstructionAccountInput;
     /** The token program the mint belongs to. Defaults to Token-2022. */
@@ -1082,12 +1048,8 @@ export type TransferCheckedWithTransferHookInstructionAsyncConfig = {
     /** The token program the mint belongs to. Defaults to Token-2022. */
     tokenProgram?: Address | HasAddress;
     /**
-     * The wallet `destination` is the associated token account of. Set this when an earlier
-     * instruction in the same transaction creates the destination, so seeds that read it resolve
-     * against the data that instruction writes. Like any existing destination, that data is read
-     * before this transfer credits it.
-     *
-     * Throws if `destination` is not the associated token account for this wallet and mint.
+     * Wallet whose ATA is `destination`, when an earlier instruction in this transaction creates it.
+     * Throws if `destination` isn't that ATA.
      */
     recipient?: InstructionAccountInput;
     /** The associated token program `recipient`'s account is derived with. */
