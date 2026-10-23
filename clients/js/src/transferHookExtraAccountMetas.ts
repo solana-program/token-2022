@@ -2,6 +2,7 @@ import {
     AccountRole,
     addDecoderSizePrefix,
     addEncoderSizePrefix,
+    address,
     combineCodec,
     createDecoder,
     downgradeRoleToNonSigner,
@@ -40,6 +41,7 @@ import {
     unwrapOption,
     type Address,
     type AccountMeta,
+    type Account,
     type AccountSignerMeta,
     type ClientWithRpc,
     type Codec,
@@ -59,7 +61,19 @@ import {
     type InstructionSignerInput,
 } from '@solana/kit/program-client-core';
 
-import { fetchMint, getTransferCheckedInstruction, type Extension } from './generated';
+import {
+    AccountState,
+    extension,
+    fetchMint,
+    findAssociatedTokenPda,
+    getTokenEncoder,
+    getTransferCheckedInstruction,
+    TOKEN_2022_PROGRAM_ADDRESS,
+    type Extension,
+    type ExtensionArgs,
+    type Mint,
+} from './generated';
+import { TOKEN_PROGRAM_ADDRESS } from './legacyToken';
 
 const EXTRA_ACCOUNT_METAS_SEED = 'extra-account-metas';
 
@@ -379,11 +393,99 @@ function getExtraAccountMetaSeedsDecoder(): Decoder<ExtraAccountMetaSeed[]> {
     });
 }
 
+/** Account data to resolve seeds against instead of fetching it, keyed by address. */
+export type AccountDataOverrides = ReadonlyMap<Address, ReadonlyUint8Array>;
+
+async function getAccountDataForResolution(
+    address: Address,
+    rpc: Rpc<GetAccountInfoApi>,
+    accountDataOverrides: AccountDataOverrides | undefined,
+): Promise<ReadonlyUint8Array | undefined> {
+    const override = accountDataOverrides?.get(address);
+    if (override) {
+        return override;
+    }
+    const account = await fetchEncodedAccount(rpc, address);
+    return account.exists ? account.data : undefined;
+}
+
+const SYSTEM_PROGRAM_ADDRESS = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+
+const NATIVE_MINT_ADDRESSES: Address[] = [
+    address('9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP'),
+    address('So11111111111111111111111111111111111111112'),
+];
+
+// Mirrors the program's `ExtensionType::required_init_account_extensions`.
+const REQUIRED_ACCOUNT_EXTENSIONS: Partial<Record<Extension['__kind'], ExtensionArgs[]>> = {
+    NonTransferable: [extension('NonTransferableAccount', {}), extension('ImmutableOwner', {})],
+    PausableConfig: [extension('PausableAccount', {})],
+    TransferFeeConfig: [extension('TransferFeeAmount', { withheldAmount: 0n })],
+    TransferHook: [extension('TransferHookAccount', { transferring: false })],
+};
+
+function assertNotNativeMint(mint: Address): void {
+    if (NATIVE_MINT_ADDRESSES.includes(mint)) {
+        throw new Error(
+            'Cannot derive a new associated token account for a native mint: its rent-exempt reserve depends on the account lamports.',
+        );
+    }
+}
+
+function getNewAssociatedTokenAccountData(mint: Account<Mint>, owner: Address): ReadonlyUint8Array {
+    const base = {
+        amount: 0n,
+        closeAuthority: null,
+        delegate: null,
+        delegatedAmount: 0n,
+        isNative: null,
+        mint: mint.address,
+        owner,
+    };
+    if (mint.programAddress === TOKEN_PROGRAM_ADDRESS) {
+        return getTokenEncoder().encode({ ...base, extensions: null, state: AccountState.Initialized });
+    }
+    const extensions: ExtensionArgs[] = [extension('ImmutableOwner', {})];
+    let state = AccountState.Initialized;
+    for (const mintExtension of unwrapOption(mint.data.extensions) ?? []) {
+        if (mintExtension.__kind === 'DefaultAccountState') {
+            state = mintExtension.state;
+        }
+        for (const accountExtension of REQUIRED_ACCOUNT_EXTENSIONS[mintExtension.__kind] ?? []) {
+            if (!extensions.some(({ __kind }) => __kind === accountExtension.__kind)) {
+                extensions.push(accountExtension);
+            }
+        }
+    }
+    return getTokenEncoder().encode({ ...base, extensions, state });
+}
+
+/**
+ * The data the associated token program writes to a new associated token account for `mint` and
+ * `owner`, before any later instruction touches it. Fetches the mint.
+ *
+ * {@link getTransferCheckedWithTransferHookInstructionAsync}'s `recipient` config uses this to
+ * resolve hook seeds against a destination created earlier in the same transaction.
+ */
+export async function getNewAssociatedTokenAccountDataAsync(
+    rpc: Rpc<GetAccountInfoApi>,
+    mint: Address | HasAddress,
+    owner: Address | HasAddress,
+): Promise<ReadonlyUint8Array> {
+    const mintAddress = getAddressFromResolvedInstructionAccount('mint', mint);
+    assertNotNativeMint(mintAddress);
+    return getNewAssociatedTokenAccountData(
+        await fetchMint(rpc, mintAddress),
+        getAddressFromResolvedInstructionAccount('owner', owner),
+    );
+}
+
 async function resolveSeed(
     seed: ExtraAccountMetaSeed,
     previousMetas: Address[],
     instructionData: ReadonlyUint8Array,
     rpc: Rpc<GetAccountInfoApi>,
+    accountDataOverrides?: AccountDataOverrides,
 ): Promise<ReadonlyUint8Array> {
     switch (seed.__kind) {
         case 'Literal':
@@ -408,19 +510,19 @@ async function resolveSeed(
                     'Invalid transfer hook seed: account-data seed references an out-of-bounds account index.',
                 );
             }
-            const account = await fetchEncodedAccount(rpc, previousMetas[seed.accountIndex]);
-            if (!account.exists) {
+            const data = await getAccountDataForResolution(previousMetas[seed.accountIndex], rpc, accountDataOverrides);
+            if (data === undefined) {
                 throw new Error(
                     `Invalid transfer hook seed: account ${previousMetas[seed.accountIndex]} required by an ` +
                         'account-data seed was not found.',
                 );
             }
-            if (account.data.length < seed.dataIndex + seed.length) {
+            if (data.length < seed.dataIndex + seed.length) {
                 throw new Error(
                     "Invalid transfer hook seed: account data is shorter than the seed's declared offset/length.",
                 );
             }
-            return account.data.slice(seed.dataIndex, seed.dataIndex + seed.length);
+            return data.slice(seed.dataIndex, seed.dataIndex + seed.length);
         }
     }
 }
@@ -435,8 +537,11 @@ export async function resolveSeeds(
     previousMetas: Address[],
     instructionData: ReadonlyUint8Array,
     rpc: Rpc<GetAccountInfoApi>,
+    accountDataOverrides?: AccountDataOverrides,
 ): Promise<ReadonlyUint8Array[]> {
-    return await Promise.all(seeds.map(seed => resolveSeed(seed, previousMetas, instructionData, rpc)));
+    return await Promise.all(
+        seeds.map(seed => resolveSeed(seed, previousMetas, instructionData, rpc, accountDataOverrides)),
+    );
 }
 
 /**
@@ -506,6 +611,7 @@ export async function resolvePubkeyData(
     previousMetas: Address[],
     instructionData: ReadonlyUint8Array,
     rpc: Rpc<GetAccountInfoApi>,
+    accountDataOverrides?: AccountDataOverrides,
 ): Promise<Address> {
     if (config.__kind === 'InstructionData') {
         if (instructionData.length < config.index + PUBLIC_KEY_LENGTH) {
@@ -522,18 +628,18 @@ export async function resolvePubkeyData(
             'Invalid transfer hook pubkey data: account-data source references an out-of-bounds account index.',
         );
     }
-    const account = await fetchEncodedAccount(rpc, previousMetas[config.accountIndex]);
-    if (!account.exists) {
+    const data = await getAccountDataForResolution(previousMetas[config.accountIndex], rpc, accountDataOverrides);
+    if (data === undefined) {
         throw new Error(
             `Invalid transfer hook pubkey data: account ${previousMetas[config.accountIndex]} was not found.`,
         );
     }
-    if (account.data.length < config.dataIndex + PUBLIC_KEY_LENGTH) {
+    if (data.length < config.dataIndex + PUBLIC_KEY_LENGTH) {
         throw new Error(
             'Invalid transfer hook pubkey data: account data is too small to contain a pubkey at the declared offset.',
         );
     }
-    return getAddressDecoder().decode(account.data, config.dataIndex);
+    return getAddressDecoder().decode(data, config.dataIndex);
 }
 
 /** An `ExtraAccountMeta` resolved into the real account it refers to. */
@@ -557,6 +663,7 @@ export async function resolveExtraAccountMeta(
     instructionData: ReadonlyUint8Array,
     transferHookProgramAddress: Address,
     rpc: Rpc<GetAccountInfoApi>,
+    accountDataOverrides?: AccountDataOverrides,
 ): Promise<ResolvedExtraAccountMeta> {
     const { config, isSigner, isWritable } = extraMeta;
 
@@ -564,7 +671,13 @@ export async function resolveExtraAccountMeta(
         case 'Literal':
             return { address: config.address, isSigner, isWritable };
         case 'PubkeyData': {
-            const address = await resolvePubkeyData(config.pubkeyData, previousMetas, instructionData, rpc);
+            const address = await resolvePubkeyData(
+                config.pubkeyData,
+                previousMetas,
+                instructionData,
+                rpc,
+                accountDataOverrides,
+            );
             return { address, isSigner, isWritable };
         }
         case 'ProgramPda':
@@ -581,7 +694,7 @@ export async function resolveExtraAccountMeta(
                 }
                 programAddress = previousMetas[config.accountIndex];
             }
-            const seeds = await resolveSeeds(config.seeds, previousMetas, instructionData, rpc);
+            const seeds = await resolveSeeds(config.seeds, previousMetas, instructionData, rpc, accountDataOverrides);
             const [address] = await getProgramDerivedAddress({ programAddress, seeds });
             return { address, isSigner, isWritable };
         }
@@ -645,7 +758,76 @@ export type ResolveExtraAccountMetasForExecuteInput = {
     amount: number | bigint;
     /** The transfer hook's validation account. Derived via `findExtraAccountMetaListPda` if omitted. */
     validateStatePubkey?: InstructionAccountInput;
+    /**
+     * Wallet whose ATA is `destination`, when an earlier instruction in this transaction creates it.
+     * Throws if `destination` isn't that ATA.
+     */
+    recipient?: InstructionAccountInput;
+    /** The token program the mint belongs to. Defaults to Token-2022. */
+    tokenProgram?: Address | HasAddress;
+    /** The associated token program `recipient`'s account is derived with. */
+    associatedTokenProgram?: Address | HasAddress;
 };
+
+type RecipientInput = Pick<
+    ResolveExtraAccountMetasForExecuteInput,
+    'associatedTokenProgram' | 'destination' | 'mint' | 'recipient' | 'tokenProgram'
+>;
+
+async function assertRecipientOwnsDestination(input: RecipientInput): Promise<void> {
+    if (input.recipient === undefined) {
+        return;
+    }
+    const recipient = getAddressFromResolvedInstructionAccount('recipient', input.recipient);
+    const destination = getAddressFromResolvedInstructionAccount('destination', input.destination);
+    const [recipientAta] = await findAssociatedTokenPda(
+        {
+            mint: getAddressFromResolvedInstructionAccount('mint', input.mint),
+            owner: recipient,
+            tokenProgram: getAddressFromResolvedInstructionAccount(
+                'tokenProgram',
+                input.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
+            ),
+        },
+        { programAddress: input.associatedTokenProgram },
+    );
+    if (recipientAta !== destination) {
+        throw new Error(
+            `Invalid transfer hook recipient: ${recipient} does not own the destination ${destination}; its associated token account for this mint is ${recipientAta}.`,
+        );
+    }
+}
+
+// Uses the destination's chain data once it is a token account, else the data its creation writes.
+async function getDestinationDataOverrides(
+    input: ResolveExtraAccountMetasForExecuteInput,
+    mint: Account<Mint> | undefined,
+): Promise<AccountDataOverrides | undefined> {
+    if (input.recipient === undefined) {
+        return undefined;
+    }
+    const destinationAddress = getAddressFromResolvedInstructionAccount('destination', input.destination);
+    const mintAddress = getAddressFromResolvedInstructionAccount('mint', input.mint);
+    const tokenProgram = getAddressFromResolvedInstructionAccount(
+        'tokenProgram',
+        input.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
+    );
+    const destination = await fetchEncodedAccount(input.rpc, destinationAddress);
+    if (destination.exists && destination.programAddress === tokenProgram) {
+        return new Map([[destinationAddress, destination.data]]);
+    }
+    if (destination.exists && destination.programAddress !== SYSTEM_PROGRAM_ADDRESS) {
+        throw new Error(
+            `Invalid transfer hook recipient: the destination ${destinationAddress} is owned by ${destination.programAddress}, not ${tokenProgram}.`,
+        );
+    }
+    assertNotNativeMint(mintAddress);
+    const data = getNewAssociatedTokenAccountData(
+        mint ?? (await fetchMint(input.rpc, mintAddress)),
+        getAddressFromResolvedInstructionAccount('recipient', input.recipient),
+    );
+    return new Map([[destinationAddress, data]]);
+}
 
 /**
  * Resolves the extra accounts a transfer hook program's `Execute` CPI needs, ready to append to
@@ -663,6 +845,14 @@ export type ResolveExtraAccountMetasForExecuteInput = {
 export async function resolveExtraAccountMetasForExecute(
     input: ResolveExtraAccountMetasForExecuteInput,
 ): Promise<AccountMeta<Address>[]> {
+    await assertRecipientOwnsDestination(input);
+    return await resolveExtraAccountMetasForExecuteWithMint(input, undefined);
+}
+
+async function resolveExtraAccountMetasForExecuteWithMint(
+    input: ResolveExtraAccountMetasForExecuteInput,
+    mintAccount: Account<Mint> | undefined,
+): Promise<AccountMeta<Address>[]> {
     const mint = getAddressFromResolvedInstructionAccount('mint', input.mint);
     const transferHookProgramAddress = getAddressFromResolvedInstructionAccount(
         'transferHookProgramAddress',
@@ -676,6 +866,8 @@ export async function resolveExtraAccountMetasForExecute(
     if (!validateStateAccount.exists) {
         return [];
     }
+
+    const accountDataOverrides = await getDestinationDataOverrides(input, mintAccount);
 
     const validateStateData = getExtraAccountMetasDecoder().decode(validateStateAccount.data);
     const instructionData = getExecuteInstructionData(BigInt(input.amount));
@@ -697,6 +889,7 @@ export async function resolveExtraAccountMetasForExecute(
             instructionData,
             transferHookProgramAddress,
             input.rpc,
+            accountDataOverrides,
         );
         const role = accountRoleFromBooleans(resolved.isSigner, resolved.isWritable);
         const deEscalated = deEscalateAccountMeta({ address: resolved.address, role }, [
@@ -713,9 +906,6 @@ export async function resolveExtraAccountMetasForExecute(
         { address: validateStatePubkey, role: AccountRole.READONLY },
     ];
 }
-
-// The default system program address, used when initializing a validation account.
-const SYSTEM_PROGRAM_ADDRESS = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
 
 // `spl-transfer-hook-interface:initialize-extra-account-metas` and `...:update-extra-account-metas`,
 // as `sha256(namespace)[0..8]`. The instruction data is the discriminator followed by the extra
@@ -857,6 +1047,13 @@ export type TransferCheckedWithTransferHookInstructionAsyncInput = {
 export type TransferCheckedWithTransferHookInstructionAsyncConfig = {
     /** The token program the mint belongs to. Defaults to Token-2022. */
     tokenProgram?: Address | HasAddress;
+    /**
+     * Wallet whose ATA is `destination`, when an earlier instruction in this transaction creates it.
+     * Throws if `destination` isn't that ATA.
+     */
+    recipient?: InstructionAccountInput;
+    /** The associated token program `recipient`'s account is derived with. */
+    associatedTokenProgram?: Address | HasAddress;
 };
 
 /**
@@ -891,23 +1088,37 @@ export async function getTransferCheckedWithTransferHookInstructionAsync(
         { programAddress: config?.tokenProgram },
     );
 
-    const { data: mint } = await fetchMint(client.rpc, getAddressFromResolvedInstructionAccount('mint', input.mint));
-    const transferHook = (unwrapOption(mint.extensions) ?? []).find(
+    await assertRecipientOwnsDestination({
+        associatedTokenProgram: config?.associatedTokenProgram,
+        destination: input.destination,
+        mint: input.mint,
+        recipient: config?.recipient,
+        tokenProgram: config?.tokenProgram,
+    });
+
+    const mint = await fetchMint(client.rpc, getAddressFromResolvedInstructionAccount('mint', input.mint));
+    const transferHook = (unwrapOption(mint.data.extensions) ?? []).find(
         (extension): extension is Extract<Extension, { __kind: 'TransferHook' }> => extension.__kind === 'TransferHook',
     );
     if (!transferHook) {
         return instruction;
     }
 
-    const extraMetas = await resolveExtraAccountMetasForExecute({
-        amount: input.amount,
-        destination: input.destination,
-        mint: input.mint,
-        owner: input.authority,
-        rpc: client.rpc,
-        source: input.source,
-        transferHookProgramAddress: transferHook.programId,
-    });
+    const extraMetas = await resolveExtraAccountMetasForExecuteWithMint(
+        {
+            amount: input.amount,
+            associatedTokenProgram: config?.associatedTokenProgram,
+            destination: input.destination,
+            mint: input.mint,
+            owner: input.authority,
+            recipient: config?.recipient,
+            rpc: client.rpc,
+            source: input.source,
+            tokenProgram: config?.tokenProgram,
+            transferHookProgramAddress: transferHook.programId,
+        },
+        mint,
+    );
 
     return { ...instruction, accounts: [...instruction.accounts, ...extraMetas] };
 }
