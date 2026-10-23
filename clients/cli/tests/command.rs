@@ -7286,7 +7286,7 @@ async fn multisig_pause(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
-    let config =
+    let mut config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     let token = Keypair::new();
@@ -7319,6 +7319,47 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
         Option::<Pubkey>::from(extension.authority),
         Some(burn_authority.pubkey())
     );
+
+    let expected_authority = burn_authority.pubkey().to_string();
+    let original_output_format = config.output_format.clone();
+    config.output_format = OutputFormat::Display;
+    let output = process_test_command(
+        &config,
+        payer,
+        &["spl-token", CommandName::Display.into(), &token.to_string()],
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        output.lines().find_map(|line| line
+            .trim()
+            .strip_prefix("Permissioned burn authority:")
+            .map(str::trim)),
+        Some(expected_authority.as_str()),
+        "Unexpected Permissioned Burn display: {output}"
+    );
+
+    config.output_format = OutputFormat::JsonCompact;
+    let output = process_test_command(
+        &config,
+        payer,
+        &["spl-token", CommandName::Display.into(), &token.to_string()],
+    )
+    .await
+    .unwrap();
+    let output: serde_json::Value = serde_json::from_str(&output).unwrap();
+    assert!(
+        output["extensions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|extension| {
+                extension["extension"] == "permissionedBurnConfig"
+                    && extension["state"]["authority"] == expected_authority
+            }),
+        "Unexpected Permissioned Burn JSON: {output}"
+    );
+    config.output_format = original_output_format;
 
     // do a burn
     let source = create_associated_account(&config, payer, &token, &payer.pubkey()).await;
