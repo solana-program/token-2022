@@ -3,6 +3,7 @@ use {
     bytemuck::{bytes_of, Pod, Zeroable},
     solana_account::Account,
     solana_address::Address,
+    solana_compute_budget_interface::ComputeBudgetInstruction,
     solana_hash::Hash,
     solana_packet::PACKET_DATA_SIZE,
     solana_rpc_client_api::response::RpcSimulateTransactionResult,
@@ -16,11 +17,11 @@ use {
             ProgramClient, ProgramClientResult, ProgramOfflineClient,
             ProgramRpcClientSendTransaction, RpcClientResponse,
         },
-        token::{ComputeUnitLimit, Token},
+        token::{ComputeUnitLimit, Token, TokenError},
     },
     std::sync::{
         atomic::{AtomicUsize, Ordering},
-        Arc,
+        Arc, Mutex,
     },
 };
 
@@ -30,6 +31,7 @@ use {
 struct RecordClient {
     offline: ProgramOfflineClient<ProgramRpcClientSendTransaction>,
     sent: AtomicUsize,
+    simulations: Mutex<Vec<Transaction>>,
 }
 
 #[async_trait]
@@ -59,8 +61,9 @@ impl ProgramClient<ProgramRpcClientSendTransaction> for RecordClient {
 
     async fn simulate_transaction(
         &self,
-        _transaction: &Transaction,
+        transaction: &Transaction,
     ) -> ProgramClientResult<RpcClientResponse> {
+        self.simulations.lock().unwrap().push(transaction.clone());
         Ok(RpcClientResponse::Simulation(
             RpcSimulateTransactionResult {
                 units_consumed: Some(200_000),
@@ -86,6 +89,7 @@ fn token(payer: Arc<Keypair>) -> (Token<ProgramRpcClientSendTransaction>, Arc<Re
     let client = Arc::new(RecordClient {
         offline: ProgramOfflineClient::new(Hash::new_unique(), ProgramRpcClientSendTransaction),
         sent: AtomicUsize::new(0),
+        simulations: Mutex::new(Vec::new()),
     });
     let token = Token::new(
         client.clone(),
@@ -157,9 +161,9 @@ async fn record_chunks_fit_with_memo_nonce_and_compute_budget() {
         let payer = Arc::new(Keypair::new());
         let authority = Keypair::new();
         let record = Keypair::new();
-        let (mut token, _) = token(payer.clone());
+        let (mut token, client) = token(payer.clone());
         token = token
-            .with_compute_unit_limit(limit)
+            .with_compute_unit_limit(limit.clone())
             .with_compute_unit_price(1);
         let nonce_authority = Arc::new(Keypair::new());
         let nonce_account = Address::new_unique();
@@ -189,7 +193,47 @@ async fn record_chunks_fit_with_memo_nonce_and_compute_budget() {
             &record.pubkey(),
             &authority.pubkey(),
         );
+        let simulations = client.simulations.lock().unwrap();
+        assert_eq!(
+            simulations.len(),
+            if matches!(limit, ComputeUnitLimit::Simulated) {
+                transactions.len()
+            } else {
+                0
+            }
+        );
         for (index, transaction) in transactions.iter().enumerate() {
+            let price_instruction = ComputeBudgetInstruction::set_compute_unit_price(1);
+            let budget_instructions: Vec<_> = transaction
+                .message
+                .instructions
+                .iter()
+                .filter(|instruction| {
+                    transaction.message.account_keys[usize::from(instruction.program_id_index)]
+                        == price_instruction.program_id
+                })
+                .map(|instruction| instruction.data.clone())
+                .collect();
+            let mut expected_budget = vec![price_instruction.data];
+            if !matches!(limit, ComputeUnitLimit::Default) {
+                expected_budget
+                    .push(ComputeBudgetInstruction::set_compute_unit_limit(200_000).data);
+            }
+            assert_eq!(budget_instructions, expected_budget);
+
+            if matches!(limit, ComputeUnitLimit::Simulated) {
+                let simulation = &simulations[index];
+                assert!(bincode::serialized_size(simulation).unwrap() <= PACKET_DATA_SIZE as u64);
+                let mut simulated_message = simulation.message.clone();
+                assert_eq!(
+                    simulated_message.instructions.last().unwrap().data,
+                    ComputeBudgetInstruction::set_compute_unit_limit(1_400_000).data
+                );
+                simulated_message.instructions.last_mut().unwrap().data =
+                    ComputeBudgetInstruction::set_compute_unit_limit(200_000).data;
+                assert_eq!(simulated_message, transaction.message);
+            }
+
             let memo_count = transaction
                 .message
                 .instructions
@@ -328,4 +372,27 @@ async fn record_creation_rejects_no_payload_capacity_before_sending() {
         .to_string()
         .contains("Proof record transaction is too large"));
     assert_eq!(client.sent.load(Ordering::Relaxed), 0);
+}
+
+#[tokio::test]
+async fn record_creation_rejects_missing_memo_signer_before_sending() {
+    let payer = Arc::new(Keypair::new());
+    let authority = Keypair::new();
+    let record = Keypair::new();
+    let (token, client) = token(payer);
+    let token = token.with_compute_unit_limit(ComputeUnitLimit::Simulated);
+    token.with_memo("proof record", vec![Address::new_unique()]);
+    let error = token
+        .confidential_transfer_create_record_account(
+            &record.pubkey(),
+            &authority.pubkey(),
+            &ShortProof::zeroed(),
+            &record,
+            &authority,
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(error, TokenError::MissingMemoSigner));
+    assert_eq!(client.sent.load(Ordering::Relaxed), 0);
+    assert!(client.simulations.lock().unwrap().is_empty());
 }

@@ -542,38 +542,7 @@ where
         F: Fn(bool, &[u8], u64) -> Vec<Instruction>,
     {
         let mut instructions = create_record_instructions(first_instruction, &[], 0);
-        if let Some(memo) = self.memo.read().unwrap().as_ref() {
-            instructions.insert(0, memo.to_instruction());
-        }
-        if let (Some(nonce_account), Some(nonce_authority), Some(_)) = (
-            self.nonce_account,
-            &self.nonce_authority,
-            self.nonce_blockhash,
-        ) {
-            instructions.insert(
-                0,
-                system_instruction::advance_nonce_account(
-                    &nonce_account,
-                    &nonce_authority.pubkey(),
-                ),
-            );
-        }
-        if let Some(compute_unit_price) = self.compute_unit_price {
-            instructions.push(ComputeBudgetInstruction::set_compute_unit_price(
-                compute_unit_price,
-            ));
-        }
-        match self.compute_unit_limit {
-            ComputeUnitLimit::Default => {}
-            ComputeUnitLimit::Simulated => {
-                instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(1_400_000));
-            }
-            ComputeUnitLimit::Static(compute_unit_limit) => {
-                instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(
-                    compute_unit_limit,
-                ));
-            }
-        }
+        self.add_transaction_instructions(&mut instructions, self.memo.read().unwrap().as_ref());
 
         let message = Message::new_with_blockhash(
             &instructions,
@@ -651,19 +620,54 @@ where
         }
     }
 
-    /// Helper function to add a compute unit limit instruction to a given set
-    /// of instructions
-    async fn add_compute_unit_limit_from_simulation(
+    /// Add the instructions shared by transaction sizing and construction.
+    fn add_transaction_instructions(
         &self,
         instructions: &mut Vec<Instruction>,
+        memo: Option<&TokenMemo>,
+    ) {
+        if let Some(memo) = memo {
+            instructions.insert(0, memo.to_instruction());
+        }
+        if let (Some(nonce_account), Some(nonce_authority), Some(_)) = (
+            self.nonce_account,
+            &self.nonce_authority,
+            self.nonce_blockhash,
+        ) {
+            instructions.insert(
+                0,
+                system_instruction::advance_nonce_account(
+                    &nonce_account,
+                    &nonce_authority.pubkey(),
+                ),
+            );
+        }
+        if let Some(compute_unit_price) = self.compute_unit_price {
+            instructions.push(ComputeBudgetInstruction::set_compute_unit_price(
+                compute_unit_price,
+            ));
+        }
+        // Keep the limit last so simulation can update its placeholder in place.
+        match self.compute_unit_limit {
+            ComputeUnitLimit::Default => {}
+            ComputeUnitLimit::Simulated => {
+                // Reserve the same instruction that simulation updates before signing.
+                instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(1_400_000));
+            }
+            ComputeUnitLimit::Static(compute_unit_limit) => {
+                instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(
+                    compute_unit_limit,
+                ));
+            }
+        }
+    }
+
+    /// Replace the placeholder compute unit limit with the simulated usage.
+    async fn update_compute_unit_limit_from_simulation(
+        &self,
+        instructions: &mut [Instruction],
         blockhash: &Hash,
     ) -> TokenResult<()> {
-        // add a max compute unit limit instruction for the simulation
-        const MAX_COMPUTE_UNIT_LIMIT: u32 = 1_400_000;
-        instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(
-            MAX_COMPUTE_UNIT_LIMIT,
-        ));
-
         let transaction = Transaction::new_unsigned(Message::new_with_blockhash(
             instructions,
             Some(&self.payer.pubkey()),
@@ -692,38 +696,28 @@ where
         token_instructions: &[Instruction],
         signing_keypairs: &S,
     ) -> TokenResult<Transaction> {
-        let mut instructions = vec![];
         let payer_key = self.payer.pubkey();
         let fee_payer = Some(&payer_key);
-
-        {
-            let mut w_memo = self.memo.write().unwrap();
-            if let Some(memo) = w_memo.take() {
-                let signing_pubkeys = signing_keypairs.pubkeys();
-                if !memo
-                    .signers
-                    .iter()
-                    .all(|signer| signing_pubkeys.contains(signer))
-                {
-                    return Err(TokenError::MissingMemoSigner);
-                }
-
-                instructions.push(memo.to_instruction());
+        let memo = self.memo.write().unwrap().take();
+        if let Some(memo) = memo.as_ref() {
+            let signing_pubkeys = signing_keypairs.pubkeys();
+            if !memo
+                .signers
+                .iter()
+                .all(|signer| signing_pubkeys.contains(signer))
+            {
+                return Err(TokenError::MissingMemoSigner);
             }
         }
 
-        instructions.extend_from_slice(token_instructions);
+        let mut instructions = token_instructions.to_vec();
+        self.add_transaction_instructions(&mut instructions, memo.as_ref());
 
-        let blockhash = if let (Some(nonce_account), Some(nonce_authority), Some(nonce_blockhash)) = (
+        let blockhash = if let (Some(_), Some(_), Some(nonce_blockhash)) = (
             self.nonce_account,
             &self.nonce_authority,
             self.nonce_blockhash,
         ) {
-            let nonce_instruction = system_instruction::advance_nonce_account(
-                &nonce_account,
-                &nonce_authority.pubkey(),
-            );
-            instructions.insert(0, nonce_instruction);
             nonce_blockhash
         } else {
             self.client
@@ -732,27 +726,11 @@ where
                 .map_err(TokenError::Client)?
         };
 
-        if let Some(compute_unit_price) = self.compute_unit_price {
-            instructions.push(ComputeBudgetInstruction::set_compute_unit_price(
-                compute_unit_price,
-            ));
-        }
-
-        // The simulation to find out the compute unit usage must be run after
-        // all instructions have been added to the transaction, so be sure to
-        // keep this instruction as the last one before creating and sending the
-        // transaction.
-        match self.compute_unit_limit {
-            ComputeUnitLimit::Default => {}
-            ComputeUnitLimit::Simulated => {
-                self.add_compute_unit_limit_from_simulation(&mut instructions, &blockhash)
-                    .await?;
-            }
-            ComputeUnitLimit::Static(compute_unit_limit) => {
-                instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(
-                    compute_unit_limit,
-                ));
-            }
+        // Simulate only after all instructions, including the placeholder limit,
+        // have been added so sizing and submission use the same transaction shape.
+        if matches!(self.compute_unit_limit, ComputeUnitLimit::Simulated) {
+            self.update_compute_unit_limit_from_simulation(&mut instructions, &blockhash)
+                .await?;
         }
 
         let message = Message::new_with_blockhash(&instructions, fee_payer, &blockhash);
@@ -2611,7 +2589,7 @@ where
             .map_err(TokenError::Client)?;
 
         // A closure that constructs a vector of instructions needed to create and write
-        // to record accounts, including their transaction-size overhead.
+        // to record accounts, used by record_max_chunk_size.
         let create_record_instructions = |first_instruction: bool, bytes: &[u8], offset: u64| {
             let mut ixs = vec![];
             if first_instruction {
@@ -2651,6 +2629,8 @@ where
         let first_ixs_signers: [&dyn Signer; 2] = [record_account_signer, record_authority_signer];
         let first_response = self.process_ixs(&first_ixs, &first_ixs_signers).await?;
 
+        // The first transaction consumes the memo, so size later writes only after
+        // sending it to avoid reserving memo space in every chunk.
         let subsequent_chunk_size = self.record_max_chunk_size(create_record_instructions, false);
         if subsequent_chunk_size == 0 {
             return Err(TokenError::Client(
