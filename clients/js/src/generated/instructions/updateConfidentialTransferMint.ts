@@ -27,6 +27,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -94,7 +95,7 @@ export type UpdateConfidentialTransferMintInstructionDataArgs = {
      */
     autoApproveNewAccounts: boolean;
     /** New authority to decode any transfer amount in a confidential transfer. */
-    auditorElgamalPubkey: OptionOrNullable<Address>;
+    auditorElgamalPubkey: OptionOrNullable<Address | HasAddress>;
 };
 
 export function getUpdateConfidentialTransferMintInstructionDataEncoder(): FixedSizeEncoder<UpdateConfidentialTransferMintInstructionDataArgs> {
@@ -150,14 +151,15 @@ export function getUpdateConfidentialTransferMintInstruction<
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: UpdateConfidentialTransferMintInput<TAccountMint, TAccountAuthority>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): UpdateConfidentialTransferMintInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
     ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

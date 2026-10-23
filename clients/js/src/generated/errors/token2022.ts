@@ -9,6 +9,7 @@
 import {
     isProgramError,
     type Address,
+    type HasAddress,
     type SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM,
     type SolanaError,
 } from '@solana/kit';
@@ -115,7 +116,10 @@ export function isToken2022Error<TProgramErrorCode extends Token2022Error>(
     error: unknown,
     transactionMessage: { instructions: Record<number, { programAddress: Address }> },
     code?: TProgramErrorCode,
+    config: { programAddress?: Address | HasAddress } = {},
 ): error is SolanaError<typeof SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM> &
     Readonly<{ context: Readonly<{ code: TProgramErrorCode }> }> {
-    return isProgramError<TProgramErrorCode>(error, transactionMessage, TOKEN_2022_PROGRAM_ADDRESS, code);
+    const programAddressInput = config.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
+    return isProgramError<TProgramErrorCode>(error, transactionMessage, programAddress, code);
 }

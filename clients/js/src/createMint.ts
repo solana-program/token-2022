@@ -2,6 +2,7 @@ import { getCreateAccountInstruction } from '@solana-program/system';
 import {
     Address,
     ClientWithGetMinimumBalance,
+    HasAddress,
     InstructionPlan,
     OptionOrNullable,
     sequentialInstructionPlan,
@@ -35,7 +36,7 @@ export type CreateMintInstructionPlanInput = {
     /** The authority/multisignature to mint tokens and to configure extensions. */
     mintAuthority: TransactionSigner;
     /** The optional freeze authority/multisignature of the mint. */
-    freezeAuthority?: OptionOrNullable<Address>;
+    freezeAuthority?: OptionOrNullable<Address | HasAddress>;
     /** The optional mint extensions to initialize on the account. */
     extensions?: ExtensionArgs[];
     /**
@@ -46,8 +47,8 @@ export type CreateMintInstructionPlanInput = {
 };
 
 export type CreateMintInstructionPlanConfig = {
-    systemProgram?: Address;
-    tokenProgram?: Address;
+    systemProgram?: Address | HasAddress;
+    tokenProgram?: Address | HasAddress;
 };
 
 export async function getCreateMintInstructionPlan(

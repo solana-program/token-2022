@@ -2367,15 +2367,16 @@ mod tests {
     use {
         super::*,
         mollusk_svm::{result::Check, Mollusk},
-        pinocchio::sysvars::rent::DEFAULT_LAMPORTS_PER_BYTE,
-        solana_account::{create_account_for_test, Account as SolanaAccount, ReadableAccount},
+        solana_account::{
+            state_traits::StateMutWincode, Account as SolanaAccount, ReadableAccount,
+        },
         solana_account_info::AccountInfo,
         solana_account_info::IntoAccountInfo,
         solana_instruction::{AccountMeta, Instruction},
         solana_program_option::COption,
         solana_rent::Rent,
         solana_sdk_ids::system_program,
-        solana_sdk_ids::sysvar::rent,
+        solana_sdk_ids::sysvar::{self, rent},
         spl_token_2022_interface::{
             extension::{
                 permissioned_burn, transfer_fee::instruction::initialize_transfer_fee_config,
@@ -2475,15 +2476,12 @@ mod tests {
     }
 
     fn test_rent() -> solana_rent::Rent {
-        solana_rent::Rent {
-            lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE,
-            exemption_threshold: 1.0,
-            ..Default::default()
-        }
+        solana_rent::Rent::default()
     }
 
     fn rent_sysvar() -> SolanaAccount {
-        create_account_for_test(&test_rent())
+        SolanaAccount::new_data_with_space(1, &test_rent(), solana_rent::SIZE, &sysvar::id())
+            .unwrap()
     }
 
     fn mint_minimum_balance() -> u64 {

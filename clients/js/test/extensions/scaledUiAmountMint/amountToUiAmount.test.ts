@@ -138,6 +138,16 @@ test('should return the correct UiAmount when scaled ui amount config is not pre
     }
 });
 
+test('accepts an address wrapper for the mint', async () => {
+    const rpc = getMockRpc({
+        [CLOCK]: createMockClockAccountInfo(ONE_YEAR_IN_SECONDS * 2),
+        [mint]: createMockMintAccountInfo(0, true, { multiplier: 2 }),
+    });
+
+    expect(await amountToUiAmountForMintWithoutSimulation(rpc, { address: mint }, 100n)).toBe('200');
+    expect(await uiAmountToAmountForMintWithoutSimulation(rpc, { address: mint }, '200')).toBe(100n);
+});
+
 // GROUP 2: Basic integer multiplier tests
 test('should return the correct UiAmount with scale factor of 2', async () => {
     const testCases = [

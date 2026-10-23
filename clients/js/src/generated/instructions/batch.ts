@@ -98,10 +98,11 @@ export type BatchInput = {
 
 export function getBatchInstruction<TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS>(
     input: BatchInput,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): BatchInstruction<TProgramAddress> {
     // Program address.
-    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Original args.
     const args = { ...input };

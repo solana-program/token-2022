@@ -59,6 +59,36 @@ it('creates a new mint account with a freeze authority', async () => {
     });
 });
 
+it('accepts an address wrapper for the freeze authority', async () => {
+    // Given an authority and a mint account.
+    const client = await createTestClient();
+    const [mintAuthority, freezeAuthority, mint] = await Promise.all([
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+    ]);
+
+    // When we create and initialize a mint account with a HasAddress freeze authority.
+    await client.token2022.instructions
+        .createMint({
+            newMint: mint,
+            decimals: 2,
+            mintAuthority,
+            freezeAuthority: some({ address: freezeAuthority.address }),
+        })
+        .sendTransaction();
+
+    // Then we expect the mint account to store the unwrapped freeze authority address.
+    const mintAccount = await fetchMint(client.rpc, mint.address);
+    expect(mintAccount).toMatchObject(<Account<Mint>>{
+        address: mint.address,
+        data: {
+            mintAuthority: some(mintAuthority.address),
+            freezeAuthority: some(freezeAuthority.address),
+        },
+    });
+});
+
 it('creates a new mint account with extensions', async () => {
     // Given an authority and a mint account.
     const client = await createTestClient();

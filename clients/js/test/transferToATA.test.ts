@@ -2,7 +2,7 @@ import { generateKeyPairSigner } from '@solana/kit';
 import { expect, it } from 'vitest';
 
 import { Mint, TOKEN_2022_PROGRAM_ADDRESS, Token, fetchMint, fetchToken, findAssociatedTokenPda } from '../src';
-import { createTestClient, createTokenPdaWithAmount, createTokenWithAmount } from './_setup';
+import { createMultisig, createTestClient, createTokenPdaWithAmount, createTokenWithAmount } from './_setup';
 
 it('transfers tokens from an explicit source to an explicit destination ATA', async () => {
     // Given a mint account, one token account with 100 tokens, and a second owner.
@@ -140,4 +140,97 @@ it('derives both source and destination ATAs and transfers tokens', async () => 
     expect(mintData).toMatchObject(<Mint>{ supply: 100n });
     expect(tokenDataA).toMatchObject(<Token>{ amount: 50n });
     expect(tokenDataB).toMatchObject(<Token>{ amount: 50n });
+});
+
+it('accepts address wrappers for the mint and recipient', async () => {
+    // Given a mint account and ownerA's ATA with 100 tokens.
+    const client = await createTestClient();
+    const [mintAuthority, ownerA, ownerB, mint] = await Promise.all([
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+    ]);
+    const decimals = 2;
+    await client.token2022.instructions.createMint({ newMint: mint, decimals, mintAuthority }).sendTransaction();
+    const tokenA = await createTokenPdaWithAmount({
+        client,
+        mint: mint.address,
+        mintAuthority,
+        owner: ownerA.address,
+        amount: 100n,
+        decimals,
+    });
+
+    // When owner A transfers 50 tokens to owner B using HasAddress wrappers.
+    await client.token2022.instructions
+        .transferToATA({
+            mint: { address: mint.address },
+            authority: ownerA,
+            recipient: { address: ownerB.address },
+            amount: 50n,
+            decimals,
+        })
+        .sendTransaction();
+
+    // Then we expect both ATAs to have the correct balances.
+    const [tokenB] = await findAssociatedTokenPda({
+        owner: ownerB.address,
+        mint: mint.address,
+        tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+    });
+    const [{ data: tokenDataA }, { data: tokenDataB }] = await Promise.all([
+        fetchToken(client.rpc, tokenA),
+        fetchToken(client.rpc, tokenB),
+    ]);
+    expect(tokenDataA).toMatchObject(<Token>{ amount: 50n });
+    expect(tokenDataB).toMatchObject(<Token>{ amount: 50n });
+});
+
+it('transfers from a multisig ATA using an address wrapper for the authority', async () => {
+    // Given a mint account and a 2-of-2 multisig whose ATA holds 100 tokens.
+    const client = await createTestClient();
+    const [mintAuthority, signerA, signerB, recipient, mint] = await Promise.all([
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+    ]);
+    const decimals = 2;
+    await client.token2022.instructions.createMint({ newMint: mint, decimals, mintAuthority }).sendTransaction();
+    const multisig = await createMultisig({ client, payer: client.payer, signers: [signerA, signerB] });
+    const multisigToken = await createTokenPdaWithAmount({
+        client,
+        mint: mint.address,
+        mintAuthority,
+        owner: multisig,
+        amount: 100n,
+        decimals,
+    });
+
+    // When the multisig, passed as a HasAddress wrapper, transfers 50 tokens to the recipient.
+    await client.token2022.instructions
+        .transferToATA({
+            mint: mint.address,
+            authority: { address: multisig },
+            recipient: recipient.address,
+            amount: 50n,
+            decimals,
+            multiSigners: [signerA, signerB],
+        })
+        .sendTransaction();
+
+    // Then we expect the tokens to have moved from the multisig ATA to the recipient ATA.
+    const [recipientToken] = await findAssociatedTokenPda({
+        owner: recipient.address,
+        mint: mint.address,
+        tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+    });
+    const [{ data: multisigTokenData }, { data: recipientTokenData }] = await Promise.all([
+        fetchToken(client.rpc, multisigToken),
+        fetchToken(client.rpc, recipientToken),
+    ]);
+    expect(multisigTokenData).toMatchObject(<Token>{ amount: 50n });
+    expect(recipientTokenData).toMatchObject(<Token>{ amount: 50n });
 });

@@ -1,4 +1,5 @@
 import { Address, Instruction, isNone, isOption, TransactionSigner, wrapNullable } from '@solana/kit';
+import type { InstructionAccountInput, InstructionSignerInput } from '@solana/kit/program-client-core';
 
 import {
     ExtensionArgs,
@@ -220,7 +221,7 @@ export function getPostInitializeInstructionsForMintExtensions(
  */
 export function getPostInitializeInstructionsForTokenExtensions(
     token: Address,
-    owner: TransactionSigner | Address,
+    owner: InstructionAccountInput | InstructionSignerInput,
     extensions: ExtensionArgs[],
     multiSigners?: TransactionSigner[],
 ): Instruction[] {

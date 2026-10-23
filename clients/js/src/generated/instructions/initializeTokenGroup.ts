@@ -29,6 +29,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -86,7 +87,7 @@ export type InitializeTokenGroupInstructionData = {
 
 export type InitializeTokenGroupInstructionDataArgs = {
     /** Update authority for the group */
-    updateAuthority: OptionOrNullable<Address>;
+    updateAuthority: OptionOrNullable<Address | HasAddress>;
     /** The maximum number of group members */
     maxSize: number | bigint;
 };
@@ -139,7 +140,7 @@ export function getInitializeTokenGroupInstruction<
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: InitializeTokenGroupInput<TAccountGroup, TAccountMint, TAccountMintAuthority>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): InitializeTokenGroupInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountGroup, InstructionAccountInputAddress<TAccountGroup>>,
@@ -147,7 +148,8 @@ export function getInitializeTokenGroupInstruction<
     ResolvedInstructionAccountMeta<TAccountMintAuthority, InstructionAccountInputAddress<TAccountMintAuthority>>
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

@@ -159,7 +159,7 @@ impl<'a> Config<'a> {
                 exit(1);
             });
         if let Some(mut multisig_signers) = multisig_signers {
-            multisig_signers.sort_by(|(_, lp), (_, rp)| lp.cmp(rp));
+            multisig_signers.sort_by_key(|(_, lp)| *lp);
             let (signers, pubkeys): (Vec<_>, Vec<_>) = multisig_signers.into_iter().unzip();
             bulk_signers.extend(signers);
             multisigner_ids.extend(pubkeys);

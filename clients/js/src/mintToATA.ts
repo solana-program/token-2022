@@ -1,4 +1,9 @@
-import { Address, InstructionPlan, sequentialInstructionPlan, TransactionSigner } from '@solana/kit';
+import { Address, HasAddress, InstructionPlan, sequentialInstructionPlan, TransactionSigner } from '@solana/kit';
+import {
+    getAddressFromResolvedInstructionAccount,
+    type InstructionAccountInput,
+    type InstructionSignerInput,
+} from '@solana/kit/program-client-core';
 
 import {
     findAssociatedTokenPda,
@@ -17,13 +22,13 @@ export type MintToATAInstructionPlanInput = {
      * Note: Use {@link getMintToATAInstructionPlanAsync} instead to derive this automatically.
      * Note: Use {@link findAssociatedTokenPda} to derive the associated token account address.
      */
-    ata: Address;
+    ata: InstructionAccountInput;
     /** Wallet address for the associated token account. */
-    owner: Address;
+    owner: InstructionAccountInput;
     /** The token mint for the associated token account. */
-    mint: Address;
+    mint: InstructionAccountInput;
     /** The mint's minting authority or its multisignature account. */
-    mintAuthority: Address | TransactionSigner;
+    mintAuthority: InstructionAccountInput | InstructionSignerInput;
     /** The amount of new tokens to mint. */
     amount: number | bigint;
     /** Expected number of base 10 digits to the right of the decimal place. */
@@ -32,9 +37,9 @@ export type MintToATAInstructionPlanInput = {
 };
 
 export type MintToATAInstructionPlanConfig = {
-    systemProgram?: Address;
-    tokenProgram?: Address;
-    associatedTokenProgram?: Address;
+    systemProgram?: Address | HasAddress;
+    tokenProgram?: Address | HasAddress;
+    associatedTokenProgram?: Address | HasAddress;
 };
 
 export function getMintToATAInstructionPlan(
@@ -81,9 +86,9 @@ export async function getMintToATAInstructionPlanAsync(
     let ata = input.ata;
     if (!ata) {
         [ata] = await findAssociatedTokenPda({
-            owner: input.owner,
+            owner: getAddressFromResolvedInstructionAccount('owner', input.owner),
             tokenProgram,
-            mint: input.mint,
+            mint: getAddressFromResolvedInstructionAccount('mint', input.mint),
         });
     }
     return getMintToATAInstructionPlan(

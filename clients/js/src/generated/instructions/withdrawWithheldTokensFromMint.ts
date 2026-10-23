@@ -131,7 +131,7 @@ export function getWithdrawWithheldTokensFromMintInstruction<
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: WithdrawWithheldTokensFromMintInput<TAccountMint, TAccountFeeReceiver, TAccountWithdrawWithheldAuthority>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): WithdrawWithheldTokensFromMintInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>,
@@ -144,7 +144,8 @@ export function getWithdrawWithheldTokensFromMintInstruction<
     >
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

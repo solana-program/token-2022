@@ -1,4 +1,4 @@
-RUST_TOOLCHAIN_NIGHTLY = nightly-2026-01-22
+RUST_TOOLCHAIN_NIGHTLY = nightly-2026-07-16
 SOLANA_CLI_VERSION = $(shell toml get ./Cargo.toml workspace.metadata.cli.solana)
 
 nightly = +${RUST_TOOLCHAIN_NIGHTLY}
@@ -25,10 +25,6 @@ audit:
 			--ignore RUSTSEC-2022-0093 \
 			--ignore RUSTSEC-2024-0421 \
 			--ignore RUSTSEC-2024-0344 \
-			--ignore RUSTSEC-2026-0098 \
-			--ignore RUSTSEC-2026-0099 \
-			--ignore RUSTSEC-2026-0104 \
-			--ignore RUSTSEC-2026-0258 \
 			$(ARGS)
 
 spellcheck:

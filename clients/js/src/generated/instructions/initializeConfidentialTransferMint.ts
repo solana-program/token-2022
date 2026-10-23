@@ -26,6 +26,7 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -87,14 +88,14 @@ export type InitializeConfidentialTransferMintInstructionDataArgs = {
      * Authority to modify the `ConfidentialTransferMint` configuration and to
      * approve new accounts.
      */
-    authority: OptionOrNullable<Address>;
+    authority: OptionOrNullable<Address | HasAddress>;
     /**
      * Determines if newly configured accounts must be approved by the
      * `authority` before they may be used by the user.
      */
     autoApproveNewAccounts: boolean;
     /** New authority to decode any transfer amount in a confidential transfer. */
-    auditorElgamalPubkey: OptionOrNullable<Address>;
+    auditorElgamalPubkey: OptionOrNullable<Address | HasAddress>;
 };
 
 export function getInitializeConfidentialTransferMintInstructionDataEncoder(): FixedSizeEncoder<InitializeConfidentialTransferMintInstructionDataArgs> {
@@ -150,13 +151,14 @@ export function getInitializeConfidentialTransferMintInstruction<
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: InitializeConfidentialTransferMintInput<TAccountMint>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): InitializeConfidentialTransferMintInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

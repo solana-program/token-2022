@@ -552,6 +552,34 @@ describe('resolveExtraAccountMetasForExecute', () => {
         ]);
     });
 
+    it('accepts an address wrapper for the program and the PDA tuple for the validation account', async () => {
+        const client = await createTestClient();
+        const extraAccount = address('C1ockyE1TGaXK1gN3iF6Fz9tnhr2Q3vsdjPHXm44rQnU');
+        const validateStatePda = await findExtraAccountMetaListPda({ mint }, { programAddress: transferHookProgramId });
+        const [validateStatePubkey] = validateStatePda;
+        setValidationAccount(client.svm, validateStatePubkey, [
+            { config: { __kind: 'Literal', address: extraAccount }, isSigner: false, isWritable: true },
+        ]);
+
+        const resolved = await resolveExtraAccountMetasForExecute({
+            amount: 1n,
+            destination: address('D5jyaVjrWuq7ostc8JYywr3QDPtM6y6TZKG1TgRhZYSp'),
+            mint,
+            owner: address('9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin'),
+            rpc: client.rpc,
+            source: plainAddress,
+            transferHookProgramAddress: { address: transferHookProgramId },
+            validateStatePubkey: validateStatePda,
+        });
+
+        // The wrapper and the PDA tuple are unwrapped into plain addresses in the returned metas.
+        expect(resolved).toEqual([
+            { address: extraAccount, role: AccountRole.WRITABLE },
+            { address: transferHookProgramId, role: AccountRole.READONLY },
+            { address: validateStatePubkey, role: AccountRole.READONLY },
+        ]);
+    });
+
     it('resolves a validation account mixing literal, chained-PDA, and instruction-data-seeded extras', async () => {
         const client = await createTestClient();
         const source = plainAddress;
@@ -711,6 +739,43 @@ describe('getTransferCheckedWithTransferHookInstructionAsync', () => {
             { address: authority, role: AccountRole.READONLY },
             { address: literalExtra, role: AccountRole.WRITABLE },
             { address: pdaFromSource, role: AccountRole.READONLY },
+            { address: transferHookProgramId, role: AccountRole.READONLY },
+            { address: validateStatePubkey, role: AccountRole.READONLY },
+        ]);
+    });
+
+    it('accepts address wrappers for the source, mint and destination', async () => {
+        const client = await createTestClient();
+        const source = plainAddress;
+        const destination = address('C1ockyE1TGaXK1gN3iF6Fz9tnhr2Q3vsdjPHXm44rQnU');
+        const authority = address('D5jyaVjrWuq7ostc8JYywr3QDPtM6y6TZKG1TgRhZYSp');
+        const literalExtra = address('AKPu7hnbAfsjixnPvGReDbmAYUJErkw8H6cRc3ohh2xf');
+
+        setAccountData(client.svm, mint, mintAccountData(transferHookProgramId));
+
+        const [validateStatePubkey] = await findExtraAccountMetaListPda(
+            { mint },
+            { programAddress: transferHookProgramId },
+        );
+        setValidationAccount(client.svm, validateStatePubkey, [
+            { config: { __kind: 'Literal', address: literalExtra }, isSigner: false, isWritable: true },
+        ]);
+
+        const instruction = await getTransferCheckedWithTransferHookInstructionAsync(client, {
+            amount: 1000n,
+            authority,
+            decimals: 6,
+            destination: { address: destination },
+            mint: { address: mint },
+            source: { address: source },
+        });
+
+        expect(instruction.accounts).toStrictEqual([
+            { address: source, role: AccountRole.WRITABLE },
+            { address: mint, role: AccountRole.READONLY },
+            { address: destination, role: AccountRole.WRITABLE },
+            { address: authority, role: AccountRole.READONLY },
+            { address: literalExtra, role: AccountRole.WRITABLE },
             { address: transferHookProgramId, role: AccountRole.READONLY },
             { address: validateStatePubkey, role: AccountRole.READONLY },
         ]);

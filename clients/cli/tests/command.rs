@@ -209,7 +209,7 @@ const TEST_DECIMALS: u8 = 9;
 
 async fn new_validator_for_test() -> (TestValidator, Keypair) {
     solana_logger::setup();
-    let mut test_validator_genesis = TestValidatorGenesis::default();
+    let mut test_validator_genesis = TestValidatorGenesis::default_for_tests();
     test_validator_genesis.add_upgradeable_programs_with_path(&[
         UpgradeableProgramInfo {
             program_id: spl_token_2022_interface::id(),
@@ -269,6 +269,19 @@ fn test_config_with_default_signer<'a>(
         compute_unit_price: None,
         compute_unit_limit: ComputeUnitLimit::Simulated,
     }
+}
+
+// Spawned `spl-token` processes default to `confirmed` commitment, while the
+// test validator client uses `processed`, so they may not see fresh state.
+fn processed_cli_config_file() -> NamedTempFile {
+    let file = NamedTempFile::new().unwrap();
+    solana_cli_config::Config {
+        commitment: "processed".to_string(),
+        ..solana_cli_config::Config::default()
+    }
+    .save(file.path().to_str().unwrap())
+    .unwrap();
+    file
 }
 
 fn mock_account_info_response(
@@ -2025,6 +2038,28 @@ async fn burn(test_validator: &TestValidator, payer: &Keypair) {
                 "spl-token",
                 CommandName::Burn.into(),
                 &source.to_string(),
+                "10",
+                "--mint-address",
+                &token.to_string(),
+                "--mint-decimals",
+                &format!("{}", TEST_DECIMALS),
+            ],
+        )
+        .await
+        .unwrap();
+
+        let account = config.rpc_client.get_account(&source).await.unwrap();
+        let token_account = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
+        let amount = spl_token_2022::ui_amount_to_amount(80.0, TEST_DECIMALS);
+        assert_eq!(token_account.base.amount, amount);
+
+        process_test_command(
+            &config,
+            payer,
+            &[
+                "spl-token",
+                CommandName::Burn.into(),
+                &source.to_string(),
                 "ALL",
             ],
         )
@@ -2109,6 +2144,10 @@ async fn burn_with_account_delegate(test_validator: &TestValidator, payer: &Keyp
                 fee_payer_keypair_file.path().to_str().unwrap(),
                 "--program-id",
                 &program_id.to_string(),
+                "--mint-address",
+                &token.to_string(),
+                "--mint-decimals",
+                &format!("{}", TEST_DECIMALS),
             ],
         )
         .await
@@ -3456,6 +3495,7 @@ async fn configure_confidential_transfer_partial_failure(
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
     let payer_file = NamedTempFile::new().unwrap();
     write_keypair_file(payer, &payer_file).unwrap();
+    let cli_config_file = processed_cli_config_file();
     // Reallocation succeeds, but configuration fails because this mint does not
     // support confidential transfers.
     let mint = create_token(&config, payer).await;
@@ -3472,6 +3512,8 @@ async fn configure_confidential_transfer_partial_failure(
         command.args([
             "--url",
             &test_validator.rpc_url(),
+            "--config",
+            cli_config_file.path().to_str().unwrap(),
             "--program-2022",
             "--fee-payer",
             payer_file.path().to_str().unwrap(),
@@ -3811,6 +3853,7 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
     let payer_file = NamedTempFile::new().unwrap();
     write_keypair_file(payer, &payer_file).unwrap();
+    let cli_config_file = processed_cli_config_file();
 
     // create token with confidential transfers enabled
     let auto_approve = false;
@@ -4295,6 +4338,8 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         .args([
             "--url",
             &test_validator.rpc_url(),
+            "--config",
+            cli_config_file.path().to_str().unwrap(),
             "--program-2022",
             "--output",
             "json",
@@ -4392,6 +4437,8 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         .args([
             "--url",
             &test_validator.rpc_url(),
+            "--config",
+            cli_config_file.path().to_str().unwrap(),
             "--program-2022",
             "--output",
             "json-compact",
@@ -7065,7 +7112,7 @@ async fn pause(test_validator: &TestValidator, payer: &Keypair) {
     .await
     .unwrap();
     assert!(result.contains("Pausable:"));
-    assert!(result.contains("Status: Active"));
+    assert!(result.contains("Active"));
     config.output_format = OutputFormat::JsonCompact;
 
     // pause the mint

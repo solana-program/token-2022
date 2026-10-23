@@ -25,6 +25,7 @@ import {
     type Codec,
     type Decoder,
     type Encoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -72,9 +73,9 @@ export type InitializeMint2InstructionDataArgs = {
     /** Number of base 10 digits to the right of the decimal place. */
     decimals: number;
     /** The authority/multisignature to mint tokens. */
-    mintAuthority: Address;
+    mintAuthority: Address | HasAddress;
     /** The optional freeze authority/multisignature of the mint. */
-    freezeAuthority?: OptionOrNullable<Address>;
+    freezeAuthority?: OptionOrNullable<Address | HasAddress>;
 };
 
 export function getInitializeMint2InstructionDataEncoder(): Encoder<InitializeMint2InstructionDataArgs> {
@@ -122,13 +123,14 @@ export function getInitializeMint2Instruction<
     TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
 >(
     input: InitializeMint2Input<TAccountMint>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): InitializeMint2Instruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

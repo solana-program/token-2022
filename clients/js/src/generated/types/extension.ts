@@ -42,6 +42,7 @@ import {
     type Encoder,
     type GetDiscriminatedUnionVariant,
     type GetDiscriminatedUnionVariantContent,
+    type HasAddress,
     type Option,
     type OptionOrNullable,
 } from '@solana/kit';
@@ -297,9 +298,9 @@ export type ExtensionArgs =
     | {
           __kind: 'TransferFeeConfig';
           /** Optional authority to set the fee. */
-          transferFeeConfigAuthority: Address;
+          transferFeeConfigAuthority: Address | HasAddress;
           /** Withdraw from mint instructions must be signed by this key. */
-          withdrawWithheldAuthority: Address;
+          withdrawWithheldAuthority: Address | HasAddress;
           /** Withheld transfer fee tokens that have been moved to the mint for withdrawal. */
           withheldAmount: number | bigint;
           /** Older transfer fee, used if the current epoch < newerTransferFee.epoch. */
@@ -312,7 +313,7 @@ export type ExtensionArgs =
           /** Withheld transfer fee tokens that can be claimed by the fee authority. */
           withheldAmount: number | bigint;
       }
-    | { __kind: 'MintCloseAuthority'; closeAuthority: Address }
+    | { __kind: 'MintCloseAuthority'; closeAuthority: Address | HasAddress }
     | {
           __kind: 'ConfidentialTransferMint';
           /**
@@ -321,7 +322,7 @@ export type ExtensionArgs =
            *
            * The legacy Token Multisig account is not supported as the authority.
            */
-          authority: OptionOrNullable<Address>;
+          authority: OptionOrNullable<Address | HasAddress>;
           /**
            * Indicate if newly configured accounts must be approved by the
            * `authority` before they may be used by the user.
@@ -332,7 +333,7 @@ export type ExtensionArgs =
            */
           autoApproveNewAccounts: boolean;
           /** Authority to decode any transfer amount in a confidential transfer. */
-          auditorElgamalPubkey: OptionOrNullable<Address>;
+          auditorElgamalPubkey: OptionOrNullable<Address | HasAddress>;
       }
     | {
           __kind: 'ConfidentialTransferAccount';
@@ -342,7 +343,7 @@ export type ExtensionArgs =
            */
           approved: boolean;
           /** The public key associated with ElGamal encryption. */
-          elgamalPubkey: Address;
+          elgamalPubkey: Address | HasAddress;
           /** The low 16 bits of the pending balance (encrypted by `elgamal_pubkey`). */
           pendingBalanceLow: EncryptedBalanceArgs;
           /** The high 32 bits of the pending balance (encrypted by `elgamal_pubkey`). */
@@ -384,7 +385,7 @@ export type ExtensionArgs =
     | { __kind: 'NonTransferable' }
     | {
           __kind: 'InterestBearingConfig';
-          rateAuthority: Address;
+          rateAuthority: Address | HasAddress;
           initializationTimestamp: number | bigint;
           preUpdateAverageRate: number;
           lastUpdateTimestamp: number | bigint;
@@ -395,14 +396,14 @@ export type ExtensionArgs =
           /** Lock certain token operations from taking place within CPI for this account. */
           lockCpi: boolean;
       }
-    | { __kind: 'PermanentDelegate'; delegate: Address }
+    | { __kind: 'PermanentDelegate'; delegate: Address | HasAddress }
     | { __kind: 'NonTransferableAccount' }
     | {
           __kind: 'TransferHook';
           /** The transfer hook update authority. */
-          authority: Address;
+          authority: Address | HasAddress;
           /** The transfer hook program account. */
-          programId: Address;
+          programId: Address | HasAddress;
       }
     | {
           __kind: 'TransferHookAccount';
@@ -415,7 +416,7 @@ export type ExtensionArgs =
     | {
           __kind: 'ConfidentialTransferFee';
           /** Optional authority to set the withdraw withheld authority ElGamal key. */
-          authority: OptionOrNullable<Address>;
+          authority: OptionOrNullable<Address | HasAddress>;
           /**
            * Withheld fees from accounts must be encrypted with this ElGamal key.
            *
@@ -424,7 +425,7 @@ export type ExtensionArgs =
            * associated with accounts. When combined with the fee parameters, the
            * withheld fee amounts can reveal information about transfer amounts.
            */
-          elgamalPubkey: Address;
+          elgamalPubkey: Address | HasAddress;
           /** If `false`, the harvest of withheld tokens to mint is rejected. */
           harvestToMintEnabled: boolean;
           /**
@@ -441,16 +442,16 @@ export type ExtensionArgs =
     | {
           __kind: 'MetadataPointer';
           /** Optional authority that can set the metadata address. */
-          authority: OptionOrNullable<Address>;
+          authority: OptionOrNullable<Address | HasAddress>;
           /** Optional Account Address that holds the metadata. */
-          metadataAddress: OptionOrNullable<Address>;
+          metadataAddress: OptionOrNullable<Address | HasAddress>;
       }
     | {
           __kind: 'TokenMetadata';
           /** The authority that can sign to update the metadata. */
-          updateAuthority: OptionOrNullable<Address>;
+          updateAuthority: OptionOrNullable<Address | HasAddress>;
           /** The associated mint, used to counter spoofing to be sure that metadata belongs to a particular mint. */
-          mint: Address;
+          mint: Address | HasAddress;
           /** The longer name of the token. */
           name: string;
           /** The shortened symbol for the token. */
@@ -463,16 +464,16 @@ export type ExtensionArgs =
     | {
           __kind: 'GroupPointer';
           /** Optional authority that can set the group address. */
-          authority: OptionOrNullable<Address>;
+          authority: OptionOrNullable<Address | HasAddress>;
           /** Optional account address that holds the group. */
-          groupAddress: OptionOrNullable<Address>;
+          groupAddress: OptionOrNullable<Address | HasAddress>;
       }
     | {
           __kind: 'TokenGroup';
           /** The authority that can sign to update the group. */
-          updateAuthority: OptionOrNullable<Address>;
+          updateAuthority: OptionOrNullable<Address | HasAddress>;
           /** The associated mint, used to counter spoofing to be sure that group belongs to a particular mint. */
-          mint: Address;
+          mint: Address | HasAddress;
           /** The current number of group members. */
           size: number | bigint;
           /** The maximum number of group members. */
@@ -481,16 +482,16 @@ export type ExtensionArgs =
     | {
           __kind: 'GroupMemberPointer';
           /** Optional authority that can set the member address. */
-          authority: OptionOrNullable<Address>;
+          authority: OptionOrNullable<Address | HasAddress>;
           /** Optional account address that holds the member. */
-          memberAddress: OptionOrNullable<Address>;
+          memberAddress: OptionOrNullable<Address | HasAddress>;
       }
     | {
           __kind: 'TokenGroupMember';
           /** The associated mint, used to counter spoofing to be sure that member belongs to a particular mint. */
-          mint: Address;
+          mint: Address | HasAddress;
           /** The pubkey of the `TokenGroup`. */
-          group: Address;
+          group: Address | HasAddress;
           /** The member number. */
           memberNumber: number | bigint;
       }
@@ -501,23 +502,23 @@ export type ExtensionArgs =
           /** The decryptable confidential supply of the mint. */
           decryptableSupply: DecryptableBalanceArgs;
           /** The ElGamal pubkey used to encrypt the confidential supply. */
-          supplyElgamalPubkey: Address;
+          supplyElgamalPubkey: Address | HasAddress;
           /** The amount of burnt tokens that have not yet been applied to the confidential supply (encrypted by `supply_elgamal_pubkey`). */
           pendingBurn: EncryptedBalanceArgs;
       }
     | {
           __kind: 'ScaledUiAmountConfig';
-          authority: Address;
+          authority: Address | HasAddress;
           multiplier: number;
           newMultiplierEffectiveTimestamp: number | bigint;
           newMultiplier: number;
       }
-    | { __kind: 'PausableConfig'; authority: OptionOrNullable<Address>; paused: boolean }
+    | { __kind: 'PausableConfig'; authority: OptionOrNullable<Address | HasAddress>; paused: boolean }
     | { __kind: 'PausableAccount' }
     | {
           __kind: 'PermissionedBurn';
           /** Authority that is required for burning */
-          authority: OptionOrNullable<Address>;
+          authority: OptionOrNullable<Address | HasAddress>;
       };
 
 export function getExtensionEncoder(): Encoder<ExtensionArgs> {
