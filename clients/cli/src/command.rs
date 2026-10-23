@@ -43,7 +43,7 @@ use {
     },
     solana_zk_sdk::encryption::{
         auth_encryption::AeKey,
-        derivation::derive_confidential_keys,
+        derivation::{derive_confidential_keys_from_signature, STANDARD_DERIVATION_MESSAGE},
         elgamal::{self, ElGamalKeypair},
         pedersen::{Pedersen, PedersenOpening},
     },
@@ -352,7 +352,7 @@ async fn command_create_token(
 
     if enable_confidential_mint_burn {
         let (supply_elgamal_keypair, supply_aes_key) =
-            derive_confidential_keys(config.default_signer()?.as_ref(), b"").unwrap();
+            derive_confidential_keys(config.default_signer()?.as_ref()).unwrap();
         // encrypt the initial 0 supply
         let decryptable_supply = supply_aes_key.encrypt(0).into();
 
@@ -372,10 +372,10 @@ async fn command_create_token(
             // Deriving ElGamal key from default signer. Custom ElGamal keys
             // will be supported in the future once upgrading to clap-v3.
             //
-            // NOTE: Seed bytes are hardcoded to be empty bytes for now. They
-            // will be updated once custom ElGamal keys are supported.
+            // NOTE: This uses the standard (no-seed) derivation. Custom keys can use
+            // `derive_confidential_keys_with_seed` from `solana-zk-sdk`.
             let (elgamal_keypair, _) =
-                derive_confidential_keys(config.default_signer()?.as_ref(), b"").unwrap();
+                derive_confidential_keys(config.default_signer()?.as_ref()).unwrap();
             extensions.push(
                 ExtensionInitializationParams::ConfidentialTransferFeeConfig {
                     authority: Some(authority),
@@ -2227,7 +2227,7 @@ async fn command_burn(
     let use_confidential = confidential || mint_info.has_confidential_mint_burn;
 
     let confidential_burn_args = if use_confidential {
-        Some(derive_confidential_keys(config.default_signer()?.as_ref(), b"").unwrap())
+        Some(derive_confidential_keys(config.default_signer()?.as_ref()).unwrap())
     } else {
         None
     };
@@ -2491,7 +2491,7 @@ async fn command_mint(
 
     let use_confidential = confidential || mint_info.has_confidential_mint_burn;
     let confidential_mint_args = if use_confidential {
-        Some(derive_confidential_keys(config.default_signer()?.as_ref(), b"").unwrap())
+        Some(derive_confidential_keys(config.default_signer()?.as_ref()).unwrap())
     } else {
         None
     };
@@ -3371,14 +3371,24 @@ async fn command_address(
     Ok(config.output_format.formatted_string(&cli_address))
 }
 
+/// Derives the standard confidential keys for `signer`.
+///
+/// Equivalent to `solana_zk_sdk::encryption::derivation::derive_confidential_keys`,
+/// which takes a `solana-signer` `v4` signer, while the signers here are still `v3`.
+fn derive_confidential_keys(
+    signer: &dyn Signer,
+) -> Result<(ElGamalKeypair, AeKey), Box<dyn std::error::Error>> {
+    let signature = signer.try_sign_message(STANDARD_DERIVATION_MESSAGE)?;
+    derive_confidential_keys_from_signature(&signature).map_err(Into::into)
+}
+
 /// Derives the ElGamal keypair and AES key from a signer and checks that the
 /// derived ElGamal public key matches the one stored on-chain.
 fn derive_confidential_keys_matching(
     signer: &dyn Signer,
     expected_elgamal_pubkey: &PodElGamalPubkey,
 ) -> Result<(ElGamalKeypair, AeKey), Error> {
-    let (elgamal_keypair, aes_key) =
-        derive_confidential_keys(signer, b"").map_err(|e| e.to_string())?;
+    let (elgamal_keypair, aes_key) = derive_confidential_keys(signer).map_err(|e| e.to_string())?;
     if PodElGamalPubkey::from(*elgamal_keypair.pubkey()) == *expected_elgamal_pubkey {
         return Ok((elgamal_keypair, aes_key));
     }
@@ -5625,10 +5635,10 @@ async fn process_command_inner(
                 // Deriving ElGamal and AES key from signer. Custom ElGamal and AES keys will be
                 // supported in the future once upgrading to clap-v3.
                 //
-                // NOTE:: Seed bytes are hardcoded to be empty bytes for now. They will be
-                // updated once custom ElGamal and AES keys are supported.
+                // NOTE: This uses the standard (no-seed) derivation. Custom keys can use
+                // `derive_confidential_keys_with_seed` from `solana-zk-sdk`.
                 let (sender_elgamal_keypair, sender_aes_key) =
-                    derive_confidential_keys(&*owner_signer, b"").unwrap();
+                    derive_confidential_keys(&*owner_signer).unwrap();
 
                 // Sign-only mode is not yet supported for confidential transfers, so set
                 // recipient and auditor ElGamal public to `None` by default.
@@ -6223,12 +6233,11 @@ async fn process_command_inner(
                 .collect::<Vec<_>>();
             if arg_matches.is_present("confidential") {
                 let (withdraw_withheld_elgamal_keypair, _) =
-                    derive_confidential_keys(&*authority_signer, b"")
-                        .map_err(|err| err.to_string())?;
+                    derive_confidential_keys(&*authority_signer).map_err(|err| err.to_string())?;
                 let (owner_signer, owner) =
                     config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
                 let (_, destination_aes_key) =
-                    derive_confidential_keys(&*owner_signer, b"").map_err(|err| err.to_string())?;
+                    derive_confidential_keys(&*owner_signer).map_err(|err| err.to_string())?;
 
                 command_withdraw_withheld_confidential_tokens(
                     config,
@@ -6387,9 +6396,9 @@ async fn process_command_inner(
             // Deriving ElGamal and AES key from signer. Custom ElGamal and AES keys will be
             // supported in the future once upgrading to clap-v3.
             //
-            // NOTE:: Seed bytes are hardcoded to be empty bytes for now. They will be
-            // updated once custom ElGamal and AES keys are supported.
-            let (elgamal_keypair, aes_key) = derive_confidential_keys(&*owner_signer, b"").unwrap();
+            // NOTE: This uses the standard (no-seed) derivation. Custom keys can use
+            // `derive_confidential_keys_with_seed` from `solana-zk-sdk`.
+            let (elgamal_keypair, aes_key) = derive_confidential_keys(&*owner_signer).unwrap();
 
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(owner_signer, &mut bulk_signers);
@@ -6441,7 +6450,7 @@ async fn process_command_inner(
 
             // Use the same signer-derived key as configure-confidential-transfer-account.
             let (elgamal_keypair, _) =
-                derive_confidential_keys(&*owner_signer, b"").map_err(|err| err.to_string())?;
+                derive_confidential_keys(&*owner_signer).map_err(|err| err.to_string())?;
 
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(owner_signer, &mut bulk_signers);
@@ -6510,10 +6519,10 @@ async fn process_command_inner(
                     // Deriving ElGamal and AES key from signer. Custom ElGamal and AES keys will be
                     // supported in the future once upgrading to clap-v3.
                     //
-                    // NOTE:: Seed bytes are hardcoded to be empty bytes for now. They will be
-                    // updated once custom ElGamal and AES keys are supported.
+                    // NOTE: This uses the standard (no-seed) derivation. Custom keys can use
+                    // `derive_confidential_keys_with_seed` from `solana-zk-sdk`.
                     let (elgamal_keypair, aes_key) =
-                        derive_confidential_keys(&*owner_signer, b"").unwrap();
+                        derive_confidential_keys(&*owner_signer).unwrap();
 
                     (
                         ConfidentialInstructionType::Withdraw,
@@ -6553,9 +6562,9 @@ async fn process_command_inner(
             // Deriving ElGamal and AES key from signer. Custom ElGamal and AES keys will be
             // supported in the future once upgrading to clap-v3.
             //
-            // NOTE:: Seed bytes are hardcoded to be empty bytes for now. They will be
-            // updated once custom ElGamal and AES keys are supported.
-            let (elgamal_keypair, aes_key) = derive_confidential_keys(&*owner_signer, b"").unwrap();
+            // NOTE: This uses the standard (no-seed) derivation. Custom keys can use
+            // `derive_confidential_keys_with_seed` from `solana-zk-sdk`.
+            let (elgamal_keypair, aes_key) = derive_confidential_keys(&*owner_signer).unwrap();
 
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(owner_signer, &mut bulk_signers);
