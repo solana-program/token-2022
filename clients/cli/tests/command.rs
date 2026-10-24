@@ -13,13 +13,14 @@ use {
         program_pack::Pack,
         pubkey::Pubkey,
         signature::{write_keypair_file, Keypair, Signer},
+        signer::EncodableKey,
         transaction::Transaction,
     },
     solana_sdk_ids::bpf_loader_upgradeable,
     solana_system_interface::{instruction as system_instruction, program as system_program},
     solana_test_validator::{TestValidator, TestValidatorGenesis, UpgradeableProgramInfo},
     solana_zk_sdk::{
-        encryption::derivation::derive_confidential_keys,
+        encryption::{auth_encryption::AeKey, derivation::derive_confidential_keys},
         zk_elgamal_proof_program::build_pubkey_validity_proof_data,
     },
     solana_zk_sdk_pod::encryption::{
@@ -4280,6 +4281,14 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         deposit_amount,
     );
 
+    // Explicit encryption key files can decrypt without the matching signer.
+    let (elgamal_keypair, aes_key) = derive_confidential_keys(payer, b"").unwrap();
+    let elgamal_keypair_file = NamedTempFile::new().unwrap();
+    elgamal_keypair
+        .write_json_file(elgamal_keypair_file.path())
+        .unwrap();
+    let aes_key_file = NamedTempFile::new().unwrap();
+    aes_key.write_to_file(aes_key_file.path()).unwrap();
     let result = exec_test_cmd(
         &wrong_owner_config,
         &[
@@ -4290,6 +4299,53 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
             "--decrypt",
             "--owner",
             owner_file.path().to_str().unwrap(),
+            "--output",
+            "json-compact",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["availableBalance"]["uiAmount"],
+        deposit_amount,
+    );
+
+    let result = exec_test_cmd(
+        &wrong_owner_config,
+        &[
+            "spl-token",
+            CommandName::Balance.into(),
+            "--address",
+            &token_account.to_string(),
+            "--decrypt",
+            "--elgamal-keypair",
+            elgamal_keypair_file.path().to_str().unwrap(),
+            "--aes-key",
+            aes_key_file.path().to_str().unwrap(),
+            "--output",
+            "json-compact",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["availableBalance"]["uiAmount"],
+        deposit_amount,
+    );
+
+    let result = exec_test_cmd(
+        &wrong_owner_config,
+        &[
+            "spl-token",
+            CommandName::Display.into(),
+            &token_account.to_string(),
+            "--decrypt",
+            "--elgamal-keypair",
+            elgamal_keypair_file.path().to_str().unwrap(),
+            "--aes-key",
+            aes_key_file.path().to_str().unwrap(),
             "--output",
             "json-compact",
         ],
@@ -7356,6 +7412,8 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair) {
+    use solana_zk_sdk::encryption::elgamal::ElGamalKeypair;
+
     let config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
@@ -7471,6 +7529,81 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
         value["decryptedConfidentialSupply"]["uiAmount"],
         mint_amount
     );
+
+    let (elgamal_keypair, aes_key) = derive_confidential_keys(payer, b"").unwrap();
+    let elgamal_keypair_file = NamedTempFile::new().unwrap();
+    elgamal_keypair
+        .write_json_file(elgamal_keypair_file.path())
+        .unwrap();
+    let aes_key_file = NamedTempFile::new().unwrap();
+    aes_key.write_to_file(aes_key_file.path()).unwrap();
+    let result = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Supply.into(),
+            &token_pubkey.to_string(),
+            "--decrypt",
+            "--elgamal-keypair",
+            elgamal_keypair_file.path().to_str().unwrap(),
+            "--aes-key",
+            aes_key_file.path().to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialSupply"]["uiAmount"],
+        mint_amount
+    );
+
+    let wrong_elgamal_keypair_file = NamedTempFile::new().unwrap();
+    ElGamalKeypair::new_rand()
+        .write_json_file(wrong_elgamal_keypair_file.path())
+        .unwrap();
+    let error = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Supply.into(),
+            &token_pubkey.to_string(),
+            "--decrypt",
+            "--elgamal-keypair",
+            wrong_elgamal_keypair_file.path().to_str().unwrap(),
+            "--aes-key",
+            aes_key_file.path().to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("ElGamal keypair does not match the encryption key"));
+
+    let wrong_aes_key_file = NamedTempFile::new().unwrap();
+    AeKey::new_rand()
+        .write_to_file(wrong_aes_key_file.path())
+        .unwrap();
+    let error = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Supply.into(),
+            &token_pubkey.to_string(),
+            "--decrypt",
+            "--elgamal-keypair",
+            elgamal_keypair_file.path().to_str().unwrap(),
+            "--aes-key",
+            wrong_aes_key_file.path().to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("AES key matches the one used to encrypt the supply"));
 
     let wrong_owner = Keypair::new();
     let wrong_owner_config = test_config_with_default_signer(
