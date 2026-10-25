@@ -6,6 +6,7 @@ use {
         nonblocking::rpc_client::RpcClient,
         rpc_request::{RpcRequest, TokenAccountsFilter},
     },
+    solana_commitment_config::CommitmentConfig,
     solana_sdk::{
         hash::Hash,
         program_option::COption,
@@ -3505,8 +3506,19 @@ async fn configure_confidential_transfer_partial_failure(
     test_validator: &TestValidator,
     payer: &Keypair,
 ) {
-    let config =
+    let mut config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    // The subprocess reads at confirmed commitment. Wait for fixture transactions
+    // at the same commitment before invoking it.
+    let rpc_client = Arc::new(RpcClient::new_with_commitment(
+        test_validator.rpc_url(),
+        CommitmentConfig::confirmed(),
+    ));
+    config.rpc_client = rpc_client.clone();
+    config.program_client = Arc::new(ProgramRpcClient::new(
+        rpc_client,
+        ProgramRpcClientSendTransaction,
+    ));
     let payer_file = NamedTempFile::new().unwrap();
     write_keypair_file(payer, &payer_file).unwrap();
     let cli_config_file = processed_cli_config_file();
