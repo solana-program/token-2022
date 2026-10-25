@@ -4301,14 +4301,14 @@ async fn command_harvest_withheld_confidential_tokens(
     // Batch sources to keep each transaction within the packet size limit.
     const MAX_HARVEST_ACCOUNTS: usize = 25;
     // Reserve room for a separate nonce authority and both compute budget instructions.
-    let max_offline_accounts = if config.nonce_account.is_some() {
+    let max_accounts = if config.nonce_account.is_some() {
         23
     } else {
         MAX_HARVEST_ACCOUNTS
     };
-    if config.sign_only && source_refs.len() > max_offline_accounts {
+    if (config.sign_only || config.nonce_account.is_some()) && source_refs.len() > max_accounts {
         return Err(format!(
-            "Offline confidential harvesting supports at most {max_offline_accounts} distinct source accounts for this invocation; split sources across separate invocations"
+            "Confidential harvesting supports at most {max_accounts} distinct source accounts for this invocation; split sources across separate invocations"
         ).into());
     }
     let mut results = vec![];
@@ -4697,6 +4697,9 @@ async fn command_enable_disable_confidential_transfers(
         token.get_associated_token_address(&owner)
     };
 
+    config
+        .check_account(&token_account_address, maybe_token)
+        .await?;
     let account = config.get_account_checked(&token_account_address).await?;
 
     let state_with_extension = StateWithExtensionsOwned::<Account>::unpack(account.data)?;
@@ -6527,16 +6530,13 @@ async fn process_command_inner(
             );
             push_signer_with_dedup(authority_signer, &mut bulk_signers);
 
-            let mint_address = if config.sign_only {
-                Some(
-                    value_t!(arg_matches, "token", Pubkey)
-                        .ok()
-                        .or_else(|| value_t!(arg_matches, "mint_address", Pubkey).ok())
-                        .ok_or("--mint-address is required with --address offline")?,
-                )
-            } else {
-                None
-            };
+            let mint_address =
+                pubkey_of_signer(arg_matches, MINT_ADDRESS_ARG.name, &mut wallet_manager)
+                    .unwrap()
+                    .or(pubkey_of_signer(arg_matches, "token", &mut wallet_manager).unwrap());
+            if config.sign_only && mint_address.is_none() {
+                return Err("--mint-address is required with --address offline".into());
+            }
             command_approve_confidential_transfer_account(
                 config,
                 account,
@@ -6575,14 +6575,9 @@ async fn process_command_inner(
         | (c @ CommandName::EnableNonConfidentialCredits, arg_matches)
         | (c @ CommandName::DisableNonConfidentialCredits, arg_matches) => {
             let token = pubkey_of_signer(arg_matches, "token", &mut wallet_manager).unwrap();
-            let token = if config.sign_only && token.is_none() {
-                Some(
-                    value_t!(arg_matches, "mint_address", Pubkey)
-                        .map_err(|_| "--mint-address is required with --address offline")?,
-                )
-            } else {
-                token
-            };
+            let mint_address =
+                pubkey_of_signer(arg_matches, MINT_ADDRESS_ARG.name, &mut wallet_manager).unwrap();
+            let token = token.or(mint_address);
 
             let (owner_signer, owner) =
                 config.signer_or_default(arg_matches, "owner", &mut wallet_manager);

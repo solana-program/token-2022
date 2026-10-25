@@ -3,7 +3,7 @@ use {
     assert_cmd::cargo::cargo_bin_cmd,
     base64::{engine::general_purpose::STANDARD, Engine},
     serde_json::Value,
-    std::{process::Output, time::Duration},
+    std::{io::ErrorKind, net::TcpListener, process::Output, time::Duration},
 };
 
 fn args(values: &[&str]) -> Vec<String> {
@@ -17,6 +17,7 @@ struct Fixture {
     payer_file: NamedTempFile,
     owner_file: NamedTempFile,
     cli_config_file: NamedTempFile,
+    offline_rpc: TcpListener,
     mint: Pubkey,
     watched: Vec<Pubkey>,
 }
@@ -50,9 +51,11 @@ impl Fixture {
         write_keypair_file(&fixture_payer, &payer_file).unwrap();
         write_keypair_file(&owner, &owner_file).unwrap();
         let cli_config_file = NamedTempFile::new().unwrap();
+        let offline_rpc = TcpListener::bind("127.0.0.1:0").unwrap();
+        offline_rpc.set_nonblocking(true).unwrap();
         solana_cli_config::Config {
             keypair_path: payer_file.path().to_str().unwrap().to_string(),
-            json_rpc_url: "http://127.0.0.1:1".to_string(),
+            json_rpc_url: format!("http://{}", offline_rpc.local_addr().unwrap()),
             commitment: config.rpc_client.commitment().commitment.to_string(),
             ..solana_cli_config::Config::default()
         }
@@ -78,6 +81,7 @@ impl Fixture {
             payer_file,
             owner_file,
             cli_config_file,
+            offline_rpc,
             mint: mint.pubkey(),
         }
     }
@@ -144,13 +148,8 @@ impl Fixture {
                 }
             }
         }
-        if !offline {
-            if let Some(index) = command.iter().position(|arg| arg == "--mint-address") {
-                command.drain(index..index + 2);
-            }
-        }
         let rpc_url = if offline {
-            "http://127.0.0.1:1".to_string()
+            format!("http://{}", self.offline_rpc.local_addr().unwrap())
         } else {
             self.config.rpc_client.url()
         };
@@ -209,7 +208,15 @@ impl Fixture {
             .await
             .unwrap();
         assert_eq!(before, after, "offline invocation changed account state");
+        self.assert_no_rpc();
         output
+    }
+
+    fn assert_no_rpc(&self) {
+        assert!(
+            matches!(self.offline_rpc.accept(), Err(error) if error.kind() == ErrorKind::WouldBlock),
+            "sign-only invocation contacted the RPC endpoint"
+        );
     }
 
     async fn complete(&mut self, command: &[String]) {
@@ -285,6 +292,7 @@ impl Fixture {
         assert!(normal.get("message").is_none());
         assert_eq!(normal["signers"], first["signers"]);
         assert_eq!(normal["absent"], first["absent"]);
+        self.assert_no_rpc();
         signatures
     }
 
@@ -305,6 +313,31 @@ impl Fixture {
     async fn error(&self, command: &[String], expected: &str) {
         let hash = self.config.rpc_client.get_latest_blockhash().await.unwrap();
         let output = self.output(command, hash, &[], "json-compact").await;
+        Self::assert_error(output, expected);
+    }
+
+    async fn online_error(&self, command: &[String], hash: Hash, expected: &str) {
+        let before = self
+            .config
+            .rpc_client
+            .get_multiple_accounts(&self.watched)
+            .await
+            .unwrap();
+        let output = self
+            .binary(command, hash, false, &[], "json-compact")
+            .output()
+            .unwrap();
+        let after = self
+            .config
+            .rpc_client
+            .get_multiple_accounts(&self.watched)
+            .await
+            .unwrap();
+        assert_eq!(before, after, "rejected command submitted a transaction");
+        Self::assert_error(output, expected);
+    }
+
+    fn assert_error(output: Output, expected: &str) {
         assert!(
             !output.status.success(),
             "expected rejection, got {}",
@@ -334,8 +367,22 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
     ]);
     fixture.error(&approve, "--mint-address").await;
     approve.extend(args(&["--mint-address", &fixture.mint.to_string()]));
+    let hash = fixture
+        .config
+        .rpc_client
+        .get_latest_blockhash()
+        .await
+        .unwrap();
+    let mut wrong_mint = approve.clone();
+    *wrong_mint.last_mut().unwrap() = Pubkey::new_unique().to_string();
+    fixture
+        .online_error(&wrong_mint, hash, "does not contain")
+        .await;
     fixture.complete(&approve).await;
     assert!(bool::from(fixture.extension(account).await.approved));
+    fixture
+        .online_error(&wrong_mint, hash, "does not contain")
+        .await;
 
     for (index, (command, confidential, enabled)) in [
         ("disable-confidential-credits", true, false),
@@ -346,6 +393,18 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
     .into_iter()
     .enumerate()
     {
+        let wrong_mint = args(&[
+            command,
+            "--address",
+            &account.to_string(),
+            "--owner",
+            fixture.owner_file.path().to_str().unwrap(),
+            "--mint-address",
+            &Pubkey::new_unique().to_string(),
+        ]);
+        fixture
+            .online_error(&wrong_mint, hash, "does not contain")
+            .await;
         let mut command = if index % 2 == 0 {
             args(&[command, &fixture.mint.to_string()])
         } else {
@@ -369,6 +428,10 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
             }),
             enabled
         );
+        // A mismatched mint must also fail when the credit setting is already applied.
+        fixture
+            .online_error(&wrong_mint, hash, "does not contain")
+            .await;
     }
 
     let settings = args(&[
@@ -545,11 +608,15 @@ pub async fn offline_confidential_fee_controls(test_validator: &TestValidator, p
         PodElGamalCiphertext::default()
     );
 
+    let mut sources = vec![source, destination];
+    for _ in sources.len()..26 {
+        sources.push(fixture.account(false).await);
+    }
     let mut oversized = args(&[
         "harvest-withheld-confidential-tokens",
         &fixture.mint.to_string(),
     ]);
-    oversized.extend((0..26).map(|_| Pubkey::new_unique().to_string()));
+    oversized.extend(sources.iter().map(ToString::to_string));
     fixture
         .error(&oversized, "25 distinct source accounts")
         .await;
@@ -576,7 +643,7 @@ pub async fn offline_confidential_fee_controls(test_validator: &TestValidator, p
         "harvest-withheld-confidential-tokens",
         &fixture.mint.to_string(),
     ]);
-    nonce_harvest.extend((0..23).map(|_| Pubkey::new_unique().to_string()));
+    nonce_harvest.extend(sources[..23].iter().map(ToString::to_string));
     nonce_harvest.extend(args(&[
         "--nonce",
         &nonce.to_string(),
@@ -607,10 +674,16 @@ pub async fn offline_confidential_fee_controls(test_validator: &TestValidator, p
         transaction_size <= 1232,
         "transaction exceeds Solana's 1232-byte packet limit: {transaction_size}"
     );
-    nonce_harvest.insert(2, Pubkey::new_unique().to_string());
-    fixture
-        .error(&nonce_harvest, "23 distinct source accounts")
-        .await;
+    for count in [24, 25, 26] {
+        let mut unsupported = nonce_harvest.clone();
+        unsupported.splice(2..2, sources[23..count].iter().map(ToString::to_string));
+        fixture
+            .error(&unsupported, "23 distinct source accounts")
+            .await;
+        fixture
+            .online_error(&unsupported, nonce_hash, "23 distinct source accounts")
+            .await;
+    }
 
     let mut harvest = args(&[
         "harvest-withheld-confidential-tokens",
@@ -642,6 +715,36 @@ pub async fn offline_confidential_fee_controls(test_validator: &TestValidator, p
             .withheld_amount,
         PodElGamalCiphertext::default()
     );
+
+    fixture.complete_at(&nonce_harvest, nonce_hash).await;
+    assert_ne!(
+        fixture
+            .config
+            .rpc_client
+            .get_account(&nonce)
+            .await
+            .unwrap()
+            .data,
+        nonce_account.data,
+        "boundary harvest did not advance the nonce"
+    );
+    for count in [25, 26] {
+        let command = &oversized[..count + 2];
+        let output = fixture
+            .binary(command, hash, false, &[], "json-compact")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "online harvest of {count} sources failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let transactions = serde_json::Deserializer::from_slice(&output.stdout)
+            .into_iter::<Value>()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(transactions.len(), count.div_ceil(25));
+    }
 }
 
 pub async fn offline_confidential_apply_pending_burn(

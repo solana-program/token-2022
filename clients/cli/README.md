@@ -31,9 +31,11 @@ obtained `--blockhash`. Deposits require `--mint-decimals` and an explicit amoun
 mint. Settings updates require both `--approve-policy` and `--auditor-pubkey`;
 use `--auditor-pubkey none` when auditing is disabled.
 
-Offline harvesting accepts at most 25 distinct source accounts, or 23 when using
-a durable nonce, sorted and deduplicated before construction. Split larger sets
-into separate invocations.
+Offline harvesting accepts at most 25 distinct source accounts. Harvesting with
+a durable nonce accepts at most 23 sources, both online and offline. Sources are
+sorted and deduplicated before construction. Split larger sets into separate
+invocations, using the updated nonce hash after each submission. Online harvesting
+without a nonce continues to batch larger sets automatically.
 Each command produces one transaction in the existing sign-only format and
 supports the existing durable nonce arguments. Commands that generate new proofs
 or ciphertexts are outside this workflow.
@@ -46,10 +48,11 @@ with the same inputs.
 
 For example, obtain a nonce account's current hash beforehand, with the owner as
 its nonce authority. The owner signs a deposit on an offline machine. The fee
-payer can be a public key, so its signature remains absent:
+payer can be a public key, so its signature remains absent. `--sign-only` does not
+contact the RPC endpoint:
 
 ```sh
-spl-token --program-2022 --url http://127.0.0.1:1 \
+spl-token --program-2022 \
   --fee-payer "$FEE_PAYER_PUBKEY" --output json-compact \
   deposit-confidential-tokens "$MINT_ADDRESS" 10 \
   --owner "$OWNER_KEYPAIR_PATH" --mint-decimals "$MINT_DECIMALS" \
@@ -72,8 +75,8 @@ spl-token --program-2022 --url "$RPC_URL" \
 
 Keep the amount, account addresses, decimals, nonce hash, and compute budget
 identical when completing signing. For approval or credit commands selected
-with `--address`, omit the offline-only `--mint-address` during online submission;
-the CLI reads the mint from that account. `--dump-transaction-message` is optional.
+with `--address`, retain `--mint-address` during online submission; the CLI verifies
+it against that account's mint. `--dump-transaction-message` is optional.
 A separate nonce authority follows the same keypair or public key plus
 `--signer PUBKEY=SIGNATURE` workflow. The nonce must remain unchanged until
 submission; fetch its new hash before the next invocation.
