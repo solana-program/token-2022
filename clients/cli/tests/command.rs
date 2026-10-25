@@ -6202,7 +6202,10 @@ async fn withdraw_excess_lamports_from_account(test_validator: &TestValidator, p
 async fn metadata_pointer(test_validator: &TestValidator, payer: &Keypair) {
     let program_id = spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, &program_id);
-    let metadata_address = Pubkey::new_unique();
+    let metadata_keypair = Keypair::new();
+    let metadata_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&metadata_keypair, &metadata_keypair_file).unwrap();
+    let metadata_address = metadata_keypair.pubkey();
 
     let result = process_test_command(
         &config,
@@ -6213,7 +6216,7 @@ async fn metadata_pointer(test_validator: &TestValidator, payer: &Keypair) {
             "--program-id",
             &program_id.to_string(),
             "--metadata-address",
-            &metadata_address.to_string(),
+            metadata_keypair_file.path().to_str().unwrap(),
         ],
     )
     .await;
@@ -6230,7 +6233,10 @@ async fn metadata_pointer(test_validator: &TestValidator, payer: &Keypair) {
         Some(metadata_address).try_into().unwrap()
     );
 
-    let new_metadata_address = Pubkey::new_unique();
+    let new_metadata_keypair = Keypair::new();
+    let new_metadata_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&new_metadata_keypair, &new_metadata_keypair_file).unwrap();
+    let new_metadata_address = new_metadata_keypair.pubkey();
 
     let _new_result = process_test_command(
         &config,
@@ -6239,7 +6245,7 @@ async fn metadata_pointer(test_validator: &TestValidator, payer: &Keypair) {
             "spl-token",
             CommandName::UpdateMetadataAddress.into(),
             &mint.to_string(),
-            &new_metadata_address.to_string(),
+            new_metadata_keypair_file.path().to_str().unwrap(),
         ],
     )
     .await;
@@ -6283,7 +6289,10 @@ async fn metadata_pointer(test_validator: &TestValidator, payer: &Keypair) {
 async fn group_pointer(test_validator: &TestValidator, payer: &Keypair) {
     let program_id = spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, &program_id);
-    let group_address = Pubkey::new_unique();
+    let group_keypair = Keypair::new();
+    let group_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&group_keypair, &group_keypair_file).unwrap();
+    let group_address = group_keypair.pubkey();
 
     let result = process_test_command(
         &config,
@@ -6294,7 +6303,7 @@ async fn group_pointer(test_validator: &TestValidator, payer: &Keypair) {
             "--program-id",
             &program_id.to_string(),
             "--group-address",
-            &group_address.to_string(),
+            group_keypair_file.path().to_str().unwrap(),
         ],
     )
     .await
@@ -6312,7 +6321,10 @@ async fn group_pointer(test_validator: &TestValidator, payer: &Keypair) {
         Some(group_address).try_into().unwrap()
     );
 
-    let new_group_address = Pubkey::new_unique();
+    let new_group_keypair = Keypair::new();
+    let new_group_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&new_group_keypair, &new_group_keypair_file).unwrap();
+    let new_group_address = new_group_keypair.pubkey();
 
     let _new_result = process_test_command(
         &config,
@@ -6321,7 +6333,7 @@ async fn group_pointer(test_validator: &TestValidator, payer: &Keypair) {
             "spl-token",
             CommandName::UpdateGroupAddress.into(),
             &mint.to_string(),
-            &new_group_address.to_string(),
+            new_group_keypair_file.path().to_str().unwrap(),
         ],
     )
     .await;
@@ -6366,7 +6378,10 @@ async fn group_pointer(test_validator: &TestValidator, payer: &Keypair) {
 async fn group_member_pointer(test_validator: &TestValidator, payer: &Keypair) {
     let program_id = spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, &program_id);
-    let member_address = Pubkey::new_unique();
+    let member_keypair = Keypair::new();
+    let member_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&member_keypair, &member_keypair_file).unwrap();
+    let member_address = member_keypair.pubkey();
 
     let result = process_test_command(
         &config,
@@ -6377,7 +6392,7 @@ async fn group_member_pointer(test_validator: &TestValidator, payer: &Keypair) {
             "--program-id",
             &program_id.to_string(),
             "--member-address",
-            &member_address.to_string(),
+            member_keypair_file.path().to_str().unwrap(),
         ],
     )
     .await
@@ -6395,7 +6410,10 @@ async fn group_member_pointer(test_validator: &TestValidator, payer: &Keypair) {
         Some(member_address).try_into().unwrap()
     );
 
-    let new_member_address = Pubkey::new_unique();
+    let new_member_keypair = Keypair::new();
+    let new_member_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&new_member_keypair, &new_member_keypair_file).unwrap();
+    let new_member_address = new_member_keypair.pubkey();
 
     let _new_result = process_test_command(
         &config,
@@ -6404,7 +6422,7 @@ async fn group_member_pointer(test_validator: &TestValidator, payer: &Keypair) {
             "spl-token",
             CommandName::UpdateMemberAddress.into(),
             &mint.to_string(),
-            &new_member_address.to_string(),
+            new_member_keypair_file.path().to_str().unwrap(),
         ],
     )
     .await
