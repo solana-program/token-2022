@@ -20,6 +20,9 @@ solana-cli-version:
 cargo-nightly:
 	cargo $(nightly) $(ARGS)
 
+# RUSTSEC-2026-0387: SDK secp256k1 paths used here operate on public inputs.
+# Follow Agave's exception until the SDK upgrades k256 and crypto-bigint:
+# https://github.com/anza-xyz/agave/pull/16368
 audit:
 	cargo audit \
 			--ignore RUSTSEC-2022-0093 \
@@ -31,6 +34,7 @@ audit:
 			--ignore RUSTSEC-2026-0258 \
 			--ignore RUSTSEC-2026-0346 \
 			--ignore RUSTSEC-2026-0349 \
+			--ignore RUSTSEC-2026-0387 \
 			$(ARGS)
 
 spellcheck:
