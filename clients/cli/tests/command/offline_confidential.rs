@@ -797,7 +797,7 @@ pub async fn offline_confidential_apply_pending_burn(
     let state = fixture.mint_state().await;
     let supply = state.get_extension::<ConfidentialMintBurn>().unwrap();
     assert_eq!(supply.pending_burn, PodElGamalCiphertext::default());
-    let (keypair, _) = derive_confidential_keys(&fixture.owner, b"").unwrap();
+    let (keypair, _) = derive_confidential_keys(&fixture.owner).unwrap();
     let ciphertext: solana_zk_sdk::encryption::elgamal::ElGamalCiphertext =
         supply.confidential_supply.try_into().unwrap();
     assert_eq!(ciphertext.decrypt_u32(keypair.secret()), Some(80));
