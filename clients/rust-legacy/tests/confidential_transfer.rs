@@ -2,8 +2,8 @@ mod program_test;
 use {
     bytemuck::Zeroable,
     program_test::{
-        ConfidentialTokenAccountBalances, ConfidentialTokenAccountMeta, ConfidentialTransferOption,
-        TestContext, TokenContext,
+        derive_confidential_keys, ConfidentialTokenAccountBalances, ConfidentialTokenAccountMeta,
+        ConfidentialTransferOption, TestContext, TokenContext,
     },
     solana_program_test::tokio,
     solana_sdk::{
@@ -16,7 +16,7 @@ use {
     },
     solana_system_interface::instruction as system_instruction,
     solana_zk_sdk::{
-        encryption::{auth_encryption::*, derivation::derive_confidential_keys, elgamal::*},
+        encryption::{auth_encryption::*, elgamal::*},
         zk_elgamal_proof_program::build_pubkey_validity_proof_data,
     },
     solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
@@ -181,7 +181,7 @@ async fn confidential_transfer_configure_token_account_with_option(
         )
         .await
         .unwrap();
-    let (elgamal_keypair, aes_key) = derive_confidential_keys(&alice, b"").unwrap();
+    let (elgamal_keypair, aes_key) = derive_confidential_keys(&alice).unwrap();
 
     let alice_meta = ConfidentialTokenAccountMeta {
         token_account: alice_account_keypair.pubkey(),
@@ -2690,7 +2690,7 @@ async fn confidential_transfer_configure_token_account_with_registry() {
     ctx.banks_client.process_transaction(tx).await.unwrap();
 
     // update ElGamal registry
-    let (new_elgamal_keypair, _) = derive_confidential_keys(&alice, b"").unwrap();
+    let (new_elgamal_keypair, _) = derive_confidential_keys(&alice).unwrap();
     let proof_data = build_pubkey_validity_proof_data(&new_elgamal_keypair).unwrap();
     let proof_location = ProofLocation::InstructionOffset(1.try_into().unwrap(), &proof_data);
 

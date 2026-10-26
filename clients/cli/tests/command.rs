@@ -19,7 +19,11 @@ use {
     solana_system_interface::{instruction as system_instruction, program as system_program},
     solana_test_validator::{TestValidator, TestValidatorGenesis, UpgradeableProgramInfo},
     solana_zk_sdk::{
-        encryption::derivation::derive_confidential_keys,
+        encryption::{
+            auth_encryption::AeKey,
+            derivation::{derive_confidential_keys_from_signature, STANDARD_DERIVATION_MESSAGE},
+            elgamal::ElGamalKeypair,
+        },
         zk_elgamal_proof_program::build_pubkey_validity_proof_data,
     },
     solana_zk_sdk_pod::encryption::{
@@ -207,6 +211,17 @@ fn clone_keypair(keypair: &Keypair) -> Keypair {
 }
 
 const TEST_DECIMALS: u8 = 9;
+
+/// Derives the standard confidential keys for `signer`.
+///
+/// Equivalent to `solana_zk_sdk::encryption::derivation::derive_confidential_keys`,
+/// which takes a `solana-signer` `v4` signer, while the signers here are still `v3`.
+fn derive_confidential_keys(
+    signer: &dyn Signer,
+) -> Result<(ElGamalKeypair, AeKey), Box<dyn std::error::Error>> {
+    let signature = signer.try_sign_message(STANDARD_DERIVATION_MESSAGE)?;
+    derive_confidential_keys_from_signature(&signature).map_err(Into::into)
+}
 
 async fn new_validator_for_test() -> (TestValidator, Keypair) {
     solana_logger::setup();
@@ -3107,7 +3122,7 @@ async fn configure_confidential_transfer_with_registry(
 
     // Match the registry client's test wallet to keep the PDA bump search reproducible.
     let owner = Keypair::new_from_array([42; 32]);
-    let (elgamal_keypair, aes_key) = derive_confidential_keys(&owner, b"").unwrap();
+    let (elgamal_keypair, aes_key) = derive_confidential_keys(&owner).unwrap();
     let registry = spl_elgamal_registry_interface::get_elgamal_registry_address(
         &owner.pubkey(),
         &spl_elgamal_registry_interface::id(),
@@ -4518,7 +4533,7 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     let extension = state
         .get_extension::<ConfidentialTransferAccount>()
         .unwrap();
-    let (_, aes_key) = derive_confidential_keys(payer, b"").unwrap();
+    let (_, aes_key) = derive_confidential_keys(payer).unwrap();
     assert_eq!(
         aes_key.decrypt(&extension.decryptable_available_balance.try_into().unwrap()),
         Some(spl_token_2022::ui_amount_to_amount(
@@ -5106,16 +5121,14 @@ async fn check_confidential_available_balance(
     owner: &Keypair,
     expected_balance: u64,
 ) {
-    use solana_zk_sdk::encryption::{
-        derivation::derive_confidential_keys, elgamal::ElGamalCiphertext,
-    };
+    use solana_zk_sdk::encryption::elgamal::ElGamalCiphertext;
 
     let account = config.rpc_client.get_account(&account).await.unwrap();
     let state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
     let extension = state
         .get_extension::<ConfidentialTransferAccount>()
         .unwrap();
-    let (elgamal_keypair, aes_key) = derive_confidential_keys(owner, b"").unwrap();
+    let (elgamal_keypair, aes_key) = derive_confidential_keys(owner).unwrap();
     let available_balance: ElGamalCiphertext = extension.available_balance.try_into().unwrap();
     assert_eq!(
         available_balance.decrypt_u32(elgamal_keypair.secret()),
@@ -5386,9 +5399,7 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
 
 async fn confidential_fee_harvesting(test_validator: &TestValidator, payer: &Keypair) {
     use {
-        solana_zk_sdk::encryption::{
-            derivation::derive_confidential_keys, elgamal::ElGamalCiphertext,
-        },
+        solana_zk_sdk::encryption::elgamal::ElGamalCiphertext,
         solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
     };
 
@@ -5563,7 +5574,7 @@ async fn confidential_fee_harvesting(test_validator: &TestValidator, payer: &Key
         .withheld_amount
         .try_into()
         .unwrap();
-    let (elgamal_keypair, _) = derive_confidential_keys(payer, b"").unwrap();
+    let (elgamal_keypair, _) = derive_confidential_keys(payer).unwrap();
     assert_eq!(
         withheld_amount.decrypt_u32(elgamal_keypair.secret()),
         Some(3)
@@ -7565,7 +7576,7 @@ async fn confidential_mint_burn_update_decryptable_supply_cli(
         .get_extension::<ConfidentialMintBurn>()
         .unwrap()
         .decryptable_supply;
-    let (_, supply_aes_key) = derive_confidential_keys(payer, b"").unwrap();
+    let (_, supply_aes_key) = derive_confidential_keys(payer).unwrap();
     let new_decryptable_supply = supply_aes_key.encrypt(42_u64).into();
     assert_ne!(initial_decryptable_supply, new_decryptable_supply);
 
