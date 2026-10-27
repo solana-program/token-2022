@@ -669,7 +669,7 @@ pub fn app<'a>(
                 .validator(|s| is_url_or_moniker(s))
                 .help(
                     "URL for Solana's JSON RPC or moniker (or their first letter): \
-                       [mainnet-beta, testnet, devnet, localhost] \
+                       [mainnet, testnet, devnet, localhost] \
                     Default from the configuration file."
                 ),
         )
