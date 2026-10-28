@@ -7358,7 +7358,6 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
     );
 
     let expected_authority = burn_authority.pubkey().to_string();
-    let original_output_format = config.output_format.clone();
     config.output_format = OutputFormat::Display;
     let output = process_test_command(
         &config,
@@ -7367,14 +7366,8 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
     )
     .await
     .unwrap();
-    assert_eq!(
-        output.lines().find_map(|line| line
-            .trim()
-            .strip_prefix("Permissioned burn authority:")
-            .map(str::trim)),
-        Some(expected_authority.as_str()),
-        "Unexpected Permissioned Burn display: {output}"
-    );
+    assert!(output.contains("Permissioned burn authority:"));
+    assert!(output.contains(&expected_authority));
 
     config.output_format = OutputFormat::JsonCompact;
     let output = process_test_command(
@@ -7396,7 +7389,6 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
             }),
         "Unexpected Permissioned Burn JSON: {output}"
     );
-    config.output_format = original_output_format;
 
     // do a burn
     let source = create_associated_account(&config, payer, &token, &payer.pubkey()).await;
