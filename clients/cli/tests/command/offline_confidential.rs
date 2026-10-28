@@ -365,16 +365,16 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
         "--confidential-transfer-authority",
         fixture.owner_file.path().to_str().unwrap(),
     ]);
-    fixture.error(&approve, "--mint-address").await;
-    approve.extend(args(&["--mint-address", &fixture.mint.to_string()]));
+    fixture.error(&approve, "<TOKEN_MINT_ADDRESS>").await;
+    let mut wrong_mint = approve.clone();
+    wrong_mint.push(Pubkey::new_unique().to_string());
+    approve.push(fixture.mint.to_string());
     let hash = fixture
         .config
         .rpc_client
         .get_latest_blockhash()
         .await
         .unwrap();
-    let mut wrong_mint = approve.clone();
-    *wrong_mint.last_mut().unwrap() = Pubkey::new_unique().to_string();
     fixture
         .online_error(&wrong_mint, hash, "does not contain")
         .await;
@@ -395,12 +395,11 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
     {
         let wrong_mint = args(&[
             command,
+            &Pubkey::new_unique().to_string(),
             "--address",
             &account.to_string(),
             "--owner",
             fixture.owner_file.path().to_str().unwrap(),
-            "--mint-address",
-            &Pubkey::new_unique().to_string(),
         ]);
         fixture
             .online_error(&wrong_mint, hash, "does not contain")
@@ -415,8 +414,8 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
             fixture.owner_file.path().to_str().unwrap(),
         ]));
         if index % 2 != 0 {
-            fixture.error(&command, "--mint-address").await;
-            command.extend(args(&["--mint-address", &fixture.mint.to_string()]));
+            fixture.error(&command, "<TOKEN_MINT_ADDRESS>").await;
+            command.push(fixture.mint.to_string());
         }
         fixture.complete(&command).await;
         let extension = fixture.extension(account).await;
@@ -445,11 +444,16 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
         "none",
     ]);
     fixture
-        .error(&settings[..settings.len() - 2], "--auditor-pubkey")
+        .error(
+            &settings[..settings.len() - 2],
+            "--auditor-pubkey <AUDITOR_PUBKEY>",
+        )
         .await;
     let mut no_policy = settings.clone();
     no_policy.drain(no_policy.len() - 4..no_policy.len() - 2);
-    fixture.error(&no_policy, "--approve-policy").await;
+    fixture
+        .error(&no_policy, "--approve-policy <APPROVE_POLICY>")
+        .await;
     fixture.complete(&settings).await;
     assert!(bool::from(
         fixture
@@ -480,7 +484,10 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
         "0",
     ]);
     fixture
-        .error(&deposit[..deposit.len() - 2], "mint-decimals")
+        .error(
+            &deposit[..deposit.len() - 2],
+            "--mint-decimals <MINT_DECIMALS>",
+        )
         .await;
     let mut all = deposit.clone();
     all[2] = "ALL".to_string();
