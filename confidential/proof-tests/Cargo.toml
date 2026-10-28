@@ -14,4 +14,4 @@ solana-zk-sdk = "8.0.1"
 solana-zk-elgamal-proof-interface = "1.0.0"
 thiserror = "2.0.18"
 spl-token-confidential-transfer-proof-extraction = { version = "0.7.0", path = "../proof-extraction" }
-spl-token-confidential-transfer-proof-generation = { version = "0.6.0", path = "../proof-generation" }
+spl-token-confidential-transfer-proof-generation = { version = "0.7.0", path = "../proof-generation" }
