@@ -446,13 +446,13 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
     fixture
         .error(
             &settings[..settings.len() - 2],
-            "--auditor-pubkey <AUDITOR_PUBKEY>",
+            "provided:\n    --auditor-pubkey",
         )
         .await;
     let mut no_policy = settings.clone();
     no_policy.drain(no_policy.len() - 4..no_policy.len() - 2);
     fixture
-        .error(&no_policy, "--approve-policy <APPROVE_POLICY>")
+        .error(&no_policy, "provided:\n    --approve-policy")
         .await;
     fixture.complete(&settings).await;
     assert!(bool::from(

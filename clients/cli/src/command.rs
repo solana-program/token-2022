@@ -4826,7 +4826,7 @@ async fn command_deposit_withdraw_confidential_tokens(
 ) -> CommandResult {
     if config.sign_only {
         if instruction_type == ConfidentialInstructionType::Withdraw {
-            return Err("Offline confidential withdrawals are not supported".into());
+            unreachable!("clap rejects --sign-only for withdrawals");
         }
         let decimals = mint_decimals.expect("clap requires --mint-decimals with --sign-only");
         let amount = match ui_amount {
