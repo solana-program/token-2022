@@ -7323,7 +7323,7 @@ async fn multisig_pause(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
-    let config =
+    let mut config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     let token = Keypair::new();
@@ -7355,6 +7355,39 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
     assert_eq!(
         Option::<Pubkey>::from(extension.authority),
         Some(burn_authority.pubkey())
+    );
+
+    let expected_authority = burn_authority.pubkey().to_string();
+    config.output_format = OutputFormat::Display;
+    let output = process_test_command(
+        &config,
+        payer,
+        &["spl-token", CommandName::Display.into(), &token.to_string()],
+    )
+    .await
+    .unwrap();
+    assert!(output.contains("Permissioned burn authority:"));
+    assert!(output.contains(&expected_authority));
+
+    config.output_format = OutputFormat::JsonCompact;
+    let output = process_test_command(
+        &config,
+        payer,
+        &["spl-token", CommandName::Display.into(), &token.to_string()],
+    )
+    .await
+    .unwrap();
+    let output: serde_json::Value = serde_json::from_str(&output).unwrap();
+    assert!(
+        output["extensions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|extension| {
+                extension["extension"] == "permissionedBurnConfig"
+                    && extension["state"]["authority"] == expected_authority
+            }),
+        "Unexpected Permissioned Burn JSON: {output}"
     );
 
     // do a burn
