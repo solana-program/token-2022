@@ -376,13 +376,19 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
         .await
         .unwrap();
     fixture
-        .online_error(&wrong_mint, hash, "does not contain")
+        .online_error(&approve, hash, "cannot be used with")
         .await;
+    // Completing with `--signer` still checks the mint against the account.
+    let signatures = fixture.sign(&approve, hash).await;
+    Fixture::assert_error(
+        fixture
+            .binary(&wrong_mint, hash, false, &signatures, "json-compact")
+            .output()
+            .unwrap(),
+        "does not contain",
+    );
     fixture.complete(&approve).await;
     assert!(bool::from(fixture.extension(account).await.approved));
-    fixture
-        .online_error(&wrong_mint, hash, "does not contain")
-        .await;
 
     for (index, (command, confidential, enabled)) in [
         ("disable-confidential-credits", true, false),
@@ -393,16 +399,17 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
     .into_iter()
     .enumerate()
     {
-        let wrong_mint = args(&[
+        let both = args(&[
             command,
-            &Pubkey::new_unique().to_string(),
+            &fixture.mint.to_string(),
             "--address",
             &account.to_string(),
             "--owner",
             fixture.owner_file.path().to_str().unwrap(),
         ]);
+        fixture.error(&both, "cannot be used with").await;
         fixture
-            .online_error(&wrong_mint, hash, "does not contain")
+            .online_error(&both, hash, "cannot be used with")
             .await;
         let mut command = if index % 2 == 0 {
             args(&[command, &fixture.mint.to_string()])
@@ -413,10 +420,6 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
             "--owner",
             fixture.owner_file.path().to_str().unwrap(),
         ]));
-        if index % 2 != 0 {
-            fixture.error(&command, "<TOKEN_MINT_ADDRESS>").await;
-            command.push(fixture.mint.to_string());
-        }
         fixture.complete(&command).await;
         let extension = fixture.extension(account).await;
         assert_eq!(
@@ -427,10 +430,6 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
             }),
             enabled
         );
-        // A mismatched mint must also fail when the credit setting is already applied.
-        fixture
-            .online_error(&wrong_mint, hash, "does not contain")
-            .await;
     }
 
     let settings = args(&[

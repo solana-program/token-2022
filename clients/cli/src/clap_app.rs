@@ -2854,6 +2854,7 @@ pub fn app<'a>(
                         .validator(|s| is_valid_pubkey(s))
                         .value_name("TOKEN_ACCOUNT_ADDRESS")
                         .takes_value(true)
+                        .conflicts_with("token")
                         .help("The address of the token account to enable confidential transfers for \
                             [default: owner's associated token account]")
                 )
@@ -2862,7 +2863,7 @@ pub fn app<'a>(
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
-                .offline_args_config(&SignOnlyNeedsToken{})
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::DisableConfidentialCredits.into())
@@ -2882,6 +2883,7 @@ pub fn app<'a>(
                         .validator(|s| is_valid_pubkey(s))
                         .value_name("TOKEN_ACCOUNT_ADDRESS")
                         .takes_value(true)
+                        .conflicts_with("token")
                         .help("The address of the token account to disable confidential transfers for \
                             [default: owner's associated token account]")
                 )
@@ -2890,7 +2892,7 @@ pub fn app<'a>(
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
-                .offline_args_config(&SignOnlyNeedsToken{})
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::EnableNonConfidentialCredits.into())
@@ -2910,6 +2912,7 @@ pub fn app<'a>(
                         .validator(|s| is_valid_pubkey(s))
                         .value_name("TOKEN_ACCOUNT_ADDRESS")
                         .takes_value(true)
+                        .conflicts_with("token")
                         .help("The address of the token account to enable non-confidential transfers for \
                             [default: owner's associated token account]")
                 )
@@ -2918,7 +2921,7 @@ pub fn app<'a>(
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
-                .offline_args_config(&SignOnlyNeedsToken{})
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::DisableNonConfidentialCredits.into())
@@ -2938,6 +2941,7 @@ pub fn app<'a>(
                         .validator(|s| is_valid_pubkey(s))
                         .value_name("TOKEN_ACCOUNT_ADDRESS")
                         .takes_value(true)
+                        .conflicts_with("token")
                         .help("The address of the token account to disable non-confidential transfers for \
                             [default: owner's associated token account]")
                 )
@@ -2946,7 +2950,7 @@ pub fn app<'a>(
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
-                .offline_args_config(&SignOnlyNeedsToken{})
+                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::DepositConfidentialTokens.into())
