@@ -365,24 +365,30 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
         "--confidential-transfer-authority",
         fixture.owner_file.path().to_str().unwrap(),
     ]);
-    fixture.error(&approve, "--mint-address").await;
-    approve.extend(args(&["--mint-address", &fixture.mint.to_string()]));
+    fixture.error(&approve, "<TOKEN_MINT_ADDRESS>").await;
+    let mut wrong_mint = approve.clone();
+    wrong_mint.push(Pubkey::new_unique().to_string());
+    approve.push(fixture.mint.to_string());
     let hash = fixture
         .config
         .rpc_client
         .get_latest_blockhash()
         .await
         .unwrap();
-    let mut wrong_mint = approve.clone();
-    *wrong_mint.last_mut().unwrap() = Pubkey::new_unique().to_string();
     fixture
-        .online_error(&wrong_mint, hash, "does not contain")
+        .online_error(&approve, hash, "cannot be used with")
         .await;
+    // Completing with `--signer` still checks the mint against the account.
+    let signatures = fixture.sign(&approve, hash).await;
+    Fixture::assert_error(
+        fixture
+            .binary(&wrong_mint, hash, false, &signatures, "json-compact")
+            .output()
+            .unwrap(),
+        "does not contain",
+    );
     fixture.complete(&approve).await;
     assert!(bool::from(fixture.extension(account).await.approved));
-    fixture
-        .online_error(&wrong_mint, hash, "does not contain")
-        .await;
 
     for (index, (command, confidential, enabled)) in [
         ("disable-confidential-credits", true, false),
@@ -393,17 +399,17 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
     .into_iter()
     .enumerate()
     {
-        let wrong_mint = args(&[
+        let both = args(&[
             command,
+            &fixture.mint.to_string(),
             "--address",
             &account.to_string(),
             "--owner",
             fixture.owner_file.path().to_str().unwrap(),
-            "--mint-address",
-            &Pubkey::new_unique().to_string(),
         ]);
+        fixture.error(&both, "cannot be used with").await;
         fixture
-            .online_error(&wrong_mint, hash, "does not contain")
+            .online_error(&both, hash, "cannot be used with")
             .await;
         let mut command = if index % 2 == 0 {
             args(&[command, &fixture.mint.to_string()])
@@ -414,10 +420,6 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
             "--owner",
             fixture.owner_file.path().to_str().unwrap(),
         ]));
-        if index % 2 != 0 {
-            fixture.error(&command, "--mint-address").await;
-            command.extend(args(&["--mint-address", &fixture.mint.to_string()]));
-        }
         fixture.complete(&command).await;
         let extension = fixture.extension(account).await;
         assert_eq!(
@@ -428,10 +430,6 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
             }),
             enabled
         );
-        // A mismatched mint must also fail when the credit setting is already applied.
-        fixture
-            .online_error(&wrong_mint, hash, "does not contain")
-            .await;
     }
 
     let settings = args(&[
@@ -445,11 +443,16 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
         "none",
     ]);
     fixture
-        .error(&settings[..settings.len() - 2], "--auditor-pubkey")
+        .error(
+            &settings[..settings.len() - 2],
+            "provided:\n    --auditor-pubkey",
+        )
         .await;
     let mut no_policy = settings.clone();
     no_policy.drain(no_policy.len() - 4..no_policy.len() - 2);
-    fixture.error(&no_policy, "--approve-policy").await;
+    fixture
+        .error(&no_policy, "provided:\n    --approve-policy")
+        .await;
     fixture.complete(&settings).await;
     assert!(bool::from(
         fixture
@@ -480,7 +483,10 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
         "0",
     ]);
     fixture
-        .error(&deposit[..deposit.len() - 2], "mint-decimals")
+        .error(
+            &deposit[..deposit.len() - 2],
+            "--mint-decimals <MINT_DECIMALS>",
+        )
         .await;
     let mut all = deposit.clone();
     all[2] = "ALL".to_string();

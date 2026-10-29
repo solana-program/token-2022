@@ -23,6 +23,7 @@ use {
     solana_clap_v3_utils::{
         input_parsers::{pubkey_of_signer, pubkeys_of_multiple_signers, Amount},
         keypair::signer_from_path,
+        offline::SIGNER_ARG,
     },
     solana_cli_output::{
         display::build_balance_message, return_signers_data, CliSignOnlyData, CliSignature,
@@ -4421,10 +4422,10 @@ async fn command_update_confidential_transfer_settings(
             .into());
         }
     } else {
-        let new_auto_approve = auto_approve
-            .ok_or("--approve-policy is required for offline confidential settings updates")?;
+        let new_auto_approve =
+            auto_approve.expect("clap requires --approve-policy with --sign-only");
         let new_auditor_pubkey = auditor_pubkey
-            .ok_or("--auditor-pubkey is required offline; use 'none' if auditing is disabled")?
+            .expect("clap requires --auditor-pubkey with --sign-only")
             .into();
 
         (new_auto_approve, new_auditor_pubkey)
@@ -4652,52 +4653,6 @@ async fn command_enable_disable_confidential_transfers(
     allow_confidential_credits: Option<bool>,
     allow_non_confidential_credits: Option<bool>,
 ) -> CommandResult {
-    if config.sign_only {
-        let mint = maybe_token.ok_or("--mint-address is required with --address offline")?;
-        let token = token_client_from_config(config, &mint, None)?;
-        let account = maybe_account.unwrap_or_else(|| token.get_associated_token_address(&owner));
-        let response = match (allow_confidential_credits, allow_non_confidential_credits) {
-            (Some(true), _) => {
-                token
-                    .confidential_transfer_enable_confidential_credits(
-                        &account,
-                        &owner,
-                        &bulk_signers,
-                    )
-                    .await?
-            }
-            (Some(false), _) => {
-                token
-                    .confidential_transfer_disable_confidential_credits(
-                        &account,
-                        &owner,
-                        &bulk_signers,
-                    )
-                    .await?
-            }
-            (_, Some(true)) => {
-                token
-                    .confidential_transfer_enable_non_confidential_credits(
-                        &account,
-                        &owner,
-                        &bulk_signers,
-                    )
-                    .await?
-            }
-            (_, Some(false)) => {
-                token
-                    .confidential_transfer_disable_non_confidential_credits(
-                        &account,
-                        &owner,
-                        &bulk_signers,
-                    )
-                    .await?
-            }
-            _ => return Err("No credit setting provided".into()),
-        };
-        return format_transaction_return(config, finish_tx(config, &response, false).await?);
-    }
-
     let token_account_address = if let Some(account) = maybe_account {
         account
     } else {
@@ -4707,40 +4662,62 @@ async fn command_enable_disable_confidential_transfers(
         token.get_associated_token_address(&owner)
     };
 
-    config
-        .check_account(&token_account_address, maybe_token)
-        .await?;
-    let account = config.get_account_checked(&token_account_address).await?;
+    let token = if config.sign_only {
+        // default is safe here because the credit instructions don't use it
+        token_client_from_config(config, &Pubkey::default(), None)?
+    } else {
+        let account = config.get_account_checked(&token_account_address).await?;
 
-    let state_with_extension = StateWithExtensionsOwned::<Account>::unpack(account.data)?;
-    let token = token_client_from_config(config, &state_with_extension.base.mint, None)?;
+        let state_with_extension = StateWithExtensionsOwned::<Account>::unpack(account.data)?;
+        let token = token_client_from_config(config, &state_with_extension.base.mint, None)?;
 
-    let existing_extensions: Vec<ExtensionType> = state_with_extension.get_extension_types()?;
-    if !existing_extensions.contains(&ExtensionType::ConfidentialTransferAccount) {
-        panic!(
-            "Confidential transfer is not yet configured for this account. \
-        Use `configure-confidential-transfer-account` command instead."
-        );
-    }
-
-    let res = if let Some(allow_confidential_credits) = allow_confidential_credits {
-        let extension_state = state_with_extension
-            .get_extension::<ConfidentialTransferAccount>()?
-            .allow_confidential_credits
-            .into();
-
-        if extension_state == allow_confidential_credits {
-            return Ok(format!(
-                "Confidential transfers are already {}",
-                if extension_state {
-                    "enabled"
-                } else {
-                    "disabled"
-                }
-            ));
+        let existing_extensions: Vec<ExtensionType> = state_with_extension.get_extension_types()?;
+        if !existing_extensions.contains(&ExtensionType::ConfidentialTransferAccount) {
+            panic!(
+                "Confidential transfer is not yet configured for this account. \
+            Use `configure-confidential-transfer-account` command instead."
+            );
         }
 
-        if allow_confidential_credits {
+        if let Some(allow_confidential_credits) = allow_confidential_credits {
+            let extension_state = state_with_extension
+                .get_extension::<ConfidentialTransferAccount>()?
+                .allow_confidential_credits
+                .into();
+
+            if extension_state == allow_confidential_credits {
+                return Ok(format!(
+                    "Confidential transfers are already {}",
+                    if extension_state {
+                        "enabled"
+                    } else {
+                        "disabled"
+                    }
+                ));
+            }
+        } else if let Some(allow_non_confidential_credits) = allow_non_confidential_credits {
+            let extension_state = state_with_extension
+                .get_extension::<ConfidentialTransferAccount>()?
+                .allow_non_confidential_credits
+                .into();
+
+            if extension_state == allow_non_confidential_credits {
+                return Ok(format!(
+                    "Non-confidential transfers are already {}",
+                    if extension_state {
+                        "enabled"
+                    } else {
+                        "disabled"
+                    }
+                ));
+            }
+        }
+
+        token
+    };
+
+    let res = match (allow_confidential_credits, allow_non_confidential_credits) {
+        (Some(true), _) => {
             token
                 .confidential_transfer_enable_confidential_credits(
                     &token_account_address,
@@ -4748,7 +4725,8 @@ async fn command_enable_disable_confidential_transfers(
                     &bulk_signers,
                 )
                 .await
-        } else {
+        }
+        (Some(false), _) => {
             token
                 .confidential_transfer_disable_confidential_credits(
                     &token_account_address,
@@ -4757,26 +4735,7 @@ async fn command_enable_disable_confidential_transfers(
                 )
                 .await
         }
-    } else {
-        let allow_non_confidential_credits =
-            allow_non_confidential_credits.expect("Nothing to be done");
-        let extension_state = state_with_extension
-            .get_extension::<ConfidentialTransferAccount>()?
-            .allow_non_confidential_credits
-            .into();
-
-        if extension_state == allow_non_confidential_credits {
-            return Ok(format!(
-                "Non-confidential transfers are already {}",
-                if extension_state {
-                    "enabled"
-                } else {
-                    "disabled"
-                }
-            ));
-        }
-
-        if allow_non_confidential_credits {
+        (_, Some(true)) => {
             token
                 .confidential_transfer_enable_non_confidential_credits(
                     &token_account_address,
@@ -4784,7 +4743,8 @@ async fn command_enable_disable_confidential_transfers(
                     &bulk_signers,
                 )
                 .await
-        } else {
+        }
+        (_, Some(false)) => {
             token
                 .confidential_transfer_disable_non_confidential_credits(
                     &token_account_address,
@@ -4793,6 +4753,7 @@ async fn command_enable_disable_confidential_transfers(
                 )
                 .await
         }
+        _ => return Err("No credit setting provided".into()),
     }?;
 
     let tx_return = finish_tx(config, &res, false).await?;
@@ -4826,9 +4787,9 @@ async fn command_deposit_withdraw_confidential_tokens(
 ) -> CommandResult {
     if config.sign_only {
         if instruction_type == ConfidentialInstructionType::Withdraw {
-            return Err("Offline confidential withdrawals are not supported".into());
+            unreachable!("clap rejects --sign-only for withdrawals");
         }
-        let decimals = mint_decimals.ok_or("--mint-decimals is required for offline deposits")?;
+        let decimals = mint_decimals.expect("clap requires --mint-decimals with --sign-only");
         let amount = match ui_amount {
             Amount::Raw(amount) => amount,
             Amount::Decimal(amount) => spl_token_2022::ui_amount_to_amount(amount, decimals),
@@ -6529,6 +6490,18 @@ async fn process_command_inner(
             .await
         }
         (CommandName::ApproveConfidentialTransferAccount, arg_matches) => {
+            let token = pubkey_of_signer(arg_matches, "token", &mut wallet_manager).unwrap();
+            // Offline signing needs the mint with `--address`, since the approve instruction
+            // takes it. Clap can't make a conflict depend on the offline args, so check it here.
+            if token.is_some()
+                && arg_matches.is_present("address")
+                && !config.sign_only
+                && !arg_matches.is_present(SIGNER_ARG.name)
+            {
+                return Err(
+                    "The token mint cannot be used with --address unless signing offline".into(),
+                );
+            }
             let account = config
                 .associated_token_address_or_override(arg_matches, "address", &mut wallet_manager)
                 .await?;
@@ -6539,19 +6512,12 @@ async fn process_command_inner(
             );
             push_signer_with_dedup(authority_signer, &mut bulk_signers);
 
-            let mint_address =
-                pubkey_of_signer(arg_matches, MINT_ADDRESS_ARG.name, &mut wallet_manager)
-                    .unwrap()
-                    .or(pubkey_of_signer(arg_matches, "token", &mut wallet_manager).unwrap());
-            if config.sign_only && mint_address.is_none() {
-                return Err("--mint-address is required with --address offline".into());
-            }
             command_approve_confidential_transfer_account(
                 config,
                 account,
                 authority,
                 bulk_signers,
-                mint_address,
+                token,
             )
             .await
         }
@@ -6584,9 +6550,6 @@ async fn process_command_inner(
         | (c @ CommandName::EnableNonConfidentialCredits, arg_matches)
         | (c @ CommandName::DisableNonConfidentialCredits, arg_matches) => {
             let token = pubkey_of_signer(arg_matches, "token", &mut wallet_manager).unwrap();
-            let mint_address =
-                pubkey_of_signer(arg_matches, MINT_ADDRESS_ARG.name, &mut wallet_manager).unwrap();
-            let token = token.or(mint_address);
 
             let (owner_signer, owner) =
                 config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
