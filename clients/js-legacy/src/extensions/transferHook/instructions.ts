@@ -10,6 +10,7 @@ import { createTransferCheckedInstruction } from '../../instructions/transferChe
 import { createTransferCheckedWithFeeInstruction } from '../transferFee/instructions.js';
 import { getMint } from '../../state/mint.js';
 import { getExtraAccountMetaAddress, getExtraAccountMetas, getTransferHook, resolveExtraAccountMeta } from './state.js';
+import type { PreloadedAccounts } from './preloadedAccounts.js';
 
 export enum TransferHookInstruction {
     Initialize = 0,
@@ -185,6 +186,7 @@ export function createExecuteInstruction(
  * @param owner                 Owner of the source account
  * @param amount                The amount of tokens to transfer
  * @param commitment            Commitment to use
+ * @param preloadedAccounts     Account data for accounts created earlier in the same transaction
  */
 export async function addExtraAccountMetasForExecute(
     connection: Connection,
@@ -196,6 +198,7 @@ export async function addExtraAccountMetasForExecute(
     owner: PublicKey,
     amount: number | bigint,
     commitment?: Commitment,
+    preloadedAccounts?: PreloadedAccounts,
 ) {
     const validateStatePubkey = getExtraAccountMetaAddress(mint, programId);
     const validateStateAccount = await connection.getAccountInfo(validateStatePubkey, commitment);
@@ -228,6 +231,7 @@ export async function addExtraAccountMetasForExecute(
                     executeInstruction.keys,
                     executeInstruction.data,
                     executeInstruction.programId,
+                    preloadedAccounts,
                 ),
                 executeInstruction.keys,
             ),
@@ -255,6 +259,7 @@ export async function addExtraAccountMetasForExecute(
  * @param multiSigners          The signer account(s) for a multisig
  * @param commitment            Commitment to use
  * @param programId             SPL Token program account
+ * @param preloadedAccounts     Account data for accounts created earlier in the same transaction
  *
  * @return Instruction to add to a transaction
  */
@@ -269,6 +274,7 @@ export async function createTransferCheckedWithTransferHookInstruction(
     multiSigners: (Signer | PublicKey)[] = [],
     commitment?: Commitment,
     programId = TOKEN_PROGRAM_ID,
+    preloadedAccounts?: PreloadedAccounts,
 ) {
     const instruction = createTransferCheckedInstruction(
         source,
@@ -295,6 +301,7 @@ export async function createTransferCheckedWithTransferHookInstruction(
             owner,
             amount,
             commitment,
+            preloadedAccounts,
         );
     }
 
@@ -315,6 +322,7 @@ export async function createTransferCheckedWithTransferHookInstruction(
  * @param multiSigners          The signer account(s) for a multisig
  * @param commitment            Commitment to use
  * @param programId             SPL Token program account
+ * @param preloadedAccounts     Account data for accounts created earlier in the same transaction
  *
  * @return Instruction to add to a transaction
  */
@@ -330,6 +338,7 @@ export async function createTransferCheckedWithFeeAndTransferHookInstruction(
     multiSigners: (Signer | PublicKey)[] = [],
     commitment?: Commitment,
     programId = TOKEN_PROGRAM_ID,
+    preloadedAccounts?: PreloadedAccounts,
 ) {
     const instruction = createTransferCheckedWithFeeInstruction(
         source,
@@ -357,6 +366,7 @@ export async function createTransferCheckedWithFeeAndTransferHookInstruction(
             owner,
             amount,
             commitment,
+            preloadedAccounts,
         );
     }
 
