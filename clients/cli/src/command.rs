@@ -4157,6 +4157,7 @@ async fn command_withdraw_withheld_confidential_tokens(
     include_mint: bool,
     withdraw_withheld_elgamal_keypair: &ElGamalKeypair,
     destination_aes_key: &AeKey,
+    known_amount: Option<u64>,
     bulk_signers: BulkSigners,
 ) -> CommandResult {
     let destination_account = config
@@ -4205,9 +4206,21 @@ async fn command_withdraw_withheld_confidential_tokens(
     // A source must only contribute once to the aggregate withheld ciphertext.
     source_token_accounts.sort_unstable();
     source_token_accounts.dedup();
+    const MAX_WITHDRAWAL_ACCOUNTS: usize = 8;
+    if known_amount.is_some() && include_mint && !source_token_accounts.is_empty() {
+        return Err(
+            "A known amount requires either --include-mint or source accounts, not both".into(),
+        );
+    }
+    if known_amount.is_some() && source_token_accounts.len() > MAX_WITHDRAWAL_ACCOUNTS {
+        return Err(format!(
+            "A known amount can be supplied for at most {} source accounts",
+            MAX_WITHDRAWAL_ACCOUNTS
+        )
+        .into());
+    }
     let source_refs = source_token_accounts.iter().collect::<Vec<_>>();
     // Leave room for the inline equality proof and a separate fee payer.
-    const MAX_WITHDRAWAL_ACCOUNTS: usize = 8;
     let mint_sources = [&mint_address];
     let withdrawals = include_mint
         .then_some(mint_sources.as_slice())
@@ -4235,7 +4248,9 @@ async fn command_withdraw_withheld_confidential_tokens(
         };
         // An all-zero ciphertext has nothing to withdraw and cannot be used in
         // a ciphertext equality proof.
-        if withheld_amount == elgamal::ElGamalCiphertext::default() {
+        if withheld_amount == elgamal::ElGamalCiphertext::default()
+            && known_amount.unwrap_or_default() == 0
+        {
             continue;
         }
 
@@ -4246,9 +4261,12 @@ async fn command_withdraw_withheld_confidential_tokens(
         let available_balance = destination_aes_key
             .decrypt(&destination.decryptable_available_balance.try_into()?)
             .ok_or("Could not decrypt the recipient's available balance")?;
-        let withheld_balance = withheld_amount
-            .decrypt_u32(withdraw_withheld_elgamal_keypair.secret())
-            .ok_or("Could not decrypt the withheld confidential fees")?;
+        let withheld_balance = match known_amount {
+            Some(amount) => amount,
+            None => withheld_amount
+                .decrypt_u32(withdraw_withheld_elgamal_keypair.secret())
+                .ok_or("Could not decrypt the withheld confidential fees")?,
+        };
         let new_available_balance = available_balance
             .checked_add(withheld_balance)
             .ok_or("Confidential available balance overflow")?;
@@ -4258,32 +4276,65 @@ async fn command_withdraw_withheld_confidential_tokens(
         let withheld_tokens_info = WithheldTokensInfo::new(&withheld_amount.into());
 
         let res = if withdraw_from_mint {
-            token
-                .confidential_transfer_withdraw_withheld_tokens_from_mint(
-                    &destination_token_account,
-                    &authority,
-                    None,
-                    Some(withheld_tokens_info),
-                    withdraw_withheld_elgamal_keypair,
-                    &destination_elgamal_pubkey,
-                    &new_decryptable_available_balance,
-                    &bulk_signers,
-                )
-                .await?
+            if let Some(amount) = known_amount {
+                token
+                    .confidential_transfer_withdraw_withheld_tokens_from_mint_with_amount(
+                        &destination_token_account,
+                        &authority,
+                        None,
+                        Some(withheld_tokens_info),
+                        amount,
+                        withdraw_withheld_elgamal_keypair,
+                        &destination_elgamal_pubkey,
+                        &new_decryptable_available_balance,
+                        &bulk_signers,
+                    )
+                    .await?
+            } else {
+                token
+                    .confidential_transfer_withdraw_withheld_tokens_from_mint(
+                        &destination_token_account,
+                        &authority,
+                        None,
+                        Some(withheld_tokens_info),
+                        withdraw_withheld_elgamal_keypair,
+                        &destination_elgamal_pubkey,
+                        &new_decryptable_available_balance,
+                        &bulk_signers,
+                    )
+                    .await?
+            }
         } else {
-            token
-                .confidential_transfer_withdraw_withheld_tokens_from_accounts(
-                    &destination_token_account,
-                    &authority,
-                    None,
-                    Some(withheld_tokens_info),
-                    withdraw_withheld_elgamal_keypair,
-                    &destination_elgamal_pubkey,
-                    &new_decryptable_available_balance,
-                    sources,
-                    &bulk_signers,
-                )
-                .await?
+            if let Some(amount) = known_amount {
+                token
+                    .confidential_transfer_withdraw_withheld_tokens_from_accounts_with_amount(
+                        &destination_token_account,
+                        &authority,
+                        None,
+                        Some(withheld_tokens_info),
+                        amount,
+                        withdraw_withheld_elgamal_keypair,
+                        &destination_elgamal_pubkey,
+                        &new_decryptable_available_balance,
+                        sources,
+                        &bulk_signers,
+                    )
+                    .await?
+            } else {
+                token
+                    .confidential_transfer_withdraw_withheld_tokens_from_accounts(
+                        &destination_token_account,
+                        &authority,
+                        None,
+                        Some(withheld_tokens_info),
+                        withdraw_withheld_elgamal_keypair,
+                        &destination_elgamal_pubkey,
+                        &new_decryptable_available_balance,
+                        sources,
+                        &bulk_signers,
+                    )
+                    .await?
+            }
         };
         let tx_return = finish_tx(config, &res, false).await?;
         results.push(match tx_return {
@@ -6349,6 +6400,7 @@ async fn process_command_inner(
                     include_mint,
                     &withdraw_withheld_elgamal_keypair,
                     &destination_aes_key,
+                    arg_matches.get_one::<u64>("amount").copied(),
                     bulk_signers,
                 )
                 .await
