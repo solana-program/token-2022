@@ -11,6 +11,7 @@ export {
 export { type BatchInstruction, getBatchInstruction, parseBatchInstruction } from './batch';
 
 export * from './amountToUiAmount';
+export * from './assertValidTokenTransferDestination';
 export * from './createMint';
 export * from './createToken';
 export * from './getInitializeInstructionsForExtensions';
