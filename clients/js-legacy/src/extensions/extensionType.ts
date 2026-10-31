@@ -301,8 +301,10 @@ export function getExtensionData(extension: ExtensionType, tlvData: Buffer): Buf
 export function getExtensionTypes(tlvData: Buffer): ExtensionType[] {
     const extensionTypes = [];
     let extensionTypeIndex = 0;
-    while (extensionTypeIndex < tlvData.length) {
+    while (extensionTypeIndex + TYPE_SIZE <= tlvData.length) {
         const entryType = tlvData.readUInt16LE(extensionTypeIndex);
+        // Uninitialized data marks the end and may contain only the type, without a length.
+        if (entryType === ExtensionType.Uninitialized) break;
         extensionTypes.push(entryType);
         const entryLength = tlvData.readUInt16LE(extensionTypeIndex + TYPE_SIZE);
         extensionTypeIndex += addTypeAndLengthToLen(entryLength);
