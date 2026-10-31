@@ -1,3 +1,4 @@
+import type { Buffer } from 'buffer';
 import { PUBLIC_KEY_LENGTH, PublicKey } from '@solana/web3.js';
 import type { AccountMeta, Connection } from '@solana/web3.js';
 import {

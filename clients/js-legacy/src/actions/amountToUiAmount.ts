@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import type { Connection, Signer, TransactionError } from '@solana/web3.js';
 import { PublicKey, Transaction } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '../constants.js';
