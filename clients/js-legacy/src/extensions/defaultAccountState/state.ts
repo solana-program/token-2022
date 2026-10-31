@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import { struct, u8 } from '@solana/buffer-layout';
 import type { AccountState } from '../../state/account.js';
 import type { Mint } from '../../state/mint.js';
