@@ -1,6 +1,6 @@
 import { struct, u8 } from '@solana/buffer-layout';
-import type { AccountMeta, Commitment, Connection, PublicKey, Signer } from '@solana/web3.js';
-import { TransactionInstruction } from '@solana/web3.js';
+import type { AccountMeta, Commitment, Connection, Signer } from '@solana/web3.js';
+import { PublicKey, TransactionInstruction } from '@solana/web3.js';
 import { programSupportsExtensions, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '../../constants.js';
 import { TokenUnsupportedInstructionError } from '../../errors.js';
 import { addSigners } from '../../instructions/internal.js';
@@ -36,16 +36,16 @@ export const initializeTransferHookInstructionData = struct<InitializeTransferHo
  * Construct an InitializeTransferHook instruction
  *
  * @param mint                  Token mint account
- * @param authority             Transfer hook authority account
- * @param transferHookProgramId Transfer hook program account
+ * @param authority             Optional transfer hook authority account
+ * @param transferHookProgramId Optional transfer hook program account
  * @param programId             SPL Token program account
  *
  * @return Instruction to add to a transaction
  */
 export function createInitializeTransferHookInstruction(
     mint: PublicKey,
-    authority: PublicKey,
-    transferHookProgramId: PublicKey,
+    authority: PublicKey | null,
+    transferHookProgramId: PublicKey | null,
     programId: PublicKey,
 ): TransactionInstruction {
     if (!programSupportsExtensions(programId)) {
@@ -58,8 +58,8 @@ export function createInitializeTransferHookInstruction(
         {
             instruction: TokenInstruction.TransferHookExtension,
             transferHookInstruction: TransferHookInstruction.Initialize,
-            authority,
-            transferHookProgramId,
+            authority: authority ?? PublicKey.default,
+            transferHookProgramId: transferHookProgramId ?? PublicKey.default,
         },
         data,
     );
@@ -86,7 +86,7 @@ export const updateTransferHookInstructionData = struct<UpdateTransferHookInstru
  *
  * @param mint                  Mint to update
  * @param authority             The mint's transfer hook authority
- * @param transferHookProgramId The new transfer hook program account
+ * @param transferHookProgramId New transfer hook program account, or null to disable the hook
  * @param signers               The signer account(s) for a multisig
  * @param tokenProgramId        SPL Token program account
  *
@@ -95,7 +95,7 @@ export const updateTransferHookInstructionData = struct<UpdateTransferHookInstru
 export function createUpdateTransferHookInstruction(
     mint: PublicKey,
     authority: PublicKey,
-    transferHookProgramId: PublicKey,
+    transferHookProgramId: PublicKey | null,
     multiSigners: (Signer | PublicKey)[] = [],
     programId = TOKEN_2022_PROGRAM_ID,
 ): TransactionInstruction {
@@ -109,7 +109,7 @@ export function createUpdateTransferHookInstruction(
         {
             instruction: TokenInstruction.TransferHookExtension,
             transferHookInstruction: TransferHookInstruction.Update,
-            transferHookProgramId,
+            transferHookProgramId: transferHookProgramId ?? PublicKey.default,
         },
         data,
     );

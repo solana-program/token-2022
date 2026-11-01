@@ -5,7 +5,15 @@ import {
     amountToUiAmountForMintWithoutSimulation,
     uiAmountToAmountForMintWithoutSimulation,
 } from '../../src/actions/amountToUiAmount';
-import { AccountLayout, InterestBearingMintConfigStateLayout, TOKEN_2022_PROGRAM_ID } from '../../src';
+import {
+    AccountLayout,
+    InterestBearingMintConfigStateLayout,
+    TOKEN_2022_PROGRAM_ID,
+    TokenInstruction,
+    InterestBearingMintInstruction,
+    createInitializeInterestBearingMintInstruction,
+    interestBearingMintInitializeInstructionData,
+} from '../../src';
 import { MintLayout } from '../../src/state/mint';
 import { ExtensionType } from '../../src/extensions/extensionType';
 import { AccountType } from '../../src/extensions/accountType';
@@ -383,4 +391,34 @@ describe('plain mint exact conversions', () => {
             expect(threw, badUiAmount).to.equal(true);
         }
     });
+});
+
+describe('interest-bearing initialize optional authority', () => {
+    const mint = PublicKey.unique();
+    const present = PublicKey.unique();
+    const rate = -7;
+
+    for (const rateAuthority of [null, present, PublicKey.default]) {
+        const label = rateAuthority === null ? 'absent' : rateAuthority.equals(PublicKey.default) ? 'zero' : 'present';
+        it('encodes ' + label + ' rate authority without an option prefix', () => {
+            const instruction = createInitializeInterestBearingMintInstruction(
+                mint,
+                rateAuthority,
+                rate,
+                TOKEN_2022_PROGRAM_ID,
+            );
+            const rawAuthority = rateAuthority ?? PublicKey.default;
+            expect(instruction.data.length).to.equal(36);
+            expect(instruction.data.subarray(2, 34)).to.eql(rawAuthority.toBuffer());
+            expect(instruction.data.readInt16LE(34)).to.equal(rate);
+            expect(interestBearingMintInitializeInstructionData.decode(instruction.data)).to.eql({
+                instruction: TokenInstruction.InterestBearingMintExtension,
+                interestBearingMintInstruction: InterestBearingMintInstruction.Initialize,
+                rateAuthority: rawAuthority,
+                rate,
+            });
+            expect(instruction.keys).to.eql([{ pubkey: mint, isSigner: false, isWritable: true }]);
+            expect(instruction.programId).to.eql(TOKEN_2022_PROGRAM_ID);
+        });
+    }
 });
