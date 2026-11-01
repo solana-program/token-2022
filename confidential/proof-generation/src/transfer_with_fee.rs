@@ -63,7 +63,6 @@ use {
         encryption::{
             auth_encryption::{AeCiphertext, AeKey},
             elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey},
-            grouped_elgamal::GroupedElGamal,
             pedersen::{Pedersen, PedersenCommitment, PedersenOpening},
         },
         zk_elgamal_proof_program::{
@@ -126,18 +125,6 @@ pub fn transfer_with_fee_split_proof_data(
             destination_elgamal_pubkey,
             auditor_elgamal_pubkey,
         );
-    #[cfg(not(target_arch = "wasm32"))]
-    let grouped_ciphertext_lo = transfer_amount_grouped_ciphertext_lo.0;
-    #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_lo = GroupedElGamal::encrypt_with(
-        [
-            source_elgamal_keypair.pubkey(),
-            destination_elgamal_pubkey,
-            auditor_elgamal_pubkey,
-        ],
-        transfer_amount_lo,
-        &transfer_amount_opening_lo,
-    );
 
     let (transfer_amount_grouped_ciphertext_hi, transfer_amount_opening_hi) =
         TransferAmountCiphertext::new(
@@ -146,18 +133,6 @@ pub fn transfer_with_fee_split_proof_data(
             destination_elgamal_pubkey,
             auditor_elgamal_pubkey,
         );
-    #[cfg(not(target_arch = "wasm32"))]
-    let grouped_ciphertext_hi = transfer_amount_grouped_ciphertext_hi.0;
-    #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_hi = GroupedElGamal::encrypt_with(
-        [
-            source_elgamal_keypair.pubkey(),
-            destination_elgamal_pubkey,
-            auditor_elgamal_pubkey,
-        ],
-        transfer_amount_hi,
-        &transfer_amount_opening_hi,
-    );
 
     // Decrypt the current available balance at the source
     let current_decrypted_available_balance = current_decryptable_available_balance
@@ -209,8 +184,8 @@ pub fn transfer_with_fee_split_proof_data(
             source_elgamal_keypair.pubkey(),
             destination_elgamal_pubkey,
             auditor_elgamal_pubkey,
-            &grouped_ciphertext_lo,
-            &grouped_ciphertext_hi,
+            &transfer_amount_grouped_ciphertext_lo.0,
+            &transfer_amount_grouped_ciphertext_hi.0,
             transfer_amount_lo,
             transfer_amount_hi,
             &transfer_amount_opening_lo,
@@ -324,33 +299,13 @@ pub fn transfer_with_fee_split_proof_data(
     )
     .map_err(TokenProofGenerationError::from)?;
 
-    // encrypt the fee amount under the destination and withdraw withheld authority
-    // ElGamal public key
-    let fee_destination_withdraw_withheld_authority_ciphertext_lo = GroupedElGamal::encrypt_with(
-        [
-            destination_elgamal_pubkey,
-            withdraw_withheld_authority_elgamal_pubkey,
-        ],
-        fee_amount_lo,
-        &fee_opening_lo,
-    );
-
-    let fee_destination_withdraw_withheld_authority_ciphertext_hi = GroupedElGamal::encrypt_with(
-        [
-            destination_elgamal_pubkey,
-            withdraw_withheld_authority_elgamal_pubkey,
-        ],
-        fee_amount_hi,
-        &fee_opening_hi,
-    );
-
     // generate fee ciphertext validity data
     let fee_ciphertext_validity_proof_data =
         build_batched_grouped_ciphertext_2_handles_validity_proof_data(
             destination_elgamal_pubkey,
             withdraw_withheld_authority_elgamal_pubkey,
-            &fee_destination_withdraw_withheld_authority_ciphertext_lo,
-            &fee_destination_withdraw_withheld_authority_ciphertext_hi,
+            &fee_ciphertext_lo.0,
+            &fee_ciphertext_hi.0,
             fee_amount_lo,
             fee_amount_hi,
             &fee_opening_lo,
