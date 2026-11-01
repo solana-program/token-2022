@@ -13,6 +13,9 @@ import {
     TransferHookLayout,
     addExtraAccountMetasForExecute,
     createTransferCheckedWithTransferHookInstruction,
+    createTransferCheckedWithFeeAndTransferHookInstruction,
+    createTransferCheckedInstruction,
+    createTransferCheckedWithFeeInstruction,
     getExtraAccountMetaAddress,
     getExtraAccountMetas,
     resolveExtraAccountMeta,
@@ -568,6 +571,59 @@ describe('transferHook', () => {
 
             expect(instruction.keys).to.eql(checkMetas);
         });
+
+        for (const withFee of [false, true]) {
+            for (const hookAbsent of [false, true]) {
+                it(
+                    'does not fetch extra metas for ' +
+                        (hookAbsent ? 'an absent' : 'a disabled') +
+                        ' transfer hook' +
+                        (withFee ? ' with a fee' : ''),
+                    async () => {
+                        transferHookProgramId = PublicKey.default;
+                        const fetchAccountData = createMockFetchAccountDataFn([]);
+                        let accountLookups = 0;
+                        connection.getAccountInfo = async publicKey => {
+                            accountLookups++;
+                            expect(publicKey).to.eql(mintPubkey);
+                            const info = await fetchAccountData(publicKey);
+                            return hookAbsent && info
+                                ? { ...info, data: info.data.subarray(0, MintLayout.span) }
+                                : info;
+                        };
+                        const args = [
+                            sourcePubkey,
+                            mintPubkey,
+                            destinationPubkey,
+                            authorityPubkey,
+                            amount,
+                            decimals,
+                        ] as const;
+                        const instruction = withFee
+                            ? await createTransferCheckedWithFeeAndTransferHookInstruction(
+                                  connection,
+                                  ...args,
+                                  0n,
+                                  [],
+                                  undefined,
+                                  TOKEN_2022_PROGRAM_ID,
+                              )
+                            : await createTransferCheckedWithTransferHookInstruction(
+                                  connection,
+                                  ...args,
+                                  [],
+                                  undefined,
+                                  TOKEN_2022_PROGRAM_ID,
+                              );
+                        const expected = withFee
+                            ? createTransferCheckedWithFeeInstruction(...args, 0n, [], TOKEN_2022_PROGRAM_ID)
+                            : createTransferCheckedInstruction(...args, [], TOKEN_2022_PROGRAM_ID);
+                        expect(instruction).to.eql(expected);
+                        expect(accountLookups).to.equal(1);
+                    },
+                );
+            }
+        }
 
         it('can create a transfer instruction with extra metas', async () => {
             // prettier-ignore

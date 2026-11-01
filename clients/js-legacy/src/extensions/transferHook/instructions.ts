@@ -284,7 +284,7 @@ export async function createTransferCheckedWithTransferHookInstruction(
     const mintInfo = await getMint(connection, mint, commitment, programId);
     const transferHook = getTransferHook(mintInfo);
 
-    if (transferHook) {
+    if (transferHook?.programId) {
         await addExtraAccountMetasForExecute(
             connection,
             instruction,
@@ -346,7 +346,7 @@ export async function createTransferCheckedWithFeeAndTransferHookInstruction(
     const mintInfo = await getMint(connection, mint, commitment, programId);
     const transferHook = getTransferHook(mintInfo);
 
-    if (transferHook) {
+    if (transferHook?.programId) {
         await addExtraAccountMetasForExecute(
             connection,
             instruction,
