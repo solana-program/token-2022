@@ -4556,6 +4556,19 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
         )),
     );
 
+    // Proof setup must leave the memo for the transfer to this recipient.
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::EnableRequiredTransferMemos.into(),
+            &destination_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
     let output = process_test_command(
         &config,
         payer,
@@ -4566,6 +4579,8 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
             &transfer_amount.to_string(),
             &destination_account.to_string(),
             "--confidential",
+            "--with-memo",
+            "invoice-123",
         ],
     )
     .await
@@ -4988,7 +5003,19 @@ async fn confidential_transfer_with_fee(test_validator: &TestValidator, payer: &
     .await
     .unwrap();
 
-    // Transfer confidentially with expected fee
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::EnableRequiredTransferMemos.into(),
+            &destination_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    // Transfer confidentially with a memo and expected fee.
     let transfer_amount = 100.0;
     let output = process_test_command(
         &config,
@@ -5002,6 +5029,8 @@ async fn confidential_transfer_with_fee(test_validator: &TestValidator, payer: &
             "--confidential",
             "--expected-fee",
             "1", // 1% of 100 is 1
+            "--with-memo",
+            "invoice-123",
         ],
     )
     .await

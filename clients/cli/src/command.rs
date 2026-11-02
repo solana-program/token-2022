@@ -1582,9 +1582,11 @@ async fn command_transfer(
         (recipient_token_account, fundable_owner)
     };
 
-    // set up memo if provided...
-    if let Some(text) = memo {
-        token.with_memo(text, vec![config.default_signer()?.pubkey()]);
+    // Confidential transfers must prepare their proofs before consuming the memo.
+    if confidential_transfer_args.is_none() {
+        if let Some(text) = memo.as_ref() {
+            token.with_memo(text, vec![config.default_signer()?.pubkey()]);
+        }
     }
 
     // fetch confidential transfer info for recipient and auditor
@@ -1817,6 +1819,9 @@ async fn command_transfer(
                 ciphertext_hi: transfer_amount_auditor_ciphertext_hi,
             };
 
+            if let Some(text) = memo.as_ref() {
+                token.with_memo(text, vec![config.default_signer()?.pubkey()]);
+            }
             let transfer_result = token
                 .confidential_transfer_transfer(
                     &sender,
@@ -2080,6 +2085,9 @@ async fn command_transfer(
                 ciphertext_hi: transfer_amount_auditor_ciphertext_hi,
             };
 
+            if let Some(text) = memo.as_ref() {
+                token.with_memo(text, vec![config.default_signer()?.pubkey()]);
+            }
             let transfer_result = token
                 .confidential_transfer_transfer_with_fee(
                     &sender,
