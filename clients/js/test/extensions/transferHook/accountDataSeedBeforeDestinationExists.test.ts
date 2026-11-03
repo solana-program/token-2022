@@ -25,15 +25,15 @@ import {
     findAssociatedTokenPda,
     findExtraAccountMetaListPda,
     getCreateAssociatedTokenIdempotentInstructionAsync,
+    fetchMint,
     getDefaultInitializeExtraAccountMetaListInstructionAsync,
-    getNewAssociatedTokenAccountDataAsync,
 } from '../../../src';
+import { getNewAssociatedTokenAccountData } from '../../../src/newAssociatedTokenAccountData';
 import { createTestClient, createTokenWithAmount } from '../../_setup';
 
 type TestClient = Awaited<ReturnType<typeof createTestClient>>;
 
 const TRANSFER_HOOK_PROGRAM_ADDRESS = address('TokenHookExampLe8smaVNrxTBezWTRbEwxwb1Zykrb');
-const NATIVE_MINT_ADDRESS = address('9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP');
 const TRANSFER_HOOK_BINARY_PATH = path.resolve(
     __dirname,
     '..',
@@ -138,7 +138,7 @@ async function expectDerivedDataMatchesChain(
     owner: Address,
     tokenProgram: Address = TOKEN_2022_PROGRAM_ADDRESS,
 ) {
-    const derived = await getNewAssociatedTokenAccountDataAsync(client.rpc, mint, owner);
+    const derived = getNewAssociatedTokenAccountData(await fetchMint(client.rpc, mint), owner);
     await client.sendTransaction([
         await getCreateAssociatedTokenIdempotentInstructionAsync({
             payer: client.payer,
@@ -250,28 +250,17 @@ describe('transfer hook with an account-data seed on a destination that does not
                 { source, mint: mint.address, destination, authority: sourceOwner, amount: 40n, decimals },
                 { recipient: sourceOwner.address },
             ),
-        ).rejects.toThrow(`${sourceOwner.address} does not own the destination ${destination}`);
+        ).rejects.toThrow(
+            `the destination ${destination} is not the associated token account of ${sourceOwner.address}`,
+        );
     });
 
     it('derives the exact state the associated token program writes for the destination', async () => {
-        const { client, destination, destinationOwner, mint } = await setupHookMintWithAccountDataSeed();
+        const { client, destinationOwner, mint } = await setupHookMintWithAccountDataSeed();
 
-        // What the helper resolves seeds against, for a destination that does not exist yet.
-        const derived = await getNewAssociatedTokenAccountDataAsync(client.rpc, mint.address, destinationOwner.address);
-
-        await client.sendTransaction([
-            await getCreateAssociatedTokenIdempotentInstructionAsync({
-                payer: client.payer,
-                mint: mint.address,
-                owner: destinationOwner.address,
-            }),
-        ]);
-
-        // Byte for byte what the chain actually holds, extensions included. Any divergence would
-        // derive a different PDA than the hook does and the transfer would fail on chain.
-        const onChain = await fetchEncodedAccount(client.rpc, destination);
-        assertAccountExists(onChain);
-        expect(Buffer.from(derived).toString('hex')).toBe(Buffer.from(onChain.data).toString('hex'));
+        // Any divergence would derive a different PDA than the hook does and the transfer would
+        // fail on chain.
+        await expectDerivedDataMatchesChain(client, mint.address, destinationOwner.address);
     });
 
     it('is rejected on chain when the resolved extra account is not the one the hook derives', async () => {
@@ -307,6 +296,7 @@ describe('transfer hook with an account-data seed on a destination that does not
 
         expect((await fetchToken(client.rpc, source)).data).toMatchObject(<Token>{ amount: 100n });
     });
+
     it("derives the mint's default account state instead of assuming the account starts initialized", async () => {
         const client = await createTestClient();
         const [mintAuthority, freezeAuthority, destinationOwner, mint] = await Promise.all([
@@ -335,40 +325,18 @@ describe('transfer hook with an account-data seed on a destination that does not
             })
             .sendTransaction();
 
-        const derived = await getNewAssociatedTokenAccountDataAsync(client.rpc, mint.address, destinationOwner.address);
-
-        await client.sendTransaction([
-            await getCreateAssociatedTokenIdempotentInstructionAsync({
-                payer: client.payer,
-                mint: mint.address,
-                owner: destinationOwner.address,
-            }),
-        ]);
+        await expectDerivedDataMatchesChain(client, mint.address, destinationOwner.address);
         const [destination] = await findAssociatedTokenPda({
             mint: mint.address,
             owner: destinationOwner.address,
             tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
         });
 
-        const onChain = await fetchEncodedAccount(client.rpc, destination);
-        assertAccountExists(onChain);
-        expect(Buffer.from(derived).toString('hex')).toBe(Buffer.from(onChain.data).toString('hex'));
-
         // And the chain really did write Frozen, so the comparison above is not the initialized
         // case passing under a different name.
         expect((await fetchToken(client.rpc, destination)).data.state).toBe(AccountState.Frozen);
     });
 
-    it('refuses to derive a new account for the native mint', async () => {
-        const client = await createTestClient();
-        const owner = await generateKeyPairSigner();
-
-        // A native account's `isNative` holds a rent-exempt reserve taken from its own lamports,
-        // which the mint does not determine. Guessing it would resolve seeds against wrong bytes.
-        await expect(
-            getNewAssociatedTokenAccountDataAsync(client.rpc, NATIVE_MINT_ADDRESS, owner.address),
-        ).rejects.toThrow(/native mint/);
-    });
     it('executes when the destination address already holds lamports before it is created', async () => {
         const { client, decimals, destination, destinationOwner, mint, source, sourceOwner } =
             await setupHookMintWithAccountDataSeed();
@@ -449,7 +417,7 @@ describe('transfer hook with an account-data seed on a destination that does not
                 { source: destination, mint: mint.address, destination, authority: owner, amount: 1n, decimals: 2 },
                 { recipient: recipient.address },
             ),
-        ).rejects.toThrow(`${recipient.address} does not own the destination ${destination}`);
+        ).rejects.toThrow(`the destination ${destination} is not the associated token account of ${recipient.address}`);
     });
 
     it.each<[string, ExtensionArgs[]]>([
@@ -518,7 +486,8 @@ describe('transfer hook with an account-data seed on a destination that does not
 
     it('knows every extension type when listing required account extensions', () => {
         // A new extension fails this test. Check the program's `required_init_account_extensions`,
-        // add it to `REQUIRED_ACCOUNT_EXTENSIONS` if it requires one, then add it here.
+        // add it to `REQUIRED_ACCOUNT_EXTENSIONS` in `src/newAssociatedTokenAccountData.ts` if it
+        // requires one, then add it here.
         expect(Object.keys(ExtensionType).filter(key => Number.isNaN(Number(key)))).toEqual([
             'Uninitialized',
             'TransferFeeConfig',

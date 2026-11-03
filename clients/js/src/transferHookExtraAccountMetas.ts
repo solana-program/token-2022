@@ -2,7 +2,6 @@ import {
     AccountRole,
     addDecoderSizePrefix,
     addEncoderSizePrefix,
-    address,
     combineCodec,
     createDecoder,
     downgradeRoleToNonSigner,
@@ -62,18 +61,15 @@ import {
 } from '@solana/kit/program-client-core';
 
 import {
-    AccountState,
-    extension,
+    ASSOCIATED_TOKEN_PROGRAM_ADDRESS,
     fetchMint,
     findAssociatedTokenPda,
-    getTokenEncoder,
     getTransferCheckedInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
     type Extension,
-    type ExtensionArgs,
     type Mint,
 } from './generated';
-import { TOKEN_PROGRAM_ADDRESS } from './legacyToken';
+import { getNewAssociatedTokenAccountData } from './newAssociatedTokenAccountData';
 
 const EXTRA_ACCOUNT_METAS_SEED = 'extra-account-metas';
 
@@ -411,75 +407,6 @@ async function getAccountDataForResolution(
 
 const SYSTEM_PROGRAM_ADDRESS = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
 
-const NATIVE_MINT_ADDRESSES: Address[] = [
-    address('9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP'),
-    address('So11111111111111111111111111111111111111112'),
-];
-
-// Mirrors the program's `ExtensionType::required_init_account_extensions`.
-const REQUIRED_ACCOUNT_EXTENSIONS: Partial<Record<Extension['__kind'], ExtensionArgs[]>> = {
-    NonTransferable: [extension('NonTransferableAccount', {}), extension('ImmutableOwner', {})],
-    PausableConfig: [extension('PausableAccount', {})],
-    TransferFeeConfig: [extension('TransferFeeAmount', { withheldAmount: 0n })],
-    TransferHook: [extension('TransferHookAccount', { transferring: false })],
-};
-
-function assertNotNativeMint(mint: Address): void {
-    if (NATIVE_MINT_ADDRESSES.includes(mint)) {
-        throw new Error(
-            'Cannot derive a new associated token account for a native mint: its rent-exempt reserve depends on the account lamports.',
-        );
-    }
-}
-
-function getNewAssociatedTokenAccountData(mint: Account<Mint>, owner: Address): ReadonlyUint8Array {
-    const base = {
-        amount: 0n,
-        closeAuthority: null,
-        delegate: null,
-        delegatedAmount: 0n,
-        isNative: null,
-        mint: mint.address,
-        owner,
-    };
-    if (mint.programAddress === TOKEN_PROGRAM_ADDRESS) {
-        return getTokenEncoder().encode({ ...base, extensions: null, state: AccountState.Initialized });
-    }
-    const extensions: ExtensionArgs[] = [extension('ImmutableOwner', {})];
-    let state = AccountState.Initialized;
-    for (const mintExtension of unwrapOption(mint.data.extensions) ?? []) {
-        if (mintExtension.__kind === 'DefaultAccountState') {
-            state = mintExtension.state;
-        }
-        for (const accountExtension of REQUIRED_ACCOUNT_EXTENSIONS[mintExtension.__kind] ?? []) {
-            if (!extensions.some(({ __kind }) => __kind === accountExtension.__kind)) {
-                extensions.push(accountExtension);
-            }
-        }
-    }
-    return getTokenEncoder().encode({ ...base, extensions, state });
-}
-
-/**
- * The data the associated token program writes to a new associated token account for `mint` and
- * `owner`, before any later instruction touches it. Fetches the mint.
- *
- * {@link getTransferCheckedWithTransferHookInstructionAsync}'s `recipient` config uses this to
- * resolve hook seeds against a destination created earlier in the same transaction.
- */
-export async function getNewAssociatedTokenAccountDataAsync(
-    rpc: Rpc<GetAccountInfoApi>,
-    mint: Address | HasAddress,
-    owner: Address | HasAddress,
-): Promise<ReadonlyUint8Array> {
-    const mintAddress = getAddressFromResolvedInstructionAccount('mint', mint);
-    assertNotNativeMint(mintAddress);
-    return getNewAssociatedTokenAccountData(
-        await fetchMint(rpc, mintAddress),
-        getAddressFromResolvedInstructionAccount('owner', owner),
-    );
-}
-
 async function resolveSeed(
     seed: ExtraAccountMetaSeed,
     previousMetas: Address[],
@@ -765,7 +692,7 @@ export type ResolveExtraAccountMetasForExecuteInput = {
     recipient?: InstructionAccountInput;
     /** The token program the mint belongs to. Defaults to Token-2022. */
     tokenProgram?: Address | HasAddress;
-    /** The associated token program `recipient`'s account is derived with. */
+    /** The associated token program `recipient`'s account is derived with. Defaults to the ATA program. */
     associatedTokenProgram?: Address | HasAddress;
 };
 
@@ -774,7 +701,7 @@ type RecipientInput = Pick<
     'associatedTokenProgram' | 'destination' | 'mint' | 'recipient' | 'tokenProgram'
 >;
 
-async function assertRecipientOwnsDestination(input: RecipientInput): Promise<void> {
+async function assertDestinationIsRecipientAta(input: RecipientInput): Promise<void> {
     if (input.recipient === undefined) {
         return;
     }
@@ -789,11 +716,11 @@ async function assertRecipientOwnsDestination(input: RecipientInput): Promise<vo
                 input.tokenProgram ?? TOKEN_2022_PROGRAM_ADDRESS,
             ),
         },
-        { programAddress: input.associatedTokenProgram },
+        { programAddress: input.associatedTokenProgram ?? ASSOCIATED_TOKEN_PROGRAM_ADDRESS },
     );
     if (recipientAta !== destination) {
         throw new Error(
-            `Invalid transfer hook recipient: ${recipient} does not own the destination ${destination}; its associated token account for this mint is ${recipientAta}.`,
+            `Invalid transfer hook recipient: the destination ${destination} is not the associated token account of ${recipient} for this mint, which is ${recipientAta}.`,
         );
     }
 }
@@ -821,7 +748,6 @@ async function getDestinationDataOverrides(
             `Invalid transfer hook recipient: the destination ${destinationAddress} is owned by ${destination.programAddress}, not ${tokenProgram}.`,
         );
     }
-    assertNotNativeMint(mintAddress);
     const data = getNewAssociatedTokenAccountData(
         mint ?? (await fetchMint(input.rpc, mintAddress)),
         getAddressFromResolvedInstructionAccount('recipient', input.recipient),
@@ -845,7 +771,7 @@ async function getDestinationDataOverrides(
 export async function resolveExtraAccountMetasForExecute(
     input: ResolveExtraAccountMetasForExecuteInput,
 ): Promise<AccountMeta<Address>[]> {
-    await assertRecipientOwnsDestination(input);
+    await assertDestinationIsRecipientAta(input);
     return await resolveExtraAccountMetasForExecuteWithMint(input, undefined);
 }
 
@@ -1052,7 +978,7 @@ export type TransferCheckedWithTransferHookInstructionAsyncConfig = {
      * Throws if `destination` isn't that ATA.
      */
     recipient?: InstructionAccountInput;
-    /** The associated token program `recipient`'s account is derived with. */
+    /** The associated token program `recipient`'s account is derived with. Defaults to the ATA program. */
     associatedTokenProgram?: Address | HasAddress;
 };
 
@@ -1088,7 +1014,7 @@ export async function getTransferCheckedWithTransferHookInstructionAsync(
         { programAddress: config?.tokenProgram },
     );
 
-    await assertRecipientOwnsDestination({
+    await assertDestinationIsRecipientAta({
         associatedTokenProgram: config?.associatedTokenProgram,
         destination: input.destination,
         mint: input.mint,

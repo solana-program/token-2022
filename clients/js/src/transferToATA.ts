@@ -53,7 +53,7 @@ export type TransferToATAInstructionPlanConfig = {
     associatedTokenProgram?: Address | HasAddress;
 };
 
-function getCreateDestinationInstruction(
+function getDestinationCreateAssociatedTokenIdempotentInstruction(
     input: TransferToATAInstructionPlanInput,
     config?: TransferToATAInstructionPlanConfig,
 ) {
@@ -77,7 +77,7 @@ export function getTransferToATAInstructionPlan(
     config?: TransferToATAInstructionPlanConfig,
 ): InstructionPlan {
     return sequentialInstructionPlan([
-        getCreateDestinationInstruction(input, config),
+        getDestinationCreateAssociatedTokenIdempotentInstruction(input, config),
         getTransferCheckedInstruction(
             {
                 source: input.source,
@@ -170,5 +170,8 @@ export async function getTransferToATAWithTransferHookInstructionPlanAsync(
             tokenProgram: config?.tokenProgram,
         },
     );
-    return sequentialInstructionPlan([getCreateDestinationInstruction(resolved, config), transfer]);
+    return sequentialInstructionPlan([
+        getDestinationCreateAssociatedTokenIdempotentInstruction(resolved, config),
+        transfer,
+    ]);
 }
