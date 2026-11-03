@@ -34,8 +34,8 @@ importers:
         specifier: ^0.23.0
         version: 0.23.0(@solana/kit@8.6.0(typescript@6.0.3))(typescript@6.0.3)
       '@solana/kit-plugin-rpc':
-        specifier: ^0.19.0
-        version: 0.19.0(@solana/kit@8.6.0(typescript@6.0.3))
+        specifier: ^0.23.0
+        version: 0.23.0(@solana/kit@8.6.0(typescript@6.0.3))
       '@solana/kit-plugin-signer':
         specifier: ^0.23.0
         version: 0.23.0(@solana/kit@8.6.0(typescript@6.0.3))
@@ -1019,10 +1019,10 @@ packages:
     peerDependencies:
       '@solana/kit': ^8.6.0
 
-  '@solana/kit-plugin-rpc@0.19.0':
-    resolution: {integrity: sha512-N3nOdC4AEKJ5q9dT6pb7HEPpPelSHNWFkEUeKuf7fy9/9ErLAhYSZD7U6gOyRcCYK5oNyK5YZoCY5IHeqbOuOQ==}
+  '@solana/kit-plugin-rpc@0.23.0':
+    resolution: {integrity: sha512-BsCpiD2sm8XJGyhqSBHFZgm6mNslomAf1572DFt9eRb+GMb0jN5rdWTiDvoFcPn95h+Pe2GLx+F4AWsTWxrkjA==}
     peerDependencies:
-      '@solana/kit': ^8.2.0
+      '@solana/kit': ^8.6.0
 
   '@solana/kit-plugin-signer@0.23.0':
     resolution: {integrity: sha512-qLFDBYsbjWjwl4e569zSMkFRwWON9WH0sg5hVpCgrzu13uORLynYU9Vrt573a16y2Ic6Dcj4PKGmb7s7Ypm4Ig==}
@@ -2585,10 +2585,10 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@solana/kit-plugin-rpc@0.19.0(@solana/kit@8.6.0(typescript@6.0.3))':
+  '@solana/kit-plugin-rpc@0.23.0(@solana/kit@8.6.0(typescript@6.0.3))':
     dependencies:
       '@solana/kit': 8.6.0(typescript@6.0.3)
-      '@solana/kit-plugin-instruction-plan': 0.19.0(@solana/kit@8.6.0(typescript@6.0.3))
+      '@solana/kit-plugin-instruction-plan': 0.23.0(@solana/kit@8.6.0(typescript@6.0.3))
 
   '@solana/kit-plugin-signer@0.23.0(@solana/kit@8.6.0(typescript@6.0.3))':
     dependencies:
