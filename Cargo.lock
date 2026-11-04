@@ -11152,6 +11152,7 @@ dependencies = [
  "solana-remote-wallet",
  "solana-sdk",
  "solana-sdk-ids",
+ "solana-signer 4.0.0",
  "solana-system-interface 3.3.0",
  "solana-test-validator",
  "solana-zk-elgamal-proof-interface 1.0.0",

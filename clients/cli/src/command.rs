@@ -36,8 +36,8 @@ use {
         program_option::COption,
         pubkey::Pubkey,
         signature::{Keypair, Signer},
-        signer::EncodableKey,
     },
+    solana_signer::EncodableKey,
     solana_system_interface::program as system_program,
     solana_zk_elgamal_proof_interface::proof_data::{
         BatchedRangeProofContext, BatchedRangeProofU128Data, BatchedRangeProofU256Data,
@@ -3422,6 +3422,16 @@ fn derive_confidential_keys_matching(
     if PodElGamalPubkey::from(*elgamal_keypair.pubkey()) == *expected_elgamal_pubkey {
         return Ok((elgamal_keypair, aes_key));
     }
+    Err(format!(
+        "The encryption key derived from signer {} does not match the encryption key {} \
+         found on-chain. Use `--owner` to specify the keypair that configured the account. \
+         Accounts configured with spl-token-cli 5.6.0 or earlier use an older key derivation \
+         that this version does not support.",
+        signer.pubkey(),
+        expected_elgamal_pubkey,
+    )
+    .into())
+}
 
 fn validate_confidential_keypair_matches(
     elgamal_keypair: &ElGamalKeypair,
