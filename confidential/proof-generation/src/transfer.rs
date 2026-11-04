@@ -39,8 +39,6 @@
 //! These three proofs, when verified together, allow the on-chain program to securely process the
 //! confidential transfer.
 
-#[cfg(target_arch = "wasm32")]
-use solana_zk_sdk::encryption::grouped_elgamal::GroupedElGamal;
 use {
     crate::{
         encryption::TransferAmountCiphertext, errors::TokenProofGenerationError,
@@ -101,18 +99,6 @@ pub fn transfer_split_proof_data(
             destination_elgamal_pubkey,
             auditor_elgamal_pubkey,
         );
-    #[cfg(not(target_arch = "wasm32"))]
-    let grouped_ciphertext_lo = transfer_amount_grouped_ciphertext_lo.0;
-    #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_lo = GroupedElGamal::encrypt_with(
-        [
-            source_elgamal_keypair.pubkey(),
-            destination_elgamal_pubkey,
-            auditor_elgamal_pubkey,
-        ],
-        transfer_amount_lo,
-        &transfer_amount_opening_lo,
-    );
 
     let (transfer_amount_grouped_ciphertext_hi, transfer_amount_opening_hi) =
         TransferAmountCiphertext::new(
@@ -121,18 +107,6 @@ pub fn transfer_split_proof_data(
             destination_elgamal_pubkey,
             auditor_elgamal_pubkey,
         );
-    #[cfg(not(target_arch = "wasm32"))]
-    let grouped_ciphertext_hi = transfer_amount_grouped_ciphertext_hi.0;
-    #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_hi = GroupedElGamal::encrypt_with(
-        [
-            source_elgamal_keypair.pubkey(),
-            destination_elgamal_pubkey,
-            auditor_elgamal_pubkey,
-        ],
-        transfer_amount_hi,
-        &transfer_amount_opening_hi,
-    );
 
     // Decrypt the current available balance at the source
     let current_decrypted_available_balance = current_decryptable_available_balance
@@ -183,8 +157,8 @@ pub fn transfer_split_proof_data(
             source_elgamal_keypair.pubkey(),
             destination_elgamal_pubkey,
             auditor_elgamal_pubkey,
-            &grouped_ciphertext_lo,
-            &grouped_ciphertext_hi,
+            &transfer_amount_grouped_ciphertext_lo.0,
+            &transfer_amount_grouped_ciphertext_hi.0,
             transfer_amount_lo,
             transfer_amount_hi,
             &transfer_amount_opening_lo,
