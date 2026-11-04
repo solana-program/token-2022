@@ -5364,9 +5364,12 @@ async fn process_command_inner(
                 config.pubkey_or_default(arg_matches, "mint_authority", &mut wallet_manager)?;
             let memo = value_t!(arg_matches, "memo", String).ok();
             let rate_bps = arg_matches.get_one::<i16>("interest_rate").copied();
-            let metadata_address = value_t!(arg_matches, "metadata_address", Pubkey).ok();
-            let group_address = value_t!(arg_matches, "group_address", Pubkey).ok();
-            let member_address = value_t!(arg_matches, "member_address", Pubkey).ok();
+            let metadata_address =
+                pubkey_of_signer(arg_matches, "metadata_address", &mut wallet_manager).unwrap();
+            let group_address =
+                pubkey_of_signer(arg_matches, "group_address", &mut wallet_manager).unwrap();
+            let member_address =
+                pubkey_of_signer(arg_matches, "member_address", &mut wallet_manager).unwrap();
             let ui_multiplier = arg_matches.get_one::<f64>("ui_amount_multiplier").copied();
 
             let transfer_fee = arg_matches.values_of("transfer_fee").map(|mut v| {
@@ -6215,7 +6218,8 @@ async fn process_command_inner(
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(authority_signer, &mut bulk_signers);
             }
-            let metadata_address = value_t!(arg_matches, "metadata_address", Pubkey).ok();
+            let metadata_address =
+                pubkey_of_signer(arg_matches, "metadata_address", &mut wallet_manager).unwrap();
 
             command_update_pointer_address(
                 config,
@@ -6238,7 +6242,8 @@ async fn process_command_inner(
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(authority_signer, &mut bulk_signers);
             }
-            let group_address = value_t!(arg_matches, "group_address", Pubkey).ok();
+            let group_address =
+                pubkey_of_signer(arg_matches, "group_address", &mut wallet_manager).unwrap();
 
             command_update_pointer_address(
                 config,
@@ -6261,7 +6266,8 @@ async fn process_command_inner(
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(authority_signer, &mut bulk_signers);
             }
-            let member_address = value_t!(arg_matches, "member_address", Pubkey).ok();
+            let member_address =
+                pubkey_of_signer(arg_matches, "member_address", &mut wallet_manager).unwrap();
 
             command_update_pointer_address(
                 config,
