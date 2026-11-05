@@ -5,7 +5,6 @@ import {
     InstructionPlan,
     ReadonlyUint8Array,
     SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_INSTRUCTION_DATA,
-    SOLANA_ERROR__INSTRUCTION_PLANS__UNEXPECTED_TRANSACTION_PLAN,
     SOLANA_ERROR__TRANSACTION_ERROR__MAX_LOADED_ACCOUNTS_DATA_SIZE_EXCEEDED,
     TransactionSigner,
     getAddressDecoder,
@@ -54,7 +53,7 @@ const DECIMALS = 2;
 const MINT_AMOUNT = 500n;
 const BURN_AMOUNT = 200n;
 
-// Byte length of each sibling verify instruction's data: a one-byte
+// Byte length of each verify instruction's data: a one-byte
 // discriminator followed by the proof data.
 const EQUALITY_VERIFY_DATA_LENGTH = 1 + 320;
 const CIPHERTEXT_VALIDITY_VERIFY_DATA_LENGTH = 1 + 544;
@@ -201,10 +200,10 @@ async function fetchAvailableBalance(client: ValidatorClient, account: Confident
     }).availableBalance;
 }
 
-it('confidentially mints and burns in single v1 transactions with sibling proof instructions', async () => {
+it('confidentially mints and burns in single v1 transactions with instruction-offset proofs', async () => {
     // Given a v1 client with the default resource-limit estimation, and a
     // mint-burn mint with a confidential token account.
-    const client = await createValidatorClient({ version: 1 });
+    const client = await createValidatorClient();
     const payer = client.payer;
     const owner = await generateKeyPairSignerWithSol(client);
     const { mint, mintAuthority, supplyElgamalKeypair, supplyAesKey } = await createConfidentialMintBurnMint({
@@ -214,7 +213,7 @@ it('confidentially mints and burns in single v1 transactions with sibling proof 
     });
     const account = await createConfidentialTokenAccount({ client, payer, owner, mint });
 
-    // When the authority mints with the proofs verified in sibling instructions.
+    // When the authority mints with the proofs verified in the same transaction.
     const [{ data: destinationTokenAccount }, { data: mintAccount }] = await Promise.all([
         fetchToken(client.rpc, account.token),
         fetchMint(client.rpc, mint),
@@ -276,9 +275,9 @@ it('confidentially mints and burns in single v1 transactions with sibling proof 
     expect(await fetchAvailableBalance(client, account)).toBe(MINT_AMOUNT - BURN_AMOUNT);
 });
 
-it('resolves the auditor key from the mint account for sibling-proof mints and burns', async () => {
+it('resolves the auditor key from the mint account for instruction-offset-proof mints and burns', async () => {
     // Given a mint-burn mint that configures an auditor ElGamal key.
-    const client = await createValidatorClient({ version: 1 });
+    const client = await createValidatorClient();
     const payer = client.payer;
     const owner = await generateKeyPairSignerWithSol(client);
     const auditorElgamalKeypair = new ElGamalKeypair();
@@ -340,9 +339,9 @@ it('resolves the auditor key from the mint account for sibling-proof mints and b
     expect(await fetchAvailableBalance(client, account)).toBe(MINT_AMOUNT - BURN_AMOUNT);
 });
 
-it('confidentially burns via the permissioned variant with sibling proof instructions', async () => {
+it('confidentially burns via the permissioned variant with instruction-offset proofs', async () => {
     // Given a mint-burn mint that also carries the PermissionedBurn extension.
-    const client = await createValidatorClient({ version: 1 });
+    const client = await createValidatorClient();
     const payer = client.payer;
     const owner = await generateKeyPairSignerWithSol(client);
     const permissionedBurnAuthority = await generateKeyPairSignerWithSol(client);
@@ -404,7 +403,7 @@ it('confidentially burns via the permissioned variant with sibling proof instruc
 it('mints with a multisig mint authority and burns from a multisig-owned account', async () => {
     // Given a 2-of-2 multisig that is both the mint authority and the owner of
     // the confidential token account.
-    const client = await createValidatorClient({ version: 1 });
+    const client = await createValidatorClient();
     const payer = client.payer;
     const [signerA, signerB] = await Promise.all([
         generateKeyPairSignerWithSol(client),
@@ -477,9 +476,9 @@ it('mints with a multisig mint authority and burns from a multisig-owned account
     expect(await fetchAvailableBalance(client, account)).toBe(MINT_AMOUNT - BURN_AMOUNT);
 });
 
-it('permissioned-burns from a multisig-owned account with sibling proof instructions', async () => {
+it('permissioned-burns from a multisig-owned account with instruction-offset proofs', async () => {
     // Given a mint-burn + PermissionedBurn mint and an account owned by a 2-of-2 multisig.
-    const client = await createValidatorClient({ version: 1 });
+    const client = await createValidatorClient();
     const payer = client.payer;
     const permissionedBurnAuthority = await generateKeyPairSignerWithSol(client);
     const [signerA, signerB] = await Promise.all([
@@ -542,7 +541,7 @@ it('permissioned-burns from a multisig-owned account with sibling proof instruct
 
 it('rejects burning more than the available balance before building any proof', async () => {
     // Given an account with nothing available to burn.
-    const client = await createValidatorClient({ version: 1 });
+    const client = await createValidatorClient();
     const payer = client.payer;
     const owner = await generateKeyPairSignerWithSol(client);
     const { mint } = await createConfidentialMintBurnMint({ client, payer, decimals: DECIMALS });
@@ -567,9 +566,9 @@ it('rejects burning more than the available balance before building any proof', 
     ).toThrow('Insufficient funds.');
 });
 
-it('rejects a mint whose sibling proof instructions are missing or out of order', async () => {
-    // Given a valid sibling-proof mint plan.
-    const client = await createValidatorClient({ version: 1 });
+it('rejects a mint whose proof instructions are missing or out of order', async () => {
+    // Given a valid instruction-offset-proof mint plan.
+    const client = await createValidatorClient();
     const payer = client.payer;
     const owner = await generateKeyPairSignerWithSol(client);
     const { mint, mintAuthority, supplyElgamalKeypair, supplyAesKey } = await createConfidentialMintBurnMint({
@@ -617,9 +616,9 @@ it('rejects a mint whose sibling proof instructions are missing or out of order'
     expect(await fetchDecryptableSupply({ client, mint, supplyAesKey })).toBe(0n);
 });
 
-it('requires resource-limit estimation for sibling-proof mints on v1', async () => {
-    // Given a sibling-proof mint plan.
-    const client = await createValidatorClient({ version: 1 });
+it('requires resource-limit estimation for instruction-offset-proof mints on v1', async () => {
+    // Given an instruction-offset-proof mint plan.
+    const client = await createValidatorClient();
     const payer = client.payer;
     const owner = await generateKeyPairSignerWithSol(client);
     const { mint, mintAuthority, supplyElgamalKeypair, supplyAesKey } = await createConfidentialMintBurnMint({
@@ -645,46 +644,7 @@ it('requires resource-limit estimation for sibling-proof mints on v1', async () 
 
     // When it is sent by a v1 client with estimation off, then it fails: unset
     // v1 resource limits mean 0 compute units and 0 loaded account bytes.
-    const clientWithoutEstimation = await createValidatorClient({ version: 1, estimateResourceLimits: false });
+    const clientWithoutEstimation = await createValidatorClient({ estimateResourceLimits: false });
     const error = await getRootCauseOfRejection(clientWithoutEstimation.sendTransaction(mintPlan));
     expect(isSolanaError(error, SOLANA_ERROR__TRANSACTION_ERROR__MAX_LOADED_ACCOUNTS_DATA_SIZE_EXCEEDED)).toBe(true);
-});
-
-it('does not fit a sibling-proof mint in a single legacy/v0 transaction', async () => {
-    // Given a default (v0) client and a sibling-proof mint plan.
-    const client = await createValidatorClient();
-    const payer = client.payer;
-    const owner = await generateKeyPairSignerWithSol(client);
-    const { mint, mintAuthority, supplyElgamalKeypair, supplyAesKey } = await createConfidentialMintBurnMint({
-        client,
-        payer,
-        decimals: DECIMALS,
-    });
-    const account = await createConfidentialTokenAccount({ client, payer, owner, mint });
-    const [{ data: destinationTokenAccount }, { data: mintAccount }] = await Promise.all([
-        fetchToken(client.rpc, account.token),
-        fetchMint(client.rpc, mint),
-    ]);
-    const mintPlan = getConfidentialMintWithInstructionOffsetProofsInstructionPlan({
-        token: account.token,
-        mint,
-        mintAccount,
-        destinationTokenAccount,
-        authority: mintAuthority,
-        amount: MINT_AMOUNT,
-        supplyElgamalKeypair,
-        supplyAesKey,
-    });
-
-    // When planning it as a single transaction, then the planner rejects it.
-    const error = await getRootCauseOfRejection(client.planTransaction(mintPlan));
-    expect(isSolanaError(error, SOLANA_ERROR__INSTRUCTION_PLANS__UNEXPECTED_TRANSACTION_PLAN)).toBe(true);
-
-    // And planning it as several transactions spreads it over a non-divisible
-    // sequence of more than one transaction.
-    const transactionPlan = await client.planTransactions(mintPlan);
-    expect(transactionPlan.kind).toBe('sequential');
-    if (transactionPlan.kind !== 'sequential') return;
-    expect(transactionPlan.divisible).toBe(false);
-    expect(transactionPlan.plans.length).toBeGreaterThan(1);
 });

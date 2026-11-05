@@ -305,8 +305,8 @@ export type GetConfidentialMintWithRecordInstructionPlanInput = GetConfidentialM
 
 /**
  * Input for {@link getConfidentialMintWithInstructionOffsetProofsInstructionPlan}.
- * No `payer` or `rpc`: the proofs are verified in sibling instructions, so no
- * context-state accounts are funded.
+ * No `payer` or `rpc`: the proofs are verified by `zk-elgamal-proof`
+ * instructions in the same transaction, so no context-state accounts are funded.
  */
 export type GetConfidentialMintWithInstructionOffsetProofsInstructionPlanInput = Omit<
     GetConfidentialMintInstructionPlanInput,
@@ -328,8 +328,8 @@ export type GetConfidentialBurnWithRecordInstructionPlanInput = GetConfidentialB
 
 /**
  * Input for {@link getConfidentialBurnWithInstructionOffsetProofsInstructionPlan}.
- * No `payer` or `rpc`: the proofs are verified in sibling instructions, so no
- * context-state accounts are funded.
+ * No `payer` or `rpc`: the proofs are verified by `zk-elgamal-proof`
+ * instructions in the same transaction, so no context-state accounts are funded.
  */
 export type GetConfidentialBurnWithInstructionOffsetProofsInstructionPlanInput = Omit<
     GetConfidentialBurnInstructionPlanInput,
@@ -351,8 +351,8 @@ export type GetPermissionedConfidentialBurnWithRecordInstructionPlanInput =
 
 /**
  * Input for {@link getPermissionedConfidentialBurnWithInstructionOffsetProofsInstructionPlan}.
- * No `payer` or `rpc`: the proofs are verified in sibling instructions, so no
- * context-state accounts are funded.
+ * No `payer` or `rpc`: the proofs are verified by `zk-elgamal-proof`
+ * instructions in the same transaction, so no context-state accounts are funded.
  */
 export type GetPermissionedConfidentialBurnWithInstructionOffsetProofsInstructionPlanInput = Omit<
     GetPermissionedConfidentialBurnInstructionPlanInput,
@@ -950,15 +950,14 @@ function assembleConfidentialWithdrawPlan(
  * available balance back to the plaintext balance. Generates and verifies
  * the equality and batched range proofs via context-state accounts.
  *
- * The range proof is provided inline in the verify instruction data. This keeps
- * the flow to a minimal number of transactions, but on legacy and v0
- * transactions the range-proof transaction sits close to the size limit and
- * cannot accommodate an extra compute-unit-limit instruction. On those versions,
- * callers that send with a transaction plan executor which sets compute-unit
- * limits (e.g. by simulating) should either disable that estimation or use
- * {@link getConfidentialWithdrawWithRecordInstructionPlan}, which stages the range
- * proof in a record account first. On tx v1, keep estimation on: unset limits
- * mean 0 compute units and 0 loaded account bytes.
+ * The range proof is provided inline in the verify instruction data, which
+ * keeps the flow to a minimal number of transactions. On tx v1, the kit
+ * plugins' default, keep resource-limit estimation on: unset limits mean 0
+ * compute units and 0 loaded account bytes. Callers that opt into legacy/v0
+ * should either disable estimation or use
+ * {@link getConfidentialWithdrawWithRecordInstructionPlan}: on those versions the
+ * range-proof transaction sits close to the size limit and cannot fit the
+ * compute-unit-limit instruction that estimation adds.
  */
 export async function getConfidentialWithdrawInstructionPlan(
     input: GetConfidentialWithdrawInstructionPlanInput,
@@ -1169,15 +1168,14 @@ function assembleConfidentialTransferPlan(
  * required proofs (equality, grouped-ciphertext validity, batched range)
  * via context-state accounts.
  *
- * The range proof is provided inline in the verify instruction data. This keeps
- * the flow to a minimal number of transactions, but on legacy and v0
- * transactions the range-proof transaction sits close to the size limit and
- * cannot accommodate an extra compute-unit-limit instruction. On those versions,
- * callers that send with a transaction plan executor which sets compute-unit
- * limits (e.g. by simulating) should either disable that estimation or use
- * {@link getConfidentialTransferWithRecordInstructionPlan}, which stages the range
- * proof in a record account first. On tx v1, keep estimation on: unset limits
- * mean 0 compute units and 0 loaded account bytes.
+ * The range proof is provided inline in the verify instruction data, which
+ * keeps the flow to a minimal number of transactions. On tx v1, the kit
+ * plugins' default, keep resource-limit estimation on: unset limits mean 0
+ * compute units and 0 loaded account bytes. Callers that opt into legacy/v0
+ * should either disable estimation or use
+ * {@link getConfidentialTransferWithRecordInstructionPlan}: on those versions the
+ * range-proof transaction sits close to the size limit and cannot fit the
+ * compute-unit-limit instruction that estimation adds.
  */
 export async function getConfidentialTransferInstructionPlan(
     input: GetConfidentialTransferInstructionPlanInput,
@@ -1576,20 +1574,37 @@ function assertMintBurnAmount(amount: bigint, label: 'Mint' | 'Burn'): void {
     }
 }
 
-// Instruction offsets, relative to the mint/burn instruction, of the three
-// sibling verify instructions emitted by the `…WithInstructionOffsetProofs…`
-// helpers. Mirrors the Rust `confidential_mint_with_split_proofs` and
-// `confidential_burn_with_split_proofs`
+// Where a confidential mint or burn instruction reads its three proofs from:
+// context-state accounts (the `…Record` accounts, with every offset `0`), or
+// verify instructions in the same transaction, read through the instructions
+// sysvar at the given offsets. The mint, burn and permissioned burn
+// instructions share these field names.
+type MintBurnProofLocation = Pick<
+    ConfidentialMintInput,
+    | 'instructionsSysvar'
+    | 'equalityRecord'
+    | 'ciphertextValidityRecord'
+    | 'rangeRecord'
+    | 'equalityProofInstructionOffset'
+    | 'ciphertextValidityProofInstructionOffset'
+    | 'rangeProofInstructionOffset'
+>;
+
+// The proof location used by the `…WithInstructionOffsetProofs…` helpers: the
+// token instruction comes first, followed by the equality, ciphertext-validity
+// and range verify instructions at offsets 1, 2 and 3. Mirrors the Rust
+// `confidential_mint_with_split_proofs` and `confidential_burn_with_split_proofs`
 // (`interface/src/extension/confidential_mint_burn/instruction.rs`), and the
 // permissioned `confidential_burn_with_split_proofs`
-// (`interface/src/extension/permissioned_burn/instruction.rs`): the token
-// instruction comes first, followed by the equality, ciphertext-validity and
-// range verify instructions.
-const SIBLING_PROOF_INSTRUCTION_OFFSETS = {
+// (`interface/src/extension/permissioned_burn/instruction.rs`). The generated
+// builders have no default for the optional instructions sysvar account, so it
+// is set explicitly.
+const INSTRUCTION_OFFSET_PROOF_LOCATION: MintBurnProofLocation = {
+    instructionsSysvar: SYSVAR_INSTRUCTIONS_ADDRESS,
     equalityProofInstructionOffset: 1,
     ciphertextValidityProofInstructionOffset: 2,
     rangeProofInstructionOffset: 3,
-} as const;
+};
 
 // The three proofs a confidential mint or burn verifies. Mint, burn and
 // permissioned burn all verify the same three proof types.
@@ -1617,13 +1632,12 @@ type ConfidentialBurnProofData = ConfidentialMintBurnProofs & {
 };
 
 // The context-state setup/cleanup plans for the three mint/burn proofs, and the
-// context-state accounts the mint/burn instruction reads them from.
+// proof location pointing the mint/burn instruction at those context-state
+// accounts.
 type ConfidentialMintBurnContextStateProofPlan = {
     setup: InstructionPlan;
     cleanup: InstructionPlan;
-    equalityRecord: Address;
-    ciphertextValidityRecord: Address;
-    rangeRecord: Address;
+    proofLocation: MintBurnProofLocation;
 };
 
 // The context-state setup/cleanup plans and mint-instruction arguments produced
@@ -1901,19 +1915,24 @@ async function buildConfidentialMintBurnContextStateProofPlan(
             ciphertextValidityProofPlan.cleanup,
             rangeProofPlan.cleanup,
         ]),
-        equalityRecord: equalityProofPlan.address,
-        ciphertextValidityRecord: ciphertextValidityProofPlan.address,
-        rangeRecord: rangeProofPlan.address,
+        proofLocation: {
+            equalityRecord: equalityProofPlan.address,
+            ciphertextValidityRecord: ciphertextValidityProofPlan.address,
+            rangeRecord: rangeProofPlan.address,
+            equalityProofInstructionOffset: 0,
+            ciphertextValidityProofInstructionOffset: 0,
+            rangeProofInstructionOffset: 0,
+        },
     };
 }
 
 /**
  * Builds the three verify instructions that carry the mint/burn proofs inline,
- * in the order {@link SIBLING_PROOF_INSTRUCTION_OFFSETS} expects: equality,
+ * in the order {@link INSTRUCTION_OFFSET_PROOF_LOCATION} expects: equality,
  * ciphertext validity, range. They target the canonical ZK ElGamal proof
- * program, the only one token-2022 accepts sibling proofs from.
+ * program, the only one token-2022 reads instruction-offset proofs from.
  */
-function buildSiblingProofInstructions(proofs: ConfidentialMintBurnProofs): Instruction[] {
+function buildMintBurnVerifyProofInstructions(proofs: ConfidentialMintBurnProofs): Instruction[] {
     return [
         getVerifyProofInstruction({
             discriminator: ZkElGamalProofInstruction.VerifyCiphertextCommitmentEquality,
@@ -1931,41 +1950,50 @@ function buildSiblingProofInstructions(proofs: ConfidentialMintBurnProofs): Inst
 }
 
 /**
+ * Assembles the mint-instruction arguments from the computed proof data and
+ * the location the instruction reads the proofs from. Shared by every mint
+ * helper, which differ only in `proofLocation`.
+ */
+function getConfidentialMintInstructionArgs(
+    input: GetConfidentialMintWithInstructionOffsetProofsInstructionPlanInput,
+    proofData: ConfidentialMintProofData,
+    proofLocation: MintBurnProofLocation,
+): ConfidentialMintInput {
+    return {
+        token: input.token,
+        mint: input.mint,
+        authority: input.authority,
+        newDecryptableSupply: proofData.newDecryptableSupply,
+        mintAmountAuditorCiphertextLo: proofData.mintAmountAuditorCiphertextLo,
+        mintAmountAuditorCiphertextHi: proofData.mintAmountAuditorCiphertextHi,
+        ...proofLocation,
+        multiSigners: input.multiSigners,
+    };
+}
+
+/**
  * Computes the mint proofs, builds their context-state setup/cleanup plans and
  * assembles the mint-instruction arguments. Shared by
  * {@link getConfidentialMintInstructionPlan} and
  * {@link getConfidentialMintWithRecordInstructionPlan}; the proofs themselves
  * come from {@link buildConfidentialMintProofData}, which
  * {@link getConfidentialMintWithInstructionOffsetProofsInstructionPlan} reuses
- * with sibling verify instructions instead of context-state accounts.
+ * with verify instructions in the same transaction instead of context-state
+ * accounts.
  */
 async function buildConfidentialMintProofPlan(
     input: GetConfidentialMintInstructionPlanInput,
     record?: RecordBackedProofOptions,
 ): Promise<ConfidentialMintProofPlan> {
     const proofData = buildConfidentialMintProofData(input);
-    const { setup, cleanup, equalityRecord, ciphertextValidityRecord, rangeRecord } =
-        await buildConfidentialMintBurnContextStateProofPlan(proofData, input.payer, input.rpc, record);
+    const { setup, cleanup, proofLocation } = await buildConfidentialMintBurnContextStateProofPlan(
+        proofData,
+        input.payer,
+        input.rpc,
+        record,
+    );
 
-    return {
-        setup,
-        cleanup,
-        mintArgs: {
-            token: input.token,
-            mint: input.mint,
-            equalityRecord,
-            ciphertextValidityRecord,
-            rangeRecord,
-            authority: input.authority,
-            newDecryptableSupply: proofData.newDecryptableSupply,
-            mintAmountAuditorCiphertextLo: proofData.mintAmountAuditorCiphertextLo,
-            mintAmountAuditorCiphertextHi: proofData.mintAmountAuditorCiphertextHi,
-            equalityProofInstructionOffset: 0,
-            ciphertextValidityProofInstructionOffset: 0,
-            rangeProofInstructionOffset: 0,
-            multiSigners: input.multiSigners,
-        },
-    };
+    return { setup, cleanup, mintArgs: getConfidentialMintInstructionArgs(input, proofData, proofLocation) };
 }
 
 /**
@@ -1983,17 +2011,17 @@ async function buildConfidentialMintProofPlan(
  * which advances the ElGamal supply but cannot re-encrypt the AES form — is
  * handled without a manual re-sync; the mint itself re-syncs the cache.
  *
- * The range proof is provided inline in the verify instruction data. This keeps
- * the flow to a minimal number of transactions, but on legacy and v0
- * transactions the range-proof transaction sits close to the size limit and
- * cannot accommodate an extra compute-unit-limit instruction. On those versions,
- * callers that send with a transaction plan executor which sets compute-unit
- * limits (e.g. by simulating) should either disable that estimation or use
- * {@link getConfidentialMintWithRecordInstructionPlan}, which stages the range
- * proof in a record account first. On tx v1, keep estimation on (unset limits
- * mean 0 compute units and 0 loaded account bytes), and prefer
- * {@link getConfidentialMintWithInstructionOffsetProofsInstructionPlan}, which
- * mints in a single transaction with no context-state accounts.
+ * The range proof is provided inline in the verify instruction data, which
+ * keeps the flow to a minimal number of transactions. On tx v1, the kit
+ * plugins' default, keep resource-limit estimation on: unset limits mean 0
+ * compute units and 0 loaded account bytes. Callers that opt into legacy/v0
+ * should either disable estimation or use
+ * {@link getConfidentialMintWithRecordInstructionPlan}: on those versions the
+ * range-proof transaction sits close to the size limit and cannot fit the
+ * compute-unit-limit instruction that estimation adds.
+ *
+ * On tx v1, prefer {@link getConfidentialMintWithInstructionOffsetProofsInstructionPlan},
+ * which mints in a single transaction with no context-state accounts.
  */
 export async function getConfidentialMintInstructionPlan(
     input: GetConfidentialMintInstructionPlanInput,
@@ -2032,10 +2060,10 @@ export async function getConfidentialMintWithRecordInstructionPlan(
 /**
  * Returns a single-transaction instruction plan that confidentially mints
  * `amount` tokens, verifying the three proofs (equality, grouped-ciphertext
- * validity, batched U128 range) in sibling `zk-elgamal-proof` instructions of
- * the same transaction rather than in context-state accounts. The mint is
- * atomic: no context-state or record accounts are created, nothing needs
- * cleaning up, and only the authority (and any `multiSigners`) sign.
+ * validity, batched U128 range) in `zk-elgamal-proof` instructions of the same
+ * transaction rather than in context-state accounts. The mint is atomic: no
+ * context-state or record accounts are created, nothing needs cleaning up, and
+ * only the authority (and any `multiSigners`) sign.
  *
  * The plan is non-divisible and laid out as `[mint, verifyEquality,
  * verifyCiphertextValidity, verifyRange]`; the mint instruction reads each proof
@@ -2044,15 +2072,12 @@ export async function getConfidentialMintWithRecordInstructionPlan(
  * between them. The verify instructions carry the proofs in their instruction
  * data, so there is no record-backed variant.
  *
- * **Requires a tx v1 planner** (e.g. `transactionConfig: { version: 1 }`): the
- * transaction is about 2.4–2.6 KB, over the 1232-byte legacy/v0 limit. On
- * legacy/v0 the planner splits the plan across several transactions, which
- * `planTransaction`/`sendTransaction` reject with
- * `SOLANA_ERROR__INSTRUCTION_PLANS__UNEXPECTED_TRANSACTION_PLAN` and
- * `sendTransactions` with
- * `SOLANA_ERROR__INSTRUCTION_PLANS__NON_DIVISIBLE_TRANSACTION_PLANS_NOT_SUPPORTED`;
- * do not sign it with `signTransactions` on legacy/v0, which does not reject it.
- * Use {@link getConfidentialMintInstructionPlan} there instead.
+ * **Requires tx v1**, the kit plugins' default: the transaction is about
+ * 2.4–2.6 KB, over the 1232-byte legacy/v0 limit. Callers that opt into
+ * legacy/v0 cannot send it as one transaction (`planTransaction`,
+ * `sendTransaction` and `sendTransactions` reject it, but `signTransactions`
+ * does not, so do not use it there) and should use
+ * {@link getConfidentialMintInstructionPlan} instead.
  *
  * On tx v1, unset compute-unit and loaded-account-data-size limits mean 0, and
  * `ComputeBudget` instructions do not set them: keep resource-limit estimation on
@@ -2068,21 +2093,10 @@ export function getConfidentialMintWithInstructionOffsetProofsInstructionPlan(
     const proofData = buildConfidentialMintProofData(input);
     return nonDivisibleSequentialInstructionPlan([
         getConfidentialMintInstruction(
-            {
-                token: input.token,
-                mint: input.mint,
-                // The generated builder has no default for this optional account.
-                instructionsSysvar: SYSVAR_INSTRUCTIONS_ADDRESS,
-                authority: input.authority,
-                newDecryptableSupply: proofData.newDecryptableSupply,
-                mintAmountAuditorCiphertextLo: proofData.mintAmountAuditorCiphertextLo,
-                mintAmountAuditorCiphertextHi: proofData.mintAmountAuditorCiphertextHi,
-                ...SIBLING_PROOF_INSTRUCTION_OFFSETS,
-                multiSigners: input.multiSigners,
-            },
+            getConfidentialMintInstructionArgs(input, proofData, INSTRUCTION_OFFSET_PROOF_LOCATION),
             { programAddress: input.programAddress },
         ),
-        ...buildSiblingProofInstructions(proofData),
+        ...buildMintBurnVerifyProofInstructions(proofData),
     ]);
 }
 
@@ -2097,62 +2111,51 @@ type ConfidentialBurnProofPlan = {
 };
 
 /**
+ * Assembles the burn-instruction arguments common to the standard and
+ * permissioned burn variants from the computed proof data and the location the
+ * instruction reads the proofs from. Shared by every burn helper, which differ
+ * only in `proofLocation` and the burn instruction they emit. The account owner
+ * (`authority`) always signs; the variant-specific signer fields
+ * (`multiSigners` / `permissionedBurnAuthority`) are added by the caller.
+ */
+function getConfidentialBurnInstructionArgs(
+    input: GetConfidentialBurnWithInstructionOffsetProofsInstructionPlanInput,
+    proofData: ConfidentialBurnProofData,
+    proofLocation: MintBurnProofLocation,
+): Omit<ConfidentialBurnInput, 'multiSigners'> {
+    return {
+        token: input.token,
+        mint: input.mint,
+        authority: input.authority,
+        newDecryptableAvailableBalance: proofData.newDecryptableAvailableBalance,
+        burnAmountAuditorCiphertextLo: proofData.burnAmountAuditorCiphertextLo,
+        burnAmountAuditorCiphertextHi: proofData.burnAmountAuditorCiphertextHi,
+        ...proofLocation,
+    };
+}
+
+/**
  * Computes the burn proofs, builds their context-state setup/cleanup plans and
  * assembles the burn-instruction arguments shared by both the standard and
  * permissioned burn variants. Shared by {@link getConfidentialBurnInstructionPlan},
  * {@link getPermissionedConfidentialBurnInstructionPlan} and their `…WithRecord`
  * counterparts; the proofs themselves come from
  * {@link buildConfidentialBurnProofData}, which the `…WithInstructionOffsetProofs…`
- * burn helpers reuse with sibling verify instructions instead.
+ * burn helpers reuse with verify instructions in the same transaction instead.
  */
 async function buildConfidentialBurnProofPlan(
     input: GetConfidentialBurnInstructionPlanInput,
     record?: RecordBackedProofOptions,
 ): Promise<ConfidentialBurnProofPlan> {
     const proofData = buildConfidentialBurnProofData(input);
-    const { setup, cleanup, equalityRecord, ciphertextValidityRecord, rangeRecord } =
-        await buildConfidentialMintBurnContextStateProofPlan(proofData, input.payer, input.rpc, record);
+    const { setup, cleanup, proofLocation } = await buildConfidentialMintBurnContextStateProofPlan(
+        proofData,
+        input.payer,
+        input.rpc,
+        record,
+    );
 
-    return {
-        setup,
-        cleanup,
-        // Arguments common to both burn instruction variants. The account owner
-        // (`authority`) always signs; the variant-specific signer field
-        // (`multiSigners` / `permissionedBurnAuthority`) is added by the caller.
-        burnArgs: {
-            token: input.token,
-            mint: input.mint,
-            equalityRecord,
-            ciphertextValidityRecord,
-            rangeRecord,
-            authority: input.authority,
-            newDecryptableAvailableBalance: proofData.newDecryptableAvailableBalance,
-            burnAmountAuditorCiphertextLo: proofData.burnAmountAuditorCiphertextLo,
-            burnAmountAuditorCiphertextHi: proofData.burnAmountAuditorCiphertextHi,
-            equalityProofInstructionOffset: 0,
-            ciphertextValidityProofInstructionOffset: 0,
-            rangeProofInstructionOffset: 0,
-        },
-    };
-}
-
-// The burn-instruction arguments, shared by both burn variants, for reading the
-// proofs from the sibling verify instructions that follow the burn instruction.
-function getConfidentialBurnWithInstructionOffsetProofsArgs(
-    input: GetConfidentialBurnWithInstructionOffsetProofsInstructionPlanInput,
-    proofData: ConfidentialBurnProofData,
-): Omit<ConfidentialBurnInput, 'multiSigners'> {
-    return {
-        token: input.token,
-        mint: input.mint,
-        // The generated builders have no default for this optional account.
-        instructionsSysvar: SYSVAR_INSTRUCTIONS_ADDRESS,
-        authority: input.authority,
-        newDecryptableAvailableBalance: proofData.newDecryptableAvailableBalance,
-        burnAmountAuditorCiphertextLo: proofData.burnAmountAuditorCiphertextLo,
-        burnAmountAuditorCiphertextHi: proofData.burnAmountAuditorCiphertextHi,
-        ...SIBLING_PROOF_INSTRUCTION_OFFSETS,
-    };
+    return { setup, cleanup, burnArgs: getConfidentialBurnInstructionArgs(input, proofData, proofLocation) };
 }
 
 /**
@@ -2165,17 +2168,17 @@ function getConfidentialBurnWithInstructionOffsetProofsArgs(
  * `PermissionedBurn` extension the token-2022 program rejects this variant — use
  * {@link getPermissionedConfidentialBurnInstructionPlan} instead.
  *
- * The range proof is provided inline in the verify instruction data. This keeps
- * the flow to a minimal number of transactions, but on legacy and v0
- * transactions the range-proof transaction sits close to the size limit and
- * cannot accommodate an extra compute-unit-limit instruction. On those versions,
- * callers that send with a transaction plan executor which sets compute-unit
- * limits (e.g. by simulating) should either disable that estimation or use
- * {@link getConfidentialBurnWithRecordInstructionPlan}, which stages the range
- * proof in a record account first. On tx v1, keep estimation on (unset limits
- * mean 0 compute units and 0 loaded account bytes), and prefer
- * {@link getConfidentialBurnWithInstructionOffsetProofsInstructionPlan}, which
- * burns in a single transaction with no context-state accounts.
+ * The range proof is provided inline in the verify instruction data, which
+ * keeps the flow to a minimal number of transactions. On tx v1, the kit
+ * plugins' default, keep resource-limit estimation on: unset limits mean 0
+ * compute units and 0 loaded account bytes. Callers that opt into legacy/v0
+ * should either disable estimation or use
+ * {@link getConfidentialBurnWithRecordInstructionPlan}: on those versions the
+ * range-proof transaction sits close to the size limit and cannot fit the
+ * compute-unit-limit instruction that estimation adds.
+ *
+ * On tx v1, prefer {@link getConfidentialBurnWithInstructionOffsetProofsInstructionPlan},
+ * which burns in a single transaction with no context-state accounts.
  */
 export async function getConfidentialBurnInstructionPlan(
     input: GetConfidentialBurnInstructionPlanInput,
@@ -2221,18 +2224,18 @@ export async function getConfidentialBurnWithRecordInstructionPlan(
  * Like {@link getConfidentialMintWithInstructionOffsetProofsInstructionPlan},
  * but burns: returns a single-transaction plan laid out as `[burn,
  * verifyEquality, verifyCiphertextValidity, verifyRange]` that verifies the
- * three burn proofs in sibling `zk-elgamal-proof` instructions, with no
- * context-state accounts and nothing to clean up.
+ * three burn proofs in `zk-elgamal-proof` instructions of the same
+ * transaction, with no context-state accounts and nothing to clean up.
  *
  * Emits the **standard** `ConfidentialBurn` instruction; for mints carrying the
  * `PermissionedBurn` extension use
  * {@link getPermissionedConfidentialBurnWithInstructionOffsetProofsInstructionPlan}.
  *
- * The same requirements apply as for the mint variant: a tx v1 planner,
- * resource-limit estimation left on (or both `computeUnitLimit` and
- * `loadedAccountsDataSizeLimit` set by the caller), no `signTransactions` on
- * legacy/v0, and nothing inserted between the burn and its proofs. Use
- * {@link getConfidentialBurnInstructionPlan} on legacy/v0.
+ * The same requirements apply as for the mint variant: tx v1 (the kit plugins'
+ * default), resource-limit estimation left on (or both `computeUnitLimit` and
+ * `loadedAccountsDataSizeLimit` set by the caller), and nothing inserted
+ * between the burn and its proofs. Callers that opt into legacy/v0 should use
+ * {@link getConfidentialBurnInstructionPlan} instead.
  */
 export function getConfidentialBurnWithInstructionOffsetProofsInstructionPlan(
     input: GetConfidentialBurnWithInstructionOffsetProofsInstructionPlanInput,
@@ -2241,12 +2244,12 @@ export function getConfidentialBurnWithInstructionOffsetProofsInstructionPlan(
     return nonDivisibleSequentialInstructionPlan([
         getConfidentialBurnInstruction(
             {
-                ...getConfidentialBurnWithInstructionOffsetProofsArgs(input, proofData),
+                ...getConfidentialBurnInstructionArgs(input, proofData, INSTRUCTION_OFFSET_PROOF_LOCATION),
                 multiSigners: input.multiSigners,
             },
             { programAddress: input.programAddress },
         ),
-        ...buildSiblingProofInstructions(proofData),
+        ...buildMintBurnVerifyProofInstructions(proofData),
     ]);
 }
 
@@ -2259,12 +2262,13 @@ export function getConfidentialBurnWithInstructionOffsetProofsInstructionPlan(
  * account owner (`authority`).
  *
  * As with {@link getConfidentialBurnInstructionPlan}, the range proof is provided
- * inline in the verify instruction data, leaving no room for a compute-unit-limit
- * instruction on legacy and v0 transactions. Use
- * {@link getPermissionedConfidentialBurnWithRecordInstructionPlan} when sending
- * with an executor that estimates and sets one on those versions. On tx v1, keep
- * estimation on (unset limits mean 0 compute units and 0 loaded account bytes),
- * and prefer {@link getPermissionedConfidentialBurnWithInstructionOffsetProofsInstructionPlan}.
+ * inline in the verify instruction data. On tx v1, the kit plugins' default,
+ * keep resource-limit estimation on and prefer
+ * {@link getPermissionedConfidentialBurnWithInstructionOffsetProofsInstructionPlan}.
+ * Callers that opt into legacy/v0 and estimate compute-unit limits should use
+ * {@link getPermissionedConfidentialBurnWithRecordInstructionPlan}, as the
+ * inline range-proof transaction leaves no room for a compute-unit-limit
+ * instruction there.
  */
 export async function getPermissionedConfidentialBurnInstructionPlan(
     input: GetPermissionedConfidentialBurnInstructionPlanInput,
@@ -2328,13 +2332,13 @@ export function getPermissionedConfidentialBurnWithInstructionOffsetProofsInstru
     return nonDivisibleSequentialInstructionPlan([
         getPermissionedConfidentialBurnInstruction(
             {
-                ...getConfidentialBurnWithInstructionOffsetProofsArgs(input, proofData),
+                ...getConfidentialBurnInstructionArgs(input, proofData, INSTRUCTION_OFFSET_PROOF_LOCATION),
                 multiSigners: input.multiSigners,
                 permissionedBurnAuthority: input.permissionedBurnAuthority,
             },
             { programAddress: input.programAddress },
         ),
-        ...buildSiblingProofInstructions(proofData),
+        ...buildMintBurnVerifyProofInstructions(proofData),
     ]);
 }
 
