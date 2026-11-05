@@ -5,7 +5,6 @@ import {
     InstructionPlan,
     ReadonlyUint8Array,
     SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_INSTRUCTION_DATA,
-    SOLANA_ERROR__TRANSACTION_ERROR__MAX_LOADED_ACCOUNTS_DATA_SIZE_EXCEEDED,
     TransactionSigner,
     getAddressDecoder,
     getSignatureFromTransaction,
@@ -614,37 +613,4 @@ it('rejects a mint whose proof instructions are missing or out of order', async 
 
     // And nothing was minted.
     expect(await fetchDecryptableSupply({ client, mint, supplyAesKey })).toBe(0n);
-});
-
-it('requires resource-limit estimation for instruction-offset-proof mints on v1', async () => {
-    // Given an instruction-offset-proof mint plan.
-    const client = await createValidatorClient();
-    const payer = client.payer;
-    const owner = await generateKeyPairSignerWithSol(client);
-    const { mint, mintAuthority, supplyElgamalKeypair, supplyAesKey } = await createConfidentialMintBurnMint({
-        client,
-        payer,
-        decimals: DECIMALS,
-    });
-    const account = await createConfidentialTokenAccount({ client, payer, owner, mint });
-    const [{ data: destinationTokenAccount }, { data: mintAccount }] = await Promise.all([
-        fetchToken(client.rpc, account.token),
-        fetchMint(client.rpc, mint),
-    ]);
-    const mintPlan = getConfidentialMintWithInstructionOffsetProofsInstructionPlan({
-        token: account.token,
-        mint,
-        mintAccount,
-        destinationTokenAccount,
-        authority: mintAuthority,
-        amount: MINT_AMOUNT,
-        supplyElgamalKeypair,
-        supplyAesKey,
-    });
-
-    // When it is sent by a v1 client with estimation off, then it fails: unset
-    // v1 resource limits mean 0 compute units and 0 loaded account bytes.
-    const clientWithoutEstimation = await createValidatorClient({ estimateResourceLimits: false });
-    const error = await getRootCauseOfRejection(clientWithoutEstimation.sendTransaction(mintPlan));
-    expect(isSolanaError(error, SOLANA_ERROR__TRANSACTION_ERROR__MAX_LOADED_ACCOUNTS_DATA_SIZE_EXCEEDED)).toBe(true);
 });

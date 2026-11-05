@@ -284,10 +284,7 @@ type GetConfidentialMintBurnInstructionPlanBaseInput = {
     multiSigners?: Array<TransactionSigner>;
     programAddress?: Address | HasAddress;
     payer: TransactionSigner;
-    // Only used to fund the context-state (and record) accounts. The auditor
-    // key is resolved from `mintAccount`, so no account reads occur; the type
-    // keeps `GetAccountInfoApi` for compatibility.
-    rpc: Rpc<GetMinimumBalanceForRentExemptionApi & GetAccountInfoApi>;
+    rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
 };
 
 export type GetConfidentialMintInstructionPlanInput = GetConfidentialMintBurnInstructionPlanBaseInput & {
@@ -987,10 +984,11 @@ export async function getConfidentialWithdrawInstructionPlan(
  *
  * This shrinks the range-proof verification transaction so it leaves room for a
  * compute-unit-limit instruction, at the cost of extra transactions to create,
- * write and close the record account. Prefer this variant when sending with the
- * default transaction plan executor, which reserves a compute-unit-limit
- * instruction that would otherwise push the inline transaction over the size
- * limit.
+ * write and close the record account. Use this variant when sending legacy/v0
+ * transactions with resource-limit estimation on: the inline range-proof
+ * transaction cannot fit the compute-unit-limit instruction that estimation
+ * adds. On tx v1, the kit plugins' default, the inline variant fits and needs
+ * no record account.
  */
 export async function getConfidentialWithdrawWithRecordInstructionPlan(
     input: GetConfidentialWithdrawWithRecordInstructionPlanInput,
@@ -1215,10 +1213,11 @@ export async function getConfidentialTransferInstructionPlan(
  *
  * This shrinks the range-proof verification transaction so it leaves room for a
  * compute-unit-limit instruction, at the cost of extra transactions to create,
- * write and close the record account. Prefer this variant when sending with the
- * default transaction plan executor, which reserves a compute-unit-limit
- * instruction that would otherwise push the inline transaction over the size
- * limit.
+ * write and close the record account. Use this variant when sending legacy/v0
+ * transactions with resource-limit estimation on: the inline range-proof
+ * transaction cannot fit the compute-unit-limit instruction that estimation
+ * adds. On tx v1, the kit plugins' default, the inline variant fits and needs
+ * no record account.
  */
 export async function getConfidentialTransferWithRecordInstructionPlan(
     input: GetConfidentialTransferWithRecordInstructionPlanInput,
@@ -2041,10 +2040,11 @@ export async function getConfidentialMintInstructionPlan(
  *
  * This shrinks the range-proof verification transaction so it leaves room for a
  * compute-unit-limit instruction, at the cost of extra transactions to create,
- * write and close the record account. Prefer this variant when sending with the
- * default transaction plan executor, which reserves a compute-unit-limit
- * instruction that would otherwise push the inline transaction over the size
- * limit.
+ * write and close the record account. Use this variant when sending legacy/v0
+ * transactions with resource-limit estimation on: the inline range-proof
+ * transaction cannot fit the compute-unit-limit instruction that estimation
+ * adds. On tx v1, the kit plugins' default, the inline variant fits and needs
+ * no record account.
  */
 export async function getConfidentialMintWithRecordInstructionPlan(
     input: GetConfidentialMintWithRecordInstructionPlanInput,
@@ -2201,10 +2201,11 @@ export async function getConfidentialBurnInstructionPlan(
  *
  * This shrinks the range-proof verification transaction so it leaves room for a
  * compute-unit-limit instruction, at the cost of extra transactions to create,
- * write and close the record account. Prefer this variant when sending with the
- * default transaction plan executor, which reserves a compute-unit-limit
- * instruction that would otherwise push the inline transaction over the size
- * limit.
+ * write and close the record account. Use this variant when sending legacy/v0
+ * transactions with resource-limit estimation on: the inline range-proof
+ * transaction cannot fit the compute-unit-limit instruction that estimation
+ * adds. On tx v1, the kit plugins' default, the inline variant fits and needs
+ * no record account.
  */
 export async function getConfidentialBurnWithRecordInstructionPlan(
     input: GetConfidentialBurnWithRecordInstructionPlanInput,
@@ -2295,10 +2296,11 @@ export async function getPermissionedConfidentialBurnInstructionPlan(
  *
  * This shrinks the range-proof verification transaction so it leaves room for a
  * compute-unit-limit instruction, at the cost of extra transactions to create,
- * write and close the record account. Prefer this variant when sending with the
- * default transaction plan executor, which reserves a compute-unit-limit
- * instruction that would otherwise push the inline transaction over the size
- * limit.
+ * write and close the record account. Use this variant when sending legacy/v0
+ * transactions with resource-limit estimation on: the inline range-proof
+ * transaction cannot fit the compute-unit-limit instruction that estimation
+ * adds. On tx v1, the kit plugins' default, the inline variant fits and needs
+ * no record account.
  */
 export async function getPermissionedConfidentialBurnWithRecordInstructionPlan(
     input: GetPermissionedConfidentialBurnWithRecordInstructionPlanInput,
