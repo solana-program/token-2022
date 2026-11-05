@@ -1,6 +1,8 @@
 mod program_test;
 use {
-    program_test::{ConfidentialTransferOption, TestContext, TokenContext},
+    program_test::{
+        derive_confidential_keys, ConfidentialTransferOption, TestContext, TokenContext,
+    },
     solana_program_test::tokio,
     solana_sdk::{
         instruction::InstructionError,
@@ -10,9 +12,7 @@ use {
         transaction::TransactionError,
         transport::TransportError,
     },
-    solana_zk_sdk::encryption::{
-        auth_encryption::*, derivation::derive_confidential_keys, elgamal::*,
-    },
+    solana_zk_sdk::encryption::{auth_encryption::*, elgamal::*},
     solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
     spl_token_2022_interface::{
         error::TokenError,
@@ -62,7 +62,7 @@ impl ConfidentialTokenAccountMeta {
             .unwrap();
 
         let token_account = token_account_keypair.pubkey();
-        let (elgamal_keypair, aes_key) = derive_confidential_keys(owner, b"").unwrap();
+        let (elgamal_keypair, aes_key) = derive_confidential_keys(owner).unwrap();
 
         token
             .confidential_transfer_configure_token_account(

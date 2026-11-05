@@ -1,6 +1,6 @@
 [package]
 name = "spl-token-2022"
-version = "11.1.0"
+version = "12.0.0"
 description = "Solana Program Library Token 2022"
 documentation = "https://docs.rs/spl-token-2022"
 readme = "README.md"
@@ -40,12 +40,12 @@ solana-sysvar = { version = "3.0.0", features = ["bincode"] }
 solana-system-interface = { version = "3.2.0", features = ["bincode"] }
 solana-zero-copy = { version = "1.1.1", features = ["bytemuck"] }
 solana-zk-sdk-pod = "0.1.2"
-solana-zk-elgamal-proof-interface = "0.1.2"
-spl-elgamal-registry-interface = { version = "0.2.0", path = "../confidential/elgamal-registry-interface" }
+solana-zk-elgamal-proof-interface = "1.0.0"
+spl-elgamal-registry-interface = { version = "0.3.0", path = "../confidential/elgamal-registry-interface" }
 spl-memo-interface = { version = "2.1" }
-spl-token-2022-interface = { version = "3.1.0", path = "../interface" }
+spl-token-2022-interface = { version = "4.0.0", path = "../interface" }
 spl-token-confidential-transfer-ciphertext-arithmetic = { version = "0.5.0", path = "../confidential/ciphertext-arithmetic" }
-spl-token-confidential-transfer-proof-extraction = { version = "0.6.0", path = "../confidential/proof-extraction" }
+spl-token-confidential-transfer-proof-extraction = { version = "0.7.0", path = "../confidential/proof-extraction" }
 spl-token-group-interface = "0.7.2"
 spl-token-metadata-interface = "1.0.0"
 spl-transfer-hook-interface = { version = "2.1.0" }

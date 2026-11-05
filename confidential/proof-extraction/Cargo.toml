@@ -1,6 +1,6 @@
 [package]
 name = "spl-token-confidential-transfer-proof-extraction"
-version = "0.6.1"
+version = "0.7.0"
 description = "Solana Program Library Confidential Transfer Proof Extraction"
 authors = { workspace = true }
 repository = { workspace = true }
@@ -20,6 +20,6 @@ solana-instructions-sysvar = "4.0.0"
 solana-msg = { version = "3.1.0", default-features = false, features = ["alloc"] }
 solana-program-error = "3.0.1"
 solana-sdk-ids = "3.1.0"
-solana-zk-elgamal-proof-interface = "0.1.3"
+solana-zk-elgamal-proof-interface = "1.0.0"
 solana-zk-sdk-pod = "0.1.2"
 thiserror = { version = "2.0.18", default-features = false }

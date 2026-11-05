@@ -23,6 +23,7 @@ use {
     solana_clap_v3_utils::{
         input_parsers::{pubkey_of_signer, pubkeys_of_multiple_signers, Amount},
         keypair::signer_from_path,
+        offline::SIGNER_ARG,
     },
     solana_cli_output::{
         display::build_balance_message, return_signers_data, CliSignOnlyData, CliSignature,
@@ -43,7 +44,7 @@ use {
     },
     solana_zk_sdk::encryption::{
         auth_encryption::AeKey,
-        derivation::derive_confidential_keys,
+        derivation::{derive_confidential_keys_from_signature, STANDARD_DERIVATION_MESSAGE},
         elgamal::{self, ElGamalKeypair},
         pedersen::{Pedersen, PedersenOpening},
     },
@@ -352,7 +353,7 @@ async fn command_create_token(
 
     if enable_confidential_mint_burn {
         let (supply_elgamal_keypair, supply_aes_key) =
-            derive_confidential_keys(config.default_signer()?.as_ref(), b"").unwrap();
+            derive_confidential_keys(config.default_signer()?.as_ref()).unwrap();
         // encrypt the initial 0 supply
         let decryptable_supply = supply_aes_key.encrypt(0).into();
 
@@ -372,10 +373,10 @@ async fn command_create_token(
             // Deriving ElGamal key from default signer. Custom ElGamal keys
             // will be supported in the future once upgrading to clap-v3.
             //
-            // NOTE: Seed bytes are hardcoded to be empty bytes for now. They
-            // will be updated once custom ElGamal keys are supported.
+            // NOTE: This uses the standard (no-seed) derivation. Custom keys can use
+            // `derive_confidential_keys_with_seed` from `solana-zk-sdk`.
             let (elgamal_keypair, _) =
-                derive_confidential_keys(config.default_signer()?.as_ref(), b"").unwrap();
+                derive_confidential_keys(config.default_signer()?.as_ref()).unwrap();
             extensions.push(
                 ExtensionInitializationParams::ConfidentialTransferFeeConfig {
                     authority: Some(authority),
@@ -2227,7 +2228,7 @@ async fn command_burn(
     let use_confidential = confidential || mint_info.has_confidential_mint_burn;
 
     let confidential_burn_args = if use_confidential {
-        Some(derive_confidential_keys(config.default_signer()?.as_ref(), b"").unwrap())
+        Some(derive_confidential_keys(config.default_signer()?.as_ref()).unwrap())
     } else {
         None
     };
@@ -2491,7 +2492,7 @@ async fn command_mint(
 
     let use_confidential = confidential || mint_info.has_confidential_mint_burn;
     let confidential_mint_args = if use_confidential {
-        Some(derive_confidential_keys(config.default_signer()?.as_ref(), b"").unwrap())
+        Some(derive_confidential_keys(config.default_signer()?.as_ref()).unwrap())
     } else {
         None
     };
@@ -3371,14 +3372,24 @@ async fn command_address(
     Ok(config.output_format.formatted_string(&cli_address))
 }
 
+/// Derives the standard confidential keys for `signer`.
+///
+/// Equivalent to `solana_zk_sdk::encryption::derivation::derive_confidential_keys`,
+/// which takes a `solana-signer` `v4` signer, while the signers here are still `v3`.
+fn derive_confidential_keys(
+    signer: &dyn Signer,
+) -> Result<(ElGamalKeypair, AeKey), Box<dyn std::error::Error>> {
+    let signature = signer.try_sign_message(STANDARD_DERIVATION_MESSAGE)?;
+    derive_confidential_keys_from_signature(&signature).map_err(Into::into)
+}
+
 /// Derives the ElGamal keypair and AES key from a signer and checks that the
 /// derived ElGamal public key matches the one stored on-chain.
 fn derive_confidential_keys_matching(
     signer: &dyn Signer,
     expected_elgamal_pubkey: &PodElGamalPubkey,
 ) -> Result<(ElGamalKeypair, AeKey), Error> {
-    let (elgamal_keypair, aes_key) =
-        derive_confidential_keys(signer, b"").map_err(|e| e.to_string())?;
+    let (elgamal_keypair, aes_key) = derive_confidential_keys(signer).map_err(|e| e.to_string())?;
     if PodElGamalPubkey::from(*elgamal_keypair.pubkey()) == *expected_elgamal_pubkey {
         return Ok((elgamal_keypair, aes_key));
     }
@@ -4300,6 +4311,17 @@ async fn command_harvest_withheld_confidential_tokens(
     let source_refs = source_token_accounts.iter().collect::<Vec<_>>();
     // Batch sources to keep each transaction within the packet size limit.
     const MAX_HARVEST_ACCOUNTS: usize = 25;
+    // Reserve room for a separate nonce authority and both compute budget instructions.
+    let max_accounts = if config.nonce_account.is_some() {
+        23
+    } else {
+        MAX_HARVEST_ACCOUNTS
+    };
+    if (config.sign_only || config.nonce_account.is_some()) && source_refs.len() > max_accounts {
+        return Err(format!(
+            "Confidential harvesting supports at most {max_accounts} distinct source accounts for this invocation; split sources across separate invocations"
+        ).into());
+    }
     let mut results = vec![];
     for sources in source_refs.chunks(MAX_HARVEST_ACCOUNTS) {
         let res = token
@@ -4400,9 +4422,10 @@ async fn command_update_confidential_transfer_settings(
             .into());
         }
     } else {
-        let new_auto_approve = auto_approve.expect("The approve policy must be provided");
+        let new_auto_approve =
+            auto_approve.expect("clap requires --approve-policy with --sign-only");
         let new_auditor_pubkey = auditor_pubkey
-            .expect("The auditor encryption pubkey must be provided")
+            .expect("clap requires --auditor-pubkey with --sign-only")
             .into();
 
         (new_auto_approve, new_auditor_pubkey)
@@ -4556,8 +4579,9 @@ async fn command_approve_confidential_transfer_account(
     account: Pubkey,
     authority: Pubkey,
     bulk_signers: BulkSigners,
+    mint_address: Option<Pubkey>,
 ) -> CommandResult {
-    let mint_address = config.check_account(&account, None).await?;
+    let mint_address = config.check_account(&account, mint_address).await?;
     let token = token_client_from_config(config, &mint_address, None)?;
 
     println_display(
@@ -4629,10 +4653,6 @@ async fn command_enable_disable_confidential_transfers(
     allow_confidential_credits: Option<bool>,
     allow_non_confidential_credits: Option<bool>,
 ) -> CommandResult {
-    if config.sign_only {
-        panic!("Sign-only is not yet supported.");
-    }
-
     let token_account_address = if let Some(account) = maybe_account {
         account
     } else {
@@ -4642,37 +4662,62 @@ async fn command_enable_disable_confidential_transfers(
         token.get_associated_token_address(&owner)
     };
 
-    let account = config.get_account_checked(&token_account_address).await?;
+    let token = if config.sign_only {
+        // default is safe here because the credit instructions don't use it
+        token_client_from_config(config, &Pubkey::default(), None)?
+    } else {
+        let account = config.get_account_checked(&token_account_address).await?;
 
-    let state_with_extension = StateWithExtensionsOwned::<Account>::unpack(account.data)?;
-    let token = token_client_from_config(config, &state_with_extension.base.mint, None)?;
+        let state_with_extension = StateWithExtensionsOwned::<Account>::unpack(account.data)?;
+        let token = token_client_from_config(config, &state_with_extension.base.mint, None)?;
 
-    let existing_extensions: Vec<ExtensionType> = state_with_extension.get_extension_types()?;
-    if !existing_extensions.contains(&ExtensionType::ConfidentialTransferAccount) {
-        panic!(
-            "Confidential transfer is not yet configured for this account. \
-        Use `configure-confidential-transfer-account` command instead."
-        );
-    }
-
-    let res = if let Some(allow_confidential_credits) = allow_confidential_credits {
-        let extension_state = state_with_extension
-            .get_extension::<ConfidentialTransferAccount>()?
-            .allow_confidential_credits
-            .into();
-
-        if extension_state == allow_confidential_credits {
-            return Ok(format!(
-                "Confidential transfers are already {}",
-                if extension_state {
-                    "enabled"
-                } else {
-                    "disabled"
-                }
-            ));
+        let existing_extensions: Vec<ExtensionType> = state_with_extension.get_extension_types()?;
+        if !existing_extensions.contains(&ExtensionType::ConfidentialTransferAccount) {
+            panic!(
+                "Confidential transfer is not yet configured for this account. \
+            Use `configure-confidential-transfer-account` command instead."
+            );
         }
 
-        if allow_confidential_credits {
+        if let Some(allow_confidential_credits) = allow_confidential_credits {
+            let extension_state = state_with_extension
+                .get_extension::<ConfidentialTransferAccount>()?
+                .allow_confidential_credits
+                .into();
+
+            if extension_state == allow_confidential_credits {
+                return Ok(format!(
+                    "Confidential transfers are already {}",
+                    if extension_state {
+                        "enabled"
+                    } else {
+                        "disabled"
+                    }
+                ));
+            }
+        } else if let Some(allow_non_confidential_credits) = allow_non_confidential_credits {
+            let extension_state = state_with_extension
+                .get_extension::<ConfidentialTransferAccount>()?
+                .allow_non_confidential_credits
+                .into();
+
+            if extension_state == allow_non_confidential_credits {
+                return Ok(format!(
+                    "Non-confidential transfers are already {}",
+                    if extension_state {
+                        "enabled"
+                    } else {
+                        "disabled"
+                    }
+                ));
+            }
+        }
+
+        token
+    };
+
+    let res = match (allow_confidential_credits, allow_non_confidential_credits) {
+        (Some(true), _) => {
             token
                 .confidential_transfer_enable_confidential_credits(
                     &token_account_address,
@@ -4680,7 +4725,8 @@ async fn command_enable_disable_confidential_transfers(
                     &bulk_signers,
                 )
                 .await
-        } else {
+        }
+        (Some(false), _) => {
             token
                 .confidential_transfer_disable_confidential_credits(
                     &token_account_address,
@@ -4689,26 +4735,7 @@ async fn command_enable_disable_confidential_transfers(
                 )
                 .await
         }
-    } else {
-        let allow_non_confidential_credits =
-            allow_non_confidential_credits.expect("Nothing to be done");
-        let extension_state = state_with_extension
-            .get_extension::<ConfidentialTransferAccount>()?
-            .allow_non_confidential_credits
-            .into();
-
-        if extension_state == allow_non_confidential_credits {
-            return Ok(format!(
-                "Non-confidential transfers are already {}",
-                if extension_state {
-                    "enabled"
-                } else {
-                    "disabled"
-                }
-            ));
-        }
-
-        if allow_non_confidential_credits {
+        (_, Some(true)) => {
             token
                 .confidential_transfer_enable_non_confidential_credits(
                     &token_account_address,
@@ -4716,7 +4743,8 @@ async fn command_enable_disable_confidential_transfers(
                     &bulk_signers,
                 )
                 .await
-        } else {
+        }
+        (_, Some(false)) => {
             token
                 .confidential_transfer_disable_non_confidential_credits(
                     &token_account_address,
@@ -4725,6 +4753,7 @@ async fn command_enable_disable_confidential_transfers(
                 )
                 .await
         }
+        _ => return Err("No credit setting provided".into()),
     }?;
 
     let tx_return = finish_tx(config, &res, false).await?;
@@ -4757,7 +4786,30 @@ async fn command_deposit_withdraw_confidential_tokens(
     aes_key: Option<&AeKey>,
 ) -> CommandResult {
     if config.sign_only {
-        panic!("Sign-only is not yet supported.");
+        if instruction_type == ConfidentialInstructionType::Withdraw {
+            unreachable!("clap rejects --sign-only for withdrawals");
+        }
+        let decimals = mint_decimals.expect("clap requires --mint-decimals with --sign-only");
+        let amount = match ui_amount {
+            Amount::Raw(amount) => amount,
+            Amount::Decimal(amount) => spl_token_2022::ui_amount_to_amount(amount, decimals),
+            Amount::All => {
+                return Err("ALL is unsupported offline; provide an explicit amount".into())
+            }
+        };
+        let token = token_client_from_config(config, &token_pubkey, Some(decimals))?;
+        let account = maybe_account.unwrap_or_else(|| token.get_associated_token_address(&owner));
+        println_display(
+            config,
+            format!(
+                "Depositing {} confidential tokens",
+                spl_token_2022::amount_to_ui_amount(amount, decimals),
+            ),
+        );
+        let response = token
+            .confidential_transfer_deposit(&account, &owner, amount, decimals, &bulk_signers)
+            .await?;
+        return format_transaction_return(config, finish_tx(config, &response, false).await?);
     }
 
     // check if mint decimals provided is consistent
@@ -5276,6 +5328,26 @@ async fn process_command_inner(
     mut wallet_manager: Option<Rc<RemoteWalletManager>>,
     mut bulk_signers: Vec<Arc<dyn Signer>>,
 ) -> CommandResult {
+    if config.sign_only
+        && matches!(
+            sub_command,
+            CommandName::ApproveConfidentialTransferAccount
+                | CommandName::EnableConfidentialCredits
+                | CommandName::DisableConfidentialCredits
+                | CommandName::EnableNonConfidentialCredits
+                | CommandName::DisableNonConfidentialCredits
+                | CommandName::DepositConfidentialTokens
+                | CommandName::HarvestWithheldConfidentialTokens
+                | CommandName::EnableConfidentialFeeHarvesting
+                | CommandName::DisableConfidentialFeeHarvesting
+                | CommandName::UpdateConfidentialTransferSettings
+                | CommandName::ApplyPendingBurn
+        )
+        && config.program_id == spl_token_interface::id()
+    {
+        return Err("Offline confidential transactions require --program-2022 or the Token-2022 --program-id".into());
+    }
+
     match (sub_command, sub_matches) {
         (CommandName::Bench, arg_matches) => {
             bench_process_command(
@@ -5292,9 +5364,12 @@ async fn process_command_inner(
                 config.pubkey_or_default(arg_matches, "mint_authority", &mut wallet_manager)?;
             let memo = value_t!(arg_matches, "memo", String).ok();
             let rate_bps = arg_matches.get_one::<i16>("interest_rate").copied();
-            let metadata_address = value_t!(arg_matches, "metadata_address", Pubkey).ok();
-            let group_address = value_t!(arg_matches, "group_address", Pubkey).ok();
-            let member_address = value_t!(arg_matches, "member_address", Pubkey).ok();
+            let metadata_address =
+                pubkey_of_signer(arg_matches, "metadata_address", &mut wallet_manager).unwrap();
+            let group_address =
+                pubkey_of_signer(arg_matches, "group_address", &mut wallet_manager).unwrap();
+            let member_address =
+                pubkey_of_signer(arg_matches, "member_address", &mut wallet_manager).unwrap();
             let ui_multiplier = arg_matches.get_one::<f64>("ui_amount_multiplier").copied();
 
             let transfer_fee = arg_matches.values_of("transfer_fee").map(|mut v| {
@@ -5625,10 +5700,10 @@ async fn process_command_inner(
                 // Deriving ElGamal and AES key from signer. Custom ElGamal and AES keys will be
                 // supported in the future once upgrading to clap-v3.
                 //
-                // NOTE:: Seed bytes are hardcoded to be empty bytes for now. They will be
-                // updated once custom ElGamal and AES keys are supported.
+                // NOTE: This uses the standard (no-seed) derivation. Custom keys can use
+                // `derive_confidential_keys_with_seed` from `solana-zk-sdk`.
                 let (sender_elgamal_keypair, sender_aes_key) =
-                    derive_confidential_keys(&*owner_signer, b"").unwrap();
+                    derive_confidential_keys(&*owner_signer).unwrap();
 
                 // Sign-only mode is not yet supported for confidential transfers, so set
                 // recipient and auditor ElGamal public to `None` by default.
@@ -6143,7 +6218,8 @@ async fn process_command_inner(
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(authority_signer, &mut bulk_signers);
             }
-            let metadata_address = value_t!(arg_matches, "metadata_address", Pubkey).ok();
+            let metadata_address =
+                pubkey_of_signer(arg_matches, "metadata_address", &mut wallet_manager).unwrap();
 
             command_update_pointer_address(
                 config,
@@ -6166,7 +6242,8 @@ async fn process_command_inner(
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(authority_signer, &mut bulk_signers);
             }
-            let group_address = value_t!(arg_matches, "group_address", Pubkey).ok();
+            let group_address =
+                pubkey_of_signer(arg_matches, "group_address", &mut wallet_manager).unwrap();
 
             command_update_pointer_address(
                 config,
@@ -6189,7 +6266,8 @@ async fn process_command_inner(
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(authority_signer, &mut bulk_signers);
             }
-            let member_address = value_t!(arg_matches, "member_address", Pubkey).ok();
+            let member_address =
+                pubkey_of_signer(arg_matches, "member_address", &mut wallet_manager).unwrap();
 
             command_update_pointer_address(
                 config,
@@ -6223,12 +6301,11 @@ async fn process_command_inner(
                 .collect::<Vec<_>>();
             if arg_matches.is_present("confidential") {
                 let (withdraw_withheld_elgamal_keypair, _) =
-                    derive_confidential_keys(&*authority_signer, b"")
-                        .map_err(|err| err.to_string())?;
+                    derive_confidential_keys(&*authority_signer).map_err(|err| err.to_string())?;
                 let (owner_signer, owner) =
                     config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
                 let (_, destination_aes_key) =
-                    derive_confidential_keys(&*owner_signer, b"").map_err(|err| err.to_string())?;
+                    derive_confidential_keys(&*owner_signer).map_err(|err| err.to_string())?;
 
                 command_withdraw_withheld_confidential_tokens(
                     config,
@@ -6387,9 +6464,9 @@ async fn process_command_inner(
             // Deriving ElGamal and AES key from signer. Custom ElGamal and AES keys will be
             // supported in the future once upgrading to clap-v3.
             //
-            // NOTE:: Seed bytes are hardcoded to be empty bytes for now. They will be
-            // updated once custom ElGamal and AES keys are supported.
-            let (elgamal_keypair, aes_key) = derive_confidential_keys(&*owner_signer, b"").unwrap();
+            // NOTE: This uses the standard (no-seed) derivation. Custom keys can use
+            // `derive_confidential_keys_with_seed` from `solana-zk-sdk`.
+            let (elgamal_keypair, aes_key) = derive_confidential_keys(&*owner_signer).unwrap();
 
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(owner_signer, &mut bulk_signers);
@@ -6419,6 +6496,18 @@ async fn process_command_inner(
             .await
         }
         (CommandName::ApproveConfidentialTransferAccount, arg_matches) => {
+            let token = pubkey_of_signer(arg_matches, "token", &mut wallet_manager).unwrap();
+            // Offline signing needs the mint with `--address`, since the approve instruction
+            // takes it. Clap can't make a conflict depend on the offline args, so check it here.
+            if token.is_some()
+                && arg_matches.is_present("address")
+                && !config.sign_only
+                && !arg_matches.is_present(SIGNER_ARG.name)
+            {
+                return Err(
+                    "The token mint cannot be used with --address unless signing offline".into(),
+                );
+            }
             let account = config
                 .associated_token_address_or_override(arg_matches, "address", &mut wallet_manager)
                 .await?;
@@ -6429,8 +6518,14 @@ async fn process_command_inner(
             );
             push_signer_with_dedup(authority_signer, &mut bulk_signers);
 
-            command_approve_confidential_transfer_account(config, account, authority, bulk_signers)
-                .await
+            command_approve_confidential_transfer_account(
+                config,
+                account,
+                authority,
+                bulk_signers,
+                token,
+            )
+            .await
         }
         (CommandName::EmptyConfidentialTransferAccount, arg_matches) => {
             let account = config
@@ -6441,7 +6536,7 @@ async fn process_command_inner(
 
             // Use the same signer-derived key as configure-confidential-transfer-account.
             let (elgamal_keypair, _) =
-                derive_confidential_keys(&*owner_signer, b"").map_err(|err| err.to_string())?;
+                derive_confidential_keys(&*owner_signer).map_err(|err| err.to_string())?;
 
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(owner_signer, &mut bulk_signers);
@@ -6510,10 +6605,10 @@ async fn process_command_inner(
                     // Deriving ElGamal and AES key from signer. Custom ElGamal and AES keys will be
                     // supported in the future once upgrading to clap-v3.
                     //
-                    // NOTE:: Seed bytes are hardcoded to be empty bytes for now. They will be
-                    // updated once custom ElGamal and AES keys are supported.
+                    // NOTE: This uses the standard (no-seed) derivation. Custom keys can use
+                    // `derive_confidential_keys_with_seed` from `solana-zk-sdk`.
                     let (elgamal_keypair, aes_key) =
-                        derive_confidential_keys(&*owner_signer, b"").unwrap();
+                        derive_confidential_keys(&*owner_signer).unwrap();
 
                     (
                         ConfidentialInstructionType::Withdraw,
@@ -6553,9 +6648,9 @@ async fn process_command_inner(
             // Deriving ElGamal and AES key from signer. Custom ElGamal and AES keys will be
             // supported in the future once upgrading to clap-v3.
             //
-            // NOTE:: Seed bytes are hardcoded to be empty bytes for now. They will be
-            // updated once custom ElGamal and AES keys are supported.
-            let (elgamal_keypair, aes_key) = derive_confidential_keys(&*owner_signer, b"").unwrap();
+            // NOTE: This uses the standard (no-seed) derivation. Custom keys can use
+            // `derive_confidential_keys_with_seed` from `solana-zk-sdk`.
+            let (elgamal_keypair, aes_key) = derive_confidential_keys(&*owner_signer).unwrap();
 
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(owner_signer, &mut bulk_signers);

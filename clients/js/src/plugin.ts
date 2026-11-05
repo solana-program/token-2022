@@ -30,6 +30,7 @@ import {
 } from './transferHookExtraAccountMetas';
 import {
     getTransferToATAInstructionPlanAsync,
+    getTransferToATAWithTransferHookInstructionPlanAsync,
     TransferToATAInstructionPlanAsyncInput,
     TransferToATAInstructionPlanConfig,
 } from './transferToATA';
@@ -69,6 +70,11 @@ export type Token2022PluginInstructions = Omit<GeneratedToken2022PluginInstructi
         input: MakeOptional<TransferToATAInstructionPlanAsyncInput, 'payer'>,
         config?: TransferToATAInstructionPlanConfig,
     ) => ReturnType<typeof getTransferToATAInstructionPlanAsync> & SelfPlanAndSendFunctions;
+    /** Transfer tokens to a recipient's ATA (created if needed), appending the mint's transfer hook accounts. */
+    transferToATAWithTransferHook: (
+        input: MakeOptional<TransferToATAInstructionPlanAsyncInput, 'payer'>,
+        config?: TransferToATAInstructionPlanConfig,
+    ) => ReturnType<typeof getTransferToATAWithTransferHookInstructionPlanAsync> & SelfPlanAndSendFunctions;
     /** Transfer tokens, appending the extra accounts the mint's transfer hook needs (if any). */
     transferCheckedWithTransferHook: (
         input: TransferCheckedWithTransferHookInstructionAsyncInput,
@@ -116,6 +122,15 @@ export function token2022Program() {
                             addSelfPlanAndSendFunctions(
                                 client,
                                 getTransferToATAInstructionPlanAsync(
+                                    { ...input, payer: input.payer ?? client.payer },
+                                    config,
+                                ),
+                            ),
+                        transferToATAWithTransferHook: (input, config) =>
+                            addSelfPlanAndSendFunctions(
+                                client,
+                                getTransferToATAWithTransferHookInstructionPlanAsync(
+                                    client,
                                     { ...input, payer: input.payer ?? client.payer },
                                     config,
                                 ),

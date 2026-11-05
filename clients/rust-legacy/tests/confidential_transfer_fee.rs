@@ -1,7 +1,9 @@
 mod program_test;
 use {
     bytemuck::Zeroable,
-    program_test::{ConfidentialTransferOption, TestContext, TokenContext},
+    program_test::{
+        derive_confidential_keys, ConfidentialTransferOption, TestContext, TokenContext,
+    },
     solana_program_test::tokio,
     solana_sdk::{
         instruction::InstructionError,
@@ -13,7 +15,7 @@ use {
     },
     solana_system_interface::instruction as system_instruction,
     solana_zk_sdk::{
-        encryption::{auth_encryption::*, derivation::derive_confidential_keys, elgamal::*},
+        encryption::{auth_encryption::*, elgamal::*},
         zk_elgamal_proof_program::build_pubkey_validity_proof_data,
     },
     solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
@@ -79,7 +81,7 @@ impl ConfidentialTokenAccountMeta {
             .unwrap();
         let token_account = token_account_keypair.pubkey();
 
-        let (elgamal_keypair, aes_key) = derive_confidential_keys(owner, b"").unwrap();
+        let (elgamal_keypair, aes_key) = derive_confidential_keys(owner).unwrap();
 
         token
             .confidential_transfer_configure_token_account(
@@ -1237,7 +1239,7 @@ async fn test_withdraw_withheld_tokens_with_max_pending_counter() {
         .await
         .unwrap();
 
-    let (fc_elgamal, fc_aes) = derive_confidential_keys(&fee_collector, b"").unwrap();
+    let (fc_elgamal, fc_aes) = derive_confidential_keys(&fee_collector).unwrap();
 
     // Configure with max_pending_balance_credit_counter = 1
     token

@@ -25,10 +25,7 @@ it('confidentially burns from a mint carrying the PermissionedBurn extension', a
     // Given a mint-burn mint that ALSO carries the PermissionedBurn extension
     // (as tokenized-security mints do). token-2022 rejects the standard
     // confidential burn on such mints, so the permissioned variant is required.
-    //
-    // The inline mint/burn plans send their batched range proof in the verify
-    // instruction data, which leaves no room for a compute-unit-limit instruction.
-    const client = await createValidatorClient({ estimateResourceLimits: false });
+    const client = await createValidatorClient();
     const payer = client.payer;
     const owner = await generateKeyPairSignerWithSol(client);
     const permissionedBurnAuthority = await generateKeyPairSignerWithSol(client);
@@ -123,7 +120,7 @@ it('confidentially burns from an account owned by a multisig via the permissione
     // Given a mint-burn + PermissionedBurn mint and a confidential token account
     // owned by a 2-of-2 multisig, so the burn's `authority` is the multisig
     // address and both members must be passed as `multiSigners`.
-    const client = await createValidatorClient({ estimateResourceLimits: false });
+    const client = await createValidatorClient();
     const payer = client.payer;
     const permissionedBurnAuthority = await generateKeyPairSignerWithSol(client);
     const [signerA, signerB] = await Promise.all([

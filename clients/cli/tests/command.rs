@@ -6,6 +6,7 @@ use {
         nonblocking::rpc_client::RpcClient,
         rpc_request::{RpcRequest, TokenAccountsFilter},
     },
+    solana_commitment_config::CommitmentConfig,
     solana_sdk::{
         hash::Hash,
         program_option::COption,
@@ -18,7 +19,11 @@ use {
     solana_system_interface::{instruction as system_instruction, program as system_program},
     solana_test_validator::{TestValidator, TestValidatorGenesis, UpgradeableProgramInfo},
     solana_zk_sdk::{
-        encryption::derivation::derive_confidential_keys,
+        encryption::{
+            auth_encryption::AeKey,
+            derivation::{derive_confidential_keys_from_signature, STANDARD_DERIVATION_MESSAGE},
+            elgamal::ElGamalKeypair,
+        },
         zk_elgamal_proof_program::build_pubkey_validity_proof_data,
     },
     solana_zk_sdk_pod::encryption::{
@@ -72,6 +77,13 @@ use {
         sync::Arc,
     },
     tempfile::NamedTempFile,
+};
+
+#[path = "command/offline_confidential.rs"]
+mod offline_confidential;
+use offline_confidential::{
+    offline_confidential_apply_pending_burn, offline_confidential_controls,
+    offline_confidential_fee_controls,
 };
 
 macro_rules! async_trial {
@@ -183,6 +195,13 @@ async fn main() {
         async_trial!(confidential_transfer_with_fee, test_validator, payer),
         async_trial!(withdraw_withheld_confidential_tokens, test_validator, payer),
         async_trial!(confidential_fee_harvesting, test_validator, payer),
+        async_trial!(offline_confidential_controls, test_validator, payer),
+        async_trial!(offline_confidential_fee_controls, test_validator, payer),
+        async_trial!(
+            offline_confidential_apply_pending_burn,
+            test_validator,
+            payer
+        ),
         async_trial!(compute_budget, test_validator, payer),
         async_trial!(scaled_ui_amount, test_validator, payer),
         async_trial!(pause, test_validator, payer),
@@ -206,6 +225,17 @@ fn clone_keypair(keypair: &Keypair) -> Keypair {
 }
 
 const TEST_DECIMALS: u8 = 9;
+
+/// Derives the standard confidential keys for `signer`.
+///
+/// Equivalent to `solana_zk_sdk::encryption::derivation::derive_confidential_keys`,
+/// which takes a `solana-signer` `v4` signer, while the signers here are still `v3`.
+fn derive_confidential_keys(
+    signer: &dyn Signer,
+) -> Result<(ElGamalKeypair, AeKey), Box<dyn std::error::Error>> {
+    let signature = signer.try_sign_message(STANDARD_DERIVATION_MESSAGE)?;
+    derive_confidential_keys_from_signature(&signature).map_err(Into::into)
+}
 
 async fn new_validator_for_test() -> (TestValidator, Keypair) {
     solana_logger::setup();
@@ -3106,7 +3136,7 @@ async fn configure_confidential_transfer_with_registry(
 
     // Match the registry client's test wallet to keep the PDA bump search reproducible.
     let owner = Keypair::new_from_array([42; 32]);
-    let (elgamal_keypair, aes_key) = derive_confidential_keys(&owner, b"").unwrap();
+    let (elgamal_keypair, aes_key) = derive_confidential_keys(&owner).unwrap();
     let registry = spl_elgamal_registry_interface::get_elgamal_registry_address(
         &owner.pubkey(),
         &spl_elgamal_registry_interface::id(),
@@ -3491,8 +3521,19 @@ async fn configure_confidential_transfer_partial_failure(
     test_validator: &TestValidator,
     payer: &Keypair,
 ) {
-    let config =
+    let mut config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    // The subprocess reads at confirmed commitment. Wait for fixture transactions
+    // at the same commitment before invoking it.
+    let rpc_client = Arc::new(RpcClient::new_with_commitment(
+        test_validator.rpc_url(),
+        CommitmentConfig::confirmed(),
+    ));
+    config.rpc_client = rpc_client.clone();
+    config.program_client = Arc::new(ProgramRpcClient::new(
+        rpc_client,
+        ProgramRpcClientSendTransaction,
+    ));
     let payer_file = NamedTempFile::new().unwrap();
     write_keypair_file(payer, &payer_file).unwrap();
     let cli_config_file = processed_cli_config_file();
@@ -4506,7 +4547,7 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     let extension = state
         .get_extension::<ConfidentialTransferAccount>()
         .unwrap();
-    let (_, aes_key) = derive_confidential_keys(payer, b"").unwrap();
+    let (_, aes_key) = derive_confidential_keys(payer).unwrap();
     assert_eq!(
         aes_key.decrypt(&extension.decryptable_available_balance.try_into().unwrap()),
         Some(spl_token_2022::ui_amount_to_amount(
@@ -5094,16 +5135,14 @@ async fn check_confidential_available_balance(
     owner: &Keypair,
     expected_balance: u64,
 ) {
-    use solana_zk_sdk::encryption::{
-        derivation::derive_confidential_keys, elgamal::ElGamalCiphertext,
-    };
+    use solana_zk_sdk::encryption::elgamal::ElGamalCiphertext;
 
     let account = config.rpc_client.get_account(&account).await.unwrap();
     let state = StateWithExtensionsOwned::<Account>::unpack(account.data).unwrap();
     let extension = state
         .get_extension::<ConfidentialTransferAccount>()
         .unwrap();
-    let (elgamal_keypair, aes_key) = derive_confidential_keys(owner, b"").unwrap();
+    let (elgamal_keypair, aes_key) = derive_confidential_keys(owner).unwrap();
     let available_balance: ElGamalCiphertext = extension.available_balance.try_into().unwrap();
     assert_eq!(
         available_balance.decrypt_u32(elgamal_keypair.secret()),
@@ -5374,9 +5413,7 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
 
 async fn confidential_fee_harvesting(test_validator: &TestValidator, payer: &Keypair) {
     use {
-        solana_zk_sdk::encryption::{
-            derivation::derive_confidential_keys, elgamal::ElGamalCiphertext,
-        },
+        solana_zk_sdk::encryption::elgamal::ElGamalCiphertext,
         solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
     };
 
@@ -5551,7 +5588,7 @@ async fn confidential_fee_harvesting(test_validator: &TestValidator, payer: &Key
         .withheld_amount
         .try_into()
         .unwrap();
-    let (elgamal_keypair, _) = derive_confidential_keys(payer, b"").unwrap();
+    let (elgamal_keypair, _) = derive_confidential_keys(payer).unwrap();
     assert_eq!(
         withheld_amount.decrypt_u32(elgamal_keypair.secret()),
         Some(3)
@@ -6190,7 +6227,10 @@ async fn withdraw_excess_lamports_from_account(test_validator: &TestValidator, p
 async fn metadata_pointer(test_validator: &TestValidator, payer: &Keypair) {
     let program_id = spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, &program_id);
-    let metadata_address = Pubkey::new_unique();
+    let metadata_keypair = Keypair::new();
+    let metadata_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&metadata_keypair, &metadata_keypair_file).unwrap();
+    let metadata_address = metadata_keypair.pubkey();
 
     let result = process_test_command(
         &config,
@@ -6201,7 +6241,7 @@ async fn metadata_pointer(test_validator: &TestValidator, payer: &Keypair) {
             "--program-id",
             &program_id.to_string(),
             "--metadata-address",
-            &metadata_address.to_string(),
+            metadata_keypair_file.path().to_str().unwrap(),
         ],
     )
     .await;
@@ -6218,7 +6258,10 @@ async fn metadata_pointer(test_validator: &TestValidator, payer: &Keypair) {
         Some(metadata_address).try_into().unwrap()
     );
 
-    let new_metadata_address = Pubkey::new_unique();
+    let new_metadata_keypair = Keypair::new();
+    let new_metadata_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&new_metadata_keypair, &new_metadata_keypair_file).unwrap();
+    let new_metadata_address = new_metadata_keypair.pubkey();
 
     let _new_result = process_test_command(
         &config,
@@ -6227,7 +6270,7 @@ async fn metadata_pointer(test_validator: &TestValidator, payer: &Keypair) {
             "spl-token",
             CommandName::UpdateMetadataAddress.into(),
             &mint.to_string(),
-            &new_metadata_address.to_string(),
+            new_metadata_keypair_file.path().to_str().unwrap(),
         ],
     )
     .await;
@@ -6271,7 +6314,10 @@ async fn metadata_pointer(test_validator: &TestValidator, payer: &Keypair) {
 async fn group_pointer(test_validator: &TestValidator, payer: &Keypair) {
     let program_id = spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, &program_id);
-    let group_address = Pubkey::new_unique();
+    let group_keypair = Keypair::new();
+    let group_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&group_keypair, &group_keypair_file).unwrap();
+    let group_address = group_keypair.pubkey();
 
     let result = process_test_command(
         &config,
@@ -6282,7 +6328,7 @@ async fn group_pointer(test_validator: &TestValidator, payer: &Keypair) {
             "--program-id",
             &program_id.to_string(),
             "--group-address",
-            &group_address.to_string(),
+            group_keypair_file.path().to_str().unwrap(),
         ],
     )
     .await
@@ -6300,7 +6346,10 @@ async fn group_pointer(test_validator: &TestValidator, payer: &Keypair) {
         Some(group_address).try_into().unwrap()
     );
 
-    let new_group_address = Pubkey::new_unique();
+    let new_group_keypair = Keypair::new();
+    let new_group_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&new_group_keypair, &new_group_keypair_file).unwrap();
+    let new_group_address = new_group_keypair.pubkey();
 
     let _new_result = process_test_command(
         &config,
@@ -6309,7 +6358,7 @@ async fn group_pointer(test_validator: &TestValidator, payer: &Keypair) {
             "spl-token",
             CommandName::UpdateGroupAddress.into(),
             &mint.to_string(),
-            &new_group_address.to_string(),
+            new_group_keypair_file.path().to_str().unwrap(),
         ],
     )
     .await;
@@ -6354,7 +6403,10 @@ async fn group_pointer(test_validator: &TestValidator, payer: &Keypair) {
 async fn group_member_pointer(test_validator: &TestValidator, payer: &Keypair) {
     let program_id = spl_token_2022_interface::id();
     let config = test_config_with_default_signer(test_validator, payer, &program_id);
-    let member_address = Pubkey::new_unique();
+    let member_keypair = Keypair::new();
+    let member_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&member_keypair, &member_keypair_file).unwrap();
+    let member_address = member_keypair.pubkey();
 
     let result = process_test_command(
         &config,
@@ -6365,7 +6417,7 @@ async fn group_member_pointer(test_validator: &TestValidator, payer: &Keypair) {
             "--program-id",
             &program_id.to_string(),
             "--member-address",
-            &member_address.to_string(),
+            member_keypair_file.path().to_str().unwrap(),
         ],
     )
     .await
@@ -6383,7 +6435,10 @@ async fn group_member_pointer(test_validator: &TestValidator, payer: &Keypair) {
         Some(member_address).try_into().unwrap()
     );
 
-    let new_member_address = Pubkey::new_unique();
+    let new_member_keypair = Keypair::new();
+    let new_member_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&new_member_keypair, &new_member_keypair_file).unwrap();
+    let new_member_address = new_member_keypair.pubkey();
 
     let _new_result = process_test_command(
         &config,
@@ -6392,7 +6447,7 @@ async fn group_member_pointer(test_validator: &TestValidator, payer: &Keypair) {
             "spl-token",
             CommandName::UpdateMemberAddress.into(),
             &mint.to_string(),
-            &new_member_address.to_string(),
+            new_member_keypair_file.path().to_str().unwrap(),
         ],
     )
     .await
@@ -7286,7 +7341,7 @@ async fn multisig_pause(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
-    let config =
+    let mut config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     let token = Keypair::new();
@@ -7318,6 +7373,39 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
     assert_eq!(
         Option::<Pubkey>::from(extension.authority),
         Some(burn_authority.pubkey())
+    );
+
+    let expected_authority = burn_authority.pubkey().to_string();
+    config.output_format = OutputFormat::Display;
+    let output = process_test_command(
+        &config,
+        payer,
+        &["spl-token", CommandName::Display.into(), &token.to_string()],
+    )
+    .await
+    .unwrap();
+    assert!(output.contains("Permissioned burn authority:"));
+    assert!(output.contains(&expected_authority));
+
+    config.output_format = OutputFormat::JsonCompact;
+    let output = process_test_command(
+        &config,
+        payer,
+        &["spl-token", CommandName::Display.into(), &token.to_string()],
+    )
+    .await
+    .unwrap();
+    let output: serde_json::Value = serde_json::from_str(&output).unwrap();
+    assert!(
+        output["extensions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|extension| {
+                extension["extension"] == "permissionedBurnConfig"
+                    && extension["state"]["authority"] == expected_authority
+            }),
+        "Unexpected Permissioned Burn JSON: {output}"
     );
 
     // do a burn
@@ -7553,7 +7641,7 @@ async fn confidential_mint_burn_update_decryptable_supply_cli(
         .get_extension::<ConfidentialMintBurn>()
         .unwrap()
         .decryptable_supply;
-    let (_, supply_aes_key) = derive_confidential_keys(payer, b"").unwrap();
+    let (_, supply_aes_key) = derive_confidential_keys(payer).unwrap();
     let new_decryptable_supply = supply_aes_key.encrypt(42_u64).into();
     assert_ne!(initial_decryptable_supply, new_decryptable_supply);
 
