@@ -3597,14 +3597,19 @@ async fn configure_confidential_transfer_partial_failure(
             .unwrap()
             .parse()
             .unwrap();
-        assert_eq!(
-            config
+        let mut status = None;
+        for _ in 0..50 {
+            status = config
                 .rpc_client
                 .get_signature_status(&signature)
                 .await
-                .unwrap(),
-            Some(Ok(()))
-        );
+                .unwrap();
+            if status.is_some() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        assert_eq!(status, Some(Ok(())));
         assert!(
             config
                 .rpc_client
