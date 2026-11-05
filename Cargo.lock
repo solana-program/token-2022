@@ -4959,9 +4959,9 @@ checksum = "3b3cff922bd51709b605d9ead9aa71031d81447142d828eb4a6eba76fe619f9b"
 
 [[package]]
 name = "pinocchio"
-version = "0.11.2"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6cababcb62a2e739c7078ae16eda02789a6e3edd21bbdded864e85c38a7914d"
+checksum = "402c0799a02d9b979837f50cade9f758898813430873542b87a62aaa3d56022a"
 dependencies = [
  "solana-account-view",
  "solana-address 2.9.0",
@@ -4972,9 +4972,9 @@ dependencies = [
 
 [[package]]
 name = "pinocchio-system"
-version = "0.6.1"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3ae2ee67b42e2ac797dd88312da473c895660e270d8093e0ba2749b885b5778"
+checksum = "436f1ab80f654fc35e24162bd610d86b5215d0b4265ee45479e70cea896f63fa"
 dependencies = [
  "pinocchio",
  "solana-address 2.9.0",
@@ -4982,9 +4982,9 @@ dependencies = [
 
 [[package]]
 name = "pinocchio-transfer-hook-interface"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd99db011e067bbdfd159ffa381eae378e24d68e7bdf18ef50abdbd1052c3cf2"
+checksum = "5ff2bb9eb28cc9d76280e69f7b68514c8ae74ed6e5d675f651c7053b0b459d95"
 dependencies = [
  "solana-account-view",
  "solana-address 2.9.0",
@@ -6594,9 +6594,9 @@ dependencies = [
 
 [[package]]
 name = "solana-account-view"
-version = "2.1.0"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1acd7ff34cf7f09e238921b5aa64d9e517b2e92642c153a5dc15d99c8e25af3d"
+checksum = "6d648359fbdc962a6d4435b8a05b6f4920fa9ea2c12bb92d0284c7eefb81551f"
 dependencies = [
  "solana-address 2.9.0",
  "solana-program-error",
@@ -8039,9 +8039,9 @@ dependencies = [
 
 [[package]]
 name = "solana-instruction-view"
-version = "2.1.0"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ab7a27d0c4214b9f7389c3dd00b68c93093a67f1dcc5b7893aebe299bbcbb47"
+checksum = "e145b112003bc400015bac7cc36196bd37404defb112daa9ac9ca7f47450ada8"
 dependencies = [
  "solana-account-view",
  "solana-address 2.9.0",

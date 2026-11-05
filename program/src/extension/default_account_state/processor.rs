@@ -5,7 +5,7 @@ use {
     solana_msg::msg,
     solana_program_error::ProgramResult,
     spl_token_2022_interface::{
-        check_program_account,
+        check_owner, check_program_account,
         error::TokenError,
         extension::{
             default_account_state::{
@@ -33,7 +33,7 @@ fn process_initialize_default_account_state(
     check_valid_default_state(state)?;
     let account_info_iter = &mut accounts.iter_mut();
     let mint_account_info = next_account_view(account_info_iter)?;
-    check_program_account(mint_account_info.owner())?;
+    check_owner(mint_account_info)?;
 
     let mut mint_data = mint_account_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
@@ -52,7 +52,7 @@ fn process_update_default_account_state(
     let mint_account_info = next_account_view(account_info_iter)?;
     let freeze_authority_info = next_account_view(account_info_iter)?;
     let freeze_authority_info_data_len = freeze_authority_info.data_len();
-    check_program_account(mint_account_info.owner())?;
+    check_owner(mint_account_info)?;
 
     let mut mint_data = mint_account_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_data)?;

@@ -45,6 +45,9 @@ importers:
       '@types/node':
         specifier: ^26
         version: 26.6.6
+      litesvm:
+        specifier: 1.6.1
+        version: 1.6.1(typescript@6.0.3)
       oxfmt:
         specifier: ^0.75.0
         version: 0.75.0

@@ -8,7 +8,7 @@ use {
     solana_nullable::MaybeNull,
     solana_program_error::{ProgramError, ProgramResult},
     spl_token_2022_interface::{
-        check_program_account,
+        check_owner,
         error::TokenError,
         extension::{
             alloc_and_serialize_variable_len_extension, metadata_pointer::MetadataPointer,
@@ -62,7 +62,7 @@ pub fn process_initialize(
 
     // scope the mint authority check, since the mint is in the same account!
     {
-        check_program_account(mint_info.owner())?;
+        check_owner(mint_info)?;
         let mint_data = mint_info.try_borrow()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
 
@@ -113,7 +113,7 @@ pub fn process_update_field(
     let account_info_iter = &mut accounts.iter_mut();
     let metadata_info = next_account_view(account_info_iter)?;
     let update_authority_info = next_account_view(account_info_iter)?;
-    check_program_account(metadata_info.owner())?;
+    check_owner(metadata_info)?;
 
     // deserialize the metadata, but scope the data borrow since we'll probably
     // realloc the account
@@ -143,7 +143,7 @@ pub fn process_remove_key(
     let account_info_iter = &mut accounts.iter_mut();
     let metadata_info = next_account_view(account_info_iter)?;
     let update_authority_info = next_account_view(account_info_iter)?;
-    check_program_account(metadata_info.owner())?;
+    check_owner(metadata_info)?;
 
     // deserialize the metadata, but scope the data borrow since we'll probably
     // realloc the account
@@ -171,7 +171,7 @@ pub fn process_update_authority(
     let account_info_iter = &mut accounts.iter_mut();
     let metadata_info = next_account_view(account_info_iter)?;
     let update_authority_info = next_account_view(account_info_iter)?;
-    check_program_account(metadata_info.owner())?;
+    check_owner(metadata_info)?;
 
     // deserialize the metadata, but scope the data borrow since we'll write
     // to the account later
@@ -193,7 +193,7 @@ pub fn process_update_authority(
 pub fn process_emit(_program_id: &Address, accounts: &[AccountView], data: Emit) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let metadata_info = next_account_view(account_info_iter)?;
-    check_program_account(metadata_info.owner())?;
+    check_owner(metadata_info)?;
 
     let buffer = metadata_info.try_borrow()?;
     let state = PodStateWithExtensions::<PodMint>::unpack(&buffer)?;

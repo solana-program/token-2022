@@ -24,6 +24,7 @@ mod entrypoint;
 )]
 pub use spl_token_2022_interface::{check_id, check_program_account, id, ID};
 use {
+    pinocchio::AccountView,
     solana_address::Address,
     solana_program_error::{ProgramError, ProgramResult},
     solana_sdk_ids::system_program,
@@ -119,11 +120,11 @@ pub fn check_system_program_account(system_program_id: &Address) -> ProgramResul
     Ok(())
 }
 
-/// Checks if the supplied program ID is that of the ElGamal registry program
+/// Checks if the supplied program is that of the ElGamal registry program
 pub(crate) fn check_elgamal_registry_program_account(
-    elgamal_registry_account_program_id: &Address,
+    elgamal_registry_account_program: &AccountView,
 ) -> ProgramResult {
-    if elgamal_registry_account_program_id != &spl_elgamal_registry_interface::id() {
+    if !elgamal_registry_account_program.owned_by(&spl_elgamal_registry_interface::id()) {
         return Err(ProgramError::IncorrectProgramId);
     }
     Ok(())
