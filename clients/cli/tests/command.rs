@@ -5301,7 +5301,9 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
         let mut args = account_args.clone();
         args.extend(["--amount", incorrect_amount]);
         let error = exec_test_cmd(&config, &args).await.unwrap_err();
-        assert!(error.to_string().contains("proof generation"));
+        assert!(error
+            .to_string()
+            .contains("The supplied --amount does not match the withheld confidential fees"));
         check_confidential_available_balance(&config, recipient, &recipient_owner, 7).await;
     }
     account_args.extend(["--amount", "1"]);
@@ -5365,7 +5367,9 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
         let mut args = mint_args.clone();
         args.extend(["--amount", incorrect_amount]);
         let error = exec_test_cmd(&config, &args).await.unwrap_err();
-        assert!(error.to_string().contains("proof generation"));
+        assert!(error
+            .to_string()
+            .contains("The supplied --amount does not match the withheld confidential fees"));
         check_confidential_available_balance(&config, recipient, &recipient_owner, 8).await;
         assert_eq!(
             token
@@ -5423,7 +5427,27 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
         .unwrap()
         .is_empty());
     let error = exec_test_cmd(&config, &known_mint_args).await.unwrap_err();
-    assert!(error.to_string().contains("proof generation"));
+    assert!(error
+        .to_string()
+        .contains("The supplied --amount does not match the withheld confidential fees"));
+
+    let error = exec_test_cmd(&config, &account_args).await.unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("The supplied --amount does not match the withheld confidential fees"));
+    let mut zero_mint_args = withdraw_args.clone();
+    zero_mint_args.extend(["--include-mint", "--amount", "0"]);
+    assert!(exec_test_cmd(&config, &zero_mint_args)
+        .await
+        .unwrap()
+        .is_empty());
+    let mut zero_account_args = withdraw_args.clone();
+    zero_account_args.extend([first_source.as_str(), "--amount", "0"]);
+    assert!(exec_test_cmd(&config, &zero_account_args)
+        .await
+        .unwrap()
+        .is_empty());
+    check_confidential_available_balance(&config, recipient, &recipient_owner, 19).await;
 
     // A positional mint is also invalid when no fees remain.
     let error = exec_test_cmd(&config, &mint_source_args).await.unwrap_err();

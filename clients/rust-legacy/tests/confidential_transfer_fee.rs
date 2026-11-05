@@ -477,13 +477,18 @@ async fn withdraw_withheld_tokens_from_mint_with_option<S: Signers>(
 ) -> TokenResult<()> {
     match option {
         ConfidentialTransferOption::InstructionData if known_amount.is_some() => {
+            let state = token.get_mint_info().await.unwrap();
+            let extension = state
+                .get_extension::<ConfidentialTransferFeeConfig>()
+                .unwrap();
+            let info = WithheldTokensInfo::new(&extension.withheld_amount)
+                .with_known_amount(known_amount.unwrap());
             token
-                .confidential_transfer_withdraw_withheld_tokens_from_mint_with_amount(
+                .confidential_transfer_withdraw_withheld_tokens_from_mint(
                     destination_account,
                     withdraw_withheld_authority,
                     None,
-                    None,
-                    known_amount.unwrap(),
+                    Some(info),
                     withdraw_withheld_authority_elgamal_keypair,
                     destination_elgamal_pubkey,
                     new_decryptable_available_balance,
@@ -512,18 +517,17 @@ async fn withdraw_withheld_tokens_from_mint_with_option<S: Signers>(
                 .unwrap();
             let account_info = WithheldTokensInfo::new(&extension.withheld_amount);
 
-            let equality_proof = match known_amount {
-                Some(amount) => account_info.generate_proof_data_with_amount(
+            let account_info = if let Some(amount) = known_amount {
+                account_info.with_known_amount(amount)
+            } else {
+                account_info
+            };
+            let equality_proof = account_info
+                .generate_proof_data(
                     withdraw_withheld_authority_elgamal_keypair,
                     destination_elgamal_pubkey,
-                    amount,
-                ),
-                None => account_info.generate_proof_data(
-                    withdraw_withheld_authority_elgamal_keypair,
-                    destination_elgamal_pubkey,
-                ),
-            }
-            .unwrap();
+                )
+                .unwrap();
 
             let context_account = Keypair::new();
             let context_account_authority = Keypair::new();
@@ -543,7 +547,11 @@ async fn withdraw_withheld_tokens_from_mint_with_option<S: Signers>(
                     destination_account,
                     withdraw_withheld_authority,
                     Some(&context_account.pubkey()),
-                    None,
+                    // The preverified context is authoritative; this amount must not
+                    // cause another inline proof to be generated.
+                    known_amount.map(|amount| {
+                        account_info.with_known_amount(amount.checked_add(1).unwrap())
+                    }),
                     withdraw_withheld_authority_elgamal_keypair,
                     destination_elgamal_pubkey,
                     new_decryptable_available_balance,
@@ -754,13 +762,18 @@ async fn withdraw_withheld_tokens_from_accounts_with_option<S: Signers>(
 ) -> TokenResult<()> {
     match option {
         ConfidentialTransferOption::InstructionData if known_amount.is_some() => {
+            let state = token.get_account_info(source).await.unwrap();
+            let extension = state
+                .get_extension::<ConfidentialTransferFeeAmount>()
+                .unwrap();
+            let info = WithheldTokensInfo::new(&extension.withheld_amount)
+                .with_known_amount(known_amount.unwrap());
             token
-                .confidential_transfer_withdraw_withheld_tokens_from_accounts_with_amount(
+                .confidential_transfer_withdraw_withheld_tokens_from_accounts(
                     destination_account,
                     withdraw_withheld_authority,
                     None,
-                    None,
-                    known_amount.unwrap(),
+                    Some(info),
                     withdraw_withheld_authority_elgamal_keypair,
                     destination_elgamal_pubkey,
                     new_decryptable_available_balance,
@@ -791,18 +804,17 @@ async fn withdraw_withheld_tokens_from_accounts_with_option<S: Signers>(
                 .unwrap();
             let account_info = WithheldTokensInfo::new(&extension.withheld_amount);
 
-            let equality_proof = match known_amount {
-                Some(amount) => account_info.generate_proof_data_with_amount(
+            let account_info = if let Some(amount) = known_amount {
+                account_info.with_known_amount(amount)
+            } else {
+                account_info
+            };
+            let equality_proof = account_info
+                .generate_proof_data(
                     withdraw_withheld_authority_elgamal_keypair,
                     destination_elgamal_pubkey,
-                    amount,
-                ),
-                None => account_info.generate_proof_data(
-                    withdraw_withheld_authority_elgamal_keypair,
-                    destination_elgamal_pubkey,
-                ),
-            }
-            .unwrap();
+                )
+                .unwrap();
 
             let context_account = Keypair::new();
             let context_account_authority = Keypair::new();
@@ -822,7 +834,11 @@ async fn withdraw_withheld_tokens_from_accounts_with_option<S: Signers>(
                     destination_account,
                     withdraw_withheld_authority,
                     Some(&context_account.pubkey()),
-                    None,
+                    // The preverified context is authoritative; this amount must not
+                    // cause another inline proof to be generated.
+                    known_amount.map(|amount| {
+                        account_info.with_known_amount(amount.checked_add(1).unwrap())
+                    }),
                     withdraw_withheld_authority_elgamal_keypair,
                     destination_elgamal_pubkey,
                     new_decryptable_available_balance,

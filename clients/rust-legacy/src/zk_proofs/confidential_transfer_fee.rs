@@ -20,57 +20,35 @@ use {
 pub struct WithheldTokensInfo {
     /// The available balance
     pub(crate) withheld_amount: EncryptedWithheldAmount,
+    known_amount: Option<u64>,
 }
 impl WithheldTokensInfo {
     /// Create a `WithheldTokensInfo` from an ElGamal ciphertext.
     pub fn new(withheld_amount: &EncryptedWithheldAmount) -> Self {
         Self {
             withheld_amount: *withheld_amount,
+            known_amount: None,
         }
     }
 
-    /// Create withdraw withheld proof data, recovering the amount with `decrypt_u32`.
-    ///
-    /// To supply a known amount, use [`Self::generate_proof_data_with_amount`].
+    /// Set a known withheld amount in base units, avoiding bounded decryption.
+    pub fn with_known_amount(mut self, amount: u64) -> Self {
+        self.known_amount = Some(amount);
+        self
+    }
+
+    /// Create withdraw withheld proof data using the known amount, if supplied.
     pub fn generate_proof_data(
         &self,
         withdraw_withheld_authority_elgamal_keypair: &ElGamalKeypair,
         destination_elgamal_pubkey: &ElGamalPubkey,
-    ) -> Result<CiphertextCiphertextEqualityProofData, TokenError> {
-        self.generate_proof_data_inner(
-            withdraw_withheld_authority_elgamal_keypair,
-            destination_elgamal_pubkey,
-            None,
-        )
-    }
-
-    /// Create withdraw withheld proof data using a known amount in base units.
-    /// The amount is validated against the withheld ciphertext and authority key.
-    pub fn generate_proof_data_with_amount(
-        &self,
-        withdraw_withheld_authority_elgamal_keypair: &ElGamalKeypair,
-        destination_elgamal_pubkey: &ElGamalPubkey,
-        known_amount: u64,
-    ) -> Result<CiphertextCiphertextEqualityProofData, TokenError> {
-        self.generate_proof_data_inner(
-            withdraw_withheld_authority_elgamal_keypair,
-            destination_elgamal_pubkey,
-            Some(known_amount),
-        )
-    }
-
-    pub(crate) fn generate_proof_data_inner(
-        &self,
-        withdraw_withheld_authority_elgamal_keypair: &ElGamalKeypair,
-        destination_elgamal_pubkey: &ElGamalPubkey,
-        known_amount: Option<u64>,
     ) -> Result<CiphertextCiphertextEqualityProofData, TokenError> {
         let withheld_amount_in_mint: ElGamalCiphertext = self
             .withheld_amount
             .try_into()
             .map_err(|_| TokenError::MalformedCiphertext)?;
 
-        let decrypted_withheld_amount_in_mint = match known_amount {
+        let decrypted_withheld_amount_in_mint = match self.known_amount {
             Some(amount) => amount,
             None => withheld_amount_in_mint
                 .decrypt_u32(withdraw_withheld_authority_elgamal_keypair.secret())
@@ -108,12 +86,12 @@ mod tests {
         let destination = ElGamalKeypair::new_rand();
         let withheld = authority.pubkey().encrypt(amount);
         let info = WithheldTokensInfo::new(&withheld.into());
-        let generate_proof = || match known_amount {
-            Some(amount) => {
-                info.generate_proof_data_with_amount(&authority, destination.pubkey(), amount)
-            }
-            None => info.generate_proof_data(&authority, destination.pubkey()),
+        let info = if let Some(amount) = known_amount {
+            info.with_known_amount(amount)
+        } else {
+            info
         };
+        let generate_proof = || info.generate_proof_data(&authority, destination.pubkey());
         let proof = generate_proof().unwrap();
         proof.verify_proof().unwrap();
         assert_eq!(proof.context.first_ciphertext, withheld.into());
@@ -149,11 +127,13 @@ mod tests {
         let destination = ElGamalKeypair::new_rand();
         let info = WithheldTokensInfo::new(&authority.pubkey().encrypt(55_u64).into());
         assert_eq!(
-            info.generate_proof_data_with_amount(&authority, destination.pubkey(), 54),
+            info.with_known_amount(54)
+                .generate_proof_data(&authority, destination.pubkey()),
             Err(TokenError::ProofGeneration),
         );
         assert_eq!(
-            info.generate_proof_data_with_amount(&destination, destination.pubkey(), 55),
+            info.with_known_amount(55)
+                .generate_proof_data(&destination, destination.pubkey()),
             Err(TokenError::ProofGeneration),
         );
     }
