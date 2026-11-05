@@ -96,21 +96,7 @@ impl WithheldTokensInfo {
 
 #[cfg(test)]
 mod tests {
-    use {
-        super::*,
-        crate::{
-            client::{ProgramOfflineClient, ProgramRpcClientSendTransaction, RpcClientResponse},
-            token::{ComputeUnitLimit, Token, TokenError as TokenClientError},
-        },
-        solana_address::Address,
-        solana_hash::Hash,
-        solana_sdk::signer::{keypair::Keypair, Signer},
-        solana_zk_sdk::{
-            encryption::auth_encryption::AeKey, zk_elgamal_proof_program::VerifyZkProof,
-        },
-        std::sync::Arc,
-        test_case::test_case,
-    };
+    use {super::*, solana_zk_sdk::zk_elgamal_proof_program::VerifyZkProof, test_case::test_case};
 
     #[test_case(55, None; "decrypt_u32")]
     #[test_case(55, Some(55); "known_amount")]
@@ -170,82 +156,5 @@ mod tests {
             info.generate_proof_data_with_amount(&destination, destination.pubkey(), 55),
             Err(TokenError::ProofGeneration),
         );
-    }
-
-    #[test_case(true, false; "mint_inline")]
-    #[test_case(false, false; "accounts_inline")]
-    #[test_case(true, true; "mint_context")]
-    #[test_case(false, true; "accounts_context")]
-    #[tokio::test]
-    async fn known_amount_is_validated_before_transaction_output(
-        from_mint: bool,
-        use_context: bool,
-    ) {
-        let payer = Arc::new(Keypair::new());
-        let mint = Address::new_unique();
-        let destination = Address::new_unique();
-        let source = Address::new_unique();
-        let context = use_context.then(Address::new_unique);
-        let client = Arc::new(ProgramOfflineClient::new(
-            Hash::new_unique(),
-            ProgramRpcClientSendTransaction,
-        ));
-        let token = Token::new(
-            client,
-            &spl_token_2022_interface::id(),
-            &mint,
-            None,
-            payer.clone(),
-        )
-        .with_compute_unit_limit(ComputeUnitLimit::Static(200_000));
-        let authority = ElGamalKeypair::new_rand();
-        let destination_keypair = ElGamalKeypair::new_rand();
-        let amount = u64::from(u32::MAX) + 1;
-        let info = WithheldTokensInfo::new(&authority.pubkey().encrypt(amount).into());
-        let balance = AeKey::new_rand().encrypt(amount).into();
-        for known_amount in [amount - 1, amount] {
-            let result = if from_mint {
-                token
-                    .confidential_transfer_withdraw_withheld_tokens_from_mint_with_amount(
-                        &destination,
-                        &payer.pubkey(),
-                        context.as_ref(),
-                        Some(info),
-                        known_amount,
-                        &authority,
-                        destination_keypair.pubkey(),
-                        &balance,
-                        &[payer.as_ref()],
-                    )
-                    .await
-            } else {
-                token
-                    .confidential_transfer_withdraw_withheld_tokens_from_accounts_with_amount(
-                        &destination,
-                        &payer.pubkey(),
-                        context.as_ref(),
-                        Some(info),
-                        known_amount,
-                        &authority,
-                        destination_keypair.pubkey(),
-                        &balance,
-                        &[&source],
-                        &[payer.as_ref()],
-                    )
-                    .await
-            };
-            if known_amount == amount {
-                let RpcClientResponse::Transaction(transaction) = result.unwrap() else {
-                    panic!("Expected transaction output");
-                };
-                let has_inline_proof = transaction.message.instructions.iter().any(|instruction| {
-                    transaction.message.account_keys[usize::from(instruction.program_id_index)]
-                        == solana_zk_elgamal_proof_interface::id()
-                });
-                assert_eq!(has_inline_proof, !use_context);
-            } else {
-                assert_eq!(result.unwrap_err(), TokenClientError::ProofGeneration);
-            }
-        }
     }
 }
