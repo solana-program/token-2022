@@ -37,7 +37,6 @@ use {
         pubkey::Pubkey,
         signature::{Keypair, Signer},
     },
-    solana_signer::EncodableKey,
     solana_system_interface::program as system_program,
     solana_zk_elgamal_proof_interface::proof_data::{
         BatchedRangeProofContext, BatchedRangeProofU128Data, BatchedRangeProofU256Data,
@@ -3407,7 +3406,7 @@ fn custom_confidential_keys_of(
 
     let elgamal_keypair = elgamal_keypair_of(arg_matches, "elgamal_keypair")
         .map_err(|err| format!("Failed to read ElGamal keypair: {err}"))?;
-    let aes_key = AeKey::read_from_file(arg_matches.value_of("aes_key").unwrap())
+    let aes_key = aes_key_of(arg_matches, "aes_key")
         .map_err(|err| format!("Failed to read AES key: {err}"))?;
     Ok(Some((elgamal_keypair, aes_key)))
 }
@@ -3496,7 +3495,10 @@ fn decrypt_available_balance(
         ApplyPendingBalanceAccountInfo::new(extension)
             .get_available_balance(aes_key)
             .map_err(|err| {
-                format!("Failed to decrypt available balance: {err}. Check that the AES key matches the one used to encrypt the balance.")
+                format!(
+                    "Failed to decrypt available balance: {err}. Check that the AES key matches the one used to \
+                     encrypt the balance."
+                )
             })?
     };
 
@@ -3549,7 +3551,13 @@ fn decrypt_confidential_supply(
     let supply = SupplyAccountInfo::new(extension)
         .decrypted_current_supply(aes_key, elgamal_keypair)
         .map_err(|err| {
-            format!("Failed to decrypt confidential supply: {err}. If custom key files were provided, check that the AES key matches the one used to encrypt the supply. The decryptable supply may also be out of sync with the confidential supply by 2^32 base units or more (for example after large burns were applied). Use `update-decryptable-supply` to update the decryptable supply first.")
+            format!(
+                "Failed to decrypt confidential supply: {err}. If custom key files were provided, \
+                 check that the AES key matches the one used to encrypt the supply. The decryptable \
+                 supply may also be out of sync with the confidential supply by 2^32 base units or \
+                 more (for example after large burns were applied). Use `update-decryptable-supply` \
+                 to update the decryptable supply first."
+            )
         })?;
 
     Ok(token_amount_to_ui_amount(supply))
