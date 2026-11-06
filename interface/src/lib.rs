@@ -17,6 +17,7 @@ pub mod pod;
 pub mod serialization;
 pub mod state;
 
+use pinocchio::AccountView;
 // Export current sdk types for downstream users building with a different sdk
 // version
 pub use solana_zk_elgamal_proof_interface;
@@ -31,6 +32,15 @@ solana_address::declare_id!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 /// Checks that the supplied program ID is correct for spl-token-2022
 pub fn check_program_account(spl_token_program_id: &Address) -> ProgramResult {
     if spl_token_program_id != &id() {
+        return Err(ProgramError::IncorrectProgramId);
+    }
+    Ok(())
+}
+
+/// Checks that the supplied account is owned by spl-token-2022 program.
+#[inline(always)]
+pub fn check_owner(account: &AccountView) -> ProgramResult {
+    if !account.owned_by(&id()) {
         return Err(ProgramError::IncorrectProgramId);
     }
     Ok(())

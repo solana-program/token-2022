@@ -6,7 +6,7 @@ use {
     spl_token_2022_interface::error::TokenError,
 };
 
-pinocchio::entrypoint!(process_instruction);
+pinocchio::entrypoint_with_r2!(process_instruction);
 fn process_instruction(
     program_id: &Address,
     accounts: &mut [AccountView],

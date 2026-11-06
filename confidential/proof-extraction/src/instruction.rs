@@ -19,12 +19,12 @@ use {
     },
 };
 
-/// Checks that the supplied program ID is correct for the ZK ElGamal proof
-/// program
+/// Checks that the supplied program is correct for the ZK ElGamal proof
+/// program.
 pub fn check_zk_elgamal_proof_program_account(
-    zk_elgamal_proof_program_id: &Address,
+    zk_elgamal_proof_program: &AccountView,
 ) -> ProgramResult {
-    if zk_elgamal_proof_program_id != &solana_zk_elgamal_proof_interface::id() {
+    if !zk_elgamal_proof_program.owned_by(&solana_zk_elgamal_proof_interface::id()) {
         return Err(ProgramError::IncorrectProgramId);
     }
     Ok(())
@@ -77,7 +77,7 @@ pub fn verify_and_extract_context<T: Pod + ZkProofData<U>, U: Pod>(
     if proof_instruction_offset == 0 {
         // interpret `account_info` as a context state account
         let context_state_account_info = next_account_view(account_info_iter)?;
-        check_zk_elgamal_proof_program_account(context_state_account_info.owner())?;
+        check_zk_elgamal_proof_program_account(context_state_account_info)?;
         let context_state_account_data = context_state_account_info.try_borrow()?;
         let context_state =
             bytemuck::try_from_bytes::<ProofContextState<U>>(&context_state_account_data)

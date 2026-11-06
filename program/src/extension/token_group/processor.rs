@@ -7,7 +7,7 @@ use {
     solana_nullable::MaybeNull,
     solana_program_error::{ProgramError, ProgramResult},
     spl_token_2022_interface::{
-        check_program_account,
+        check_owner,
         error::TokenError,
         extension::{
             alloc_and_serialize, group_member_pointer::GroupMemberPointer,
@@ -62,7 +62,7 @@ pub fn process_initialize_group(
 
     // scope the mint authority check, since the mint is in the same account!
     {
-        check_program_account(mint_info.owner())?;
+        check_owner(mint_info)?;
         let mint_data = mint_info.try_borrow()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
 
@@ -106,7 +106,7 @@ pub fn process_update_group_max_size(
 
     let group_info = next_account_view(account_info_iter)?;
     let update_authority_info = next_account_view(account_info_iter)?;
-    check_program_account(group_info.owner())?;
+    check_owner(group_info)?;
 
     let mut buffer = group_info.try_borrow_mut()?;
     let mut state = PodStateWithExtensionsMut::<PodMint>::unpack(&mut buffer)?;
@@ -131,7 +131,7 @@ pub fn process_update_group_authority(
 
     let group_info = next_account_view(account_info_iter)?;
     let update_authority_info = next_account_view(account_info_iter)?;
-    check_program_account(group_info.owner())?;
+    check_owner(group_info)?;
 
     let mut buffer = group_info.try_borrow_mut()?;
     let mut state = PodStateWithExtensionsMut::<PodMint>::unpack(&mut buffer)?;
@@ -157,7 +157,7 @@ pub fn process_initialize_member(
     let member_mint_authority_info = next_account_view(account_info_iter)?;
     let group_info = next_account_view(account_info_iter)?;
     let group_update_authority_info = next_account_view(account_info_iter)?;
-    check_program_account(group_info.owner())?;
+    check_owner(group_info)?;
 
     // check that the mint and member accounts are the same, since the member
     // extension should only describe itself
@@ -168,7 +168,7 @@ pub fn process_initialize_member(
 
     // scope the mint authority check, since the mint is in the same account!
     {
-        check_program_account(member_mint_info.owner())?;
+        check_owner(member_mint_info)?;
         let member_mint_data = member_mint_info.try_borrow()?;
         let member_mint = PodStateWithExtensions::<PodMint>::unpack(&member_mint_data)?;
 

@@ -9,7 +9,7 @@ use {
     solana_program_option::COption,
     solana_rent::Rent,
     spl_token_2022_interface::{
-        check_program_account,
+        check_owner,
         error::TokenError,
         extension::{
             set_account_type, AccountType, BaseStateWithExtensions, ExtensionType,
@@ -32,7 +32,7 @@ pub fn process_reallocate(
     let authority_info = next_account_view(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
 
-    check_program_account(token_account_info.owner())?;
+    check_owner(token_account_info)?;
 
     // check that account is the right type and validate owner
     let (mut current_extension_types, native_token_amount) = {

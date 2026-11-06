@@ -19,7 +19,7 @@ use {
         elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
     },
     spl_token_2022_interface::{
-        check_program_account,
+        check_owner, check_program_account,
         error::TokenError,
         extension::{
             confidential_mint_burn::{
@@ -53,7 +53,7 @@ fn process_initialize_mint(
     let account_info_iter = &mut accounts.iter_mut();
     let mint_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_info.owner())?;
+    check_owner(mint_info)?;
 
     let mint_data = &mut mint_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(mint_data)?;
@@ -74,7 +74,7 @@ fn process_rotate_supply_elgamal_pubkey(
     let account_info_iter = &mut accounts.iter_mut();
     let mint_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_info.owner())?;
+    check_owner(mint_info)?;
     let mint_data = &mut mint_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(mint_data)?;
     let mint_authority = mint.base.mint_authority;
@@ -132,7 +132,7 @@ fn process_update_decryptable_supply(
     let account_info_iter = &mut accounts.iter_mut();
     let mint_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_info.owner())?;
+    check_owner(mint_info)?;
     let mint_data = &mut mint_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(mint_data)?;
     let mint_authority = mint.base.mint_authority;
@@ -165,7 +165,7 @@ fn process_confidential_mint(
     let token_account_info = next_account_view(account_info_iter)?;
     let mint_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_info.owner())?;
+    check_owner(mint_info)?;
 
     // Note: Storing the address of the mint so borrow checker doesn't complain about
     // multiple borrows of `mint_info`.
@@ -183,7 +183,7 @@ fn process_confidential_mint(
             return Err(TokenError::MintPaused.into());
         }
     }
-    check_program_account(token_account_info.owner())?;
+    check_owner(token_account_info)?;
     let token_account_data = &mut token_account_info.try_borrow_mut()?;
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
     // If the mint is non-transferable, the destination account must have
@@ -316,7 +316,7 @@ pub(crate) fn process_confidential_burn(
     let token_account_info = next_account_view(account_info_iter)?;
     let mint_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_info.owner())?;
+    check_owner(mint_info)?;
 
     // Note: Storing the address of the mint so borrow checker doesn't complain about
     // multiple borrows of `mint_info`.
@@ -387,7 +387,7 @@ pub(crate) fn process_confidential_burn(
 
     let mint_burn_extension = mint.get_extension_mut::<ConfidentialMintBurn>()?;
 
-    check_program_account(token_account_info.owner())?;
+    check_owner(token_account_info)?;
     let token_account_data = &mut token_account_info.try_borrow_mut()?;
     let mut token_account = PodStateWithExtensionsMut::<PodAccount>::unpack(token_account_data)?;
 
@@ -504,7 +504,7 @@ fn process_apply_pending_burn(program_id: &Address, accounts: &mut [AccountView]
     let account_info_iter = &mut accounts.iter_mut();
     let mint_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_info.owner())?;
+    check_owner(mint_info)?;
     let mint_data = &mut mint_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(mint_data)?;
     let mint_authority = mint.base.mint_authority;

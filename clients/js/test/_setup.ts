@@ -6,10 +6,12 @@ import {
     Transaction,
     TransactionPlanResult,
     TransactionSigner,
+    address,
     assertIsSingleTransactionPlanResult,
     createClient,
     generateKeyPairSigner,
     getAddressDecoder,
+    getAddressEncoder,
     isSome,
     lamports,
     none,
@@ -20,6 +22,7 @@ import { TransactionMetadata, litesvm } from '@solana/kit-plugin-litesvm';
 import { solanaLocalRpc } from '@solana/kit-plugin-rpc';
 import { airdropSigner, generatedSigner } from '@solana/kit-plugin-signer';
 import { AeCiphertext, AeKey, ElGamalKeypair } from '@solana/zk-sdk/bundler';
+import { FeatureSet } from 'litesvm';
 
 import {
     Extension,
@@ -55,6 +58,25 @@ export const createTestClient = () => {
         .use(litesvm())
         .use(airdropSigner(lamports(1_000_000_000n)))
         .use(client => {
+            // Preserve the default features using their on-chain activation accounts.
+            const features = new FeatureSet();
+            const decoder = getAddressDecoder();
+            for (const id of features.getInactiveFeatures()) {
+                const account = client.svm.getAccount(decoder.decode(id));
+                if (account.exists && account.data[0] === 1) {
+                    const slot = new DataView(account.data.buffer, account.data.byteOffset + 1, 8).getBigUint64(
+                        0,
+                        true,
+                    );
+                    features.activate(id, slot);
+                }
+            }
+            // SIMD-0449 supplies the account pointers required by entrypoint_with_r2.
+            features.activate(
+                Uint8Array.from(getAddressEncoder().encode(address('ptr9umikaeAS7ZBBp2fsfRhie16F1V2jCKA2y6gXNAK'))),
+                0n,
+            );
+            client.svm.withFeatureSet(features).withBuiltins();
             // Must run after the `litesvm()` plugin so `client.svm` is available.
             client.svm.addProgramFromFile(TOKEN_2022_PROGRAM_ADDRESS, TOKEN_2022_BINARY_PATH);
             return client;
