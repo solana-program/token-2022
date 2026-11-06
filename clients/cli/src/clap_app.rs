@@ -2461,6 +2461,15 @@ pub fn app<'a>(
             SubCommand::with_name(CommandName::WithdrawWithheldTokens.into())
                 .about("Withdraw withheld transfer fee tokens from mint and / or account(s)")
                 .arg(
+                    Arg::with_name("amount")
+                        .long("amount")
+                        .takes_value(true)
+                        .value_name("AMOUNT")
+                        .value_parser(Amount::parse)
+                        .requires("confidential")
+                        .help("Known total withheld amount, in tokens"),
+                )
+                .arg(
                     Arg::with_name("account")
                         .validator(|s| is_valid_pubkey(s))
                         .value_name("FEE_RECIPIENT_ADDRESS")
@@ -2505,7 +2514,7 @@ pub fn app<'a>(
                              Defaults to the client keypair."
                         ),
                 )
-                .arg(owner_address_arg())
+                .arg(owner_keypair_arg_with_value_name("FEE_RECIPIENT_OWNER_KEYPAIR"))
                 .arg(multisig_signer_arg())
                 // The account_group ArgGroup ensures <FEE_RECIPIENT_ADDRESS> appears as the first argument in the --help output. Without it, <SOURCE_ADDRESS|--include-mint> would be incorrectly prioritized due to clap’s handling of ArgGroups.
                 .group(
