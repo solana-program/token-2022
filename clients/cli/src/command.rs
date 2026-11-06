@@ -4209,6 +4209,7 @@ async fn command_withdraw_withheld_confidential_tokens(
     // A source must only contribute once to the aggregate withheld ciphertext.
     source_token_accounts.sort_unstable();
     source_token_accounts.dedup();
+    // Leave room for the inline equality proof and a separate fee payer.
     const MAX_WITHDRAWAL_ACCOUNTS: usize = 8;
     if known_amount.is_some() && include_mint && !source_token_accounts.is_empty() {
         return Err(
@@ -4223,7 +4224,6 @@ async fn command_withdraw_withheld_confidential_tokens(
         .into());
     }
     let source_refs = source_token_accounts.iter().collect::<Vec<_>>();
-    // Leave room for the inline equality proof and a separate fee payer.
     let mint_sources = [&mint_address];
     let withdrawals = include_mint
         .then_some(mint_sources.as_slice())

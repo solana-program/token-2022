@@ -5339,6 +5339,49 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
         .get_extension::<ConfidentialTransferFeeConfig>()
         .unwrap()
         .withheld_amount;
+    let source_addresses = sources.iter().map(ToString::to_string).collect::<Vec<_>>();
+    for (extra_args, expected_error) in [
+        (
+            vec!["--include-mint", source_addresses[0].as_str()],
+            "A known amount requires either --include-mint or source accounts, not both",
+        ),
+        (
+            source_addresses
+                .iter()
+                .take(9)
+                .map(String::as_str)
+                .collect(),
+            "A known amount can be supplied for at most 8 source accounts",
+        ),
+    ] {
+        let mut args = withdraw_args.clone();
+        args.extend(["--amount", "1"]);
+        args.extend(extra_args);
+        let error = exec_test_cmd(&config, &args).await.unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+        check_confidential_available_balance(&config, recipient, &recipient_owner, 8).await;
+        assert_eq!(
+            token
+                .get_mint_info()
+                .await
+                .unwrap()
+                .get_extension::<ConfidentialTransferFeeConfig>()
+                .unwrap()
+                .withheld_amount,
+            withheld_amount,
+        );
+        for source in &sources {
+            let state = token.get_account_info(source).await.unwrap();
+            let withheld: solana_zk_sdk::encryption::elgamal::ElGamalCiphertext = state
+                .get_extension::<ConfidentialTransferFeeAmount>()
+                .unwrap()
+                .withheld_amount
+                .try_into()
+                .unwrap();
+            let (keypair, _) = derive_confidential_keys(payer).unwrap();
+            assert_eq!(withheld.decrypt_u32(keypair.secret()), Some(1));
+        }
+    }
     for extra_args in [
         vec![],
         vec!["--include-mint"],
