@@ -1,5 +1,6 @@
+import { Buffer } from 'buffer';
 import { struct, u8 } from '@solana/buffer-layout';
-import { publicKey } from '@solana/buffer-layout-utils';
+import { publicKey } from '../../layouts.js';
 import type { Signer } from '@solana/web3.js';
 import { PublicKey, TransactionInstruction } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ID, programSupportsExtensions } from '../../constants.js';

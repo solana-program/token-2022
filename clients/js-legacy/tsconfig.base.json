@@ -10,6 +10,7 @@
         "resolveJsonModule": true,
         "strict": true,
         "stripInternal": true,
+        "types": ["node"],
         "ignoreDeprecations": "6.0"
     }
 }

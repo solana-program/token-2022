@@ -1,4 +1,5 @@
-import { u64 } from '@solana/buffer-layout-utils';
+import { Buffer } from 'buffer';
+import { u64 } from '../layouts.js';
 import type { Connection, PublicKey, Signer, TransactionError } from '@solana/web3.js';
 import { Transaction } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from '../constants.js';
