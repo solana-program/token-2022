@@ -4158,7 +4158,7 @@ async fn command_withdraw_withheld_confidential_tokens(
     include_mint: bool,
     withdraw_withheld_elgamal_keypair: &ElGamalKeypair,
     destination_aes_key: &AeKey,
-    known_amount: Option<u64>,
+    known_amount: Option<Amount>,
     bulk_signers: BulkSigners,
 ) -> CommandResult {
     let destination_account = config
@@ -4188,6 +4188,8 @@ async fn command_withdraw_withheld_confidential_tokens(
     }
     let token = token_client_from_config(config, &mint_address, None)?;
     let mint_state = token.get_mint_info().await?;
+    let known_amount = known_amount
+        .map(|amount| amount_to_raw_amount(amount, mint_state.base.decimals, None, "AMOUNT"));
     let transfer_fee_config = mint_state.get_extension::<TransferFeeConfig>()?;
     let confidential_transfer_fee_config =
         mint_state.get_extension::<ConfidentialTransferFeeConfig>()?;
@@ -6344,7 +6346,7 @@ async fn process_command_inner(
                     include_mint,
                     &withdraw_withheld_elgamal_keypair,
                     &destination_aes_key,
-                    arg_matches.get_one::<u64>("amount").copied(),
+                    arg_matches.get_one::<Amount>("amount").copied(),
                     bulk_signers,
                 )
                 .await

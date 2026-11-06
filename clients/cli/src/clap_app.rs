@@ -2465,9 +2465,9 @@ pub fn app<'a>(
                         .long("amount")
                         .takes_value(true)
                         .value_name("AMOUNT")
-                        .value_parser(clap::value_parser!(u64))
+                        .value_parser(Amount::parse)
                         .requires("confidential")
-                        .help("Known total withheld amount in base units (smallest token units); no decimal scaling"),
+                        .help("Known total withheld amount, in tokens"),
                 )
                 .arg(
                     Arg::with_name("account")

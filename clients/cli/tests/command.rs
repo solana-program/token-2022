@@ -5070,6 +5070,7 @@ async fn setup_confidential_transfer_fees(
     config: &Config<'_>,
     payer: &Keypair,
     maximum_fee: u64,
+    decimals: u8,
 ) -> (Pubkey, Pubkey) {
     let mint = Keypair::new();
     let mint_keypair_file = NamedTempFile::new().unwrap();
@@ -5083,13 +5084,13 @@ async fn setup_confidential_transfer_fees(
             CommandName::CreateToken.into(),
             mint_keypair_file.path().to_str().unwrap(),
             "--decimals",
-            "0",
+            &decimals.to_string(),
             "--enable-confidential-transfers",
             "auto",
             "--transfer-fee-basis-points",
             "1000",
             "--transfer-fee-maximum-fee",
-            &maximum_fee.to_string(),
+            &spl_token_2022::amount_to_ui_amount_string_trimmed(maximum_fee, decimals),
         ],
     )
     .await
@@ -5170,7 +5171,7 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
     let config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
     let large_fee = u64::from(u32::MAX).checked_add(1).unwrap();
-    let (mint, sender) = setup_confidential_transfer_fees(&config, payer, large_fee).await;
+    let (mint, _) = setup_confidential_transfer_fees(&config, payer, large_fee, 0).await;
 
     // The fee recipient's owner is distinct from the withdrawal authority.
     let recipient_owner = Keypair::new();
@@ -5474,7 +5475,21 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
     .unwrap();
     check_confidential_available_balance(&config, recipient, &recipient_owner, 28).await;
 
-    // Known amounts bypass bounded decryption for both account and mint fees.
+    // Decimal token amounts scale to fees above u32::MAX for both withdrawal paths.
+    let decimals = 2;
+    let (mint, sender) =
+        setup_confidential_transfer_fees(&config, payer, large_fee, decimals).await;
+    let mint_address = mint.to_string();
+    let recipient = create_confidential_auxiliary_account(&recipient_config, payer, mint).await;
+    let recipient_address = recipient.to_string();
+    let source = create_confidential_auxiliary_account(&config, payer, mint).await;
+    let token = Token::new(
+        config.program_client.clone(),
+        &config.program_id,
+        &mint,
+        Some(decimals),
+        config.fee_payer().unwrap(),
+    );
     let transfer_amount = large_fee.checked_mul(10).unwrap();
     let total_amount = transfer_amount.checked_mul(2).unwrap();
     token
@@ -5488,7 +5503,7 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
             "spl-token",
             CommandName::DepositConfidentialTokens.into(),
             &mint_address,
-            &total_amount.to_string(),
+            &spl_token_2022::amount_to_ui_amount_string_trimmed(total_amount, decimals),
         ],
     )
     .await
@@ -5504,10 +5519,10 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
     )
     .await
     .unwrap();
-    let fee_source = sources[1];
+    let fee_source = source;
     let fee_source_address = fee_source.to_string();
-    let large_fee_amount = large_fee.to_string();
-    let mut expected_balance = 28_u64;
+    let large_fee_amount = spl_token_2022::amount_to_ui_amount_string_trimmed(large_fee, decimals);
+    let mut expected_balance = 0_u64;
     for from_mint in [false, true] {
         process_test_command(
             &config,
@@ -5516,7 +5531,7 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
                 "spl-token",
                 CommandName::Transfer.into(),
                 &mint_address,
-                &transfer_amount.to_string(),
+                &spl_token_2022::amount_to_ui_amount_string_trimmed(transfer_amount, decimals),
                 &fee_source_address,
                 "--confidential",
                 "--expected-fee",
@@ -5531,7 +5546,16 @@ async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, p
                 .await
                 .unwrap();
         }
-        let mut args = withdraw_args.clone();
+        let mut args = vec![
+            "spl-token",
+            CommandName::WithdrawWithheldTokens.into(),
+            &recipient_address,
+            "--confidential",
+            "--owner",
+            owner_keypair_file.path().to_str().unwrap(),
+            "--withdraw-withheld-authority",
+            authority_keypair_file.path().to_str().unwrap(),
+        ];
         args.extend(["--amount", &large_fee_amount]);
         args.push(if from_mint {
             "--include-mint"
@@ -5578,7 +5602,7 @@ async fn confidential_fee_harvesting(test_validator: &TestValidator, payer: &Key
 
     let config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
-    let (mint, sender) = setup_confidential_transfer_fees(&config, payer, 100).await;
+    let (mint, sender) = setup_confidential_transfer_fees(&config, payer, 100, 0).await;
     let mint_address = mint.to_string();
     let token = Token::new(
         config.program_client.clone(),
