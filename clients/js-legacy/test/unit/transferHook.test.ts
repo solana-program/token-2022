@@ -667,5 +667,89 @@ describe('transferHook', () => {
 
             expect(instruction.keys).to.eql(checkMetas);
         });
+
+        // Only the mint exists: the transfer hook has no validation account.
+        function mockFetchMintOnly() {
+            const fetchAccountData = createMockFetchAccountDataFn([]);
+            return async function (
+                publicKey: PublicKey,
+                commitmentOrConfig?: Parameters<Connection['getAccountInfo']>[1],
+            ): ReturnType<Connection['getAccountInfo']> {
+                return publicKey.equals(mintPubkey) ? fetchAccountData(publicKey, commitmentOrConfig) : null;
+            };
+        }
+
+        const baseTransferMetas = () => [
+            { pubkey: sourcePubkey, isSigner: false, isWritable: true },
+            { pubkey: mintPubkey, isSigner: false, isWritable: false },
+            { pubkey: destinationPubkey, isSigner: false, isWritable: true },
+            { pubkey: authorityPubkey, isSigner: true, isWritable: false },
+        ];
+
+        it('adds only the transfer hook program when there is no validation account', async () => {
+            connection.getAccountInfo = mockFetchMintOnly();
+            const instruction = new TransactionInstruction({
+                keys: baseTransferMetas(),
+                programId: TOKEN_2022_PROGRAM_ID,
+            });
+
+            await addExtraAccountMetasForExecute(
+                connection,
+                instruction,
+                transferHookProgramId,
+                sourcePubkey,
+                mintPubkey,
+                destinationPubkey,
+                authorityPubkey,
+                amount,
+            );
+
+            expect(instruction.keys).to.eql([
+                ...baseTransferMetas(),
+                { pubkey: transferHookProgramId, isSigner: false, isWritable: false },
+            ]);
+        });
+
+        it('can create a transfer instruction without a validation account', async () => {
+            connection.getAccountInfo = mockFetchMintOnly();
+
+            const instruction = await createTransferCheckedWithTransferHookInstruction(
+                connection,
+                sourcePubkey,
+                mintPubkey,
+                destinationPubkey,
+                authorityPubkey,
+                amount,
+                decimals,
+                [],
+                undefined,
+                TOKEN_2022_PROGRAM_ID,
+            );
+
+            expect(instruction.keys).to.eql([
+                ...baseTransferMetas(),
+                { pubkey: transferHookProgramId, isSigner: false, isWritable: false },
+            ]);
+        });
+
+        it('adds no accounts when the transfer hook has no program set', async () => {
+            transferHookProgramId = PublicKey.default;
+            connection.getAccountInfo = mockFetchMintOnly();
+
+            const instruction = await createTransferCheckedWithTransferHookInstruction(
+                connection,
+                sourcePubkey,
+                mintPubkey,
+                destinationPubkey,
+                authorityPubkey,
+                amount,
+                decimals,
+                [],
+                undefined,
+                TOKEN_2022_PROGRAM_ID,
+            );
+
+            expect(instruction.keys).to.eql(baseTransferMetas());
+        });
     });
 });
