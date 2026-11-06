@@ -268,6 +268,23 @@ pub enum TokenError {
     /// Pending supply is not zero
     #[error("Key rotation attempted while pending balance is not zero")]
     PendingBalanceNonZero,
+
+    // 70
+    /// The mint carries a slot reference fee and must be writable in transfers
+    #[error("Mint with a slot reference fee must be writable in transfers")]
+    SlotReferenceFeeMintNotWritable,
+    /// An account can only be closed if its withheld slot reference fees are zero
+    #[error("An account can only be closed if its withheld slot reference fees are zero")]
+    AccountHasWithheldSlotReferenceFees,
+    /// Slot reference fee schedule exceeds the maximum
+    #[error("Slot reference fee schedule exceeds the maximum")]
+    SlotReferenceFeeExceedsMaximum,
+    /// Withheld slot reference fees may only go to the settler's token account
+    #[error("Withheld slot reference fees may only go to a token account owned by the settler")]
+    SlotReferenceFeeInvalidSettler,
+    /// Slot reference fee destination is not a stake account
+    #[error("Slot reference fee destination must be a stake account with the required withdraw authority and lockup")]
+    SlotReferenceFeeDestinationNotStake,
 }
 impl From<TokenError> for ProgramError {
     fn from(e: TokenError) -> Self {
@@ -464,6 +481,21 @@ impl ToStr for TokenError {
             }
             TokenError::PendingBalanceNonZero => {
                 "Key rotation attempted while pending balance is not zero"
+            }
+            TokenError::SlotReferenceFeeMintNotWritable => {
+                "Mint with a slot reference fee must be writable in transfers"
+            }
+            TokenError::AccountHasWithheldSlotReferenceFees => {
+                "An account can only be closed if its withheld slot reference fees are zero"
+            }
+            TokenError::SlotReferenceFeeExceedsMaximum => {
+                "Slot reference fee schedule exceeds the maximum"
+            }
+            TokenError::SlotReferenceFeeInvalidSettler => {
+                "Withheld slot reference fees may only go to a token account owned by the settler"
+            }
+            TokenError::SlotReferenceFeeDestinationNotStake => {
+                "Slot reference fee destination must be a stake account with the required withdraw authority and lockup"
             }
         }
     }

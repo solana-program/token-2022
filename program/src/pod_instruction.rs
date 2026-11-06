@@ -116,6 +116,7 @@ pub(crate) enum PodTokenInstruction {
     // 45
     UnwrapLamports,
     PermissionedBurnExtension,
+    SlotReferenceFeeExtension,
     // 255
     Batch = 255,
 }

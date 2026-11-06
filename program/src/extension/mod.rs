@@ -34,6 +34,8 @@ pub mod permissioned_burn;
 pub mod reallocate;
 /// Scaled UI Amount extension
 pub mod scaled_ui_amount;
+/// Slot reference fee extension
+pub mod slot_reference_fee;
 /// Token-group extension
 pub mod token_group;
 /// Token-metadata extension

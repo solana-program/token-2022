@@ -761,6 +761,13 @@ pub enum TokenInstruction<'a> {
     },
     /// Instruction prefix for instructions to the permissioned burn extension
     PermissionedBurnExtension,
+    /// The common instruction prefix for slot reference fee extension
+    /// instructions.
+    ///
+    /// See `extension::slot_reference_fee::instruction::SlotReferenceFeeInstruction`
+    /// for further details about the extended instructions that share this
+    /// instruction prefix
+    SlotReferenceFeeExtension,
     // 255
     /// Executes a batch of instructions. The instructions to be executed are
     /// specified in sequence on the instruction data. Each instruction
@@ -979,6 +986,9 @@ impl<'a> TokenInstruction<'a> {
             &Self::PermissionedBurnExtension => {
                 buf.push(46);
             }
+            &Self::SlotReferenceFeeExtension => {
+                buf.push(47);
+            }
             Self::Batch { data } => {
                 buf.push(255);
                 buf.extend_from_slice(data);
@@ -1145,6 +1155,7 @@ impl<'a> TokenInstruction<'a> {
                 (Self::UnwrapLamports { amount }, rest)
             }
             46 => (Self::PermissionedBurnExtension, rest),
+            47 => (Self::SlotReferenceFeeExtension, rest),
             255 => (
                 Self::Batch {
                     data: rest.to_vec(),
@@ -1275,6 +1286,8 @@ pub enum AuthorityType {
     Pause,
     /// Authority to perform a permissioned token burn
     PermissionedBurn,
+    /// Authority to update the slot reference fee schedule and destination
+    SlotReferenceFee,
 }
 
 impl AuthorityType {
@@ -1298,6 +1311,7 @@ impl AuthorityType {
             AuthorityType::ScaledUiAmount => 15,
             AuthorityType::Pause => 16,
             AuthorityType::PermissionedBurn => 17,
+            AuthorityType::SlotReferenceFee => 18,
         }
     }
 
@@ -1322,6 +1336,7 @@ impl AuthorityType {
             15 => Ok(AuthorityType::ScaledUiAmount),
             16 => Ok(AuthorityType::Pause),
             17 => Ok(AuthorityType::PermissionedBurn),
+            18 => Ok(AuthorityType::SlotReferenceFee),
             _ => Err(TokenError::InvalidInstruction.into()),
         }
     }
