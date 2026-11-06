@@ -1,18 +1,20 @@
 import { ns64, s16, struct } from '@solana/buffer-layout';
 import { publicKey } from '@solana/buffer-layout-utils';
-import type { PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import type { Mint } from '../../state/mint.js';
 import { ExtensionType, getExtensionData } from '../extensionType.js';
 
 export interface InterestBearingMintConfigState {
-    rateAuthority: PublicKey;
+    rateAuthority: PublicKey | null;
     initializationTimestamp: bigint;
     preUpdateAverageRate: number;
     lastUpdateTimestamp: bigint;
     currentRate: number;
 }
 
-export const InterestBearingMintConfigStateLayout = struct<InterestBearingMintConfigState>([
+export const InterestBearingMintConfigStateLayout = struct<
+    InterestBearingMintConfigState & { rateAuthority: PublicKey }
+>([
     publicKey('rateAuthority'),
     ns64('initializationTimestamp'),
     s16('preUpdateAverageRate'),
@@ -25,7 +27,11 @@ export const INTEREST_BEARING_MINT_CONFIG_STATE_SIZE = InterestBearingMintConfig
 export function getInterestBearingMintConfigState(mint: Mint): InterestBearingMintConfigState | null {
     const extensionData = getExtensionData(ExtensionType.InterestBearingConfig, mint.tlvData);
     if (extensionData !== null) {
-        return InterestBearingMintConfigStateLayout.decode(extensionData);
+        const { rateAuthority, ...config } = InterestBearingMintConfigStateLayout.decode(extensionData);
+        return {
+            ...config,
+            rateAuthority: rateAuthority.equals(PublicKey.default) ? null : rateAuthority,
+        };
     }
     return null;
 }

@@ -1,7 +1,7 @@
 import type { Layout } from '@solana/buffer-layout';
 import { struct, u16 } from '@solana/buffer-layout';
 import { publicKey, u64 } from '@solana/buffer-layout-utils';
-import type { PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import type { Account } from '../../state/account.js';
 import type { Mint } from '../../state/mint.js';
 import { ExtensionType, getExtensionData } from '../extensionType.js';
@@ -25,9 +25,9 @@ export interface TransferFee {
 /** Transfer fee extension data for mints. */
 export interface TransferFeeConfig {
     /** Optional authority to set the fee */
-    transferFeeConfigAuthority: PublicKey;
-    /** Withdraw from mint instructions must be signed by this key */
-    withdrawWithheldAuthority: PublicKey;
+    transferFeeConfigAuthority: PublicKey | null;
+    /** Optional authority to withdraw withheld fees */
+    withdrawWithheldAuthority: PublicKey | null;
     /** Withheld transfer fee tokens that have been moved to the mint for withdrawal */
     withheldAmount: bigint;
     /** Older transfer fee, used if the current epoch < newerTransferFee.epoch */
@@ -55,7 +55,12 @@ export function calculateFee(transferFee: TransferFee, preFeeAmount: bigint): bi
 }
 
 /** Buffer layout for de/serializing a transfer fee config extension */
-export const TransferFeeConfigLayout = struct<TransferFeeConfig>([
+export const TransferFeeConfigLayout = struct<
+    TransferFeeConfig & {
+        transferFeeConfigAuthority: PublicKey;
+        withdrawWithheldAuthority: PublicKey;
+    }
+>([
     publicKey('transferFeeConfigAuthority'),
     publicKey('withdrawWithheldAuthority'),
     u64('withheldAmount'),
@@ -92,7 +97,17 @@ export const TRANSFER_FEE_AMOUNT_SIZE = TransferFeeAmountLayout.span;
 export function getTransferFeeConfig(mint: Mint): TransferFeeConfig | null {
     const extensionData = getExtensionData(ExtensionType.TransferFeeConfig, mint.tlvData);
     if (extensionData !== null) {
-        return TransferFeeConfigLayout.decode(extensionData);
+        const { transferFeeConfigAuthority, withdrawWithheldAuthority, ...config } =
+            TransferFeeConfigLayout.decode(extensionData);
+        return {
+            ...config,
+            transferFeeConfigAuthority: transferFeeConfigAuthority.equals(PublicKey.default)
+                ? null
+                : transferFeeConfigAuthority,
+            withdrawWithheldAuthority: withdrawWithheldAuthority.equals(PublicKey.default)
+                ? null
+                : withdrawWithheldAuthority,
+        };
     } else {
         return null;
     }

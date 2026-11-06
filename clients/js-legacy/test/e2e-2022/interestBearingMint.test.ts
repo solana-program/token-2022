@@ -1,6 +1,5 @@
 import { expect } from 'chai';
-import type { Connection, Signer } from '@solana/web3.js';
-import { PublicKey } from '@solana/web3.js';
+import type { Connection, PublicKey, Signer } from '@solana/web3.js';
 import { Keypair } from '@solana/web3.js';
 import {
     AuthorityType,
@@ -97,7 +96,7 @@ describe('interestBearingMint', () => {
         const rateConfigState = getInterestBearingMintConfigState(mintInfo);
         expect(rateConfigState).to.not.equal(null);
         if (rateConfigState !== null) {
-            expect(rateConfigState.rateAuthority).to.eql(PublicKey.default);
+            expect(rateConfigState.rateAuthority).to.equal(null);
         }
     });
 });
