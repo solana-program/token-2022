@@ -1582,7 +1582,8 @@ async fn command_transfer(
         (recipient_token_account, fundable_owner)
     };
 
-    // Confidential transfers must prepare their proofs before consuming the memo.
+    // The next transaction sent takes the memo, so confidential transfers
+    // attach it after the proof setup.
     if confidential_transfer_args.is_none() {
         if let Some(text) = memo.as_ref() {
             token.with_memo(text, vec![config.default_signer()?.pubkey()]);
@@ -2265,8 +2266,12 @@ async fn command_burn(
         ),
     );
 
-    if let Some(text) = memo {
-        token.with_memo(text, vec![config.default_signer()?.pubkey()]);
+    // The next transaction sent takes the memo, so confidential burns attach
+    // it after the proof setup.
+    if confidential_burn_args.is_none() {
+        if let Some(text) = memo.as_ref() {
+            token.with_memo(text, vec![config.default_signer()?.pubkey()]);
+        }
     }
 
     let res = if let Some((source_elgamal_keypair, source_aes_key)) = confidential_burn_args {
@@ -2387,6 +2392,9 @@ async fn command_burn(
         };
 
         // Execute burn
+        if let Some(text) = memo.as_ref() {
+            token.with_memo(text, vec![config.default_signer()?.pubkey()]);
+        }
         let burn_result = if let Some(permissioned_auth) = permissioned_burn_authority {
             token
                 .confidential_transfer_permissioned_burn(
@@ -2621,6 +2629,9 @@ async fn command_mint(
         };
 
         // Execute confidential mint
+        if let Some(text) = memo.as_ref() {
+            token.with_memo(text, vec![config.default_signer()?.pubkey()]);
+        }
         let mint_result = token
             .confidential_transfer_mint(
                 &mint_authority,

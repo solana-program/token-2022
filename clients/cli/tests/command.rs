@@ -63,7 +63,8 @@ use {
     },
     spl_token_client::{
         client::{
-            ProgramClient, ProgramOfflineClient, ProgramRpcClient, ProgramRpcClientSendTransaction,
+            ProgramClient, ProgramClientResult, ProgramOfflineClient, ProgramRpcClient,
+            ProgramRpcClientSendTransaction, RpcClientResponse,
         },
         token::{ComputeUnitLimit, Token},
     },
@@ -647,6 +648,91 @@ fn assert_output_has_transactions(output: &str, expected_transactions: &[&str]) 
             "missing transaction `{expected_transaction}` in {transaction_names:?}"
         );
     }
+}
+
+/// Program client that records the transactions it sends
+struct RecordingProgramClient {
+    inner: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync>,
+    sent: std::sync::Mutex<Vec<Transaction>>,
+}
+
+#[async_trait::async_trait]
+impl ProgramClient<ProgramRpcClientSendTransaction> for RecordingProgramClient {
+    async fn get_minimum_balance_for_rent_exemption(
+        &self,
+        data_len: usize,
+    ) -> ProgramClientResult<u64> {
+        self.inner
+            .get_minimum_balance_for_rent_exemption(data_len)
+            .await
+    }
+
+    async fn get_latest_blockhash(&self) -> ProgramClientResult<Hash> {
+        self.inner.get_latest_blockhash().await
+    }
+
+    async fn send_transaction(
+        &self,
+        transaction: &Transaction,
+    ) -> ProgramClientResult<RpcClientResponse> {
+        self.sent.lock().unwrap().push(transaction.clone());
+        self.inner.send_transaction(transaction).await
+    }
+
+    async fn get_account(
+        &self,
+        address: Pubkey,
+    ) -> ProgramClientResult<Option<solana_sdk::account::Account>> {
+        self.inner.get_account(address).await
+    }
+
+    async fn simulate_transaction(
+        &self,
+        transaction: &Transaction,
+    ) -> ProgramClientResult<RpcClientResponse> {
+        self.inner.simulate_transaction(transaction).await
+    }
+}
+
+/// Runs `args` with `--with-memo` and asserts that only the transaction
+/// reported by the command carries the memo. Burns and mints cannot rely on
+/// recipients that require memos, so this checks the sent transactions.
+async fn process_memo_test_command(config: &Config<'_>, payer: &Keypair, args: &[&str]) {
+    let memo = "invoice-123";
+    let client = Arc::new(RecordingProgramClient {
+        inner: config.program_client.clone(),
+        sent: std::sync::Mutex::default(),
+    });
+    let mut recording_config = config.clone();
+    recording_config.program_client = client.clone();
+    let output = process_test_command(
+        &recording_config,
+        payer,
+        args.iter().copied().chain(["--with-memo", memo]),
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+
+    let sent = client.sent.lock().unwrap();
+    let memo_signatures = sent
+        .iter()
+        .filter(|transaction| {
+            let message = &transaction.message;
+            message.instructions.iter().any(|instruction| {
+                message.account_keys[instruction.program_id_index as usize]
+                    == spl_memo_interface::v4::id()
+                    && instruction.data == memo.as_bytes()
+            })
+        })
+        .map(|transaction| transaction.signatures[0].to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        memo_signatures,
+        [value["signature"].as_str().unwrap()],
+        "the memo must be only on the reported transaction, out of {} sent",
+        sent.len()
+    );
 }
 
 async fn create_token_default(test_validator: &TestValidator, payer: &Keypair) {
@@ -7426,7 +7512,7 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
         .await
         .unwrap();
 
-    process_test_command(
+    process_memo_test_command(
         &config,
         payer,
         &[
@@ -7438,8 +7524,68 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
             burn_authority_keypair_file.path().to_str().unwrap(),
         ],
     )
+    .await;
+
+    // Confidential permissioned burns attach the memo after the proof setup.
+    let output = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::CreateToken.into(),
+            "--enable-confidential-transfers",
+            "auto",
+            "--enable-confidential-mint-burn",
+            "--permissioned-burn",
+            &burn_authority.pubkey().to_string(),
+        ],
+    )
     .await
     .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+    let confidential_token =
+        Pubkey::from_str(value["commandOutput"]["address"].as_str().unwrap()).unwrap();
+    let confidential_source =
+        create_confidential_auxiliary_account(&config, payer, confidential_token).await;
+    mint_tokens(
+        &config,
+        payer,
+        confidential_token,
+        ui_amount,
+        confidential_source,
+    )
+    .await
+    .unwrap();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            "--address",
+            &confidential_source.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    process_memo_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Burn.into(),
+            &confidential_source.to_string(),
+            "10",
+            "--permissioned-burn-authority",
+            burn_authority_keypair_file.path().to_str().unwrap(),
+        ],
+    )
+    .await;
+    assert_eq!(
+        decrypted_confidential_balances(&config, payer, &confidential_source).await,
+        (0.0, 90.0)
+    );
 }
 
 async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair) {
@@ -7483,9 +7629,9 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
     .await
     .unwrap();
 
-    // Mint confidentially
+    // Mint confidentially; confidential mints must keep the memo.
     let mint_amount = 100.0;
-    process_test_command(
+    process_memo_test_command(
         &config,
         payer,
         &[
@@ -7496,8 +7642,7 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
             &account.to_string(),
         ],
     )
-    .await
-    .unwrap();
+    .await;
 
     // Apply the pending balance so we can burn it
     process_test_command(
@@ -7580,9 +7725,9 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
     .to_string();
     assert!(error.contains("does not match the encryption key"));
 
-    // Burn confidentially
+    // Burn confidentially; proof setup must leave the memo for the burn.
     let burn_amount = 50.0;
-    process_test_command(
+    process_memo_test_command(
         &config,
         payer,
         &[
@@ -7592,8 +7737,7 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
             &burn_amount.to_string(),
         ],
     )
-    .await
-    .unwrap();
+    .await;
 
     // Apply pending burn to the mint's supply
     process_test_command(
