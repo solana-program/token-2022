@@ -31,7 +31,7 @@ use {
     solana_program_pack::Pack,
     solana_zero_copy::unaligned::U64,
     spl_token_2022_interface::{
-        check_program_account,
+        check_owner,
         error::TokenError,
         extension::{
             account_len::{
@@ -110,14 +110,12 @@ impl Processor {
         let mint_info = next_account_view(account_info_iter)?;
         let mint_data_len = mint_info.data_len();
 
-        // Note: Storing the value of the owner so borrow checker doesn't complain about
-        // multiple borrows of `mint_info`.
-        let mint_owner = *mint_info.owner();
+        let owner_check = check_owner(mint_info);
         let mint_lamports = mint_info.lamports();
 
         let mut mint_data = mint_info.try_borrow_mut()?;
 
-        check_program_account(&mint_owner)?;
+        owner_check?;
 
         let rent = if rent_sysvar_account {
             Rent::from_account_view(next_account_view(account_info_iter)?)?
@@ -183,8 +181,8 @@ impl Processor {
         let new_account_info = next_account_view(account_info_iter)?;
         let mint_info = next_account_view(account_info_iter)?;
 
-        check_program_account(new_account_info.owner())?;
-        check_program_account(mint_info.owner())?;
+        check_owner(new_account_info)?;
+        check_owner(mint_info)?;
 
         let owner = if let Some(owner) = owner {
             owner
@@ -221,7 +219,7 @@ impl Processor {
             msg!("Warning: Mint has a permanent delegate, so tokens in this account may be seized at any time");
         }
 
-        check_program_account(mint_info.owner())?;
+        check_owner(mint_info)?;
 
         // Sizing walks every TLV entry, which also validates the extension data. It is only a
         // lower bound since it skips extensions already initialized on the account (e.g.
@@ -298,7 +296,7 @@ impl Processor {
         let account_info_iter = &mut accounts.iter_mut();
         let multisig_info = next_account_view(account_info_iter)?;
 
-        check_program_account(multisig_info.owner())?;
+        check_owner(multisig_info)?;
 
         let multisig_info_data_len = multisig_info.data_len();
         let rent = if rent_sysvar_account {
@@ -374,8 +372,8 @@ impl Processor {
         let authority_info = next_account_view(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
-        check_program_account(source_account_info.owner())?;
-        check_program_account(destination_account_info.owner())?;
+        check_owner(source_account_info)?;
+        check_owner(destination_account_info)?;
 
         // Note: Make a copy of the source account to borrow the data so we can use the account
         // info again without violating the borrow checker. The account data is not re-borrowed on
@@ -400,7 +398,7 @@ impl Processor {
 
         let (calculated_fee, maybe_permanent_delegate, maybe_transfer_hook_program_id) =
             if let Some((ref mint_info, expected_decimals)) = expected_mint_info {
-                check_program_account(mint_info.owner())?;
+                check_owner(mint_info)?;
 
                 if &source_account.base.mint != mint_info.address() {
                     return Err(TokenError::MintMismatch.into());
@@ -650,7 +648,7 @@ impl Processor {
 
         let source_account_info = next_account_view(account_info_iter)?;
 
-        check_program_account(source_account_info.owner())?;
+        check_owner(source_account_info)?;
 
         let expected_mint_info =
             if let InstructionVariant::Checked { decimals } = instruction_variant {
@@ -671,7 +669,7 @@ impl Processor {
         }
 
         if let Some((mint_info, expected_decimals)) = expected_mint_info {
-            check_program_account(mint_info.owner())?;
+            check_owner(mint_info)?;
 
             if &source_account.base.mint != mint_info.address() {
                 return Err(TokenError::MintMismatch.into());
@@ -711,7 +709,7 @@ impl Processor {
         let authority_info = next_account_view(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
-        check_program_account(source_account_info.owner())?;
+        check_owner(source_account_info)?;
 
         let mut source_account_data = source_account_info.try_borrow_mut()?;
         let source_account =
@@ -752,7 +750,7 @@ impl Processor {
         let authority_info = next_account_view(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
-        check_program_account(account_info.owner())?;
+        check_owner(account_info)?;
 
         let mut account_data = account_info.try_borrow_mut()?;
         if let Ok(mut account) = PodStateWithExtensionsMut::<PodAccount>::unpack(&mut account_data)
@@ -1072,8 +1070,8 @@ impl Processor {
         let owner_info = next_account_view(account_info_iter)?;
         let owner_info_data_len = owner_info.data_len();
 
-        check_program_account(mint_info.owner())?;
-        check_program_account(destination_account_info.owner())?;
+        check_owner(mint_info)?;
+        check_owner(destination_account_info)?;
 
         let mut destination_account_data = destination_account_info.try_borrow_mut()?;
         let destination_account =
@@ -1165,8 +1163,8 @@ impl Processor {
         let source_account_info = next_account_view(account_info_iter)?;
         let mint_info = next_account_view(account_info_iter)?;
 
-        check_program_account(source_account_info.owner())?;
-        check_program_account(mint_info.owner())?;
+        check_owner(source_account_info)?;
+        check_owner(mint_info)?;
 
         let (permissioned_burn_authority_info, authority_info) = match burn_variant {
             BurnInstructionVariant::Permissioned => {
@@ -1346,7 +1344,7 @@ impl Processor {
         let authority_info = next_account_view(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
-        check_program_account(source_account_info.owner())?;
+        check_owner(source_account_info)?;
 
         if source_account_info.address() == destination_account_info.address() {
             return Err(ProgramError::InvalidAccountData);
@@ -1455,8 +1453,8 @@ impl Processor {
         let authority_info = next_account_view(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
-        check_program_account(source_account_info.owner())?;
-        check_program_account(mint_info.owner())?;
+        check_owner(source_account_info)?;
+        check_owner(mint_info)?;
 
         let mut source_account_data = source_account_info.try_borrow_mut()?;
         let source_account =
@@ -1502,7 +1500,7 @@ impl Processor {
         let account_info_iter = &mut accounts.iter_mut();
         let native_account_info = next_account_view(account_info_iter)?;
 
-        check_program_account(native_account_info.owner())?;
+        check_owner(native_account_info)?;
 
         let rent_exempt_reserve = if let Ok(rent_sysvar_info) = next_account_view(account_info_iter)
         {
@@ -1547,7 +1545,7 @@ impl Processor {
         let account_info_iter = &mut accounts.iter_mut();
         let mint_account_info = next_account_view(account_info_iter)?;
 
-        check_program_account(mint_account_info.owner())?;
+        check_owner(mint_account_info)?;
 
         let mut mint_data = mint_account_info.try_borrow_mut()?;
         let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
@@ -1566,7 +1564,7 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
         let mint_account_info = next_account_view(account_info_iter)?;
 
-        check_program_account(mint_account_info.owner())?;
+        check_owner(mint_account_info)?;
 
         let mint_data = mint_account_info.try_borrow()?;
         let account_len =
@@ -1582,7 +1580,7 @@ impl Processor {
         let account_info_iter = &mut accounts.iter_mut();
         let token_account_info = next_account_view(account_info_iter)?;
 
-        check_program_account(token_account_info.owner())?;
+        check_owner(token_account_info)?;
 
         let token_account_data = &mut token_account_info.try_borrow_mut()?;
         let mut token_account =
@@ -1597,7 +1595,7 @@ impl Processor {
     pub fn process_amount_to_ui_amount(accounts: &[AccountView], amount: u64) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let mint_info = next_account_view(account_info_iter)?;
-        check_program_account(mint_info.owner())?;
+        check_owner(mint_info)?;
 
         let mint_data = mint_info.try_borrow()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)
@@ -1625,7 +1623,7 @@ impl Processor {
     pub fn process_ui_amount_to_amount(accounts: &[AccountView], ui_amount: &str) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let mint_info = next_account_view(account_info_iter)?;
-        check_program_account(mint_info.owner())?;
+        check_owner(mint_info)?;
 
         let mint_data = mint_info.try_borrow()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)
@@ -1693,7 +1691,7 @@ impl Processor {
     pub fn process_initialize_non_transferable_mint(accounts: &mut [AccountView]) -> ProgramResult {
         let account_info_iter = &mut accounts.iter_mut();
         let mint_account_info = next_account_view(account_info_iter)?;
-        check_program_account(mint_account_info.owner())?;
+        check_owner(mint_account_info)?;
 
         let mut mint_data = mint_account_info.try_borrow_mut()?;
         let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
@@ -1710,7 +1708,7 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter_mut();
         let mint_account_info = next_account_view(account_info_iter)?;
-        check_program_account(mint_account_info.owner())?;
+        check_owner(mint_account_info)?;
 
         let mut mint_data = mint_account_info.try_borrow_mut()?;
         let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
@@ -1735,7 +1733,7 @@ impl Processor {
         let destination_info = next_account_view(account_info_iter)?;
         let authority_info = next_account_view(account_info_iter)?;
 
-        check_program_account(source_info.owner())?;
+        check_owner(source_info)?;
 
         let source_data = source_info.try_borrow()?;
 
@@ -1836,7 +1834,7 @@ impl Processor {
         let authority_info = next_account_view(account_info_iter)?;
         let authority_info_data_len = authority_info.data_len();
 
-        check_program_account(source_account_info.owner())?;
+        check_owner(source_account_info)?;
 
         let mut source_account_data = source_account_info.try_borrow_mut()?;
         let source_account =
@@ -2328,9 +2326,9 @@ impl Processor {
             return Err(TokenError::OwnerMismatch.into());
         }
 
-        let owned_by_token_program = program_id == owner_account_info.owner()
-            || owner_account_info.owner() == &inline_spl_token::id()
-            || owner_account_info.owner() == &spl_token_2022_interface::id();
+        let owned_by_token_program = owner_account_info.owned_by(program_id)
+            || owner_account_info.owned_by(&inline_spl_token::id())
+            || owner_account_info.owned_by(&spl_token_2022_interface::id());
         if owned_by_token_program && owner_account_data_len == PodMultisig::SIZE_OF {
             let multisig_data = &owner_account_info.try_borrow()?;
             let multisig = bytemuck::try_from_bytes::<PodMultisig>(multisig_data)
@@ -2370,13 +2368,14 @@ mod tests {
         solana_account::{
             state_traits::StateMutWincode, Account as SolanaAccount, ReadableAccount,
         },
-        solana_account_info::AccountInfo,
-        solana_account_info::IntoAccountInfo,
+        solana_account_info::{AccountInfo, IntoAccountInfo},
         solana_instruction::{AccountMeta, Instruction},
         solana_program_option::COption,
         solana_rent::Rent,
-        solana_sdk_ids::system_program,
-        solana_sdk_ids::sysvar::{self, rent},
+        solana_sdk_ids::{
+            system_program,
+            sysvar::{self, rent},
+        },
         spl_token_2022_interface::{
             extension::{
                 permissioned_burn, transfer_fee::instruction::initialize_transfer_fee_config,

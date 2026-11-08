@@ -8,7 +8,7 @@ use {
     solana_program_error::{ProgramError, ProgramResult},
     solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
     spl_token_2022_interface::{
-        check_program_account,
+        check_owner, check_program_account,
         error::TokenError,
         extension::{
             confidential_transfer::{
@@ -44,7 +44,7 @@ fn process_initialize_confidential_transfer_fee_config(
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter_mut();
     let mint_account_info = next_account_view(account_info_iter)?;
-    check_program_account(mint_account_info.owner())?;
+    check_owner(mint_account_info)?;
 
     let mut mint_data = mint_account_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack_uninitialized(&mut mint_data)?;
@@ -80,7 +80,7 @@ fn process_withdraw_withheld_tokens_from_mint(
     let authority_info_data_len = authority_info.data_len();
 
     // unnecessary check, but helps for clarity
-    check_program_account(mint_account_info.owner())?;
+    check_owner(mint_account_info)?;
 
     // Note: Storing the address of the mint so borrow checker doesn't complain about
     // multiple borrows of `mint_account_info`.
@@ -114,7 +114,7 @@ fn process_withdraw_withheld_tokens_from_mint(
 
     // basic checks for the destination account - must be extended for confidential
     // transfers
-    check_program_account(destination_account_info.owner())?;
+    check_owner(destination_account_info)?;
     let mut destination_account_data = destination_account_info.try_borrow_mut()?;
     let mut destination_account =
         PodStateWithExtensionsMut::<PodAccount>::unpack(&mut destination_account_data)?;
@@ -195,7 +195,7 @@ fn process_withdraw_withheld_tokens_from_accounts(
         .saturating_sub(num_token_accounts as usize);
 
     // unnecessary check, but helps for clarity
-    check_program_account(mint_account_info.owner())?;
+    check_owner(mint_account_info)?;
 
     // Note: Storing the address of the mint so borrow checker doesn't complain about
     // multiple borrows of `mint_account_info`.
@@ -217,7 +217,7 @@ fn process_withdraw_withheld_tokens_from_accounts(
         &account_infos[..num_signers],
     )?;
 
-    check_program_account(destination_account_info.owner())?;
+    check_owner(destination_account_info)?;
 
     // Note: Storing the address of the account so borrow checker doesn't complain about
     // multiple borrows of `destination_account_info`.
@@ -320,9 +320,7 @@ fn harvest_from_account<'b>(
     mint_key: &'b Address,
     token_account_info: &'b mut AccountView,
 ) -> Result<EncryptedWithheldAmount, TokenError> {
-    // Note: Storing the address of the account so borrow checker doesn't complain about
-    // multiple borrows of `token_account_info`.
-    let token_account_owner = *token_account_info.owner();
+    let owner_check = check_owner(token_account_info);
 
     let mut token_account_data = token_account_info
         .try_borrow_mut()
@@ -333,7 +331,7 @@ fn harvest_from_account<'b>(
     if token_account.base.mint != *mint_key {
         return Err(TokenError::MintMismatch);
     }
-    check_program_account(&token_account_owner).map_err(|_| TokenError::InvalidState)?;
+    owner_check.map_err(|_| TokenError::InvalidState)?;
 
     let confidential_transfer_token_account = token_account
         .get_extension_mut::<ConfidentialTransferFeeAmount>()
@@ -350,7 +348,7 @@ fn process_harvest_withheld_tokens_to_mint(accounts: &mut [AccountView]) -> Prog
     let account_info_iter = &mut accounts.iter_mut();
     let mint_account_info = next_account_view(account_info_iter)?;
 
-    check_program_account(mint_account_info.owner())?;
+    check_owner(mint_account_info)?;
 
     // Note: Storing the address of the mint so borrow checker doesn't complain about
     // multiple borrows of `token_account_info`.
@@ -402,7 +400,7 @@ fn process_enable_harvest_to_mint(
     let authority_info = next_account_view(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
 
-    check_program_account(mint_info.owner())?;
+    check_owner(mint_info)?;
     let mint_data = &mut mint_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(mint_data)?;
     let confidential_transfer_fee_mint =
@@ -435,7 +433,7 @@ fn process_disable_harvest_to_mint(
     let authority_info = next_account_view(account_info_iter)?;
     let authority_info_data_len = authority_info.data_len();
 
-    check_program_account(mint_info.owner())?;
+    check_owner(mint_info)?;
     let mint_data = &mut mint_info.try_borrow_mut()?;
     let mut mint = PodStateWithExtensionsMut::<PodMint>::unpack(mint_data)?;
     let confidential_transfer_fee_mint =

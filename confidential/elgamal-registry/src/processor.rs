@@ -84,7 +84,7 @@ pub fn process_update_registry_account(
 
     // Note: Storing the owner of the account so borrow checker doesn't complain about
     // multiple borrows of `elgamal_registry_account_info`.
-    let elgamal_registry_account_owner = *elgamal_registry_account_info.owner();
+    let elgamal_registry_account_owner = elgamal_registry_account_info.owner();
 
     let elgamal_registry_account_data = &mut elgamal_registry_account_info.try_borrow_mut()?;
     let elgamal_registry_account =

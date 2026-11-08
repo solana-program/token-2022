@@ -5,7 +5,7 @@ use {
     solana_msg::msg,
     solana_program_error::ProgramResult,
     spl_token_2022_interface::{
-        check_program_account,
+        check_owner, check_program_account,
         extension::{
             memo_transfer::{instruction::RequiredMemoTransfersInstruction, MemoTransfer},
             BaseStateWithExtensionsMut, PodStateWithExtensionsMut,
@@ -26,7 +26,7 @@ fn process_toggle_required_memo_transfers(
     let token_account_info = next_account_view(account_info_iter)?;
     let owner_info = next_account_view(account_info_iter)?;
     let owner_info_data_len = owner_info.data_len();
-    check_program_account(token_account_info.owner())?;
+    check_owner(token_account_info)?;
 
     let mut account_data = token_account_info.try_borrow_mut()?;
     let mut account = PodStateWithExtensionsMut::<PodAccount>::unpack(&mut account_data)?;
