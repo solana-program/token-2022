@@ -30,6 +30,7 @@ solana-commitment-config = "3.1.1"
 solana-logger = "3.0.0"
 solana-remote-wallet = { version = "4.3.0", features = ["agave-unstable-api"] }
 solana-sdk = "4.0.1"
+solana-signer = "4.0.0"
 solana-system-interface = "3.2.0"
 solana-zk-elgamal-proof-interface = "1.0.0"
 solana-zk-sdk = "8.0.1"

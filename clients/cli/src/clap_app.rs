@@ -313,6 +313,26 @@ pub fn owner_keypair_arg<'a>() -> Arg<'a> {
     owner_keypair_arg_with_value_name("OWNER_KEYPAIR")
 }
 
+pub fn confidential_elgamal_keypair_arg<'a>() -> Arg<'a> {
+    Arg::with_name("elgamal_keypair")
+        .long("elgamal-keypair")
+        .takes_value(true)
+        .value_name("FILE")
+        .requires("decrypt")
+        .requires("aes_key")
+        .help("Use an ElGamal keypair file instead of deriving keys from a signer. The keypair must match the confidential key stored on-chain.")
+}
+
+pub fn confidential_aes_key_arg<'a>() -> Arg<'a> {
+    Arg::with_name("aes_key")
+        .long("aes-key")
+        .takes_value(true)
+        .value_name("FILE")
+        .requires("decrypt")
+        .requires("elgamal_keypair")
+        .help("Use an AES key file instead of deriving keys from a signer. Provide this together with --elgamal-keypair.")
+}
+
 pub fn mint_address_arg<'a>() -> Arg<'a> {
     Arg::with_name(MINT_ADDRESS_ARG.name)
         .long(MINT_ADDRESS_ARG.long)
@@ -2028,7 +2048,9 @@ pub fn app<'a>(
                         .long("decrypt")
                         .takes_value(false)
                         .help("Decrypt the confidential balances using keys derived from the owner keypair, which defaults to the client keypair."),
-                ),
+                )
+                .arg(confidential_elgamal_keypair_arg())
+                .arg(confidential_aes_key_arg()),
         )
         .subcommand(
             SubCommand::with_name(CommandName::Supply.into())
@@ -2048,6 +2070,8 @@ pub fn app<'a>(
                         .takes_value(false)
                         .help("Decrypt the confidential supply using keys derived from the supply keypair, which defaults to the client keypair."),
                 )
+                .arg(confidential_elgamal_keypair_arg().conflicts_with("owner"))
+                .arg(confidential_aes_key_arg().conflicts_with("owner"))
                 .arg(owner_keypair_arg()),
         )
         .subcommand(
@@ -2184,6 +2208,8 @@ pub fn app<'a>(
                             defaults to the client keypair. Note that the auditor key cannot \
                             decrypt account balances, only transfer amounts."),
                 )
+                .arg(confidential_elgamal_keypair_arg().conflicts_with("owner"))
+                .arg(confidential_aes_key_arg().conflicts_with("owner"))
                 .arg(owner_keypair_arg()),
         )
         .subcommand(
