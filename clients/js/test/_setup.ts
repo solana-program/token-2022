@@ -96,6 +96,20 @@ export type LiteSvmClient = Awaited<ReturnType<typeof createTestClient>>;
 export type ValidatorClient = Awaited<ReturnType<typeof createValidatorClient>>;
 export type Client = LiteSvmClient | ValidatorClient;
 
+// Returns the innermost cause of an operation that must fail.
+export async function getRootCauseOfRejection(promise: Promise<unknown>): Promise<unknown> {
+    let error = await promise.then(
+        () => {
+            throw new Error('Expected the promise to reject.');
+        },
+        (reason: unknown) => reason,
+    );
+    while (error instanceof Error && error.cause) {
+        error = error.cause;
+    }
+    return error;
+}
+
 export const generateKeyPairSignerWithSol = async (client: Client, putativeLamports: bigint = 1_000_000_000n) => {
     const signer = await generateKeyPairSigner();
     await client.airdrop(signer.address, lamports(putativeLamports));
