@@ -139,6 +139,16 @@ fn push_signer_with_dedup(signer: Arc<dyn Signer>, bulk_signers: &mut BulkSigner
     }
 }
 
+fn attach_memo(
+    token: &Token<ProgramRpcClientSendTransaction>,
+    memo: Option<&str>,
+    signers: &[Arc<dyn Signer>],
+) {
+    if let Some(text) = memo {
+        token.with_memo(text, signers.iter().map(|signer| signer.pubkey()).collect());
+    }
+}
+
 fn new_throwaway_signer() -> (Arc<dyn Signer>, Pubkey) {
     let keypair = Keypair::new();
     let pubkey = keypair.pubkey();
@@ -400,9 +410,7 @@ async fn command_create_token(
         });
     }
 
-    if let Some(text) = memo {
-        token.with_memo(text, bulk_signers.iter().map(|s| s.pubkey()).collect());
-    }
+    attach_memo(&token, memo.as_deref(), &bulk_signers);
 
     // CLI checks that only one is set
     if metadata_address.is_some() || enable_metadata {
@@ -1585,9 +1593,7 @@ async fn command_transfer(
     // The next transaction sent takes the memo, so confidential transfers
     // attach it after the proof setup.
     if confidential_transfer_args.is_none() {
-        if let Some(text) = memo.as_ref() {
-            token.with_memo(text, vec![config.default_signer()?.pubkey()]);
-        }
+        attach_memo(&token, memo.as_deref(), &bulk_signers);
     }
 
     // fetch confidential transfer info for recipient and auditor
@@ -1820,9 +1826,7 @@ async fn command_transfer(
                 ciphertext_hi: transfer_amount_auditor_ciphertext_hi,
             };
 
-            if let Some(text) = memo.as_ref() {
-                token.with_memo(text, vec![config.default_signer()?.pubkey()]);
-            }
+            attach_memo(&token, memo.as_deref(), &bulk_signers);
             let transfer_result = token
                 .confidential_transfer_transfer(
                     &sender,
@@ -2086,9 +2090,7 @@ async fn command_transfer(
                 ciphertext_hi: transfer_amount_auditor_ciphertext_hi,
             };
 
-            if let Some(text) = memo.as_ref() {
-                token.with_memo(text, vec![config.default_signer()?.pubkey()]);
-            }
+            attach_memo(&token, memo.as_deref(), &bulk_signers);
             let transfer_result = token
                 .confidential_transfer_transfer_with_fee(
                     &sender,
@@ -2269,9 +2271,7 @@ async fn command_burn(
     // The next transaction sent takes the memo, so confidential burns attach
     // it after the proof setup.
     if confidential_burn_args.is_none() {
-        if let Some(text) = memo.as_ref() {
-            token.with_memo(text, vec![config.default_signer()?.pubkey()]);
-        }
+        attach_memo(&token, memo.as_deref(), &bulk_signers);
     }
 
     let res = if let Some((source_elgamal_keypair, source_aes_key)) = confidential_burn_args {
@@ -2392,9 +2392,7 @@ async fn command_burn(
         };
 
         // Execute burn
-        if let Some(text) = memo.as_ref() {
-            token.with_memo(text, vec![config.default_signer()?.pubkey()]);
-        }
+        attach_memo(&token, memo.as_deref(), &bulk_signers);
         let burn_result = if let Some(permissioned_auth) = permissioned_burn_authority {
             token
                 .confidential_transfer_permissioned_burn(
@@ -2629,9 +2627,7 @@ async fn command_mint(
         };
 
         // Execute confidential mint
-        if let Some(text) = memo.as_ref() {
-            token.with_memo(text, vec![config.default_signer()?.pubkey()]);
-        }
+        attach_memo(&token, memo.as_deref(), &bulk_signers);
         let mint_result = token
             .confidential_transfer_mint(
                 &mint_authority,
@@ -2687,9 +2683,7 @@ async fn command_mint(
         };
 
         let token = token_client_from_config(config, &mint_info.address, decimals)?;
-        if let Some(text) = memo {
-            token.with_memo(text, vec![config.default_signer()?.pubkey()]);
-        }
+        attach_memo(&token, memo.as_deref(), &bulk_signers);
 
         token
             .mint_to(&recipient, &mint_authority, amount, &bulk_signers)
