@@ -16,8 +16,8 @@ import {
  * @param connection            Connection to use
  * @param payer                 Payer of the transaction fees
  * @param mint                  Mint to initialize with extension
- * @param authority             Transfer hook authority account
- * @param transferHookProgramId The transfer hook program account
+ * @param authority             Optional transfer hook authority account
+ * @param transferHookProgramId Optional transfer hook program account
  * @param confirmOptions        Options for confirming the transaction
  * @param programId             SPL Token program account
  *
@@ -27,8 +27,8 @@ export async function initializeTransferHook(
     connection: Connection,
     payer: Signer,
     mint: PublicKey,
-    authority: PublicKey,
-    transferHookProgramId: PublicKey,
+    authority: PublicKey | null,
+    transferHookProgramId: PublicKey | null,
     confirmOptions?: ConfirmOptions,
     programId = TOKEN_2022_PROGRAM_ID,
 ): Promise<TransactionSignature> {
@@ -45,7 +45,7 @@ export async function initializeTransferHook(
  * @param connection            Connection to use
  * @param payer                 Payer of the transaction fees
  * @param mint                  Mint to modify
- * @param transferHookProgramId New transfer hook program account
+ * @param transferHookProgramId New transfer hook program account, or null to disable the hook
  * @param authority             Transfer hook update authority
  * @param multiSigners          Signing accounts if `freezeAuthority` is a multisig
  * @param confirmOptions        Options for confirming the transaction
@@ -57,7 +57,7 @@ export async function updateTransferHook(
     connection: Connection,
     payer: Signer,
     mint: PublicKey,
-    transferHookProgramId: PublicKey,
+    transferHookProgramId: PublicKey | null,
     authority: Signer | PublicKey,
     multiSigners: Signer[] = [],
     confirmOptions?: ConfirmOptions,

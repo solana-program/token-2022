@@ -11,21 +11,28 @@ import { unpackPubkeyData } from './pubkeyData.js';
 
 /** TransferHook as stored by the program */
 export interface TransferHook {
-    /** The transfer hook update authority */
-    authority: PublicKey;
-    /** The transfer hook program account */
-    programId: PublicKey;
+    /** Optional transfer hook update authority */
+    authority: PublicKey | null;
+    /** Optional transfer hook program account */
+    programId: PublicKey | null;
 }
 
 /** Buffer layout for de/serializing a transfer hook extension */
-export const TransferHookLayout = struct<TransferHook>([publicKey('authority'), publicKey('programId')]);
+export const TransferHookLayout = struct<{ authority: PublicKey; programId: PublicKey }>([
+    publicKey('authority'),
+    publicKey('programId'),
+]);
 
 export const TRANSFER_HOOK_SIZE = TransferHookLayout.span;
 
 export function getTransferHook(mint: Mint): TransferHook | null {
     const extensionData = getExtensionData(ExtensionType.TransferHook, mint.tlvData);
     if (extensionData !== null) {
-        return TransferHookLayout.decode(extensionData);
+        const { authority, programId } = TransferHookLayout.decode(extensionData);
+        return {
+            authority: authority.equals(PublicKey.default) ? null : authority,
+            programId: programId.equals(PublicKey.default) ? null : programId,
+        };
     } else {
         return null;
     }
