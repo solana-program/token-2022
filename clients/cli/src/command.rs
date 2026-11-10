@@ -5283,7 +5283,7 @@ async fn command_rotate_supply_elgamal_pubkey(
     }
     if extension.confidential_supply == PodElGamalCiphertext::default() {
         return Err(
-            "The mint has no confidential supply ciphertext yet. Mint at least once before             rotating the supply key."
+            "The mint has no confidential supply ciphertext yet. Mint at least once before rotating the supply key."
                 .into(),
         );
     }

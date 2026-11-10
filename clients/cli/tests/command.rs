@@ -8302,6 +8302,40 @@ async fn supply_elgamal_pubkey_of(config: &Config<'_>, token: &Pubkey) -> PodElG
         .supply_elgamal_pubkey
 }
 
+async fn create_confidential_mint_burn_token_with_supply(
+    config: &Config<'_>,
+    payer: &Keypair,
+    ui_amount: &str,
+) -> (Pubkey, Pubkey) {
+    let token_pubkey = create_confidential_mint_burn_token(config, payer).await;
+    let account = create_associated_account(config, payer, &token_pubkey, &payer.pubkey()).await;
+    process_test_command(
+        config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ConfigureConfidentialTransferAccount.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    process_test_command(
+        config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Mint.into(),
+            &token_pubkey.to_string(),
+            ui_amount,
+            &account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    (token_pubkey, account)
+}
+
 async fn confidential_mint_with_supply_keys(
     config: &Config<'_>,
     payer: &Keypair,
@@ -8485,35 +8519,8 @@ async fn confidential_mint_burn_rotate_supply_elgamal_pubkey(
 ) {
     let config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
-    let token_pubkey = create_confidential_mint_burn_token(&config, payer).await;
-
-    let account = create_associated_account(&config, payer, &token_pubkey, &payer.pubkey()).await;
-    process_test_command(
-        &config,
-        payer,
-        &[
-            "spl-token",
-            CommandName::ConfigureConfidentialTransferAccount.into(),
-            &token_pubkey.to_string(),
-        ],
-    )
-    .await
-    .unwrap();
-
-    // mint with the supply keys derived from the client keypair
-    process_test_command(
-        &config,
-        payer,
-        &[
-            "spl-token",
-            CommandName::Mint.into(),
-            &token_pubkey.to_string(),
-            "100",
-            &account.to_string(),
-        ],
-    )
-    .await
-    .unwrap();
+    let (token_pubkey, account) =
+        create_confidential_mint_burn_token_with_supply(&config, payer, "100").await;
 
     // rotate to a new supply ElGamal keypair; the AES key is not rotated
     let (_, supply_aes_key) = derive_confidential_keys(payer).unwrap();
@@ -8544,8 +8551,7 @@ async fn confidential_mint_burn_rotate_supply_elgamal_pubkey(
         PodElGamalPubkey::from(*new_supply_elgamal_keypair.pubkey())
     );
 
-    // mint with the new supply key (client helper; mint/burn CLI flags are
-    // intentionally out of scope for this change)
+    // mint/burn CLI flags for rotated keys are intentionally out of scope
     confidential_mint_with_supply_keys(
         &config,
         payer,
@@ -8583,36 +8589,10 @@ async fn confidential_mint_burn_rotate_supply_elgamal_pubkey_wrong_key(
 ) {
     let config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
-    let token_pubkey = create_confidential_mint_burn_token(&config, payer).await;
+    // Mint first: rotation proofs cannot be built over the default empty supply ciphertext.
+    let (token_pubkey, _account) =
+        create_confidential_mint_burn_token_with_supply(&config, payer, "100").await;
     let initial_supply_elgamal_pubkey = supply_elgamal_pubkey_of(&config, &token_pubkey).await;
-
-    // Rotation proofs cannot be built over the default (empty) supply
-    // ciphertext, so mint once first.
-    let account = create_associated_account(&config, payer, &token_pubkey, &payer.pubkey()).await;
-    process_test_command(
-        &config,
-        payer,
-        &[
-            "spl-token",
-            CommandName::ConfigureConfidentialTransferAccount.into(),
-            &token_pubkey.to_string(),
-        ],
-    )
-    .await
-    .unwrap();
-    process_test_command(
-        &config,
-        payer,
-        &[
-            "spl-token",
-            CommandName::Mint.into(),
-            &token_pubkey.to_string(),
-            "100",
-            &account.to_string(),
-        ],
-    )
-    .await
-    .unwrap();
 
     let wrong_elgamal_keypair_file = NamedTempFile::new().unwrap();
     ElGamalKeypair::new_rand()

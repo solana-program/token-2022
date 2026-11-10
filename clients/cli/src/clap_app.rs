@@ -3197,7 +3197,6 @@ pub fn app<'a>(
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
-                .offline_args()
         )
         .subcommand(
             SubCommand::with_name(CommandName::UpdateUiAmountMultiplier.into())
