@@ -469,7 +469,7 @@ function mintAccountData(transferHookProgramAddress?: Address): Uint8Array {
 }
 
 describe('resolveExtraAccountMetasForExecute', () => {
-    it('returns no accounts when the mint has no validation account', async () => {
+    it('returns only the hook program when the mint has no validation account', async () => {
         const client = await createTestClient();
 
         const resolved = await resolveExtraAccountMetasForExecute({
@@ -482,7 +482,7 @@ describe('resolveExtraAccountMetasForExecute', () => {
             transferHookProgramAddress: transferHookProgramId,
         });
 
-        expect(resolved).toEqual([]);
+        expect(resolved).toEqual([{ address: transferHookProgramId, role: AccountRole.READONLY }]);
     });
 
     it('appends the resolved extras, hook program, and validation state', async () => {
