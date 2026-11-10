@@ -53,6 +53,9 @@ use {
         elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
     },
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
+    spl_associated_token_account_interface::{
+        address::get_associated_token_address_with_program_id, instruction::recover_nested,
+    },
     spl_token_2022_interface::{
         extension::{
             confidential_mint_burn::ConfidentialMintBurn,
@@ -3841,6 +3844,57 @@ async fn command_gc(
     Ok(results.join(""))
 }
 
+async fn command_recover_nested(
+    config: &Config<'_>,
+    owner: Pubkey,
+    owner_token_mint: Pubkey,
+    nested_token_mint: Pubkey,
+    bulk_signers: BulkSigners,
+) -> CommandResult {
+    let owner_associated_account =
+        get_associated_token_address_with_program_id(&owner, &owner_token_mint, &config.program_id);
+    let nested_associated_account = get_associated_token_address_with_program_id(
+        &owner_associated_account,
+        &nested_token_mint,
+        &config.program_id,
+    );
+    let destination_associated_account = get_associated_token_address_with_program_id(
+        &owner,
+        &nested_token_mint,
+        &config.program_id,
+    );
+
+    println_display(
+        config,
+        format!(
+            "Recovering nested associated token account\n  Owner: {}\n  Owner associated account: {}\n  Nested associated account: {}\n  Destination associated account: {}",
+            owner,
+            owner_associated_account,
+            nested_associated_account,
+            destination_associated_account,
+        ),
+    );
+
+    let instruction = recover_nested(
+        &owner,
+        &owner_token_mint,
+        &nested_token_mint,
+        &config.program_id,
+    );
+    let token = token_client_from_config(config, &nested_token_mint, None)?;
+    let res = token.process_ixs(&[instruction], &bulk_signers).await?;
+    let tx_return = finish_tx(config, &res, false).await?;
+
+    Ok(match tx_return {
+        TransactionReturnData::CliSignature(signature) => {
+            config.output_format.formatted_string(&signature)
+        }
+        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
+            config.output_format.formatted_string(&sign_only_data)
+        }
+    })
+}
+
 async fn command_sync_native(config: &Config<'_>, native_account_address: Pubkey) -> CommandResult {
     let token = native_token_client_from_config(config)?;
 
@@ -6220,6 +6274,28 @@ async fn process_command_inner(
             let decrypt = arg_matches.is_present("decrypt");
             let custom_keys = custom_confidential_keys_of(arg_matches)?;
             command_display(config, address, decrypt, custom_keys.as_ref()).await
+        }
+        (CommandName::RecoverNested, arg_matches) => {
+            let owner_token_mint =
+                pubkey_of_signer(arg_matches, "owner_token_mint", &mut wallet_manager)
+                    .unwrap()
+                    .unwrap();
+            let nested_token_mint =
+                pubkey_of_signer(arg_matches, "nested_token_mint", &mut wallet_manager)
+                    .unwrap()
+                    .unwrap();
+            let (owner_signer, owner) =
+                config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
+            push_signer_with_dedup(owner_signer, &mut bulk_signers);
+
+            command_recover_nested(
+                config,
+                owner,
+                owner_token_mint,
+                nested_token_mint,
+                bulk_signers,
+            )
+            .await
         }
         (CommandName::Gc, arg_matches) => {
             match config.output_format {
