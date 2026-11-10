@@ -6,12 +6,14 @@ import {
     TokenTransferHookPubkeyDataTooSmall,
     TokenTransferHookAccountNotFound,
 } from '../../errors.js';
+import { fetchAccountData, type PreloadedAccounts } from './preloadedAccounts.js';
 
 export async function unpackPubkeyData(
     keyDataConfig: Uint8Array,
     previousMetas: AccountMeta[],
     instructionData: Buffer,
     connection: Connection,
+    preloadedAccounts?: PreloadedAccounts,
 ): Promise<PublicKey> {
     const [discriminator, ...rest] = keyDataConfig;
     const remaining = new Uint8Array(rest);
@@ -19,7 +21,7 @@ export async function unpackPubkeyData(
         case 1:
             return unpackPubkeyDataFromInstructionData(remaining, instructionData);
         case 2:
-            return unpackPubkeyDataFromAccountData(remaining, previousMetas, connection);
+            return unpackPubkeyDataFromAccountData(remaining, previousMetas, connection, preloadedAccounts);
         default:
             throw new TokenTransferHookInvalidPubkeyData();
     }
@@ -40,6 +42,7 @@ async function unpackPubkeyDataFromAccountData(
     remaining: Uint8Array,
     previousMetas: AccountMeta[],
     connection: Connection,
+    preloadedAccounts?: PreloadedAccounts,
 ): Promise<PublicKey> {
     if (remaining.length < 2) {
         throw new TokenTransferHookInvalidPubkeyData();
@@ -48,12 +51,12 @@ async function unpackPubkeyDataFromAccountData(
     if (previousMetas.length <= accountIndex) {
         throw new TokenTransferHookAccountDataNotFound();
     }
-    const accountInfo = await connection.getAccountInfo(previousMetas[accountIndex].pubkey);
-    if (accountInfo == null) {
+    const accountData = await fetchAccountData(connection, previousMetas[accountIndex].pubkey, preloadedAccounts);
+    if (accountData == null) {
         throw new TokenTransferHookAccountNotFound();
     }
-    if (accountInfo.data.length < dataIndex + PUBLIC_KEY_LENGTH) {
+    if (accountData.length < dataIndex + PUBLIC_KEY_LENGTH) {
         throw new TokenTransferHookPubkeyDataTooSmall();
     }
-    return new PublicKey(accountInfo.data.subarray(dataIndex, dataIndex + PUBLIC_KEY_LENGTH));
+    return new PublicKey(accountData.subarray(dataIndex, dataIndex + PUBLIC_KEY_LENGTH));
 }
