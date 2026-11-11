@@ -301,11 +301,17 @@ export function getExtensionData(extension: ExtensionType, tlvData: Buffer): Buf
 export function getExtensionTypes(tlvData: Buffer): ExtensionType[] {
     const extensionTypes = [];
     let extensionTypeIndex = 0;
-    while (extensionTypeIndex < tlvData.length) {
+    while (addTypeAndLengthToLen(extensionTypeIndex) <= tlvData.length) {
         const entryType = tlvData.readUInt16LE(extensionTypeIndex);
+        // The program pads accounts whose length would equal `Multisig::LEN` with a bare
+        // `Uninitialized` type and no length field, so stop before reading a length.
+        // Mirrors `try_for_each_tlv_extension_type` in the program.
+        if (entryType === ExtensionType.Uninitialized) {
+            break;
+        }
         extensionTypes.push(entryType);
         const entryLength = tlvData.readUInt16LE(extensionTypeIndex + TYPE_SIZE);
-        extensionTypeIndex += addTypeAndLengthToLen(entryLength);
+        extensionTypeIndex = addTypeAndLengthToLen(extensionTypeIndex) + entryLength;
     }
     return extensionTypes;
 }
