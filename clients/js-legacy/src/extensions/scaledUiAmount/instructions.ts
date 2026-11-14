@@ -1,5 +1,6 @@
+import { Buffer } from 'buffer';
 import { struct, u8, f64 } from '@solana/buffer-layout';
-import { publicKey, u64 } from '@solana/buffer-layout-utils';
+import { publicKey, u64 } from '../../layouts.js';
 import { TokenInstruction } from '../../instructions/types.js';
 import type { Signer } from '@solana/web3.js';
 import { TransactionInstruction, PublicKey } from '@solana/web3.js';
