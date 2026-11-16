@@ -201,10 +201,11 @@ struct TlvDataInfo {
 }
 
 /// Iterates through all TLV entries, passing each initialized extension type
-/// to `f`, and returns the total number of bytes used by all TLV entries.
-fn try_for_each_tlv_extension_type<F>(tlv_data: &[u8], mut f: F) -> Result<usize, ProgramError>
+/// and its value bytes to `f`, and returns the total number of bytes used by
+/// all TLV entries.
+fn try_for_each_tlv_entry<'data, F>(tlv_data: &'data [u8], mut f: F) -> Result<usize, ProgramError>
 where
-    F: FnMut(ExtensionType) -> Result<(), ProgramError>,
+    F: FnMut(ExtensionType, &'data [u8]) -> Result<(), ProgramError>,
 {
     let mut start_index = 0;
     while start_index < tlv_data.len() {
@@ -233,11 +234,23 @@ where
                 // value blows past the size of the slice, malformed
                 return Err(ProgramError::InvalidAccountData);
             }
-            f(extension_type)?;
+            f(
+                extension_type,
+                &tlv_data[tlv_indices.value_start..value_end_index],
+            )?;
             start_index = value_end_index;
         }
     }
     Ok(start_index)
+}
+
+/// Iterates through all TLV entries, passing each initialized extension type
+/// to `f`, and returns the total number of bytes used by all TLV entries.
+fn try_for_each_tlv_extension_type<F>(tlv_data: &[u8], mut f: F) -> Result<usize, ProgramError>
+where
+    F: FnMut(ExtensionType) -> Result<(), ProgramError>,
+{
+    try_for_each_tlv_entry(tlv_data, |extension_type, _| f(extension_type))
 }
 
 /// Fetches basic information about the TLV buffer by iterating through all
@@ -1890,6 +1903,31 @@ mod test {
                 extension_types: vec![],
                 used_len: 0
             }
+        );
+    }
+
+    #[test]
+    fn tlv_entry_walk_passes_value_bytes() {
+        // `TransferFeeConfig` with a 2-byte value, `MintCloseAuthority` with an empty one,
+        // then the uninitialized terminator and a byte that must not be read
+        let tlv_data = [1, 0, 2, 0, 7, 9, 3, 0, 0, 0, 0, 0, 0xff];
+        let mut entries = Vec::new();
+        let used_len = try_for_each_tlv_entry(&tlv_data, |extension_type, value| {
+            entries.push((extension_type, value.to_vec()));
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(
+            entries,
+            vec![
+                (ExtensionType::TransferFeeConfig, vec![7, 9]),
+                (ExtensionType::MintCloseAuthority, vec![]),
+            ]
+        );
+        assert_eq!(used_len, 10);
+        assert_eq!(
+            try_for_each_tlv_extension_type(&tlv_data, |_| Ok(())),
+            Ok(used_len)
         );
     }
 

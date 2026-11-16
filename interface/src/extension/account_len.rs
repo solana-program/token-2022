@@ -1,7 +1,7 @@
 use {
     super::{
-        adjust_len_for_multisig, try_for_each_tlv_extension_type, AccountType, BaseState,
-        BaseStateWithExtensions, ExtensionType, PodStateWithExtensions,
+        adjust_len_for_multisig, try_for_each_tlv_entry, try_for_each_tlv_extension_type,
+        AccountType, BaseState, BaseStateWithExtensions, ExtensionType, PodStateWithExtensions,
         BASE_ACCOUNT_AND_TYPE_LENGTH,
     },
     crate::{error::TokenError, pod::PodMint, state::Account},
@@ -36,14 +36,20 @@ impl TlvLenAccumulator {
 
     /// Adds the extension type's TLV length unless the type was already inserted
     pub(crate) fn insert(&mut self, extension_type: ExtensionType) -> Result<(), ProgramError> {
+        self.insert_if_new(extension_type).map(|_| ())
+    }
+
+    /// Like [`Self::insert`], returning whether the type was newly inserted
+    fn insert_if_new(&mut self, extension_type: ExtensionType) -> Result<bool, ProgramError> {
         let bit = Self::bit(extension_type);
-        if self.seen & bit == 0 {
-            self.seen |= bit;
-            self.byte_count = self
-                .byte_count
-                .saturating_add(extension_type.try_get_tlv_len()?);
+        if self.seen & bit != 0 {
+            return Ok(false);
         }
-        Ok(())
+        self.seen |= bit;
+        self.byte_count = self
+            .byte_count
+            .saturating_add(extension_type.try_get_tlv_len()?);
+        Ok(true)
     }
 
     /// The account length for base state `S` followed by the accumulated TLV entries
@@ -73,6 +79,86 @@ where
         Ok(())
     })
     .map(|_| ())
+}
+
+/// Upper bound on the distinct extension types a [`RequiredInitAccountExtensions`] holds.
+/// Each `ExtensionType` owns a distinct bit of `TlvLenAccumulator::seen` (see
+/// `every_extension_type_holds_a_distinct_bit`), and a type is only stored when its bit is new.
+const MAX_DISTINCT_EXTENSION_TYPES: usize = u64::BITS as usize;
+
+/// The account extensions `InitializeAccount` must create for a mint, collected in one walk
+/// over the mint TLV data. Types are distinct and kept in order of first appearance, which is
+/// the order in which `InitializeAccount` writes them.
+#[derive(Debug)]
+pub struct RequiredInitAccountExtensions {
+    /// Total TLV length of the distinct required types
+    tlv_len: TlvLenAccumulator,
+    /// The distinct required types, in order of first appearance
+    types: [ExtensionType; MAX_DISTINCT_EXTENSION_TYPES],
+    /// Number of recorded entries at the start of `types`
+    count: usize,
+}
+
+impl Default for RequiredInitAccountExtensions {
+    fn default() -> Self {
+        Self {
+            tlv_len: TlvLenAccumulator::default(),
+            types: [ExtensionType::Uninitialized; MAX_DISTINCT_EXTENSION_TYPES],
+            count: 0,
+        }
+    }
+}
+
+impl RequiredInitAccountExtensions {
+    /// Records the extension type unless it was already recorded
+    fn insert(&mut self, extension_type: ExtensionType) -> Result<(), ProgramError> {
+        if self.tlv_len.insert_if_new(extension_type)? {
+            // Never fails: every distinct type owns one of the bits counted by
+            // `MAX_DISTINCT_EXTENSION_TYPES`
+            let slot = self
+                .types
+                .get_mut(self.count)
+                .ok_or(ProgramError::InvalidAccountData)?;
+            *slot = extension_type;
+            self.count = self.count.saturating_add(1);
+        }
+        Ok(())
+    }
+
+    /// The distinct required account extension types, in order of first appearance
+    pub fn extension_types(&self) -> &[ExtensionType] {
+        self.types.get(..self.count).unwrap_or(&[])
+    }
+
+    /// The account length needed for the required extensions
+    pub fn account_len(&self) -> usize {
+        self.tlv_len.account_len::<Account>()
+    }
+}
+
+/// Walk the mint TLV data once, passing each mint entry (type and value bytes) to
+/// `on_mint_entry` and collecting the account extensions `InitializeAccount` must create.
+///
+/// The walk validates the TLV data like the sizing walk of
+/// [`try_calculate_account_len_from_mint_data`], with the same errors in the same order.
+/// `on_mint_entry` sees each entry before its required account extensions are recorded, and
+/// an error it returns aborts the walk.
+pub fn try_collect_required_init_account_extensions<'data, F>(
+    mint_tlv_data: &'data [u8],
+    mut on_mint_entry: F,
+) -> Result<RequiredInitAccountExtensions, ProgramError>
+where
+    F: FnMut(ExtensionType, &'data [u8]) -> Result<(), ProgramError>,
+{
+    let mut required = RequiredInitAccountExtensions::default();
+    try_for_each_tlv_entry(mint_tlv_data, |mint_extension_type, value| {
+        on_mint_entry(mint_extension_type, value)?;
+        for &extension_type in mint_extension_type.required_init_account_extensions() {
+            required.insert(extension_type)?;
+        }
+        Ok(())
+    })?;
+    Ok(required)
 }
 
 /// Calculate the account length for a token account of the given mint data, with
@@ -337,6 +423,153 @@ mod tests {
             Err(ProgramError::Custom(42)),
         );
         assert_eq!(visits, 1);
+    }
+
+    #[test]
+    fn collects_distinct_required_extensions_in_first_appearance_order() {
+        let mint_data = mint_data_with_tlv_entries(&[
+            (ExtensionType::NonTransferable, 0),
+            (ExtensionType::TransferFeeConfig, 0),
+            (ExtensionType::NonTransferable, 0),
+            (ExtensionType::MintCloseAuthority, 0),
+        ]);
+        let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data).unwrap();
+
+        let mut visited = Vec::new();
+        let required = try_collect_required_init_account_extensions(
+            mint.get_tlv_data(),
+            |extension_type, value| {
+                visited.push((extension_type, value.len()));
+                Ok(())
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            visited,
+            [
+                (ExtensionType::NonTransferable, 0),
+                (ExtensionType::TransferFeeConfig, 0),
+                (ExtensionType::NonTransferable, 0),
+                (ExtensionType::MintCloseAuthority, 0),
+            ]
+        );
+        assert_eq!(
+            required.extension_types(),
+            [
+                ExtensionType::NonTransferableAccount,
+                ExtensionType::ImmutableOwner,
+                ExtensionType::TransferFeeAmount,
+            ]
+        );
+        assert_eq!(
+            required.account_len(),
+            try_calculate_account_len_from_mint_data(&mint_data, &[]).unwrap(),
+        );
+    }
+
+    #[test_case(TEST_MINT_SLICE.to_vec(); "mint with no extensions")]
+    #[test_case(
+        mint_data_with_tlv_entries(&[(ExtensionType::MintCloseAuthority, 0)]);
+        "no required account extensions"
+    )]
+    #[test_case(
+        mint_data_with_tlv_entries(&[
+            (ExtensionType::TransferFeeConfig, 0),
+            (ExtensionType::TransferFeeConfig, 0),
+        ]);
+        "duplicate mint extensions"
+    )]
+    #[test_case(
+        mint_data_with_tlv_entries(&[(ExtensionType::MintPaddingTest, 0)]);
+        "multisig len is padded"
+    )]
+    #[test_case(
+        {
+            let mut data = mint_data_with_tlv_entries(&[(ExtensionType::TransferFeeConfig, 0)]);
+            data.push(0);
+            data
+        };
+        "trailing realloc byte is ignored"
+    )]
+    fn collected_extensions_match_existing_walks(mint_data: Vec<u8>) {
+        let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data).unwrap();
+        let required =
+            try_collect_required_init_account_extensions(mint.get_tlv_data(), |_, _| Ok(()))
+                .unwrap();
+        assert_eq!(
+            required.account_len(),
+            try_calculate_account_len_from_mint_data(&mint_data, &[]).unwrap(),
+        );
+
+        let mut expected = Vec::new();
+        try_for_each_required_init_account_extension(mint.get_tlv_data(), |extension_type| {
+            if !expected.contains(&extension_type) {
+                expected.push(extension_type);
+            }
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(required.extension_types(), expected.as_slice());
+    }
+
+    #[test]
+    fn collect_visits_entries_before_a_malformed_tail() {
+        let mut mint_data = mint_data_with_tlv_entries(&[(ExtensionType::PermanentDelegate, 32)]);
+        mint_data.extend_from_slice(&[999u16.to_le_bytes(), 0u16.to_le_bytes()].concat());
+        let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data).unwrap();
+
+        let mut visited = Vec::new();
+        assert_eq!(
+            try_collect_required_init_account_extensions(
+                mint.get_tlv_data(),
+                |extension_type, value| {
+                    visited.push((extension_type, value.len()));
+                    Ok(())
+                },
+            )
+            .map(|_| ()),
+            Err(ProgramError::InvalidAccountData),
+        );
+        assert_eq!(visited, [(ExtensionType::PermanentDelegate, 32)]);
+        assert_eq!(
+            try_calculate_account_len_from_mint_data(&mint_data, &[]),
+            Err(ProgramError::InvalidAccountData),
+        );
+    }
+
+    #[test]
+    fn collect_stops_on_visitor_error() {
+        let mint_data = mint_data_with_tlv_entries(&[
+            (ExtensionType::TransferFeeConfig, 0),
+            (ExtensionType::NonTransferable, 0),
+        ]);
+        let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data).unwrap();
+
+        let mut visits = 0;
+        assert_eq!(
+            try_collect_required_init_account_extensions(mint.get_tlv_data(), |_, _| {
+                visits += 1;
+                Err(ProgramError::Custom(42))
+            })
+            .map(|_| ()),
+            Err(ProgramError::Custom(42)),
+        );
+        assert_eq!(visits, 1);
+    }
+
+    #[test]
+    fn holds_every_sized_extension_type() {
+        let mut required = RequiredInitAccountExtensions::default();
+        let mut expected = Vec::new();
+        for extension_type in ExtensionType::iter() {
+            if extension_type.try_get_tlv_len().is_ok() {
+                required.insert(extension_type).unwrap();
+                required.insert(extension_type).unwrap();
+                expected.push(extension_type);
+            }
+        }
+        assert_eq!(required.extension_types(), expected.as_slice());
     }
 
     #[test]
