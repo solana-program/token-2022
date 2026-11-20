@@ -96,6 +96,68 @@ pub(crate) enum BurnInstructionVariant {
     Permissioned,
 }
 
+/// Mint extensions used by checked transfers, resolved in a single TLV pass.
+#[derive(Default)]
+struct TransferMintExtensions<'a> {
+    transfer_fee_config: Option<&'a TransferFeeConfig>,
+    pausable: Option<&'a PausableConfig>,
+    permanent_delegate: Option<&'a PermanentDelegate>,
+    transfer_hook: Option<&'a TransferHook>,
+}
+
+impl<'a> TransferMintExtensions<'a> {
+    fn scan(mut tlv: &'a [u8]) -> Self {
+        const FEE_TYPE: u16 = ExtensionType::TransferFeeConfig as u16;
+        const PAUSE_TYPE: u16 = ExtensionType::Pausable as u16;
+        const DELEGATE_TYPE: u16 = ExtensionType::PermanentDelegate as u16;
+        const HOOK_TYPE: u16 = ExtensionType::TransferHook as u16;
+        const UNINITIALIZED_TYPE: u16 = ExtensionType::Uninitialized as u16;
+        const FEE: u8 = 1;
+        const PAUSE: u8 = 2;
+        const DELEGATE: u8 = 4;
+        const HOOK: u8 = 8;
+
+        let mut found = Self::default();
+        let mut pending = FEE | PAUSE | DELEGATE | HOOK;
+        while let [type_lo, type_hi, len_lo, len_hi, rest @ ..] = tlv {
+            let extension_type = u16::from_le_bytes([*type_lo, *type_hi]);
+            if extension_type == UNINITIALIZED_TYPE {
+                break;
+            }
+            let length = usize::from(u16::from_le_bytes([*len_lo, *len_hi]));
+            let Some((value, remaining)) = rest.split_at_checked(length) else {
+                break;
+            };
+            // Like get_extension, skip unrelated raw tags and resolve only
+            // the first occurrence of a requested type, even if it is invalid.
+            match extension_type {
+                FEE_TYPE if pending & FEE != 0 => {
+                    pending &= !FEE;
+                    found.transfer_fee_config = bytemuck::try_from_bytes(value).ok();
+                }
+                PAUSE_TYPE if pending & PAUSE != 0 => {
+                    pending &= !PAUSE;
+                    found.pausable = bytemuck::try_from_bytes(value).ok();
+                }
+                DELEGATE_TYPE if pending & DELEGATE != 0 => {
+                    pending &= !DELEGATE;
+                    found.permanent_delegate = bytemuck::try_from_bytes(value).ok();
+                }
+                HOOK_TYPE if pending & HOOK != 0 => {
+                    pending &= !HOOK;
+                    found.transfer_hook = bytemuck::try_from_bytes(value).ok();
+                }
+                _ => {}
+            }
+            if pending == 0 {
+                break;
+            }
+            tlv = remaining;
+        }
+        found
+    }
+}
+
 /// Program state handler.
 pub struct Processor {}
 impl Processor {
@@ -413,8 +475,8 @@ impl Processor {
                     return Err(TokenError::MintDecimalsMismatch.into());
                 }
 
-                let fee = if let Ok(transfer_fee_config) = mint.get_extension::<TransferFeeConfig>()
-                {
+                let extensions = TransferMintExtensions::scan(mint.get_tlv_data());
+                let fee = if let Some(transfer_fee_config) = extensions.transfer_fee_config {
                     transfer_fee_config
                         .calculate_epoch_fee(Clock::get()?.epoch, amount)
                         .ok_or(TokenError::Overflow)?
@@ -422,14 +484,18 @@ impl Processor {
                     0
                 };
 
-                if let Ok(extension) = mint.get_extension::<PausableConfig>() {
+                if let Some(extension) = extensions.pausable {
                     if extension.paused.into() {
                         return Err(TokenError::MintPaused.into());
                     }
                 }
 
-                let maybe_permanent_delegate = get_permanent_delegate(&mint);
-                let maybe_transfer_hook_program_id = transfer_hook::get_program_id(&mint);
+                let maybe_permanent_delegate = extensions
+                    .permanent_delegate
+                    .and_then(|extension| extension.delegate.get());
+                let maybe_transfer_hook_program_id = extensions
+                    .transfer_hook
+                    .and_then(|extension| extension.program_id.get());
 
                 (
                     fee,
@@ -2469,6 +2535,117 @@ mod tests {
                 **account_info.try_borrow_mut_lamports().unwrap() = account.lamports();
                 account_info.assign(account.owner());
             });
+    }
+
+    #[test]
+    fn transfer_mint_extensions_match_get_extension() {
+        use spl_token_2022_interface::extension::{AccountType, Extension};
+
+        fn entry(tag: u16, value: &[u8]) -> Vec<u8> {
+            let length = u16::try_from(value.len()).unwrap();
+            [tag.to_le_bytes().as_slice(), &length.to_le_bytes(), value].concat()
+        }
+
+        fn extension_entry<T: Extension + bytemuck::Pod>(extension: &T) -> Vec<u8> {
+            entry(T::TYPE.into(), bytemuck::bytes_of(extension))
+        }
+
+        let fee = extension_entry(&TransferFeeConfig::default());
+        let pause = extension_entry(&PausableConfig::default());
+        let paused = extension_entry(&PausableConfig {
+            paused: true.into(),
+            ..PausableConfig::default()
+        });
+        let delegate = extension_entry(&PermanentDelegate {
+            delegate: Address::new_unique().into(),
+        });
+        let hook = extension_entry(&TransferHook {
+            program_id: Address::new_unique().into(),
+            ..TransferHook::default()
+        });
+        let unknown = entry(999, &[42]);
+        let wrong_account_type = entry(ExtensionType::ImmutableOwner.into(), &[]);
+        let terminator = entry(ExtensionType::Uninitialized.into(), &[]);
+        let wrong_size = entry(ExtensionType::Pausable.into(), &[]);
+        let truncated_header = [0xff; 3];
+        let mut truncated_value = hook.clone();
+        truncated_value.pop();
+        let mut oversized_unrelated = entry(999, &[]);
+        oversized_unrelated[2..4].copy_from_slice(&1000u16.to_le_bytes());
+        let cases = [
+            ("base mint", None),
+            ("empty TLV", Some(vec![])),
+            (
+                "all four",
+                Some([&fee[..], &pause, &delegate, &hook].concat()),
+            ),
+            ("unknown before target", Some([&unknown[..], &fee].concat())),
+            (
+                "unknown between targets",
+                Some([&fee[..], &unknown, &pause].concat()),
+            ),
+            (
+                "account tag before target",
+                Some([&delegate[..], &wrong_account_type, &hook].concat()),
+            ),
+            ("terminator", Some([&fee[..], &terminator, &pause].concat())),
+            ("duplicate", Some([&pause[..], &paused].concat())),
+            (
+                "invalid first duplicate",
+                Some([&wrong_size[..], &paused, &fee].concat()),
+            ),
+            (
+                "truncated header",
+                Some([&pause[..], &truncated_header].concat()),
+            ),
+            (
+                "truncated target",
+                Some([&fee[..], &truncated_value].concat()),
+            ),
+            (
+                "truncated unrelated",
+                Some([&pause[..], &oversized_unrelated, &hook].concat()),
+            ),
+        ];
+
+        for (name, tlv) in cases {
+            let mut data = vec![0; Mint::SIZE_OF];
+            Mint::pack(
+                Mint {
+                    is_initialized: true,
+                    ..Mint::default()
+                },
+                &mut data,
+            )
+            .unwrap();
+            if let Some(tlv) = tlv {
+                data.resize(Account::SIZE_OF, 0);
+                data.push(AccountType::Mint.into());
+                data.extend_from_slice(&tlv);
+            }
+            let mint = PodStateWithExtensions::<PodMint>::unpack(&data).unwrap();
+            let found = TransferMintExtensions::scan(mint.get_tlv_data());
+            assert_eq!(
+                found.transfer_fee_config,
+                mint.get_extension::<TransferFeeConfig>().ok(),
+                "{name}"
+            );
+            assert_eq!(
+                found.pausable,
+                mint.get_extension::<PausableConfig>().ok(),
+                "{name}"
+            );
+            assert_eq!(
+                found.permanent_delegate,
+                mint.get_extension::<PermanentDelegate>().ok(),
+                "{name}"
+            );
+            assert_eq!(
+                found.transfer_hook,
+                mint.get_extension::<TransferHook>().ok(),
+                "{name}"
+            );
+        }
     }
 
     fn return_token_error_as_program_error() -> ProgramError {
