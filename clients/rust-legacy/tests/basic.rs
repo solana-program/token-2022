@@ -1,12 +1,11 @@
 use {
+    solana_keypair::Keypair,
+    solana_program_option::COption,
     solana_program_test::{
         tokio::{self, sync::Mutex},
         ProgramTest,
     },
-    solana_sdk::{
-        program_option::COption,
-        signer::{keypair::Keypair, Signer},
-    },
+    solana_signer::Signer,
     spl_token_2022_interface::{instruction, state},
     spl_token_client::{
         client::{ProgramBanksClient, ProgramBanksClientProcessTransaction, ProgramClient},

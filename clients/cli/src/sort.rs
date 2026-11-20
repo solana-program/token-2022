@@ -7,7 +7,7 @@ use {
     serde::{Deserialize, Serialize},
     solana_account_decoder::{parse_token::TokenAccountType, UiAccountData},
     solana_client::rpc_response::RpcKeyedAccount,
-    solana_sdk::pubkey::Pubkey,
+    solana_pubkey::Pubkey,
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
     std::{
         collections::{btree_map::Entry, BTreeMap},

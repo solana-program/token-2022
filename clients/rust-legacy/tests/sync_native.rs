@@ -1,14 +1,15 @@
 mod program_test;
 use {
     program_test::{TestContext, TokenContext},
+    solana_keypair::Keypair,
     solana_program_test::{
         tokio::{self, sync::Mutex},
         ProgramTestContext,
     },
-    solana_sdk::{
-        pubkey::Pubkey, signature::Signer, signer::keypair::Keypair, transaction::Transaction,
-    },
+    solana_pubkey::Pubkey,
+    solana_signer::Signer,
     solana_system_interface::instruction as system_instruction,
+    solana_transaction::Transaction,
     spl_token_2022_interface::extension::ExtensionType,
     spl_token_client::{client::ProgramBanksClientProcessTransaction, token::Token},
     std::sync::Arc,

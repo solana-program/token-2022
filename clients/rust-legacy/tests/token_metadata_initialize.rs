@@ -2,11 +2,13 @@ mod program_test;
 use {
     borsh::BorshDeserialize,
     program_test::TestContext,
+    solana_instruction_error::InstructionError,
+    solana_keypair::Keypair,
     solana_program_test::{tokio, ProgramTest},
-    solana_sdk::{
-        instruction::InstructionError, pubkey::Pubkey, signature::Signer, signer::keypair::Keypair,
-        transaction::TransactionError, transport::TransportError,
-    },
+    solana_pubkey::Pubkey,
+    solana_signer::Signer,
+    solana_transaction_error::TransactionError,
+    solana_transaction_error::TransportError,
     spl_token_2022_interface::{error::TokenError, extension::BaseStateWithExtensions},
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
     spl_token_metadata_interface::{error::TokenMetadataError, state::TokenMetadata},
