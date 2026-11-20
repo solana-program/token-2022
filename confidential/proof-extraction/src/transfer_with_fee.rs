@@ -336,7 +336,7 @@ fn verify_delta_commitment(
 
     let proof_delta_commitment_point = commitment_to_ristretto(proof_delta_commitment);
     if expected_delta_commitment_point != proof_delta_commitment_point {
-        return Err(TokenProofExtractionError::CurveArithmetic);
+        return Err(TokenProofExtractionError::DeltaCommitmentMismatch);
     }
     Ok(())
 }
