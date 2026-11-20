@@ -36,7 +36,7 @@ use {
         extension::{
             account_len::{
                 try_calculate_account_len_from_mint_data,
-                try_for_each_required_init_account_extension,
+                try_collect_required_init_account_extensions,
             },
             confidential_mint_burn::ConfidentialMintBurn,
             confidential_transfer::{ConfidentialTransferAccount, ConfidentialTransferMint},
@@ -213,35 +213,71 @@ impl Processor {
         let mint_data = mint_info.try_borrow()?;
         let mint = PodStateWithExtensions::<PodMint>::unpack(&mint_data)
             .map_err(|_| Into::<ProgramError>::into(TokenError::InvalidMint))?;
-        if mint
-            .get_extension::<PermanentDelegate>()
-            .map(|e| Option::<Address>::from(e.delegate).is_some())
-            .unwrap_or(false)
-        {
-            msg!("Warning: Mint has a permanent delegate, so tokens in this account may be seized at any time");
-        }
 
         check_program_account(mint_info.owner())?;
 
-        // Sizing walks every TLV entry, which also validates the extension data. It is only a
-        // lower bound since it skips extensions already initialized on the account (e.g.
-        // `ImmutableOwner`), but each init call below still verifies the space for its own write.
-        // Passing the initialized types as `additional_account_extensions` would make it exact.
-        let required_account_len = try_calculate_account_len_from_mint_data(&mint_data, &[])?;
-        if required_account_len > new_account_info_data_len {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        try_for_each_required_init_account_extension(mint.get_tlv_data(), |extension_type| {
-            account.init_account_extension_from_type(extension_type)
-        })?;
-
-        let starting_state =
-            if let Ok(default_account_state) = mint.get_extension::<DefaultAccountState>() {
-                AccountState::try_from(default_account_state.state)
-                    .or(Err(ProgramError::InvalidAccountData))?
+        let mint_tlv_data = mint.get_tlv_data();
+        // Only the first entry of each looked-up type counts, as with `get_extension`
+        let mut default_account_state: Option<&[u8]> = None;
+        // Without TLV data the mint has no extensions: the account needs only its base length,
+        // which unpack_uninitialized already guaranteed, so the walk is skipped entirely.
+        if !mint_tlv_data.is_empty() {
+            // A single walk over the mint TLV data replaces the PermanentDelegate and
+            // DefaultAccountState lookups, the sizing pass and the initialization pass, and
+            // reuses the mint unpacked above. It validates every entry like the sizing pass did,
+            // with the same errors in the same order.
+            let mut permanent_delegate: Option<&[u8]> = None;
+            let collected = try_collect_required_init_account_extensions(
+                mint_tlv_data,
+                |extension_type, value| {
+                    match extension_type {
+                        ExtensionType::PermanentDelegate if permanent_delegate.is_none() => {
+                            permanent_delegate = Some(value);
+                        }
+                        ExtensionType::DefaultAccountState if default_account_state.is_none() => {
+                            default_account_state = Some(value);
+                        }
+                        _ => {}
+                    }
+                    Ok(())
+                },
+            );
+            // The lenient get_extension lookup ran before the sizing walk, so the warning still
+            // precedes a walk error. A failed walk may have stopped before the delegate entry, or
+            // on an unknown tag that the lookup skips, so the lookup itself decides in that case.
+            let has_permanent_delegate = if collected.is_ok() {
+                permanent_delegate
+                    .and_then(|value| bytemuck::try_from_bytes::<PermanentDelegate>(value).ok())
+                    .and_then(|extension| Option::<Address>::from(extension.delegate))
+                    .is_some()
             } else {
-                AccountState::Initialized
+                get_permanent_delegate(&mint).is_some()
             };
+            if has_permanent_delegate {
+                msg!("Warning: Mint has a permanent delegate, so tokens in this account may be seized at any time");
+            }
+            let required_account_extensions = collected?;
+
+            // The sizing is a lower bound since it skips extensions already initialized on the
+            // account (e.g. ImmutableOwner), but each init call below still checks its own space.
+            if required_account_extensions.account_len() > new_account_info_data_len {
+                return Err(ProgramError::InvalidAccountData);
+            }
+            // Distinct types in order of first appearance: initializing a duplicate again only
+            // rewrites the same default value in place, so the account bytes are unchanged.
+            for &extension_type in required_account_extensions.extension_types() {
+                account.init_account_extension_from_type(extension_type)?;
+            }
+        }
+
+        let starting_state = if let Some(default_account_state) = default_account_state
+            .and_then(|value| bytemuck::try_from_bytes::<DefaultAccountState>(value).ok())
+        {
+            AccountState::try_from(default_account_state.state)
+                .or(Err(ProgramError::InvalidAccountData))?
+        } else {
+            AccountState::Initialized
+        };
 
         account.base.mint = *mint_info.address();
         account.base.owner = *owner;
@@ -9110,6 +9146,373 @@ mod tests {
             ],
             &[Check::success()],
         );
+    }
+
+    /// The data `InitializeAccount` must produce for a non-native account
+    fn expected_account_data(
+        data_len: usize,
+        mint: &Address,
+        owner: &Address,
+        state: AccountState,
+        extension_types: &[ExtensionType],
+    ) -> Vec<u8> {
+        let mut data = vec![0; data_len];
+        let mut account =
+            PodStateWithExtensionsMut::<PodAccount>::unpack_uninitialized(&mut data).unwrap();
+        for &extension_type in extension_types {
+            account
+                .init_account_extension_from_type(extension_type)
+                .unwrap();
+        }
+        account.base.mint = *mint;
+        account.base.owner = *owner;
+        account.base.state = state.into();
+        account.init_account_type().unwrap();
+        data
+    }
+
+    /// A mint with the given extensions, initialized through the program
+    fn initialized_extended_mint(
+        mint_key: &Address,
+        extension_types: &[ExtensionType],
+        extension_instructions: Vec<Instruction>,
+        freeze_authority: Option<&Address>,
+    ) -> SolanaAccount {
+        let program_id = crate::id();
+        let mint_len = ExtensionType::try_calculate_account_len::<Mint>(extension_types).unwrap();
+        let mut mint_account = SolanaAccount::new(
+            Rent::default().minimum_balance(mint_len),
+            mint_len,
+            &program_id,
+        );
+        for instruction in extension_instructions {
+            do_process_instruction(instruction, vec![&mut mint_account], &[Check::success()]);
+        }
+        let mut rent_sysvar = rent_sysvar();
+        do_process_instruction(
+            initialize_mint(
+                &program_id,
+                mint_key,
+                &Address::new_unique(),
+                freeze_authority,
+                2,
+            )
+            .unwrap(),
+            vec![&mut mint_account, &mut rent_sysvar],
+            &[Check::success()],
+        );
+        mint_account
+    }
+
+    /// A mint whose TLV data is written verbatim, to reach entries the program never writes
+    fn raw_tlv_mint(entries: &[(u16, &[u8])], trailing: &[u8]) -> SolanaAccount {
+        let mut data = vec![0; Mint::get_packed_len()];
+        Mint::pack(
+            Mint {
+                decimals: 2,
+                is_initialized: true,
+                ..Mint::default()
+            },
+            &mut data,
+        )
+        .unwrap();
+        data.resize(Account::get_packed_len(), 0);
+        data.push(spl_token_2022_interface::extension::AccountType::Mint.into());
+        for (extension_type, value) in entries {
+            data.extend_from_slice(&extension_type.to_le_bytes());
+            data.extend_from_slice(&u16::try_from(value.len()).unwrap().to_le_bytes());
+            data.extend_from_slice(value);
+        }
+        data.extend_from_slice(trailing);
+        let mut mint_account = SolanaAccount::new(
+            Rent::default().minimum_balance(data.len()),
+            data.len(),
+            &crate::id(),
+        );
+        mint_account.data = data;
+        mint_account
+    }
+
+    /// Runs `InitializeAccount3` on a fresh account of `account_len` bytes and checks the
+    /// resulting state and extensions, or the error
+    fn initialize_account3_with(
+        mint_key: &Address,
+        mint_account: &mut SolanaAccount,
+        account_len: usize,
+        preinitialize_immutable_owner: bool,
+        expected: Result<(AccountState, &[ExtensionType]), ProgramError>,
+    ) {
+        let program_id = crate::id();
+        let owner_key = Address::new_unique();
+        let account_key = Address::new_unique();
+        let mut account_account = SolanaAccount::new(
+            Rent::default().minimum_balance(account_len),
+            account_len,
+            &program_id,
+        );
+        if preinitialize_immutable_owner {
+            do_process_instruction(
+                initialize_immutable_owner(&program_id, &account_key).unwrap(),
+                vec![&mut account_account],
+                &[Check::success()],
+            );
+        }
+        let instruction =
+            initialize_account3(&program_id, &account_key, mint_key, &owner_key).unwrap();
+        match expected {
+            Ok((state, extension_types)) => {
+                let data = expected_account_data(
+                    account_len,
+                    mint_key,
+                    &owner_key,
+                    state,
+                    extension_types,
+                );
+                do_process_instruction(
+                    instruction,
+                    vec![&mut account_account, mint_account],
+                    &[
+                        Check::success(),
+                        Check::account(&account_key).data(&data).build(),
+                    ],
+                );
+            }
+            Err(error) => do_process_instruction(
+                instruction,
+                vec![&mut account_account, mint_account],
+                &[Check::err(error)],
+            ),
+        }
+    }
+
+    #[test]
+    fn initialize_account_writes_required_extensions_in_mint_tlv_order() {
+        let program_id = crate::id();
+        let mint_types = [
+            ExtensionType::TransferFeeConfig,
+            ExtensionType::NonTransferable,
+        ];
+        let account_len = ExtensionType::try_calculate_account_len::<Account>(&[
+            ExtensionType::TransferFeeAmount,
+            ExtensionType::NonTransferableAccount,
+            ExtensionType::ImmutableOwner,
+        ])
+        .unwrap();
+        let fee_ix = |mint: &Address| {
+            initialize_transfer_fee_config(&program_id, mint, None, None, 10, 4242).unwrap()
+        };
+        let non_transferable_ix =
+            |mint: &Address| initialize_non_transferable_mint(&program_id, mint).unwrap();
+
+        // Fee config first, then non-transferable
+        let mint_key = Address::new_unique();
+        let mut mint_account = initialized_extended_mint(
+            &mint_key,
+            &mint_types,
+            vec![fee_ix(&mint_key), non_transferable_ix(&mint_key)],
+            None,
+        );
+        initialize_account3_with(
+            &mint_key,
+            &mut mint_account,
+            account_len,
+            false,
+            Ok((
+                AccountState::Initialized,
+                &[
+                    ExtensionType::TransferFeeAmount,
+                    ExtensionType::NonTransferableAccount,
+                    ExtensionType::ImmutableOwner,
+                ][..],
+            )),
+        );
+        // An `ImmutableOwner` initialized beforehand keeps its position
+        initialize_account3_with(
+            &mint_key,
+            &mut mint_account,
+            account_len,
+            true,
+            Ok((
+                AccountState::Initialized,
+                &[
+                    ExtensionType::ImmutableOwner,
+                    ExtensionType::TransferFeeAmount,
+                    ExtensionType::NonTransferableAccount,
+                ][..],
+            )),
+        );
+
+        // Non-transferable first, then fee config
+        let mint_key = Address::new_unique();
+        let mut mint_account = initialized_extended_mint(
+            &mint_key,
+            &mint_types,
+            vec![non_transferable_ix(&mint_key), fee_ix(&mint_key)],
+            None,
+        );
+        initialize_account3_with(
+            &mint_key,
+            &mut mint_account,
+            account_len,
+            false,
+            Ok((
+                AccountState::Initialized,
+                &[
+                    ExtensionType::NonTransferableAccount,
+                    ExtensionType::ImmutableOwner,
+                    ExtensionType::TransferFeeAmount,
+                ][..],
+            )),
+        );
+    }
+
+    #[test]
+    fn initialize_account_applies_default_state_next_to_permanent_delegate() {
+        use spl_token_2022_interface::extension::default_account_state::instruction::initialize_default_account_state;
+        let program_id = crate::id();
+        let mint_key = Address::new_unique();
+        let mut mint_account = initialized_extended_mint(
+            &mint_key,
+            &[
+                ExtensionType::PermanentDelegate,
+                ExtensionType::DefaultAccountState,
+                ExtensionType::TransferFeeConfig,
+            ],
+            vec![
+                initialize_permanent_delegate(&program_id, &mint_key, &Address::new_unique())
+                    .unwrap(),
+                initialize_default_account_state(&program_id, &mint_key, &AccountState::Frozen)
+                    .unwrap(),
+                initialize_transfer_fee_config(&program_id, &mint_key, None, None, 10, 4242)
+                    .unwrap(),
+            ],
+            Some(&Address::new_unique()),
+        );
+        let account_len = ExtensionType::try_calculate_account_len::<Account>(&[
+            ExtensionType::TransferFeeAmount,
+        ])
+        .unwrap();
+        initialize_account3_with(
+            &mint_key,
+            &mut mint_account,
+            account_len,
+            false,
+            Ok((
+                AccountState::Frozen,
+                &[ExtensionType::TransferFeeAmount][..],
+            )),
+        );
+    }
+
+    #[test]
+    fn initialize_account_reads_the_first_default_account_state_entry() {
+        let default_account_state = u16::from(ExtensionType::DefaultAccountState);
+        let initialized = [u8::from(AccountState::Initialized)];
+        let frozen = [u8::from(AccountState::Frozen)];
+        for (entries, expected) in [
+            (
+                vec![(default_account_state, &frozen[..])],
+                Ok(AccountState::Frozen),
+            ),
+            (
+                vec![
+                    (default_account_state, &initialized[..]),
+                    (default_account_state, &frozen[..]),
+                ],
+                Ok(AccountState::Initialized),
+            ),
+            // A first entry of the wrong size reads as absent, like `get_extension`
+            (
+                vec![
+                    (default_account_state, &[][..]),
+                    (default_account_state, &frozen[..]),
+                ],
+                Ok(AccountState::Initialized),
+            ),
+            (
+                vec![(default_account_state, &[7][..])],
+                Err(ProgramError::InvalidAccountData),
+            ),
+        ] {
+            let mint_key = Address::new_unique();
+            let mut mint_account = raw_tlv_mint(&entries, &[]);
+            initialize_account3_with(
+                &mint_key,
+                &mut mint_account,
+                Account::get_packed_len(),
+                false,
+                expected.map(|state| (state, &[][..])),
+            );
+        }
+    }
+
+    #[test]
+    fn initialize_account_validates_raw_mint_tlv() {
+        let transfer_fee_config = u16::from(ExtensionType::TransferFeeConfig);
+        let mint_close_authority = u16::from(ExtensionType::MintCloseAuthority);
+        let permanent_delegate = u16::from(ExtensionType::PermanentDelegate);
+        let account_len = ExtensionType::try_calculate_account_len::<Account>(&[
+            ExtensionType::TransferFeeAmount,
+        ])
+        .unwrap();
+
+        // A duplicate entry is sized and initialized once
+        let mint_key = Address::new_unique();
+        let mut mint_account = raw_tlv_mint(
+            &[
+                (transfer_fee_config, &[][..]),
+                (transfer_fee_config, &[][..]),
+            ],
+            &[],
+        );
+        initialize_account3_with(
+            &mint_key,
+            &mut mint_account,
+            account_len,
+            false,
+            Ok((
+                AccountState::Initialized,
+                &[ExtensionType::TransferFeeAmount][..],
+            )),
+        );
+
+        // An account type without TLV entries takes the base-mint path
+        let mint_key = Address::new_unique();
+        let mut mint_account = raw_tlv_mint(&[], &[]);
+        initialize_account3_with(
+            &mint_key,
+            &mut mint_account,
+            Account::get_packed_len(),
+            false,
+            Ok((AccountState::Initialized, &[][..])),
+        );
+
+        for (entries, trailing) in [
+            // Unknown extension type
+            (vec![(999, &[][..])], vec![]),
+            // Unknown tag before a valid permanent delegate, rejected after the warning
+            (
+                vec![(999, &[][..]), (permanent_delegate, &[7; 32][..])],
+                vec![],
+            ),
+            // Type without a length
+            (vec![(transfer_fee_config, &[][..])], vec![3, 0, 1]),
+            // Value past the end of the data
+            (
+                vec![],
+                [mint_close_authority.to_le_bytes(), 10u16.to_le_bytes()].concat(),
+            ),
+        ] {
+            let mint_key = Address::new_unique();
+            let mut mint_account = raw_tlv_mint(&entries, &trailing);
+            initialize_account3_with(
+                &mint_key,
+                &mut mint_account,
+                account_len,
+                false,
+                Err(ProgramError::InvalidAccountData),
+            );
+        }
     }
 
     #[test]

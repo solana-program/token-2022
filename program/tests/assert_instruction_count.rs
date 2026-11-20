@@ -6,8 +6,9 @@ use {
     solana_address::Address,
     solana_program_pack::Pack,
     spl_token_2022_interface::{
+        extension::ExtensionType,
         id, instruction,
-        state::{Account, Mint},
+        state::{Account, AccountState, Mint},
     },
 };
 
@@ -74,6 +75,72 @@ fn initialize_account() {
                 .data(setup::setup_token_account(&mint, &owner, 0).data())
                 .build(),
         ],
+    );
+}
+
+#[test]
+fn initialize_account3() {
+    let mut mollusk = Mollusk::new(&id(), "spl_token_2022");
+    mollusk.compute_budget.compute_unit_limit = 6_000;
+
+    let owner = Address::new_unique();
+    let mint = Address::new_unique();
+    let account = Address::new_unique();
+
+    let mint_account = setup::setup_mint_account(None, None, 0, 9);
+    let token_account = {
+        let space = Account::LEN;
+        let lamports = mollusk.sysvars.rent.minimum_balance(space);
+        SolanaAccount::new(lamports, space, &id())
+    };
+
+    let result = mollusk.process_and_validate_instruction(
+        &instruction::initialize_account3(&id(), &account, &mint, &owner).unwrap(),
+        &[(account, token_account), (mint, mint_account)],
+        &[
+            Check::success(),
+            Check::account(&account)
+                .data(setup::setup_token_account(&mint, &owner, 0).data())
+                .build(),
+        ],
+    );
+    println!(
+        "initialize_account3, base mint: {} CU",
+        result.compute_units_consumed
+    );
+}
+
+#[test]
+fn initialize_account3_extended_mint() {
+    let mut mollusk = Mollusk::new(&id(), "spl_token_2022");
+    mollusk.compute_budget.compute_unit_limit = 10_000;
+
+    let owner = Address::new_unique();
+    let mint = Address::new_unique();
+    let account = Address::new_unique();
+
+    let mint_account =
+        setup::setup_extended_mint_account(9, &Address::new_unique(), AccountState::Frozen);
+    let extension_types = [ExtensionType::TransferFeeAmount];
+    let expected =
+        setup::setup_token_account_data(&mint, &owner, AccountState::Frozen, &extension_types);
+    let token_account = {
+        let space = expected.len();
+        let lamports = mollusk.sysvars.rent.minimum_balance(space);
+        SolanaAccount::new(lamports, space, &id())
+    };
+
+    let result = mollusk.process_and_validate_instruction(
+        &instruction::initialize_account3(&id(), &account, &mint, &owner).unwrap(),
+        &[(account, token_account), (mint, mint_account)],
+        &[
+            Check::success(),
+            Check::account(&account).data(&expected).build(),
+        ],
+    );
+    println!(
+        "initialize_account3, extended mint: {} CU",
+        result.compute_units_consumed
     );
 }
 
