@@ -142,6 +142,7 @@ pub enum CommandName {
     AccountInfo,
     MultisigInfo,
     Display,
+    RecoverNested,
     Gc,
     SyncNative,
     EnableRequiredTransferMemos,
@@ -2212,6 +2213,48 @@ pub fn app<'a>(
                 .arg(confidential_elgamal_keypair_arg().conflicts_with("owner"))
                 .arg(confidential_aes_key_arg().conflicts_with("owner"))
                 .arg(owner_keypair_arg()),
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::RecoverNested.into())
+                .about("Recover tokens from a nested associated token account")
+                .arg(
+                    Arg::with_name("owner_token_mint")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("OWNER_TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help(
+                            "Mint of the parent (owner-associated) token account; that \
+                             token account is the nested account's token-account authority",
+                        ),
+                )
+                .arg(
+                    Arg::with_name("nested_token_mint")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("NESTED_TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(2)
+                        .required(true)
+                        .help(
+                            "Mint of the tokens held in the nested associated token account; may \
+                             be the same as OWNER_TOKEN_MINT_ADDRESS",
+                        ),
+                )
+                .arg(owner_keypair_arg())
+                .arg(
+                    Arg::with_name("create_missing_associated_accounts")
+                        .long("create-missing-associated-accounts")
+                        .takes_value(false)
+                        .help(
+                            "Create the parent (owner-associated) and destination associated \
+                             token accounts if missing, funded by the fee payer. The wallet \
+                             signer must sign; only ATAs are created. The nested account must \
+                             already exist and hold a non-zero balance.",
+                        ),
+                )
+                .nonce_args(true)
+                .offline_args(),
         )
         .subcommand(
             SubCommand::with_name(CommandName::Gc.into())

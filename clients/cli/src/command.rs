@@ -51,7 +51,10 @@ use {
         auth_encryption::PodAeCiphertext,
         elgamal::{PodElGamalCiphertext, PodElGamalPubkey},
     },
-    spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
+    spl_associated_token_account_interface::{
+        address::get_associated_token_address_with_program_id,
+        instruction::{create_associated_token_account_idempotent, recover_nested},
+    },
     spl_token_2022_interface::{
         extension::{
             confidential_mint_burn::ConfidentialMintBurn,
@@ -3840,6 +3843,218 @@ async fn command_gc(
     Ok(results.join(""))
 }
 
+async fn command_recover_nested(
+    config: &Config<'_>,
+    owner: Pubkey,
+    owner_token_mint: Pubkey,
+    nested_token_mint: Pubkey,
+    create_missing_associated_accounts: bool,
+    bulk_signers: BulkSigners,
+) -> CommandResult {
+    let owner_associated_account =
+        get_associated_token_address_with_program_id(&owner, &owner_token_mint, &config.program_id);
+    let nested_associated_account = get_associated_token_address_with_program_id(
+        &owner_associated_account,
+        &nested_token_mint,
+        &config.program_id,
+    );
+    let destination_associated_account = get_associated_token_address_with_program_id(
+        &owner,
+        &nested_token_mint,
+        &config.program_id,
+    );
+
+    println_display(
+        config,
+        format!(
+            "Recovering nested associated token account\n  Wallet: {}\n  Parent (owner-associated) token account: {}\n  Nested associated account: {}\n  Destination associated account: {}",
+            owner,
+            owner_associated_account,
+            nested_associated_account,
+            destination_associated_account,
+        ),
+    );
+
+    let required_associated_accounts =
+        if owner_associated_account == destination_associated_account {
+            vec![(
+                "parent/destination",
+                owner_associated_account,
+                owner_token_mint,
+            )]
+        } else {
+            vec![
+                ("parent", owner_associated_account, owner_token_mint),
+                (
+                    "destination",
+                    destination_associated_account,
+                    nested_token_mint,
+                ),
+            ]
+        };
+
+    let mut missing_associated_accounts = Vec::new();
+    if !config.sign_only {
+        match config
+            .program_client
+            .get_account(nested_associated_account)
+            .await?
+        {
+            None => {
+                return Err(format!(
+                    "nested associated token account {nested_associated_account} does not \
+                     exist; nothing to recover"
+                )
+                .into())
+            }
+            Some(account) if account.owner == system_program::id() => {
+                return Err(format!(
+                    "nested associated token account {nested_associated_account} does not \
+                     exist; nothing to recover"
+                )
+                .into())
+            }
+            Some(account) if account.owner == config.program_id => {
+                let state = StateWithExtensionsOwned::<Account>::unpack(account.data)
+                    .map_err(|_| {
+                        format!(
+                            "nested associated token account {nested_associated_account} is \
+                             not a token account"
+                        )
+                    })?;
+                if state.base.mint != nested_token_mint {
+                    return Err(format!(
+                        "nested associated token account {nested_associated_account} holds \
+                         mint {}, but the nested token mint is {nested_token_mint}",
+                        state.base.mint
+                    )
+                    .into());
+                }
+                if state.base.owner != owner_associated_account {
+                    return Err(format!(
+                        "nested associated token account {nested_associated_account} has \
+                         token-account authority {}, but the expected authority is the parent \
+                         (owner-associated) token account {owner_associated_account}",
+                        state.base.owner
+                    )
+                    .into());
+                }
+                if state.base.amount == 0 {
+                    return Err(format!(
+                        "nested associated token account {nested_associated_account} has \
+                         no tokens to recover"
+                    )
+                    .into());
+                }
+            }
+            Some(account) => {
+                return Err(format!(
+                    "nested associated token account {nested_associated_account} is owned \
+                     by program {}, but the configured token program is {}",
+                    account.owner, config.program_id
+                )
+                .into());
+            }
+        }
+
+        for (role, address, mint) in &required_associated_accounts {
+            match config.program_client.get_account(*address).await? {
+                None => missing_associated_accounts.push((*role, *address, *mint)),
+                Some(account) if account.owner == system_program::id() => {
+                    missing_associated_accounts.push((*role, *address, *mint));
+                }
+                Some(account) if account.owner == config.program_id => {
+                    let state = StateWithExtensionsOwned::<Account>::unpack(account.data)
+                        .map_err(|_| {
+                            format!(
+                                "{role} associated token account {address} is not a token account"
+                            )
+                        })?;
+                    if state.base.owner != owner || state.base.mint != *mint {
+                        return Err(format!(
+                            "{role} associated token account {address} is not the associated \
+                             token account for wallet {owner} and mint {mint}"
+                        )
+                        .into());
+                    }
+                }
+                Some(account) => {
+                    return Err(format!(
+                        "{role} associated token account {address} is owned by program {}, but \
+                         the configured token program is {}",
+                        account.owner, config.program_id
+                    )
+                    .into());
+                }
+            }
+        }
+
+        if !missing_associated_accounts.is_empty() && !create_missing_associated_accounts {
+            let mut message = String::from(
+                "cannot recover nested tokens because required associated token accounts \
+                 are missing:\n",
+            );
+            for (role, address, mint) in &missing_associated_accounts {
+                message.push_str(&format!(
+                    "  {role} associated token account: {address} (mint {mint})\n"
+                ));
+            }
+            message.push_str("Create the missing account(s) with:\n");
+            for (_, _, mint) in &missing_associated_accounts {
+                message.push_str(&format!(
+                    "  spl-token create-account {mint} --owner {owner} --program-id {}\n",
+                    config.program_id
+                ));
+            }
+            message
+                .push_str("or rerun this command with --create-missing-associated-accounts.");
+            return Err(message.into());
+        }
+    }
+
+    // ATA creation is permissionless: the fee payer funds rent, while `owner`
+    // remains each ATA's token-account authority but is not required to sign
+    // creation. RecoverNested itself still requires the wallet signature.
+    let mut instructions = Vec::with_capacity(required_associated_accounts.len() + 1);
+    if create_missing_associated_accounts {
+        let fee_payer = config.fee_payer()?.pubkey();
+        // In sign-only mode the accounts cannot be checked, so include every
+        // required address (one when the mints match, two otherwise).
+        let accounts_to_create = if config.sign_only {
+            &required_associated_accounts
+        } else {
+            &missing_associated_accounts
+        };
+        for (_, _, mint) in accounts_to_create {
+            instructions.push(create_associated_token_account_idempotent(
+                &fee_payer,
+                &owner,
+                mint,
+                &config.program_id,
+            ));
+        }
+    }
+    instructions.push(recover_nested(
+        &owner,
+        &owner_token_mint,
+        &nested_token_mint,
+        &config.program_id,
+    ));
+
+    let token = token_client_from_config(config, &nested_token_mint, None)?;
+    let res = token.process_ixs(&instructions, &bulk_signers).await?;
+    let tx_return = finish_tx(config, &res, false).await?;
+
+    Ok(match tx_return {
+        TransactionReturnData::CliSignature(signature) => {
+            config.output_format.formatted_string(&signature)
+        }
+        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
+            config.output_format.formatted_string(&sign_only_data)
+        }
+    })
+}
+
 async fn command_sync_native(config: &Config<'_>, native_account_address: Pubkey) -> CommandResult {
     let token = native_token_client_from_config(config)?;
 
@@ -6219,6 +6434,31 @@ async fn process_command_inner(
             let decrypt = arg_matches.is_present("decrypt");
             let custom_keys = custom_confidential_keys_of(arg_matches)?;
             command_display(config, address, decrypt, custom_keys.as_ref()).await
+        }
+        (CommandName::RecoverNested, arg_matches) => {
+            let owner_token_mint =
+                pubkey_of_signer(arg_matches, "owner_token_mint", &mut wallet_manager)
+                    .unwrap()
+                    .unwrap();
+            let nested_token_mint =
+                pubkey_of_signer(arg_matches, "nested_token_mint", &mut wallet_manager)
+                    .unwrap()
+                    .unwrap();
+            let (owner_signer, owner) =
+                config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
+            push_signer_with_dedup(owner_signer, &mut bulk_signers);
+            let create_missing_associated_accounts =
+                arg_matches.is_present("create_missing_associated_accounts");
+
+            command_recover_nested(
+                config,
+                owner,
+                owner_token_mint,
+                nested_token_mint,
+                create_missing_associated_accounts,
+                bulk_signers,
+            )
+            .await
         }
         (CommandName::Gc, arg_matches) => {
             match config.output_format {
