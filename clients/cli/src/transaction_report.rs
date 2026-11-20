@@ -2,8 +2,11 @@ use {
     crate::clap_app::Error,
     async_trait::async_trait,
     serde::Serialize,
+    solana_account::Account,
     solana_cli_output::{QuietDisplay, VerboseDisplay},
-    solana_sdk::{account::Account, hash::Hash, pubkey::Pubkey, transaction::Transaction},
+    solana_hash::Hash,
+    solana_pubkey::Pubkey,
+    solana_transaction::Transaction,
     spl_token_client::client::{
         ProgramClient, ProgramClientResult, ProgramRpcClientSendTransaction, RpcClientResponse,
     },
@@ -163,7 +166,8 @@ mod tests {
     use {
         super::*,
         solana_cli_output::OutputFormat,
-        solana_sdk::signature::{Keypair, Signer},
+        solana_keypair::Keypair,
+        solana_signer::Signer,
         solana_zk_sdk::{
             encryption::pedersen::Pedersen,
             zk_elgamal_proof_program::build_batched_range_proof_u128_data,

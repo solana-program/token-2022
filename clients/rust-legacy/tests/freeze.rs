@@ -1,8 +1,9 @@
 mod program_test;
 use {
     program_test::{TestContext, TokenContext},
+    solana_keypair::Keypair,
     solana_program_test::tokio,
-    solana_sdk::{signature::Signer, signer::keypair::Keypair},
+    solana_signer::Signer,
     spl_token_2022_interface::state::AccountState,
 };
 

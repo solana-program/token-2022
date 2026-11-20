@@ -25,7 +25,7 @@ fn initialize_mint() {
     let mint_account = {
         let space = Mint::LEN;
         let lamports = mollusk.sysvars.rent.minimum_balance(space);
-        SolanaAccount::new(lamports, space, &id())
+        SolanaAccount::new_with_data(lamports, vec![0; space], &id())
     };
 
     mollusk.process_and_validate_instruction(
@@ -57,7 +57,7 @@ fn initialize_account() {
     let token_account = {
         let space = Account::LEN;
         let lamports = mollusk.sysvars.rent.minimum_balance(space);
-        SolanaAccount::new(lamports, space, &id())
+        SolanaAccount::new_with_data(lamports, vec![0; space], &id())
     };
 
     mollusk.process_and_validate_instruction(

@@ -7,18 +7,18 @@ use {
         rpc_request::{RpcRequest, TokenAccountsFilter},
     },
     solana_commitment_config::CommitmentConfig,
-    solana_sdk::{
-        hash::Hash,
-        program_option::COption,
-        program_pack::Pack,
-        pubkey::Pubkey,
-        signature::{write_keypair_file, Keypair, Signer},
-        transaction::Transaction,
-    },
+    solana_hash::Hash,
+    solana_keypair::write_keypair_file,
+    solana_keypair::Keypair,
+    solana_program_option::COption,
+    solana_program_pack::Pack,
+    solana_pubkey::Pubkey,
     solana_sdk_ids::bpf_loader_upgradeable,
     solana_signer::EncodableKey,
+    solana_signer::Signer,
     solana_system_interface::{instruction as system_instruction, program as system_program},
     solana_test_validator::{TestValidator, TestValidatorGenesis, UpgradeableProgramInfo},
+    solana_transaction::Transaction,
     solana_zk_sdk::{
         encryption::{
             auth_encryption::AeKey,
@@ -318,7 +318,7 @@ fn processed_cli_config_file() -> NamedTempFile {
 
 fn mock_account_info_response(
     address: &Pubkey,
-    account: &solana_sdk::account::Account,
+    account: &solana_account::Account,
 ) -> serde_json::Value {
     serde_json::json!({
         "context": { "slot": 1 },
@@ -683,7 +683,7 @@ impl ProgramClient<ProgramRpcClientSendTransaction> for RecordingProgramClient {
     async fn get_account(
         &self,
         address: Pubkey,
-    ) -> ProgramClientResult<Option<solana_sdk::account::Account>> {
+    ) -> ProgramClientResult<Option<solana_account::Account>> {
         self.inner.get_account(address).await
     }
 
@@ -3988,7 +3988,7 @@ async fn empty_confidential_transfer_account(test_validator: &TestValidator, pay
 
 async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) {
     use {
-        solana_sdk::message::Message,
+        solana_message::Message,
         solana_zk_elgamal_proof_interface::{
             proof_data::{
                 BatchedGroupedCiphertext3HandlesValidityProofContext, BatchedRangeProofContext,
