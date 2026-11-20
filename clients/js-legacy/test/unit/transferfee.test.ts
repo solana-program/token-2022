@@ -9,7 +9,7 @@ import {
     TOKEN_2022_PROGRAM_ID,
 } from '../../src';
 import { expect } from 'chai';
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { Keypair } from '@solana/web3.js';
 
 describe('transferFee', () => {
     describe('encoding/decoding `InitializeTransferFeeConfig` instructions', () => {
@@ -173,8 +173,8 @@ describe('transferFee', () => {
 
     describe('calculateEpochFee', () => {
         const transferFeeConfig = {
-            transferFeeConfigAuthority: PublicKey.default,
-            withdrawWithheldAuthority: PublicKey.default,
+            transferFeeConfigAuthority: null,
+            withdrawWithheldAuthority: null,
             withheldAmount: 500n,
             olderTransferFee: {
                 epoch: 1n,

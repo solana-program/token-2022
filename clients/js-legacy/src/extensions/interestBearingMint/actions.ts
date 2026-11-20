@@ -16,7 +16,7 @@ import {
  * @param payer           Payer of the transaction fees
  * @param mintAuthority   Account or multisig that will control minting
  * @param freezeAuthority Optional account or multisig that can freeze token accounts
- * @param rateAuthority   The public key for the account that can update the rate
+ * @param rateAuthority   Optional public key for the account that can update the rate
  * @param rate            The initial interest rate
  * @param decimals        Location of the decimal place
  * @param keypair         Optional keypair, defaulting to a new random one
@@ -30,7 +30,7 @@ export async function createInterestBearingMint(
     payer: Signer,
     mintAuthority: PublicKey,
     freezeAuthority: PublicKey,
-    rateAuthority: PublicKey,
+    rateAuthority: PublicKey | null,
     rate: number,
     decimals: number,
     keypair = Keypair.generate(),
