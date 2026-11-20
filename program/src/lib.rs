@@ -34,7 +34,7 @@ use {
 /// Convert the UI representation of a token amount (using the decimals field
 /// defined in its mint) to the raw amount
 pub fn ui_amount_to_amount(ui_amount: f64, decimals: u8) -> u64 {
-    (ui_amount * 10_usize.pow(decimals as u32) as f64) as u64
+    (ui_amount * 10_usize.pow(decimals as u32) as f64).round() as u64
 }
 
 /// Convert a raw amount to its UI representation (using the decimals field
@@ -143,4 +143,29 @@ pub(crate) fn check_auditor_ciphertext(
         return Err(TokenError::ConfidentialTransferBalanceMismatch.into());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ui_amount_to_amount() {
+        for (ui_amount, decimals) in [
+            ("1", 9),
+            ("2.3", 6),
+            ("0.29", 2),
+            ("0.57", 2),
+            ("1.15", 2),
+            ("1.005", 3),
+            ("0.000000015", 9),
+            ("8.50228288", 9),
+        ] {
+            assert_eq!(
+                ui_amount_to_amount(ui_amount.parse().unwrap(), decimals),
+                try_ui_amount_into_amount(ui_amount.to_string(), decimals).unwrap(),
+                "{ui_amount} with {decimals} decimals",
+            );
+        }
+    }
 }
