@@ -5259,6 +5259,133 @@ async fn command_update_decryptable_supply(
     })
 }
 
+async fn command_rotate_supply_elgamal_pubkey(
+    config: &Config<'_>,
+    token_pubkey: Pubkey,
+    mint_authority: Pubkey,
+    new_supply_elgamal_pubkey: elgamal::ElGamalPubkey,
+    supply_keys: Option<(ElGamalKeypair, AeKey)>,
+    bulk_signers: BulkSigners,
+) -> CommandResult {
+    let mint_account = config.get_account_checked(&token_pubkey).await?;
+    let mint_state = StateWithExtensionsOwned::<Mint>::unpack(mint_account.data)
+        .map_err(|_| format!("Could not deserialize token mint {token_pubkey}"))?;
+    let extension = mint_state
+        .get_extension::<ConfidentialMintBurn>()
+        .map_err(|_| format!("Mint {token_pubkey} does not have confidential mint/burn enabled"))?;
+    let supply_account_info = SupplyAccountInfo::new(extension);
+
+    if extension.pending_burn != PodElGamalCiphertext::default() {
+        return Err(
+            "The mint has a pending burn. Run `apply-pending-burn` before rotating the supply key."
+                .into(),
+        );
+    }
+    if extension.confidential_supply == PodElGamalCiphertext::default() {
+        return Err(
+            "The mint has no confidential supply ciphertext yet. Mint at least once before rotating the supply key."
+                .into(),
+        );
+    }
+
+    let (current_elgamal_keypair, current_aes_key) = match supply_keys {
+        Some(keys) => keys,
+        None => derive_confidential_keys(config.default_signer()?.as_ref())
+            .map_err(|err| format!("Failed to derive supply keys: {err}"))?,
+    };
+    if supply_account_info.supply_elgamal_pubkey
+        != PodElGamalPubkey::from(*current_elgamal_keypair.pubkey())
+    {
+        return Err(
+            "The supply ElGamal keypair does not match the mint's current supply ElGamal pubkey. \
+            Pass the current keys with --elgamal-keypair and --aes-key."
+                .into(),
+        );
+    }
+    if supply_account_info.supply_elgamal_pubkey
+        == PodElGamalPubkey::from(new_supply_elgamal_pubkey)
+    {
+        return Err("The new supply ElGamal pubkey is the same as the current one".into());
+    }
+    // Fail early with a clear message if the AES key cannot open the decryptable supply.
+    supply_account_info
+        .decrypted_current_supply(&current_aes_key, &current_elgamal_keypair)
+        .map_err(|_| "Failed to decrypt the current supply with the given supply keys")?;
+
+    println_display(
+        config,
+        format!(
+            "Rotating supply ElGamal pubkey\n  Token: {}\n  New supply ElGamal pubkey: {}",
+            token_pubkey,
+            PodElGamalPubkey::from(new_supply_elgamal_pubkey),
+        ),
+    );
+
+    let proof_data = supply_account_info
+        .generate_rotate_supply_elgamal_pubkey_proof(
+            &current_elgamal_keypair,
+            &new_supply_elgamal_pubkey,
+            &current_aes_key,
+        )
+        .map_err(|err| format!("Failed to generate supply key rotation proof: {err}"))?;
+
+    let token = token_client_from_config(config, &token_pubkey, None)?;
+    let context_state_authority = config.fee_payer()?;
+    let context_state_authority_pubkey = context_state_authority.pubkey();
+    let context_state_account = Keypair::new();
+    let context_state_pubkey = context_state_account.pubkey();
+
+    token
+        .confidential_transfer_create_context_state_account(
+            &context_state_pubkey,
+            &context_state_authority_pubkey,
+            &proof_data,
+            &[&context_state_account],
+        )
+        .await?;
+
+    let rotate_result = token
+        .confidential_transfer_rotate_supply_elgamal_pubkey(
+            &mint_authority,
+            &current_elgamal_keypair,
+            &new_supply_elgamal_pubkey,
+            &current_aes_key,
+            Some(&context_state_pubkey),
+            Some(supply_account_info),
+            &bulk_signers,
+        )
+        .await;
+
+    let close_result = token
+        .confidential_transfer_close_context_state_account(
+            &context_state_pubkey,
+            &context_state_authority_pubkey,
+            &context_state_authority_pubkey,
+            &[&context_state_authority],
+        )
+        .await;
+
+    if let Err(err) = close_result {
+        if rotate_result.is_ok() {
+            return Err(format!(
+                "Supply key was rotated, but closing the proof context account failed: {err}"
+            )
+            .into());
+        }
+    }
+
+    let res = rotate_result?;
+    let tx_return = finish_tx(config, &res, false).await?;
+    Ok(match tx_return {
+        TransactionReturnData::CliSignature(signature) => {
+            config.output_format.formatted_string(&signature)
+        }
+        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
+            config.output_format.formatted_string(&sign_only_data)
+        }
+    })
+}
+
 async fn command_update_multiplier(
     config: &Config<'_>,
     token_pubkey: Pubkey,
@@ -6824,6 +6951,31 @@ async fn process_command_inner(
                 token,
                 mint_authority,
                 new_decryptable_supply,
+                bulk_signers,
+            )
+            .await
+        }
+        (CommandName::RotateSupplyElgamalPubkey, arg_matches) => {
+            let token = pubkey_of_signer(arg_matches, "token", &mut wallet_manager)
+                .unwrap()
+                .unwrap();
+            let new_supply_elgamal_keypair = elgamal_keypair_of(arg_matches, "new_elgamal_keypair")
+                .map_err(|error| format!("Failed to read new supply ElGamal keypair: {error}"))?;
+            let new_supply_elgamal_pubkey = *new_supply_elgamal_keypair.pubkey();
+            let supply_keys = custom_confidential_keys_of(arg_matches)?;
+
+            let (mint_authority_signer, mint_authority) =
+                config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
+            if config.multisigner_pubkeys.is_empty() {
+                push_signer_with_dedup(mint_authority_signer, &mut bulk_signers);
+            }
+
+            command_rotate_supply_elgamal_pubkey(
+                config,
+                token,
+                mint_authority,
+                new_supply_elgamal_pubkey,
+                supply_keys,
                 bulk_signers,
             )
             .await
