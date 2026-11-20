@@ -85,7 +85,13 @@ export function createAssociatedTokenAccountIdempotentInstructionWithDerivation(
     programId = TOKEN_PROGRAM_ID,
     associatedTokenProgramId = ASSOCIATED_TOKEN_PROGRAM_ID,
 ) {
-    const associatedToken = getAssociatedTokenAddressSync(mint, owner, allowOwnerOffCurve);
+    const associatedToken = getAssociatedTokenAddressSync(
+        mint,
+        owner,
+        allowOwnerOffCurve,
+        programId,
+        associatedTokenProgramId,
+    );
 
     return createAssociatedTokenAccountIdempotentInstruction(
         payer,
