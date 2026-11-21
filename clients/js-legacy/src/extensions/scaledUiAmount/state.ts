@@ -1,5 +1,5 @@
 import { f64, struct } from '@solana/buffer-layout';
-import { publicKey, u64 } from '../../layouts.js';
+import { publicKey, u64 } from '@solana/buffer-layout-utils';
 import { PublicKey } from '@solana/web3.js';
 import type { Mint } from '../../state/mint.js';
 import { ExtensionType, getExtensionData } from '../extensionType.js';

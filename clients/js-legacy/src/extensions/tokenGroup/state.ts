@@ -1,5 +1,5 @@
 import { struct, u32 } from '@solana/buffer-layout';
-import { publicKey } from '../../layouts.js';
+import { publicKey } from '@solana/buffer-layout-utils';
 import { PublicKey } from '@solana/web3.js';
 import {
     unpackTokenGroup,

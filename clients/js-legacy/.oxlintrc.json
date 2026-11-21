@@ -11,16 +11,14 @@
         "no-unused-vars": "off",
         "typescript/no-empty-object-type": "off",
         "typescript/consistent-type-imports": "error",
-        "import/extensions": ["error", "ignorePackages"],
-        "no-restricted-globals": ["error", { "name": "Buffer", "message": "Import it from 'buffer': browsers have no global Buffer." }]
+        "import/extensions": ["error", "ignorePackages"]
     },
     "ignorePatterns": ["dist", "docs", "lib", "test-ledger"],
     "overrides": [
         {
             "files": ["examples/**/*", "test/**/*"],
             "rules": {
-                "import/extensions": "off",
-                "no-restricted-globals": "off"
+                "import/extensions": "off"
             }
         }
     ]
