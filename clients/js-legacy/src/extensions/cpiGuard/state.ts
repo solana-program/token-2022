@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import { struct } from '@solana/buffer-layout';
 import { bool } from '@solana/buffer-layout-utils';
 import type { Account } from '../../state/account.js';

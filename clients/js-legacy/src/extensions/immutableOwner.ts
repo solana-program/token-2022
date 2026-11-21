@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import { struct } from '@solana/buffer-layout';
 import type { Account } from '../state/account.js';
 import { ExtensionType, getExtensionData } from './extensionType.js';

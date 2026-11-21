@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import { blob, struct, u8 } from '@solana/buffer-layout';
 import type { AccountMeta, PublicKey } from '@solana/web3.js';
 import { TransactionInstruction } from '@solana/web3.js';

@@ -1,3 +1,4 @@
+import type { Buffer } from 'buffer';
 import type { AccountInfo, PublicKey } from '@solana/web3.js';
 
 import { ACCOUNT_SIZE } from '../state/account.js';
