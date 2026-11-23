@@ -1,7 +1,6 @@
 #![allow(clippy::arithmetic_side_effects)]
 use {
     crate::{
-        bench::*,
         clap_app::*,
         config::{Config, MintInfo},
         encryption_keypair::*,
@@ -29,12 +28,12 @@ use {
         display::build_balance_message, return_signers_data, CliSignOnlyData, CliSignature,
         OutputFormat, QuietDisplay, ReturnSignersConfig, VerboseDisplay,
     },
-    solana_client::rpc_request::TokenAccountsFilter,
     solana_instruction::AccountMeta,
     solana_keypair::Keypair,
     solana_program_option::COption,
     solana_pubkey::Pubkey,
     solana_remote_wallet::remote_wallet::RemoteWalletManager,
+    solana_rpc_client_api::request::TokenAccountsFilter,
     solana_signer::Signer,
     solana_system_interface::program as system_program,
     solana_zk_elgamal_proof_interface::proof_data::{
@@ -5462,15 +5461,6 @@ async fn process_command_inner(
     }
 
     match (sub_command, sub_matches) {
-        (CommandName::Bench, arg_matches) => {
-            bench_process_command(
-                arg_matches,
-                config,
-                std::mem::take(&mut bulk_signers),
-                &mut wallet_manager,
-            )
-            .await
-        }
         (CommandName::CreateToken, arg_matches) => {
             let decimals = *arg_matches.get_one::<u8>("decimals").unwrap();
             let mint_authority =
