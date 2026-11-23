@@ -1,11 +1,13 @@
 mod program_test;
 use {
     program_test::TestContext,
+    solana_borsh::v1::try_from_slice_unchecked,
+    solana_keypair::Keypair,
+    solana_program::program::MAX_RETURN_DATA,
     solana_program_test::{tokio, ProgramTest},
-    solana_sdk::{
-        borsh1::try_from_slice_unchecked, program::MAX_RETURN_DATA, pubkey::Pubkey,
-        signature::Signer, signer::keypair::Keypair, transaction::Transaction,
-    },
+    solana_pubkey::Pubkey,
+    solana_signer::Signer,
+    solana_transaction::Transaction,
     spl_token_client::token::ExtensionInitializationParams,
     spl_token_metadata_interface::{instruction::emit, state::TokenMetadata},
     std::{convert::TryInto, sync::Arc},

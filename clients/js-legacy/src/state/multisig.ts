@@ -1,3 +1,4 @@
+import type { Buffer } from 'buffer';
 import { struct, u8 } from '@solana/buffer-layout';
 import { bool, publicKey } from '@solana/buffer-layout-utils';
 import type { AccountInfo, Commitment, Connection, PublicKey } from '@solana/web3.js';

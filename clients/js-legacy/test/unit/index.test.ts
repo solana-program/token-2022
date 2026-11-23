@@ -200,6 +200,37 @@ describe('spl-associated-token-account instructions', () => {
         const ixDerivation = createAssociatedTokenAccountIdempotentInstructionWithDerivation(payer, owner, mint);
         expect(ix).to.deep.eq(ixDerivation);
     });
+
+    it('create idempotent with derivation uses the given program ids', () => {
+        const payer = Keypair.generate().publicKey;
+        const owner = Keypair.generate().publicKey;
+        const mint = Keypair.generate().publicKey;
+        const associatedTokenProgramId = Keypair.generate().publicKey;
+        const associatedToken = getAssociatedTokenAddressSync(
+            mint,
+            owner,
+            true,
+            TOKEN_2022_PROGRAM_ID,
+            associatedTokenProgramId,
+        );
+        const ix = createAssociatedTokenAccountIdempotentInstruction(
+            payer,
+            associatedToken,
+            owner,
+            mint,
+            TOKEN_2022_PROGRAM_ID,
+            associatedTokenProgramId,
+        );
+        const ixDerivation = createAssociatedTokenAccountIdempotentInstructionWithDerivation(
+            payer,
+            owner,
+            mint,
+            true,
+            TOKEN_2022_PROGRAM_ID,
+            associatedTokenProgramId,
+        );
+        expect(ixDerivation).to.deep.eq(ix);
+    });
 });
 
 describe('state', () => {

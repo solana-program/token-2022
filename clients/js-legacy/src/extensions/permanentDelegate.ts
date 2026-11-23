@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import { struct } from '@solana/buffer-layout';
 import { publicKey } from '@solana/buffer-layout-utils';
 import type { PublicKey } from '@solana/web3.js';

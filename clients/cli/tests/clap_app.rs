@@ -1,7 +1,7 @@
 use {
     clap::ErrorKind,
     solana_clap_v3_utils::input_parsers::Amount,
-    solana_sdk::pubkey::Pubkey,
+    solana_pubkey::Pubkey,
     spl_token_cli::clap_app::{app, minimum_signers_help_string, multisig_member_help_string},
 };
 

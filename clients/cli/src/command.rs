@@ -30,13 +30,12 @@ use {
         OutputFormat, QuietDisplay, ReturnSignersConfig, VerboseDisplay,
     },
     solana_client::rpc_request::TokenAccountsFilter,
+    solana_instruction::AccountMeta,
+    solana_keypair::Keypair,
+    solana_program_option::COption,
+    solana_pubkey::Pubkey,
     solana_remote_wallet::remote_wallet::RemoteWalletManager,
-    solana_sdk::{
-        instruction::AccountMeta,
-        program_option::COption,
-        pubkey::Pubkey,
-        signature::{Keypair, Signer},
-    },
+    solana_signer::Signer,
     solana_system_interface::program as system_program,
     solana_zk_elgamal_proof_interface::proof_data::{
         BatchedRangeProofContext, BatchedRangeProofU128Data, BatchedRangeProofU256Data,

@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import type { PublicKey } from '@solana/web3.js';
 import { SystemProgram, TransactionInstruction } from '@solana/web3.js';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from '../constants.js';
@@ -85,7 +86,13 @@ export function createAssociatedTokenAccountIdempotentInstructionWithDerivation(
     programId = TOKEN_PROGRAM_ID,
     associatedTokenProgramId = ASSOCIATED_TOKEN_PROGRAM_ID,
 ) {
-    const associatedToken = getAssociatedTokenAddressSync(mint, owner, allowOwnerOffCurve);
+    const associatedToken = getAssociatedTokenAddressSync(
+        mint,
+        owner,
+        allowOwnerOffCurve,
+        programId,
+        associatedTokenProgramId,
+    );
 
     return createAssociatedTokenAccountIdempotentInstruction(
         payer,

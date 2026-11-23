@@ -1,12 +1,15 @@
 mod program_test;
 use {
     program_test::TestContext,
+    solana_instruction_error::InstructionError,
+    solana_keypair::Keypair,
+    solana_program_pack::Pack,
     solana_program_test::tokio,
-    solana_sdk::{
-        instruction::InstructionError, program_pack::Pack, pubkey::Pubkey, signature::Signer,
-        signer::keypair::Keypair, transaction::TransactionError, transport::TransportError,
-    },
+    solana_pubkey::Pubkey,
+    solana_signer::Signer,
     solana_system_interface::instruction as system_instruction,
+    solana_transaction_error::TransactionError,
+    solana_transaction_error::TransportError,
     spl_token_2022_interface::{instruction, state::Account},
     spl_token_client::token::{ExtensionInitializationParams, TokenError as TokenClientError},
 };

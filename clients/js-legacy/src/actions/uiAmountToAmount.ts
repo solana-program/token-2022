@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import { u64 } from '@solana/buffer-layout-utils';
 import type { Connection, PublicKey, Signer, TransactionError } from '@solana/web3.js';
 import { Transaction } from '@solana/web3.js';

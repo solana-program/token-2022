@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import type { AccountMeta, Connection } from '@solana/web3.js';
 import { TokenTransferHookAccountDataNotFound, TokenTransferHookInvalidSeed } from '../../errors.js';
 

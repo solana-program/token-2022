@@ -21,17 +21,27 @@ console = "0.16.3"
 futures = "0.3"
 serde = "1.0.219"
 serde_json = "1.0.150"
-solana-account-decoder = "4.3.0"
-solana-clap-v3-utils = { version = "4.3.0", features = ["agave-unstable-api"] }
-solana-cli-config = { version = "4.3.0", features = ["agave-unstable-api"] }
-solana-cli-output = { version = "4.3.0", features = ["agave-unstable-api"] }
-solana-client = { version = "4.3.0", features = ["agave-unstable-api"] }
+solana-account = "5.0.0"
+solana-account-decoder = "4.4.1"
+solana-clap-v3-utils = { version = "4.4.1", features = ["agave-unstable-api"] }
+solana-cli-config = { version = "4.4.1", features = ["agave-unstable-api"] }
+solana-cli-output = { version = "4.4.1", features = ["agave-unstable-api"] }
+solana-client = { version = "4.4.1", features = ["agave-unstable-api"] }
 solana-commitment-config = "3.1.1"
+solana-hash = "4.6.0"
+solana-instruction = "3.5.1"
+solana-keypair = "4.0.0"
 solana-logger = "3.0.0"
-solana-remote-wallet = { version = "4.3.0", features = ["agave-unstable-api"] }
-solana-sdk = "4.0.1"
+solana-message = "5.0.0"
+solana-native-token = "3.0.0"
+solana-program-option = "3.1.0"
+solana-program-pack = "3.1.0"
+solana-pubkey = "4.3.0"
+solana-remote-wallet = { version = "4.4.1", features = ["agave-unstable-api"] }
+solana-signature = "3.5.2"
 solana-signer = "4.0.0"
 solana-system-interface = "3.2.0"
+solana-transaction = "5.0.0"
 solana-zk-elgamal-proof-interface = "1.0.0"
 solana-zk-sdk = "8.0.1"
 solana-zk-sdk-pod = "0.1.2"
@@ -54,7 +64,7 @@ spl-elgamal-registry-interface = { version = "0.3.0", path = "../../confidential
 spl-token-confidential-transfer-proof-extraction = { version = "0.7.0", path = "../../confidential/proof-extraction" }
 solana-nonce = "3.1.0"
 solana-sdk-ids = "3.1.0"
-solana-test-validator = { version = "4.3.0", features = ["agave-unstable-api", "dev-context-only-utils"] }
+solana-test-validator = { version = "4.4.1", features = ["agave-unstable-api", "dev-context-only-utils"] }
 assert_cmd = "2.2.2"
 libtest-mimic = "0.8"
 serial_test = "4.0.1"

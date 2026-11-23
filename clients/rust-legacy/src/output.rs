@@ -22,15 +22,10 @@ impl fmt::Display for RpcClientResponse {
 #[cfg(test)]
 mod tests {
     use {
-        super::*,
-        solana_sdk::{
-            hash::Hash,
-            pubkey::Pubkey,
-            signature::{Signature, Signer, SIGNATURE_BYTES},
-            signer::keypair::Keypair,
-            transaction::Transaction,
-        },
+        super::*, solana_hash::Hash, solana_keypair::Keypair, solana_pubkey::Pubkey,
+        solana_signature::Signature, solana_signature::SIGNATURE_BYTES, solana_signer::Signer,
         solana_system_interface::instruction as system_instruction,
+        solana_transaction::Transaction,
     };
 
     #[test]
