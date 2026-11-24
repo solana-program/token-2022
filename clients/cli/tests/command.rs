@@ -2,10 +2,6 @@
 use {
     libtest_mimic::{Arguments, Trial},
     solana_cli_output::OutputFormat,
-    solana_client::{
-        nonblocking::rpc_client::RpcClient,
-        rpc_request::{RpcRequest, TokenAccountsFilter},
-    },
     solana_commitment_config::CommitmentConfig,
     solana_hash::Hash,
     solana_keypair::write_keypair_file,
@@ -13,6 +9,8 @@ use {
     solana_program_option::COption,
     solana_program_pack::Pack,
     solana_pubkey::Pubkey,
+    solana_rpc_client::nonblocking::rpc_client::RpcClient,
+    solana_rpc_client_api::request::{RpcRequest, TokenAccountsFilter},
     solana_sdk_ids::bpf_loader_upgradeable,
     solana_signer::EncodableKey,
     solana_signer::Signer,
@@ -296,7 +294,6 @@ fn test_config_with_default_signer<'a>(
     payer: &Keypair,
     program_id: &Pubkey,
 ) -> Config<'a> {
-    let websocket_url = test_validator.rpc_pubsub_url();
     let rpc_client = Arc::new(test_validator.get_async_rpc_client());
     let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync> =
         Arc::new(ProgramRpcClient::new(
@@ -306,7 +303,6 @@ fn test_config_with_default_signer<'a>(
     Config {
         rpc_client,
         program_client,
-        websocket_url,
         output_format: OutputFormat::JsonCompact,
         fee_payer: Some(Arc::new(clone_keypair(payer))),
         default_signer: Some(Arc::new(clone_keypair(payer))),
@@ -356,7 +352,6 @@ fn test_config_without_default_signer<'a>(
     test_validator: &TestValidator,
     program_id: &Pubkey,
 ) -> Config<'a> {
-    let websocket_url = test_validator.rpc_pubsub_url();
     let rpc_client = Arc::new(test_validator.get_async_rpc_client());
     let program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync> =
         Arc::new(ProgramRpcClient::new(
@@ -366,7 +361,6 @@ fn test_config_without_default_signer<'a>(
     Config {
         rpc_client,
         program_client,
-        websocket_url,
         output_format: OutputFormat::JsonCompact,
         fee_payer: None,
         default_signer: None,
@@ -641,7 +635,6 @@ async fn exec_test_cmd<T: AsRef<OsStr>>(config: &Config<'_>, args: &[T]) -> Comm
         &mut multisigner_ids,
         config.rpc_client.clone(),
         config.program_client.clone(),
-        config.websocket_url.clone(),
     )
     .await;
 
@@ -822,7 +815,6 @@ async fn create_token_2022(test_validator: &TestValidator, payer: &Keypair) {
         &mut multisigner_ids,
         config.rpc_client.clone(),
         config.program_client.clone(),
-        config.websocket_url.clone(),
     )
     .await;
 

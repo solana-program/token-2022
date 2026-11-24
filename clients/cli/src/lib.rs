@@ -1,4 +1,3 @@
-mod bench;
 pub mod clap_app;
 pub mod command;
 pub mod config;

@@ -121,7 +121,6 @@ pub enum CommandName {
     CreateToken,
     Close,
     CloseMint,
-    Bench,
     CreateAccount,
     CreateMultisig,
     Authorize,
@@ -506,147 +505,6 @@ pub fn multisig_member_help_string() -> String {
     )
 }
 
-pub(crate) trait BenchSubCommand {
-    fn bench_subcommand(self) -> Self;
-}
-
-impl BenchSubCommand for App<'_> {
-    fn bench_subcommand(self) -> Self {
-        self.subcommand(
-            SubCommand::with_name("bench")
-                .about("Token benchmarking facilities")
-                .setting(AppSettings::InferSubcommands)
-                .setting(AppSettings::SubcommandRequiredElseHelp)
-                .subcommand(
-                    SubCommand::with_name("create-accounts")
-                        .about("Create multiple token accounts for benchmarking")
-                        .arg(
-                            Arg::with_name("token")
-                                .validator(|s| is_valid_pubkey(s))
-                                .value_name("TOKEN_ADDRESS")
-                                .takes_value(true)
-                                .index(1)
-                                .required(true)
-                                .help("The token that the accounts will hold"),
-                        )
-                        .arg(
-                            Arg::with_name("n")
-                                .value_parser(clap::value_parser!(usize))
-                                .value_name("N")
-                                .takes_value(true)
-                                .index(2)
-                                .required(true)
-                                .help("The number of accounts to create"),
-                        )
-                        .arg(owner_address_arg()),
-                )
-                .subcommand(
-                    SubCommand::with_name("close-accounts")
-                        .about("Close multiple token accounts used for benchmarking")
-                        .arg(
-                            Arg::with_name("token")
-                                .validator(|s| is_valid_pubkey(s))
-                                .value_name("TOKEN_ADDRESS")
-                                .takes_value(true)
-                                .index(1)
-                                .required(true)
-                                .help("The token that the accounts held"),
-                        )
-                        .arg(
-                            Arg::with_name("n")
-                                .value_parser(clap::value_parser!(usize))
-                                .value_name("N")
-                                .takes_value(true)
-                                .index(2)
-                                .required(true)
-                                .help("The number of accounts to close"),
-                        )
-                        .arg(owner_address_arg()),
-                )
-                .subcommand(
-                    SubCommand::with_name("deposit-into")
-                        .about("Deposit tokens into multiple accounts")
-                        .arg(
-                            Arg::with_name("token")
-                                .validator(|s| is_valid_pubkey(s))
-                                .value_name("TOKEN_ADDRESS")
-                                .takes_value(true)
-                                .index(1)
-                                .required(true)
-                                .help("The token that the accounts will hold"),
-                        )
-                        .arg(
-                            Arg::with_name("n")
-                                .value_parser(clap::value_parser!(usize))
-                                .value_name("N")
-                                .takes_value(true)
-                                .index(2)
-                                .required(true)
-                                .help("The number of accounts to deposit into"),
-                        )
-                        .arg(
-                            Arg::with_name("amount")
-                                .value_parser(Amount::parse)
-                                .value_name("TOKEN_AMOUNT")
-                                .takes_value(true)
-                                .index(3)
-                                .required(true)
-                                .help("Amount to deposit into each account, in tokens"),
-                        )
-                        .arg(
-                            Arg::with_name("from")
-                                .long("from")
-                                .validator(|s| is_valid_pubkey(s))
-                                .value_name("SOURCE_TOKEN_ACCOUNT_ADDRESS")
-                                .takes_value(true)
-                                .help("The source token account address [default: associated token account for --owner]")
-                        )
-                        .arg(owner_address_arg()),
-                )
-                .subcommand(
-                    SubCommand::with_name("withdraw-from")
-                        .about("Withdraw tokens from multiple accounts")
-                        .arg(
-                            Arg::with_name("token")
-                                .validator(|s| is_valid_pubkey(s))
-                                .value_name("TOKEN_ADDRESS")
-                                .takes_value(true)
-                                .index(1)
-                                .required(true)
-                                .help("The token that the accounts hold"),
-                        )
-                        .arg(
-                            Arg::with_name("n")
-                                .value_parser(clap::value_parser!(usize))
-                                .value_name("N")
-                                .takes_value(true)
-                                .index(2)
-                                .required(true)
-                                .help("The number of accounts to withdraw from"),
-                        )
-                        .arg(
-                            Arg::with_name("amount")
-                                .value_parser(Amount::parse)
-                                .value_name("TOKEN_AMOUNT")
-                                .takes_value(true)
-                                .index(3)
-                                .required(true)
-                                .help("Amount to withdraw from each account, in tokens"),
-                        )
-                        .arg(
-                            Arg::with_name("to")
-                                .long("to")
-                                .validator(|s| is_valid_pubkey(s))
-                                .value_name("RECIPIENT_TOKEN_ACCOUNT_ADDRESS")
-                                .takes_value(true)
-                                .help("The recipient token account address [default: associated token account for --owner]")
-                        )
-                        .arg(owner_address_arg()),
-                ),
-        )
-    }
-}
-
 pub fn app<'a>(
     default_decimals: &'a str,
     minimum_signers_help: &'a str,
@@ -742,7 +600,6 @@ pub fn app<'a>(
                 .value_parser(clap::value_parser!(u64))
                 .help(COMPUTE_UNIT_PRICE_ARG.help)
         )
-        .bench_subcommand()
         .subcommand(SubCommand::with_name(CommandName::CreateToken.into()).about("Create a new token")
                 .arg(
                     Arg::with_name("token_keypair")

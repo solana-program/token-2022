@@ -10,11 +10,11 @@ use {
         offline::{BLOCKHASH_ARG, DUMP_TRANSACTION_MESSAGE, SIGNER_ARG, SIGN_ONLY_ARG},
     },
     solana_cli_output::OutputFormat,
-    solana_client::nonblocking::rpc_client::RpcClient,
     solana_commitment_config::CommitmentConfig,
     solana_hash::Hash,
     solana_pubkey::Pubkey,
     solana_remote_wallet::remote_wallet::RemoteWalletManager,
+    solana_rpc_client::nonblocking::rpc_client::RpcClient,
     solana_signer::null_signer::NullSigner,
     solana_signer::Signer,
     spl_associated_token_account_interface::address::get_associated_token_address_with_program_id,
@@ -82,7 +82,6 @@ pub struct Config<'a> {
     pub default_signer: Option<Arc<dyn Signer>>,
     pub rpc_client: Arc<RpcClient>,
     pub program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync>,
-    pub websocket_url: String,
     pub output_format: OutputFormat,
     pub fee_payer: Option<Arc<dyn Signer>>,
     pub nonce_account: Option<Pubkey>,
@@ -110,7 +109,6 @@ impl<'a> Config<'a> {
                 .value_of("json_rpc_url")
                 .unwrap_or(&cli_config.json_rpc_url),
         );
-        let websocket_url = solana_cli_config::Config::compute_websocket_url(&json_rpc_url);
         let commitment_config = CommitmentConfig::from_str(&cli_config.commitment)
             .unwrap_or_else(|_| CommitmentConfig::confirmed());
         let rpc_client = Arc::new(RpcClient::new_with_timeouts_and_commitment(
@@ -143,7 +141,6 @@ impl<'a> Config<'a> {
             multisigner_ids,
             rpc_client,
             program_client,
-            websocket_url,
         )
         .await
     }
@@ -175,7 +172,6 @@ impl<'a> Config<'a> {
         multisigner_ids: &'a mut Vec<Pubkey>,
         rpc_client: Arc<RpcClient>,
         program_client: Arc<dyn ProgramClient<ProgramRpcClientSendTransaction> + Send + Sync>,
-        websocket_url: String,
     ) -> Config<'a> {
         let cli_config = get_cli_config(matches);
         let multisigner_pubkeys =
@@ -355,7 +351,6 @@ impl<'a> Config<'a> {
             default_signer,
             rpc_client,
             program_client,
-            websocket_url,
             output_format,
             fee_payer,
             nonce_account,
