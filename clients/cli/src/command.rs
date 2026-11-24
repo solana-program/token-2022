@@ -2490,6 +2490,7 @@ async fn command_mint(
     memo: Option<String>,
     bulk_signers: BulkSigners,
     confidential: bool,
+    supply_keys: Option<(ElGamalKeypair, AeKey)>,
 ) -> CommandResult {
     let amount = amount_to_raw_amount(ui_amount, mint_info.decimals, None, "TOKEN_AMOUNT");
 
@@ -2505,7 +2506,10 @@ async fn command_mint(
 
     let use_confidential = confidential || mint_info.has_confidential_mint_burn;
     let confidential_mint_args = if use_confidential {
-        Some(derive_confidential_keys(config.default_signer()?.as_ref()).unwrap())
+        Some(match supply_keys {
+            Some(keys) => keys,
+            None => derive_confidential_keys(config.default_signer()?.as_ref()).unwrap(),
+        })
     } else {
         None
     };
@@ -2526,8 +2530,12 @@ async fn command_mint(
                 pubkey
             });
 
-        let supply_account_info =
-            SupplyAccountInfo::new(mint_state.get_extension::<ConfidentialMintBurn>().unwrap());
+        let mint_burn_extension = mint_state.get_extension::<ConfidentialMintBurn>().unwrap();
+        validate_confidential_keypair_matches(
+            &supply_elgamal_keypair,
+            &mint_burn_extension.supply_elgamal_pubkey,
+        )?;
+        let supply_account_info = SupplyAccountInfo::new(mint_burn_extension);
 
         // Fetch destination account to get destination ElGamal pubkey
         let dest_account = config.get_account_checked(&recipient).await?;
@@ -3435,9 +3443,10 @@ fn derive_confidential_keys_matching(
     }
     Err(format!(
         "The encryption key derived from signer {} does not match the encryption key {} \
-         found on-chain. Use `--owner` to specify the keypair that configured the account. \
-         Accounts configured with spl-token-cli 5.6.0 or earlier use an older key derivation \
-         that this version does not support.",
+         found on-chain. Use `--owner` to specify the keypair that configured the account, \
+         or pass the keys with `--elgamal-keypair` and `--aes-key` if they were not derived \
+         from a signer. Accounts configured with spl-token-cli 5.6.0 or earlier use an older \
+         key derivation that this version does not support.",
         signer.pubkey(),
         expected_elgamal_pubkey,
     )
@@ -5258,6 +5267,88 @@ async fn command_update_decryptable_supply(
     })
 }
 
+async fn command_rotate_supply_elgamal_pubkey(
+    config: &Config<'_>,
+    token_pubkey: Pubkey,
+    mint_authority: Pubkey,
+    new_supply_elgamal_pubkey: elgamal::ElGamalPubkey,
+    supply_keys: Option<(ElGamalKeypair, AeKey)>,
+    bulk_signers: BulkSigners,
+) -> CommandResult {
+    let mint_account = config.get_account_checked(&token_pubkey).await?;
+    let mint_state = StateWithExtensionsOwned::<Mint>::unpack(mint_account.data)
+        .map_err(|_| format!("Could not deserialize token mint {token_pubkey}"))?;
+    let extension = mint_state
+        .get_extension::<ConfidentialMintBurn>()
+        .map_err(|_| format!("Mint {token_pubkey} does not have confidential mint/burn enabled"))?;
+    let supply_account_info = SupplyAccountInfo::new(extension);
+
+    if extension.pending_burn != PodElGamalCiphertext::default() {
+        return Err(
+            "The mint has a pending burn. Run `apply-pending-burn` before rotating the supply key."
+                .into(),
+        );
+    }
+    if extension.confidential_supply == PodElGamalCiphertext::default() {
+        return Err(
+            "The mint has no confidential supply ciphertext yet. Mint at least once before rotating the supply key."
+                .into(),
+        );
+    }
+
+    let derived_keys;
+    let (current_elgamal_keypair, current_aes_key) = if let Some(keys) = &supply_keys {
+        validate_confidential_keypair_matches(&keys.0, &extension.supply_elgamal_pubkey)?;
+        keys
+    } else {
+        let signer = config.default_signer()?;
+        derived_keys =
+            derive_confidential_keys_matching(&*signer, &extension.supply_elgamal_pubkey)?;
+        &derived_keys
+    };
+    if supply_account_info.supply_elgamal_pubkey
+        == PodElGamalPubkey::from(new_supply_elgamal_pubkey)
+    {
+        return Err("The new supply ElGamal pubkey is the same as the current one".into());
+    }
+    // Fail early with a clear message if the AES key cannot open the decryptable supply.
+    supply_account_info
+        .decrypted_current_supply(current_aes_key, current_elgamal_keypair)
+        .map_err(|_| "Failed to decrypt the current supply with the given supply keys")?;
+
+    println_display(
+        config,
+        format!(
+            "Rotating supply ElGamal pubkey\n  Token: {}\n  New supply ElGamal pubkey: {}",
+            token_pubkey,
+            PodElGamalPubkey::from(new_supply_elgamal_pubkey),
+        ),
+    );
+
+    let token = token_client_from_config(config, &token_pubkey, None)?;
+    let res = token
+        .confidential_transfer_rotate_supply_elgamal_pubkey(
+            &mint_authority,
+            current_elgamal_keypair,
+            &new_supply_elgamal_pubkey,
+            current_aes_key,
+            None,
+            Some(supply_account_info),
+            &bulk_signers,
+        )
+        .await?;
+
+    let tx_return = finish_tx(config, &res, false).await?;
+    Ok(match tx_return {
+        TransactionReturnData::CliSignature(signature) => {
+            config.output_format.formatted_string(&signature)
+        }
+        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
+            config.output_format.formatted_string(&sign_only_data)
+        }
+    })
+}
+
 async fn command_update_multiplier(
     config: &Config<'_>,
     token_pubkey: Pubkey,
@@ -5953,6 +6044,7 @@ async fn process_command_inner(
             config.check_account(&recipient, Some(token)).await?;
             let use_unchecked_instruction = arg_matches.is_present("use_unchecked_instruction");
             let memo = value_t!(arg_matches, "memo", String).ok();
+            let supply_keys = custom_confidential_keys_of(arg_matches)?;
             command_mint(
                 config,
                 token,
@@ -5964,6 +6056,7 @@ async fn process_command_inner(
                 memo,
                 bulk_signers,
                 confidential,
+                supply_keys,
             )
             .await
         }
@@ -6823,6 +6916,38 @@ async fn process_command_inner(
                 token,
                 mint_authority,
                 new_decryptable_supply,
+                bulk_signers,
+            )
+            .await
+        }
+        (CommandName::RotateSupplyElgamalPubkey, arg_matches) => {
+            let token = pubkey_of_signer(arg_matches, "token", &mut wallet_manager)
+                .unwrap()
+                .unwrap();
+            let new_supply_elgamal_pubkey: elgamal::ElGamalPubkey =
+                elgamal_pubkey_of(arg_matches, "new_elgamal_pubkey")
+                    .and_then(|pubkey| {
+                        pubkey
+                            .try_into()
+                            .map_err(|_| "invalid ElGamal pubkey".to_string())
+                    })
+                    .map_err(|error| {
+                        format!("Failed to read new supply ElGamal pubkey: {error}")
+                    })?;
+            let supply_keys = custom_confidential_keys_of(arg_matches)?;
+
+            let (mint_authority_signer, mint_authority) =
+                config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
+            if config.multisigner_pubkeys.is_empty() {
+                push_signer_with_dedup(mint_authority_signer, &mut bulk_signers);
+            }
+
+            command_rotate_supply_elgamal_pubkey(
+                config,
+                token,
+                mint_authority,
+                new_supply_elgamal_pubkey,
+                supply_keys,
                 bulk_signers,
             )
             .await

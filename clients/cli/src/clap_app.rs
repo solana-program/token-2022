@@ -175,6 +175,7 @@ pub enum CommandName {
     ApplyPendingBalance,
     ApplyPendingBurn,
     UpdateDecryptableSupply,
+    RotateSupplyElgamalPubkey,
     UpdateGroupAddress,
     UpdateMemberAddress,
     UpdateUiAmountMultiplier,
@@ -1685,6 +1686,28 @@ pub fn app<'a>(
                         .help("Mint tokens confidentially. Required for \
                             offline signing on confidential mints."),
                 )
+                .arg(
+                    Arg::with_name("elgamal_keypair")
+                        .long("elgamal-keypair")
+                        .takes_value(true)
+                        .value_name("FILE")
+                        .requires("aes_key")
+                        .help(
+                            "The supply ElGamal keypair file of a confidential mint. Defaults to \
+                            the keypair derived from the client keypair.",
+                        ),
+                )
+                .arg(
+                    Arg::with_name("aes_key")
+                        .long("aes-key")
+                        .takes_value(true)
+                        .value_name("FILE")
+                        .requires("elgamal_keypair")
+                        .help(
+                            "The supply AES key file of a confidential mint. Defaults to the key \
+                            derived from the client keypair.",
+                        ),
+                )
                 .arg(mint_decimals_arg())
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
@@ -3141,6 +3164,62 @@ pub fn app<'a>(
                             This may be a keypair file or the ASK keyword. \
                             Defaults to the client keypair."
                         )
+                )
+                .arg(multisig_signer_arg())
+                .nonce_args(true)
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::RotateSupplyElgamalPubkey.into())
+                .about("Rotate the supply ElGamal public key of a confidential mint")
+                .arg(
+                    Arg::with_name("token")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("The token mint address"),
+                )
+                .arg(
+                    Arg::with_name("new_elgamal_pubkey")
+                        .long("new-elgamal-pubkey")
+                        .takes_value(true)
+                        .value_name("NEW_ELGAMAL_PUBKEY")
+                        .required(true)
+                        .help(
+                            "The new supply ElGamal public key. This may be an ElGamal keypair \
+                            file or a base64 encoded ElGamal public key.",
+                        ),
+                )
+                .arg(
+                    owner_keypair_arg_with_value_name("MINT_AUTHORITY_KEYPAIR")
+                        .help(
+                            "Specify the mint authority keypair. \
+                            This may be a keypair file or the ASK keyword. \
+                            Defaults to the client keypair."
+                        )
+                )
+                .arg(
+                    Arg::with_name("elgamal_keypair")
+                        .long("elgamal-keypair")
+                        .takes_value(true)
+                        .value_name("FILE")
+                        .requires("aes_key")
+                        .help(
+                            "The current supply ElGamal keypair file. Defaults to the keypair \
+                            derived from the client keypair.",
+                        ),
+                )
+                .arg(
+                    Arg::with_name("aes_key")
+                        .long("aes-key")
+                        .takes_value(true)
+                        .value_name("FILE")
+                        .requires("elgamal_keypair")
+                        .help(
+                            "The current supply AES key file. Defaults to the key derived from \
+                            the client keypair.",
+                        ),
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
