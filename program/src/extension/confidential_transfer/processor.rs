@@ -278,10 +278,8 @@ fn process_configure_account(
     let confidential_transfer_account =
         token_account.init_extension::<ConfidentialTransferAccount>(false)?;
 
-    // A mint that stored `auto_approve_new_accounts` before it was normalized can
-    // hold any nonzero byte for `true`
     confidential_transfer_account.approved =
-        bool::from(confidential_transfer_mint.auto_approve_new_accounts).into();
+        AccountApproval::new(confidential_transfer_mint.auto_approve_new_accounts.into());
     confidential_transfer_account.elgamal_pubkey = elgamal_pubkey;
     confidential_transfer_account.maximum_pending_balance_credit_counter =
         *maximum_pending_balance_credit_counter;
@@ -338,7 +336,7 @@ fn process_approve_account(accounts: &mut [AccountView]) -> ProgramResult {
     {
         let confidential_transfer_state =
             token_account.get_extension_mut::<ConfidentialTransferAccount>()?;
-        confidential_transfer_state.approved = true.into();
+        confidential_transfer_state.approved.approve();
         Ok(())
     } else {
         Err(ProgramError::MissingRequiredSignature)

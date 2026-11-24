@@ -1246,7 +1246,7 @@ async fn confidential_transfer_configure_token_account_with_fee_with_registry() 
     let confidential_transfer_account = state
         .get_extension::<ConfidentialTransferAccount>()
         .unwrap();
-    assert!(bool::from(&confidential_transfer_account.approved));
+    assert!(confidential_transfer_account.approved.is_approved());
     assert!(bool::from(
         &confidential_transfer_account.allow_confidential_credits
     ));
