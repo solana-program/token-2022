@@ -1686,6 +1686,28 @@ pub fn app<'a>(
                         .help("Mint tokens confidentially. Required for \
                             offline signing on confidential mints."),
                 )
+                .arg(
+                    Arg::with_name("elgamal_keypair")
+                        .long("elgamal-keypair")
+                        .takes_value(true)
+                        .value_name("FILE")
+                        .requires("aes_key")
+                        .help(
+                            "The supply ElGamal keypair file of a confidential mint. Defaults to \
+                            the keypair derived from the client keypair.",
+                        ),
+                )
+                .arg(
+                    Arg::with_name("aes_key")
+                        .long("aes-key")
+                        .takes_value(true)
+                        .value_name("FILE")
+                        .requires("elgamal_keypair")
+                        .help(
+                            "The supply AES key file of a confidential mint. Defaults to the key \
+                            derived from the client keypair.",
+                        ),
+                )
                 .arg(mint_decimals_arg())
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
@@ -3159,12 +3181,15 @@ pub fn app<'a>(
                         .help("The token mint address"),
                 )
                 .arg(
-                    Arg::with_name("new_elgamal_keypair")
-                        .long("new-elgamal-keypair")
+                    Arg::with_name("new_elgamal_pubkey")
+                        .long("new-elgamal-pubkey")
                         .takes_value(true)
-                        .value_name("FILE")
+                        .value_name("NEW_ELGAMAL_PUBKEY")
                         .required(true)
-                        .help("The new supply ElGamal keypair file"),
+                        .help(
+                            "The new supply ElGamal public key. This may be an ElGamal keypair \
+                            file or a base64 encoded ElGamal public key.",
+                        ),
                 )
                 .arg(
                     owner_keypair_arg_with_value_name("MINT_AUTHORITY_KEYPAIR")

@@ -19,14 +19,11 @@ use {
     solana_system_interface::{instruction as system_instruction, program as system_program},
     solana_test_validator::{TestValidator, TestValidatorGenesis, UpgradeableProgramInfo},
     solana_transaction::Transaction,
-    solana_zk_elgamal_proof_interface::proof_data::{
-        BatchedRangeProofContext, BatchedRangeProofU128Data,
-    },
     solana_zk_sdk::{
         encryption::{
             auth_encryption::AeKey,
             derivation::{derive_confidential_keys_from_signature, STANDARD_DERIVATION_MESSAGE},
-            elgamal::{ElGamalKeypair, ElGamalPubkey},
+            elgamal::ElGamalKeypair,
         },
         zk_elgamal_proof_program::build_pubkey_validity_proof_data,
     },
@@ -70,11 +67,9 @@ use {
             ProgramClient, ProgramClientResult, ProgramOfflineClient, ProgramRpcClient,
             ProgramRpcClientSendTransaction, RpcClientResponse,
         },
-        token::{ComputeUnitLimit, ProofAccountWithCiphertext, Token},
-        zk_proofs::confidential_mint_burn::SupplyAccountInfo,
+        token::{ComputeUnitLimit, Token},
     },
     spl_token_confidential_transfer_proof_extraction::instruction::ProofLocation,
-    spl_token_confidential_transfer_proof_generation::mint::MintProofData,
     spl_token_group_interface::state::{TokenGroup, TokenGroupMember},
     spl_token_metadata_interface::state::TokenMetadata,
     std::{
@@ -227,6 +222,16 @@ async fn main() {
         ),
         async_trial!(
             confidential_mint_burn_rotate_supply_elgamal_pubkey_wrong_key,
+            test_validator,
+            payer
+        ),
+        async_trial!(
+            confidential_mint_burn_rotate_supply_elgamal_pubkey_pending_burn,
+            test_validator,
+            payer
+        ),
+        async_trial!(
+            confidential_mint_burn_rotate_supply_elgamal_pubkey_never_minted,
             test_validator,
             payer
         ),
@@ -8336,181 +8341,30 @@ async fn create_confidential_mint_burn_token_with_supply(
     (token_pubkey, account)
 }
 
-async fn confidential_mint_with_supply_keys(
+fn write_elgamal_keypair_file(elgamal_keypair: &ElGamalKeypair) -> NamedTempFile {
+    let file = NamedTempFile::new().unwrap();
+    elgamal_keypair.write_json_file(file.path()).unwrap();
+    file
+}
+
+async fn rotate_supply_elgamal_pubkey_cli(
     config: &Config<'_>,
     payer: &Keypair,
     token_pubkey: &Pubkey,
-    recipient: &Pubkey,
-    ui_amount: u64,
-    supply_elgamal_keypair: &ElGamalKeypair,
-    supply_aes_key: &AeKey,
-) {
-    let token = Token::new(
-        config.program_client.clone(),
-        &config.program_id,
-        token_pubkey,
-        None,
-        config.fee_payer().unwrap(),
-    );
-
-    let mint_state = token.get_mint_info().await.unwrap();
-    let amount = ui_amount
-        .checked_mul(10u64.pow(u32::from(mint_state.base.decimals)))
-        .unwrap();
-
-    let auditor_elgamal_pubkey = mint_state
-        .get_extension::<ConfidentialTransferMint>()
-        .ok()
-        .and_then(|ext| Option::<PodElGamalPubkey>::from(ext.auditor_elgamal_pubkey))
-        .map(|pod| {
-            let pubkey: ElGamalPubkey = pod.try_into().unwrap();
-            pubkey
-        });
-
-    let supply_account_info =
-        SupplyAccountInfo::new(mint_state.get_extension::<ConfidentialMintBurn>().unwrap());
-
-    let dest_account = config.rpc_client.get_account(recipient).await.unwrap();
-    let dest_state = StateWithExtensionsOwned::<Account>::unpack(dest_account.data).unwrap();
-    let destination_elgamal_pubkey: ElGamalPubkey = dest_state
-        .get_extension::<ConfidentialTransferAccount>()
-        .unwrap()
-        .elgamal_pubkey
-        .try_into()
-        .unwrap();
-
-    let MintProofData {
-        equality_proof_data,
-        ciphertext_validity_proof_data_with_ciphertext,
-        range_proof_data,
-    } = supply_account_info
-        .generate_split_mint_proof_data(
-            amount,
-            supply_elgamal_keypair,
-            supply_aes_key,
-            &destination_elgamal_pubkey,
-            auditor_elgamal_pubkey.as_ref(),
-        )
-        .unwrap();
-
-    let mint_amount_auditor_ciphertext_lo =
-        ciphertext_validity_proof_data_with_ciphertext.ciphertext_lo;
-    let mint_amount_auditor_ciphertext_hi =
-        ciphertext_validity_proof_data_with_ciphertext.ciphertext_hi;
-
-    let context_state_authority_pubkey = payer.pubkey();
-    let equality_proof_context_state_account = Keypair::new();
-    let equality_proof_pubkey = equality_proof_context_state_account.pubkey();
-    let ciphertext_validity_proof_context_state_account = Keypair::new();
-    let ciphertext_validity_proof_pubkey = ciphertext_validity_proof_context_state_account.pubkey();
-    let range_proof_context_state_account = Keypair::new();
-    let range_proof_pubkey = range_proof_context_state_account.pubkey();
-    let range_proof_record_account = Keypair::new();
-    let range_proof_record_pubkey = range_proof_record_account.pubkey();
-
-    token
-        .confidential_transfer_create_context_state_account(
-            &equality_proof_pubkey,
-            &context_state_authority_pubkey,
-            &equality_proof_data,
-            &[&equality_proof_context_state_account],
-        )
-        .await
-        .unwrap();
-    token
-        .confidential_transfer_create_context_state_account(
-            &ciphertext_validity_proof_pubkey,
-            &context_state_authority_pubkey,
-            &ciphertext_validity_proof_data_with_ciphertext.proof_data,
-            &[&ciphertext_validity_proof_context_state_account],
-        )
-        .await
-        .unwrap();
-    token
-        .confidential_transfer_create_record_account(
-            &range_proof_record_pubkey,
-            &context_state_authority_pubkey,
-            &range_proof_data,
-            &range_proof_record_account,
-            payer,
-        )
-        .await
-        .unwrap();
-    token
-        .confidential_transfer_create_context_state_account_from_record::<
-            _,
-            BatchedRangeProofU128Data,
-            BatchedRangeProofContext,
-        >(
-            &range_proof_pubkey,
-            &context_state_authority_pubkey,
-            &range_proof_record_pubkey,
-            &[&range_proof_context_state_account],
-        )
-        .await
-        .unwrap();
-
-    let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
-        context_state_account: ciphertext_validity_proof_pubkey,
-        ciphertext_lo: mint_amount_auditor_ciphertext_lo,
-        ciphertext_hi: mint_amount_auditor_ciphertext_hi,
-    };
-
-    token
-        .confidential_transfer_mint(
-            &payer.pubkey(),
-            recipient,
-            Some(&equality_proof_pubkey),
-            Some(&ciphertext_validity_proof_account_with_ciphertext),
-            Some(&range_proof_pubkey),
-            amount,
-            supply_elgamal_keypair,
-            &destination_elgamal_pubkey,
-            auditor_elgamal_pubkey.as_ref(),
-            supply_aes_key,
-            Some(supply_account_info),
-            &[payer],
-        )
-        .await
-        .unwrap();
-
-    let close_context_state_signer = &[payer];
-    token
-        .confidential_transfer_close_context_state_account(
-            &equality_proof_pubkey,
-            &context_state_authority_pubkey,
-            &context_state_authority_pubkey,
-            close_context_state_signer,
-        )
-        .await
-        .unwrap();
-    token
-        .confidential_transfer_close_context_state_account(
-            &ciphertext_validity_proof_pubkey,
-            &context_state_authority_pubkey,
-            &context_state_authority_pubkey,
-            close_context_state_signer,
-        )
-        .await
-        .unwrap();
-    token
-        .confidential_transfer_close_context_state_account(
-            &range_proof_pubkey,
-            &context_state_authority_pubkey,
-            &context_state_authority_pubkey,
-            close_context_state_signer,
-        )
-        .await
-        .unwrap();
-    token
-        .confidential_transfer_close_record_account(
-            &range_proof_record_pubkey,
-            &context_state_authority_pubkey,
-            &context_state_authority_pubkey,
-            close_context_state_signer,
-        )
-        .await
-        .unwrap();
+    new_elgamal_pubkey: &str,
+) -> CommandResult {
+    process_test_command(
+        config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::RotateSupplyElgamalPubkey.into(),
+            &token_pubkey.to_string(),
+            "--new-elgamal-pubkey",
+            new_elgamal_pubkey,
+        ],
+    )
+    .await
 }
 
 async fn confidential_mint_burn_rotate_supply_elgamal_pubkey(
@@ -8525,23 +8379,15 @@ async fn confidential_mint_burn_rotate_supply_elgamal_pubkey(
     // rotate to a new supply ElGamal keypair; the AES key is not rotated
     let (_, supply_aes_key) = derive_confidential_keys(payer).unwrap();
     let new_supply_elgamal_keypair = ElGamalKeypair::new_rand();
-    let new_elgamal_keypair_file = NamedTempFile::new().unwrap();
-    new_supply_elgamal_keypair
-        .write_json_file(new_elgamal_keypair_file.path())
-        .unwrap();
+    let new_elgamal_keypair_file = write_elgamal_keypair_file(&new_supply_elgamal_keypair);
     let aes_key_file = NamedTempFile::new().unwrap();
     supply_aes_key.write_to_file(aes_key_file.path()).unwrap();
 
-    process_test_command(
+    rotate_supply_elgamal_pubkey_cli(
         &config,
         payer,
-        &[
-            "spl-token",
-            CommandName::RotateSupplyElgamalPubkey.into(),
-            &token_pubkey.to_string(),
-            "--new-elgamal-keypair",
-            new_elgamal_keypair_file.path().to_str().unwrap(),
-        ],
+        &token_pubkey,
+        new_elgamal_keypair_file.path().to_str().unwrap(),
     )
     .await
     .unwrap();
@@ -8551,17 +8397,40 @@ async fn confidential_mint_burn_rotate_supply_elgamal_pubkey(
         PodElGamalPubkey::from(*new_supply_elgamal_keypair.pubkey())
     );
 
-    // mint/burn CLI flags for rotated keys are intentionally out of scope
-    confidential_mint_with_supply_keys(
+    // the derived supply keys no longer match the mint
+    let error = process_test_command(
         &config,
         payer,
-        &token_pubkey,
-        &account,
-        50,
-        &new_supply_elgamal_keypair,
-        &supply_aes_key,
+        &[
+            "spl-token",
+            CommandName::Mint.into(),
+            &token_pubkey.to_string(),
+            "50",
+            &account.to_string(),
+        ],
     )
-    .await;
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("does not match"));
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Mint.into(),
+            &token_pubkey.to_string(),
+            "50",
+            &account.to_string(),
+            "--elgamal-keypair",
+            new_elgamal_keypair_file.path().to_str().unwrap(),
+            "--aes-key",
+            aes_key_file.path().to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap();
 
     let result = process_test_command(
         &config,
@@ -8589,24 +8458,17 @@ async fn confidential_mint_burn_rotate_supply_elgamal_pubkey_wrong_key(
 ) {
     let config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
-    // Mint first: rotation proofs cannot be built over the default empty supply ciphertext.
     let (token_pubkey, _account) =
         create_confidential_mint_burn_token_with_supply(&config, payer, "100").await;
     let initial_supply_elgamal_pubkey = supply_elgamal_pubkey_of(&config, &token_pubkey).await;
 
-    let wrong_elgamal_keypair_file = NamedTempFile::new().unwrap();
-    ElGamalKeypair::new_rand()
-        .write_json_file(wrong_elgamal_keypair_file.path())
-        .unwrap();
+    let wrong_elgamal_keypair_file = write_elgamal_keypair_file(&ElGamalKeypair::new_rand());
     let wrong_aes_key_file = NamedTempFile::new().unwrap();
     AeKey::new_rand()
         .write_to_file(wrong_aes_key_file.path())
         .unwrap();
     let new_supply_elgamal_keypair = ElGamalKeypair::new_rand();
-    let new_elgamal_keypair_file = NamedTempFile::new().unwrap();
-    new_supply_elgamal_keypair
-        .write_json_file(new_elgamal_keypair_file.path())
-        .unwrap();
+    let new_elgamal_keypair_file = write_elgamal_keypair_file(&new_supply_elgamal_keypair);
 
     let error = process_test_command(
         &config,
@@ -8615,7 +8477,7 @@ async fn confidential_mint_burn_rotate_supply_elgamal_pubkey_wrong_key(
             "spl-token",
             CommandName::RotateSupplyElgamalPubkey.into(),
             &token_pubkey.to_string(),
-            "--new-elgamal-keypair",
+            "--new-elgamal-pubkey",
             new_elgamal_keypair_file.path().to_str().unwrap(),
             "--elgamal-keypair",
             wrong_elgamal_keypair_file.path().to_str().unwrap(),
@@ -8626,19 +8488,14 @@ async fn confidential_mint_burn_rotate_supply_elgamal_pubkey_wrong_key(
     .await
     .unwrap_err()
     .to_string();
-    assert!(error.contains("does not match"));
+    assert!(error.contains("does not match the encryption key"));
 
     // rotating once works, rotating again with the derived key does not
-    process_test_command(
+    rotate_supply_elgamal_pubkey_cli(
         &config,
         payer,
-        &[
-            "spl-token",
-            CommandName::RotateSupplyElgamalPubkey.into(),
-            &token_pubkey.to_string(),
-            "--new-elgamal-keypair",
-            new_elgamal_keypair_file.path().to_str().unwrap(),
-        ],
+        &token_pubkey,
+        new_elgamal_keypair_file.path().to_str().unwrap(),
     )
     .await
     .unwrap();
@@ -8647,24 +8504,134 @@ async fn confidential_mint_burn_rotate_supply_elgamal_pubkey_wrong_key(
         initial_supply_elgamal_pubkey
     );
 
-    let another_supply_elgamal_keypair = ElGamalKeypair::new_rand();
-    let another_elgamal_keypair_file = NamedTempFile::new().unwrap();
-    another_supply_elgamal_keypair
-        .write_json_file(another_elgamal_keypair_file.path())
-        .unwrap();
-    let error = process_test_command(
+    // the new pubkey can also be given as base64
+    let another_supply_elgamal_pubkey =
+        PodElGamalPubkey::from(*ElGamalKeypair::new_rand().pubkey());
+    let error = rotate_supply_elgamal_pubkey_cli(
+        &config,
+        payer,
+        &token_pubkey,
+        &another_supply_elgamal_pubkey.to_string(),
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("does not match the encryption key"));
+    assert!(error.contains("--elgamal-keypair"));
+
+    let (_, supply_aes_key) = derive_confidential_keys(payer).unwrap();
+    let aes_key_file = NamedTempFile::new().unwrap();
+    supply_aes_key.write_to_file(aes_key_file.path()).unwrap();
+    process_test_command(
         &config,
         payer,
         &[
             "spl-token",
             CommandName::RotateSupplyElgamalPubkey.into(),
             &token_pubkey.to_string(),
-            "--new-elgamal-keypair",
-            another_elgamal_keypair_file.path().to_str().unwrap(),
+            "--new-elgamal-pubkey",
+            &another_supply_elgamal_pubkey.to_string(),
+            "--elgamal-keypair",
+            new_elgamal_keypair_file.path().to_str().unwrap(),
+            "--aes-key",
+            aes_key_file.path().to_str().unwrap(),
         ],
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        supply_elgamal_pubkey_of(&config, &token_pubkey).await,
+        another_supply_elgamal_pubkey
+    );
+}
+
+async fn confidential_mint_burn_rotate_supply_elgamal_pubkey_pending_burn(
+    test_validator: &TestValidator,
+    payer: &Keypair,
+) {
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    let (token_pubkey, account) =
+        create_confidential_mint_burn_token_with_supply(&config, payer, "100").await;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Burn.into(),
+            &account.to_string(),
+            "0.001",
+        ],
+    )
+    .await
+    .unwrap();
+
+    let new_elgamal_keypair_file = write_elgamal_keypair_file(&ElGamalKeypair::new_rand());
+    let error = rotate_supply_elgamal_pubkey_cli(
+        &config,
+        payer,
+        &token_pubkey,
+        new_elgamal_keypair_file.path().to_str().unwrap(),
     )
     .await
     .unwrap_err()
     .to_string();
-    assert!(error.contains("does not match"));
+    assert!(error.contains("pending burn"));
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBurn.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    rotate_supply_elgamal_pubkey_cli(
+        &config,
+        payer,
+        &token_pubkey,
+        new_elgamal_keypair_file.path().to_str().unwrap(),
+    )
+    .await
+    .unwrap();
+}
+
+async fn confidential_mint_burn_rotate_supply_elgamal_pubkey_never_minted(
+    test_validator: &TestValidator,
+    payer: &Keypair,
+) {
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    let token_pubkey = create_confidential_mint_burn_token(&config, payer).await;
+    let initial_supply_elgamal_pubkey = supply_elgamal_pubkey_of(&config, &token_pubkey).await;
+
+    let new_elgamal_keypair_file = write_elgamal_keypair_file(&ElGamalKeypair::new_rand());
+    let error = rotate_supply_elgamal_pubkey_cli(
+        &config,
+        payer,
+        &token_pubkey,
+        new_elgamal_keypair_file.path().to_str().unwrap(),
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("no confidential supply ciphertext"));
+    assert_eq!(
+        supply_elgamal_pubkey_of(&config, &token_pubkey).await,
+        initial_supply_elgamal_pubkey
+    );
 }
