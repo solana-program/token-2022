@@ -316,6 +316,10 @@ export function getExtensionTypes(tlvData: Buffer): ExtensionType[] {
 export function getAccountLenForMint(mint: Mint): number {
     const extensionTypes = getExtensionTypes(mint.tlvData);
     const accountExtensions = extensionTypes.map(getAccountTypeOfMintType);
+    // The program also initializes `ImmutableOwner` on accounts of a non-transferable mint.
+    if (extensionTypes.includes(ExtensionType.NonTransferable)) {
+        accountExtensions.push(ExtensionType.ImmutableOwner);
+    }
     return getAccountLen(accountExtensions);
 }
 
