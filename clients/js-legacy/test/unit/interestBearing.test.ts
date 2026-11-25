@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+import type { Mint } from '../../src';
 import type { Connection } from '@solana/web3.js';
 import { PublicKey } from '@solana/web3.js';
 import {
@@ -7,6 +8,7 @@ import {
 } from '../../src/actions/amountToUiAmount';
 import {
     AccountLayout,
+    getInterestBearingMintConfigState,
     InterestBearingMintConfigStateLayout,
     TOKEN_2022_PROGRAM_ID,
     TokenInstruction,
@@ -421,4 +423,39 @@ describe('interest-bearing initialize optional authority', () => {
             expect(instruction.programId).to.eql(TOKEN_2022_PROGRAM_ID);
         });
     }
+});
+
+describe('interest-bearing config state', () => {
+    const rates = {
+        initializationTimestamp: 123,
+        preUpdateAverageRate: -7,
+        lastUpdateTimestamp: 456,
+        currentRate: 9,
+    };
+    const presentRateAuthority = PublicKey.unique();
+
+    for (const rateAuthority of [presentRateAuthority, null]) {
+        it(`decodes ${rateAuthority ? 'present' : 'absent'} rate authority`, () => {
+            const rawState = {
+                ...rates,
+                rateAuthority: rateAuthority ?? PublicKey.default,
+            };
+            const tlvData = Buffer.alloc(4 + InterestBearingMintConfigStateLayout.span);
+            tlvData.writeUInt16LE(ExtensionType.InterestBearingConfig, 0);
+            tlvData.writeUInt16LE(InterestBearingMintConfigStateLayout.span, 2);
+            // ns64 uses numbers at runtime, while the layout type declares bigint timestamps.
+            InterestBearingMintConfigStateLayout.encode(
+                rawState as unknown as Parameters<typeof InterestBearingMintConfigStateLayout.encode>[0],
+                tlvData,
+                4,
+            );
+
+            expect(InterestBearingMintConfigStateLayout.decode(tlvData, 4)).to.eql(rawState);
+            expect(getInterestBearingMintConfigState({ tlvData } as Mint)).to.eql({ ...rates, rateAuthority });
+        });
+    }
+
+    it('returns null when the extension is absent', () => {
+        expect(getInterestBearingMintConfigState({ tlvData: Buffer.alloc(0) } as Mint)).to.equal(null);
+    });
 });

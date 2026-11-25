@@ -1,4 +1,4 @@
-import type { ExtraAccountMeta, ExtraAccountMetaList } from '../../src';
+import type { ExtraAccountMeta, ExtraAccountMetaList, Mint } from '../../src';
 import {
     ACCOUNT_SIZE,
     ACCOUNT_TYPE_SIZE,
@@ -18,6 +18,7 @@ import {
     createTransferCheckedWithFeeInstruction,
     getExtraAccountMetaAddress,
     getExtraAccountMetas,
+    getTransferHook,
     resolveExtraAccountMeta,
     TokenInstruction,
     TransferHookInstruction,
@@ -801,5 +802,32 @@ describe('transferHook', () => {
 
             expect(instruction.keys).to.eql(checkMetas);
         });
+    });
+});
+
+describe('transfer hook state', () => {
+    const presentAuthority = PublicKey.unique();
+    const presentProgramId = PublicKey.unique();
+
+    for (const authority of [presentAuthority, null]) {
+        for (const programId of [presentProgramId, null]) {
+            it(`decodes ${authority ? 'present' : 'absent'} authority and ${programId ? 'present' : 'absent'} program`, () => {
+                const rawState = {
+                    authority: authority ?? PublicKey.default,
+                    programId: programId ?? PublicKey.default,
+                };
+                const tlvData = Buffer.alloc(4 + TransferHookLayout.span);
+                tlvData.writeUInt16LE(ExtensionType.TransferHook, 0);
+                tlvData.writeUInt16LE(TransferHookLayout.span, 2);
+                TransferHookLayout.encode(rawState, tlvData, 4);
+
+                expect(TransferHookLayout.decode(tlvData, 4)).to.eql(rawState);
+                expect(getTransferHook({ tlvData } as Mint)).to.eql({ authority, programId });
+            });
+        }
+    }
+
+    it('returns null when the extension is absent', () => {
+        expect(getTransferHook({ tlvData: Buffer.alloc(0) } as Mint)).to.equal(null);
     });
 });

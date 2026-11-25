@@ -1,3 +1,4 @@
+import type { Mint } from '../../src';
 import {
     calculateFee,
     calculateEpochFee,
@@ -6,10 +7,13 @@ import {
     createWithdrawWithheldTokensFromAccountsInstruction,
     decodeInitializeTransferFeeConfigInstruction,
     decodeWithdrawWithheldTokensFromAccountsInstruction,
+    ExtensionType,
+    getTransferFeeConfig,
     TOKEN_2022_PROGRAM_ID,
+    TransferFeeConfigLayout,
 } from '../../src';
 import { expect } from 'chai';
-import { Keypair } from '@solana/web3.js';
+import { Keypair, PublicKey } from '@solana/web3.js';
 
 describe('transferFee', () => {
     describe('encoding/decoding `InitializeTransferFeeConfig` instructions', () => {
@@ -208,5 +212,42 @@ describe('transferFee', () => {
             const fee = calculateEpochFee(transferFeeConfig, epoch, preFeeAmount);
             expect(fee).to.eql(4n);
         });
+    });
+});
+
+describe('transfer fee config state', () => {
+    const fees = {
+        withheldAmount: 11n,
+        olderTransferFee: { epoch: 12n, maximumFee: 13n, transferFeeBasisPoints: 14 },
+        newerTransferFee: { epoch: 15n, maximumFee: 16n, transferFeeBasisPoints: 17 },
+    };
+    const presentTransferFeeConfigAuthority = PublicKey.unique();
+    const presentWithdrawWithheldAuthority = PublicKey.unique();
+
+    for (const transferFeeConfigAuthority of [presentTransferFeeConfigAuthority, null]) {
+        for (const withdrawWithheldAuthority of [presentWithdrawWithheldAuthority, null]) {
+            it(`decodes ${transferFeeConfigAuthority ? 'present' : 'absent'} config authority and ${withdrawWithheldAuthority ? 'present' : 'absent'} withdraw authority`, () => {
+                const rawState = {
+                    ...fees,
+                    transferFeeConfigAuthority: transferFeeConfigAuthority ?? PublicKey.default,
+                    withdrawWithheldAuthority: withdrawWithheldAuthority ?? PublicKey.default,
+                };
+                const tlvData = Buffer.alloc(4 + TransferFeeConfigLayout.span);
+                tlvData.writeUInt16LE(ExtensionType.TransferFeeConfig, 0);
+                tlvData.writeUInt16LE(TransferFeeConfigLayout.span, 2);
+                TransferFeeConfigLayout.encode(rawState, tlvData, 4);
+
+                expect(TransferFeeConfigLayout.decode(tlvData, 4)).to.eql(rawState);
+                expect(getTransferFeeConfig({ tlvData } as Mint)).to.eql({
+                    ...fees,
+                    transferFeeConfigAuthority,
+                    withdrawWithheldAuthority,
+                });
+            });
+        }
+    }
+
+    it('returns null when the extension is absent', () => {
+        expect(getTransferFeeConfig({ tlvData: Buffer.alloc(0) } as Mint)).to.equal(null);
     });
 });
