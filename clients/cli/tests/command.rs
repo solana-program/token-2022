@@ -93,7 +93,7 @@ macro_rules! async_trial {
         Trial::test(stringify!($test_func), move || {
             std::thread::Builder::new()
                 .name(stringify!($test_func).to_string())
-                .stack_size(3 * 1024 * 1024)
+                .stack_size(4 * 1024 * 1024)
                 .spawn(move || {
                     tokio::runtime::Builder::new_current_thread()
                         .enable_all()
@@ -5473,12 +5473,28 @@ async fn withdraw_withheld_confidential_tokens_custom_keys(
             &destination.to_string(),
             &fee_account.to_string(),
             "--confidential",
-            "--elgamal-keypair",
-            elgamal_file.path().to_str().unwrap(),
-            "--aes-key",
-            aes_file.path().to_str().unwrap(),
-            "--destination-elgamal-keypair",
+            "--withdraw-withheld-authority-elgamal-keypair",
             wrong_elgamal_file.path().to_str().unwrap(),
+            "--destination-aes-key",
+            aes_file.path().to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("withdraw withheld authority's ElGamal key does not match the mint"));
+
+    let error = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::WithdrawWithheldTokens.into(),
+            &destination.to_string(),
+            &fee_account.to_string(),
+            "--confidential",
+            "--withdraw-withheld-authority-elgamal-keypair",
+            elgamal_file.path().to_str().unwrap(),
             "--destination-aes-key",
             wrong_aes_file.path().to_str().unwrap(),
         ],
@@ -5486,7 +5502,7 @@ async fn withdraw_withheld_confidential_tokens_custom_keys(
     .await
     .unwrap_err()
     .to_string();
-    assert!(error.contains("does not match the encryption key"));
+    assert!(error.contains("Could not decrypt the recipient's available balance"));
 
     process_test_command(
         &config,
@@ -5497,11 +5513,7 @@ async fn withdraw_withheld_confidential_tokens_custom_keys(
             &destination.to_string(),
             &fee_account.to_string(),
             "--confidential",
-            "--elgamal-keypair",
-            elgamal_file.path().to_str().unwrap(),
-            "--aes-key",
-            aes_file.path().to_str().unwrap(),
-            "--destination-elgamal-keypair",
+            "--withdraw-withheld-authority-elgamal-keypair",
             elgamal_file.path().to_str().unwrap(),
             "--destination-aes-key",
             aes_file.path().to_str().unwrap(),

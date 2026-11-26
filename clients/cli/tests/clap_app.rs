@@ -164,6 +164,7 @@ fn confidential_operation_keys_require_both_flags() {
     }
 
     let matches = app
+        .clone()
         .try_get_matches_from([
             "spl-token",
             "apply-pending-balance",
@@ -182,4 +183,39 @@ fn confidential_operation_keys_require_both_flags() {
         matches.subcommand().unwrap().1.value_of("aes_key"),
         Some("aes.bin"),
     );
+
+    // The withdraw withheld authority only has an ElGamal key, and the fee
+    // recipient only needs its AES key.
+    let matches = app
+        .clone()
+        .try_get_matches_from([
+            "spl-token",
+            "withdraw-withheld-tokens",
+            &account,
+            "--include-mint",
+            "--confidential",
+            "--withdraw-withheld-authority-elgamal-keypair",
+            "elgamal.json",
+            "--destination-aes-key",
+            "aes.bin",
+        ])
+        .unwrap();
+    let sub_matches = matches.subcommand().unwrap().1;
+    assert_eq!(
+        sub_matches.value_of("withdraw_withheld_authority_elgamal_keypair"),
+        Some("elgamal.json"),
+    );
+    assert_eq!(sub_matches.value_of("destination_aes_key"), Some("aes.bin"));
+    let error = app
+        .try_get_matches_from([
+            "spl-token",
+            "withdraw-withheld-tokens",
+            &account,
+            "--include-mint",
+            "--confidential",
+            "--elgamal-keypair",
+            "elgamal.json",
+        ])
+        .unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::UnknownArgument);
 }

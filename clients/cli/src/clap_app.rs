@@ -319,7 +319,6 @@ pub fn confidential_elgamal_keypair_arg<'a>() -> Arg<'a> {
         .long("elgamal-keypair")
         .takes_value(true)
         .value_name("FILE")
-        .requires("decrypt")
         .requires("aes_key")
         .help("Use an ElGamal keypair file instead of deriving keys from a signer. The keypair must match the confidential key stored on-chain.")
 }
@@ -329,57 +328,29 @@ pub fn confidential_aes_key_arg<'a>() -> Arg<'a> {
         .long("aes-key")
         .takes_value(true)
         .value_name("FILE")
-        .requires("decrypt")
         .requires("elgamal_keypair")
         .help("Use an AES key file instead of deriving keys from a signer. Provide this together with --elgamal-keypair.")
 }
 
-pub fn confidential_operation_elgamal_keypair_arg<'a>() -> Arg<'a> {
-    Arg::with_name("elgamal_keypair")
-        .long("elgamal-keypair")
+pub fn withdraw_withheld_authority_elgamal_keypair_arg<'a>() -> Arg<'a> {
+    Arg::with_name("withdraw_withheld_authority_elgamal_keypair")
+        .long("withdraw-withheld-authority-elgamal-keypair")
         .takes_value(true)
         .value_name("FILE")
-        .requires("aes_key")
-        .help(
-            "Use an ElGamal keypair file instead of deriving keys from a signer. \
-             The keypair must match the confidential key stored on-chain, except when \
-             configuring a new confidential transfer account. Provide this together with --aes-key.",
-        )
-}
-
-pub fn confidential_operation_aes_key_arg<'a>() -> Arg<'a> {
-    Arg::with_name("aes_key")
-        .long("aes-key")
-        .takes_value(true)
-        .value_name("FILE")
-        .requires("elgamal_keypair")
-        .help("Use an AES key file instead of deriving keys from a signer. Provide this together with --elgamal-keypair.")
-}
-
-pub fn confidential_destination_elgamal_keypair_arg<'a>() -> Arg<'a> {
-    Arg::with_name("destination_elgamal_keypair")
-        .long("destination-elgamal-keypair")
-        .takes_value(true)
-        .value_name("FILE")
-        .requires("destination_aes_key")
         .requires("confidential")
         .help(
-            "The destination account ElGamal keypair file when withdrawing confidential fees. \
-             Defaults to the keypair derived from --owner. Provide this together with --destination-aes-key.",
+            "The withdraw withheld authority's ElGamal keypair file. \
+             Defaults to the keypair derived from the withdraw withheld authority.",
         )
 }
 
-pub fn confidential_destination_aes_key_arg<'a>() -> Arg<'a> {
+pub fn destination_aes_key_arg<'a>() -> Arg<'a> {
     Arg::with_name("destination_aes_key")
         .long("destination-aes-key")
         .takes_value(true)
         .value_name("FILE")
-        .requires("destination_elgamal_keypair")
         .requires("confidential")
-        .help(
-            "The destination account AES key file when withdrawing confidential fees. \
-             Defaults to the key derived from --owner. Provide this together with --destination-elgamal-keypair.",
-        )
+        .help("The fee recipient account's AES key file. Defaults to the key derived from --owner.")
 }
 
 pub fn mint_address_arg<'a>() -> Arg<'a> {
@@ -1473,8 +1444,8 @@ pub fn app<'a>(
                         .help("Send tokens confidentially. Both sender and recipient accounts must \
                             be pre-configured for confidential transfers.")
                 )
-                .arg(confidential_operation_elgamal_keypair_arg().requires("confidential"))
-                .arg(confidential_operation_aes_key_arg().requires("confidential"))
+                .arg(confidential_elgamal_keypair_arg().requires("confidential"))
+                .arg(confidential_aes_key_arg().requires("confidential"))
                 .arg(multisig_signer_arg())
                 .arg(mint_decimals_arg())
                 .nonce_args(true)
@@ -1527,8 +1498,8 @@ pub fn app<'a>(
                     .help("Burn tokens confidentially. Required for \
                             offline signing on confidential mints."),
                 )
-                .arg(confidential_operation_elgamal_keypair_arg())
-                .arg(confidential_operation_aes_key_arg())
+                .arg(confidential_elgamal_keypair_arg())
+                .arg(confidential_aes_key_arg())
                 .arg(multisig_signer_arg())
                 .mint_args()
                 .nonce_args(true)
@@ -1982,8 +1953,8 @@ pub fn app<'a>(
                         .takes_value(false)
                         .help("Decrypt the confidential balances using keys derived from the owner keypair, which defaults to the client keypair."),
                 )
-                .arg(confidential_elgamal_keypair_arg())
-                .arg(confidential_aes_key_arg()),
+                .arg(confidential_elgamal_keypair_arg().requires("decrypt"))
+                .arg(confidential_aes_key_arg().requires("decrypt")),
         )
         .subcommand(
             SubCommand::with_name(CommandName::Supply.into())
@@ -2003,8 +1974,8 @@ pub fn app<'a>(
                         .takes_value(false)
                         .help("Decrypt the confidential supply using keys derived from the supply keypair, which defaults to the client keypair."),
                 )
-                .arg(confidential_elgamal_keypair_arg().conflicts_with("owner"))
-                .arg(confidential_aes_key_arg().conflicts_with("owner"))
+                .arg(confidential_elgamal_keypair_arg().requires("decrypt").conflicts_with("owner"))
+                .arg(confidential_aes_key_arg().requires("decrypt").conflicts_with("owner"))
                 .arg(owner_keypair_arg()),
         )
         .subcommand(
@@ -2141,8 +2112,8 @@ pub fn app<'a>(
                             defaults to the client keypair. Note that the auditor key cannot \
                             decrypt account balances, only transfer amounts."),
                 )
-                .arg(confidential_elgamal_keypair_arg().conflicts_with("owner"))
-                .arg(confidential_aes_key_arg().conflicts_with("owner"))
+                .arg(confidential_elgamal_keypair_arg().requires("decrypt").conflicts_with("owner"))
+                .arg(confidential_aes_key_arg().requires("decrypt").conflicts_with("owner"))
                 .arg(owner_keypair_arg()),
         )
         .subcommand(
@@ -2474,10 +2445,8 @@ pub fn app<'a>(
                         ),
                 )
                 .arg(owner_keypair_arg_with_value_name("FEE_RECIPIENT_OWNER_KEYPAIR"))
-                .arg(confidential_operation_elgamal_keypair_arg().requires("confidential"))
-                .arg(confidential_operation_aes_key_arg().requires("confidential"))
-                .arg(confidential_destination_elgamal_keypair_arg())
-                .arg(confidential_destination_aes_key_arg())
+                .arg(withdraw_withheld_authority_elgamal_keypair_arg())
+                .arg(destination_aes_key_arg())
                 .arg(multisig_signer_arg())
                 // The account_group ArgGroup ensures <FEE_RECIPIENT_ADDRESS> appears as the first argument in the --help output. Without it, <SOURCE_ADDRESS|--include-mint> would be incorrectly prioritized due to clap’s handling of ArgGroups.
                 .group(
@@ -2740,8 +2709,13 @@ pub fn app<'a>(
                         .help("Configure using an existing ElGamal registry account. \
                             Does not require the owner's signature. The fee payer funds any account reallocation.")
                 )
-                .arg(confidential_operation_elgamal_keypair_arg().conflicts_with("elgamal_registry"))
-                .arg(confidential_operation_aes_key_arg().conflicts_with("elgamal_registry"))
+                .arg(
+                    confidential_elgamal_keypair_arg()
+                        .conflicts_with("elgamal_registry")
+                        .help("Use an ElGamal keypair file instead of deriving keys from a signer. \
+                            The account is configured with this key. Provide this together with --aes-key."),
+                )
+                .arg(confidential_aes_key_arg().conflicts_with("elgamal_registry"))
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
         )
@@ -2806,8 +2780,8 @@ pub fn app<'a>(
                             [default: owner's associated token account]")
                 )
                 .arg(owner_address_arg())
-                .arg(confidential_operation_elgamal_keypair_arg())
-                .arg(confidential_operation_aes_key_arg())
+                .arg(confidential_elgamal_keypair_arg())
+                .arg(confidential_aes_key_arg())
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
         )
@@ -2999,8 +2973,8 @@ pub fn app<'a>(
                 .arg(
                     owner_address_arg()
                 )
-                .arg(confidential_operation_elgamal_keypair_arg())
-                .arg(confidential_operation_aes_key_arg())
+                .arg(confidential_elgamal_keypair_arg())
+                .arg(confidential_aes_key_arg())
                 .arg(multisig_signer_arg())
                 .arg(mint_decimals_arg())
                 .nonce_args(true)
@@ -3029,8 +3003,8 @@ pub fn app<'a>(
                 .arg(
                     owner_address_arg()
                 )
-                .arg(confidential_operation_elgamal_keypair_arg())
-                .arg(confidential_operation_aes_key_arg())
+                .arg(confidential_elgamal_keypair_arg())
+                .arg(confidential_aes_key_arg())
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
         )

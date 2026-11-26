@@ -1328,7 +1328,7 @@ async fn command_transfer(
     no_wait: bool,
     allow_non_system_account_recipient: bool,
     transfer_hook_accounts: Option<Vec<AccountMeta>>,
-    confidential_transfer_args: Option<&ConfidentialTransferArgs>,
+    confidential_transfer_args: Option<ConfidentialTransferArgs>,
 ) -> CommandResult {
     let mint_info = config
         .get_mint_info(&token_pubkey, mint_decimals, None)
@@ -1592,7 +1592,7 @@ async fn command_transfer(
 
     // fetch confidential transfer info for recipient and auditor
     let (recipient_elgamal_pubkey, auditor_elgamal_pubkey) = if let Some(args) =
-        confidential_transfer_args
+        &confidential_transfer_args
     {
         if !config.sign_only {
             // we can use the mint data from the start of the function, but will require
@@ -1721,8 +1721,9 @@ async fn command_transfer(
             let extension = state
                 .get_extension::<ConfidentialTransferAccount>()
                 .unwrap();
-            validate_confidential_keypair_matches(
-                &args.sender_elgamal_keypair,
+            let (sender_elgamal_keypair, sender_aes_key) = confidential_keys_matching(
+                args.sender_keys,
+                args.sender_signer.as_ref(),
                 &extension.elgamal_pubkey,
             )?;
             let transfer_account_info = TransferAccountInfo::new(extension);
@@ -1734,8 +1735,8 @@ async fn command_transfer(
             } = transfer_account_info
                 .generate_split_transfer_proof_data(
                     transfer_balance,
-                    &args.sender_elgamal_keypair,
-                    &args.sender_aes_key,
+                    &sender_elgamal_keypair,
+                    &sender_aes_key,
                     &recipient_elgamal_pubkey,
                     auditor_elgamal_pubkey.as_ref(),
                 )
@@ -1835,8 +1836,8 @@ async fn command_transfer(
                     Some(&range_proof_pubkey),
                     transfer_balance,
                     Some(transfer_account_info),
-                    &args.sender_elgamal_keypair,
-                    &args.sender_aes_key,
+                    &sender_elgamal_keypair,
+                    &sender_aes_key,
                     &recipient_elgamal_pubkey,
                     auditor_elgamal_pubkey.as_ref(),
                     &bulk_signers,
@@ -1958,8 +1959,9 @@ async fn command_transfer(
             let extension = state
                 .get_extension::<ConfidentialTransferAccount>()
                 .unwrap();
-            validate_confidential_keypair_matches(
-                &args.sender_elgamal_keypair,
+            let (sender_elgamal_keypair, sender_aes_key) = confidential_keys_matching(
+                args.sender_keys,
+                args.sender_signer.as_ref(),
                 &extension.elgamal_pubkey,
             )?;
             let transfer_account_info = TransferAccountInfo::new(extension);
@@ -1973,8 +1975,8 @@ async fn command_transfer(
             } = transfer_account_info
                 .generate_split_transfer_with_fee_proof_data(
                     transfer_balance,
-                    &args.sender_elgamal_keypair,
-                    &args.sender_aes_key,
+                    &sender_elgamal_keypair,
+                    &sender_aes_key,
                     &recipient_elgamal_pubkey,
                     auditor_elgamal_pubkey.as_ref(),
                     &withdraw_withheld_authority_elgamal_pubkey,
@@ -2105,8 +2107,8 @@ async fn command_transfer(
                     Some(&range_proof_pubkey),
                     transfer_balance,
                     Some(transfer_account_info),
-                    &args.sender_elgamal_keypair,
-                    &args.sender_aes_key,
+                    &sender_elgamal_keypair,
+                    &sender_aes_key,
                     &recipient_elgamal_pubkey,
                     auditor_elgamal_pubkey.as_ref(),
                     &withdraw_withheld_authority_elgamal_pubkey,
@@ -2218,8 +2220,7 @@ async fn command_burn(
     account: Pubkey,
     owner: Pubkey,
     ui_amount: Amount,
-    mint_address: Option<Pubkey>,
-    mint_decimals: Option<u8>,
+    mint_info: MintInfo,
     use_unchecked_instruction: bool,
     permissioned_burn_authority: Option<Pubkey>,
     memo: Option<String>,
@@ -2228,10 +2229,6 @@ async fn command_burn(
     account_keys: Option<(ElGamalKeypair, AeKey)>,
     owner_signer: Arc<dyn Signer>,
 ) -> CommandResult {
-    let mint_address = config.check_account(&account, mint_address).await?;
-    let mint_info = config
-        .get_mint_info(&mint_address, mint_decimals, Some(confidential))
-        .await?;
     let decimals = if use_unchecked_instruction {
         None
     } else {
@@ -2242,18 +2239,11 @@ async fn command_burn(
 
     let use_confidential = confidential || mint_info.has_confidential_mint_burn;
 
-    let confidential_burn_args = if use_confidential {
-        Some(match account_keys {
-            Some(keys) => keys,
-            None => derive_confidential_keys(owner_signer.as_ref()).map_err(|e| e.to_string())?,
-        })
-    } else if account_keys.is_some() {
+    if !use_confidential && account_keys.is_some() {
         return Err(
             "`--elgamal-keypair` and `--aes-key` can only be used for a confidential burn".into(),
         );
-    } else {
-        None
-    };
+    }
 
     let amount = match ui_amount {
         Amount::Raw(ui_amount) => ui_amount,
@@ -2281,11 +2271,11 @@ async fn command_burn(
 
     // The next transaction sent takes the memo, so confidential burns attach
     // it after the proof setup.
-    if confidential_burn_args.is_none() {
+    if !use_confidential {
         attach_memo(&token, memo.as_deref(), &bulk_signers);
     }
 
-    if let Some((source_elgamal_keypair, source_aes_key)) = confidential_burn_args {
+    if use_confidential {
         // Fetch mint info to get auditor and supply pubkeys
         let mint_account = config.get_account_checked(&mint_info.address).await?;
         let mint_state = StateWithExtensionsOwned::<Mint>::unpack(mint_account.data)
@@ -2315,8 +2305,9 @@ async fn command_burn(
         let source_extension = source_state
             .get_extension::<ConfidentialTransferAccount>()
             .unwrap();
-        validate_confidential_keypair_matches(
-            &source_elgamal_keypair,
+        let (source_elgamal_keypair, source_aes_key) = confidential_keys_matching(
+            account_keys,
+            owner_signer.as_ref(),
             &source_extension.elgamal_pubkey,
         )?;
         let burn_account_info = BurnAccountInfo::new(source_extension);
@@ -3507,21 +3498,13 @@ fn derive_confidential_keys(
 fn custom_confidential_keys_of(
     arg_matches: &ArgMatches,
 ) -> Result<Option<(ElGamalKeypair, AeKey)>, Error> {
-    custom_confidential_keys_of_named(arg_matches, "elgamal_keypair", "aes_key")
-}
-
-fn custom_confidential_keys_of_named(
-    arg_matches: &ArgMatches,
-    elgamal_keypair_arg: &str,
-    aes_key_arg: &str,
-) -> Result<Option<(ElGamalKeypair, AeKey)>, Error> {
-    if arg_matches.value_of(elgamal_keypair_arg).is_none() {
+    if arg_matches.value_of("elgamal_keypair").is_none() {
         return Ok(None);
     }
 
-    let elgamal_keypair = elgamal_keypair_of(arg_matches, elgamal_keypair_arg)
+    let elgamal_keypair = elgamal_keypair_of(arg_matches, "elgamal_keypair")
         .map_err(|err| format!("Failed to read ElGamal keypair: {err}"))?;
-    let aes_key = aes_key_of(arg_matches, aes_key_arg)
+    let aes_key = aes_key_of(arg_matches, "aes_key")
         .map_err(|err| format!("Failed to read AES key: {err}"))?;
     Ok(Some((elgamal_keypair, aes_key)))
 }
@@ -3570,6 +3553,22 @@ fn validate_confidential_keypair_matches(
         expected_elgamal_pubkey
     )
     .into())
+}
+
+/// Checks custom keys against the encryption key stored on-chain, or derives
+/// the keys from `signer` if no key files were passed.
+fn confidential_keys_matching(
+    custom_keys: Option<(ElGamalKeypair, AeKey)>,
+    signer: &dyn Signer,
+    expected_elgamal_pubkey: &PodElGamalPubkey,
+) -> Result<(ElGamalKeypair, AeKey), Error> {
+    match custom_keys {
+        Some(keys) => {
+            validate_confidential_keypair_matches(&keys.0, expected_elgamal_pubkey)?;
+            Ok(keys)
+        }
+        None => derive_confidential_keys_matching(signer, expected_elgamal_pubkey),
+    }
 }
 
 /// Decrypts the pending and available balances using custom key files or keys
@@ -4354,7 +4353,6 @@ async fn command_withdraw_withheld_confidential_tokens(
     authority: Pubkey,
     include_mint: bool,
     withdraw_withheld_elgamal_keypair: &ElGamalKeypair,
-    destination_elgamal_keypair: &ElGamalKeypair,
     destination_aes_key: &AeKey,
     known_amount: Option<Amount>,
     bulk_signers: BulkSigners,
@@ -4376,11 +4374,6 @@ async fn command_withdraw_withheld_confidential_tokens(
         )
         .into());
     }
-    let destination_extension = destination_state.get_extension::<ConfidentialTransferAccount>()?;
-    validate_confidential_keypair_matches(
-        destination_elgamal_keypair,
-        &destination_extension.elgamal_pubkey,
-    )?;
     let mint_address = destination_state.base.mint;
     if source_token_accounts.contains(&mint_address) {
         return Err(format!(
@@ -4841,14 +4834,19 @@ async fn command_empty_confidential_transfer_account(
     config: &Config<'_>,
     account: Pubkey,
     owner: Pubkey,
-    elgamal_keypair: &ElGamalKeypair,
+    custom_keys: Option<(ElGamalKeypair, AeKey)>,
+    owner_signer: Arc<dyn Signer>,
     bulk_signers: BulkSigners,
 ) -> CommandResult {
     let account_data = config.get_account_checked(&account).await?;
     let account_state = StateWithExtensionsOwned::<Account>::unpack(account_data.data)?;
     let token = token_client_from_config(config, &account_state.base.mint, None)?;
     let extension_state = account_state.get_extension::<ConfidentialTransferAccount>()?;
-    validate_confidential_keypair_matches(elgamal_keypair, &extension_state.elgamal_pubkey)?;
+    let (elgamal_keypair, _) = confidential_keys_matching(
+        custom_keys,
+        owner_signer.as_ref(),
+        &extension_state.elgamal_pubkey,
+    )?;
     let account_info = EmptyAccountAccountInfo::new(extension_state);
 
     println_display(
@@ -4862,7 +4860,7 @@ async fn command_empty_confidential_transfer_account(
             &owner,
             None,
             Some(account_info),
-            elgamal_keypair,
+            &elgamal_keypair,
             &bulk_signers,
         )
         .await?;
@@ -5016,8 +5014,8 @@ async fn command_deposit_withdraw_confidential_tokens(
     ui_amount: Amount,
     mint_decimals: Option<u8>,
     instruction_type: ConfidentialInstructionType,
-    elgamal_keypair: Option<&ElGamalKeypair>,
-    aes_key: Option<&AeKey>,
+    custom_keys: Option<(ElGamalKeypair, AeKey)>,
+    owner_signer: Arc<dyn Signer>,
 ) -> CommandResult {
     if config.sign_only {
         if instruction_type == ConfidentialInstructionType::Withdraw {
@@ -5147,13 +5145,11 @@ async fn command_deposit_withdraw_confidential_tokens(
             format_transaction_return(config, finish_tx(config, &res, false).await?)
         }
         ConfidentialInstructionType::Withdraw => {
-            let elgamal_keypair = elgamal_keypair.expect("ElGamal keypair must be provided");
-            let aes_key = aes_key.expect("AES key must be provided");
-
             let extension_state =
                 state_with_extension.get_extension::<ConfidentialTransferAccount>()?;
-            validate_confidential_keypair_matches(
-                elgamal_keypair,
+            let (elgamal_keypair, aes_key) = confidential_keys_matching(
+                custom_keys,
+                owner_signer.as_ref(),
                 &extension_state.elgamal_pubkey,
             )?;
             let withdraw_account_info = WithdrawAccountInfo::new(extension_state);
@@ -5167,7 +5163,7 @@ async fn command_deposit_withdraw_confidential_tokens(
             let WithdrawProofData {
                 equality_proof_data,
                 range_proof_data,
-            } = withdraw_account_info.generate_proof_data(amount, elgamal_keypair, aes_key)?;
+            } = withdraw_account_info.generate_proof_data(amount, &elgamal_keypair, &aes_key)?;
 
             // set up context state accounts
             let context_state_authority_pubkey = context_state_authority.pubkey();
@@ -5235,8 +5231,8 @@ async fn command_deposit_withdraw_confidential_tokens(
                     amount,
                     decimals,
                     Some(withdraw_account_info),
-                    elgamal_keypair,
-                    aes_key,
+                    &elgamal_keypair,
+                    &aes_key,
                     &bulk_signers,
                 )
                 .await;
@@ -5297,8 +5293,8 @@ async fn command_apply_pending_balance(
     owner: Pubkey,
     maybe_account: Option<Pubkey>,
     bulk_signers: BulkSigners,
-    elgamal_keypair: &ElGamalKeypair,
-    aes_key: &AeKey,
+    custom_keys: Option<(ElGamalKeypair, AeKey)>,
+    owner_signer: Arc<dyn Signer>,
 ) -> CommandResult {
     if config.sign_only {
         panic!("Sign-only is not yet supported.");
@@ -5321,7 +5317,11 @@ async fn command_apply_pending_balance(
 
     let mut extension_state =
         *state_with_extension.get_extension::<ConfidentialTransferAccount>()?;
-    validate_confidential_keypair_matches(elgamal_keypair, &extension_state.elgamal_pubkey)?;
+    let (elgamal_keypair, aes_key) = confidential_keys_matching(
+        custom_keys,
+        owner_signer.as_ref(),
+        &extension_state.elgamal_pubkey,
+    )?;
     // Registry configuration cannot initialize the balance without the owner's AES key.
     if extension_state.decryptable_available_balance == PodAeCiphertext::default()
         && extension_state.available_balance == PodElGamalCiphertext::default()
@@ -5336,7 +5336,7 @@ async fn command_apply_pending_balance(
             &owner,
             Some(account_info),
             elgamal_keypair.secret(),
-            aes_key,
+            &aes_key,
             &bulk_signers,
         )
         .await?;
@@ -5619,8 +5619,8 @@ async fn command_pause_resume(
 }
 
 struct ConfidentialTransferArgs {
-    sender_elgamal_keypair: ElGamalKeypair,
-    sender_aes_key: AeKey,
+    sender_keys: Option<(ElGamalKeypair, AeKey)>,
+    sender_signer: Arc<dyn Signer>,
     recipient_elgamal_pubkey: Option<PodElGamalPubkey>,
     auditor_elgamal_pubkey: Option<PodElGamalPubkey>,
 }
@@ -5632,13 +5632,13 @@ pub async fn process_command(
     wallet_manager: Option<Rc<RemoteWalletManager>>,
     bulk_signers: Vec<Arc<dyn Signer>>,
 ) -> CommandResult {
+    // Mint and burn are only confidential on some mints, so they set up
+    // reporting after fetching the mint.
     let report_transactions = !config.sign_only
         && (matches!(
             sub_command,
             CommandName::ConfigureConfidentialTransferAccount
                 | CommandName::WithdrawConfidentialTokens
-                | CommandName::Mint
-                | CommandName::Burn
         ) || (matches!(sub_command, CommandName::Transfer)
             && sub_matches.is_present("confidential")));
     if !report_transactions {
@@ -5652,11 +5652,7 @@ pub async fn process_command(
         .await;
     }
 
-    let client = Arc::new(ReportingClient::new(config.program_client.clone()));
-    let config = Config {
-        program_client: client.clone(),
-        ..config.clone()
-    };
+    let (config, client) = reporting_config(config);
     process_command_inner(
         sub_command,
         sub_matches,
@@ -5665,11 +5661,24 @@ pub async fn process_command(
         bulk_signers,
     )
     .await
-    .inspect_err(|error| {
-        if let Some(report) = client.report(error) {
-            println!("{}", config.output_format.formatted_string(&report));
-        }
-    })
+    .inspect_err(|error| print_transaction_report(&config, &client, error))
+}
+
+/// Returns a config whose client records the transactions sent, so a failed
+/// confidential command can print their signatures.
+fn reporting_config<'a>(config: &Config<'a>) -> (Config<'a>, Arc<ReportingClient>) {
+    let client = Arc::new(ReportingClient::new(config.program_client.clone()));
+    let config = Config {
+        program_client: client.clone(),
+        ..config.clone()
+    };
+    (config, client)
+}
+
+fn print_transaction_report(config: &Config<'_>, client: &ReportingClient, error: &Error) {
+    if let Some(report) = client.report(error) {
+        println!("{}", config.output_format.formatted_string(&report));
+    }
 }
 
 async fn process_command_inner(
@@ -6039,14 +6048,11 @@ async fn process_command_inner(
                 config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
 
             let confidential_transfer_args = if arg_matches.is_present("confidential") {
-                let (sender_elgamal_keypair, sender_aes_key) =
-                    confidential_keys_from_matches_or_signer(arg_matches, owner_signer.as_ref())?;
-
                 // Sign-only mode is not yet supported for confidential transfers, so set
                 // recipient and auditor ElGamal public to `None` by default.
                 Some(ConfidentialTransferArgs {
-                    sender_elgamal_keypair,
-                    sender_aes_key,
+                    sender_keys: custom_confidential_keys_of(arg_matches)?,
+                    sender_signer: owner_signer.clone(),
                     recipient_elgamal_pubkey: None,
                     auditor_elgamal_pubkey: None,
                 })
@@ -6096,7 +6102,7 @@ async fn process_command_inner(
                 arg_matches.is_present("no_wait"),
                 arg_matches.is_present("allow_non_system_account_recipient"),
                 transfer_hook_accounts,
-                confidential_transfer_args.as_ref(),
+                confidential_transfer_args,
             )
             .await
         }
@@ -6129,13 +6135,19 @@ async fn process_command_inner(
             let memo = value_t!(arg_matches, "memo", String).ok();
             let confidential = arg_matches.is_present("confidential");
             let account_keys = custom_confidential_keys_of(arg_matches)?;
+            let mint_address = config.check_account(&account, mint_address).await?;
+            let mint_info = config
+                .get_mint_info(&mint_address, mint_decimals, Some(confidential))
+                .await?;
+            let use_confidential = confidential || mint_info.has_confidential_mint_burn;
+            let reporting =
+                (use_confidential && !config.sign_only).then(|| reporting_config(config));
             command_burn(
-                config,
+                reporting.as_ref().map_or(config, |(config, _)| config),
                 account,
                 owner,
                 amount,
-                mint_address,
-                mint_decimals,
+                mint_info,
                 use_unchecked_instruction,
                 permissioned_burn_authority,
                 memo,
@@ -6145,6 +6157,11 @@ async fn process_command_inner(
                 owner_signer_for_keys,
             )
             .await
+            .inspect_err(|error| {
+                if let Some((config, client)) = &reporting {
+                    print_transaction_report(config, client, error);
+                }
+            })
         }
         (CommandName::Mint, arg_matches) => {
             let (mint_authority_signer, mint_authority) =
@@ -6182,8 +6199,11 @@ async fn process_command_inner(
             let use_unchecked_instruction = arg_matches.is_present("use_unchecked_instruction");
             let memo = value_t!(arg_matches, "memo", String).ok();
             let supply_keys = custom_confidential_keys_of(arg_matches)?;
+            let use_confidential = confidential || mint_info.has_confidential_mint_burn;
+            let reporting =
+                (use_confidential && !config.sign_only).then(|| reporting_config(config));
             command_mint(
-                config,
+                reporting.as_ref().map_or(config, |(config, _)| config),
                 token,
                 amount,
                 recipient,
@@ -6196,6 +6216,11 @@ async fn process_command_inner(
                 supply_keys,
             )
             .await
+            .inspect_err(|error| {
+                if let Some((config, client)) = &reporting {
+                    print_transaction_report(config, client, error);
+                }
+            })
         }
         (CommandName::Freeze, arg_matches) => {
             let (freeze_authority_signer, freeze_authority) =
@@ -6652,23 +6677,26 @@ async fn process_command_inner(
                 .map(|s| Pubkey::from_str(s).unwrap_or_else(print_error_and_exit))
                 .collect::<Vec<_>>();
             if arg_matches.is_present("confidential") {
-                let (withdraw_withheld_elgamal_keypair, _) =
-                    confidential_keys_from_matches_or_signer(
-                        arg_matches,
-                        authority_signer.as_ref(),
-                    )?;
+                let withdraw_withheld_elgamal_keypair = if arg_matches
+                    .is_present("withdraw_withheld_authority_elgamal_keypair")
+                {
+                    elgamal_keypair_of(arg_matches, "withdraw_withheld_authority_elgamal_keypair")
+                        .map_err(|err| format!("Failed to read ElGamal keypair: {err}"))?
+                } else {
+                    derive_confidential_keys(&*authority_signer)
+                        .map_err(|err| err.to_string())?
+                        .0
+                };
                 let (owner_signer, owner) =
                     config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
-                let (destination_elgamal_keypair, destination_aes_key) =
-                    match custom_confidential_keys_of_named(
-                        arg_matches,
-                        "destination_elgamal_keypair",
-                        "destination_aes_key",
-                    )? {
-                        Some(keys) => keys,
-                        None => derive_confidential_keys(owner_signer.as_ref())
-                            .map_err(|err| err.to_string())?,
-                    };
+                let destination_aes_key = if arg_matches.is_present("destination_aes_key") {
+                    aes_key_of(arg_matches, "destination_aes_key")
+                        .map_err(|err| format!("Failed to read AES key: {err}"))?
+                } else {
+                    derive_confidential_keys(&*owner_signer)
+                        .map_err(|err| err.to_string())?
+                        .1
+                };
 
                 command_withdraw_withheld_confidential_tokens(
                     config,
@@ -6678,7 +6706,6 @@ async fn process_command_inner(
                     authority,
                     include_mint,
                     &withdraw_withheld_elgamal_keypair,
-                    &destination_elgamal_keypair,
                     &destination_aes_key,
                     arg_matches.get_one::<Amount>("amount").copied(),
                     bulk_signers,
@@ -6895,18 +6922,18 @@ async fn process_command_inner(
             let (owner_signer, owner) =
                 config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
 
-            let (elgamal_keypair, _) =
-                confidential_keys_from_matches_or_signer(arg_matches, owner_signer.as_ref())?;
+            let custom_keys = custom_confidential_keys_of(arg_matches)?;
 
             if config.multisigner_pubkeys.is_empty() {
-                push_signer_with_dedup(owner_signer, &mut bulk_signers);
+                push_signer_with_dedup(owner_signer.clone(), &mut bulk_signers);
             }
 
             command_empty_confidential_transfer_account(
                 config,
                 account,
                 owner,
-                &elgamal_keypair,
+                custom_keys,
+                owner_signer,
                 bulk_signers,
             )
             .await
@@ -6957,27 +6984,19 @@ async fn process_command_inner(
                 config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
             let mint_decimals = arg_matches.get_one::<u8>(MINT_DECIMALS_ARG.name).copied();
 
-            let (instruction_type, elgamal_keypair, aes_key) = match c {
+            let (instruction_type, custom_keys) = match c {
                 CommandName::DepositConfidentialTokens => {
-                    (ConfidentialInstructionType::Deposit, None, None)
+                    (ConfidentialInstructionType::Deposit, None)
                 }
-                CommandName::WithdrawConfidentialTokens => {
-                    let (elgamal_keypair, aes_key) = confidential_keys_from_matches_or_signer(
-                        arg_matches,
-                        owner_signer.as_ref(),
-                    )?;
-
-                    (
-                        ConfidentialInstructionType::Withdraw,
-                        Some(elgamal_keypair),
-                        Some(aes_key),
-                    )
-                }
+                CommandName::WithdrawConfidentialTokens => (
+                    ConfidentialInstructionType::Withdraw,
+                    custom_confidential_keys_of(arg_matches)?,
+                ),
                 _ => panic!("Instruction not supported"),
             };
 
             if config.multisigner_pubkeys.is_empty() {
-                push_signer_with_dedup(owner_signer, &mut bulk_signers);
+                push_signer_with_dedup(owner_signer.clone(), &mut bulk_signers);
             }
 
             command_deposit_withdraw_confidential_tokens(
@@ -6989,8 +7008,8 @@ async fn process_command_inner(
                 amount,
                 mint_decimals,
                 instruction_type,
-                elgamal_keypair.as_ref(),
-                aes_key.as_ref(),
+                custom_keys,
+                owner_signer,
             )
             .await
         }
@@ -7002,11 +7021,10 @@ async fn process_command_inner(
 
             let account = pubkey_of_signer(arg_matches, "address", &mut wallet_manager).unwrap();
 
-            let (elgamal_keypair, aes_key) =
-                confidential_keys_from_matches_or_signer(arg_matches, owner_signer.as_ref())?;
+            let custom_keys = custom_confidential_keys_of(arg_matches)?;
 
             if config.multisigner_pubkeys.is_empty() {
-                push_signer_with_dedup(owner_signer, &mut bulk_signers);
+                push_signer_with_dedup(owner_signer.clone(), &mut bulk_signers);
             }
 
             command_apply_pending_balance(
@@ -7015,8 +7033,8 @@ async fn process_command_inner(
                 owner,
                 account,
                 bulk_signers,
-                &elgamal_keypair,
-                &aes_key,
+                custom_keys,
+                owner_signer,
             )
             .await
         }
