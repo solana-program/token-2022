@@ -1,6 +1,7 @@
 import { Buffer } from 'buffer';
 import type { AccountMeta, Connection } from '@solana/web3.js';
 import { TokenTransferHookAccountDataNotFound, TokenTransferHookInvalidSeed } from '../../errors.js';
+import { fetchAccountData, type PreloadedAccounts } from './preloadedAccounts.js';
 
 interface Seed {
     data: Buffer;
@@ -62,6 +63,7 @@ async function unpackSeedAccountData(
     seeds: Uint8Array,
     previousMetas: AccountMeta[],
     connection: Connection,
+    preloadedAccounts?: PreloadedAccounts,
 ): Promise<Seed> {
     if (seeds.length < 3) {
         throw new TokenTransferHookInvalidSeed();
@@ -70,15 +72,15 @@ async function unpackSeedAccountData(
     if (previousMetas.length <= accountIndex) {
         throw new TokenTransferHookInvalidSeed();
     }
-    const accountInfo = await connection.getAccountInfo(previousMetas[accountIndex].pubkey);
-    if (accountInfo == null) {
+    const accountData = await fetchAccountData(connection, previousMetas[accountIndex].pubkey, preloadedAccounts);
+    if (accountData == null) {
         throw new TokenTransferHookAccountDataNotFound();
     }
-    if (accountInfo.data.length < dataIndex + length) {
+    if (accountData.length < dataIndex + length) {
         throw new TokenTransferHookInvalidSeed();
     }
     return {
-        data: accountInfo.data.subarray(dataIndex, dataIndex + length),
+        data: accountData.subarray(dataIndex, dataIndex + length),
         packedLength:
             DISCRIMINATOR_SPAN + ACCOUNT_DATA_ACCOUNT_INDEX_SPAN + ACCOUNT_DATA_OFFSET_SPAN + ACCOUNT_DATA_LENGTH_SPAN,
     };
@@ -89,6 +91,7 @@ async function unpackFirstSeed(
     previousMetas: AccountMeta[],
     instructionData: Buffer,
     connection: Connection,
+    preloadedAccounts?: PreloadedAccounts,
 ): Promise<Seed | null> {
     const [discriminator, ...rest] = seeds;
     const remaining = new Uint8Array(rest);
@@ -102,7 +105,7 @@ async function unpackFirstSeed(
         case 3:
             return unpackSeedAccountKey(remaining, previousMetas);
         case 4:
-            return unpackSeedAccountData(remaining, previousMetas, connection);
+            return unpackSeedAccountData(remaining, previousMetas, connection, preloadedAccounts);
         default:
             throw new TokenTransferHookInvalidSeed();
     }
@@ -113,11 +116,18 @@ export async function unpackSeeds(
     previousMetas: AccountMeta[],
     instructionData: Buffer,
     connection: Connection,
+    preloadedAccounts?: PreloadedAccounts,
 ): Promise<Buffer[]> {
     const unpackedSeeds: Buffer[] = [];
     let i = 0;
     while (i < 32) {
-        const seed = await unpackFirstSeed(seeds.slice(i), previousMetas, instructionData, connection);
+        const seed = await unpackFirstSeed(
+            seeds.slice(i),
+            previousMetas,
+            instructionData,
+            connection,
+            preloadedAccounts,
+        );
         if (seed == null) {
             break;
         }
