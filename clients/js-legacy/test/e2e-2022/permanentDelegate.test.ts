@@ -1,6 +1,5 @@
 import { expect } from 'chai';
-import type { Connection, Signer } from '@solana/web3.js';
-import { PublicKey } from '@solana/web3.js';
+import type { Connection, PublicKey, Signer } from '@solana/web3.js';
 import { sendAndConfirmTransaction, Keypair, SystemProgram, Transaction } from '@solana/web3.js';
 import {
     createAccount,
@@ -118,7 +117,7 @@ describe('permanentDelegate', () => {
         const permanentDelegateConfig = getPermanentDelegate(mintInfo);
         expect(permanentDelegateConfig).to.not.equal(null);
         if (permanentDelegateConfig !== null) {
-            expect(permanentDelegateConfig.delegate).to.eql(PublicKey.default);
+            expect(permanentDelegateConfig.delegate).to.equal(null);
         }
     });
 });

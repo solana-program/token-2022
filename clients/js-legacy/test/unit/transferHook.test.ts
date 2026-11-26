@@ -1,4 +1,4 @@
-import type { ExtraAccountMeta, ExtraAccountMetaList } from '../../src';
+import type { ExtraAccountMeta, ExtraAccountMetaList, Mint } from '../../src';
 import {
     ACCOUNT_SIZE,
     ACCOUNT_TYPE_SIZE,
@@ -13,9 +13,19 @@ import {
     TransferHookLayout,
     addExtraAccountMetasForExecute,
     createTransferCheckedWithTransferHookInstruction,
+    createTransferCheckedWithFeeAndTransferHookInstruction,
+    createTransferCheckedInstruction,
+    createTransferCheckedWithFeeInstruction,
     getExtraAccountMetaAddress,
     getExtraAccountMetas,
+    getTransferHook,
     resolveExtraAccountMeta,
+    TokenInstruction,
+    TransferHookInstruction,
+    createInitializeTransferHookInstruction,
+    createUpdateTransferHookInstruction,
+    initializeTransferHookInstructionData,
+    updateTransferHookInstructionData,
 } from '../../src';
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
@@ -25,6 +35,78 @@ import { getConnection } from '../common';
 use(chaiAsPromised);
 
 describe('transferHook', () => {
+    describe('transfer-hook optional instruction keys', () => {
+        const mint = PublicKey.unique();
+        const presentAuthority = PublicKey.unique();
+        const presentProgram = PublicKey.unique();
+
+        for (const authority of [null, presentAuthority, PublicKey.default]) {
+            for (const program of [null, presentProgram, PublicKey.default]) {
+                const authorityLabel =
+                    authority === null ? 'absent' : authority.equals(PublicKey.default) ? 'zero' : 'present';
+                const programLabel =
+                    program === null ? 'absent' : program.equals(PublicKey.default) ? 'zero' : 'present';
+                it('initializes with ' + authorityLabel + ' authority and ' + programLabel + ' program', () => {
+                    const instruction = createInitializeTransferHookInstruction(
+                        mint,
+                        authority,
+                        program,
+                        TOKEN_2022_PROGRAM_ID,
+                    );
+                    const rawAuthority = authority ?? PublicKey.default;
+                    const rawProgram = program ?? PublicKey.default;
+                    expect(instruction.data.length).to.equal(66);
+                    expect(instruction.data.subarray(2, 34)).to.eql(rawAuthority.toBuffer());
+                    expect(instruction.data.subarray(34, 66)).to.eql(rawProgram.toBuffer());
+                    expect(initializeTransferHookInstructionData.decode(instruction.data)).to.eql({
+                        instruction: TokenInstruction.TransferHookExtension,
+                        transferHookInstruction: TransferHookInstruction.Initialize,
+                        authority: rawAuthority,
+                        transferHookProgramId: rawProgram,
+                    });
+                    expect(instruction.keys).to.eql([{ pubkey: mint, isSigner: false, isWritable: true }]);
+                    expect(instruction.programId).to.eql(TOKEN_2022_PROGRAM_ID);
+                });
+            }
+        }
+
+        for (const program of [null, presentProgram, PublicKey.default]) {
+            for (const multiSigners of [[], [PublicKey.unique(), PublicKey.unique()]]) {
+                const label = program === null ? 'absent' : program.equals(PublicKey.default) ? 'zero' : 'present';
+                it(
+                    'updates to ' +
+                        label +
+                        ' program with ' +
+                        (multiSigners.length ? 'multisig' : 'single') +
+                        ' authority',
+                    () => {
+                        const instruction = createUpdateTransferHookInstruction(
+                            mint,
+                            presentAuthority,
+                            program,
+                            multiSigners,
+                            TOKEN_2022_PROGRAM_ID,
+                        );
+                        const rawProgram = program ?? PublicKey.default;
+                        expect(instruction.data.length).to.equal(34);
+                        expect(instruction.data.subarray(2)).to.eql(rawProgram.toBuffer());
+                        expect(updateTransferHookInstructionData.decode(instruction.data)).to.eql({
+                            instruction: TokenInstruction.TransferHookExtension,
+                            transferHookInstruction: TransferHookInstruction.Update,
+                            transferHookProgramId: rawProgram,
+                        });
+                        expect(instruction.keys).to.eql([
+                            { pubkey: mint, isSigner: false, isWritable: true },
+                            { pubkey: presentAuthority, isSigner: !multiSigners.length, isWritable: false },
+                            ...multiSigners.map(pubkey => ({ pubkey, isSigner: true, isWritable: false })),
+                        ]);
+                        expect(instruction.programId).to.eql(TOKEN_2022_PROGRAM_ID);
+                    },
+                );
+            }
+        }
+    });
+
     describe('validation data', () => {
         let connection: Connection;
 
@@ -569,6 +651,59 @@ describe('transferHook', () => {
             expect(instruction.keys).to.eql(checkMetas);
         });
 
+        for (const withFee of [false, true]) {
+            for (const hookAbsent of [false, true]) {
+                it(
+                    'does not fetch extra metas for ' +
+                        (hookAbsent ? 'an absent' : 'a disabled') +
+                        ' transfer hook' +
+                        (withFee ? ' with a fee' : ''),
+                    async () => {
+                        transferHookProgramId = PublicKey.default;
+                        const fetchAccountData = createMockFetchAccountDataFn([]);
+                        let accountLookups = 0;
+                        connection.getAccountInfo = async publicKey => {
+                            accountLookups++;
+                            expect(publicKey).to.eql(mintPubkey);
+                            const info = await fetchAccountData(publicKey);
+                            return hookAbsent && info
+                                ? { ...info, data: info.data.subarray(0, MintLayout.span) }
+                                : info;
+                        };
+                        const args = [
+                            sourcePubkey,
+                            mintPubkey,
+                            destinationPubkey,
+                            authorityPubkey,
+                            amount,
+                            decimals,
+                        ] as const;
+                        const instruction = withFee
+                            ? await createTransferCheckedWithFeeAndTransferHookInstruction(
+                                  connection,
+                                  ...args,
+                                  0n,
+                                  [],
+                                  undefined,
+                                  TOKEN_2022_PROGRAM_ID,
+                              )
+                            : await createTransferCheckedWithTransferHookInstruction(
+                                  connection,
+                                  ...args,
+                                  [],
+                                  undefined,
+                                  TOKEN_2022_PROGRAM_ID,
+                              );
+                        const expected = withFee
+                            ? createTransferCheckedWithFeeInstruction(...args, 0n, [], TOKEN_2022_PROGRAM_ID)
+                            : createTransferCheckedInstruction(...args, [], TOKEN_2022_PROGRAM_ID);
+                        expect(instruction).to.eql(expected);
+                        expect(accountLookups).to.equal(1);
+                    },
+                );
+            }
+        }
+
         it('can create a transfer instruction with extra metas', async () => {
             // prettier-ignore
             connection.getAccountInfo = createMockFetchAccountDataFn([
@@ -751,5 +886,32 @@ describe('transferHook', () => {
 
             expect(instruction.keys).to.eql(baseTransferMetas());
         });
+    });
+});
+
+describe('transfer hook state', () => {
+    const presentAuthority = PublicKey.unique();
+    const presentProgramId = PublicKey.unique();
+
+    for (const authority of [presentAuthority, null]) {
+        for (const programId of [presentProgramId, null]) {
+            it(`decodes ${authority ? 'present' : 'absent'} authority and ${programId ? 'present' : 'absent'} program`, () => {
+                const rawState = {
+                    authority: authority ?? PublicKey.default,
+                    programId: programId ?? PublicKey.default,
+                };
+                const tlvData = Buffer.alloc(4 + TransferHookLayout.span);
+                tlvData.writeUInt16LE(ExtensionType.TransferHook, 0);
+                tlvData.writeUInt16LE(TransferHookLayout.span, 2);
+                TransferHookLayout.encode(rawState, tlvData, 4);
+
+                expect(TransferHookLayout.decode(tlvData, 4)).to.eql(rawState);
+                expect(getTransferHook({ tlvData } as Mint)).to.eql({ authority, programId });
+            });
+        }
+    }
+
+    it('returns null when the extension is absent', () => {
+        expect(getTransferHook({ tlvData: Buffer.alloc(0) } as Mint)).to.equal(null);
     });
 });

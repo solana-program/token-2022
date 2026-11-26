@@ -1,6 +1,5 @@
 import { expect } from 'chai';
-import type { Connection, Signer } from '@solana/web3.js';
-import { PublicKey } from '@solana/web3.js';
+import type { Connection, PublicKey, Signer } from '@solana/web3.js';
 import { Keypair, SystemProgram, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
 
 import {
@@ -268,7 +267,7 @@ describe('transferFee', () => {
             const transferFeeConfig = getTransferFeeConfig(mintInfo);
             expect(transferFeeConfig).to.not.equal(null);
             if (transferFeeConfig !== null) {
-                expect(transferFeeConfig.transferFeeConfigAuthority).to.eql(PublicKey.default);
+                expect(transferFeeConfig.transferFeeConfigAuthority).to.equal(null);
             }
         });
         it('withdrawWithheldAuthority', async () => {
@@ -287,7 +286,7 @@ describe('transferFee', () => {
             const transferFeeConfig = getTransferFeeConfig(mintInfo);
             expect(transferFeeConfig).to.not.equal(null);
             if (transferFeeConfig !== null) {
-                expect(transferFeeConfig.withdrawWithheldAuthority).to.eql(PublicKey.default);
+                expect(transferFeeConfig.withdrawWithheldAuthority).to.equal(null);
             }
         });
         it('setTransferFee', async () => {
@@ -327,7 +326,7 @@ describe('transferFee', () => {
             const transferFeeConfig = getTransferFeeConfig(mintInfo);
             expect(transferFeeConfig).to.not.equal(null);
             if (transferFeeConfig !== null) {
-                expect(transferFeeConfig.transferFeeConfigAuthority).to.eql(PublicKey.default);
+                expect(transferFeeConfig.transferFeeConfigAuthority).to.equal(null);
                 expect(transferFeeConfig.withdrawWithheldAuthority).to.eql(withdrawWithheldAuthority.publicKey);
                 expect(transferFeeConfig.olderTransferFee.transferFeeBasisPoints).to.eql(FEE_BASIS_POINTS);
                 expect(transferFeeConfig.olderTransferFee.maximumFee).to.eql(MAX_FEE);
@@ -345,7 +344,7 @@ describe('transferFee', () => {
             expect(transferFeeConfig).to.not.equal(null);
             if (transferFeeConfig !== null) {
                 expect(transferFeeConfig.transferFeeConfigAuthority).to.eql(transferFeeConfigAuthority.publicKey);
-                expect(transferFeeConfig.withdrawWithheldAuthority).to.eql(PublicKey.default);
+                expect(transferFeeConfig.withdrawWithheldAuthority).to.equal(null);
                 expect(transferFeeConfig.olderTransferFee.transferFeeBasisPoints).to.eql(FEE_BASIS_POINTS);
                 expect(transferFeeConfig.olderTransferFee.maximumFee).to.eql(MAX_FEE);
                 expect(transferFeeConfig.newerTransferFee.transferFeeBasisPoints).to.eql(FEE_BASIS_POINTS);
@@ -360,8 +359,8 @@ describe('transferFee', () => {
             const transferFeeConfig = getTransferFeeConfig(mintInfo);
             expect(transferFeeConfig).to.not.equal(null);
             if (transferFeeConfig !== null) {
-                expect(transferFeeConfig.transferFeeConfigAuthority).to.eql(PublicKey.default);
-                expect(transferFeeConfig.withdrawWithheldAuthority).to.eql(PublicKey.default);
+                expect(transferFeeConfig.transferFeeConfigAuthority).to.equal(null);
+                expect(transferFeeConfig.withdrawWithheldAuthority).to.equal(null);
                 expect(transferFeeConfig.olderTransferFee.transferFeeBasisPoints).to.eql(FEE_BASIS_POINTS);
                 expect(transferFeeConfig.olderTransferFee.maximumFee).to.eql(MAX_FEE);
                 expect(transferFeeConfig.newerTransferFee.transferFeeBasisPoints).to.eql(FEE_BASIS_POINTS);

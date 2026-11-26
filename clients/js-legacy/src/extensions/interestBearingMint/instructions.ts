@@ -1,8 +1,8 @@
 import { Buffer } from 'buffer';
 import { s16, struct, u8 } from '@solana/buffer-layout';
 import { publicKey } from '@solana/buffer-layout-utils';
-import type { PublicKey, Signer } from '@solana/web3.js';
-import { TransactionInstruction } from '@solana/web3.js';
+import type { Signer } from '@solana/web3.js';
+import { PublicKey, TransactionInstruction } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ID } from '../../constants.js';
 import { addSigners } from '../../instructions/internal.js';
 import { TokenInstruction } from '../../instructions/types.js';
@@ -28,7 +28,6 @@ export interface InterestBearingMintUpdateRateInstructionData {
 export const interestBearingMintInitializeInstructionData = struct<InterestBearingMintInitializeInstructionData>([
     u8('instruction'),
     u8('interestBearingMintInstruction'),
-    // TODO: Make this an optional public key
     publicKey('rateAuthority'),
     s16('rate'),
 ]);
@@ -43,7 +42,7 @@ export const interestBearingMintUpdateRateInstructionData = struct<InterestBeari
  * Construct an InitializeInterestBearingMint instruction
  *
  * @param mint           Mint to initialize
- * @param rateAuthority  The public key for the account that can update the rate
+ * @param rateAuthority  Optional public key for the account that can update the rate
  * @param rate           The initial interest rate
  * @param programId      SPL Token program account
  *
@@ -51,7 +50,7 @@ export const interestBearingMintUpdateRateInstructionData = struct<InterestBeari
  */
 export function createInitializeInterestBearingMintInstruction(
     mint: PublicKey,
-    rateAuthority: PublicKey,
+    rateAuthority: PublicKey | null,
     rate: number,
     programId = TOKEN_2022_PROGRAM_ID,
 ) {
@@ -61,7 +60,7 @@ export function createInitializeInterestBearingMintInstruction(
         {
             instruction: TokenInstruction.InterestBearingMintExtension,
             interestBearingMintInstruction: InterestBearingMintInstruction.Initialize,
-            rateAuthority,
+            rateAuthority: rateAuthority ?? PublicKey.default,
             rate,
         },
         data,

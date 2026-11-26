@@ -1,6 +1,6 @@
 import { expect } from 'chai';
-import type { AccountMeta, Connection, Signer } from '@solana/web3.js';
-import { PublicKey, TransactionInstruction } from '@solana/web3.js';
+import type { AccountMeta, Connection, PublicKey, Signer } from '@solana/web3.js';
+import { TransactionInstruction } from '@solana/web3.js';
 import { sendAndConfirmTransaction, Keypair, SystemProgram, Transaction } from '@solana/web3.js';
 import {
     createInitializeMintInstruction,
@@ -126,7 +126,7 @@ describe('transferHook', () => {
         const transferHook = getTransferHook(mintInfo);
         expect(transferHook).to.not.equal(null);
         if (transferHook !== null) {
-            expect(transferHook.authority).to.eql(PublicKey.default);
+            expect(transferHook.authority).to.equal(null);
         }
     });
     it('transferChecked', async () => {
