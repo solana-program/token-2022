@@ -5,16 +5,16 @@ use {
         derive_confidential_keys, ConfidentialTokenAccountBalances, ConfidentialTokenAccountMeta,
         ConfidentialTransferOption, TestContext, TokenContext,
     },
+    solana_instruction_error::InstructionError,
+    solana_keypair::Keypair,
     solana_program_test::tokio,
-    solana_sdk::{
-        instruction::InstructionError,
-        pubkey::Pubkey,
-        signature::Signer,
-        signer::{keypair::Keypair, signers::Signers},
-        transaction::{Transaction, TransactionError},
-        transport::TransportError,
-    },
+    solana_pubkey::Pubkey,
+    solana_signer::signers::Signers,
+    solana_signer::Signer,
     solana_system_interface::instruction as system_instruction,
+    solana_transaction::Transaction,
+    solana_transaction_error::TransactionError,
+    solana_transaction_error::TransportError,
     solana_zk_sdk::{
         encryption::{auth_encryption::*, elgamal::*},
         zk_elgamal_proof_program::build_pubkey_validity_proof_data,
@@ -24,9 +24,18 @@ use {
     spl_token_2022_interface::{
         error::TokenError,
         extension::{
-            confidential_transfer::{ConfidentialTransferAccount, MAXIMUM_DEPOSIT_TRANSFER_AMOUNT},
-            BaseStateWithExtensions, ExtensionType,
+            confidential_transfer::{
+                self,
+                instruction::{InitializeMintData, UpdateMintData},
+                ConfidentialTransferAccount, ConfidentialTransferMint,
+                MAXIMUM_DEPOSIT_TRANSFER_AMOUNT,
+            },
+            BaseStateWithExtensions, BaseStateWithExtensionsMut, ExtensionType,
+            PodStateWithExtensionsMut, StateWithExtensionsOwned,
         },
+        id, instruction,
+        pod::PodMint,
+        state::Mint,
     },
     spl_token_client::{
         client::ProgramBanksClientProcessTransaction,
@@ -261,6 +270,119 @@ async fn confidential_transfer_configure_token_account_with_option(
             )
         )))
     );
+}
+
+#[tokio::test]
+async fn confidential_transfer_normalize_auto_approve_new_accounts() {
+    let authority = Keypair::new();
+    // any nonzero byte reads as `true`, but only 1 should ever be stored
+    let nonstandard_true = bytemuck::cast(2u8);
+
+    let mut context = TestContext::new().await;
+    context
+        .init_token_with_mint(vec![
+            ExtensionInitializationParams::ConfidentialTransferMint {
+                authority: Some(authority.pubkey()),
+                auto_approve_new_accounts: false,
+                auditor_elgamal_pubkey: None,
+            },
+        ])
+        .await
+        .unwrap();
+
+    let TokenContext { token, alice, .. } = context.token_context.unwrap();
+
+    // `InitializeMint`
+    let mint = Keypair::new();
+    let mut initialize_mint_instruction = confidential_transfer::instruction::initialize_mint(
+        &id(),
+        &mint.pubkey(),
+        Some(authority.pubkey()),
+        true,
+        None,
+    )
+    .unwrap();
+    // the data follows the token and confidential transfer instruction types
+    bytemuck::from_bytes_mut::<InitializeMintData>(&mut initialize_mint_instruction.data[2..])
+        .auto_approve_new_accounts = nonstandard_true;
+
+    let space = ExtensionType::try_calculate_account_len::<Mint>(&[
+        ExtensionType::ConfidentialTransferMint,
+    ])
+    .unwrap();
+    let ctx = context.context.lock().await;
+    let rent = ctx.banks_client.get_rent().await.unwrap();
+    let tx = Transaction::new_signed_with_payer(
+        &[
+            system_instruction::create_account(
+                &ctx.payer.pubkey(),
+                &mint.pubkey(),
+                rent.minimum_balance(space),
+                space as u64,
+                &id(),
+            ),
+            initialize_mint_instruction,
+            instruction::initialize_mint(&id(), &mint.pubkey(), &authority.pubkey(), None, 0)
+                .unwrap(),
+        ],
+        Some(&ctx.payer.pubkey()),
+        &[&ctx.payer, &mint],
+        ctx.last_blockhash,
+    );
+    ctx.banks_client.process_transaction(tx).await.unwrap();
+    drop(ctx);
+
+    let mint_account = token.get_account(mint.pubkey()).await.unwrap();
+    let state = StateWithExtensionsOwned::<Mint>::unpack(mint_account.data).unwrap();
+    let extension = state.get_extension::<ConfidentialTransferMint>().unwrap();
+    assert_eq!(extension.auto_approve_new_accounts, true.into());
+
+    // `UpdateMint`
+    let mut update_mint_instruction = confidential_transfer::instruction::update_mint(
+        &id(),
+        token.get_address(),
+        &authority.pubkey(),
+        &[],
+        true,
+        None,
+    )
+    .unwrap();
+    bytemuck::from_bytes_mut::<UpdateMintData>(&mut update_mint_instruction.data[2..])
+        .auto_approve_new_accounts = nonstandard_true;
+    token
+        .process_ixs(&[update_mint_instruction], &[&authority])
+        .await
+        .unwrap();
+
+    let state = token.get_mint_info().await.unwrap();
+    let extension = state.get_extension::<ConfidentialTransferMint>().unwrap();
+    assert_eq!(extension.auto_approve_new_accounts, true.into());
+
+    // `ConfigureAccount` on a mint that already holds such a byte
+    let mut ctx = context.context.lock().await;
+    let mut mint_account = ctx
+        .banks_client
+        .get_account(*token.get_address())
+        .await
+        .unwrap()
+        .unwrap();
+    let mut state = PodStateWithExtensionsMut::<PodMint>::unpack(&mut mint_account.data).unwrap();
+    state
+        .get_extension_mut::<ConfidentialTransferMint>()
+        .unwrap()
+        .auto_approve_new_accounts = nonstandard_true;
+    ctx.set_account(token.get_address(), &mint_account.into());
+    drop(ctx);
+
+    let alice_meta = ConfidentialTokenAccountMeta::new(&token, &alice, None, false, false).await;
+    let state = token
+        .get_account_info(&alice_meta.token_account)
+        .await
+        .unwrap();
+    let extension = state
+        .get_extension::<ConfidentialTransferAccount>()
+        .unwrap();
+    assert_eq!(extension.approved, true.into());
 }
 
 #[tokio::test]

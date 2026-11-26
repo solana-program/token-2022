@@ -1,18 +1,17 @@
 mod program_test;
 use {
     program_test::{TestContext, TokenContext},
+    solana_instruction_error::InstructionError,
     solana_program_test::{
         tokio::{self, sync::Mutex},
         ProgramTestContext,
     },
-    solana_sdk::{
-        instruction::InstructionError,
-        pubkey::Pubkey,
-        signature::Signer,
-        transaction::{Transaction, TransactionError},
-        transport::TransportError,
-    },
+    solana_pubkey::Pubkey,
+    solana_signer::Signer,
     solana_system_interface::instruction as system_instruction,
+    solana_transaction::Transaction,
+    solana_transaction_error::TransactionError,
+    solana_transaction_error::TransportError,
     spl_token_2022_interface::{
         error::TokenError,
         extension::{memo_transfer::MemoTransfer, BaseStateWithExtensions, ExtensionType},

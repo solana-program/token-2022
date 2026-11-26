@@ -3,15 +3,14 @@ use {
     program_test::{
         derive_confidential_keys, ConfidentialTransferOption, TestContext, TokenContext,
     },
+    solana_instruction_error::InstructionError,
+    solana_keypair::Keypair,
     solana_program_test::tokio,
-    solana_sdk::{
-        instruction::InstructionError,
-        pubkey::Pubkey,
-        signature::Signer,
-        signer::{keypair::Keypair, signers::Signers},
-        transaction::TransactionError,
-        transport::TransportError,
-    },
+    solana_pubkey::Pubkey,
+    solana_signer::signers::Signers,
+    solana_signer::Signer,
+    solana_transaction_error::TransactionError,
+    solana_transaction_error::TransportError,
     solana_zk_sdk::encryption::{auth_encryption::*, elgamal::*},
     solana_zk_sdk_pod::encryption::elgamal::PodElGamalCiphertext,
     spl_token_2022_interface::{

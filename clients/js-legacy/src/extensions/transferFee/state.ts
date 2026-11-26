@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import type { Layout } from '@solana/buffer-layout';
 import { struct, u16 } from '@solana/buffer-layout';
 import { publicKey, u64 } from '@solana/buffer-layout-utils';

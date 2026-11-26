@@ -18,7 +18,7 @@ use {
     solana_nullable::MaybeNull,
     solana_program_error::{ProgramError, ProgramResult},
     solana_rent::Rent,
-    solana_zero_copy::unaligned::{Bool, U64},
+    solana_zero_copy::unaligned::U64,
     solana_zk_elgamal_proof_interface::proof_data::{
         PubkeyValidityProofContext, ZeroCiphertextProofContext,
     },
@@ -61,7 +61,7 @@ use {
 fn process_initialize_mint(
     accounts: &mut [AccountView],
     authority: &MaybeNull<Address>,
-    auto_approve_new_account: Bool,
+    auto_approve_new_account: bool,
     auditor_encryption_pubkey: &MaybeNull<PodElGamalPubkey>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter_mut();
@@ -73,7 +73,7 @@ fn process_initialize_mint(
     let confidential_transfer_mint = mint.init_extension::<ConfidentialTransferMint>(true)?;
 
     confidential_transfer_mint.authority = *authority;
-    confidential_transfer_mint.auto_approve_new_accounts = auto_approve_new_account;
+    confidential_transfer_mint.auto_approve_new_accounts = auto_approve_new_account.into();
     confidential_transfer_mint.auditor_elgamal_pubkey = *auditor_encryption_pubkey;
 
     Ok(())
@@ -82,7 +82,7 @@ fn process_initialize_mint(
 /// Processes an [`UpdateMint`] instruction.
 fn process_update_mint(
     accounts: &mut [AccountView],
-    auto_approve_new_account: Bool,
+    auto_approve_new_account: bool,
     auditor_encryption_pubkey: &MaybeNull<PodElGamalPubkey>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter_mut();
@@ -106,7 +106,7 @@ fn process_update_mint(
         return Err(TokenError::OwnerMismatch.into());
     }
 
-    confidential_transfer_mint.auto_approve_new_accounts = auto_approve_new_account;
+    confidential_transfer_mint.auto_approve_new_accounts = auto_approve_new_account.into();
     confidential_transfer_mint.auditor_elgamal_pubkey = *auditor_encryption_pubkey;
     Ok(())
 }
@@ -278,7 +278,10 @@ fn process_configure_account(
     let confidential_transfer_account =
         token_account.init_extension::<ConfidentialTransferAccount>(false)?;
 
-    confidential_transfer_account.approved = confidential_transfer_mint.auto_approve_new_accounts;
+    // A mint that stored `auto_approve_new_accounts` before it was normalized can
+    // hold any nonzero byte for `true`
+    confidential_transfer_account.approved =
+        bool::from(confidential_transfer_mint.auto_approve_new_accounts).into();
     confidential_transfer_account.elgamal_pubkey = elgamal_pubkey;
     confidential_transfer_account.maximum_pending_balance_credit_counter =
         *maximum_pending_balance_credit_counter;
@@ -1321,7 +1324,7 @@ pub(crate) fn process_instruction(
             process_initialize_mint(
                 accounts,
                 &data.authority,
-                data.auto_approve_new_accounts,
+                data.auto_approve_new_accounts.into(),
                 &data.auditor_elgamal_pubkey,
             )
         }
@@ -1330,7 +1333,7 @@ pub(crate) fn process_instruction(
             let data = decode_instruction_data::<UpdateMintData>(input)?;
             process_update_mint(
                 accounts,
-                data.auto_approve_new_accounts,
+                data.auto_approve_new_accounts.into(),
                 &data.auditor_elgamal_pubkey,
             )
         }

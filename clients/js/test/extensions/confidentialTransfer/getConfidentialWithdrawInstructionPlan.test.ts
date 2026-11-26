@@ -11,7 +11,7 @@ import {
 
 it('withdraws tokens from a confidential balance', async () => {
     // Given a confidential token account funded with an available confidential balance.
-    const client = await createValidatorClient({ estimateResourceLimits: false });
+    const client = await createValidatorClient();
     const payer = client.payer;
     const owner = await generateKeyPairSignerWithSol(client);
     const { mint, mintAuthority } = await createConfidentialMint({ client, payer });

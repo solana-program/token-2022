@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import { struct, u8, f64 } from '@solana/buffer-layout';
 import { publicKey, u64 } from '@solana/buffer-layout-utils';
 import { TokenInstruction } from '../../instructions/types.js';

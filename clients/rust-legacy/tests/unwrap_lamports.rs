@@ -2,12 +2,14 @@
 mod program_test;
 use {
     program_test::{TestContext, TokenContext},
+    solana_instruction_error::InstructionError,
+    solana_keypair::Keypair,
     solana_program_pack::Pack,
     solana_program_test::tokio,
-    solana_sdk::{
-        instruction::InstructionError, rent::Rent, signature::Signer, signer::keypair::Keypair,
-        transaction::TransactionError, transport::TransportError,
-    },
+    solana_rent::Rent,
+    solana_signer::Signer,
+    solana_transaction_error::TransactionError,
+    solana_transaction_error::TransportError,
     spl_token_2022::extension::ExtensionType,
     spl_token_2022_interface::{error::TokenError, state::Account},
     spl_token_client::token::TokenError as TokenClientError,

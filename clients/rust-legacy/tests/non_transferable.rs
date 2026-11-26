@@ -2,11 +2,12 @@ mod program_test;
 use {
     program_test::{keypair_clone, TestContext, TokenContext},
     solana_address::Address,
+    solana_instruction_error::InstructionError,
+    solana_keypair::Keypair,
     solana_program_test::tokio,
-    solana_sdk::{
-        instruction::InstructionError, signature::Signer, signer::keypair::Keypair,
-        transaction::TransactionError, transport::TransportError,
-    },
+    solana_signer::Signer,
+    solana_transaction_error::TransactionError,
+    solana_transaction_error::TransportError,
     spl_token_2022_interface::{
         error::TokenError,
         extension::{

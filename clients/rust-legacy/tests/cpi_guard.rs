@@ -1,17 +1,20 @@
 mod program_test;
 use {
     program_test::{keypair_clone, TestContext, TokenContext},
+    solana_instruction_error::InstructionError,
+    solana_keypair::Keypair,
     solana_program_pack::Pack,
     solana_program_test::{
         tokio::{self, sync::Mutex},
         ProgramTest,
     },
-    solana_sdk::{
-        instruction::InstructionError, pubkey::Pubkey, rent::Rent, signature::Signer,
-        signer::keypair::Keypair, transaction::Transaction, transaction::TransactionError,
-        transport::TransportError,
-    },
+    solana_pubkey::Pubkey,
+    solana_rent::Rent,
+    solana_signer::Signer,
     solana_system_interface::instruction as system_instruction,
+    solana_transaction::Transaction,
+    solana_transaction_error::TransactionError,
+    solana_transaction_error::TransportError,
     spl_instruction_padding_interface::instruction::wrap_instruction,
     spl_token_2022_interface::{
         error::TokenError,

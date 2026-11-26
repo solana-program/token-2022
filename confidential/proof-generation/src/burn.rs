@@ -34,8 +34,6 @@
 //!         impossible to burn more tokens than one possesses. It also proves the `burn_amount` itself
 //!         is a valid 48-bit number.
 
-#[cfg(target_arch = "wasm32")]
-use solana_zk_sdk::encryption::grouped_elgamal::GroupedElGamal;
 use {
     crate::{
         encryption::BurnAmountCiphertext, errors::TokenProofGenerationError,
@@ -94,36 +92,12 @@ pub fn burn_split_proof_data(
         supply_elgamal_pubkey,
         auditor_elgamal_pubkey,
     );
-    #[cfg(not(target_arch = "wasm32"))]
-    let grouped_ciphertext_lo = burn_amount_ciphertext_lo.0;
-    #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_lo = GroupedElGamal::encrypt_with(
-        [
-            source_elgamal_keypair.pubkey(),
-            supply_elgamal_pubkey,
-            auditor_elgamal_pubkey,
-        ],
-        burn_amount_lo,
-        &burn_amount_opening_lo,
-    );
 
     let (burn_amount_ciphertext_hi, burn_amount_opening_hi) = BurnAmountCiphertext::new(
         burn_amount_hi,
         source_elgamal_keypair.pubkey(),
         supply_elgamal_pubkey,
         auditor_elgamal_pubkey,
-    );
-    #[cfg(not(target_arch = "wasm32"))]
-    let grouped_ciphertext_hi = burn_amount_ciphertext_hi.0;
-    #[cfg(target_arch = "wasm32")]
-    let grouped_ciphertext_hi = GroupedElGamal::encrypt_with(
-        [
-            source_elgamal_keypair.pubkey(),
-            supply_elgamal_pubkey,
-            auditor_elgamal_pubkey,
-        ],
-        burn_amount_hi,
-        &burn_amount_opening_hi,
     );
     // decrypt the current available balance at the source
     let current_decrypted_available_balance = current_decryptable_available_balance
@@ -173,8 +147,8 @@ pub fn burn_split_proof_data(
             source_elgamal_keypair.pubkey(),
             supply_elgamal_pubkey,
             auditor_elgamal_pubkey,
-            &grouped_ciphertext_lo,
-            &grouped_ciphertext_hi,
+            &burn_amount_ciphertext_lo.0,
+            &burn_amount_ciphertext_hi.0,
             burn_amount_lo,
             burn_amount_hi,
             &burn_amount_opening_lo,

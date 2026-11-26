@@ -51,9 +51,9 @@ spl-token-metadata-interface = "1.0.0"
 spl-transfer-hook-interface = { version = "2.1.0" }
 
 [dev-dependencies]
-mollusk-svm = "0.16"
+mollusk-svm = "0.17"
 proptest = "1.11"
-solana-account = { version = "4.0.0", features = ["wincode"] }
+solana-account = { version = "5.0.0", features = ["wincode"] }
 solana-rent = { version = "4.0.0", features = ["wincode"] }
 spl-tlv-account-resolution = { version = "0.11.3" }
 test-case = "3.3.1"

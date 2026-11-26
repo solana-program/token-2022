@@ -1,17 +1,16 @@
 mod program_test;
 use {
     program_test::{TestContext, TokenContext},
+    solana_instruction_error::InstructionError,
+    solana_keypair::Keypair,
+    solana_program_option::COption,
+    solana_program_pack::Pack,
     solana_program_test::tokio,
-    solana_sdk::{
-        instruction::InstructionError,
-        program_option::COption,
-        program_pack::Pack,
-        pubkey::Pubkey,
-        signature::Signer,
-        signer::keypair::Keypair,
-        transaction::{Transaction, TransactionError},
-    },
+    solana_pubkey::Pubkey,
+    solana_signer::Signer,
     solana_system_interface::instruction as system_instruction,
+    solana_transaction::Transaction,
+    solana_transaction_error::TransactionError,
     solana_zk_sdk_pod::encryption::elgamal::PodElGamalPubkey,
     spl_token_2022_interface::{
         error::TokenError,

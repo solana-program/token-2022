@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import { s16, struct, u8 } from '@solana/buffer-layout';
 import { publicKey } from '@solana/buffer-layout-utils';
 import type { Signer } from '@solana/web3.js';

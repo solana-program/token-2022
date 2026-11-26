@@ -13,7 +13,8 @@ use {
         offline::{self, *},
         ArgConstant,
     },
-    solana_sdk::{instruction::AccountMeta, pubkey::Pubkey},
+    solana_instruction::AccountMeta,
+    solana_pubkey::Pubkey,
     spl_token_2022_interface::instruction::{AuthorityType, MAX_SIGNERS, MIN_SIGNERS},
     std::{fmt, str::FromStr},
     strum::IntoEnumIterator,
@@ -120,7 +121,6 @@ pub enum CommandName {
     CreateToken,
     Close,
     CloseMint,
-    Bench,
     CreateAccount,
     CreateMultisig,
     Authorize,
@@ -174,6 +174,7 @@ pub enum CommandName {
     ApplyPendingBalance,
     ApplyPendingBurn,
     UpdateDecryptableSupply,
+    RotateSupplyElgamalPubkey,
     UpdateGroupAddress,
     UpdateMemberAddress,
     UpdateUiAmountMultiplier,
@@ -311,6 +312,26 @@ pub fn owner_keypair_arg_with_value_name<'a>(value_name: &'static str) -> Arg<'a
 
 pub fn owner_keypair_arg<'a>() -> Arg<'a> {
     owner_keypair_arg_with_value_name("OWNER_KEYPAIR")
+}
+
+pub fn confidential_elgamal_keypair_arg<'a>() -> Arg<'a> {
+    Arg::with_name("elgamal_keypair")
+        .long("elgamal-keypair")
+        .takes_value(true)
+        .value_name("FILE")
+        .requires("decrypt")
+        .requires("aes_key")
+        .help("Use an ElGamal keypair file instead of deriving keys from a signer. The keypair must match the confidential key stored on-chain.")
+}
+
+pub fn confidential_aes_key_arg<'a>() -> Arg<'a> {
+    Arg::with_name("aes_key")
+        .long("aes-key")
+        .takes_value(true)
+        .value_name("FILE")
+        .requires("decrypt")
+        .requires("elgamal_keypair")
+        .help("Use an AES key file instead of deriving keys from a signer. Provide this together with --elgamal-keypair.")
 }
 
 pub fn mint_address_arg<'a>() -> Arg<'a> {
@@ -484,147 +505,6 @@ pub fn multisig_member_help_string() -> String {
     )
 }
 
-pub(crate) trait BenchSubCommand {
-    fn bench_subcommand(self) -> Self;
-}
-
-impl BenchSubCommand for App<'_> {
-    fn bench_subcommand(self) -> Self {
-        self.subcommand(
-            SubCommand::with_name("bench")
-                .about("Token benchmarking facilities")
-                .setting(AppSettings::InferSubcommands)
-                .setting(AppSettings::SubcommandRequiredElseHelp)
-                .subcommand(
-                    SubCommand::with_name("create-accounts")
-                        .about("Create multiple token accounts for benchmarking")
-                        .arg(
-                            Arg::with_name("token")
-                                .validator(|s| is_valid_pubkey(s))
-                                .value_name("TOKEN_ADDRESS")
-                                .takes_value(true)
-                                .index(1)
-                                .required(true)
-                                .help("The token that the accounts will hold"),
-                        )
-                        .arg(
-                            Arg::with_name("n")
-                                .value_parser(clap::value_parser!(usize))
-                                .value_name("N")
-                                .takes_value(true)
-                                .index(2)
-                                .required(true)
-                                .help("The number of accounts to create"),
-                        )
-                        .arg(owner_address_arg()),
-                )
-                .subcommand(
-                    SubCommand::with_name("close-accounts")
-                        .about("Close multiple token accounts used for benchmarking")
-                        .arg(
-                            Arg::with_name("token")
-                                .validator(|s| is_valid_pubkey(s))
-                                .value_name("TOKEN_ADDRESS")
-                                .takes_value(true)
-                                .index(1)
-                                .required(true)
-                                .help("The token that the accounts held"),
-                        )
-                        .arg(
-                            Arg::with_name("n")
-                                .value_parser(clap::value_parser!(usize))
-                                .value_name("N")
-                                .takes_value(true)
-                                .index(2)
-                                .required(true)
-                                .help("The number of accounts to close"),
-                        )
-                        .arg(owner_address_arg()),
-                )
-                .subcommand(
-                    SubCommand::with_name("deposit-into")
-                        .about("Deposit tokens into multiple accounts")
-                        .arg(
-                            Arg::with_name("token")
-                                .validator(|s| is_valid_pubkey(s))
-                                .value_name("TOKEN_ADDRESS")
-                                .takes_value(true)
-                                .index(1)
-                                .required(true)
-                                .help("The token that the accounts will hold"),
-                        )
-                        .arg(
-                            Arg::with_name("n")
-                                .value_parser(clap::value_parser!(usize))
-                                .value_name("N")
-                                .takes_value(true)
-                                .index(2)
-                                .required(true)
-                                .help("The number of accounts to deposit into"),
-                        )
-                        .arg(
-                            Arg::with_name("amount")
-                                .value_parser(Amount::parse)
-                                .value_name("TOKEN_AMOUNT")
-                                .takes_value(true)
-                                .index(3)
-                                .required(true)
-                                .help("Amount to deposit into each account, in tokens"),
-                        )
-                        .arg(
-                            Arg::with_name("from")
-                                .long("from")
-                                .validator(|s| is_valid_pubkey(s))
-                                .value_name("SOURCE_TOKEN_ACCOUNT_ADDRESS")
-                                .takes_value(true)
-                                .help("The source token account address [default: associated token account for --owner]")
-                        )
-                        .arg(owner_address_arg()),
-                )
-                .subcommand(
-                    SubCommand::with_name("withdraw-from")
-                        .about("Withdraw tokens from multiple accounts")
-                        .arg(
-                            Arg::with_name("token")
-                                .validator(|s| is_valid_pubkey(s))
-                                .value_name("TOKEN_ADDRESS")
-                                .takes_value(true)
-                                .index(1)
-                                .required(true)
-                                .help("The token that the accounts hold"),
-                        )
-                        .arg(
-                            Arg::with_name("n")
-                                .value_parser(clap::value_parser!(usize))
-                                .value_name("N")
-                                .takes_value(true)
-                                .index(2)
-                                .required(true)
-                                .help("The number of accounts to withdraw from"),
-                        )
-                        .arg(
-                            Arg::with_name("amount")
-                                .value_parser(Amount::parse)
-                                .value_name("TOKEN_AMOUNT")
-                                .takes_value(true)
-                                .index(3)
-                                .required(true)
-                                .help("Amount to withdraw from each account, in tokens"),
-                        )
-                        .arg(
-                            Arg::with_name("to")
-                                .long("to")
-                                .validator(|s| is_valid_pubkey(s))
-                                .value_name("RECIPIENT_TOKEN_ACCOUNT_ADDRESS")
-                                .takes_value(true)
-                                .help("The recipient token account address [default: associated token account for --owner]")
-                        )
-                        .arg(owner_address_arg()),
-                ),
-        )
-    }
-}
-
 pub fn app<'a>(
     default_decimals: &'a str,
     minimum_signers_help: &'a str,
@@ -720,7 +600,6 @@ pub fn app<'a>(
                 .value_parser(clap::value_parser!(u64))
                 .help(COMPUTE_UNIT_PRICE_ARG.help)
         )
-        .bench_subcommand()
         .subcommand(SubCommand::with_name(CommandName::CreateToken.into()).about("Create a new token")
                 .arg(
                     Arg::with_name("token_keypair")
@@ -1664,6 +1543,28 @@ pub fn app<'a>(
                         .help("Mint tokens confidentially. Required for \
                             offline signing on confidential mints."),
                 )
+                .arg(
+                    Arg::with_name("elgamal_keypair")
+                        .long("elgamal-keypair")
+                        .takes_value(true)
+                        .value_name("FILE")
+                        .requires("aes_key")
+                        .help(
+                            "The supply ElGamal keypair file of a confidential mint. Defaults to \
+                            the keypair derived from the client keypair.",
+                        ),
+                )
+                .arg(
+                    Arg::with_name("aes_key")
+                        .long("aes-key")
+                        .takes_value(true)
+                        .value_name("FILE")
+                        .requires("elgamal_keypair")
+                        .help(
+                            "The supply AES key file of a confidential mint. Defaults to the key \
+                            derived from the client keypair.",
+                        ),
+                )
                 .arg(mint_decimals_arg())
                 .arg(multisig_signer_arg())
                 .nonce_args(true)
@@ -2028,7 +1929,9 @@ pub fn app<'a>(
                         .long("decrypt")
                         .takes_value(false)
                         .help("Decrypt the confidential balances using keys derived from the owner keypair, which defaults to the client keypair."),
-                ),
+                )
+                .arg(confidential_elgamal_keypair_arg())
+                .arg(confidential_aes_key_arg()),
         )
         .subcommand(
             SubCommand::with_name(CommandName::Supply.into())
@@ -2048,6 +1951,8 @@ pub fn app<'a>(
                         .takes_value(false)
                         .help("Decrypt the confidential supply using keys derived from the supply keypair, which defaults to the client keypair."),
                 )
+                .arg(confidential_elgamal_keypair_arg().conflicts_with("owner"))
+                .arg(confidential_aes_key_arg().conflicts_with("owner"))
                 .arg(owner_keypair_arg()),
         )
         .subcommand(
@@ -2184,6 +2089,8 @@ pub fn app<'a>(
                             defaults to the client keypair. Note that the auditor key cannot \
                             decrypt account balances, only transfer amounts."),
                 )
+                .arg(confidential_elgamal_keypair_arg().conflicts_with("owner"))
+                .arg(confidential_aes_key_arg().conflicts_with("owner"))
                 .arg(owner_keypair_arg()),
         )
         .subcommand(
@@ -2461,6 +2368,15 @@ pub fn app<'a>(
             SubCommand::with_name(CommandName::WithdrawWithheldTokens.into())
                 .about("Withdraw withheld transfer fee tokens from mint and / or account(s)")
                 .arg(
+                    Arg::with_name("amount")
+                        .long("amount")
+                        .takes_value(true)
+                        .value_name("AMOUNT")
+                        .value_parser(Amount::parse)
+                        .requires("confidential")
+                        .help("Known total withheld amount, in tokens"),
+                )
+                .arg(
                     Arg::with_name("account")
                         .validator(|s| is_valid_pubkey(s))
                         .value_name("FEE_RECIPIENT_ADDRESS")
@@ -2505,7 +2421,7 @@ pub fn app<'a>(
                              Defaults to the client keypair."
                         ),
                 )
-                .arg(owner_address_arg())
+                .arg(owner_keypair_arg_with_value_name("FEE_RECIPIENT_OWNER_KEYPAIR"))
                 .arg(multisig_signer_arg())
                 // The account_group ArgGroup ensures <FEE_RECIPIENT_ADDRESS> appears as the first argument in the --help output. Without it, <SOURCE_ADDRESS|--include-mint> would be incorrectly prioritized due to clap’s handling of ArgGroups.
                 .group(
@@ -3105,6 +3021,62 @@ pub fn app<'a>(
                             This may be a keypair file or the ASK keyword. \
                             Defaults to the client keypair."
                         )
+                )
+                .arg(multisig_signer_arg())
+                .nonce_args(true)
+        )
+        .subcommand(
+            SubCommand::with_name(CommandName::RotateSupplyElgamalPubkey.into())
+                .about("Rotate the supply ElGamal public key of a confidential mint")
+                .arg(
+                    Arg::with_name("token")
+                        .validator(|s| is_valid_pubkey(s))
+                        .value_name("TOKEN_MINT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("The token mint address"),
+                )
+                .arg(
+                    Arg::with_name("new_elgamal_pubkey")
+                        .long("new-elgamal-pubkey")
+                        .takes_value(true)
+                        .value_name("NEW_ELGAMAL_PUBKEY")
+                        .required(true)
+                        .help(
+                            "The new supply ElGamal public key. This may be an ElGamal keypair \
+                            file or a base64 encoded ElGamal public key.",
+                        ),
+                )
+                .arg(
+                    owner_keypair_arg_with_value_name("MINT_AUTHORITY_KEYPAIR")
+                        .help(
+                            "Specify the mint authority keypair. \
+                            This may be a keypair file or the ASK keyword. \
+                            Defaults to the client keypair."
+                        )
+                )
+                .arg(
+                    Arg::with_name("elgamal_keypair")
+                        .long("elgamal-keypair")
+                        .takes_value(true)
+                        .value_name("FILE")
+                        .requires("aes_key")
+                        .help(
+                            "The current supply ElGamal keypair file. Defaults to the keypair \
+                            derived from the client keypair.",
+                        ),
+                )
+                .arg(
+                    Arg::with_name("aes_key")
+                        .long("aes-key")
+                        .takes_value(true)
+                        .value_name("FILE")
+                        .requires("elgamal_keypair")
+                        .help(
+                            "The current supply AES key file. Defaults to the key derived from \
+                            the client keypair.",
+                        ),
                 )
                 .arg(multisig_signer_arg())
                 .nonce_args(true)

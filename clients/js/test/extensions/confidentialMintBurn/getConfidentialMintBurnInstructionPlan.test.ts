@@ -27,9 +27,7 @@ const LARGE_SECOND_MINT_AMOUNT = 2_000_000_000n;
 it('confidentially mints into, applies, burns from, and re-syncs the supply of a mint-burn mint', async () => {
     // Given a mint-burn mint (both ConfidentialTransferMint + ConfidentialMintBurn)
     // and a confidential token account for an owner.
-    // The inline mint/burn plans send their batched range proof in the verify
-    // instruction data, which leaves no room for a compute-unit-limit instruction.
-    const client = await createValidatorClient({ estimateResourceLimits: false });
+    const client = await createValidatorClient();
     const payer = client.payer;
     const owner = await generateKeyPairSignerWithSol(client);
     const { mint, mintAuthority, supplyElgamalKeypair, supplyAesKey } = await createConfidentialMintBurnMint({
@@ -131,7 +129,7 @@ it('confidentially mints again after a pending burn without a manual decryptable
     // Given a mint-burn mint and a confidential token account, with a pending
     // burn applied so that the encrypted supply no longer matches the AES
     // decryptable supply.
-    const client = await createValidatorClient({ estimateResourceLimits: false });
+    const client = await createValidatorClient();
     const payer = client.payer;
     const owner = await generateKeyPairSignerWithSol(client);
     const { mint, mintAuthority, supplyElgamalKeypair, supplyAesKey } = await createConfidentialMintBurnMint({
@@ -248,7 +246,7 @@ it('confidentially mints above 2^32, burns, applies, and mints again without a r
     // past 2^32, where decrypting the ElGamal supply ciphertext directly fails —
     // only the reconciliation path (decrypt the AES cache, homomorphically
     // subtract the on-chain ciphertext, decrypt the difference) can recover it.
-    const client = await createValidatorClient({ estimateResourceLimits: false });
+    const client = await createValidatorClient();
     const payer = client.payer;
     const owner = await generateKeyPairSignerWithSol(client);
     const { mint, mintAuthority, supplyElgamalKeypair, supplyAesKey } = await createConfidentialMintBurnMint({

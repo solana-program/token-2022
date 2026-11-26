@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import { struct, u8 } from '@solana/buffer-layout';
 import type { AccountMeta, Commitment, Connection, Signer } from '@solana/web3.js';
 import { PublicKey, TransactionInstruction } from '@solana/web3.js';
@@ -200,6 +201,8 @@ export async function addExtraAccountMetasForExecute(
     const validateStatePubkey = getExtraAccountMetaAddress(mint, programId);
     const validateStateAccount = await connection.getAccountInfo(validateStatePubkey, commitment);
     if (validateStateAccount == null) {
+        // Token-2022 then invokes the hook with no extra accounts, but still needs its program.
+        instruction.keys.push({ pubkey: programId, isSigner: false, isWritable: false });
         return instruction;
     }
     const validateStateData = getExtraAccountMetas(validateStateAccount);

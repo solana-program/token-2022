@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import { blob, greedy, seq, struct, u32, u8 } from '@solana/buffer-layout';
 import type { Mint } from '../../state/mint.js';
 import { ExtensionType, getExtensionData } from '../extensionType.js';

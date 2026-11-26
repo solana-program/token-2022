@@ -20,16 +20,24 @@ use {
 pub struct WithheldTokensInfo {
     /// The available balance
     pub(crate) withheld_amount: EncryptedWithheldAmount,
+    known_amount: Option<u64>,
 }
 impl WithheldTokensInfo {
     /// Create a `WithheldTokensInfo` from an ElGamal ciphertext.
     pub fn new(withheld_amount: &EncryptedWithheldAmount) -> Self {
         Self {
             withheld_amount: *withheld_amount,
+            known_amount: None,
         }
     }
 
-    /// Create withdraw withheld proof data.
+    /// Set a known withheld amount in base units, avoiding bounded decryption.
+    pub fn with_known_amount(mut self, amount: u64) -> Self {
+        self.known_amount = Some(amount);
+        self
+    }
+
+    /// Create withdraw withheld proof data using the known amount, if supplied.
     pub fn generate_proof_data(
         &self,
         withdraw_withheld_authority_elgamal_keypair: &ElGamalKeypair,
@@ -40,9 +48,12 @@ impl WithheldTokensInfo {
             .try_into()
             .map_err(|_| TokenError::MalformedCiphertext)?;
 
-        let decrypted_withheld_amount_in_mint = withheld_amount_in_mint
-            .decrypt_u32(withdraw_withheld_authority_elgamal_keypair.secret())
-            .ok_or(TokenError::AccountDecryption)?;
+        let decrypted_withheld_amount_in_mint = match self.known_amount {
+            Some(amount) => amount,
+            None => withheld_amount_in_mint
+                .decrypt_u32(withdraw_withheld_authority_elgamal_keypair.secret())
+                .ok_or(TokenError::AccountDecryption)?,
+        };
 
         let destination_opening = PedersenOpening::new_rand();
 

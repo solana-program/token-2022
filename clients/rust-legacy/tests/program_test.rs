@@ -1,11 +1,10 @@
 #![allow(dead_code)]
 
 use {
+    solana_keypair::Keypair,
     solana_program_test::{tokio::sync::Mutex, ProgramTest, ProgramTestContext},
-    solana_sdk::{
-        pubkey::Pubkey,
-        signer::{keypair::Keypair, Signer},
-    },
+    solana_pubkey::Pubkey,
+    solana_signer::Signer,
     solana_zk_sdk::encryption::{
         auth_encryption::*,
         derivation::{derive_confidential_keys_from_signature, STANDARD_DERIVATION_MESSAGE},
