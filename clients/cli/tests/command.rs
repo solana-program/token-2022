@@ -93,7 +93,7 @@ macro_rules! async_trial {
         Trial::test(stringify!($test_func), move || {
             std::thread::Builder::new()
                 .name(stringify!($test_func).to_string())
-                .stack_size(4 * 1024 * 1024)
+                .stack_size(3 * 1024 * 1024)
                 .spawn(move || {
                     tokio::runtime::Builder::new_current_thread()
                         .enable_all()
@@ -5438,7 +5438,12 @@ async fn withdraw_withheld_confidential_tokens_custom_keys(
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
     let (mint, source) = setup_confidential_transfer_fees(&config, payer, 1, 0).await;
     let fee_account = create_confidential_auxiliary_account(&config, payer, mint).await;
-    let destination = create_confidential_auxiliary_account(&config, payer, mint).await;
+    // The recipient's owner never signs, only its AES key is supplied.
+    let recipient_owner = Keypair::new();
+    let mut recipient_config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    recipient_config.default_signer = Some(Arc::new(clone_keypair(&recipient_owner)));
+    let destination = create_confidential_auxiliary_account(&recipient_config, payer, mint).await;
 
     process_test_command(
         &config,
@@ -5459,7 +5464,8 @@ async fn withdraw_withheld_confidential_tokens_custom_keys(
     .await
     .unwrap();
 
-    let (elgamal_keypair, aes_key) = derive_confidential_keys(payer).unwrap();
+    let (elgamal_keypair, _) = derive_confidential_keys(payer).unwrap();
+    let (_, aes_key) = derive_confidential_keys(&recipient_owner).unwrap();
     let (elgamal_file, aes_file) = write_confidential_key_files(&elgamal_keypair, &aes_key);
     let (wrong_elgamal_file, wrong_aes_file) =
         write_confidential_key_files(&ElGamalKeypair::new_rand(), &AeKey::new_rand());
@@ -5521,7 +5527,7 @@ async fn withdraw_withheld_confidential_tokens_custom_keys(
     )
     .await
     .unwrap();
-    check_confidential_available_balance(&config, destination, payer, 1).await;
+    check_confidential_available_balance(&config, destination, &recipient_owner, 1).await;
 }
 
 async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, payer: &Keypair) {

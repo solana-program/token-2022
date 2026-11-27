@@ -2225,7 +2225,7 @@ async fn command_burn(
     permissioned_burn_authority: Option<Pubkey>,
     memo: Option<String>,
     bulk_signers: BulkSigners,
-    confidential: bool,
+    use_confidential: bool,
     account_keys: Option<(ElGamalKeypair, AeKey)>,
     owner_signer: Arc<dyn Signer>,
 ) -> CommandResult {
@@ -2236,8 +2236,6 @@ async fn command_burn(
     };
 
     let token = token_client_from_config(config, &mint_info.address, decimals)?;
-
-    let use_confidential = confidential || mint_info.has_confidential_mint_burn;
 
     if !use_confidential && account_keys.is_some() {
         return Err(
@@ -2529,7 +2527,7 @@ async fn command_mint(
     use_unchecked_instruction: bool,
     memo: Option<String>,
     bulk_signers: BulkSigners,
-    confidential: bool,
+    use_confidential: bool,
     supply_keys: Option<(ElGamalKeypair, AeKey)>,
 ) -> CommandResult {
     let amount = amount_to_raw_amount(ui_amount, mint_info.decimals, None, "TOKEN_AMOUNT");
@@ -2544,7 +2542,6 @@ async fn command_mint(
         ),
     );
 
-    let use_confidential = confidential || mint_info.has_confidential_mint_burn;
     let confidential_mint_args = if use_confidential {
         Some(match supply_keys {
             Some(keys) => keys,
@@ -4348,7 +4345,7 @@ async fn command_withdraw_withheld_tokens(
 async fn command_withdraw_withheld_confidential_tokens(
     config: &Config<'_>,
     destination_token_account: Pubkey,
-    destination_owner: Pubkey,
+    destination_owner: Option<Pubkey>,
     mut source_token_accounts: Vec<Pubkey>,
     authority: Pubkey,
     include_mint: bool,
@@ -4367,12 +4364,15 @@ async fn command_withdraw_withheld_confidential_tokens(
             destination_token_account
         )
     })?;
-    if destination_state.base.owner != destination_owner {
-        return Err(format!(
-            "Destination token account {} is owned by {}, but provided owner is {}",
-            destination_token_account, destination_state.base.owner, destination_owner,
-        )
-        .into());
+    // The owner only matters when the AES key is derived from it.
+    if let Some(destination_owner) = destination_owner {
+        if destination_state.base.owner != destination_owner {
+            return Err(format!(
+                "Destination token account {} is owned by {}, but provided owner is {}",
+                destination_token_account, destination_state.base.owner, destination_owner,
+            )
+            .into());
+        }
     }
     let mint_address = destination_state.base.mint;
     if source_token_accounts.contains(&mint_address) {
@@ -6084,7 +6084,9 @@ async fn process_command_inner(
                     .collect::<Vec<_>>()
             });
 
-            command_transfer(
+            // Boxed so the large transfer future doesn't set the size of every
+            // command's future.
+            Box::pin(command_transfer(
                 config,
                 token,
                 amount,
@@ -6103,7 +6105,7 @@ async fn process_command_inner(
                 arg_matches.is_present("allow_non_system_account_recipient"),
                 transfer_hook_accounts,
                 confidential_transfer_args,
-            )
+            ))
             .await
         }
         (CommandName::Burn, arg_matches) => {
@@ -6152,7 +6154,7 @@ async fn process_command_inner(
                 permissioned_burn_authority,
                 memo,
                 bulk_signers,
-                confidential,
+                use_confidential,
                 account_keys,
                 owner_signer_for_keys,
             )
@@ -6212,7 +6214,7 @@ async fn process_command_inner(
                 use_unchecked_instruction,
                 memo,
                 bulk_signers,
-                confidential,
+                use_confidential,
                 supply_keys,
             )
             .await
@@ -6687,15 +6689,17 @@ async fn process_command_inner(
                         .map_err(|err| err.to_string())?
                         .0
                 };
-                let (owner_signer, owner) =
-                    config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
-                let destination_aes_key = if arg_matches.is_present("destination_aes_key") {
-                    aes_key_of(arg_matches, "destination_aes_key")
-                        .map_err(|err| format!("Failed to read AES key: {err}"))?
+                let (destination_aes_key, owner) = if arg_matches.is_present("destination_aes_key")
+                {
+                    let aes_key = aes_key_of(arg_matches, "destination_aes_key")
+                        .map_err(|err| format!("Failed to read AES key: {err}"))?;
+                    (aes_key, None)
                 } else {
-                    derive_confidential_keys(&*owner_signer)
-                        .map_err(|err| err.to_string())?
-                        .1
+                    let (owner_signer, owner) =
+                        config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
+                    let (_, aes_key) =
+                        derive_confidential_keys(&*owner_signer).map_err(|err| err.to_string())?;
+                    (aes_key, Some(owner))
                 };
 
                 command_withdraw_withheld_confidential_tokens(

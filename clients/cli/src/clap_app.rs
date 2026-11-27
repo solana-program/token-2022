@@ -350,7 +350,10 @@ pub fn destination_aes_key_arg<'a>() -> Arg<'a> {
         .takes_value(true)
         .value_name("FILE")
         .requires("confidential")
-        .help("The fee recipient account's AES key file. Defaults to the key derived from --owner.")
+        .help(
+            "The fee recipient account's AES key file, used instead of --owner. \
+             Defaults to the key derived from --owner.",
+        )
 }
 
 pub fn mint_address_arg<'a>() -> Arg<'a> {
@@ -2429,8 +2432,9 @@ pub fn app<'a>(
                         .long("confidential")
                         .takes_value(false)
                         .help("Withdraw confidential transfer fees. The recipient account must be \
-                            configured for confidential transfers, and --owner must specify its \
-                            owner keypair to update the decryptable balance."),
+                            configured for confidential transfers. Its decryptable balance is updated \
+                            with --destination-aes-key, or with the key derived from the --owner \
+                            keypair."),
                 )
                 .arg(
                     Arg::with_name("withdraw_withheld_authority")
