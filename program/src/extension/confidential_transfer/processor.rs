@@ -256,6 +256,12 @@ fn process_configure_account(
                 authority_info_data_len,
                 account_info_iter.as_slice(),
             )?;
+
+            if let Ok(cpi_guard) = token_account.get_extension::<CpiGuard>() {
+                if cpi_guard.lock_cpi.into() && in_cpi() {
+                    return Err(TokenError::CpiGuardConfigureAccountBlocked.into());
+                }
+            }
         }
         ElGamalPubkeySource::ElGamalRegistry(elgamal_registry_account) => {
             // if ElGamal registry was provided, then just verify that the owners of the
@@ -263,6 +269,14 @@ fn process_configure_account(
             // verification check
             if elgamal_registry_account.owner != token_account.base.owner {
                 return Err(TokenError::OwnerMismatch.into());
+            }
+
+            // The registry key may have been set in CPI and this path needs no
+            // signature, so it is blocked at any call depth
+            if let Ok(cpi_guard) = token_account.get_extension::<CpiGuard>() {
+                if cpi_guard.lock_cpi.into() {
+                    return Err(TokenError::CpiGuardConfigureAccountWithRegistryBlocked.into());
+                }
             }
         }
     };
@@ -452,6 +466,14 @@ fn process_deposit(
         account_info_iter.as_slice(),
     )?;
 
+    if let Ok(cpi_guard) = token_account.get_extension::<CpiGuard>() {
+        // Deposited funds can only be spent with the account's ElGamal key,
+        // which may have been configured before CPI Guard was enabled
+        if cpi_guard.lock_cpi.into() && in_cpi() {
+            return Err(TokenError::CpiGuardTransferBlocked.into());
+        }
+    }
+
     if token_account.base.is_frozen() {
         return Err(TokenError::AccountFrozen.into());
     }
@@ -575,6 +597,14 @@ fn process_withdraw(
         authority_info_data_len,
         account_info_iter.as_slice(),
     )?;
+
+    if let Ok(cpi_guard) = token_account.get_extension::<CpiGuard>() {
+        // The proofs do not cover the new decryptable available balance, so a
+        // program passing them along could set one the owner cannot use
+        if cpi_guard.lock_cpi.into() && in_cpi() {
+            return Err(TokenError::CpiGuardTransferBlocked.into());
+        }
+    }
 
     if token_account.base.is_frozen() {
         return Err(TokenError::AccountFrozen.into());
@@ -1218,6 +1248,14 @@ fn process_apply_pending_balance(
         authority_info_data_len,
         account_info_iter.as_slice(),
     )?;
+
+    if let Ok(cpi_guard) = token_account.get_extension::<CpiGuard>() {
+        // The new decryptable available balance is not checked against the
+        // available balance, so a program could set one the owner cannot use
+        if cpi_guard.lock_cpi.into() && in_cpi() {
+            return Err(TokenError::CpiGuardApplyPendingBalanceBlocked.into());
+        }
+    }
 
     if token_account.base.is_frozen() {
         return Err(TokenError::AccountFrozen.into());
