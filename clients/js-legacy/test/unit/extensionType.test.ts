@@ -4,6 +4,7 @@ import { pack } from '@solana/spl-token-metadata';
 import type { Mint } from '../../src';
 import {
     ExtensionType,
+    getAccountLen,
     getAccountLenForMint,
     getExtensionTypes,
     getMintLen,
@@ -93,6 +94,21 @@ describe('extension type parsing', () => {
         };
         expect(getAccountLenForMint({ ...mint, tlvData: Buffer.concat([tlvData, Buffer.alloc(TYPE_SIZE)]) })).to.equal(
             getAccountLenForMint(mint),
+        );
+    });
+
+    it('includes space for the immutable owner required by a non-transferable mint', () => {
+        const mint: Mint = {
+            address: PublicKey.default,
+            mintAuthority: null,
+            supply: 0n,
+            decimals: 9,
+            isInitialized: true,
+            freezeAuthority: null,
+            tlvData: Buffer.from([ExtensionType.NonTransferable, 0, 0, 0]),
+        };
+        expect(getAccountLenForMint(mint)).to.equal(
+            getAccountLen([ExtensionType.NonTransferableAccount, ExtensionType.ImmutableOwner]),
         );
     });
 });
