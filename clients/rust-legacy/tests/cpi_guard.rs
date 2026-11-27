@@ -1,6 +1,9 @@
 mod program_test;
 use {
-    program_test::{keypair_clone, TestContext, TokenContext},
+    program_test::{
+        derive_confidential_keys, keypair_clone, ConfidentialTokenAccountMeta, TestContext,
+        TokenContext,
+    },
     solana_instruction_error::InstructionError,
     solana_keypair::Keypair,
     solana_program_pack::Pack,
@@ -15,10 +18,15 @@ use {
     solana_transaction::Transaction,
     solana_transaction_error::TransactionError,
     solana_transaction_error::TransportError,
+    solana_zk_sdk::zk_elgamal_proof_program::build_pubkey_validity_proof_data,
+    spl_elgamal_registry::state::ELGAMAL_REGISTRY_ACCOUNT_LEN,
     spl_instruction_padding_interface::instruction::wrap_instruction,
     spl_token_2022_interface::{
         error::TokenError,
         extension::{
+            confidential_transfer::{
+                self, ConfidentialTransferAccount, DEFAULT_MAXIMUM_PENDING_BALANCE_CREDIT_COUNTER,
+            },
             cpi_guard::{self, CpiGuard},
             BaseStateWithExtensions, ExtensionType,
         },
@@ -27,12 +35,16 @@ use {
     },
     spl_token_client::{
         client::ProgramBanksClientProcessTransaction,
-        token::{Token, TokenError as TokenClientError},
+        token::{ExtensionInitializationParams, Token, TokenError as TokenClientError},
+        zk_proofs::confidential_transfer::WithdrawAccountInfo,
     },
+    spl_token_confidential_transfer_proof_extraction::instruction::ProofLocation,
+    spl_token_confidential_transfer_proof_generation::withdraw::WithdrawProofData,
     std::sync::Arc,
 };
 
-// set up a bank and bank client with spl token 2022 and the instruction padder
+// set up a bank and bank client with spl token 2022, the instruction padder and
+// the elgamal registry
 // also creates a token with no extensions and inits two token accounts
 async fn make_context() -> TestContext {
     // TODO this may be removed when we upgrade to a solana version with a fixed
@@ -49,6 +61,7 @@ async fn make_context() -> TestContext {
         spl_instruction_padding_interface::id(),
         None,
     );
+    program_test.add_program("spl_elgamal_registry", spl_elgamal_registry::id(), None);
 
     let program_context = program_test.start_with_context().await;
     let program_context = Arc::new(Mutex::new(program_context));
@@ -109,6 +122,23 @@ async fn make_context_with_native_mint(amount: u64) -> TestContext {
             amount,
             &[&token_context.bob],
         )
+        .await
+        .unwrap();
+
+    test_context
+}
+
+async fn make_context_with_confidential_mint() -> TestContext {
+    let mut test_context = make_context().await;
+
+    test_context
+        .init_token_with_mint(vec![
+            ExtensionInitializationParams::ConfidentialTransferMint {
+                authority: None,
+                auto_approve_new_accounts: true,
+                auditor_elgamal_pubkey: None,
+            },
+        ])
         .await
         .unwrap();
 
@@ -988,4 +1018,533 @@ async fn test_cpi_guard_set_authority() {
             ),
         }
     }
+}
+
+#[tokio::test]
+async fn test_cpi_guard_confidential_deposit() {
+    let context = make_context_with_confidential_mint().await;
+    let TokenContext {
+        token,
+        mint_authority,
+        alice,
+        decimals,
+        ..
+    } = context.token_context.unwrap();
+
+    let alice_meta = ConfidentialTokenAccountMeta::new(&token, &alice, None, false, false).await;
+    let alice_account = alice_meta.token_account;
+
+    token
+        .reallocate(
+            &alice_account,
+            &alice.pubkey(),
+            &[ExtensionType::CpiGuard],
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    let mut amount = 100;
+    token
+        .mint_to(
+            &alice_account,
+            &mint_authority.pubkey(),
+            amount,
+            &[&mint_authority],
+        )
+        .await
+        .unwrap();
+
+    let deposit = [wrap_instruction(
+        spl_instruction_padding_interface::id(),
+        confidential_transfer::instruction::deposit(
+            &spl_token_2022_interface::id(),
+            &alice_account,
+            token.get_address(),
+            1,
+            decimals,
+            &alice.pubkey(),
+            &[],
+        )
+        .unwrap(),
+        vec![],
+        0,
+    )
+    .unwrap()];
+
+    token
+        .enable_cpi_guard(&alice_account, &alice.pubkey(), &[&alice])
+        .await
+        .unwrap();
+
+    // deposit works normally with cpi guard enabled
+    token
+        .confidential_transfer_deposit(&alice_account, &alice.pubkey(), 1, decimals, &[&alice])
+        .await
+        .unwrap();
+    amount -= 1;
+
+    let alice_state = token.get_account_info(&alice_account).await.unwrap();
+    assert_eq!(alice_state.base.amount, amount);
+
+    // user-auth cpi deposit with cpi guard doesn't work
+    let error = token.process_ixs(&deposit, &[&alice]).await.unwrap_err();
+    assert_eq!(error, client_error(TokenError::CpiGuardTransferBlocked));
+
+    let alice_state = token.get_account_info(&alice_account).await.unwrap();
+    assert_eq!(alice_state.base.amount, amount);
+
+    // deposit still works through cpi with cpi guard off
+    token
+        .disable_cpi_guard(&alice_account, &alice.pubkey(), &[&alice])
+        .await
+        .unwrap();
+
+    token.process_ixs(&deposit, &[&alice]).await.unwrap();
+    amount -= 1;
+
+    let alice_state = token.get_account_info(&alice_account).await.unwrap();
+    assert_eq!(alice_state.base.amount, amount);
+}
+
+#[tokio::test]
+async fn test_cpi_guard_confidential_withdraw() {
+    let context = make_context_with_confidential_mint().await;
+    let TokenContext {
+        token,
+        mint_authority,
+        alice,
+        decimals,
+        ..
+    } = context.token_context.unwrap();
+
+    let alice_meta = ConfidentialTokenAccountMeta::new_with_tokens(
+        &token,
+        &alice,
+        None,
+        false,
+        false,
+        &mint_authority,
+        100,
+        decimals,
+    )
+    .await;
+    let alice_account = alice_meta.token_account;
+
+    token
+        .reallocate(
+            &alice_account,
+            &alice.pubkey(),
+            &[ExtensionType::CpiGuard],
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    token
+        .enable_cpi_guard(&alice_account, &alice.pubkey(), &[&alice])
+        .await
+        .unwrap();
+
+    // withdraw works normally with cpi guard enabled
+    let mut amount = 0;
+    token
+        .confidential_transfer_withdraw(
+            &alice_account,
+            &alice.pubkey(),
+            None,
+            None,
+            1,
+            decimals,
+            None,
+            &alice_meta.elgamal_keypair,
+            &alice_meta.aes_key,
+            &[&alice],
+        )
+        .await
+        .unwrap();
+    amount += 1;
+
+    let alice_state = token.get_account_info(&alice_account).await.unwrap();
+    assert_eq!(alice_state.base.amount, amount);
+
+    // the cpi withdraw takes its proofs from context state accounts
+    let extension = alice_state
+        .get_extension::<ConfidentialTransferAccount>()
+        .unwrap();
+    let withdraw_account_info = WithdrawAccountInfo::new(extension);
+    let WithdrawProofData {
+        equality_proof_data,
+        range_proof_data,
+    } = withdraw_account_info
+        .generate_proof_data(1, &alice_meta.elgamal_keypair, &alice_meta.aes_key)
+        .unwrap();
+    let new_decryptable_available_balance = withdraw_account_info
+        .new_decryptable_available_balance(1, &alice_meta.aes_key)
+        .unwrap();
+
+    let equality_proof_context_account = Keypair::new();
+    let range_proof_context_account = Keypair::new();
+
+    token
+        .confidential_transfer_create_context_state_account(
+            &equality_proof_context_account.pubkey(),
+            &alice.pubkey(),
+            &equality_proof_data,
+            &[&equality_proof_context_account],
+        )
+        .await
+        .unwrap();
+
+    token
+        .confidential_transfer_create_context_state_account(
+            &range_proof_context_account.pubkey(),
+            &alice.pubkey(),
+            &range_proof_data,
+            &[&range_proof_context_account],
+        )
+        .await
+        .unwrap();
+
+    let withdraw = [wrap_instruction(
+        spl_instruction_padding_interface::id(),
+        confidential_transfer::instruction::inner_withdraw(
+            &spl_token_2022_interface::id(),
+            &alice_account,
+            token.get_address(),
+            1,
+            decimals,
+            &new_decryptable_available_balance.into(),
+            &alice.pubkey(),
+            &[],
+            ProofLocation::ContextStateAccount(&equality_proof_context_account.pubkey()),
+            ProofLocation::ContextStateAccount(&range_proof_context_account.pubkey()),
+        )
+        .unwrap(),
+        vec![],
+        0,
+    )
+    .unwrap()];
+
+    // user-auth cpi withdraw with cpi guard doesn't work
+    let error = token.process_ixs(&withdraw, &[&alice]).await.unwrap_err();
+    assert_eq!(error, client_error(TokenError::CpiGuardTransferBlocked));
+
+    let alice_state = token.get_account_info(&alice_account).await.unwrap();
+    assert_eq!(alice_state.base.amount, amount);
+
+    // withdraw still works through cpi with cpi guard off
+    token
+        .disable_cpi_guard(&alice_account, &alice.pubkey(), &[&alice])
+        .await
+        .unwrap();
+
+    token.process_ixs(&withdraw, &[&alice]).await.unwrap();
+    amount += 1;
+
+    let alice_state = token.get_account_info(&alice_account).await.unwrap();
+    assert_eq!(alice_state.base.amount, amount);
+}
+
+#[tokio::test]
+async fn test_cpi_guard_confidential_configure_account() {
+    let context = make_context_with_confidential_mint().await;
+    let TokenContext {
+        token, alice, bob, ..
+    } = context.token_context.unwrap();
+
+    let mk_configure_account = |owner: &Keypair| {
+        let (elgamal_keypair, aes_key) = derive_confidential_keys(owner).unwrap();
+        let proof_data = build_pubkey_validity_proof_data(&elgamal_keypair).unwrap();
+        let mut instructions = confidential_transfer::instruction::configure_account(
+            &spl_token_2022_interface::id(),
+            &owner.pubkey(),
+            token.get_address(),
+            &aes_key.encrypt(0).into(),
+            DEFAULT_MAXIMUM_PENDING_BALANCE_CREDIT_COUNTER,
+            &owner.pubkey(),
+            &[],
+            ProofLocation::InstructionOffset(1.try_into().unwrap(), &proof_data),
+        )
+        .unwrap();
+        instructions[0] = wrap_instruction(
+            spl_instruction_padding_interface::id(),
+            instructions[0].clone(),
+            vec![],
+            0,
+        )
+        .unwrap();
+        instructions
+    };
+
+    for owner in [&alice, &bob] {
+        token
+            .create_auxiliary_token_account_with_extension_space(
+                owner,
+                &owner.pubkey(),
+                vec![
+                    ExtensionType::CpiGuard,
+                    ExtensionType::ConfidentialTransferAccount,
+                ],
+            )
+            .await
+            .unwrap();
+
+        token
+            .enable_cpi_guard(&owner.pubkey(), &owner.pubkey(), &[owner])
+            .await
+            .unwrap();
+    }
+
+    // user-auth cpi configure with cpi guard doesn't work
+    let error = token
+        .process_ixs(&mk_configure_account(&alice), &[&alice])
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error,
+        client_error(TokenError::CpiGuardConfigureAccountBlocked)
+    );
+
+    let alice_state = token.get_account_info(&alice.pubkey()).await.unwrap();
+    assert!(alice_state
+        .get_extension::<ConfidentialTransferAccount>()
+        .is_err());
+
+    // configure works normally with cpi guard enabled
+    let (elgamal_keypair, aes_key) = derive_confidential_keys(&alice).unwrap();
+    token
+        .confidential_transfer_configure_token_account(
+            &alice.pubkey(),
+            &alice.pubkey(),
+            None,
+            None,
+            &elgamal_keypair,
+            &aes_key,
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    let alice_state = token.get_account_info(&alice.pubkey()).await.unwrap();
+    assert!(alice_state
+        .get_extension::<ConfidentialTransferAccount>()
+        .is_ok());
+
+    // configure still works through cpi with cpi guard off
+    token
+        .disable_cpi_guard(&bob.pubkey(), &bob.pubkey(), &[&bob])
+        .await
+        .unwrap();
+
+    token
+        .process_ixs(&mk_configure_account(&bob), &[&bob])
+        .await
+        .unwrap();
+
+    let bob_state = token.get_account_info(&bob.pubkey()).await.unwrap();
+    assert!(bob_state
+        .get_extension::<ConfidentialTransferAccount>()
+        .is_ok());
+}
+
+#[tokio::test]
+async fn test_cpi_guard_confidential_configure_account_with_registry() {
+    let context = make_context_with_confidential_mint().await;
+    let TokenContext { token, alice, .. } = context.token_context.unwrap();
+
+    let alice_account_keypair = Keypair::new();
+    let alice_token_account = alice_account_keypair.pubkey();
+    let (elgamal_keypair, _) = derive_confidential_keys(&alice).unwrap();
+
+    // create ElGamal registry
+    let ctx = context.context.lock().await;
+    let proof_data = build_pubkey_validity_proof_data(&elgamal_keypair).unwrap();
+    let proof_location = ProofLocation::InstructionOffset(1.try_into().unwrap(), &proof_data);
+
+    let elgamal_registry_address = spl_elgamal_registry::get_elgamal_registry_address(
+        &alice.pubkey(),
+        &spl_elgamal_registry::id(),
+    );
+
+    let rent = ctx.banks_client.get_rent().await.unwrap();
+    let system_instruction = system_instruction::transfer(
+        &ctx.payer.pubkey(),
+        &elgamal_registry_address,
+        rent.minimum_balance(ELGAMAL_REGISTRY_ACCOUNT_LEN),
+    );
+    let create_registry_instructions =
+        spl_elgamal_registry::instruction::create_registry(&alice.pubkey(), proof_location)
+            .unwrap();
+
+    let payer_pubkey = ctx.payer.pubkey();
+    let instructions = [&[system_instruction], &create_registry_instructions[..]].concat();
+    let tx = Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&payer_pubkey),
+        &[&ctx.payer, &alice],
+        ctx.last_blockhash,
+    );
+    ctx.banks_client.process_transaction(tx).await.unwrap();
+    drop(ctx);
+
+    token
+        .create_auxiliary_token_account_with_extension_space(
+            &alice_account_keypair,
+            &alice.pubkey(),
+            vec![ExtensionType::CpiGuard],
+        )
+        .await
+        .unwrap();
+
+    token
+        .enable_cpi_guard(&alice_token_account, &alice.pubkey(), &[&alice])
+        .await
+        .unwrap();
+
+    // configure from the registry with cpi guard doesn't work, even outside cpi
+    let error = token
+        .confidential_transfer_configure_token_account_with_registry(
+            &alice_token_account,
+            &elgamal_registry_address,
+            Some(&payer_pubkey),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error,
+        client_error(TokenError::CpiGuardConfigureAccountWithRegistryBlocked)
+    );
+
+    // configure from the registry works with cpi guard off
+    token
+        .disable_cpi_guard(&alice_token_account, &alice.pubkey(), &[&alice])
+        .await
+        .unwrap();
+
+    token
+        .confidential_transfer_configure_token_account_with_registry(
+            &alice_token_account,
+            &elgamal_registry_address,
+            Some(&payer_pubkey),
+        )
+        .await
+        .unwrap();
+
+    let alice_state = token.get_account_info(&alice_token_account).await.unwrap();
+    let extension = alice_state
+        .get_extension::<ConfidentialTransferAccount>()
+        .unwrap();
+    assert_eq!(extension.elgamal_pubkey, (*elgamal_keypair.pubkey()).into());
+}
+
+#[tokio::test]
+async fn test_cpi_guard_confidential_apply_pending_balance() {
+    let context = make_context_with_confidential_mint().await;
+    let TokenContext {
+        token,
+        mint_authority,
+        alice,
+        decimals,
+        ..
+    } = context.token_context.unwrap();
+
+    let alice_meta = ConfidentialTokenAccountMeta::new(&token, &alice, None, false, false).await;
+    let alice_account = alice_meta.token_account;
+
+    token
+        .reallocate(
+            &alice_account,
+            &alice.pubkey(),
+            &[ExtensionType::CpiGuard],
+            &[&alice],
+        )
+        .await
+        .unwrap();
+
+    token
+        .mint_to(
+            &alice_account,
+            &mint_authority.pubkey(),
+            100,
+            &[&mint_authority],
+        )
+        .await
+        .unwrap();
+
+    let apply_pending_balance = [wrap_instruction(
+        spl_instruction_padding_interface::id(),
+        confidential_transfer::instruction::apply_pending_balance(
+            &spl_token_2022_interface::id(),
+            &alice_account,
+            1,
+            &alice_meta.aes_key.encrypt(2).into(),
+            &alice.pubkey(),
+            &[],
+        )
+        .unwrap(),
+        vec![],
+        0,
+    )
+    .unwrap()];
+
+    let pending_balance_credit_counter = || async {
+        let alice_state = token.get_account_info(&alice_account).await.unwrap();
+        let extension = alice_state
+            .get_extension::<ConfidentialTransferAccount>()
+            .unwrap();
+        u64::from(extension.pending_balance_credit_counter)
+    };
+
+    token
+        .enable_cpi_guard(&alice_account, &alice.pubkey(), &[&alice])
+        .await
+        .unwrap();
+
+    // apply pending balance works normally with cpi guard enabled
+    token
+        .confidential_transfer_deposit(&alice_account, &alice.pubkey(), 1, decimals, &[&alice])
+        .await
+        .unwrap();
+
+    token
+        .confidential_transfer_apply_pending_balance(
+            &alice_account,
+            &alice.pubkey(),
+            None,
+            alice_meta.elgamal_keypair.secret(),
+            &alice_meta.aes_key,
+            &[&alice],
+        )
+        .await
+        .unwrap();
+    assert_eq!(pending_balance_credit_counter().await, 0);
+
+    // user-auth cpi apply pending balance with cpi guard doesn't work
+    token
+        .confidential_transfer_deposit(&alice_account, &alice.pubkey(), 1, decimals, &[&alice])
+        .await
+        .unwrap();
+
+    let error = token
+        .process_ixs(&apply_pending_balance, &[&alice])
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error,
+        client_error(TokenError::CpiGuardApplyPendingBalanceBlocked)
+    );
+    assert_eq!(pending_balance_credit_counter().await, 1);
+
+    // apply pending balance still works through cpi with cpi guard off
+    token
+        .disable_cpi_guard(&alice_account, &alice.pubkey(), &[&alice])
+        .await
+        .unwrap();
+
+    token
+        .process_ixs(&apply_pending_balance, &[&alice])
+        .await
+        .unwrap();
+    assert_eq!(pending_balance_credit_counter().await, 0);
 }
