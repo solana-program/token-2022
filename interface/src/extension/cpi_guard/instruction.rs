@@ -24,8 +24,14 @@ pub enum CpiGuardInstruction {
     /// * `CloseAccount` can only return lamports to owner.
     /// * `SetAuthority` can only be used to remove an existing close authority.
     /// * `Approve` is disallowed entirely.
+    /// * Confidential transfer `ConfigureAccount`, `Deposit`, `Withdraw`,
+    ///   `Transfer`, `TransferWithFee`, and `ApplyPendingBalance` are disallowed
+    ///   entirely.
+    /// * Confidential mint-burn `Burn` is disallowed entirely.
     ///
     /// In addition, CPI Guard cannot be enabled or disabled via CPI.
+    /// Confidential transfer `ConfigureAccountWithRegistry`, which skips the
+    /// owner signature, is disallowed while CPI Guard is enabled.
     ///
     /// Accounts expected by this instruction:
     ///

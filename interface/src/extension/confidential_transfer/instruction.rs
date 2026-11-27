@@ -73,6 +73,9 @@ pub enum ConfidentialTransferInstruction {
     /// The instruction fails if the `TokenInstruction::InitializeAccount`
     /// instruction has not yet successfully executed for the token account.
     ///
+    /// The instruction fails if it is invoked through CPI while CPI Guard is
+    /// enabled on the token account.
+    ///
     /// Upon success, confidential and non-confidential deposits and transfers
     /// are enabled. Use the `DisableConfidentialCredits` and
     /// `DisableNonConfidentialCredits` instructions to disable.
@@ -180,6 +183,7 @@ pub enum ConfidentialTransferInstruction {
     /// Fails if the associated mint is extended as `NonTransferable`.
     /// Fails if the associated mint is extended as `ConfidentialMintBurn`.
     /// Fails if the associated mint is paused with the `Pausable` extension.
+    /// Fails if invoked through CPI while CPI Guard is enabled on the account.
     ///
     /// Accounts expected by this instruction:
     ///
@@ -217,6 +221,7 @@ pub enum ConfidentialTransferInstruction {
     /// Fails if the associated mint is extended as `NonTransferable`.
     /// Fails if the associated mint is extended as `ConfidentialMintBurn`.
     /// Fails if the associated mint is paused with the `Pausable` extension.
+    /// Fails if invoked through CPI while CPI Guard is enabled on the account.
     ///
     /// Accounts expected by this instruction:
     ///
@@ -261,6 +266,8 @@ pub enum ConfidentialTransferInstruction {
     /// context state account addresses need to be provided.
     ///
     /// Fails if the associated mint is extended as `NonTransferable`.
+    /// Fails if invoked through CPI while CPI Guard is enabled on the source
+    /// account.
     ///
     ///   * Single owner/delegate
     ///   1. `[writable]` The source SPL Token account.
@@ -298,6 +305,8 @@ pub enum ConfidentialTransferInstruction {
     /// at execution, then clears the pending balance and its counter even if
     /// the counts differ. See `ConfidentialTransferAccount` for how clients use
     /// these recorded counts to detect a stale decryptable available balance.
+    ///
+    /// Fails if invoked through CPI while CPI Guard is enabled on the account.
     ///
     /// Account expected by this instruction:
     ///
@@ -419,7 +428,8 @@ pub enum ConfidentialTransferInstruction {
     ///
     /// The same restrictions for the `Transfer` applies to
     /// `TransferWithFee`. Namely, the instruction fails if the
-    /// associated mint is extended as `NonTransferable`.
+    /// associated mint is extended as `NonTransferable`, or if it is invoked
+    /// through CPI while CPI Guard is enabled on the source account.
     ///
     ///   * Transfer without fee
     ///   1. `[writable]` The source SPL Token account.
@@ -469,6 +479,10 @@ pub enum ConfidentialTransferInstruction {
     /// the token account. If a valid `ElGamalRegistry` account is provided,
     /// then the program skips the verification of the ElGamal pubkey
     /// validity proof as well as the token owner signature.
+    ///
+    /// The instruction fails if CPI Guard is enabled on the token account,
+    /// since the token owner signature is skipped. Use `ConfigureAccount`
+    /// instead.
     ///
     /// If the token account is not large enough to include the new
     /// confidential transfer extension, then optionally reallocate the

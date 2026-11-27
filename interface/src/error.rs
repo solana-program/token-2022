@@ -268,6 +268,20 @@ pub enum TokenError {
     /// Pending supply is not zero
     #[error("Key rotation attempted while pending balance is not zero")]
     PendingBalanceNonZero,
+    /// CPI Guard is enabled, and a program attempted to configure a
+    /// confidential transfer account
+    #[error("CPI Guard is enabled, and a program attempted to configure a confidential transfer account via CPI")]
+    CpiGuardConfigureAccountBlocked,
+
+    // 70
+    /// Account cannot be configured for confidential transfers from an ElGamal
+    /// registry while CPI Guard is enabled
+    #[error("Account cannot be configured for confidential transfers from an ElGamal registry while CPI Guard is enabled")]
+    CpiGuardConfigureAccountWithRegistryBlocked,
+    /// CPI Guard is enabled, and a program attempted to apply a pending
+    /// balance
+    #[error("CPI Guard is enabled, and a program attempted to apply a pending balance via CPI")]
+    CpiGuardApplyPendingBalanceBlocked,
 }
 impl From<TokenError> for ProgramError {
     fn from(e: TokenError) -> Self {
@@ -464,6 +478,15 @@ impl ToStr for TokenError {
             }
             TokenError::PendingBalanceNonZero => {
                 "Key rotation attempted while pending balance is not zero"
+            }
+            TokenError::CpiGuardConfigureAccountBlocked => {
+                "CPI Guard is enabled, and a program attempted to configure a confidential transfer account via CPI"
+            }
+            TokenError::CpiGuardConfigureAccountWithRegistryBlocked => {
+                "Account cannot be configured for confidential transfers from an ElGamal registry while CPI Guard is enabled"
+            }
+            TokenError::CpiGuardApplyPendingBalanceBlocked => {
+                "CPI Guard is enabled, and a program attempted to apply a pending balance via CPI"
             }
         }
     }
