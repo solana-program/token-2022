@@ -13,7 +13,7 @@ no-entrypoint = []
 
 [dependencies]
 bytemuck = { version = "1.25.0", features = ["derive"] }
-pinocchio = "0.11"
+pinocchio = "0.12"
 pinocchio-system = "0.6.1"
 solana-account-view = "2.1.0"
 solana-address = "2.6.1"
