@@ -357,7 +357,7 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
     )
     .await;
     let account = fixture.account(true).await;
-    assert!(!bool::from(fixture.extension(account).await.approved));
+    assert!(!fixture.extension(account).await.approved.is_approved());
     let mut approve = args(&[
         "approve-confidential-transfer-account",
         "--address",
@@ -388,7 +388,7 @@ pub async fn offline_confidential_controls(test_validator: &TestValidator, payer
         "does not contain",
     );
     fixture.complete(&approve).await;
-    assert!(bool::from(fixture.extension(account).await.approved));
+    assert!(fixture.extension(account).await.approved.is_approved());
 
     for (index, (command, confidential, enabled)) in [
         ("disable-confidential-credits", true, false),

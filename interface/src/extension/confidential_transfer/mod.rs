@@ -60,6 +60,62 @@ impl Extension for ConfidentialTransferMint {
     const TYPE: ExtensionType = ExtensionType::ConfidentialTransferMint;
 }
 
+/// Approval status of a `ConfidentialTransferAccount`, with the key epoch of
+/// the account's withheld confidential transfer fees in the spare bits
+///
+/// The account is approved if the byte is nonzero, as with `Bool`. Bits 1
+/// through 7 hold the key epoch. Approving the account or setting a key epoch
+/// sets bit 0, so an approved account stays nonzero at key epoch 0. A key
+/// epoch can only be set on an approved account.
+///
+/// The key epoch says which withdraw withheld authority ElGamal key the
+/// account's withheld fees are encrypted under.
+///
+/// Check approval with `is_approved()`, not `==`, which also compares the key
+/// epoch.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
+#[repr(transparent)]
+pub struct AccountApproval(u8);
+
+impl AccountApproval {
+    /// The largest key epoch that fits in the spare bits, which is 127.
+    pub const MAX_FEE_KEY_EPOCH: u8 = u8::MAX >> 1;
+
+    const APPROVED: u8 = 1;
+
+    /// Create an approval status at key epoch 0.
+    pub const fn new(approved: bool) -> Self {
+        Self(if approved { Self::APPROVED } else { 0 })
+    }
+
+    /// Check if the account has been approved.
+    pub const fn is_approved(&self) -> bool {
+        self.0 != 0
+    }
+
+    /// Approve the account, keeping the key epoch.
+    pub fn approve(&mut self) {
+        self.0 |= Self::APPROVED;
+    }
+
+    /// Get the key epoch of the account's withheld fees.
+    pub const fn fee_key_epoch(&self) -> u8 {
+        self.0 >> 1
+    }
+
+    /// Set the key epoch of the account's withheld fees.
+    pub fn set_fee_key_epoch(&mut self, key_epoch: u8) -> ProgramResult {
+        if !self.is_approved() {
+            return Err(TokenError::ConfidentialTransferAccountNotApproved.into());
+        }
+        if key_epoch > Self::MAX_FEE_KEY_EPOCH {
+            return Err(TokenError::Overflow.into());
+        }
+        self.0 = (key_epoch << 1) | Self::APPROVED;
+        Ok(())
+    }
+}
+
 /// Confidential account state.
 ///
 /// # Pending balance credit counters
@@ -99,10 +155,10 @@ impl Extension for ConfidentialTransferMint {
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct ConfidentialTransferAccount {
-    /// `true` if this account has been approved for use. All confidential
+    /// Whether this account has been approved for use. All confidential
     /// transfer operations for the account will fail until approval is
     /// granted.
-    pub approved: Bool,
+    pub approved: AccountApproval,
 
     /// The public key associated with ElGamal encryption
     pub elgamal_pubkey: PodElGamalPubkey,
@@ -163,7 +219,7 @@ impl Extension for ConfidentialTransferAccount {
 impl ConfidentialTransferAccount {
     /// Check if a `ConfidentialTransferAccount` has been approved for use.
     pub fn approved(&self) -> ProgramResult {
-        if bool::from(&self.approved) {
+        if self.approved.is_approved() {
             Ok(())
         } else {
             Err(TokenError::ConfidentialTransferAccountNotApproved.into())
@@ -246,5 +302,59 @@ impl ConfidentialTransferAccount {
             .ok_or(TokenError::Overflow)?)
         .into();
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn account_approval_new() {
+        let unapproved = AccountApproval::new(false);
+        assert!(!unapproved.is_approved());
+        assert_eq!(bytemuck::bytes_of(&unapproved), &[0]);
+        assert_eq!(unapproved, AccountApproval::default());
+
+        let approved = AccountApproval::new(true);
+        assert!(approved.is_approved());
+        assert_eq!(approved.fee_key_epoch(), 0);
+        assert_eq!(bytemuck::bytes_of(&approved), &[1]);
+    }
+
+    #[test]
+    fn account_approval_set_fee_key_epoch() {
+        let mut approval = AccountApproval::new(false);
+        assert_eq!(
+            approval.set_fee_key_epoch(1),
+            Err(TokenError::ConfidentialTransferAccountNotApproved.into())
+        );
+        assert_eq!(approval, AccountApproval::new(false));
+
+        approval.approve();
+        for key_epoch in [1, AccountApproval::MAX_FEE_KEY_EPOCH, 0] {
+            approval.set_fee_key_epoch(key_epoch).unwrap();
+            assert_eq!(approval.fee_key_epoch(), key_epoch);
+            assert!(approval.is_approved());
+        }
+
+        approval.set_fee_key_epoch(5).unwrap();
+        assert_eq!(bytemuck::bytes_of(&approval), &[0b1011]);
+        assert_eq!(
+            approval.set_fee_key_epoch(AccountApproval::MAX_FEE_KEY_EPOCH + 1),
+            Err(TokenError::Overflow.into())
+        );
+        assert_eq!(approval.fee_key_epoch(), 5);
+    }
+
+    #[test]
+    fn account_approval_approve_keeps_fee_key_epoch() {
+        // An approval byte written before `auto_approve_new_accounts` was
+        // normalized can be any nonzero value
+        let mut approval: AccountApproval = bytemuck::cast(0b1010u8);
+        assert!(approval.is_approved());
+        approval.approve();
+        assert_eq!(bytemuck::bytes_of(&approval), &[0b1011]);
+        assert_eq!(approval.fee_key_epoch(), 5);
     }
 }

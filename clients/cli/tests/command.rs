@@ -3458,7 +3458,7 @@ async fn configure_confidential_transfer_with_registry(
             .get_extension::<ConfidentialTransferAccount>()
             .unwrap();
         assert_eq!(extension.elgamal_pubkey, (*elgamal_keypair.pubkey()).into());
-        assert!(bool::from(extension.approved));
+        assert!(extension.approved.is_approved());
         assert!(bool::from(extension.allow_confidential_credits));
         assert_eq!(
             u64::from(extension.maximum_pending_balance_credit_counter),
@@ -3601,7 +3601,7 @@ async fn approve_confidential_transfer_account(test_validator: &TestValidator, p
     let extension = account_state
         .get_extension::<ConfidentialTransferAccount>()
         .unwrap();
-    assert!(!bool::from(extension.approved));
+    assert!(!extension.approved.is_approved());
 
     // The account owner's signature cannot approve the account.
     process_test_command(
@@ -3641,7 +3641,7 @@ async fn approve_confidential_transfer_account(test_validator: &TestValidator, p
     let extension = account_state
         .get_extension::<ConfidentialTransferAccount>()
         .unwrap();
-    assert!(bool::from(extension.approved));
+    assert!(extension.approved.is_approved());
 
     // Explicit account selection also supports the default authority signer.
     let auxiliary_account = create_auxiliary_account(&config, payer, token_pubkey).await;
@@ -3693,7 +3693,7 @@ async fn approve_confidential_transfer_account(test_validator: &TestValidator, p
     let extension = account_state
         .get_extension::<ConfidentialTransferAccount>()
         .unwrap();
-    assert!(bool::from(extension.approved));
+    assert!(extension.approved.is_approved());
 }
 
 async fn configure_confidential_transfer_partial_failure(
@@ -4185,7 +4185,7 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     let extension = account_state
         .get_extension::<ConfidentialTransferAccount>()
         .unwrap();
-    assert!(bool::from(extension.approved));
+    assert!(extension.approved.is_approved());
     assert!(bool::from(extension.allow_confidential_credits));
     assert!(bool::from(extension.allow_non_confidential_credits));
 

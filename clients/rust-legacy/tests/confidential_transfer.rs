@@ -27,14 +27,14 @@ use {
             confidential_transfer::{
                 self,
                 instruction::{InitializeMintData, UpdateMintData},
-                ConfidentialTransferAccount, ConfidentialTransferMint,
+                AccountApproval, ConfidentialTransferAccount, ConfidentialTransferMint,
                 MAXIMUM_DEPOSIT_TRANSFER_AMOUNT,
             },
             BaseStateWithExtensions, BaseStateWithExtensionsMut, ExtensionType,
             PodStateWithExtensionsMut, StateWithExtensionsOwned,
         },
         id, instruction,
-        pod::PodMint,
+        pod::{PodAccount, PodMint},
         state::Mint,
     },
     spl_token_client::{
@@ -219,7 +219,7 @@ async fn confidential_transfer_configure_token_account_with_option(
     let extension = state
         .get_extension::<ConfidentialTransferAccount>()
         .unwrap();
-    assert!(!bool::from(&extension.approved));
+    assert!(!extension.approved.is_approved());
     assert!(bool::from(&extension.allow_confidential_credits));
     assert_eq!(extension.elgamal_pubkey, alice_elgamal_pubkey);
     assert_eq!(
@@ -246,7 +246,7 @@ async fn confidential_transfer_configure_token_account_with_option(
     let extension = state
         .get_extension::<ConfidentialTransferAccount>()
         .unwrap();
-    assert!(bool::from(&extension.approved));
+    assert!(extension.approved.is_approved());
 
     // Configuring an already initialized account should produce an error
     let err = configure_account_with_option(
@@ -382,7 +382,65 @@ async fn confidential_transfer_normalize_auto_approve_new_accounts() {
     let extension = state
         .get_extension::<ConfidentialTransferAccount>()
         .unwrap();
-    assert_eq!(extension.approved, true.into());
+    assert_eq!(extension.approved, AccountApproval::new(true));
+}
+
+#[tokio::test]
+async fn confidential_transfer_approve_account_keeps_fee_key_epoch() {
+    let authority = Keypair::new();
+    let fee_key_epoch = 5;
+
+    let mut context = TestContext::new().await;
+    context
+        .init_token_with_mint(vec![
+            ExtensionInitializationParams::ConfidentialTransferMint {
+                authority: Some(authority.pubkey()),
+                auto_approve_new_accounts: true,
+                auditor_elgamal_pubkey: None,
+            },
+        ])
+        .await
+        .unwrap();
+
+    let TokenContext { token, alice, .. } = context.token_context.unwrap();
+    let alice_meta = ConfidentialTokenAccountMeta::new(&token, &alice, None, false, false).await;
+
+    let mut ctx = context.context.lock().await;
+    let mut token_account = ctx
+        .banks_client
+        .get_account(alice_meta.token_account)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut state =
+        PodStateWithExtensionsMut::<PodAccount>::unpack(&mut token_account.data).unwrap();
+    state
+        .get_extension_mut::<ConfidentialTransferAccount>()
+        .unwrap()
+        .approved
+        .set_fee_key_epoch(fee_key_epoch)
+        .unwrap();
+    ctx.set_account(&alice_meta.token_account, &token_account.into());
+    drop(ctx);
+
+    token
+        .confidential_transfer_approve_account(
+            &alice_meta.token_account,
+            &authority.pubkey(),
+            &[&authority],
+        )
+        .await
+        .unwrap();
+
+    let state = token
+        .get_account_info(&alice_meta.token_account)
+        .await
+        .unwrap();
+    let extension = state
+        .get_extension::<ConfidentialTransferAccount>()
+        .unwrap();
+    assert!(extension.approved.is_approved());
+    assert_eq!(extension.approved.fee_key_epoch(), fee_key_epoch);
 }
 
 #[tokio::test]
@@ -2853,7 +2911,7 @@ async fn confidential_transfer_configure_token_account_with_registry() {
     let extension = state
         .get_extension::<ConfidentialTransferAccount>()
         .unwrap();
-    assert!(!bool::from(&extension.approved));
+    assert!(!extension.approved.is_approved());
     assert!(bool::from(&extension.allow_confidential_credits));
     assert_eq!(
         extension.elgamal_pubkey,
