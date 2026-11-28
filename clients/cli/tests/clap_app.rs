@@ -123,3 +123,99 @@ fn confidential_fee_amount_argument_validation() {
         ])
         .is_err());
 }
+
+#[test]
+fn confidential_operation_keys_require_both_flags() {
+    let minimum_signers_help = minimum_signers_help_string();
+    let multisig_member_help = multisig_member_help_string();
+    let app = app("9", &minimum_signers_help, &multisig_member_help);
+    let mint = Pubkey::new_unique().to_string();
+    let account = Pubkey::new_unique().to_string();
+
+    for args in [
+        vec![
+            "spl-token",
+            "transfer",
+            &mint,
+            "1",
+            &account,
+            "--confidential",
+            "--elgamal-keypair",
+            "elgamal.json",
+        ],
+        vec![
+            "spl-token",
+            "withdraw-confidential-tokens",
+            &mint,
+            "1",
+            "--aes-key",
+            "aes.bin",
+        ],
+        vec![
+            "spl-token",
+            "configure-confidential-transfer-account",
+            &mint,
+            "--elgamal-keypair",
+            "elgamal.json",
+        ],
+    ] {
+        let error = app.clone().try_get_matches_from(args).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::MissingRequiredArgument);
+    }
+
+    let matches = app
+        .clone()
+        .try_get_matches_from([
+            "spl-token",
+            "apply-pending-balance",
+            &mint,
+            "--elgamal-keypair",
+            "elgamal.json",
+            "--aes-key",
+            "aes.bin",
+        ])
+        .unwrap();
+    assert_eq!(
+        matches.subcommand().unwrap().1.value_of("elgamal_keypair"),
+        Some("elgamal.json"),
+    );
+    assert_eq!(
+        matches.subcommand().unwrap().1.value_of("aes_key"),
+        Some("aes.bin"),
+    );
+
+    // The withdraw withheld authority only has an ElGamal key, and the fee
+    // recipient only needs its AES key.
+    let matches = app
+        .clone()
+        .try_get_matches_from([
+            "spl-token",
+            "withdraw-withheld-tokens",
+            &account,
+            "--include-mint",
+            "--confidential",
+            "--withdraw-withheld-authority-elgamal-keypair",
+            "elgamal.json",
+            "--destination-aes-key",
+            "aes.bin",
+        ])
+        .unwrap();
+    let sub_matches = matches.subcommand().unwrap().1;
+    assert_eq!(
+        sub_matches.value_of("withdraw_withheld_authority_elgamal_keypair"),
+        Some("elgamal.json"),
+    );
+    assert_eq!(sub_matches.value_of("destination_aes_key"), Some("aes.bin"));
+    let error = app
+        .try_get_matches_from([
+            "spl-token",
+            "withdraw-withheld-tokens",
+            &account,
+            "--include-mint",
+            "--confidential",
+            "--elgamal-keypair",
+            "elgamal.json",
+        ])
+        .unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::UnknownArgument);
+}

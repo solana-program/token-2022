@@ -194,6 +194,11 @@ async fn main() {
         async_trial!(group, test_validator, payer),
         async_trial!(confidential_transfer_with_fee, test_validator, payer),
         async_trial!(withdraw_withheld_confidential_tokens, test_validator, payer),
+        async_trial!(
+            withdraw_withheld_confidential_tokens_custom_keys,
+            test_validator,
+            payer
+        ),
         async_trial!(confidential_fee_harvesting, test_validator, payer),
         async_trial!(offline_confidential_controls, test_validator, payer),
         async_trial!(offline_confidential_fee_controls, test_validator, payer),
@@ -208,6 +213,7 @@ async fn main() {
         async_trial!(multisig_pause, test_validator, payer),
         async_trial!(permissioned_burn, test_validator, payer),
         async_trial!(confidential_mint_burn, test_validator, payer),
+        async_trial!(confidential_custom_keys, test_validator, payer),
         async_trial!(
             confidential_mint_burn_update_decryptable_supply_cli,
             test_validator,
@@ -256,6 +262,40 @@ fn derive_confidential_keys(
     let signature = signer.try_sign_message(STANDARD_DERIVATION_MESSAGE)?;
     derive_confidential_keys_from_signature(&signature).map_err(Into::into)
 }
+
+fn write_confidential_key_files(
+    elgamal_keypair: &ElGamalKeypair,
+    aes_key: &AeKey,
+) -> (NamedTempFile, NamedTempFile) {
+    let elgamal_keypair_file = NamedTempFile::new().unwrap();
+    elgamal_keypair
+        .write_json_file(elgamal_keypair_file.path())
+        .unwrap();
+    let aes_key_file = NamedTempFile::new().unwrap();
+    aes_key.write_to_file(aes_key_file.path()).unwrap();
+    (elgamal_keypair_file, aes_key_file)
+}
+
+const CONFIDENTIAL_MINT_OR_BURN_TRANSACTIONS: &[&str] = &[
+    "create equality proof context",
+    "create ciphertext validity proof context",
+    "create range proof record",
+    "create range proof context",
+    "close equality proof context",
+    "close ciphertext validity proof context",
+    "close range proof context",
+    "close range proof record",
+];
+
+const CONFIDENTIAL_WITHDRAW_TRANSACTIONS: &[&str] = &[
+    "create equality proof context",
+    "create range proof record",
+    "create range proof context",
+    "confidential withdraw",
+    "close equality proof context",
+    "close range proof context",
+    "close range proof record",
+];
 
 async fn new_validator_for_test() -> (TestValidator, Keypair) {
     solana_logger::setup();
@@ -745,6 +785,7 @@ async fn process_memo_test_command(config: &Config<'_>, payer: &Keypair, args: &
         .collect();
     let output = exec_test_cmd(&recording_config, &args).await.unwrap();
     let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+    let reported_signature = reported_memo_signature(&value);
 
     let sent = client.sent.lock().unwrap();
     let memo_signatures = sent
@@ -761,10 +802,31 @@ async fn process_memo_test_command(config: &Config<'_>, payer: &Keypair, args: &
         .collect::<Vec<_>>();
     assert_eq!(
         memo_signatures,
-        [value["signature"].as_str().unwrap()],
+        [reported_signature.as_str()],
         "the memo must be only on the reported transaction, out of {} sent",
         sent.len()
     );
+}
+
+/// Single-transaction commands report `signature`. Confidential mint and burn
+/// report a labeled list; the memo is on the main mint or burn transaction.
+fn reported_memo_signature(value: &serde_json::Value) -> String {
+    if let Some(signature) = value["signature"].as_str() {
+        return signature.to_string();
+    }
+    value["signatures"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|item| {
+            matches!(
+                item["transaction"].as_str(),
+                Some("confidential mint" | "confidential burn")
+            )
+        })
+        .and_then(|item| item["signature"].as_str())
+        .unwrap_or_else(|| panic!("missing reported mint or burn signature in {value}"))
+        .to_string()
 }
 
 async fn create_token_default(test_validator: &TestValidator, payer: &Keypair) {
@@ -4794,7 +4856,7 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
 
     let withdraw_amount = 100.0;
 
-    process_test_command(
+    let output = process_test_command(
         &config,
         payer,
         &[
@@ -4808,6 +4870,7 @@ async fn confidential_transfer(test_validator: &TestValidator, payer: &Keypair) 
     )
     .await
     .unwrap();
+    assert_output_has_transactions(&output, CONFIDENTIAL_WITHDRAW_TRANSACTIONS);
 
     // disable confidential transfers for mint
     process_test_command(
@@ -5365,6 +5428,106 @@ async fn check_confidential_available_balance(
         aes_key.decrypt(&extension.decryptable_available_balance.try_into().unwrap()),
         Some(expected_balance),
     );
+}
+
+async fn withdraw_withheld_confidential_tokens_custom_keys(
+    test_validator: &TestValidator,
+    payer: &Keypair,
+) {
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    let (mint, source) = setup_confidential_transfer_fees(&config, payer, 1, 0).await;
+    let fee_account = create_confidential_auxiliary_account(&config, payer, mint).await;
+    // The recipient's owner never signs, only its AES key is supplied.
+    let recipient_owner = Keypair::new();
+    let mut recipient_config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+    recipient_config.default_signer = Some(Arc::new(clone_keypair(&recipient_owner)));
+    let destination = create_confidential_auxiliary_account(&recipient_config, payer, mint).await;
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Transfer.into(),
+            &mint.to_string(),
+            "10",
+            &fee_account.to_string(),
+            "--from",
+            &source.to_string(),
+            "--confidential",
+            "--expected-fee",
+            "1",
+        ],
+    )
+    .await
+    .unwrap();
+
+    let (elgamal_keypair, _) = derive_confidential_keys(payer).unwrap();
+    let (_, aes_key) = derive_confidential_keys(&recipient_owner).unwrap();
+    let (elgamal_file, aes_file) = write_confidential_key_files(&elgamal_keypair, &aes_key);
+    let (wrong_elgamal_file, wrong_aes_file) =
+        write_confidential_key_files(&ElGamalKeypair::new_rand(), &AeKey::new_rand());
+
+    let error = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::WithdrawWithheldTokens.into(),
+            &destination.to_string(),
+            &fee_account.to_string(),
+            "--confidential",
+            "--withdraw-withheld-authority-elgamal-keypair",
+            wrong_elgamal_file.path().to_str().unwrap(),
+            "--destination-aes-key",
+            aes_file.path().to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("withdraw withheld authority's ElGamal key does not match the mint"));
+
+    let error = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::WithdrawWithheldTokens.into(),
+            &destination.to_string(),
+            &fee_account.to_string(),
+            "--confidential",
+            "--withdraw-withheld-authority-elgamal-keypair",
+            elgamal_file.path().to_str().unwrap(),
+            "--destination-aes-key",
+            wrong_aes_file.path().to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("Could not decrypt the recipient's available balance"));
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::WithdrawWithheldTokens.into(),
+            &destination.to_string(),
+            &fee_account.to_string(),
+            "--confidential",
+            "--withdraw-withheld-authority-elgamal-keypair",
+            elgamal_file.path().to_str().unwrap(),
+            "--destination-aes-key",
+            aes_file.path().to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap();
+    check_confidential_available_balance(&config, destination, &recipient_owner, 1).await;
 }
 
 async fn withdraw_withheld_confidential_tokens(test_validator: &TestValidator, payer: &Keypair) {
@@ -7989,7 +8152,7 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
 
     // Mint confidentially
     let mint_amount = 100.0;
-    process_test_command(
+    let output = process_test_command(
         &config,
         payer,
         &[
@@ -8002,6 +8165,8 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
     )
     .await
     .unwrap();
+    assert_output_has_transactions(&output, CONFIDENTIAL_MINT_OR_BURN_TRANSACTIONS);
+    assert_output_has_transactions(&output, &["confidential mint"]);
 
     // Apply the pending balance so we can burn it
     process_test_command(
@@ -8161,7 +8326,7 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
 
     // Burn confidentially
     let burn_amount = 50.0;
-    process_test_command(
+    let output = process_test_command(
         &config,
         payer,
         &[
@@ -8173,6 +8338,8 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
     )
     .await
     .unwrap();
+    assert_output_has_transactions(&output, CONFIDENTIAL_MINT_OR_BURN_TRANSACTIONS);
+    assert_output_has_transactions(&output, &["confidential burn"]);
 
     // Apply pending burn to the mint's supply
     process_test_command(
@@ -8196,6 +8363,358 @@ async fn confidential_mint_burn(test_validator: &TestValidator, payer: &Keypair)
         .to_string();
     assert!(error.contains("Failed to decrypt confidential supply"));
     assert!(error.contains("update-decryptable-supply"));
+}
+
+async fn confidential_custom_keys(test_validator: &TestValidator, payer: &Keypair) {
+    let config =
+        test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
+
+    let token = Keypair::new();
+    let token_keypair_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&token, &token_keypair_file).unwrap();
+    let token_pubkey = token.pubkey();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::CreateToken.into(),
+            token_keypair_file.path().to_str().unwrap(),
+            "--enable-confidential-transfers",
+            "auto",
+            "--enable-confidential-mint-burn",
+        ],
+    )
+    .await
+    .unwrap();
+
+    let account = create_associated_account(&config, payer, &token_pubkey, &payer.pubkey()).await;
+    let elgamal_keypair = ElGamalKeypair::new_rand();
+    let aes_key = AeKey::new_rand();
+    let (elgamal_file, aes_file) = write_confidential_key_files(&elgamal_keypair, &aes_key);
+    let elgamal_path = elgamal_file.path().to_str().unwrap();
+    let aes_path = aes_file.path().to_str().unwrap();
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ConfigureConfidentialTransferAccount.into(),
+            &token_pubkey.to_string(),
+            "--elgamal-keypair",
+            elgamal_path,
+            "--aes-key",
+            aes_path,
+        ],
+    )
+    .await
+    .unwrap();
+
+    let account_data = config.rpc_client.get_account(&account).await.unwrap();
+    let state = StateWithExtensionsOwned::<Account>::unpack(account_data.data).unwrap();
+    let extension = state
+        .get_extension::<ConfidentialTransferAccount>()
+        .unwrap();
+    let (derived_elgamal, _) = derive_confidential_keys(payer).unwrap();
+    assert_eq!(
+        extension.elgamal_pubkey,
+        PodElGamalPubkey::from(*elgamal_keypair.pubkey()),
+    );
+    assert_ne!(
+        extension.elgamal_pubkey,
+        PodElGamalPubkey::from(*derived_elgamal.pubkey()),
+    );
+
+    let output = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Mint.into(),
+            &token_pubkey.to_string(),
+            "100",
+            &account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    assert_output_has_transactions(&output, CONFIDENTIAL_MINT_OR_BURN_TRANSACTIONS);
+    assert_output_has_transactions(&output, &["confidential mint"]);
+
+    let error = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("does not match the encryption key"));
+
+    let (wrong_elgamal_file, wrong_aes_file) =
+        write_confidential_key_files(&ElGamalKeypair::new_rand(), &AeKey::new_rand());
+    let error = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            &token_pubkey.to_string(),
+            "--elgamal-keypair",
+            wrong_elgamal_file.path().to_str().unwrap(),
+            "--aes-key",
+            wrong_aes_file.path().to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("does not match the encryption key"));
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            &token_pubkey.to_string(),
+            "--elgamal-keypair",
+            elgamal_path,
+            "--aes-key",
+            aes_path,
+        ],
+    )
+    .await
+    .unwrap();
+
+    let result = exec_test_cmd(
+        &config,
+        &[
+            "spl-token",
+            CommandName::Display.into(),
+            &account.to_string(),
+            "--decrypt",
+            "--elgamal-keypair",
+            elgamal_path,
+            "--aes-key",
+            aes_path,
+            "--output",
+            "json-compact",
+        ],
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(
+        value["decryptedConfidentialBalances"]["availableBalance"]["uiAmount"],
+        100.0,
+    );
+
+    let recipient = create_auxiliary_account(&config, payer, token_pubkey).await;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ConfigureConfidentialTransferAccount.into(),
+            "--address",
+            &recipient.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let error = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Transfer.into(),
+            &token_pubkey.to_string(),
+            "20",
+            &recipient.to_string(),
+            "--confidential",
+        ],
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("does not match the encryption key"));
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Transfer.into(),
+            &token_pubkey.to_string(),
+            "20",
+            &recipient.to_string(),
+            "--confidential",
+            "--elgamal-keypair",
+            elgamal_path,
+            "--aes-key",
+            aes_path,
+        ],
+    )
+    .await
+    .unwrap();
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            "--address",
+            &recipient.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let output = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::Burn.into(),
+            &account.to_string(),
+            "30",
+            "--elgamal-keypair",
+            elgamal_path,
+            "--aes-key",
+            aes_path,
+        ],
+    )
+    .await
+    .unwrap();
+    assert_output_has_transactions(&output, CONFIDENTIAL_MINT_OR_BURN_TRANSACTIONS);
+    assert_output_has_transactions(&output, &["confidential burn"]);
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBurn.into(),
+            &token_pubkey.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    // Withdraw and empty are illegal on confidential mint-burn mints, so cover
+    // those commands on a regular confidential-transfer mint.
+    let transfer_token = Keypair::new();
+    let transfer_token_file = NamedTempFile::new().unwrap();
+    write_keypair_file(&transfer_token, &transfer_token_file).unwrap();
+    let transfer_mint = transfer_token.pubkey();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::CreateToken.into(),
+            transfer_token_file.path().to_str().unwrap(),
+            "--enable-confidential-transfers",
+            "auto",
+        ],
+    )
+    .await
+    .unwrap();
+    let transfer_account =
+        create_associated_account(&config, payer, &transfer_mint, &payer.pubkey()).await;
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ConfigureConfidentialTransferAccount.into(),
+            &transfer_mint.to_string(),
+            "--elgamal-keypair",
+            elgamal_path,
+            "--aes-key",
+            aes_path,
+        ],
+    )
+    .await
+    .unwrap();
+    mint_tokens(&config, payer, transfer_mint, 50.0, transfer_account)
+        .await
+        .unwrap();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::DepositConfidentialTokens.into(),
+            &transfer_mint.to_string(),
+            "50",
+            "--address",
+            &transfer_account.to_string(),
+        ],
+    )
+    .await
+    .unwrap();
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::ApplyPendingBalance.into(),
+            "--address",
+            &transfer_account.to_string(),
+            "--elgamal-keypair",
+            elgamal_path,
+            "--aes-key",
+            aes_path,
+        ],
+    )
+    .await
+    .unwrap();
+
+    let output = process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::WithdrawConfidentialTokens.into(),
+            &transfer_mint.to_string(),
+            "50",
+            "--address",
+            &transfer_account.to_string(),
+            "--elgamal-keypair",
+            elgamal_path,
+            "--aes-key",
+            aes_path,
+        ],
+    )
+    .await
+    .unwrap();
+    assert_output_has_transactions(&output, CONFIDENTIAL_WITHDRAW_TRANSACTIONS);
+
+    process_test_command(
+        &config,
+        payer,
+        &[
+            "spl-token",
+            CommandName::EmptyConfidentialTransferAccount.into(),
+            "--address",
+            &transfer_account.to_string(),
+            "--elgamal-keypair",
+            elgamal_path,
+            "--aes-key",
+            aes_path,
+        ],
+    )
+    .await
+    .unwrap();
 }
 
 async fn confidential_mint_burn_update_decryptable_supply_cli(

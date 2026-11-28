@@ -378,11 +378,7 @@ async fn command_create_token(
             auditor_elgamal_pubkey: None,
         });
         if transfer_fee.is_some() {
-            // Deriving ElGamal key from default signer. Custom ElGamal keys
-            // will be supported in the future once upgrading to clap-v3.
-            //
-            // NOTE: This uses the standard (no-seed) derivation. Custom keys can use
-            // `derive_confidential_keys_with_seed` from `solana-zk-sdk`.
+            // Withdraw-withheld authority ElGamal key is derived from the default signer.
             let (elgamal_keypair, _) =
                 derive_confidential_keys(config.default_signer()?.as_ref()).unwrap();
             extensions.push(
@@ -1332,7 +1328,7 @@ async fn command_transfer(
     no_wait: bool,
     allow_non_system_account_recipient: bool,
     transfer_hook_accounts: Option<Vec<AccountMeta>>,
-    confidential_transfer_args: Option<&ConfidentialTransferArgs>,
+    confidential_transfer_args: Option<ConfidentialTransferArgs>,
 ) -> CommandResult {
     let mint_info = config
         .get_mint_info(&token_pubkey, mint_decimals, None)
@@ -1596,7 +1592,7 @@ async fn command_transfer(
 
     // fetch confidential transfer info for recipient and auditor
     let (recipient_elgamal_pubkey, auditor_elgamal_pubkey) = if let Some(args) =
-        confidential_transfer_args
+        &confidential_transfer_args
     {
         if !config.sign_only {
             // we can use the mint data from the start of the function, but will require
@@ -1725,6 +1721,11 @@ async fn command_transfer(
             let extension = state
                 .get_extension::<ConfidentialTransferAccount>()
                 .unwrap();
+            let (sender_elgamal_keypair, sender_aes_key) = confidential_keys_matching(
+                args.sender_keys,
+                args.sender_signer.as_ref(),
+                &extension.elgamal_pubkey,
+            )?;
             let transfer_account_info = TransferAccountInfo::new(extension);
 
             let TransferProofData {
@@ -1734,8 +1735,8 @@ async fn command_transfer(
             } = transfer_account_info
                 .generate_split_transfer_proof_data(
                     transfer_balance,
-                    &args.sender_elgamal_keypair,
-                    &args.sender_aes_key,
+                    &sender_elgamal_keypair,
+                    &sender_aes_key,
                     &recipient_elgamal_pubkey,
                     auditor_elgamal_pubkey.as_ref(),
                 )
@@ -1835,8 +1836,8 @@ async fn command_transfer(
                     Some(&range_proof_pubkey),
                     transfer_balance,
                     Some(transfer_account_info),
-                    &args.sender_elgamal_keypair,
-                    &args.sender_aes_key,
+                    &sender_elgamal_keypair,
+                    &sender_aes_key,
                     &recipient_elgamal_pubkey,
                     auditor_elgamal_pubkey.as_ref(),
                     &bulk_signers,
@@ -1958,6 +1959,11 @@ async fn command_transfer(
             let extension = state
                 .get_extension::<ConfidentialTransferAccount>()
                 .unwrap();
+            let (sender_elgamal_keypair, sender_aes_key) = confidential_keys_matching(
+                args.sender_keys,
+                args.sender_signer.as_ref(),
+                &extension.elgamal_pubkey,
+            )?;
             let transfer_account_info = TransferAccountInfo::new(extension);
 
             let TransferWithFeeProofData {
@@ -1969,8 +1975,8 @@ async fn command_transfer(
             } = transfer_account_info
                 .generate_split_transfer_with_fee_proof_data(
                     transfer_balance,
-                    &args.sender_elgamal_keypair,
-                    &args.sender_aes_key,
+                    &sender_elgamal_keypair,
+                    &sender_aes_key,
                     &recipient_elgamal_pubkey,
                     auditor_elgamal_pubkey.as_ref(),
                     &withdraw_withheld_authority_elgamal_pubkey,
@@ -2101,8 +2107,8 @@ async fn command_transfer(
                     Some(&range_proof_pubkey),
                     transfer_balance,
                     Some(transfer_account_info),
-                    &args.sender_elgamal_keypair,
-                    &args.sender_aes_key,
+                    &sender_elgamal_keypair,
+                    &sender_aes_key,
                     &recipient_elgamal_pubkey,
                     auditor_elgamal_pubkey.as_ref(),
                     &withdraw_withheld_authority_elgamal_pubkey,
@@ -2214,18 +2220,15 @@ async fn command_burn(
     account: Pubkey,
     owner: Pubkey,
     ui_amount: Amount,
-    mint_address: Option<Pubkey>,
-    mint_decimals: Option<u8>,
+    mint_info: MintInfo,
     use_unchecked_instruction: bool,
     permissioned_burn_authority: Option<Pubkey>,
     memo: Option<String>,
     bulk_signers: BulkSigners,
-    confidential: bool,
+    use_confidential: bool,
+    account_keys: Option<(ElGamalKeypair, AeKey)>,
+    owner_signer: Arc<dyn Signer>,
 ) -> CommandResult {
-    let mint_address = config.check_account(&account, mint_address).await?;
-    let mint_info = config
-        .get_mint_info(&mint_address, mint_decimals, Some(confidential))
-        .await?;
     let decimals = if use_unchecked_instruction {
         None
     } else {
@@ -2234,13 +2237,11 @@ async fn command_burn(
 
     let token = token_client_from_config(config, &mint_info.address, decimals)?;
 
-    let use_confidential = confidential || mint_info.has_confidential_mint_burn;
-
-    let confidential_burn_args = if use_confidential {
-        Some(derive_confidential_keys(config.default_signer()?.as_ref()).unwrap())
-    } else {
-        None
-    };
+    if !use_confidential && account_keys.is_some() {
+        return Err(
+            "`--elgamal-keypair` and `--aes-key` can only be used for a confidential burn".into(),
+        );
+    }
 
     let amount = match ui_amount {
         Amount::Raw(ui_amount) => ui_amount,
@@ -2268,11 +2269,11 @@ async fn command_burn(
 
     // The next transaction sent takes the memo, so confidential burns attach
     // it after the proof setup.
-    if confidential_burn_args.is_none() {
+    if !use_confidential {
         attach_memo(&token, memo.as_deref(), &bulk_signers);
     }
 
-    let res = if let Some((source_elgamal_keypair, source_aes_key)) = confidential_burn_args {
+    if use_confidential {
         // Fetch mint info to get auditor and supply pubkeys
         let mint_account = config.get_account_checked(&mint_info.address).await?;
         let mint_state = StateWithExtensionsOwned::<Mint>::unpack(mint_account.data)
@@ -2299,11 +2300,15 @@ async fn command_burn(
         let source_account_data = config.get_account_checked(&account).await?;
         let source_state =
             StateWithExtensionsOwned::<Account>::unpack(source_account_data.data).unwrap();
-        let burn_account_info = BurnAccountInfo::new(
-            source_state
-                .get_extension::<ConfidentialTransferAccount>()
-                .unwrap(),
-        );
+        let source_extension = source_state
+            .get_extension::<ConfidentialTransferAccount>()
+            .unwrap();
+        let (source_elgamal_keypair, source_aes_key) = confidential_keys_matching(
+            account_keys,
+            owner_signer.as_ref(),
+            &source_extension.elgamal_pubkey,
+        )?;
+        let burn_account_info = BurnAccountInfo::new(source_extension);
 
         // Generate split proofs
         let BurnProofData {
@@ -2349,39 +2354,58 @@ async fn command_burn(
         let range_proof_record_account = Keypair::new();
         let range_proof_record_pubkey = range_proof_record_account.pubkey();
 
-        let _ = try_join!(
-            token.confidential_transfer_create_context_state_account(
-                &equality_proof_pubkey,
-                &context_state_authority_pubkey,
-                &equality_proof_data,
-                create_equality_proof_context_signer
-            ),
-            token.confidential_transfer_create_context_state_account(
-                &ciphertext_validity_proof_pubkey,
-                &context_state_authority_pubkey,
-                &ciphertext_validity_proof_data_with_ciphertext.proof_data,
-                create_ciphertext_validity_proof_context_signer
-            ),
-            // Range proof too large, so we must explicitly send them in chunks
-            async {
-                token
-                    .confidential_transfer_create_record_account(
-                        &range_proof_record_pubkey,
-                        &context_state_authority_pubkey,
-                        &range_proof_data,
-                        &range_proof_record_account,
-                        &context_state_authority,
-                    )
-                    .await?;
+        let (equality_proof_response, ciphertext_validity_proof_response, range_proof_responses) =
+            try_join!(
+                token.confidential_transfer_create_context_state_account(
+                    &equality_proof_pubkey,
+                    &context_state_authority_pubkey,
+                    &equality_proof_data,
+                    create_equality_proof_context_signer
+                ),
+                token.confidential_transfer_create_context_state_account(
+                    &ciphertext_validity_proof_pubkey,
+                    &context_state_authority_pubkey,
+                    &ciphertext_validity_proof_data_with_ciphertext.proof_data,
+                    create_ciphertext_validity_proof_context_signer
+                ),
+                // Range proof too large, so we must explicitly send them in chunks
+                async {
+                    let record_responses = token
+                        .confidential_transfer_create_record_account(
+                            &range_proof_record_pubkey,
+                            &context_state_authority_pubkey,
+                            &range_proof_data,
+                            &range_proof_record_account,
+                            &context_state_authority,
+                        )
+                        .await?;
 
-                token.confidential_transfer_create_context_state_account_from_record::<_, BatchedRangeProofU128Data, BatchedRangeProofContext>(
+                    let context_response = token.confidential_transfer_create_context_state_account_from_record::<_, BatchedRangeProofU128Data, BatchedRangeProofContext>(
                     &range_proof_pubkey,
                     &context_state_authority_pubkey,
                     &range_proof_record_pubkey,
                     create_range_proof_context_signer,
-                ).await
-            }
-        )?;
+                ).await?;
+
+                    Ok::<_, TokenError>((record_responses, context_response))
+                }
+            )?;
+        let mut tx_responses = vec![
+            labeled_tx_response("create equality proof context", equality_proof_response),
+            labeled_tx_response(
+                "create ciphertext validity proof context",
+                ciphertext_validity_proof_response,
+            ),
+        ];
+        push_labeled_tx_responses(
+            &mut tx_responses,
+            "create range proof record",
+            range_proof_responses.0,
+        );
+        tx_responses.push(labeled_tx_response(
+            "create range proof context",
+            range_proof_responses.1,
+        ));
 
         let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
             context_state_account: ciphertext_validity_proof_pubkey,
@@ -2430,7 +2454,12 @@ async fn command_burn(
 
         // Cleanup context state accounts
         let close_context_state_signer = &[&context_state_authority];
-        let _ = try_join!(
+        let (
+            close_equality_proof_response,
+            close_ciphertext_validity_proof_response,
+            close_range_proof_response,
+            close_range_proof_record_response,
+        ) = try_join!(
             token.confidential_transfer_close_context_state_account(
                 &equality_proof_pubkey,
                 &payer_pubkey,
@@ -2457,24 +2486,34 @@ async fn command_burn(
             ),
         )?;
 
-        burn_result?
-    } else if let Some(authority) = permissioned_burn_authority {
-        token
-            .permissioned_burn(&account, &authority, &owner, amount, &bulk_signers)
-            .await?
-    } else {
-        token.burn(&account, &owner, amount, &bulk_signers).await?
-    };
+        let burn_response = burn_result?;
+        tx_responses.push(labeled_tx_response("confidential burn", burn_response));
+        tx_responses.extend([
+            labeled_tx_response(
+                "close equality proof context",
+                close_equality_proof_response,
+            ),
+            labeled_tx_response(
+                "close ciphertext validity proof context",
+                close_ciphertext_validity_proof_response,
+            ),
+            labeled_tx_response("close range proof context", close_range_proof_response),
+            labeled_tx_response(
+                "close range proof record",
+                close_range_proof_record_response,
+            ),
+        ]);
 
-    let tx_return = finish_tx(config, &res, false).await?;
-    Ok(match tx_return {
-        TransactionReturnData::CliSignature(signature) => {
-            config.output_format.formatted_string(&signature)
-        }
-        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
-            config.output_format.formatted_string(&sign_only_data)
-        }
-    })
+        finish_labeled_txs(config, tx_responses, false).await
+    } else if let Some(authority) = permissioned_burn_authority {
+        let res = token
+            .permissioned_burn(&account, &authority, &owner, amount, &bulk_signers)
+            .await?;
+        format_transaction_return(config, finish_tx(config, &res, false).await?)
+    } else {
+        let res = token.burn(&account, &owner, amount, &bulk_signers).await?;
+        format_transaction_return(config, finish_tx(config, &res, false).await?)
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2488,7 +2527,7 @@ async fn command_mint(
     use_unchecked_instruction: bool,
     memo: Option<String>,
     bulk_signers: BulkSigners,
-    confidential: bool,
+    use_confidential: bool,
     supply_keys: Option<(ElGamalKeypair, AeKey)>,
 ) -> CommandResult {
     let amount = amount_to_raw_amount(ui_amount, mint_info.decimals, None, "TOKEN_AMOUNT");
@@ -2503,17 +2542,21 @@ async fn command_mint(
         ),
     );
 
-    let use_confidential = confidential || mint_info.has_confidential_mint_burn;
     let confidential_mint_args = if use_confidential {
         Some(match supply_keys {
             Some(keys) => keys,
-            None => derive_confidential_keys(config.default_signer()?.as_ref()).unwrap(),
+            None => derive_confidential_keys(config.default_signer()?.as_ref())
+                .map_err(|e| e.to_string())?,
         })
+    } else if supply_keys.is_some() {
+        return Err(
+            "`--elgamal-keypair` and `--aes-key` can only be used for a confidential mint".into(),
+        );
     } else {
         None
     };
 
-    let res = if let Some((supply_elgamal_keypair, supply_aes_key)) = confidential_mint_args {
+    if let Some((supply_elgamal_keypair, supply_aes_key)) = confidential_mint_args {
         // Fetch mint info to get auditor pubkey and supply extension
         let mint_account = config.get_account_checked(&mint_info.address).await?;
         let mint_state = StateWithExtensionsOwned::<Mint>::unpack(mint_account.data)
@@ -2592,39 +2635,58 @@ async fn command_mint(
 
         let token = token_client_from_config(config, &mint_info.address, None)?;
 
-        let _ = try_join!(
-            token.confidential_transfer_create_context_state_account(
-                &equality_proof_pubkey,
-                &context_state_authority_pubkey,
-                &equality_proof_data,
-                create_equality_proof_context_signer
-            ),
-            token.confidential_transfer_create_context_state_account(
-                &ciphertext_validity_proof_pubkey,
-                &context_state_authority_pubkey,
-                &ciphertext_validity_proof_data_with_ciphertext.proof_data,
-                create_ciphertext_validity_proof_context_signer
-            ),
-            // Range proof too large, so we must explicitly send them in chunks
-            async {
-                token
-                    .confidential_transfer_create_record_account(
-                        &range_proof_record_pubkey,
-                        &context_state_authority_pubkey,
-                        &range_proof_data,
-                        &range_proof_record_account,
-                        &context_state_authority,
-                    )
-                    .await?;
+        let (equality_proof_response, ciphertext_validity_proof_response, range_proof_responses) =
+            try_join!(
+                token.confidential_transfer_create_context_state_account(
+                    &equality_proof_pubkey,
+                    &context_state_authority_pubkey,
+                    &equality_proof_data,
+                    create_equality_proof_context_signer
+                ),
+                token.confidential_transfer_create_context_state_account(
+                    &ciphertext_validity_proof_pubkey,
+                    &context_state_authority_pubkey,
+                    &ciphertext_validity_proof_data_with_ciphertext.proof_data,
+                    create_ciphertext_validity_proof_context_signer
+                ),
+                // Range proof too large, so we must explicitly send them in chunks
+                async {
+                    let record_responses = token
+                        .confidential_transfer_create_record_account(
+                            &range_proof_record_pubkey,
+                            &context_state_authority_pubkey,
+                            &range_proof_data,
+                            &range_proof_record_account,
+                            &context_state_authority,
+                        )
+                        .await?;
 
-                token.confidential_transfer_create_context_state_account_from_record::<_, BatchedRangeProofU128Data, BatchedRangeProofContext>(
+                    let context_response = token.confidential_transfer_create_context_state_account_from_record::<_, BatchedRangeProofU128Data, BatchedRangeProofContext>(
                     &range_proof_pubkey,
                     &context_state_authority_pubkey,
                     &range_proof_record_pubkey,
                     create_range_proof_context_signer,
-                ).await
-            }
-        )?;
+                ).await?;
+
+                    Ok::<_, TokenError>((record_responses, context_response))
+                }
+            )?;
+        let mut tx_responses = vec![
+            labeled_tx_response("create equality proof context", equality_proof_response),
+            labeled_tx_response(
+                "create ciphertext validity proof context",
+                ciphertext_validity_proof_response,
+            ),
+        ];
+        push_labeled_tx_responses(
+            &mut tx_responses,
+            "create range proof record",
+            range_proof_responses.0,
+        );
+        tx_responses.push(labeled_tx_response(
+            "create range proof context",
+            range_proof_responses.1,
+        ));
 
         let ciphertext_validity_proof_account_with_ciphertext = ProofAccountWithCiphertext {
             context_state_account: ciphertext_validity_proof_pubkey,
@@ -2653,7 +2715,12 @@ async fn command_mint(
 
         // Cleanup context state accounts
         let close_context_state_signer = &[&context_state_authority];
-        let _ = try_join!(
+        let (
+            close_equality_proof_response,
+            close_ciphertext_validity_proof_response,
+            close_range_proof_response,
+            close_range_proof_record_response,
+        ) = try_join!(
             token.confidential_transfer_close_context_state_account(
                 &equality_proof_pubkey,
                 &payer_pubkey,
@@ -2680,7 +2747,25 @@ async fn command_mint(
             ),
         )?;
 
-        mint_result?
+        let mint_response = mint_result?;
+        tx_responses.push(labeled_tx_response("confidential mint", mint_response));
+        tx_responses.extend([
+            labeled_tx_response(
+                "close equality proof context",
+                close_equality_proof_response,
+            ),
+            labeled_tx_response(
+                "close ciphertext validity proof context",
+                close_ciphertext_validity_proof_response,
+            ),
+            labeled_tx_response("close range proof context", close_range_proof_response),
+            labeled_tx_response(
+                "close range proof record",
+                close_range_proof_record_response,
+            ),
+        ]);
+
+        finish_labeled_txs(config, tx_responses, false).await
     } else {
         let decimals = if use_unchecked_instruction {
             None
@@ -2691,20 +2776,11 @@ async fn command_mint(
         let token = token_client_from_config(config, &mint_info.address, decimals)?;
         attach_memo(&token, memo.as_deref(), &bulk_signers);
 
-        token
+        let res = token
             .mint_to(&recipient, &mint_authority, amount, &bulk_signers)
-            .await?
-    };
-
-    let tx_return = finish_tx(config, &res, false).await?;
-    Ok(match tx_return {
-        TransactionReturnData::CliSignature(signature) => {
-            config.output_format.formatted_string(&signature)
-        }
-        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
-            config.output_format.formatted_string(&sign_only_data)
-        }
-    })
+            .await?;
+        format_transaction_return(config, finish_tx(config, &res, false).await?)
+    }
 }
 
 async fn command_freeze(
@@ -3430,6 +3506,16 @@ fn custom_confidential_keys_of(
     Ok(Some((elgamal_keypair, aes_key)))
 }
 
+fn confidential_keys_from_matches_or_signer(
+    arg_matches: &ArgMatches,
+    signer: &dyn Signer,
+) -> Result<(ElGamalKeypair, AeKey), Error> {
+    match custom_confidential_keys_of(arg_matches)? {
+        Some(keys) => Ok(keys),
+        None => derive_confidential_keys(signer).map_err(|e| e.to_string().into()),
+    }
+}
+
 /// Derives the ElGamal keypair and AES key from a signer and checks that the
 /// derived ElGamal public key matches the one stored on-chain.
 fn derive_confidential_keys_matching(
@@ -3464,6 +3550,22 @@ fn validate_confidential_keypair_matches(
         expected_elgamal_pubkey
     )
     .into())
+}
+
+/// Checks custom keys against the encryption key stored on-chain, or derives
+/// the keys from `signer` if no key files were passed.
+fn confidential_keys_matching(
+    custom_keys: Option<(ElGamalKeypair, AeKey)>,
+    signer: &dyn Signer,
+    expected_elgamal_pubkey: &PodElGamalPubkey,
+) -> Result<(ElGamalKeypair, AeKey), Error> {
+    match custom_keys {
+        Some(keys) => {
+            validate_confidential_keypair_matches(&keys.0, expected_elgamal_pubkey)?;
+            Ok(keys)
+        }
+        None => derive_confidential_keys_matching(signer, expected_elgamal_pubkey),
+    }
 }
 
 /// Decrypts the pending and available balances using custom key files or keys
@@ -4243,7 +4345,7 @@ async fn command_withdraw_withheld_tokens(
 async fn command_withdraw_withheld_confidential_tokens(
     config: &Config<'_>,
     destination_token_account: Pubkey,
-    destination_owner: Pubkey,
+    destination_owner: Option<Pubkey>,
     mut source_token_accounts: Vec<Pubkey>,
     authority: Pubkey,
     include_mint: bool,
@@ -4262,12 +4364,15 @@ async fn command_withdraw_withheld_confidential_tokens(
             destination_token_account
         )
     })?;
-    if destination_state.base.owner != destination_owner {
-        return Err(format!(
-            "Destination token account {} is owned by {}, but provided owner is {}",
-            destination_token_account, destination_state.base.owner, destination_owner,
-        )
-        .into());
+    // The owner only matters when the AES key is derived from it.
+    if let Some(destination_owner) = destination_owner {
+        if destination_state.base.owner != destination_owner {
+            return Err(format!(
+                "Destination token account {} is owned by {}, but provided owner is {}",
+                destination_token_account, destination_state.base.owner, destination_owner,
+            )
+            .into());
+        }
     }
     let mint_address = destination_state.base.mint;
     if source_token_accounts.contains(&mint_address) {
@@ -4729,13 +4834,19 @@ async fn command_empty_confidential_transfer_account(
     config: &Config<'_>,
     account: Pubkey,
     owner: Pubkey,
-    elgamal_keypair: &ElGamalKeypair,
+    custom_keys: Option<(ElGamalKeypair, AeKey)>,
+    owner_signer: Arc<dyn Signer>,
     bulk_signers: BulkSigners,
 ) -> CommandResult {
     let account_data = config.get_account_checked(&account).await?;
     let account_state = StateWithExtensionsOwned::<Account>::unpack(account_data.data)?;
     let token = token_client_from_config(config, &account_state.base.mint, None)?;
     let extension_state = account_state.get_extension::<ConfidentialTransferAccount>()?;
+    let (elgamal_keypair, _) = confidential_keys_matching(
+        custom_keys,
+        owner_signer.as_ref(),
+        &extension_state.elgamal_pubkey,
+    )?;
     let account_info = EmptyAccountAccountInfo::new(extension_state);
 
     println_display(
@@ -4749,7 +4860,7 @@ async fn command_empty_confidential_transfer_account(
             &owner,
             None,
             Some(account_info),
-            elgamal_keypair,
+            &elgamal_keypair,
             &bulk_signers,
         )
         .await?;
@@ -4903,8 +5014,8 @@ async fn command_deposit_withdraw_confidential_tokens(
     ui_amount: Amount,
     mint_decimals: Option<u8>,
     instruction_type: ConfidentialInstructionType,
-    elgamal_keypair: Option<&ElGamalKeypair>,
-    aes_key: Option<&AeKey>,
+    custom_keys: Option<(ElGamalKeypair, AeKey)>,
+    owner_signer: Arc<dyn Signer>,
 ) -> CommandResult {
     if config.sign_only {
         if instruction_type == ConfidentialInstructionType::Withdraw {
@@ -5020,9 +5131,9 @@ async fn command_deposit_withdraw_confidential_tokens(
         }
     }
 
-    let res = match instruction_type {
+    match instruction_type {
         ConfidentialInstructionType::Deposit => {
-            token
+            let res = token
                 .confidential_transfer_deposit(
                     &token_account_address,
                     &owner,
@@ -5030,14 +5141,17 @@ async fn command_deposit_withdraw_confidential_tokens(
                     decimals,
                     &bulk_signers,
                 )
-                .await?
+                .await?;
+            format_transaction_return(config, finish_tx(config, &res, false).await?)
         }
         ConfidentialInstructionType::Withdraw => {
-            let elgamal_keypair = elgamal_keypair.expect("ElGamal keypair must be provided");
-            let aes_key = aes_key.expect("AES key must be provided");
-
             let extension_state =
                 state_with_extension.get_extension::<ConfidentialTransferAccount>()?;
+            let (elgamal_keypair, aes_key) = confidential_keys_matching(
+                custom_keys,
+                owner_signer.as_ref(),
+                &extension_state.elgamal_pubkey,
+            )?;
             let withdraw_account_info = WithdrawAccountInfo::new(extension_state);
 
             let context_state_authority = config.fee_payer()?;
@@ -5049,7 +5163,7 @@ async fn command_deposit_withdraw_confidential_tokens(
             let WithdrawProofData {
                 equality_proof_data,
                 range_proof_data,
-            } = withdraw_account_info.generate_proof_data(amount, elgamal_keypair, aes_key)?;
+            } = withdraw_account_info.generate_proof_data(amount, &elgamal_keypair, &aes_key)?;
 
             // set up context state accounts
             let context_state_authority_pubkey = context_state_authority.pubkey();
@@ -5060,7 +5174,7 @@ async fn command_deposit_withdraw_confidential_tokens(
             let range_proof_record_account = Keypair::new();
             let range_proof_record_pubkey = range_proof_record_account.pubkey();
 
-            let _ = try_join!(
+            let (equality_proof_response, range_proof_responses) = try_join!(
                 token.confidential_transfer_create_context_state_account(
                     &equality_proof_context_state_pubkey,
                     &context_state_authority_pubkey,
@@ -5068,7 +5182,7 @@ async fn command_deposit_withdraw_confidential_tokens(
                     create_equality_proof_signer
                 ),
                 async {
-                    token
+                    let record_responses = token
                         .confidential_transfer_create_record_account(
                             &range_proof_record_pubkey,
                             &context_state_authority_pubkey,
@@ -5078,7 +5192,7 @@ async fn command_deposit_withdraw_confidential_tokens(
                         )
                         .await?;
 
-                    token.confidential_transfer_create_context_state_account_from_record::<
+                    let context_response = token.confidential_transfer_create_context_state_account_from_record::<
                         _,
                         BatchedRangeProofU64Data,
                         BatchedRangeProofContext,
@@ -5088,9 +5202,24 @@ async fn command_deposit_withdraw_confidential_tokens(
                         &range_proof_record_pubkey,
                         create_range_proof_signer,
                     )
-                    .await
+                    .await?;
+
+                    Ok::<_, TokenError>((record_responses, context_response))
                 }
             )?;
+            let mut tx_responses = vec![labeled_tx_response(
+                "create equality proof context",
+                equality_proof_response,
+            )];
+            push_labeled_tx_responses(
+                &mut tx_responses,
+                "create range proof record",
+                range_proof_responses.0,
+            );
+            tx_responses.push(labeled_tx_response(
+                "create range proof context",
+                range_proof_responses.1,
+            ));
 
             // do the withdrawal
             let withdraw_result = token
@@ -5102,15 +5231,19 @@ async fn command_deposit_withdraw_confidential_tokens(
                     amount,
                     decimals,
                     Some(withdraw_account_info),
-                    elgamal_keypair,
-                    aes_key,
+                    &elgamal_keypair,
+                    &aes_key,
                     &bulk_signers,
                 )
-                .await?;
+                .await;
 
             // close context state account
             let close_context_state_signer = &[&context_state_authority];
-            let _ = try_join!(
+            let (
+                close_equality_proof_response,
+                close_range_proof_response,
+                close_range_proof_record_response,
+            ) = try_join!(
                 token.confidential_transfer_close_context_state_account(
                     &equality_proof_context_state_pubkey,
                     &token_account_address,
@@ -5131,19 +5264,26 @@ async fn command_deposit_withdraw_confidential_tokens(
                 )
             )?;
 
-            withdraw_result
-        }
-    };
+            let withdraw_response = withdraw_result?;
+            tx_responses.push(labeled_tx_response(
+                "confidential withdraw",
+                withdraw_response,
+            ));
+            tx_responses.extend([
+                labeled_tx_response(
+                    "close equality proof context",
+                    close_equality_proof_response,
+                ),
+                labeled_tx_response("close range proof context", close_range_proof_response),
+                labeled_tx_response(
+                    "close range proof record",
+                    close_range_proof_record_response,
+                ),
+            ]);
 
-    let tx_return = finish_tx(config, &res, false).await?;
-    Ok(match tx_return {
-        TransactionReturnData::CliSignature(signature) => {
-            config.output_format.formatted_string(&signature)
+            finish_labeled_txs(config, tx_responses, false).await
         }
-        TransactionReturnData::CliSignOnlyData(sign_only_data) => {
-            config.output_format.formatted_string(&sign_only_data)
-        }
-    })
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5153,8 +5293,8 @@ async fn command_apply_pending_balance(
     owner: Pubkey,
     maybe_account: Option<Pubkey>,
     bulk_signers: BulkSigners,
-    elgamal_keypair: &ElGamalKeypair,
-    aes_key: &AeKey,
+    custom_keys: Option<(ElGamalKeypair, AeKey)>,
+    owner_signer: Arc<dyn Signer>,
 ) -> CommandResult {
     if config.sign_only {
         panic!("Sign-only is not yet supported.");
@@ -5177,6 +5317,11 @@ async fn command_apply_pending_balance(
 
     let mut extension_state =
         *state_with_extension.get_extension::<ConfidentialTransferAccount>()?;
+    let (elgamal_keypair, aes_key) = confidential_keys_matching(
+        custom_keys,
+        owner_signer.as_ref(),
+        &extension_state.elgamal_pubkey,
+    )?;
     // Registry configuration cannot initialize the balance without the owner's AES key.
     if extension_state.decryptable_available_balance == PodAeCiphertext::default()
         && extension_state.available_balance == PodElGamalCiphertext::default()
@@ -5191,7 +5336,7 @@ async fn command_apply_pending_balance(
             &owner,
             Some(account_info),
             elgamal_keypair.secret(),
-            aes_key,
+            &aes_key,
             &bulk_signers,
         )
         .await?;
@@ -5474,8 +5619,8 @@ async fn command_pause_resume(
 }
 
 struct ConfidentialTransferArgs {
-    sender_elgamal_keypair: ElGamalKeypair,
-    sender_aes_key: AeKey,
+    sender_keys: Option<(ElGamalKeypair, AeKey)>,
+    sender_signer: Arc<dyn Signer>,
     recipient_elgamal_pubkey: Option<PodElGamalPubkey>,
     auditor_elgamal_pubkey: Option<PodElGamalPubkey>,
 }
@@ -5487,10 +5632,13 @@ pub async fn process_command(
     wallet_manager: Option<Rc<RemoteWalletManager>>,
     bulk_signers: Vec<Arc<dyn Signer>>,
 ) -> CommandResult {
+    // Mint and burn are only confidential on some mints, so they set up
+    // reporting after fetching the mint.
     let report_transactions = !config.sign_only
         && (matches!(
             sub_command,
             CommandName::ConfigureConfidentialTransferAccount
+                | CommandName::WithdrawConfidentialTokens
         ) || (matches!(sub_command, CommandName::Transfer)
             && sub_matches.is_present("confidential")));
     if !report_transactions {
@@ -5504,11 +5652,7 @@ pub async fn process_command(
         .await;
     }
 
-    let client = Arc::new(ReportingClient::new(config.program_client.clone()));
-    let config = Config {
-        program_client: client.clone(),
-        ..config.clone()
-    };
+    let (config, client) = reporting_config(config);
     process_command_inner(
         sub_command,
         sub_matches,
@@ -5517,11 +5661,24 @@ pub async fn process_command(
         bulk_signers,
     )
     .await
-    .inspect_err(|error| {
-        if let Some(report) = client.report(error) {
-            println!("{}", config.output_format.formatted_string(&report));
-        }
-    })
+    .inspect_err(|error| print_transaction_report(&config, &client, error))
+}
+
+/// Returns a config whose client records the transactions sent, so a failed
+/// confidential command can print their signatures.
+fn reporting_config<'a>(config: &Config<'a>) -> (Config<'a>, Arc<ReportingClient>) {
+    let client = Arc::new(ReportingClient::new(config.program_client.clone()));
+    let config = Config {
+        program_client: client.clone(),
+        ..config.clone()
+    };
+    (config, client)
+}
+
+fn print_transaction_report(config: &Config<'_>, client: &ReportingClient, error: &Error) {
+    if let Some(report) = client.report(error) {
+        println!("{}", config.output_format.formatted_string(&report));
+    }
 }
 
 async fn process_command_inner(
@@ -5891,19 +6048,11 @@ async fn process_command_inner(
                 config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
 
             let confidential_transfer_args = if arg_matches.is_present("confidential") {
-                // Deriving ElGamal and AES key from signer. Custom ElGamal and AES keys will be
-                // supported in the future once upgrading to clap-v3.
-                //
-                // NOTE: This uses the standard (no-seed) derivation. Custom keys can use
-                // `derive_confidential_keys_with_seed` from `solana-zk-sdk`.
-                let (sender_elgamal_keypair, sender_aes_key) =
-                    derive_confidential_keys(&*owner_signer).unwrap();
-
                 // Sign-only mode is not yet supported for confidential transfers, so set
                 // recipient and auditor ElGamal public to `None` by default.
                 Some(ConfidentialTransferArgs {
-                    sender_elgamal_keypair,
-                    sender_aes_key,
+                    sender_keys: custom_confidential_keys_of(arg_matches)?,
+                    sender_signer: owner_signer.clone(),
                     recipient_elgamal_pubkey: None,
                     auditor_elgamal_pubkey: None,
                 })
@@ -5935,7 +6084,9 @@ async fn process_command_inner(
                     .collect::<Vec<_>>()
             });
 
-            command_transfer(
+            // Boxed so the large transfer future doesn't set the size of every
+            // command's future.
+            Box::pin(command_transfer(
                 config,
                 token,
                 amount,
@@ -5953,8 +6104,8 @@ async fn process_command_inner(
                 arg_matches.is_present("no_wait"),
                 arg_matches.is_present("allow_non_system_account_recipient"),
                 transfer_hook_accounts,
-                confidential_transfer_args.as_ref(),
-            )
+                confidential_transfer_args,
+            ))
             .await
         }
         (CommandName::Burn, arg_matches) => {
@@ -5973,6 +6124,7 @@ async fn process_command_inner(
                 push_signer_with_dedup(signer, &mut bulk_signers);
                 authority
             });
+            let owner_signer_for_keys = owner_signer.clone();
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(owner_signer, &mut bulk_signers);
             }
@@ -5984,20 +6136,34 @@ async fn process_command_inner(
             let use_unchecked_instruction = arg_matches.is_present("use_unchecked_instruction");
             let memo = value_t!(arg_matches, "memo", String).ok();
             let confidential = arg_matches.is_present("confidential");
+            let account_keys = custom_confidential_keys_of(arg_matches)?;
+            let mint_address = config.check_account(&account, mint_address).await?;
+            let mint_info = config
+                .get_mint_info(&mint_address, mint_decimals, Some(confidential))
+                .await?;
+            let use_confidential = confidential || mint_info.has_confidential_mint_burn;
+            let reporting =
+                (use_confidential && !config.sign_only).then(|| reporting_config(config));
             command_burn(
-                config,
+                reporting.as_ref().map_or(config, |(config, _)| config),
                 account,
                 owner,
                 amount,
-                mint_address,
-                mint_decimals,
+                mint_info,
                 use_unchecked_instruction,
                 permissioned_burn_authority,
                 memo,
                 bulk_signers,
-                confidential,
+                use_confidential,
+                account_keys,
+                owner_signer_for_keys,
             )
             .await
+            .inspect_err(|error| {
+                if let Some((config, client)) = &reporting {
+                    print_transaction_report(config, client, error);
+                }
+            })
         }
         (CommandName::Mint, arg_matches) => {
             let (mint_authority_signer, mint_authority) =
@@ -6035,8 +6201,11 @@ async fn process_command_inner(
             let use_unchecked_instruction = arg_matches.is_present("use_unchecked_instruction");
             let memo = value_t!(arg_matches, "memo", String).ok();
             let supply_keys = custom_confidential_keys_of(arg_matches)?;
+            let use_confidential = confidential || mint_info.has_confidential_mint_burn;
+            let reporting =
+                (use_confidential && !config.sign_only).then(|| reporting_config(config));
             command_mint(
-                config,
+                reporting.as_ref().map_or(config, |(config, _)| config),
                 token,
                 amount,
                 recipient,
@@ -6045,10 +6214,15 @@ async fn process_command_inner(
                 use_unchecked_instruction,
                 memo,
                 bulk_signers,
-                confidential,
+                use_confidential,
                 supply_keys,
             )
             .await
+            .inspect_err(|error| {
+                if let Some((config, client)) = &reporting {
+                    print_transaction_report(config, client, error);
+                }
+            })
         }
         (CommandName::Freeze, arg_matches) => {
             let (freeze_authority_signer, freeze_authority) =
@@ -6505,12 +6679,28 @@ async fn process_command_inner(
                 .map(|s| Pubkey::from_str(s).unwrap_or_else(print_error_and_exit))
                 .collect::<Vec<_>>();
             if arg_matches.is_present("confidential") {
-                let (withdraw_withheld_elgamal_keypair, _) =
-                    derive_confidential_keys(&*authority_signer).map_err(|err| err.to_string())?;
-                let (owner_signer, owner) =
-                    config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
-                let (_, destination_aes_key) =
-                    derive_confidential_keys(&*owner_signer).map_err(|err| err.to_string())?;
+                let withdraw_withheld_elgamal_keypair = if arg_matches
+                    .is_present("withdraw_withheld_authority_elgamal_keypair")
+                {
+                    elgamal_keypair_of(arg_matches, "withdraw_withheld_authority_elgamal_keypair")
+                        .map_err(|err| format!("Failed to read ElGamal keypair: {err}"))?
+                } else {
+                    derive_confidential_keys(&*authority_signer)
+                        .map_err(|err| err.to_string())?
+                        .0
+                };
+                let (destination_aes_key, owner) = if arg_matches.is_present("destination_aes_key")
+                {
+                    let aes_key = aes_key_of(arg_matches, "destination_aes_key")
+                        .map_err(|err| format!("Failed to read AES key: {err}"))?;
+                    (aes_key, None)
+                } else {
+                    let (owner_signer, owner) =
+                        config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
+                    let (_, aes_key) =
+                        derive_confidential_keys(&*owner_signer).map_err(|err| err.to_string())?;
+                    (aes_key, Some(owner))
+                };
 
                 command_withdraw_withheld_confidential_tokens(
                     config,
@@ -6667,12 +6857,8 @@ async fn process_command_inner(
 
             let account = pubkey_of_signer(arg_matches, "address", &mut wallet_manager).unwrap();
 
-            // Deriving ElGamal and AES key from signer. Custom ElGamal and AES keys will be
-            // supported in the future once upgrading to clap-v3.
-            //
-            // NOTE: This uses the standard (no-seed) derivation. Custom keys can use
-            // `derive_confidential_keys_with_seed` from `solana-zk-sdk`.
-            let (elgamal_keypair, aes_key) = derive_confidential_keys(&*owner_signer).unwrap();
+            let (elgamal_keypair, aes_key) =
+                confidential_keys_from_matches_or_signer(arg_matches, owner_signer.as_ref())?;
 
             if config.multisigner_pubkeys.is_empty() {
                 push_signer_with_dedup(owner_signer, &mut bulk_signers);
@@ -6740,19 +6926,18 @@ async fn process_command_inner(
             let (owner_signer, owner) =
                 config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
 
-            // Use the same signer-derived key as configure-confidential-transfer-account.
-            let (elgamal_keypair, _) =
-                derive_confidential_keys(&*owner_signer).map_err(|err| err.to_string())?;
+            let custom_keys = custom_confidential_keys_of(arg_matches)?;
 
             if config.multisigner_pubkeys.is_empty() {
-                push_signer_with_dedup(owner_signer, &mut bulk_signers);
+                push_signer_with_dedup(owner_signer.clone(), &mut bulk_signers);
             }
 
             command_empty_confidential_transfer_account(
                 config,
                 account,
                 owner,
-                &elgamal_keypair,
+                custom_keys,
+                owner_signer,
                 bulk_signers,
             )
             .await
@@ -6803,30 +6988,19 @@ async fn process_command_inner(
                 config.signer_or_default(arg_matches, "owner", &mut wallet_manager);
             let mint_decimals = arg_matches.get_one::<u8>(MINT_DECIMALS_ARG.name).copied();
 
-            let (instruction_type, elgamal_keypair, aes_key) = match c {
+            let (instruction_type, custom_keys) = match c {
                 CommandName::DepositConfidentialTokens => {
-                    (ConfidentialInstructionType::Deposit, None, None)
+                    (ConfidentialInstructionType::Deposit, None)
                 }
-                CommandName::WithdrawConfidentialTokens => {
-                    // Deriving ElGamal and AES key from signer. Custom ElGamal and AES keys will be
-                    // supported in the future once upgrading to clap-v3.
-                    //
-                    // NOTE: This uses the standard (no-seed) derivation. Custom keys can use
-                    // `derive_confidential_keys_with_seed` from `solana-zk-sdk`.
-                    let (elgamal_keypair, aes_key) =
-                        derive_confidential_keys(&*owner_signer).unwrap();
-
-                    (
-                        ConfidentialInstructionType::Withdraw,
-                        Some(elgamal_keypair),
-                        Some(aes_key),
-                    )
-                }
+                CommandName::WithdrawConfidentialTokens => (
+                    ConfidentialInstructionType::Withdraw,
+                    custom_confidential_keys_of(arg_matches)?,
+                ),
                 _ => panic!("Instruction not supported"),
             };
 
             if config.multisigner_pubkeys.is_empty() {
-                push_signer_with_dedup(owner_signer, &mut bulk_signers);
+                push_signer_with_dedup(owner_signer.clone(), &mut bulk_signers);
             }
 
             command_deposit_withdraw_confidential_tokens(
@@ -6838,8 +7012,8 @@ async fn process_command_inner(
                 amount,
                 mint_decimals,
                 instruction_type,
-                elgamal_keypair.as_ref(),
-                aes_key.as_ref(),
+                custom_keys,
+                owner_signer,
             )
             .await
         }
@@ -6851,15 +7025,10 @@ async fn process_command_inner(
 
             let account = pubkey_of_signer(arg_matches, "address", &mut wallet_manager).unwrap();
 
-            // Deriving ElGamal and AES key from signer. Custom ElGamal and AES keys will be
-            // supported in the future once upgrading to clap-v3.
-            //
-            // NOTE: This uses the standard (no-seed) derivation. Custom keys can use
-            // `derive_confidential_keys_with_seed` from `solana-zk-sdk`.
-            let (elgamal_keypair, aes_key) = derive_confidential_keys(&*owner_signer).unwrap();
+            let custom_keys = custom_confidential_keys_of(arg_matches)?;
 
             if config.multisigner_pubkeys.is_empty() {
-                push_signer_with_dedup(owner_signer, &mut bulk_signers);
+                push_signer_with_dedup(owner_signer.clone(), &mut bulk_signers);
             }
 
             command_apply_pending_balance(
@@ -6868,8 +7037,8 @@ async fn process_command_inner(
                 owner,
                 account,
                 bulk_signers,
-                &elgamal_keypair,
-                &aes_key,
+                custom_keys,
+                owner_signer,
             )
             .await
         }
