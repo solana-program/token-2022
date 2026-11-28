@@ -88,6 +88,9 @@ import {
     fetchToken,
     type ConfidentialBurnInput,
     type ConfidentialMintInput,
+    type ConfidentialTransferInput,
+    type ConfidentialTransferWithFeeInput,
+    type ConfidentialWithdrawInput,
 } from './generated';
 
 const DEFAULT_MAXIMUM_PENDING_BALANCE_CREDIT_COUNTER = 1n << 16n;
@@ -176,6 +179,12 @@ export type GetConfidentialWithdrawInstructionPlanInput = {
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
 };
 
+/** Input for {@link getConfidentialWithdrawWithInstructionOffsetProofsInstructionPlan}. */
+export type GetConfidentialWithdrawWithInstructionOffsetProofsInstructionPlanInput = Omit<
+    GetConfidentialWithdrawInstructionPlanInput,
+    'payer' | 'rpc'
+>;
+
 /** Input for {@link getConfidentialWithdrawWithRecordInstructionPlan}. */
 export type GetConfidentialWithdrawWithRecordInstructionPlanInput = GetConfidentialWithdrawInstructionPlanInput & {
     /** Funds the record account that stages the range proof. Defaults to `payer`. */
@@ -230,6 +239,17 @@ export type GetConfidentialTransferInstructionPlanInput = {
     | { destinationElgamalPubkey: Address; destinationTokenAccount?: never }
 );
 
+/** Input for {@link getConfidentialTransferWithInstructionOffsetProofsInstructionPlan}. */
+export type GetConfidentialTransferWithInstructionOffsetProofsInstructionPlanInput = Omit<
+    GetConfidentialTransferInstructionPlanInput,
+    'payer' | 'rpc' | 'destinationTokenAccount' | 'destinationElgamalPubkey'
+> & {
+    rpc: Rpc<GetAccountInfoApi>;
+} & (
+        | { destinationTokenAccount: Token; destinationElgamalPubkey?: Address }
+        | { destinationElgamalPubkey: Address; destinationTokenAccount?: never }
+    );
+
 /** Input for {@link getConfidentialTransferWithRecordInstructionPlan}. */
 export type GetConfidentialTransferWithRecordInstructionPlanInput = GetConfidentialTransferInstructionPlanInput & {
     /** Funds the record account that stages the range proof. Defaults to `payer`. */
@@ -250,6 +270,18 @@ export type GetConfidentialTransferWithFeeInstructionPlanInput = GetConfidential
     /** Receives the record account's reclaimed rent on close. Defaults to the record payer. */
     recordRentReceiver?: InstructionAccountInput;
 };
+
+/** Input for {@link getConfidentialTransferWithFeeWithInstructionOffsetProofsInstructionPlan}. */
+export type GetConfidentialTransferWithFeeWithInstructionOffsetProofsInstructionPlanInput = Omit<
+    GetConfidentialTransferInstructionPlanInput,
+    'payer' | 'rpc' | 'mintAccount' | 'destinationTokenAccount' | 'destinationElgamalPubkey'
+> & {
+    mintAccount: Mint;
+    currentEpoch: number | bigint;
+} & (
+        | { destinationTokenAccount: Token; destinationElgamalPubkey?: Address }
+        | { destinationElgamalPubkey: Address; destinationTokenAccount?: never }
+    );
 
 /**
  * Opts a helper into staging its batched range proof in an SPL Record account
@@ -451,7 +483,7 @@ async function getAuditorElGamalPubkey(input: {
     auditorElgamalPubkey?: Address;
     mintAccount?: Mint;
     mint: InstructionAccountInput;
-    rpc: Rpc<GetMinimumBalanceForRentExemptionApi & GetAccountInfoApi>;
+    rpc: Rpc<GetAccountInfoApi>;
 }) {
     if (input.auditorElgamalPubkey) {
         return getElGamalPubkeyFromAddress(input.auditorElgamalPubkey);
@@ -463,7 +495,7 @@ async function getAuditorElGamalPubkey(input: {
     return getAuditorElGamalPubkeyFromMint({ mintAccount });
 }
 
-function getDestinationElGamalPubkey(input: GetConfidentialTransferInstructionPlanInput) {
+function getDestinationElGamalPubkey(input: { destinationElgamalPubkey?: Address; destinationTokenAccount?: Token }) {
     if (input.destinationElgamalPubkey) {
         return getElGamalPubkeyFromAddress(input.destinationElgamalPubkey);
     }
@@ -886,7 +918,7 @@ type ConfidentialWithdrawProofData = {
 };
 
 function buildConfidentialWithdrawProofData(
-    input: GetConfidentialWithdrawInstructionPlanInput,
+    input: GetConfidentialWithdrawWithInstructionOffsetProofsInstructionPlanInput,
 ): ConfidentialWithdrawProofData {
     const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
     const amount = BigInt(input.amount);
@@ -914,6 +946,32 @@ function buildConfidentialWithdrawProofData(
     return { equalityProofData, rangeProofData, newAvailableBalance, amount };
 }
 
+type WithdrawProofLocation = Pick<
+    ConfidentialWithdrawInput,
+    | 'instructionsSysvar'
+    | 'equalityRecord'
+    | 'rangeRecord'
+    | 'equalityProofInstructionOffset'
+    | 'rangeProofInstructionOffset'
+>;
+
+function getConfidentialWithdrawInstructionArgs(
+    input: GetConfidentialWithdrawWithInstructionOffsetProofsInstructionPlanInput,
+    proofData: ConfidentialWithdrawProofData,
+    proofLocation: WithdrawProofLocation,
+): ConfidentialWithdrawInput {
+    return {
+        token: input.token,
+        mint: input.mint,
+        authority: input.authority,
+        amount: proofData.amount,
+        decimals: input.decimals,
+        newDecryptableAvailableBalance: input.aesKey.encrypt(proofData.newAvailableBalance).toBytes(),
+        ...proofLocation,
+        multiSigners: input.multiSigners,
+    };
+}
+
 function assembleConfidentialWithdrawPlan(
     input: GetConfidentialWithdrawInstructionPlanInput,
     proofData: ConfidentialWithdrawProofData,
@@ -923,22 +981,54 @@ function assembleConfidentialWithdrawPlan(
     return sequentialInstructionPlan([
         parallelInstructionPlan([equalityProofPlan.setup, rangeProofPlan.setup]),
         getConfidentialWithdrawInstruction(
-            {
-                token: input.token,
-                mint: input.mint,
+            getConfidentialWithdrawInstructionArgs(input, proofData, {
                 equalityRecord: equalityProofPlan.address,
                 rangeRecord: rangeProofPlan.address,
-                authority: input.authority,
-                amount: proofData.amount,
-                decimals: input.decimals,
-                newDecryptableAvailableBalance: input.aesKey.encrypt(proofData.newAvailableBalance).toBytes(),
                 equalityProofInstructionOffset: 0,
                 rangeProofInstructionOffset: 0,
-                multiSigners: input.multiSigners,
-            },
+            }),
             { programAddress: input.programAddress },
         ),
         parallelInstructionPlan([equalityProofPlan.cleanup, rangeProofPlan.cleanup]),
+    ]);
+}
+
+/**
+ * Returns a non-divisible plan containing a confidential withdraw followed by
+ * inline equality and U64 range proof verification instructions. The available
+ * confidential balance is reduced and the public token balance is credited. No
+ * context-state or record accounts are created. Do not insert instructions
+ * between the withdraw and its proof instructions.
+ *
+ * Requires transaction v1. Keep resource-limit estimation enabled or set both
+ * computeUnitLimit and loadedAccountsDataSizeLimit in the v1 message config;
+ * ComputeBudget instructions do not configure v1 limits. The v1 priority fee is
+ * a total, `priorityFeeLamports`. Legacy/v0 callers should use
+ * {@link getConfidentialWithdrawInstructionPlan} instead: planning and sending
+ * reject this oversized plan, but `signTransactions` does not. The token program
+ * does not permit withdrawals for mints with the ConfidentialMintBurn extension.
+ */
+export function getConfidentialWithdrawWithInstructionOffsetProofsInstructionPlan(
+    input: GetConfidentialWithdrawWithInstructionOffsetProofsInstructionPlanInput,
+): InstructionPlan {
+    const proofData = buildConfidentialWithdrawProofData(input);
+    return nonDivisibleSequentialInstructionPlan([
+        getConfidentialWithdrawInstruction(
+            getConfidentialWithdrawInstructionArgs(input, proofData, {
+                instructionsSysvar: SYSVAR_INSTRUCTIONS_ADDRESS,
+                equalityProofInstructionOffset: 1,
+                rangeProofInstructionOffset: 2,
+            }),
+            { programAddress: input.programAddress },
+        ),
+        getVerifyProofInstruction({
+            discriminator: ZkElGamalProofInstruction.VerifyCiphertextCommitmentEquality,
+            proofData: proofData.equalityProofData.toBytes(),
+        }),
+        getVerifyProofInstruction({
+            discriminator: ZkElGamalProofInstruction.VerifyBatchedRangeProofU64,
+            proofData: proofData.rangeProofData.toBytes(),
+        }),
     ]);
 }
 
@@ -1027,7 +1117,7 @@ type ConfidentialTransferProofData = {
 };
 
 async function buildConfidentialTransferProofData(
-    input: GetConfidentialTransferInstructionPlanInput,
+    input: GetConfidentialTransferWithInstructionOffsetProofsInstructionPlanInput,
 ): Promise<ConfidentialTransferProofData> {
     const sourceAccount = getRequiredConfidentialTransferAccountExtension(input.sourceTokenAccount);
     const amount = BigInt(input.amount);
@@ -1121,6 +1211,24 @@ async function buildConfidentialTransferProofData(
     };
 }
 
+function getConfidentialTransferInstructionArgs(
+    input: GetConfidentialTransferWithInstructionOffsetProofsInstructionPlanInput,
+    proofData: ConfidentialTransferProofData,
+    proofLocation: EqualityValidityRangeProofLocation,
+): ConfidentialTransferInput {
+    return {
+        sourceToken: input.sourceToken,
+        mint: input.mint,
+        destinationToken: input.destinationToken,
+        authority: input.authority,
+        newSourceDecryptableAvailableBalance: input.aesKey.encrypt(proofData.newAvailableBalance).toBytes(),
+        transferAmountAuditorCiphertextLo: proofData.transferAmountAuditorCiphertextLo,
+        transferAmountAuditorCiphertextHi: proofData.transferAmountAuditorCiphertextHi,
+        ...proofLocation,
+        multiSigners: input.multiSigners,
+    };
+}
+
 function assembleConfidentialTransferPlan(
     input: GetConfidentialTransferInstructionPlanInput,
     proofData: ConfidentialTransferProofData,
@@ -1134,22 +1242,14 @@ function assembleConfidentialTransferPlan(
     return sequentialInstructionPlan([
         parallelInstructionPlan([equalityProofPlan.setup, ciphertextValidityProofPlan.setup, rangeProofPlan.setup]),
         getConfidentialTransferInstruction(
-            {
-                sourceToken: input.sourceToken,
-                mint: input.mint,
-                destinationToken: input.destinationToken,
+            getConfidentialTransferInstructionArgs(input, proofData, {
                 equalityRecord: equalityProofPlan.address,
                 ciphertextValidityRecord: ciphertextValidityProofPlan.address,
                 rangeRecord: rangeProofPlan.address,
-                authority: input.authority,
-                newSourceDecryptableAvailableBalance: input.aesKey.encrypt(proofData.newAvailableBalance).toBytes(),
-                transferAmountAuditorCiphertextLo: proofData.transferAmountAuditorCiphertextLo,
-                transferAmountAuditorCiphertextHi: proofData.transferAmountAuditorCiphertextHi,
                 equalityProofInstructionOffset: 0,
                 ciphertextValidityProofInstructionOffset: 0,
                 rangeProofInstructionOffset: 0,
-                multiSigners: input.multiSigners,
-            },
+            }),
             { programAddress: input.programAddress },
         ),
         parallelInstructionPlan([
@@ -1157,6 +1257,33 @@ function assembleConfidentialTransferPlan(
             ciphertextValidityProofPlan.cleanup,
             rangeProofPlan.cleanup,
         ]),
+    ]);
+}
+
+/**
+ * Confidentially transfers tokens using three inline instruction-offset proofs.
+ * Returns a non-divisible plan ordered as transfer, equality, ciphertext validity,
+ * and range verification. Do not insert instructions between them. No context-state
+ * or record accounts are created. The auditor key is resolved from the input or
+ * the mint, fetching the mint when needed.
+ *
+ * Requires transaction v1. Keep resource-limit estimation enabled or set both
+ * computeUnitLimit and loadedAccountsDataSizeLimit in the v1 message config;
+ * ComputeBudget instructions do not configure v1 limits. The v1 priority fee is
+ * a total, `priorityFeeLamports`. Legacy/v0 callers should use
+ * {@link getConfidentialTransferInstructionPlan} instead: planning and sending
+ * reject this oversized plan, but `signTransactions` does not.
+ */
+export async function getConfidentialTransferWithInstructionOffsetProofsInstructionPlan(
+    input: GetConfidentialTransferWithInstructionOffsetProofsInstructionPlanInput,
+): Promise<InstructionPlan> {
+    const proofData = await buildConfidentialTransferProofData(input);
+    return nonDivisibleSequentialInstructionPlan([
+        getConfidentialTransferInstruction(
+            getConfidentialTransferInstructionArgs(input, proofData, INSTRUCTION_OFFSET_PROOF_LOCATION),
+            { programAddress: input.programAddress },
+        ),
+        ...buildEqualityValidityRangeVerifyProofInstructions(proofData),
     ]);
 }
 
@@ -1254,16 +1381,20 @@ export async function getConfidentialTransferWithRecordInstructionPlan(
     });
 }
 
-/**
- * Returns an instruction plan that confidentially transfers tokens between
- * two accounts when the mint is configured for confidential transfer fees.
- * Builds and verifies the five proofs required by `TransferWithFee` via
- * context-state accounts, using the `@solana/zk-sdk` Pedersen arithmetic API
- * to derive the combined fee and net-transfer commitments.
- */
-export async function getConfidentialTransferWithFeeInstructionPlan(
-    input: GetConfidentialTransferWithFeeInstructionPlanInput,
-): Promise<InstructionPlan> {
+type ConfidentialTransferWithFeeProofData = {
+    equalityProofData: CiphertextCommitmentEqualityProofData;
+    transferAmountCiphertextValidityProofData: BatchedGroupedCiphertext3HandlesValidityProofData;
+    percentageWithCapProofData: PercentageWithCapProofData;
+    feeCiphertextValidityProofData: BatchedGroupedCiphertext2HandlesValidityProofData;
+    rangeProofData: BatchedRangeProofU256Data;
+    transferAmountAuditorCiphertextLo: ReadonlyUint8Array;
+    transferAmountAuditorCiphertextHi: ReadonlyUint8Array;
+    newAvailableBalance: bigint;
+};
+
+function buildConfidentialTransferWithFeeProofData(
+    input: GetConfidentialTransferWithFeeWithInstructionOffsetProofsInstructionPlanInput,
+): ConfidentialTransferWithFeeProofData {
     const sourceAccount = getRequiredConfidentialTransferAccountExtension(input.sourceTokenAccount);
     const amount = BigInt(input.amount);
     assertNonNegativeAmount(amount);
@@ -1288,7 +1419,7 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
 
     const sourcePubkey = input.sourceElgamalKeypair.pubkey();
     const destinationPubkey = getDestinationElGamalPubkey(input);
-    const auditorPubkey = await getAuditorElGamalPubkey(input);
+    const auditorPubkey = getAuditorElGamalPubkeyFromMint(input);
     const withdrawWithheldAuthorityPubkey = getElGamalPubkeyFromAddress(confidentialTransferFee.elgamalPubkey);
 
     const transferAmountOpeningLo = new PedersenOpening();
@@ -1478,6 +1609,59 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
         ],
     );
 
+    return {
+        equalityProofData,
+        transferAmountCiphertextValidityProofData,
+        percentageWithCapProofData,
+        feeCiphertextValidityProofData,
+        rangeProofData,
+        transferAmountAuditorCiphertextLo,
+        transferAmountAuditorCiphertextHi,
+        newAvailableBalance,
+    };
+}
+
+type TransferWithFeeProofLocation = Pick<
+    ConfidentialTransferWithFeeInput,
+    | 'instructionsSysvar'
+    | 'equalityRecord'
+    | 'transferAmountCiphertextValidityRecord'
+    | 'feeSigmaRecord'
+    | 'feeCiphertextValidityRecord'
+    | 'rangeRecord'
+    | 'equalityProofInstructionOffset'
+    | 'transferAmountCiphertextValidityProofInstructionOffset'
+    | 'feeSigmaProofInstructionOffset'
+    | 'feeCiphertextValidityProofInstructionOffset'
+    | 'rangeProofInstructionOffset'
+>;
+
+function getConfidentialTransferWithFeeInstructionArgs(
+    input: GetConfidentialTransferWithFeeWithInstructionOffsetProofsInstructionPlanInput,
+    proofs: ConfidentialTransferWithFeeProofData,
+    proofLocation: TransferWithFeeProofLocation,
+): ConfidentialTransferWithFeeInput {
+    return {
+        sourceToken: input.sourceToken,
+        mint: input.mint,
+        destinationToken: input.destinationToken,
+        authority: input.authority,
+        newSourceDecryptableAvailableBalance: input.aesKey.encrypt(proofs.newAvailableBalance).toBytes(),
+        transferAmountAuditorCiphertextLo: proofs.transferAmountAuditorCiphertextLo,
+        transferAmountAuditorCiphertextHi: proofs.transferAmountAuditorCiphertextHi,
+        ...proofLocation,
+        multiSigners: input.multiSigners,
+    };
+}
+
+/**
+ * Returns a plan for a confidential transfer with fee, using context-state
+ * accounts for its five proofs and a record account for the range proof.
+ */
+export async function getConfidentialTransferWithFeeInstructionPlan(
+    input: GetConfidentialTransferWithFeeInstructionPlanInput,
+): Promise<InstructionPlan> {
+    const proofs = buildConfidentialTransferWithFeeProofData(input);
     const [
         equalityProofPlan,
         transferAmountCiphertextValidityProofPlan,
@@ -1486,31 +1670,31 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
         rangeProofPlan,
     ] = await Promise.all([
         buildContextStateProofPlan(
-            equalityProofData.toBytes(),
+            proofs.equalityProofData.toBytes(),
             verifyCiphertextCommitmentEquality,
             input.payer,
             input.rpc,
         ),
         buildContextStateProofPlan(
-            transferAmountCiphertextValidityProofData.toBytes(),
+            proofs.transferAmountCiphertextValidityProofData.toBytes(),
             verifyBatchedGroupedCiphertext3HandlesValidity,
             input.payer,
             input.rpc,
         ),
         buildContextStateProofPlan(
-            percentageWithCapProofData.toBytes(),
+            proofs.percentageWithCapProofData.toBytes(),
             verifyPercentageWithCap,
             input.payer,
             input.rpc,
         ),
         buildContextStateProofPlan(
-            feeCiphertextValidityProofData.toBytes(),
+            proofs.feeCiphertextValidityProofData.toBytes(),
             verifyBatchedGroupedCiphertext2HandlesValidity,
             input.payer,
             input.rpc,
         ),
         buildContextStateProofPlan(
-            rangeProofData.toBytes(),
+            proofs.rangeProofData.toBytes(),
             verifyBatchedRangeProofU256,
             input.payer,
             input.rpc,
@@ -1530,26 +1714,18 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
             rangeProofPlan.setup,
         ]),
         getConfidentialTransferWithFeeInstruction(
-            {
-                sourceToken: input.sourceToken,
-                mint: input.mint,
-                destinationToken: input.destinationToken,
+            getConfidentialTransferWithFeeInstructionArgs(input, proofs, {
                 equalityRecord: equalityProofPlan.address,
                 transferAmountCiphertextValidityRecord: transferAmountCiphertextValidityProofPlan.address,
                 feeSigmaRecord: percentageWithCapProofPlan.address,
                 feeCiphertextValidityRecord: feeCiphertextValidityProofPlan.address,
                 rangeRecord: rangeProofPlan.address,
-                authority: input.authority,
-                newSourceDecryptableAvailableBalance: input.aesKey.encrypt(newAvailableBalance).toBytes(),
-                transferAmountAuditorCiphertextLo,
-                transferAmountAuditorCiphertextHi,
                 equalityProofInstructionOffset: 0,
                 transferAmountCiphertextValidityProofInstructionOffset: 0,
                 feeSigmaProofInstructionOffset: 0,
                 feeCiphertextValidityProofInstructionOffset: 0,
                 rangeProofInstructionOffset: 0,
-                multiSigners: input.multiSigners,
-            },
+            }),
             { programAddress: input.programAddress },
         ),
         parallelInstructionPlan([
@@ -1559,6 +1735,58 @@ export async function getConfidentialTransferWithFeeInstructionPlan(
             feeCiphertextValidityProofPlan.cleanup,
             rangeProofPlan.cleanup,
         ]),
+    ]);
+}
+
+/**
+ * Returns a non-divisible plan containing the transfer and its five inline
+ * proof verification instructions. No context-state or record accounts are
+ * created. The current epoch must match the fee schedule at execution time.
+ * Do not insert instructions between the transfer and its proof instructions.
+ *
+ * Requires transaction v1. Keep resource-limit estimation enabled or set both
+ * computeUnitLimit and loadedAccountsDataSizeLimit in the v1 message config;
+ * ComputeBudget instructions do not configure v1 limits. The v1 priority fee is
+ * a total, `priorityFeeLamports`. Legacy/v0 callers should use
+ * {@link getConfidentialTransferWithFeeInstructionPlan} instead: planning and
+ * sending reject this oversized plan, but `signTransactions` does not.
+ */
+export function getConfidentialTransferWithFeeWithInstructionOffsetProofsInstructionPlan(
+    input: GetConfidentialTransferWithFeeWithInstructionOffsetProofsInstructionPlanInput,
+): InstructionPlan {
+    const proofs = buildConfidentialTransferWithFeeProofData(input);
+    return nonDivisibleSequentialInstructionPlan([
+        getConfidentialTransferWithFeeInstruction(
+            getConfidentialTransferWithFeeInstructionArgs(input, proofs, {
+                instructionsSysvar: SYSVAR_INSTRUCTIONS_ADDRESS,
+                equalityProofInstructionOffset: 1,
+                transferAmountCiphertextValidityProofInstructionOffset: 2,
+                feeSigmaProofInstructionOffset: 3,
+                feeCiphertextValidityProofInstructionOffset: 4,
+                rangeProofInstructionOffset: 5,
+            }),
+            { programAddress: input.programAddress },
+        ),
+        getVerifyProofInstruction({
+            discriminator: ZkElGamalProofInstruction.VerifyCiphertextCommitmentEquality,
+            proofData: proofs.equalityProofData.toBytes(),
+        }),
+        getVerifyProofInstruction({
+            discriminator: ZkElGamalProofInstruction.VerifyBatchedGroupedCiphertext3HandlesValidity,
+            proofData: proofs.transferAmountCiphertextValidityProofData.toBytes(),
+        }),
+        getVerifyProofInstruction({
+            discriminator: ZkElGamalProofInstruction.VerifyPercentageWithCap,
+            proofData: proofs.percentageWithCapProofData.toBytes(),
+        }),
+        getVerifyProofInstruction({
+            discriminator: ZkElGamalProofInstruction.VerifyBatchedGroupedCiphertext2HandlesValidity,
+            proofData: proofs.feeCiphertextValidityProofData.toBytes(),
+        }),
+        getVerifyProofInstruction({
+            discriminator: ZkElGamalProofInstruction.VerifyBatchedRangeProofU256,
+            proofData: proofs.rangeProofData.toBytes(),
+        }),
     ]);
 }
 
@@ -1573,12 +1801,12 @@ function assertMintBurnAmount(amount: bigint, label: 'Mint' | 'Burn'): void {
     }
 }
 
-// Where a confidential mint or burn instruction reads its three proofs from:
+// Where a confidential transfer, mint or burn instruction reads its three proofs from:
 // context-state accounts (the `…Record` accounts, with every offset `0`), or
 // verify instructions in the same transaction, read through the instructions
-// sysvar at the given offsets. The mint, burn and permissioned burn
+// sysvar at the given offsets. The transfer, mint, burn and permissioned burn
 // instructions share these field names.
-type MintBurnProofLocation = Pick<
+type EqualityValidityRangeProofLocation = Pick<
     ConfidentialMintInput,
     | 'instructionsSysvar'
     | 'equalityRecord'
@@ -1598,16 +1826,15 @@ type MintBurnProofLocation = Pick<
 // (`interface/src/extension/permissioned_burn/instruction.rs`). The generated
 // builders have no default for the optional instructions sysvar account, so it
 // is set explicitly.
-const INSTRUCTION_OFFSET_PROOF_LOCATION: MintBurnProofLocation = {
+const INSTRUCTION_OFFSET_PROOF_LOCATION: EqualityValidityRangeProofLocation = {
     instructionsSysvar: SYSVAR_INSTRUCTIONS_ADDRESS,
     equalityProofInstructionOffset: 1,
     ciphertextValidityProofInstructionOffset: 2,
     rangeProofInstructionOffset: 3,
 };
 
-// The three proofs a confidential mint or burn verifies. Mint, burn and
-// permissioned burn all verify the same three proof types.
-type ConfidentialMintBurnProofs = {
+// The three proof types shared by transfer, mint, burn and permissioned burn.
+type EqualityValidityRangeProofs = {
     equalityProofData: CiphertextCommitmentEqualityProofData;
     ciphertextValidityProofData: BatchedGroupedCiphertext3HandlesValidityProofData;
     rangeProofData: BatchedRangeProofU128Data;
@@ -1615,7 +1842,7 @@ type ConfidentialMintBurnProofs = {
 
 // The proof data and instruction fields for a confidential mint, derived from
 // the input independently of how each proof is delivered on-chain.
-type ConfidentialMintProofData = ConfidentialMintBurnProofs & {
+type ConfidentialMintProofData = EqualityValidityRangeProofs & {
     newDecryptableSupply: ConfidentialMintInput['newDecryptableSupply'];
     mintAmountAuditorCiphertextLo: ConfidentialMintInput['mintAmountAuditorCiphertextLo'];
     mintAmountAuditorCiphertextHi: ConfidentialMintInput['mintAmountAuditorCiphertextHi'];
@@ -1624,7 +1851,7 @@ type ConfidentialMintProofData = ConfidentialMintBurnProofs & {
 // The proof data and instruction fields for a confidential burn (standard or
 // permissioned), derived from the input independently of how each proof is
 // delivered on-chain.
-type ConfidentialBurnProofData = ConfidentialMintBurnProofs & {
+type ConfidentialBurnProofData = EqualityValidityRangeProofs & {
     newDecryptableAvailableBalance: ConfidentialBurnInput['newDecryptableAvailableBalance'];
     burnAmountAuditorCiphertextLo: ConfidentialBurnInput['burnAmountAuditorCiphertextLo'];
     burnAmountAuditorCiphertextHi: ConfidentialBurnInput['burnAmountAuditorCiphertextHi'];
@@ -1636,7 +1863,7 @@ type ConfidentialBurnProofData = ConfidentialMintBurnProofs & {
 type ConfidentialMintBurnContextStateProofPlan = {
     setup: InstructionPlan;
     cleanup: InstructionPlan;
-    proofLocation: MintBurnProofLocation;
+    proofLocation: EqualityValidityRangeProofLocation;
 };
 
 // The context-state setup/cleanup plans and mint-instruction arguments produced
@@ -1878,7 +2105,7 @@ function buildConfidentialBurnProofData(
  * by the mint and burn context-state helpers.
  */
 async function buildConfidentialMintBurnContextStateProofPlan(
-    proofs: ConfidentialMintBurnProofs,
+    proofs: EqualityValidityRangeProofs,
     payer: TransactionSigner,
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>,
     record?: RecordBackedProofOptions,
@@ -1926,12 +2153,12 @@ async function buildConfidentialMintBurnContextStateProofPlan(
 }
 
 /**
- * Builds the three verify instructions that carry the mint/burn proofs inline,
+ * Builds the three verify instructions shared by transfer, mint and burn,
  * in the order {@link INSTRUCTION_OFFSET_PROOF_LOCATION} expects: equality,
  * ciphertext validity, range. They target the canonical ZK ElGamal proof
  * program, the only one token-2022 reads instruction-offset proofs from.
  */
-function buildMintBurnVerifyProofInstructions(proofs: ConfidentialMintBurnProofs): Instruction[] {
+function buildEqualityValidityRangeVerifyProofInstructions(proofs: EqualityValidityRangeProofs): Instruction[] {
     return [
         getVerifyProofInstruction({
             discriminator: ZkElGamalProofInstruction.VerifyCiphertextCommitmentEquality,
@@ -1956,7 +2183,7 @@ function buildMintBurnVerifyProofInstructions(proofs: ConfidentialMintBurnProofs
 function getConfidentialMintInstructionArgs(
     input: GetConfidentialMintWithInstructionOffsetProofsInstructionPlanInput,
     proofData: ConfidentialMintProofData,
-    proofLocation: MintBurnProofLocation,
+    proofLocation: EqualityValidityRangeProofLocation,
 ): ConfidentialMintInput {
     return {
         token: input.token,
@@ -2096,7 +2323,7 @@ export function getConfidentialMintWithInstructionOffsetProofsInstructionPlan(
             getConfidentialMintInstructionArgs(input, proofData, INSTRUCTION_OFFSET_PROOF_LOCATION),
             { programAddress: input.programAddress },
         ),
-        ...buildMintBurnVerifyProofInstructions(proofData),
+        ...buildEqualityValidityRangeVerifyProofInstructions(proofData),
     ]);
 }
 
@@ -2121,7 +2348,7 @@ type ConfidentialBurnProofPlan = {
 function getConfidentialBurnInstructionArgs(
     input: GetConfidentialBurnWithInstructionOffsetProofsInstructionPlanInput,
     proofData: ConfidentialBurnProofData,
-    proofLocation: MintBurnProofLocation,
+    proofLocation: EqualityValidityRangeProofLocation,
 ): Omit<ConfidentialBurnInput, 'multiSigners'> {
     return {
         token: input.token,
@@ -2250,7 +2477,7 @@ export function getConfidentialBurnWithInstructionOffsetProofsInstructionPlan(
             },
             { programAddress: input.programAddress },
         ),
-        ...buildMintBurnVerifyProofInstructions(proofData),
+        ...buildEqualityValidityRangeVerifyProofInstructions(proofData),
     ]);
 }
 
@@ -2340,7 +2567,7 @@ export function getPermissionedConfidentialBurnWithInstructionOffsetProofsInstru
             },
             { programAddress: input.programAddress },
         ),
-        ...buildMintBurnVerifyProofInstructions(proofData),
+        ...buildEqualityValidityRangeVerifyProofInstructions(proofData),
     ]);
 }
 
